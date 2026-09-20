@@ -81,7 +81,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
   const studentId = normalizedStudentIds[0]
   const { data: doc, error: docError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, content, feedback, authenticity_score, updated_at')
+    .select('id, student_id, content, feedback, authenticity_score, updated_at, is_submitted, submitted_at')
     .eq('assignment_id', id)
     .eq('student_id', studentId)
     .maybeSingle()

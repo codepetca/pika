@@ -6,8 +6,17 @@ import {
   type StructuredOutputResponse,
 } from '@/lib/grading/providers/types'
 
-const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
+const DEEPSEEK_CHAT_COMPLETIONS_URL = 'https://api.deepseek.com/chat/completions'
 const RETRYABLE_STATUS_CODES = new Set([408, 409, 429, 500, 502, 503, 504])
+
+// DeepSeek exposes coarse thinking tiers instead of OpenAI's reasoning_effort
+// scale. Map the provider-neutral levels onto the tiers the API accepts.
+const DEEPSEEK_REASONING_EFFORT: Record<StructuredOutputRequest['reasoningEffort'], string> = {
+  minimal: 'low',
+  low: 'low',
+  medium: 'high',
+  high: 'max',
+}
 
 function isTimeoutError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
@@ -15,14 +24,23 @@ function isTimeoutError(error: unknown): boolean {
   return name === 'AbortError' || name === 'TimeoutError'
 }
 
-export function createOpenAiResponsesProvider(opts: {
+// DeepSeek JSON output only guarantees syntactic validity, so the schema has to
+// travel in the prompt. The engine still validates every field before use.
+function buildSchemaDirectedSystemPrompt(request: StructuredOutputRequest): string {
+  return `${request.systemPrompt}
+
+Reply with a single json object named "${request.schemaName}" that validates against this JSON Schema. Output only that json object: no prose, no explanation, no markdown code fences.
+${JSON.stringify(request.jsonSchema)}`
+}
+
+export function createDeepSeekChatProvider(opts: {
   apiKey: string
   fetchImpl?: typeof fetch
 }): StructuredOutputProvider {
   const fetchImpl = opts.fetchImpl ?? fetch
 
   return {
-    id: 'openai',
+    id: 'deepseek',
     async generate(request): Promise<StructuredOutputResponse> {
       let requestCount = 1
       let payload = await fetchPayload(fetchImpl, opts.apiKey, request, request.initialMaxOutputTokens)
@@ -37,7 +55,7 @@ export function createOpenAiResponsesProvider(opts: {
       if (isMaxOutputIncomplete(payload)) {
         throw new GradingProviderError({
           kind: 'bad_response',
-          message: 'OpenAI response incomplete: max_output_tokens',
+          message: 'DeepSeek response incomplete: max_tokens',
           retryable: false,
         })
       }
@@ -46,7 +64,7 @@ export function createOpenAiResponsesProvider(opts: {
       if (!outputText) {
         throw new GradingProviderError({
           kind: 'bad_response',
-          message: 'OpenAI response missing structured output',
+          message: 'DeepSeek response missing structured output',
           retryable: false,
         })
       }
@@ -64,7 +82,7 @@ async function fetchPayload(
 ): Promise<unknown> {
   let response: Response
   try {
-    response = await fetchImpl(OPENAI_RESPONSES_URL, {
+    response = await fetchImpl(DEEPSEEK_CHAT_COMPLETIONS_URL, {
       method: 'POST',
       redirect: 'error',
       headers: {
@@ -73,21 +91,14 @@ async function fetchPayload(
       },
       body: JSON.stringify({
         model: request.model,
-        store: false,
-        input: [
-          { role: 'system', content: [{ type: 'input_text', text: request.systemPrompt }] },
-          { role: 'user', content: [{ type: 'input_text', text: request.userPrompt }] },
+        stream: false,
+        messages: [
+          { role: 'system', content: buildSchemaDirectedSystemPrompt(request) },
+          { role: 'user', content: request.userPrompt },
         ],
-        reasoning: { effort: request.reasoningEffort },
-        max_output_tokens: maxOutputTokens,
-        text: {
-          format: {
-            type: 'json_schema',
-            name: request.schemaName,
-            strict: true,
-            schema: request.jsonSchema,
-          },
-        },
+        reasoning_effort: DEEPSEEK_REASONING_EFFORT[request.reasoningEffort],
+        max_tokens: maxOutputTokens,
+        response_format: { type: 'json_object' },
       }),
       signal: request.requestTimeoutMs && request.requestTimeoutMs > 0
         ? AbortSignal.timeout(request.requestTimeoutMs)
@@ -98,8 +109,8 @@ async function fetchPayload(
     throw new GradingProviderError({
       kind: timedOut ? 'timeout' : 'network',
       message: timedOut
-        ? 'OpenAI grading request timed out'
-        : 'OpenAI request failed',
+        ? 'DeepSeek grading request timed out'
+        : 'DeepSeek request failed',
       retryable: true,
     })
   }
@@ -113,10 +124,10 @@ async function fetchPayload(
         ? 'rate_limit'
         : retryable
           ? 'server'
-          : response.status === 401 || response.status === 403
+          : response.status === 401 || response.status === 402 || response.status === 403
             ? 'config'
             : 'bad_response',
-      message: `OpenAI request failed (${response.status})`,
+      message: `DeepSeek request failed (${response.status})`,
       retryable,
       statusCode: response.status,
     })
@@ -129,52 +140,42 @@ async function fetchPayload(
     throw new GradingProviderError({
       kind: timedOut ? 'timeout' : 'bad_response',
       message: timedOut
-        ? 'OpenAI grading response timed out'
-        : `OpenAI returned invalid JSON (status ${response.status})`,
+        ? 'DeepSeek grading response timed out'
+        : `DeepSeek returned invalid JSON (status ${response.status})`,
       retryable: timedOut,
       statusCode: response.status,
     })
   }
 }
 
-function extractOutputText(payload: unknown): string | null {
-  const record = payload as { output_text?: unknown; output_parsed?: unknown; output?: unknown }
-  if (typeof record?.output_text === 'string' && record.output_text.trim()) {
-    return record.output_text.trim()
-  }
-  if (record?.output_parsed && typeof record.output_parsed === 'object') {
-    return JSON.stringify(record.output_parsed)
-  }
-  if (!Array.isArray(record?.output)) return null
+function firstChoice(payload: unknown): {
+  message?: { content?: unknown }
+  finish_reason?: unknown
+} | null {
+  const choices = (payload as { choices?: unknown })?.choices
+  if (!Array.isArray(choices) || choices.length === 0) return null
+  const choice = choices[0]
+  return choice && typeof choice === 'object' ? choice : null
+}
 
-  const textParts: string[] = []
-  for (const item of record.output) {
-    const content = (item as { content?: unknown })?.content
-    if (!Array.isArray(content)) continue
-    for (const part of content) {
-      const output = part as { type?: unknown; text?: unknown; parsed?: unknown; json?: unknown }
-      if (output.type === 'output_text' && typeof output.text === 'string' && output.text.trim()) {
-        textParts.push(output.text.trim())
-      } else if (output.parsed && typeof output.parsed === 'object') {
-        return JSON.stringify(output.parsed)
-      } else if (output.json && typeof output.json === 'object') {
-        return JSON.stringify(output.json)
-      }
-    }
-  }
-  return textParts.length > 0 ? textParts.join('\n') : null
+function extractOutputText(payload: unknown): string | null {
+  // Thinking mode returns reasoning_content alongside content; only content
+  // carries the structured answer.
+  const content = firstChoice(payload)?.message?.content
+  if (typeof content !== 'string') return null
+  const trimmed = content.trim()
+  return trimmed ? trimmed : null
 }
 
 function isMaxOutputIncomplete(payload: unknown): boolean {
-  const record = payload as { status?: unknown; incomplete_details?: { reason?: unknown } }
-  return record?.status === 'incomplete' && record.incomplete_details?.reason === 'max_output_tokens'
+  return firstChoice(payload)?.finish_reason === 'length'
 }
 
 function readTokenUsage(payload: unknown): GradingTokenUsage {
   const usage = (payload as { usage?: Record<string, unknown> })?.usage ?? {}
   return {
-    inputTokens: finiteInteger(usage.input_tokens),
-    outputTokens: finiteInteger(usage.output_tokens),
+    inputTokens: finiteInteger(usage.prompt_tokens),
+    outputTokens: finiteInteger(usage.completion_tokens),
     totalTokens: finiteInteger(usage.total_tokens),
   }
 }

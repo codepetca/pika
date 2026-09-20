@@ -570,13 +570,13 @@ describe('tickTestAiGradingRun', () => {
   it.each(['unknown', 'duplicate'])('keeps actual batch adapter %s-ref errors content-free in saved run items', async (failure) => {
     const actual = await vi.importActual<typeof import('@/lib/ai-test-grading')>('@/lib/ai-test-grading')
     const privateMarker = 'PRIVATE student@example.invalid code-123456 student-work'
-    const originalApiKey = process.env.OPENAI_API_KEY
-    process.env.OPENAI_API_KEY = 'synthetic-key'
+    const originalApiKey = process.env.DEEPSEEK_API_KEY
+    process.env.DEEPSEEK_API_KEY = 'synthetic-key'
     const rows = failure === 'unknown'
       ? [{ response_id: privateMarker, score: 5, feedback: 'Synthetic feedback' }]
       : [1, 2].map(() => ({ response_id: 'response_1', score: 5, feedback: privateMarker }))
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(JSON.stringify({
-      output_text: JSON.stringify({ results: rows }),
+      choices: [{ message: { content: JSON.stringify({ results: rows }) }, finish_reason: 'stop' }],
     }))))
     const originalImplementation = suggestTestOpenResponseGradesBatchWithContext.getMockImplementation()
     try {
@@ -602,7 +602,7 @@ describe('tickTestAiGradingRun', () => {
       expect(JSON.stringify(items)).not.toContain(privateMarker)
       expect(JSON.stringify(result)).not.toContain(privateMarker)
     } finally {
-      process.env.OPENAI_API_KEY = originalApiKey
+      process.env.DEEPSEEK_API_KEY = originalApiKey
       suggestTestOpenResponseGradesBatchWithContext.mockReset()
       if (originalImplementation) suggestTestOpenResponseGradesBatchWithContext.mockImplementation(originalImplementation)
       vi.unstubAllGlobals()

@@ -18,12 +18,12 @@ import {
   PIKA_ASSIGNMENT_POLICY_VERSION,
   type PikaAssignmentGradingInput,
 } from '@/lib/grading/profiles/pika-assignment'
-import { createOpenAiResponsesProvider } from '@/lib/grading/providers/openai-responses'
+import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
 import { GradingProviderError } from '@/lib/grading/providers/types'
 import { extractPlainText } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
-const DEFAULT_MODEL = 'gpt-5-nano'
+const DEFAULT_MODEL = 'deepseek-flash'
 
 export type AssignmentAiErrorKind =
   | 'config'
@@ -68,8 +68,8 @@ interface AssignmentGradingTelemetryContext {
   attempt?: number | null
 }
 
-function getOpenAIKey(): string | null {
-  const key = process.env.OPENAI_API_KEY
+function getDeepSeekKey(): string | null {
+  const key = process.env.DEEPSEEK_API_KEY
   if (!key) return null
   return key.trim() || null
 }
@@ -99,36 +99,106 @@ function mergeAssignmentArtifacts(
   return Array.from(byUrl.values())
 }
 
+// Uploaded images are stored with an app-relative src, which URL-based
+// artifact extraction does not recognize, so embedded images are found
+// directly in the document regardless of how their src is stored.
+function countEmbeddedImages(node: { type?: string; content?: unknown[] }): number {
+  const own = node.type === 'image' ? 1 : 0
+  const children = Array.isArray(node.content) ? node.content : []
+  return own + children.reduce<number>(
+    (sum, child) => sum + (child && typeof child === 'object' ? countEmbeddedImages(child as typeof node) : 0),
+    0,
+  )
+}
+
+export const EMBEDDED_IMAGE_MARKER = '[Image attached]'
+const TEXT_BLOCK_TYPES = new Set(['paragraph', 'heading', 'codeBlock', 'bulletList', 'orderedList'])
+
+// Same text as extractPlainText, with a marker wherever the student placed an
+// image, so the grader can tell which task each screenshot belongs to.
+function extractTextWithImageMarkers(studentWork: TiptapContent): string {
+  const lines: string[] = []
+  for (const node of studentWork.content ?? []) {
+    if (node.type === 'image') {
+      lines.push(EMBEDDED_IMAGE_MARKER)
+      continue
+    }
+    if (node.type && TEXT_BLOCK_TYPES.has(node.type)) {
+      lines.push(extractPlainText({ type: 'doc', content: [node] }))
+    }
+    for (let index = countEmbeddedImages(node); index > 0; index--) {
+      lines.push(EMBEDDED_IMAGE_MARKER)
+    }
+  }
+  return lines.join('\n')
+}
+
+function collectGradingArtifacts(
+  studentWork: TiptapContent,
+  submissionArtifacts: AssignmentArtifact[],
+): { uploadedImageCount: number; otherArtifacts: AssignmentArtifact[] } {
+  const merged = mergeAssignmentArtifacts(
+    extractAssignmentArtifacts(studentWork).filter((artifact) => artifact.type !== 'image'),
+    submissionArtifacts,
+  )
+  const otherArtifacts = merged.filter((artifact) => artifact.type !== 'image')
+  return { uploadedImageCount: merged.length - otherArtifacts.length, otherArtifacts }
+}
+
 export function hasGradableAssignmentSubmission(
   studentWork: TiptapContent,
   submissionArtifacts: AssignmentArtifact[] = []
 ): boolean {
   const studentText = extractPlainText(studentWork).trim()
-  const artifacts = mergeAssignmentArtifacts(extractAssignmentArtifacts(studentWork), submissionArtifacts)
+  const { uploadedImageCount, otherArtifacts } = collectGradingArtifacts(studentWork, submissionArtifacts)
 
-  return studentText.length > 0 || artifacts.length > 0
+  return studentText.length > 0
+    || countEmbeddedImages(studentWork) > 0
+    || uploadedImageCount > 0
+    || otherArtifacts.length > 0
+}
+
+/**
+ * Below this, a document is a placeholder rather than an attempt, and grading
+ * it wastes a provider call to say so.
+ */
+export const BLANK_SUBMISSION_MAX_WORDS = 10
+
+export function isBlankAssignmentSubmission(
+  studentWork: TiptapContent,
+  submissionArtifacts: AssignmentArtifact[] = []
+): boolean {
+  const { uploadedImageCount, otherArtifacts } = collectGradingArtifacts(studentWork, submissionArtifacts)
+  if (uploadedImageCount > 0 || otherArtifacts.length > 0 || countEmbeddedImages(studentWork) > 0) {
+    return false
+  }
+  const words = extractPlainText(studentWork).trim().split(/\s+/).filter(Boolean)
+  return words.length < BLANK_SUBMISSION_MAX_WORDS
 }
 
 function buildStudentSubmissionText(
   studentWork: TiptapContent,
   submissionArtifacts: AssignmentArtifact[] = []
 ): string {
-  const studentText = extractPlainText(studentWork).trim()
-  const artifacts = mergeAssignmentArtifacts(extractAssignmentArtifacts(studentWork), submissionArtifacts)
+  const studentText = extractTextWithImageMarkers(studentWork).trim()
+  const { uploadedImageCount, otherArtifacts } = collectGradingArtifacts(studentWork, submissionArtifacts)
   const sections: string[] = []
 
   if (studentText) {
     sections.push(studentText)
   }
 
-  if (artifacts.length > 0) {
-    const artifactLines = artifacts.map((artifact) => {
-      const repoSummary =
-        artifact.type === 'repo' && artifact.repo_owner && artifact.repo_name
-          ? ` (${sanitizeAiText(artifact.repo_owner)}/${sanitizeAiText(artifact.repo_name)})`
-          : ''
-      return `- ${formatArtifactLabel(artifact)}: ${sanitizeAiText(artifact.url)}${repoSummary}`
-    })
+  if (uploadedImageCount > 0 || otherArtifacts.length > 0) {
+    const artifactLines = [
+      ...Array.from({ length: uploadedImageCount }, () => '- Image: attached'),
+      ...otherArtifacts.map((artifact) => {
+        const repoSummary =
+          artifact.type === 'repo' && artifact.repo_owner && artifact.repo_name
+            ? ` (${sanitizeAiText(artifact.repo_owner)}/${sanitizeAiText(artifact.repo_name)})`
+            : ''
+        return `- ${formatArtifactLabel(artifact)}: ${sanitizeAiText(artifact.url)}${repoSummary}`
+      }),
+    ]
     sections.push(`Attached Artifacts:\n${artifactLines.join('\n')}`)
   }
 
@@ -174,7 +244,7 @@ export function buildAssignmentGradingRequest(opts: {
   submissionArtifacts?: AssignmentArtifact[]
   sanitizationContext?: AiSanitizationContext | null
 }): AssignmentGradingRequest {
-  const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const model = process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
   const studentSubmission = buildStudentSubmissionText(opts.studentWork, opts.submissionArtifacts)
   const assignmentTitle = sanitizeAiText(opts.assignmentTitle, opts.sanitizationContext ?? undefined)
   const instructions = sanitizeAiText(opts.instructions, opts.sanitizationContext ?? undefined)
@@ -183,11 +253,9 @@ export function buildAssignmentGradingRequest(opts: {
     instructions,
     submission: sanitizeAiText(studentSubmission, opts.sanitizationContext ?? undefined),
   }
-  const prompt = PIKA_ASSIGNMENT_GRADING_PROFILE.buildPrompt(input)
-
   return {
     model,
-    ...prompt,
+    ...PIKA_ASSIGNMENT_GRADING_PROFILE.buildPrompt(input),
     input,
   }
 }
@@ -229,6 +297,7 @@ function toAssignmentAiGradingError(error: unknown): AssignmentAiGradingError {
   })
 }
 
+
 export async function gradeStudentWork(opts: {
   assignmentTitle: string
   instructions: string
@@ -238,11 +307,11 @@ export async function gradeStudentWork(opts: {
   telemetry?: AssignmentGradingTelemetryContext
   sanitizationContext?: AiSanitizationContext | null
 }): Promise<GradeResult> {
-  const apiKey = getOpenAIKey()
+  const apiKey = getDeepSeekKey()
   if (!apiKey) {
     throw new AssignmentAiGradingError({
       kind: 'config',
-      message: 'OPENAI_API_KEY is not configured',
+      message: 'DEEPSEEK_API_KEY is not configured',
       retryable: false,
     })
   }
@@ -255,17 +324,18 @@ export async function gradeStudentWork(opts: {
     sanitizationContext: opts.sanitizationContext,
   })
   const promptMetrics = estimatePromptMetrics(request.systemPrompt, request.userPrompt)
+  const policy = {
+    version: PIKA_ASSIGNMENT_POLICY_VERSION,
+    model: request.model,
+    requestTimeoutMs: opts.requestTimeoutMs,
+    reasoningEffort: 'medium' as const,
+  }
   try {
     const gradingResult = await executeGrading({
       input: request.input,
       profile: PIKA_ASSIGNMENT_GRADING_PROFILE,
-      provider: createOpenAiResponsesProvider({ apiKey }),
-      policy: {
-        version: PIKA_ASSIGNMENT_POLICY_VERSION,
-        model: request.model,
-        requestTimeoutMs: opts.requestTimeoutMs,
-        reasoningEffort: 'minimal',
-      },
+      provider: createDeepSeekChatProvider({ apiKey }),
+      policy,
     })
     const scores = new Map(
       gradingResult.criteriaResults.map((criterion) => [criterion.criterionId, criterion.score]),

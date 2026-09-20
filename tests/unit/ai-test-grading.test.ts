@@ -17,15 +17,15 @@ import { buildAiSanitizationContext } from '@/lib/ai-sanitization'
 import { GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE } from '@/lib/test-ai-prompt-guideline'
 
 describe('suggestTestOpenResponseGrade', () => {
-  const originalApiKey = process.env.OPENAI_API_KEY
+  const originalApiKey = process.env.DEEPSEEK_API_KEY
 
   beforeEach(() => {
-    process.env.OPENAI_API_KEY = 'test-key'
+    process.env.DEEPSEEK_API_KEY = 'test-key'
     vi.stubGlobal('fetch', vi.fn())
   })
 
   afterEach(() => {
-    process.env.OPENAI_API_KEY = originalApiKey
+    process.env.DEEPSEEK_API_KEY = originalApiKey
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -35,7 +35,7 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text: '{"score": 4.25, "feedback": "Good start. Add one more key detail."}',
+        choices: [{ message: { content: '{"score": 4.25, "feedback": "Good start. Add one more key detail."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -51,7 +51,7 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(suggestion).toMatchObject({
       score: 4,
       feedback: 'Good start. Add one more key detail.',
-      model: 'gpt-5-nano',
+      model: 'deepseek-flash',
       grading_basis: 'teacher_key',
       reference_answers: [],
     })
@@ -63,15 +63,13 @@ describe('suggestTestOpenResponseGrade', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          output_text:
-            '{"reference_answers":["Defines osmosis accurately.","Mentions membrane and concentration gradient."]}',
+          choices: [{ message: { content: '{"reference_answers":["Defines osmosis accurately.","Mentions membrane and concentration gradient."]}' }, finish_reason: 'stop' }],
         }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          output_text:
-            '{"score": 3.5, "feedback": "You captured the core idea. Add membrane details for full marks."}',
+          choices: [{ message: { content: '{"score": 3.5, "feedback": "You captured the core idea. Add membrane details for full marks."}' }, finish_reason: 'stop' }],
         }),
       })
 
@@ -96,8 +94,7 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"score": 4, "feedback": "Accurate core idea with good specificity. Add one edge case."}',
+        choices: [{ message: { content: '{"score": 4, "feedback": "Accurate core idea with good specificity. Add one edge case."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -126,15 +123,13 @@ describe('suggestTestOpenResponseGrade', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          output_text:
-            '{"reference_answers":["Uses an array and iterates once with O(n) complexity."]}',
+          choices: [{ message: { content: '{"reference_answers":["Uses an array and iterates once with O(n) complexity."]}' }, finish_reason: 'stop' }],
         }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          output_text:
-            '{"score": 9, "feedback": "Strong logic and readable structure. Add edge-case handling for full marks."}',
+          choices: [{ message: { content: '{"score": 9, "feedback": "Strong logic and readable structure. Add edge-case handling for full marks."}' }, finish_reason: 'stop' }],
         }),
       })
 
@@ -149,7 +144,7 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
     const gradingRequest = fetchMock.mock.calls[1]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
-    const systemPrompt = gradingBody.input?.[0]?.content?.[0]?.text as string
+    const systemPrompt = gradingBody.messages?.[0]?.content as string
 
     expect(systemPrompt).toContain('This is a coding response.')
     expect(systemPrompt).toContain('award high partial credit')
@@ -171,8 +166,7 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"score": 4, "feedback": "Strength: Correct logic. Next Step: improve indentation. Improve: Reformat nested blocks for full marks."}',
+        choices: [{ message: { content: '{"score": 4, "feedback": "Strength: Correct logic. Next Step: improve indentation. Improve: Reformat nested blocks for full marks."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -187,7 +181,7 @@ describe('suggestTestOpenResponseGrade', () => {
 
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
-    const systemPrompt = gradingBody.input?.[0]?.content?.[0]?.text as string
+    const systemPrompt = gradingBody.messages?.[0]?.content as string
 
     expect(systemPrompt).toContain('Cap any readability/style deduction at 1 point for this question.')
   })
@@ -197,8 +191,7 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"score": 5, "feedback": "Strength: Strong logic. Next Step: keep naming consistent."}',
+        choices: [{ message: { content: '{"score": 5, "feedback": "Strength: Strong logic. Next Step: keep naming consistent."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -215,7 +208,7 @@ describe('suggestTestOpenResponseGrade', () => {
 
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
-    const userPrompt = gradingBody.input?.[1]?.content?.[0]?.text as string
+    const userPrompt = gradingBody.messages?.[1]?.content as string
 
     expect(userPrompt).toContain('Teacher answer key:')
     expect(userPrompt).toContain('Sample solution (one valid approach, not a required exact match):')
@@ -270,8 +263,7 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"score": 5, "feedback": "Strength: Good core idea. Next Step: tighten your explanation. Improve: Add membrane detail for full marks."}',
+        choices: [{ message: { content: '{"score": 5, "feedback": "Strength: Good core idea. Next Step: tighten your explanation. Improve: Add membrane detail for full marks."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -292,8 +284,7 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"score": 3, "feedback": "Use loop invariant language and include one dry-run."}',
+        choices: [{ message: { content: '{"score": 3, "feedback": "Use loop invariant language and include one dry-run."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -308,7 +299,7 @@ describe('suggestTestOpenResponseGrade', () => {
 
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
-    const systemPrompt = gradingBody.input?.[0]?.content?.[0]?.text as string
+    const systemPrompt = gradingBody.messages?.[0]?.content as string
 
     expect(systemPrompt).toContain('Teacher grading guideline:')
     expect(systemPrompt).toContain('If score buckets are provided, choose the nearest bucket exactly.')
@@ -322,8 +313,11 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_parsed: { score: 4, feedback: 'Clear explanation with one missing detail.' },
-        usage: { input_tokens: 120, output_tokens: 20, total_tokens: 140 },
+        choices: [{
+          message: { content: JSON.stringify({ score: 4, feedback: 'Clear explanation with one missing detail.' }) },
+          finish_reason: 'stop',
+        }],
+        usage: { prompt_tokens: 120, completion_tokens: 20, total_tokens: 140 },
       }),
     })
 
@@ -338,20 +332,16 @@ describe('suggestTestOpenResponseGrade', () => {
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
 
-    expect(gradingBody.reasoning).toEqual({ effort: 'minimal' })
-    expect(gradingBody.store).toBe(false)
-    expect(gradingBody.max_output_tokens).toBe(220)
-    expect(gradingBody.text?.format).toMatchObject({
-      type: 'json_schema',
-      name: 'test_single_grade',
-      strict: true,
-    })
+    expect(gradingBody.reasoning_effort).toBe('high')
+    expect(gradingBody.max_tokens).toBe(220)
+    expect(gradingBody.response_format).toEqual({ type: 'json_object' })
+    expect(gradingBody.messages[0].content).toContain('test_single_grade')
     expect(suggestion.provenance).toMatchObject({
       schemaVersion: 'test-grading-provenance-v1',
       gradingRequestId: expect.any(String),
-      provider: 'openai',
-      model: 'gpt-5-nano',
-      policyVersion: 'pika-test-open-response-policy-v1',
+      provider: 'deepseek',
+      model: 'deepseek-flash',
+      policyVersion: 'pika-test-open-response-policy-v2',
       promptVersion: 'pika-test-open-response-manual-prompt-v1',
       gradingProfileVersion: 'pika-test-open-response-v1',
       rubricVersion: 'pika-test-open-response-rubric-v1',
@@ -367,8 +357,7 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"score": 4, "feedback": "Strength: Clear claim. Next Step: add one supporting example."}',
+        choices: [{ message: { content: '{"score": 4, "feedback": "Strength: Clear claim. Next Step: add one supporting example."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -386,7 +375,7 @@ describe('suggestTestOpenResponseGrade', () => {
 
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
-    const userPrompt = gradingBody.input?.[1]?.content?.[0]?.text as string
+    const userPrompt = gradingBody.messages?.[1]?.content as string
 
     expect(userPrompt).toContain('Unit 1 Test for A.B.')
     expect(userPrompt).toContain('Explain why A.B. chose this strategy.')
@@ -403,24 +392,26 @@ describe('suggestTestOpenResponseGrade', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          status: 'incomplete',
-          incomplete_details: { reason: 'max_output_tokens' },
-          usage: { input_tokens: 100, output_tokens: 30, total_tokens: 130 },
+          choices: [{ message: { content: '' }, finish_reason: 'length' }],
+          usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 },
         }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          output_parsed: {
-            results: [
-              {
-                response_id: 'response_1',
-                score: 4,
-                feedback: 'Good explanation. Add one key vocabulary word.',
-              },
-            ],
-          },
-          usage: { input_tokens: 110, output_tokens: 40, total_tokens: 150 },
+          choices: [{
+            message: { content: JSON.stringify({
+              results: [
+                {
+                  response_id: 'response_1',
+                  score: 4,
+                  feedback: 'Good explanation. Add one key vocabulary word.',
+                },
+              ],
+            }) },
+            finish_reason: 'stop',
+          }],
+          usage: { prompt_tokens: 110, completion_tokens: 40, total_tokens: 150 },
         }),
       })
 
@@ -447,8 +438,8 @@ describe('suggestTestOpenResponseGrade', () => {
 
     expect(suggestions).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_output_tokens).toBe(600)
-    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_output_tokens).toBe(900)
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_tokens).toBe(600)
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_tokens).toBe(900)
     expect(suggestions[0].provenance).toMatchObject({
       operation: 'batch',
       batchSize: 1,
@@ -462,15 +453,18 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_parsed: {
-          results: [
-            {
-              response_id: 'response_1',
-              score: 4,
-              feedback: 'Good explanation. Add one key vocabulary word.',
-            },
-          ],
-        },
+        choices: [{
+          message: { content: JSON.stringify({
+            results: [
+              {
+                response_id: 'response_1',
+                score: 4,
+                feedback: 'Good explanation. Add one key vocabulary word.',
+              },
+            ],
+          }) },
+          finish_reason: 'stop',
+        }],
       }),
     })
 
@@ -510,8 +504,7 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"score": 2.5, "feedback": "Strength: Clear core idea. Next Step: be more precise. Improve: Add one concrete example."}',
+        choices: [{ message: { content: '{"score": 2.5, "feedback": "Strength: Clear core idea. Next Step: be more precise. Improve: Add one concrete example."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -531,8 +524,7 @@ describe('suggestTestOpenResponseGrade', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"score": 3, "feedback": "Strength: Correct use of loops. Next Step: improve variable naming. Improve: Add method decomposition for full marks."}',
+        choices: [{ message: { content: '{"score": 3, "feedback": "Strength: Correct use of loops. Next Step: improve variable naming. Improve: Add method decomposition for full marks."}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -547,7 +539,7 @@ describe('suggestTestOpenResponseGrade', () => {
 
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
-    const systemPrompt = gradingBody.input?.[0]?.content?.[0]?.text as string
+    const systemPrompt = gradingBody.messages?.[0]?.content as string
 
     expect(systemPrompt).toContain('Teacher grading guideline:')
     expect(systemPrompt).toContain('Grade 11 CS AI Grading Rules for Coding Questions')
@@ -557,7 +549,7 @@ describe('suggestTestOpenResponseGrade', () => {
     expect(systemPrompt).not.toContain('Feedback:')
   })
 
-  it('surfaces a clear error when OpenAI returns a non-JSON body', async () => {
+  it('surfaces a clear error when DeepSeek returns a non-JSON body', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -580,21 +572,21 @@ describe('suggestTestOpenResponseGrade', () => {
         answerKey: 'Use a counted loop from 1 through 10 and print each value.',
       })
     ).rejects.toThrow(
-      'OpenAI returned invalid JSON (status 200)'
+      'DeepSeek returned invalid JSON (status 200)'
     )
   })
 })
 
 describe('prepared test grading context', () => {
-  const originalApiKey = process.env.OPENAI_API_KEY
+  const originalApiKey = process.env.DEEPSEEK_API_KEY
 
   beforeEach(() => {
-    process.env.OPENAI_API_KEY = 'test-key'
+    process.env.DEEPSEEK_API_KEY = 'test-key'
     vi.stubGlobal('fetch', vi.fn())
   })
 
   afterEach(() => {
-    process.env.OPENAI_API_KEY = originalApiKey
+    process.env.DEEPSEEK_API_KEY = originalApiKey
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -605,22 +597,19 @@ describe('prepared test grading context', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          output_text:
-            '{"reference_answers":["Defines osmosis accurately.","Mentions membrane and concentration gradient."]}',
+          choices: [{ message: { content: '{"reference_answers":["Defines osmosis accurately.","Mentions membrane and concentration gradient."]}' }, finish_reason: 'stop' }],
         }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          output_text:
-            '{"score": 4, "feedback": "Strong answer. Add one more membrane detail for full marks."}',
+          choices: [{ message: { content: '{"score": 4, "feedback": "Strong answer. Add one more membrane detail for full marks."}' }, finish_reason: 'stop' }],
         }),
       })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          output_text:
-            '{"score": 3, "feedback": "Good core idea. Add direction of movement for full marks."}',
+          choices: [{ message: { content: '{"score": 3, "feedback": "Good core idea. Add direction of movement for full marks."}' }, finish_reason: 'stop' }],
         }),
       })
 
@@ -666,15 +655,15 @@ describe('prepared test grading context', () => {
 })
 
 describe('suggestTestOpenResponseGradesBatch', () => {
-  const originalApiKey = process.env.OPENAI_API_KEY
+  const originalApiKey = process.env.DEEPSEEK_API_KEY
 
   beforeEach(() => {
-    process.env.OPENAI_API_KEY = 'test-key'
+    process.env.DEEPSEEK_API_KEY = 'test-key'
     vi.stubGlobal('fetch', vi.fn())
   })
 
   afterEach(() => {
-    process.env.OPENAI_API_KEY = originalApiKey
+    process.env.DEEPSEEK_API_KEY = originalApiKey
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -684,8 +673,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent answer."},{"response_id":"response_2","score":3,"feedback":"Good start. Add one more key detail."}]}',
+        choices: [{ message: { content: '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent answer."},{"response_id":"response_2","score":3,"feedback":"Good start. Add one more key detail."}]}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -720,8 +708,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent answer."},{"response_id":"response_2","score":3,"feedback":"Good start. Add one more key detail."}]}',
+        choices: [{ message: { content: '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent answer."},{"response_id":"response_2","score":3,"feedback":"Good start. Add one more key detail."}]}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -747,8 +734,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent answer for alex@example.com."}]}',
+        choices: [{ message: { content: '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent answer for alex@example.com."}]}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -765,7 +751,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
 
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
-    const userPrompt = gradingBody.input?.[1]?.content?.[0]?.text as string
+    const userPrompt = gradingBody.messages?.[1]?.content as string
 
     expect(userPrompt).toContain('response_id=response_1')
     expect(userPrompt).toContain('[email redacted]')
@@ -781,8 +767,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"results":[{"response_id":"response_99","score":5,"feedback":"Excellent answer."}]}',
+        choices: [{ message: { content: '{"results":[{"response_id":"response_99","score":5,"feedback":"Excellent answer."}]}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -804,8 +789,7 @@ describe('suggestTestOpenResponseGradesBatch', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        output_text:
-          '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent."},{"response_id":"response_1","score":3,"feedback":"Add detail."}]}',
+        choices: [{ message: { content: '{"results":[{"response_id":"response_1","score":5,"feedback":"Excellent."},{"response_id":"response_1","score":3,"feedback":"Add detail."}]}' }, finish_reason: 'stop' }],
       }),
     })
 
@@ -829,19 +813,19 @@ describe('open-response reference cache helpers', () => {
       testTitle: 'Unit 1 Test',
       questionText: 'Explain osmosis.',
       maxPoints: 5,
-      model: 'gpt-5-nano',
+      model: 'deepseek-flash',
     })
     const right = buildTestOpenResponseReferenceCacheKey({
       testTitle: 'Unit 1 Test',
       questionText: 'Explain osmosis.',
       maxPoints: 5,
-      model: 'gpt-5-nano',
+      model: 'deepseek-flash',
     })
     const changed = buildTestOpenResponseReferenceCacheKey({
       testTitle: 'Unit 1 Test',
       questionText: 'Explain osmosis in detail.',
       maxPoints: 5,
-      model: 'gpt-5-nano',
+      model: 'deepseek-flash',
     })
 
     expect(left).toBe(right)
@@ -853,14 +837,14 @@ describe('open-response reference cache helpers', () => {
       testTitle: 'Coding Test',
       questionText: 'Write a function to find duplicates.',
       maxPoints: 10,
-      model: 'gpt-5-nano',
+      model: 'deepseek-flash',
       isCodingQuestion: false,
     })
     const coding = buildTestOpenResponseReferenceCacheKey({
       testTitle: 'Coding Test',
       questionText: 'Write a function to find duplicates.',
       maxPoints: 10,
-      model: 'gpt-5-nano',
+      model: 'deepseek-flash',
       isCodingQuestion: true,
     })
 
@@ -872,13 +856,13 @@ describe('open-response reference cache helpers', () => {
       testTitle: 'Biology Test',
       questionText: 'Explain osmosis.',
       maxPoints: 5,
-      model: 'gpt-5-nano',
+      model: 'deepseek-flash',
     })
     const second = buildTestOpenResponseReferenceCacheKey({
       testTitle: 'Chemistry Test',
       questionText: 'Explain osmosis.',
       maxPoints: 5,
-      model: 'gpt-5-nano',
+      model: 'deepseek-flash',
     })
 
     expect(first).not.toBe(second)
@@ -896,7 +880,7 @@ describe('open-response reference cache helpers', () => {
   })
 
   it('reuses cached reference answers when key and model match', () => {
-    const model = 'gpt-5-nano'
+    const model = 'deepseek-flash'
     const resolution = resolveReusableTestOpenResponseReferenceAnswers({
       testTitle: 'Unit 1 Test',
       questionText: 'Explain osmosis.',

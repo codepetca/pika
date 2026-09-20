@@ -3,8 +3,15 @@ import { z } from 'zod'
 import {
   gradeStudentWork,
   hasGradableAssignmentSubmission,
+  isBlankAssignmentSubmission,
   isRetryableAssignmentAiGradingError,
 } from '@/lib/ai-grading'
+import {
+  buildProcessReminders,
+  scoreWorkflow,
+  summarizeWorkProcess,
+  type WorkProcessHistoryEntry,
+} from '@/lib/assignment-workflow-process'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import { analyzeAuthenticity } from '@/lib/authenticity'
@@ -39,7 +46,7 @@ import type {
   AssignmentDocHistoryEntry,
 } from '@/types'
 
-const DEFAULT_MODEL = 'gpt-5-nano'
+const DEFAULT_MODEL = 'deepseek-flash'
 const RETRY_BACKOFF_SECONDS = [15, 60, 180]
 const TIMEOUT_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 const MISSING_ASSIGNMENT_GRADE_FEEDBACK = 'Missing'
@@ -91,6 +98,8 @@ type GradeAssignmentDocWithAiOptions = {
     feedback: string | null
     authenticity_score: number | null
     updated_at: string
+    is_submitted?: boolean | null
+    submitted_at?: string | null
   }
   expectedDocUpdatedAt?: string
   gradedBy?: string | null
@@ -123,7 +132,7 @@ type SupabaseSchemaError = {
 }
 
 function getModelAlias(): string {
-  return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  return process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
 }
 
 function getAssignmentRunModelAlias(): string {
@@ -338,6 +347,26 @@ async function fetchLatestActiveRun(
   return ((data as AssignmentAiGradingRun[] | null) ?? [])[0] ?? null
 }
 
+// Counts and timestamps only: history rows also hold student text.
+async function loadWorkProcess(
+  supabase: ServiceRoleSupabase,
+  assignmentDoc: { id: string; is_submitted?: boolean | null; submitted_at?: string | null },
+  dueAt: string,
+) {
+  const { data } = await supabase
+    .from('assignment_doc_history')
+    .select('word_count, paste_word_count, trigger, created_at')
+    .eq('assignment_doc_id', assignmentDoc.id)
+    .order('created_at', { ascending: true })
+
+  if (!data || data.length === 0) return null
+  return summarizeWorkProcess(data as WorkProcessHistoryEntry[], {
+    dueAt,
+    isSubmitted: assignmentDoc.is_submitted ?? false,
+    submittedAt: assignmentDoc.submitted_at ?? null,
+  })
+}
+
 async function maybeScoreAuthenticity(
   supabase: ServiceRoleSupabase,
   assignmentDocId: string,
@@ -448,6 +477,8 @@ export async function gradeAssignmentDocWithAi({
     sanitizationContext ??
     await loadClassroomAiSanitizationContext(supabase, assignment.classroom_id)
 
+  const workProcess = await loadWorkProcess(supabase, assignmentDoc, assignment.due_at)
+
   const result = await gradeStudentWork({
     assignmentTitle: assignment.title,
     instructions: getAssignmentInstructionsText(assignment),
@@ -467,6 +498,13 @@ export async function gradeAssignmentDocWithAi({
     },
   })
 
+  // The grader scores presentation only; timeliness and authenticity are ours.
+  const scoreWorkflowTotal = scoreWorkflow({
+    presentation: result.score_workflow,
+    process: workProcess,
+  }).total
+  const feedback = [result.feedback, ...buildProcessReminders(workProcess)].join('\n')
+
   const now = new Date().toISOString()
   if (runItem) {
     await finalizeAssignmentAiGradingItemAtomic({
@@ -476,9 +514,9 @@ export async function gradeAssignmentDocWithAi({
       grade: {
         scoreCompletion: result.score_completion,
         scoreThinking: result.score_thinking,
-        scoreWorkflow: result.score_workflow,
-        feedback: result.feedback,
-        aiFeedbackSuggestion: result.feedback,
+        scoreWorkflow: scoreWorkflowTotal,
+        feedback,
+        aiFeedbackSuggestion: feedback,
         aiFeedbackModel: result.model,
         aiGradingProvenance: result.provenance,
         gradedBy,
@@ -496,9 +534,9 @@ export async function gradeAssignmentDocWithAi({
       expectedDocUpdatedAt: expectedDocUpdatedAt ?? assignmentDoc.updated_at,
       scoreCompletion: result.score_completion,
       scoreThinking: result.score_thinking,
-      scoreWorkflow: result.score_workflow,
-      feedback: result.feedback,
-      aiFeedbackSuggestion: result.feedback,
+      scoreWorkflow: scoreWorkflowTotal,
+      feedback,
+      aiFeedbackSuggestion: feedback,
       aiFeedbackModel: result.model,
       aiGradingProvenance: result.provenance,
       gradedBy,
@@ -730,7 +768,7 @@ async function processAssignmentAiRunItem(opts: {
 
   const { data: assignmentDoc, error: assignmentDocError } = await supabase
     .from('assignment_docs')
-    .select('id, student_id, content, feedback, authenticity_score, updated_at')
+    .select('id, student_id, content, feedback, authenticity_score, updated_at, is_submitted, submitted_at')
     .eq('id', item.assignment_doc_id)
     .maybeSingle()
 
@@ -754,7 +792,10 @@ async function processAssignmentAiRunItem(opts: {
   const submissionArtifacts = submissionArtifactsToAssignmentArtifacts(
     await loadAssignmentSubmissionArtifactsForDoc(supabase, assignmentDoc.id)
   )
-  if (!hasGradableAssignmentSubmission(studentWork, submissionArtifacts)) {
+  if (
+    !hasGradableAssignmentSubmission(studentWork, submissionArtifacts)
+    || isBlankAssignmentSubmission(studentWork, submissionArtifacts)
+  ) {
     await markMissingGradeAndSkip('empty_doc')
     return
   }
@@ -901,7 +942,10 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
     const submissionArtifacts = submissionArtifactsToAssignmentArtifacts(
       submissionArtifactsByDocId.get(doc.id) || [],
     )
-    if (!hasGradableAssignmentSubmission(parsed, submissionArtifacts)) {
+    if (
+      !hasGradableAssignmentSubmission(parsed, submissionArtifacts)
+      || isBlankAssignmentSubmission(parsed, submissionArtifacts)
+    ) {
       skippedEmptyCount += 1
       return {
         student_id: studentId,

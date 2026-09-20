@@ -34,6 +34,16 @@ describe('ai-sanitization', () => {
     )
   })
 
+  it('redacts emails and phone numbers run together without spaces', () => {
+    expect(redactDirectIdentifiers('Contact: jane.doe@example.com647-555-1234')).toBe(
+      'Contact: [email redacted][phone redacted]',
+    )
+    expect(redactDirectIdentifiers('Phone647-555-1234|Email:jane@school.ca')).toBe(
+      'Phone[phone redacted]|Email:[email redacted]',
+    )
+    expect(redactDirectIdentifiers('Order 12345678901234 stays')).toBe('Order 12345678901234 stays')
+  })
+
   it('replaces known student names and direct identifiers before provider egress', () => {
     const students = [
       { firstName: 'Alice', lastName: 'Brown' },

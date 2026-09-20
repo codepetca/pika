@@ -9,7 +9,7 @@ import {
 
 export const PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION = 'pika-test-open-response-v1'
 export const PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION = 'pika-test-open-response-rubric-v1'
-export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v1'
+export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v2'
 export const PIKA_TEST_OPEN_RESPONSE_MANUAL_PROMPT_VERSION =
   'pika-test-open-response-manual-prompt-v1'
 export const PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION =

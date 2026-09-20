@@ -43,3 +43,8 @@ supabase/.temp/
 
 # Local authenticated attendance load manifests
 *.attendance-load.json
+
+# Local sanitized grading experiment snapshots
+*.grading-snapshot.json
+*.grading-analysis.json
+*.grader-calibration.json
