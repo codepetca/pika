@@ -32277,14 +32277,19 @@ Direct user approval authorized exactlocal171/hash598ee035 and bounded review ex
 
 DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal retry classification finding and independently detected warning-level SQL lint failure. Batched retryable generic404/malformed/unexpected-success outcomes with same-binding/no-proof regressions;42focused tests pass. Added forward172 replacing only receipt authorization's unused assignment withPERFORM, preserving171/hash598ee035 and all behavior/signatures/grants. New172hash4aac47ce is unapplied; requires separate exactlocalapproval and postapplication lint/type/DB validation. Final targeted review pending within16:31UTC cap/MAX5launches. No provider traffic, committed fixtures, rollout or merge.
 
-<!-- pika-session-log-archive-batch:961f06096d6461809b3fe266732e6d3233fbbfc32359eec51b22f6a53dd67414 -->
+<!-- pika-session-log-archive-batch:04af4ca7494a8c000d028082c63984140854fd9e7c29265d5ab1501d1fb632de -->
 ## 2026-09-13 — Disabled removed-membership academic stage source checkpoint
 
 - Owner01a09bf4 on codex/removed-membership-academic-cleanup, base29cde0b0. Clarified academic ownership is student+classroom; retained generation authenticates operation. No prospective provenance capture or backfill.
 - Authored forward173, existing-ledger local progress/claims, strict provider/no-copy fences, narrow retained marks redaction and rollback-only harness. Existing171/172 hashes preserved. No schema or provider action.
 -14 orchestration tests,10 source contracts and focused checks passed; TypeScript passed. Canonical types check correctly stops at unapplied173. DB/storage/MVCC proofs remain unexecuted; source review and exact local approval next. Refreshed existing roadmap/integration status.
 
+<!-- pika-session-log-archive-batch:7d7e067d87af0aeb0ed912b460e3ee28c8fc8f06ba439ba13fa9ea39615bf889 -->
 ## 2026-09-13 — Batch academic cleanup source-review corrections
 
 - PR1259 initial Sol/high and Terra/high reviews found exact attendance overblocking and incomplete rollback coverage. One batch permits only staged exact attendance deletes, orders override events before parents, and tightens file ownership to exact assignment docs. All overall provider/re-add fences remain.
 - Expanded the unexecuted rollback harness to22 success resource categories, all29 allowlisted tables across success/blocked fixtures, two files, eight blocked cases, row-hash isolation and callback/backoff/lease scenarios. Source tests pass; SQL173 remains unapplied and database/types proof remains gated on direct local173 approval. Targeted source review follows; no migration or provider activation occurred.
+
+## 2026-09-13 — Fence mixed attendance parent links
+
+- PR1259 targeted Sol review found that the legacy attendance event FK permits cross-student/classroom children and cascading deletion outside the inventory. Batch2 blocks mismatched identity/occurrence, locks both event and parent scopes for reference mutations, and rejects every unstaged child during local finalization even after a cascading parent disappears. Added pre-existing peer/other-class mismatches and late insertion rejection fixtures; these are unexecuted serialized checks, not committed-row race proof. Migration173 remains unapplied.

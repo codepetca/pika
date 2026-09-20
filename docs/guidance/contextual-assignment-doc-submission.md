@@ -67,8 +67,9 @@ archived assignments, malformed Pal evidence and submit/unsubmit behavior. Eight
 multi-connection cases cover both
 directions of removal, save, submit and unsubmit overlap without deadlock.
 
-This slice does not widen history/restore or artifact mutations. The assignment open,
-save and submission gates are independent and must remain disabled until every reachable
+This slice itself does not widen history/restore or artifact mutations. History/restore is
+now covered by the separate migration 188 gate. The assignment open, save, submission and
+history gates are independent and must remain disabled until every reachable
 learner mutation is compatible, the complete pilot matrix passes and rollout is separately
 approved. Production migration application and route activation each require their own
 explicit authorization.

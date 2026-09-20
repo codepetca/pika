@@ -9909,6 +9909,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_assignment_doc_history_for_actor_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_member_only?: boolean
+          p_requested_student_id?: string
+        }
+        Returns: Json
+      }
       get_attendance_classroom_access_v1: {
         Args: { p_at?: string; p_classroom_id: string; p_teacher_id: string }
         Returns: Json
@@ -10658,6 +10667,23 @@ export type Database = {
       }
       resolve_pal_membership: {
         Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
+      }
+      restore_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_history_id: string
+          p_metric_session_id: string
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
+          p_word_count: number
+        }
         Returns: Json
       }
       restore_removed_classroom_students: {
