@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 
 import { POST as submit } from '@/app/api/assignment-docs/[id]/submit/route'
 import { POST as unsubmit } from '@/app/api/assignment-docs/[id]/unsubmit/route'
+import { ApiError } from '@/lib/api-error'
 import { requireAuth } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
@@ -10,6 +11,7 @@ import {
   unsubmitAssignmentDocAtomic,
 } from '@/lib/server/assignment-doc-submissions'
 import {
+  prepareContextualAssignmentDocSubmission,
   submitContextualAssignmentDoc,
   unsubmitContextualAssignmentDoc,
 } from '@/lib/server/contextual-assignment-doc-submission'
@@ -28,6 +30,7 @@ vi.mock('@/lib/server/assignment-doc-submissions', () => ({
 }))
 vi.mock('@/lib/server/contextual-assignment-doc-submission', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/server/contextual-assignment-doc-submission')>(),
+  prepareContextualAssignmentDocSubmission: vi.fn(),
   submitContextualAssignmentDoc: vi.fn(),
   unsubmitContextualAssignmentDoc: vi.fn(),
 }))
@@ -117,6 +120,23 @@ function contextualClient(docRows: unknown = [preflightDoc()]) {
   }
 }
 
+function requirement(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '55555555-5555-4555-8555-555555555555',
+    artifact_id: '66666666-6666-4666-8666-666666666666',
+    assignment_id: assignmentId,
+    type: 'link',
+    label: 'Source',
+    instructions: '',
+    required: true,
+    position: 0,
+    validation_policy_json: {},
+    created_at: revision,
+    updated_at: revision,
+    ...overrides,
+  }
+}
+
 function submitRequest() {
   return new NextRequest(`http://localhost/api/assignment-docs/${assignmentId}/submit`, {
     method: 'POST',
@@ -134,6 +154,12 @@ describe('contextual assignment submit and unsubmit routes', () => {
       assignmentId,
     }]))
     vi.mocked(requireAuth).mockResolvedValue(teacher as any)
+    vi.mocked(prepareContextualAssignmentDocSubmission).mockResolvedValue({
+      assignment: { id: assignmentId, classroom_id: classroomId, due_at: null },
+      doc: preflightDoc() as any,
+      submissionRequirements: [],
+      submissionArtifacts: [],
+    })
     vi.mocked(submitContextualAssignmentDoc).mockResolvedValue({
       ok: true,
       doc: assignmentDoc() as any,
@@ -177,8 +203,11 @@ describe('contextual assignment submit and unsubmit routes', () => {
     expect(assertStudentCanAccessClassroom).not.toHaveBeenCalled()
   })
 
-  it('fails closed on substituted document preflight evidence', async () => {
-    const client = contextualClient([preflightDoc({ student_id: docId })])
+  it('fails closed when the transaction-time preflight rejects substituted evidence', async () => {
+    vi.mocked(prepareContextualAssignmentDocSubmission).mockRejectedValue(
+      new ApiError(503, 'Unable to verify assignment submission'),
+    )
+    const client = contextualClient()
     vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
 
     const response = await submit(submitRequest(), {
@@ -186,6 +215,83 @@ describe('contextual assignment submit and unsubmit routes', () => {
     })
     expect(response.status).toBe(503)
     expect(submitContextualAssignmentDoc).not.toHaveBeenCalled()
+    expect(client.from).not.toHaveBeenCalled()
+  })
+
+  it('denies a removed exact-pair member before reading document or requirement state', async () => {
+    vi.mocked(prepareContextualAssignmentDocSubmission).mockRejectedValue(
+      new ApiError(403, 'Forbidden'),
+    )
+    const client = contextualClient()
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
+
+    const response = await submit(submitRequest(), {
+      params: Promise.resolve({ id: assignmentId }),
+    })
+
+    expect(response.status).toBe(403)
+    expect(client.from).not.toHaveBeenCalled()
+    expect(submitContextualAssignmentDoc).not.toHaveBeenCalled()
+  })
+
+  it('refreshes changed missing-requirement IDs through the locked preflight boundary', async () => {
+    const missingRequirement = requirement()
+    vi.mocked(prepareContextualAssignmentDocSubmission)
+      .mockResolvedValueOnce({
+        assignment: { id: assignmentId, classroom_id: classroomId, due_at: null },
+        doc: preflightDoc() as any,
+        submissionRequirements: [],
+        submissionArtifacts: [],
+      })
+      .mockResolvedValueOnce({
+        assignment: { id: assignmentId, classroom_id: classroomId, due_at: null },
+        doc: preflightDoc() as any,
+        submissionRequirements: [missingRequirement as any],
+        submissionArtifacts: [],
+      })
+    vi.mocked(submitContextualAssignmentDoc).mockResolvedValue({
+      ok: false,
+      status: 409,
+      error: 'Attachment requirements changed before submission. Review them and try again.',
+      errorCode: 'assignment_submission_requirements_missing',
+    })
+    const client = contextualClient()
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
+
+    const response = await submit(submitRequest(), {
+      params: Promise.resolve({ id: assignmentId }),
+    })
+    const body = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(body).toEqual({
+      error: 'Confirm that you want to submit without the missing attachments.',
+      error_code: 'assignment_attachments_confirmation_required',
+      missing_attachment_ids: [missingRequirement.id],
+    })
+    expect(prepareContextualAssignmentDocSubmission).toHaveBeenCalledTimes(2)
+    expect(client.from).not.toHaveBeenCalled()
+  })
+
+  it('preserves the invalid-attachment response from the atomic submit boundary', async () => {
+    vi.mocked(submitContextualAssignmentDoc).mockResolvedValue({
+      ok: false,
+      status: 400,
+      error: 'Fix invalid attachments before submitting.',
+      errorCode: 'assignment_submission_requirements_incomplete',
+    })
+    const client = contextualClient()
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
+
+    const response = await submit(submitRequest(), {
+      params: Promise.resolve({ id: assignmentId }),
+    })
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({
+      error_code: 'assignment_submission_requirements_incomplete',
+    })
+    expect(client.from).not.toHaveBeenCalled()
   })
 
   it('unsubmits the matched teacher-valued member without legacy preflights', async () => {

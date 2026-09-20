@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   assertContextualAssignmentSubmissionResourceEvidence,
+  prepareContextualAssignmentDocSubmission,
   submitContextualAssignmentDoc,
   unsubmitContextualAssignmentDoc,
   verifyContextualAssignmentSubmissionAssignmentEvidence,
@@ -52,6 +53,59 @@ function documentRow(overrides: Record<string, unknown> = {}) {
     github_username: null,
     save_session_id: null,
     save_sequence: null,
+    ...overrides,
+  }
+}
+
+function preflightDocument(overrides: Record<string, unknown> = {}) {
+  return {
+    id: docId,
+    assignment_id: assignmentId,
+    student_id: actorId,
+    content,
+    is_submitted: false,
+    submitted_at: null,
+    updated_at: revision,
+    returned_at: null,
+    teacher_cleared_at: null,
+    ...overrides,
+  }
+}
+
+function requirementRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: requirementId,
+    artifact_id: artifactId,
+    source_artifact_id: null,
+    source_blueprint_version_id: null,
+    assignment_id: assignmentId,
+    type: 'link',
+    label: 'Source',
+    instructions: '',
+    required: true,
+    position: 0,
+    validation_policy_json: {},
+    created_at: revision,
+    updated_at: revision,
+    ...overrides,
+  }
+}
+
+function artifactRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: artifactId,
+    assignment_doc_id: docId,
+    requirement_id: requirementId,
+    student_id: actorId,
+    type: 'link',
+    url: 'https://example.invalid/work',
+    storage_path: null,
+    metadata_json: {},
+    validation_status: 'valid',
+    validation_message: null,
+    validated_at: revision,
+    created_at: revision,
+    updated_at: revision,
     ...overrides,
   }
 }
@@ -119,6 +173,41 @@ describe('contextual assignment document submission', () => {
     })
   })
 
+  it('loads submit preflight evidence only through the member transaction', async () => {
+    rpc.mockResolvedValue({
+      data: {
+        assignment: { id: assignmentId, classroom_id: classroomId, due_at: null },
+        doc: preflightDocument(),
+        submission_requirements: [requirementRow()],
+        submission_artifacts: [artifactRow()],
+      },
+      error: null,
+    })
+
+    await expect(prepareContextualAssignmentDocSubmission({
+      supabase: { rpc }, actorId, assignmentId,
+    })).resolves.toMatchObject({
+      assignment: { id: assignmentId, classroom_id: classroomId },
+      doc: { id: docId, student_id: actorId },
+      submissionRequirements: [{ id: requirementId }],
+      submissionArtifacts: [{ id: artifactId }],
+    })
+    expect(rpc).toHaveBeenCalledWith('prepare_assignment_doc_submission_for_member_v1', {
+      p_actor_id: actorId,
+      p_assignment_id: assignmentId,
+    })
+  })
+
+  it.each([
+    ['assignment_submission_requirements_missing', 409],
+    ['assignment_submission_requirements_incomplete', 400],
+  ])('preserves the %s attachment race result', async (message, status) => {
+    rpc.mockResolvedValue({ data: null, error: { code: '23514', message } })
+    await expect(submitContextualAssignmentDoc({
+      supabase: { rpc }, actorId, assignmentId, content, expectedUpdatedAt: revision,
+    })).resolves.toMatchObject({ ok: false, status, errorCode: message })
+  })
+
   it.each([
     ['P0002', 404],
     ['42501', 403],
@@ -175,14 +264,32 @@ describe('contextual assignment document submission', () => {
 
   it('rejects substituted requirement and artifact evidence', () => {
     expect(() => assertContextualAssignmentSubmissionResourceEvidence({
+      actorId,
       assignmentId,
       assignmentDocId: docId,
-      requirements: [{ id: requirementId, assignment_id: assignmentId } as any],
-      artifacts: [{
-        id: artifactId,
-        assignment_doc_id: docId,
-        requirement_id: artifactId,
-      } as any],
+      requirements: [requirementRow() as any],
+      artifacts: [artifactRow({ requirement_id: artifactId }) as any],
     })).toThrow(expect.objectContaining({ statusCode: 503 }))
+  })
+
+  it.each([
+    { doc: preflightDocument({ student_id: docId }) },
+    { submission_requirements: [requirementRow({ assignment_id: docId })] },
+    { submission_artifacts: [artifactRow({ student_id: docId })] },
+    { submission_artifacts: [artifactRow({ type: 'image' })] },
+  ])('fails closed on substituted preflight evidence %#', async (override) => {
+    rpc.mockResolvedValue({
+      data: {
+        assignment: { id: assignmentId, classroom_id: classroomId, due_at: null },
+        doc: preflightDocument(),
+        submission_requirements: [requirementRow()],
+        submission_artifacts: [artifactRow()],
+        ...override,
+      },
+      error: null,
+    })
+    await expect(prepareContextualAssignmentDocSubmission({
+      supabase: { rpc }, actorId, assignmentId,
+    })).rejects.toMatchObject({ statusCode: 503 })
   })
 })

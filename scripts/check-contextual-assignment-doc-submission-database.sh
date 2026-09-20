@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Local-only, rollback-only behavioral fixture. It never applies migrations and
-# leaves no durable rows. Run only after separately authorized migration 186.
+# leaves no durable rows. Run only after separately authorized migrations 186-187.
 ASSIGNMENT_SUBMISSION_DB_CONTAINER="$(docker ps --filter 'name=^supabase_db_pika$' --format '{{.Names}}')"
 if [[ "$ASSIGNMENT_SUBMISSION_DB_CONTAINER" != 'supabase_db_pika' ]]; then
   echo 'The exact local Supabase container supabase_db_pika must be running.' >&2
@@ -23,11 +23,14 @@ declare
 begin
   if not exists (
     select 1 from supabase_migrations.schema_migrations where version = '186'
+  ) or not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '187'
   ) then
-    raise exception 'Migration 186 is required; this harness never applies it';
+    raise exception 'Migrations 186-187 are required; this harness never applies them';
   end if;
 
   foreach v_signature in array array[
+    'public.prepare_assignment_doc_submission_for_member_v1(uuid,uuid)',
     'public.submit_assignment_doc_for_member_v1(uuid,uuid,jsonb,timestamp with time zone,integer,integer,uuid[],boolean,jsonb)',
     'public.unsubmit_assignment_doc_for_member_v1(uuid,uuid)'
   ] loop
@@ -121,6 +124,17 @@ declare
   v_result jsonb;
   v_revision timestamptz;
 begin
+  v_result := public.prepare_assignment_doc_submission_for_member_v1(v_teacher, v_live);
+  if v_result->'assignment'->>'id' is distinct from v_live::text
+    or v_result->'assignment'->>'classroom_id' is distinct from 'c1860000-0000-4000-8000-000000000010'
+    or v_result->'doc'->>'assignment_id' is distinct from v_live::text
+    or v_result->'doc'->>'student_id' is distinct from v_teacher::text
+    or jsonb_typeof(v_result->'submission_requirements') is distinct from 'array'
+    or jsonb_typeof(v_result->'submission_artifacts') is distinct from 'array'
+  then
+    raise exception 'Teacher-valued exact member preflight returned invalid evidence: %', v_result;
+  end if;
+
   select updated_at into v_revision from public.assignment_docs
   where assignment_id = v_live and student_id = v_teacher;
   v_result := public.submit_assignment_doc_for_member_v1(
@@ -160,6 +174,11 @@ begin
     raise exception 'Student-valued exact member unsubmit failed: %', v_result;
   end if;
 
+  begin
+    perform public.prepare_assignment_doc_submission_for_member_v1(v_outsider, v_live);
+    raise exception 'Expected nonmember preflight denial';
+  exception when insufficient_privilege then null;
+  end;
   begin
     perform public.submit_assignment_doc_for_member_v1(
       v_teacher, v_live, v_content,
@@ -202,6 +221,15 @@ begin
   begin
     perform public.submit_assignment_doc_for_member_v1(v_teacher, 'c1860000-0000-4000-8000-000000000025', v_content, clock_timestamp(), 2, 12, '{}'::uuid[], false, null);
     raise exception 'Expected owner-without-enrollment denial';
+  exception when insufficient_privilege then null;
+  end;
+
+  delete from public.classroom_enrollments
+  where classroom_id = 'c1860000-0000-4000-8000-000000000010'
+    and student_id = v_teacher;
+  begin
+    perform public.prepare_assignment_doc_submission_for_member_v1(v_teacher, v_live);
+    raise exception 'Removed member preflight disclosed assignment state';
   exception when insufficient_privilege then null;
   end;
 

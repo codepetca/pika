@@ -118,19 +118,51 @@ const docEvidenceSchema = z.array(z.object({
   returned_at: nullableTimestamp,
   teacher_cleared_at: nullableTimestamp,
 }).strict()).max(1)
-const requirementEvidenceSchema = z.array(z.object({
+const requirementSchema = z.object({
   id: canonicalUuid,
+  artifact_id: canonicalUuid,
+  source_artifact_id: canonicalUuid.nullable().optional(),
+  source_blueprint_version_id: canonicalUuid.nullable().optional(),
   assignment_id: canonicalUuid,
-}).passthrough()).max(1000)
-const artifactEvidenceSchema = z.array(z.object({
+  type: z.enum(['repo_link', 'link', 'image']),
+  label: z.string(),
+  instructions: z.string(),
+  required: z.boolean(),
+  position: z.number().int(),
+  validation_policy_json: z.record(z.string(), z.unknown()),
+  created_at: timestamp,
+  updated_at: timestamp,
+}).strip()
+const artifactSchema = z.object({
   id: canonicalUuid,
   assignment_doc_id: canonicalUuid,
   requirement_id: canonicalUuid,
-}).passthrough()).max(1000)
+  student_id: canonicalUuid,
+  type: z.enum(['repo_link', 'link', 'image']),
+  url: z.string().nullable(),
+  storage_path: z.string().nullable(),
+  metadata_json: z.record(z.string(), z.unknown()),
+  validation_status: z.enum(['missing', 'pending', 'valid', 'warning', 'invalid', 'inaccessible']),
+  validation_message: z.string().nullable(),
+  validated_at: nullableTimestamp,
+  created_at: timestamp,
+  updated_at: timestamp,
+}).strip()
+const requirementEvidenceSchema = z.array(requirementSchema).max(1000)
+const artifactEvidenceSchema = z.array(artifactSchema).max(1000)
+const submissionPreflightSchema = z.object({
+  assignment: assignmentEvidenceSchema.element,
+  doc: docEvidenceSchema.element.nullable(),
+  submission_requirements: requirementEvidenceSchema,
+  submission_artifacts: artifactEvidenceSchema,
+}).strict()
 
 export type ContextualAssignmentSubmissionClient = {
   rpc: (
-    name: 'submit_assignment_doc_for_member_v1' | 'unsubmit_assignment_doc_for_member_v1',
+    name:
+      | 'prepare_assignment_doc_submission_for_member_v1'
+      | 'submit_assignment_doc_for_member_v1'
+      | 'unsubmit_assignment_doc_for_member_v1',
     args: Record<string, Json | string | number | boolean | null | string[]>,
   ) => PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
 }
@@ -143,7 +175,56 @@ export type ContextualAssignmentSubmissionResult =
       classroomId: string
       idempotent?: boolean
     }
-  | { ok: false; status: number; error: string; errorCode: string; classroomId: string }
+  | { ok: false; status: number; error: string; errorCode: string; classroomId?: string }
+
+export type ContextualAssignmentSubmissionPreflight = {
+  assignment: z.infer<typeof assignmentEvidenceSchema.element>
+  doc: z.infer<typeof docEvidenceSchema.element> | null
+  submissionRequirements: AssignmentSubmissionRequirement[]
+  submissionArtifacts: AssignmentSubmissionArtifact[]
+}
+
+export async function prepareContextualAssignmentDocSubmission(input: {
+  supabase: ContextualAssignmentSubmissionClient
+  actorId: string
+  assignmentId: string
+}): Promise<ContextualAssignmentSubmissionPreflight> {
+  const actorId = canonicalUuid.safeParse(input.actorId)
+  const assignmentId = canonicalUuid.safeParse(input.assignmentId)
+  if (!actorId.success || !assignmentId.success) {
+    throw new ApiError(400, 'Invalid assignment submission preflight request')
+  }
+
+  const { data, error } = await input.supabase.rpc(
+    'prepare_assignment_doc_submission_for_member_v1',
+    { p_actor_id: actorId.data, p_assignment_id: assignmentId.data },
+  )
+  if (error) mapRpcError(error, 'submit')
+
+  const parsed = submissionPreflightSchema.safeParse(data)
+  if (
+    !parsed.success
+    || parsed.data.assignment.id !== assignmentId.data
+    || parsed.data.doc?.assignment_id !== assignmentId.data
+    || parsed.data.doc?.student_id !== actorId.data
+  ) {
+    throw new ApiError(503, 'Unable to verify assignment submission')
+  }
+  assertContextualAssignmentSubmissionResourceEvidence({
+    actorId: actorId.data,
+    assignmentId: assignmentId.data,
+    assignmentDocId: parsed.data.doc?.id ?? null,
+    requirements: parsed.data.submission_requirements as AssignmentSubmissionRequirement[],
+    artifacts: parsed.data.submission_artifacts as AssignmentSubmissionArtifact[],
+  })
+
+  return {
+    assignment: parsed.data.assignment,
+    doc: parsed.data.doc,
+    submissionRequirements: parsed.data.submission_requirements as AssignmentSubmissionRequirement[],
+    submissionArtifacts: parsed.data.submission_artifacts as AssignmentSubmissionArtifact[],
+  }
+}
 
 export function verifyContextualAssignmentSubmissionAssignmentEvidence(input: {
   assignmentId: string
@@ -183,13 +264,17 @@ export function verifyContextualAssignmentSubmissionDocEvidence(input: {
 }
 
 export function assertContextualAssignmentSubmissionResourceEvidence(input: {
+  actorId: string
   assignmentId: string
-  assignmentDocId: string
+  assignmentDocId: string | null
   requirements: AssignmentSubmissionRequirement[]
   artifacts: AssignmentSubmissionArtifact[]
 }): void {
   const assignmentId = canonicalUuid.safeParse(input.assignmentId)
-  const assignmentDocId = canonicalUuid.safeParse(input.assignmentDocId)
+  const actorId = canonicalUuid.safeParse(input.actorId)
+  const assignmentDocId = input.assignmentDocId === null
+    ? null
+    : canonicalUuid.safeParse(input.assignmentDocId)
   const requirements = requirementEvidenceSchema.safeParse(input.requirements)
   const artifacts = artifactEvidenceSchema.safeParse(input.artifacts)
   const requirementIds = requirements.success
@@ -197,20 +282,45 @@ export function assertContextualAssignmentSubmissionResourceEvidence(input: {
     : new Set<string>()
   if (
     !assignmentId.success
-    || !assignmentDocId.success
+    || !actorId.success
+    || (assignmentDocId !== null && !assignmentDocId.success)
     || !requirements.success
     || !artifacts.success
     || requirements.data.some((requirement) => requirement.assignment_id !== assignmentId.data)
     || artifacts.data.some((artifact) => (
-      artifact.assignment_doc_id !== assignmentDocId.data
+      assignmentDocId === null
+      || artifact.assignment_doc_id !== assignmentDocId.data
+      || artifact.student_id !== actorId.data
       || !requirementIds.has(artifact.requirement_id)
+      || requirements.data.find((requirement) => requirement.id === artifact.requirement_id)?.type
+        !== artifact.type
     ))
   ) {
     throw new ApiError(503, 'Unable to verify assignment submission resources')
   }
 }
 
-function mapRpcError(code: string | undefined, operation: 'submit' | 'unsubmit'): never {
+function mapRpcError(
+  error: { code?: string; message?: string },
+  operation: 'submit' | 'unsubmit',
+): ContextualAssignmentSubmissionResult {
+  const { code } = error
+  if (code === '23514' && error.message?.includes('assignment_submission_requirements_missing')) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Attachment requirements changed before submission. Review them and try again.',
+      errorCode: 'assignment_submission_requirements_missing',
+    }
+  }
+  if (code === '23514' && error.message?.includes('assignment_submission_requirements_incomplete')) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Fix invalid attachments before submitting.',
+      errorCode: 'assignment_submission_requirements_incomplete',
+    }
+  }
   if (code === 'P0002') throw new ApiError(404, 'Assignment not found')
   if (code === '42501') throw new ApiError(403, 'Forbidden')
   if (code === '22023' || code === '22007' || code === '22008') {
@@ -265,7 +375,7 @@ export async function submitContextualAssignmentDoc(input: {
     p_emit_pal_event: emitPalEvent,
     p_pal_event: (input.palEvent ?? null) as unknown as Json | null,
   })
-  if (error) mapRpcError(error.code, 'submit')
+  if (error) return mapRpcError(error, 'submit')
 
   const structuredError = parseStructuredError(data)
   if (structuredError) return structuredError
@@ -307,7 +417,7 @@ export async function unsubmitContextualAssignmentDoc(input: {
     p_actor_id: actorId.data,
     p_assignment_id: assignmentId.data,
   })
-  if (error) mapRpcError(error.code, 'unsubmit')
+  if (error) return mapRpcError(error, 'unsubmit')
 
   const structuredError = parseStructuredError(data)
   if (structuredError) return structuredError

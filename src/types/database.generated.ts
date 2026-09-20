@@ -10299,6 +10299,10 @@ export type Database = {
         Returns: Json
       }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
+      prepare_assignment_doc_submission_for_member_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
+        Returns: Json
+      }
       prepare_attendance_snapshot_v1: {
         Args: {
           p_classroom_id: string

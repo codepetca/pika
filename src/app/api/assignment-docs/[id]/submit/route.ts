@@ -24,10 +24,8 @@ import { buildLearningItemCompletedEvent } from '@/lib/server/pal-events'
 import { attemptImmediatePalEventDelivery } from '@/lib/server/pal-outbox'
 import { authorizeContextualAssignmentDocSubmissionRequest } from '@/lib/server/contextual-assignment-doc-access'
 import {
-  assertContextualAssignmentSubmissionResourceEvidence,
+  prepareContextualAssignmentDocSubmission,
   submitContextualAssignmentDoc,
-  verifyContextualAssignmentSubmissionAssignmentEvidence,
-  verifyContextualAssignmentSubmissionDocEvidence,
   type ContextualAssignmentSubmissionClient,
 } from '@/lib/server/contextual-assignment-doc-submission'
 
@@ -44,36 +42,13 @@ async function submitContextualMemberAssignment(input: {
   supabase: ReturnType<typeof getServiceRoleClient>
 }) {
   const { userId, assignmentId, submitRequest, supabase } = input
-  const { data: assignmentRows, error: assignmentError } = await supabase
-    .from('assignments')
-    .select('id, classroom_id, due_at')
-    .eq('id', assignmentId)
-    .limit(2)
-  if (assignmentError) {
-    return NextResponse.json({ error: 'Unable to verify assignment submission' }, { status: 503 })
-  }
-  const assignment = verifyContextualAssignmentSubmissionAssignmentEvidence({
-    assignmentId,
-    rows: assignmentRows,
-  })
-  if (!assignment) {
-    return NextResponse.json({ error: 'Assignment not found' }, { status: 404 })
-  }
-
-  const { data: docRows, error: docError } = await supabase
-    .from('assignment_docs')
-    .select('id, assignment_id, student_id, content, is_submitted, submitted_at, updated_at, returned_at, teacher_cleared_at')
-    .eq('assignment_id', assignmentId)
-    .eq('student_id', userId)
-    .limit(2)
-  if (docError) {
-    return NextResponse.json({ error: 'Unable to verify assignment document' }, { status: 503 })
-  }
-  const existingDoc = verifyContextualAssignmentSubmissionDocEvidence({
+  const preflight = await prepareContextualAssignmentDocSubmission({
+    supabase: supabase as unknown as ContextualAssignmentSubmissionClient,
     actorId: userId,
     assignmentId,
-    rows: docRows,
   })
+  const assignment = preflight.assignment
+  const existingDoc = preflight.doc
   if (!existingDoc) {
     return NextResponse.json(
       { error: 'No work to submit. Please save your work first.' },
@@ -81,31 +56,8 @@ async function submitContextualMemberAssignment(input: {
     )
   }
 
-  let submissionRequirements
-  let submissionArtifacts
-  try {
-    submissionRequirements = await loadAssignmentSubmissionRequirements(
-      supabase,
-      assignmentId,
-      { requireDataArray: true },
-    )
-    submissionArtifacts = await loadAssignmentSubmissionArtifactsForDoc(
-      supabase,
-      existingDoc.id,
-      { requireDataArray: true },
-    )
-    assertContextualAssignmentSubmissionResourceEvidence({
-      assignmentId,
-      assignmentDocId: existingDoc.id,
-      requirements: submissionRequirements,
-      artifacts: submissionArtifacts,
-    })
-  } catch {
-    return NextResponse.json(
-      { error: 'Unable to verify assignment submission resources' },
-      { status: 503 },
-    )
-  }
+  const submissionRequirements = preflight.submissionRequirements
+  const submissionArtifacts = preflight.submissionArtifacts
 
   const submissionCompletion = getSubmissionRequirementCompletion(
     submissionRequirements,
@@ -185,44 +137,32 @@ async function submitContextualMemberAssignment(input: {
 
   if (!submitResult.ok) {
     if (submitResult.errorCode === 'assignment_submission_requirements_missing') {
-      try {
-        const latestRequirements = await loadAssignmentSubmissionRequirements(
-          supabase,
-          assignmentId,
-          { requireDataArray: true },
-        )
-        const latestArtifacts = await loadAssignmentSubmissionArtifactsForDoc(
-          supabase,
-          existingDoc.id,
-          { requireDataArray: true },
-        )
-        assertContextualAssignmentSubmissionResourceEvidence({
-          assignmentId,
-          assignmentDocId: existingDoc.id,
-          requirements: latestRequirements,
-          artifacts: latestArtifacts,
-        })
-        const latestCompletion = getSubmissionRequirementCompletion(
-          latestRequirements,
-          latestArtifacts,
-        )
-        if (latestCompletion.missingRequiredRequirementIds.length === 0) {
-          return NextResponse.json({
-            error: 'Attachment requirements changed before submission. Review them and try again.',
-            error_code: 'assignment_submission_requirements_changed',
-          }, { status: 409 })
-        }
+      const latestPreflight = await prepareContextualAssignmentDocSubmission({
+        supabase: supabase as unknown as ContextualAssignmentSubmissionClient,
+        actorId: userId,
+        assignmentId,
+      })
+      if (latestPreflight.doc?.id !== existingDoc.id) {
         return NextResponse.json({
-          error: 'Confirm that you want to submit without the missing attachments.',
-          error_code: 'assignment_attachments_confirmation_required',
-          missing_attachment_ids: latestCompletion.missingRequiredRequirementIds,
-        }, { status: 400 })
-      } catch {
-        return NextResponse.json(
-          { error: 'Unable to verify assignment submission resources' },
-          { status: 503 },
-        )
+          error: 'Assignment work changed before submission. Refresh and try again.',
+          error_code: 'assignment_doc_contention',
+        }, { status: 409 })
       }
+      const latestCompletion = getSubmissionRequirementCompletion(
+        latestPreflight.submissionRequirements,
+        latestPreflight.submissionArtifacts,
+      )
+      if (latestCompletion.missingRequiredRequirementIds.length === 0) {
+        return NextResponse.json({
+          error: 'Attachment requirements changed before submission. Review them and try again.',
+          error_code: 'assignment_submission_requirements_changed',
+        }, { status: 409 })
+      }
+      return NextResponse.json({
+        error: 'Confirm that you want to submit without the missing attachments.',
+        error_code: 'assignment_attachments_confirmation_required',
+        missing_attachment_ids: latestCompletion.missingRequiredRequirementIds,
+      }, { status: 400 })
     }
     return NextResponse.json(
       { error: submitResult.error, error_code: submitResult.errorCode },
@@ -240,34 +180,6 @@ async function submitContextualMemberAssignment(input: {
 
   const doc = submitResult.doc
   doc.content = parseContentField(doc.content)
-  try {
-    const { data: historyEntries } = await supabase
-      .from('assignment_doc_history')
-      .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at')
-      .eq('assignment_doc_id', doc.id)
-      .order('created_at', { ascending: true })
-    if (
-      historyEntries
-      && historyEntries.length > 1
-      && historyEntries.every((entry) => entry.assignment_doc_id === doc.id)
-    ) {
-      const result = analyzeAuthenticity(historyEntries as AssignmentDocHistoryEntry[])
-      if (result.score !== null) {
-        const { error: authError } = await supabase
-          .from('assignment_docs')
-          .update({ authenticity_score: result.score, authenticity_flags: result.flags })
-          .eq('id', doc.id)
-          .eq('assignment_id', assignmentId)
-          .eq('student_id', userId)
-        if (!authError) {
-          doc.authenticity_score = result.score
-          doc.authenticity_flags = result.flags
-        }
-      }
-    }
-  } catch (authError) {
-    console.error('Error computing authenticity score:', authError)
-  }
 
   return NextResponse.json({
     doc: sanitizeDocForStudent(doc),

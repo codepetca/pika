@@ -5,9 +5,19 @@ const migration = () => readFileSync(
   'supabase/migrations/186_contextual_assignment_doc_submission.sql',
   'utf8',
 )
+const preflightMigration = () => readFileSync(
+  'supabase/migrations/187_contextual_assignment_doc_submission_preflight.sql',
+  'utf8',
+)
 
 function functionBody(name: string): string {
   return migration().split(`function public.${name}(`)[1]?.split('$function$;')[0] ?? ''
+}
+
+function preflightFunctionBody(): string {
+  return preflightMigration()
+    .split('function public.prepare_assignment_doc_submission_for_member_v1(')[1]
+    ?.split('$function$;')[0] ?? ''
 }
 
 describe('contextual assignment document submission migration', () => {
@@ -78,6 +88,38 @@ describe('contextual assignment document submission migration', () => {
     expect(body).toContain("jsonb_build_object('classroom_id', v_assignment_classroom_id)")
   })
 
+  it('adds a service-only transaction-time submission preflight in migration 187', () => {
+    const sql = preflightMigration()
+    const body = preflightFunctionBody()
+    expect(sql).toContain('function public.prepare_assignment_doc_submission_for_member_v1(')
+    expect(sql).toMatch(/revoke all on function public\.prepare_assignment_doc_submission_for_member_v1\(uuid, uuid\)[^;]+from public, anon, authenticated/s)
+    expect(sql).toMatch(/grant execute on function public\.prepare_assignment_doc_submission_for_member_v1\(uuid, uuid\)[^;]+to service_role/s)
+    expect(sql).toContain('security definer')
+    expect(sql).toContain("set search_path = ''")
+
+    const submissionLock = body.indexOf("'assignment_submission:'")
+    const editorLock = body.indexOf("p_assignment_id::text || ':' || p_actor_id::text")
+    const classroomLock = body.indexOf("'pika-classroom-operation:'")
+    const membershipLock = body.indexOf('private.try_lock_classroom_membership_change')
+    const parentLocks = body.indexOf('for share of classroom, assignment')
+    const enrollment = body.indexOf('from public.classroom_enrollments as enrollment')
+    const docRead = body.indexOf('from public.assignment_docs as doc')
+    const requirementRead = body.indexOf('from public.assignment_submission_requirements as requirement')
+    const artifactRead = body.indexOf('from public.assignment_submission_artifacts as artifact')
+    expect(submissionLock).toBeGreaterThan(-1)
+    expect(submissionLock).toBeLessThan(editorLock)
+    expect(editorLock).toBeLessThan(classroomLock)
+    expect(classroomLock).toBeLessThan(membershipLock)
+    expect(membershipLock).toBeLessThan(parentLocks)
+    expect(parentLocks).toBeLessThan(enrollment)
+    expect(enrollment).toBeLessThan(docRead)
+    expect(docRead).toBeLessThan(requirementRead)
+    expect(requirementRead).toBeLessThan(artifactRead)
+    expect(body).toContain('v_assignment_classroom_id is distinct from v_initial_classroom_id')
+    expect(body).toContain('v_archived_at is not null')
+    expect(body).toContain('v_assignment_released_at > clock_timestamp()')
+  })
+
   it('keeps rollback-only behavior and multi-connection races in the architecture lane', () => {
     const behavior = readFileSync(
       'scripts/check-contextual-assignment-doc-submission-database.sh',
@@ -88,7 +130,8 @@ describe('contextual assignment document submission migration', () => {
       'utf8',
     )
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
-    expect(behavior).toContain('Migration 186 is required; this harness never applies it')
+    expect(behavior).toContain('Migrations 186-187 are required; this harness never applies them')
+    expect(behavior).toContain('Removed member preflight disclosed assignment state')
     expect(behavior).toContain('Teacher-valued exact member submit returned invalid evidence')
     expect(behavior).toContain('Student-valued exact member submit returned invalid evidence')
     expect(behavior).toContain('Teacher-valued exact member unsubmit returned invalid evidence')

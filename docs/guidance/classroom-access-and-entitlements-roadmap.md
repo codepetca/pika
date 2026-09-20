@@ -200,9 +200,10 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   document while live enrollment and assignment visibility are locked; revision, history
   and metric behavior stays delegated to the established atomic save. Disabled and
   unmatched requests remain legacy. Submit and unsubmit now have a third independent
-  exact-pair gate backed by migration 186; it rechecks the same live enrollment and
-  visibility rules under the shared mutation and membership fences before delegating to
-  the established atomic operations. All three gates must stay disabled because
+  exact-pair gate backed by migrations 186–187; its preflight and mutation independently
+  recheck the same live enrollment and visibility rules under the shared document and
+  membership fences before any evidence or write is returned. All three gates must stay
+  disabled because
   history/restore, artifact mutations and the remaining assignment writes are still
   outstanding.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).

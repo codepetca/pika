@@ -2,7 +2,7 @@
 
 ## Status
 
-Migration 186 and the assignment-document submit/unsubmit route integrations are
+Migrations 186–187 and the assignment-document submit/unsubmit route integrations are
 additive, dormant foundations. The routes share an independent exact
 user/assignment pair gate that is disabled by default. Disabled and unmatched
 requests retain the legacy student-role path. Applying the migration changes no
@@ -48,15 +48,23 @@ returned as a safe 409 refresh/retry response.
 
 ## Route integration
 
-A matched submit performs bounded assignment, document and submission-resource
-preflight reads only to preserve the existing confirmation and Pal behavior. The RPC
-remains the authorization, visibility and mutation authority. Pal delivery uses the
-locked classroom returned by the transaction. A matched unsubmit goes directly to the
-transaction and does not rely on a legacy authorization preflight.
+A matched submit obtains its bounded assignment, document and submission-resource
+preflight evidence only through migration 187's service-only transaction. That preflight
+takes the established document and membership fences and authorizes current enrollment
+and visibility before returning any data. Migration 186 independently rechecks the same
+parents before mutation, so stale UX evidence cannot grant a write. Pal delivery uses the
+locked classroom returned by the mutation transaction. A matched unsubmit goes directly
+to its transaction and does not rely on a legacy authorization preflight.
+
+Attachment-requirement races preserve the established invalid-artifact response or rerun
+the locked preflight to return the current missing-requirement confirmation set. The
+contextual route does not perform the legacy post-submit authenticity write; that derived
+mutation remains legacy until it has its own current-member transaction boundary.
 
 Rollback-only database contracts cover teacher-valued and student-valued exact members,
-outsiders, owner-without-enrollment, draft, scheduled and archived assignments, malformed
-Pal evidence and submit/unsubmit behavior. Eighteen multi-connection cases cover both
+outsiders, a removed exact-pair member, owner-without-enrollment, draft, scheduled and
+archived assignments, malformed Pal evidence and submit/unsubmit behavior. Eighteen
+multi-connection cases cover both
 directions of removal, save, submit and unsubmit overlap without deadlock.
 
 This slice does not widen history/restore or artifact mutations. The assignment open,
