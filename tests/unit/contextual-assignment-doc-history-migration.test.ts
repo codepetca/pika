@@ -137,6 +137,7 @@ describe('contextual assignment document history migration', () => {
     expect(behavior).toContain('rollback;')
     expect(behavior).not.toMatch(/supabase\s+(?:db\s+push|migration\s+up|db\s+reset)/)
     expect(concurrency).toContain("'removal_wins_contextual_restore'")
+    expect(concurrency).toContain("'Migration 189 must already be applied'")
     expect(concurrency).toContain("console.log('Passed: contextual_restore_wins_removal')")
     expect(concurrency).toContain("console.log('Passed: contextual_restore_wins_save')")
     expect(concurrency).toContain("console.log('Passed: save_wins_contextual_restore')")

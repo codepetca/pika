@@ -289,6 +289,11 @@ try {
     't',
     'Migration 188 must already be applied',
   )
+  assert.equal(
+    await admin.run("SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '189');"),
+    't',
+    'Migration 189 must already be applied',
+  )
   await admin.run(`BEGIN;
     INSERT INTO public.users (id, email, role) VALUES
       ('${actor}', '${tag}_actor@example.invalid', 'teacher'),
