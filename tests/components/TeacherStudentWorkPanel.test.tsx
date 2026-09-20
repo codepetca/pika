@@ -580,6 +580,11 @@ describe('TeacherStudentWorkPanel', () => {
     expect(draft).toBeEnabled()
     expect(draft).toHaveFocus()
     expect(sendButton).toBeDisabled()
+    expect(screen.getByLabelText('Completion score')).toBeDisabled()
+    expect(screen.getByLabelText('Thinking score')).toBeDisabled()
+    expect(screen.getByLabelText('Workflow score')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Final' })).toBeDisabled()
 
     gradeResponse.resolve({
       ok: true,
