@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-15 — Compact student past logs
-- Task/branch: student past logs, `codex/student-past-logs-compact`.
-- Replaced stacked previews with muted date / single-line text rows, click/keyboard expansion, and viewport-sized Older/Newer pages over the existing ten class days. Mobile history now precedes lesson plans so the rows fit below the editor.
-- Reused canonical Button (Pattern Lab controls); removed the retired native-button exception. Feature-owned composition only; no shared pattern promotion or unrelated refactor.
-- Verification: history and paging interaction tests; focused checks; Playwright student light/dark at 1440×900, 1280×720, and 390×844, collapsed/expanded/focus/paging. Desktop fits 10 rows at 900px and 5 at 720px; mobile fits 10 rows. Teacher n/a (student-only owner). Local screenshots: `output/playwright/past-logs-*`.
-- Risk profile: none. Model recommendation: GPT-6 — bounded student UI behavior and visual verification. No schema or data mutations.
-
 ## 2026-09-15 — Past logs without paging
 - User refinement: removed Older/Newer and range controls. Show only the latest rows fitting the viewport, with an explicit maximum of ten; preserve click/keyboard expansion.
 - Updated fit/resize coverage for the ten-row cap and insufficient remaining space. Existing Daily tests pass. Student light/dark desktop/mobile captures refreshed on the local smoke-test server at port 3015.
@@ -291,3 +284,9 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Added an independent off-by-default exact user/Classroom gate. Matched teacher- or student-valued current owners use migration198; disabled and unmatched requests preserve the legacy teacher-only path. AI grading, repository review, UI and activation remain out of scope.
 - Under standing local-migration authorization, migration198 applied after the dry run showed only198. Generated types match local history001–198; rollback behavior and archive-first/bulk-first/overlapping reversed-order multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
 - Initial security review found request-supplied foreign Assignment IDs could acquire another tenant's advisory/row locks before the missing-ID result. Compatibility review also found malformed timestamps surfaced as503. Remediation migration199 moves the original implementation private, preflights scope before supplied locks, rechecks and locks only rows still bound to the Classroom, and revokes direct service-role execution; the adapter maps PostgreSQL22007 to400. Cross-Classroom contention and malformed-date rollback regressions join the harnesses; targeted re-review follows.
+
+## 2026-09-20 — Dormant contextual Assignment repository-target selection
+
+- Owner `codex/contextual-assignment-repo-target`, based on merged Assignment bulk PR1309. Migration200 adds a service-only owner-bound save/reset transaction for one enrolled learner's repository target under Assignment, Classroom-operation and learner-purge fences.
+- Added an independent off-by-default exact user/Assignment gate. Matched teacher- or student-valued current owners retain the existing read-only preflight before external GitHub validation, then recheck ownership, lifecycle and enrollment transactionally; disabled and unmatched requests preserve the legacy teacher-only path. Repository analysis, AI grading, UI and activation remain out of scope.
+- Under standing local-migration authorization, migration200 is applied locally. Generated types match local history001–200; error-level DB lint, rollback behavior and purge/archive multi-connection contracts pass. Production remains001–180 and all twelve contextual Assignment gates remain off. Focused verification and independent review follow.
