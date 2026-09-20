@@ -199,12 +199,17 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   transaction. A matched teacher- or student-valued active member can save only their own
   document while live enrollment and assignment visibility are locked; revision, history
   and metric behavior stays delegated to the established atomic save. Disabled and
-  unmatched requests remain legacy. Both gates must stay disabled because submission,
-  unsubmit, history/restore, artifact mutations and the remaining assignment writes are
-  still outstanding.
+  unmatched requests remain legacy. Submit and unsubmit now have a third independent
+  exact-pair gate backed by migrations 186–187; its preflight and mutation independently
+  recheck the same live enrollment and visibility rules under the shared document and
+  membership fences before any evidence or write is returned. All three gates must stay
+  disabled because
+  history/restore, artifact mutations and the remaining assignment writes are still
+  outstanding.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
   See also [the learner assignment-open contract](contextual-assignment-doc-open.md).
   See also [the learner assignment-save contract](contextual-assignment-doc-save.md).
+  See also [the learner assignment-submission contract](contextual-assignment-doc-submission.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races

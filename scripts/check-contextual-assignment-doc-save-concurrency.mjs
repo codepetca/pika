@@ -19,15 +19,17 @@ assert.match(
 const tag = `assignment_save_${randomUUID().replaceAll('-', '').slice(0, 10)}`
 const actor = randomUUID()
 const owner = randomUUID()
-const classrooms = Array.from({ length: 10 }, () => randomUUID())
-const assignments = Array.from({ length: 10 }, () => randomUUID())
-const saveSessions = Array.from({ length: 10 }, () => randomUUID())
-const metricSessions = Array.from({ length: 10 }, () => randomUUID())
+const classrooms = Array.from({ length: 16 }, () => randomUUID())
+const assignments = Array.from({ length: 16 }, () => randomUUID())
+const saveSessions = Array.from({ length: 16 }, () => randomUUID())
+const metricSessions = Array.from({ length: 16 }, () => randomUUID())
 const sessions = []
 
 class Session {
   constructor(name) {
-    this.name = `${tag}_${name}`
+    // PostgreSQL truncates application_name at 63 bytes. Keep the random run
+    // identifier while leaving enough room for descriptive race labels.
+    this.name = `as_${tag.slice(-10)}_${name}`
     this.output = ''
     this.errors = ''
     this.pending = null
@@ -104,10 +106,22 @@ async function waitBlocked(waiter, blocker) {
         AND holding.pid = ANY(pg_blocking_pids(waiting.pid))
     );`)
     if (result === 't') return
+    if (!waiter.pending) {
+      throw new Error(
+        `Contender completed before blocking: ${waiter.output.trim()} ${waiter.errors.trim()}`.trim(),
+      )
+    }
     if (waiter.closed) throw new Error(`Contender exited before blocking: ${waiter.errors}`)
     await delay(50)
   }
-  throw new Error(`Expected ${waiter.name} to block on ${blocker.name}`)
+  const diagnostic = await admin.run(`SELECT concat_ws('|',
+    state, wait_event_type, wait_event, array_to_string(pg_blocking_pids(pid), ','),
+    left(query, 200))
+    FROM pg_stat_activity WHERE application_name = '${waiter.name}';`)
+  throw new Error(
+    `Expected ${waiter.name} to block on ${blocker.name}; waiter=${diagnostic}; `
+      + `closed=${waiter.closed}; exit=${waiter.child.exitCode}; output=${waiter.output.trim()}; errors=${waiter.errors.trim()}`,
+  )
 }
 
 function revisionSql(index) {
@@ -163,6 +177,28 @@ function unsubmitSql(index) {
     RESET ROLE;`
 }
 
+function contextualSubmitSql(index) {
+  return `SET ROLE service_role;
+    SELECT concat(result->>'ok', '|', coalesce(result->>'error_code', 'ok'))
+    FROM (SELECT public.submit_assignment_doc_for_member_v1(
+        '${actor}', '${assignments[index]}',
+        '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}"}]}]}'::jsonb,
+        ${revisionSql(index)}, 1, ${tag.length}, '{}'::uuid[], false, null
+      ) AS result
+    ) AS submitted;
+    RESET ROLE;`
+}
+
+function contextualUnsubmitSql(index) {
+  return `SET ROLE service_role;
+    SELECT concat(result->>'ok', '|', coalesce(result->>'error_code', 'ok'))
+    FROM (SELECT public.unsubmit_assignment_doc_for_member_v1(
+        '${actor}', '${assignments[index]}'
+      ) AS result
+    ) AS unsubmitted;
+    RESET ROLE;`
+}
+
 async function blockingRace(label, holderSql, waiterSql, expectedCode) {
   const holder = await newSession(`${label}_holder`)
   const waiter = await newSession(`${label}_waiter`)
@@ -193,6 +229,11 @@ try {
     't',
     'Migration 185 must already be applied',
   )
+  assert.equal(
+    await admin.run("SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '186');"),
+    't',
+    'Migration 186 must already be applied',
+  )
   await admin.run(`BEGIN;
     INSERT INTO public.users (id, email, role) VALUES
       ('${actor}', '${tag}_actor@example.invalid', 'teacher'),
@@ -200,7 +241,7 @@ try {
     SET LOCAL ROLE service_role;
     SELECT public.set_effective_feature_entitlement_v1(
       gen_random_uuid(), '${owner}', 'classrooms.create', 'manual', true,
-      clock_timestamp(), null, 10, 'test:migration-184', 'assignment_save_concurrency_fixture',
+      clock_timestamp(), null, 20, 'test:migration-184', 'assignment_save_concurrency_fixture',
       coalesce((SELECT revision FROM public.effective_feature_entitlements
         WHERE subject_user_id = '${owner}' AND feature_key = 'classrooms.create'), 0)
     );
@@ -434,7 +475,128 @@ try {
     console.log('Passed: save_wins_archive')
   }
 
-  console.log('All contextual assignment-save concurrency contracts passed.')
+  // Seed documents for the contextual submit/unsubmit lock-order cases.
+  for (const index of [10, 11, 12, 13, 14, 15]) {
+    assert.equal(await admin.run(saveSql(index)), 'true|true')
+  }
+
+  // Removal commits first: contextual submit rechecks exact enrollment and
+  // cannot mutate the preserved document afterward.
+  await blockingRace(
+    'removal_wins_contextual_submit',
+    `DELETE FROM public.classroom_enrollments WHERE classroom_id = '${classrooms[10]}' AND student_id = '${actor}';`,
+    contextualSubmitSql(10),
+    '42501',
+  )
+  assert.equal(
+    await admin.run(`SELECT is_submitted FROM public.assignment_docs WHERE assignment_id = '${assignments[10]}' AND student_id = '${actor}';`),
+    'f',
+  )
+
+  // An authorized contextual submit holds the membership fences until commit;
+  // removal waits and revokes future access only after the submission exists.
+  {
+    const submitter = await newSession('contextual_submit_wins_removal_holder')
+    const remover = await newSession('contextual_submit_wins_removal_waiter')
+    assert.equal(await submitter.run(`BEGIN; ${contextualSubmitSql(11)}`), 'true|ok')
+    const outcome = remover.run(
+      `DELETE FROM public.classroom_enrollments WHERE classroom_id = '${classrooms[11]}' AND student_id = '${actor}';`,
+    ).then((value) => ({ value }), (error) => ({ error }))
+    await waitBlocked(remover, submitter)
+    await submitter.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    await submitter.close()
+    await remover.close()
+    assert.equal(await admin.run(`SELECT NOT EXISTS (
+      SELECT 1 FROM public.classroom_enrollments
+      WHERE classroom_id = '${classrooms[11]}' AND student_id = '${actor}'
+    ) AND EXISTS (
+      SELECT 1 FROM public.assignment_docs
+      WHERE assignment_id = '${assignments[11]}' AND student_id = '${actor}' AND is_submitted
+    );`), 't')
+    console.log('Passed: contextual_submit_wins_removal')
+  }
+
+  // Contextual submit and save share submission->editor ordering in both
+  // directions, producing structured document conflicts rather than deadlocks.
+  {
+    const submitter = await newSession('contextual_submit_wins_save_holder')
+    const saver = await newSession('contextual_submit_wins_save_waiter')
+    assert.equal(await submitter.run(`BEGIN; ${contextualSubmitSql(12)}`), 'true|ok')
+    const outcome = saver.run(saveSql(12, revisionSql(12), 2)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(saver, submitter)
+    await submitter.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.match(result.value, /^false\|/)
+    await submitter.close()
+    await saver.close()
+    console.log('Passed: contextual_submit_wins_save')
+  }
+  {
+    const saver = await newSession('save_wins_contextual_submit_holder')
+    const submitter = await newSession('save_wins_contextual_submit_waiter')
+    assert.equal(await saver.run(`BEGIN; ${saveSql(13, revisionSql(13), 2)}`), 'true|false')
+    const outcome = submitter.run(contextualSubmitSql(13)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(submitter, saver)
+    await saver.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.equal(result.value, 'false|assignment_doc_revision_conflict')
+    await saver.close()
+    await submitter.close()
+    console.log('Passed: save_wins_contextual_submit')
+  }
+
+  // Contextual unsubmit uses the same order. A waiting save or unsubmit sees
+  // the committed state through established structured results.
+  assert.equal(await admin.run(contextualSubmitSql(14)), 'true|ok')
+  {
+    const unsubmitter = await newSession('contextual_unsubmit_wins_save_holder')
+    const saver = await newSession('contextual_unsubmit_wins_save_waiter')
+    assert.equal(await unsubmitter.run(`BEGIN; ${contextualUnsubmitSql(14)}`), 'true|ok')
+    const outcome = saver.run(saveSql(14, revisionSql(14), 2)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(saver, unsubmitter)
+    await unsubmitter.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.match(result.value, /^false\|/)
+    await unsubmitter.close()
+    await saver.close()
+    console.log('Passed: contextual_unsubmit_wins_save')
+  }
+
+  assert.equal(await admin.run(contextualSubmitSql(15)), 'true|ok')
+  {
+    const saver = await newSession('save_wins_contextual_unsubmit_holder')
+    const unsubmitter = await newSession('save_wins_contextual_unsubmit_waiter')
+    const saveOutcome = await saver.run(`BEGIN; ${saveSql(15, revisionSql(15), 2)}`)
+    assert.match(saveOutcome, /^false\|/)
+    const outcome = unsubmitter.run(contextualUnsubmitSql(15)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(unsubmitter, saver)
+    await saver.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.equal(result.value, 'true|ok')
+    await saver.close()
+    await unsubmitter.close()
+    console.log('Passed: save_wins_contextual_unsubmit')
+  }
+
+  console.log('All contextual assignment-save/submission concurrency contracts passed.')
 } finally {
   try {
     const workers = sessions.filter((session) => session !== admin)
