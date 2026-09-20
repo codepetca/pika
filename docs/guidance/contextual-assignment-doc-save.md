@@ -56,8 +56,10 @@ document exactly as the legacy save does. Duplicate, malformed or substituted ev
 fails closed. Authorization, assignment visibility and membership are decided again in
 the transaction.
 
-This slice does not widen submit, unsubmit, restore/history or artifact mutations. The
-GET and PATCH gates are independent and must remain disabled until those reachable
-learner mutations are compatible, the complete pilot matrix passes and rollout is
-separately approved. Migration application and any route activation each require their
+Submit and unsubmit now have their own independent dormant transaction and route gate,
+documented in [the contextual submission contract](contextual-assignment-doc-submission.md).
+This slice still does not widen restore/history or artifact mutations. The GET, PATCH and
+submission gates are independent and must remain disabled until those remaining learner
+mutations are compatible, the complete pilot matrix passes and rollout is separately
+approved. Production migration application and any route activation each require their
 own explicit authorization.
