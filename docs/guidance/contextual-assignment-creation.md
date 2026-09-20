@@ -27,8 +27,9 @@ malformed enabled configuration fails closed. No wildcard, user-only,
 Classroom-only or cross-product admission exists.
 
 The request body is validated by a strict named Zod schema after authentication.
-The legacy path retains its existing ownership check and insert sequence; only an
-exact matched pair enters the contextual transaction.
+The schema applies only after exact-pair admission. The legacy path retains its
+existing permissive parsing, required-field messages, ownership check and insert
+sequence; only an exact matched pair enters the contextual transaction.
 
 ## Transaction boundary
 
@@ -61,5 +62,8 @@ never apply migrations themselves.
 
 Keep the gate disabled until migration 192 is deployed to the target environment
 and the broader classroom pilot checklist approves the exact user/Classroom
-pairs. Bulk/reorder, grading and feedback/return compatibility must be completed
+pairs. This gate has an additional hard activation blocker: material and survey
+creation must first share the same Classroom position-allocation fence so mixed
+classwork cannot receive duplicate positions under concurrent writes.
+Bulk/reorder, grading and feedback/return compatibility must also be completed
 before the whole owner experience is considered role-neutral.

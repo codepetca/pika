@@ -219,7 +219,9 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   user/Classroom gate and migration 192. A matched teacher- or student-valued current
   owner is rechecked under the shared Classroom-operation fence before the Assignment,
   mixed-classwork position and initial requirements are inserted atomically. Bulk/reorder,
-  grading and return flows remain legacy, so all seven gates must stay disabled.
+  grading and return flows remain legacy. Material and survey creation also remain outside
+  the shared position fence, which is a hard blocker for activating the creation gate.
+  All seven gates must therefore stay disabled.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
   See also [the learner assignment-open contract](contextual-assignment-doc-open.md).
   See also [the learner assignment-save contract](contextual-assignment-doc-save.md).

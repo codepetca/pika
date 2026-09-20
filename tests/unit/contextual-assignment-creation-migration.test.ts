@@ -14,6 +14,10 @@ const concurrencyScript = () => readFileSync(
   'utf8',
 )
 const workflow = () => readFileSync('.github/workflows/ci.yml', 'utf8')
+const rolloutGuide = () => readFileSync(
+  'docs/guidance/contextual-assignment-creation.md',
+  'utf8',
+)
 
 describe('contextual Assignment creation migration', () => {
   it('adds one fixed-search-path service-only boundary', () => {
@@ -64,5 +68,10 @@ describe('contextual Assignment creation migration', () => {
     expect(concurrency).not.toContain('supabase db push')
     expect(ci).toContain('bash scripts/check-contextual-assignment-creation-database.sh')
     expect(ci).toContain('node scripts/check-contextual-assignment-creation-concurrency.mjs')
+  })
+
+  it('keeps activation blocked until every mixed-classwork writer shares the position fence', () => {
+    expect(rolloutGuide()).toContain('hard activation blocker')
+    expect(rolloutGuide()).toMatch(/material and survey\s+creation must first share/)
   })
 })

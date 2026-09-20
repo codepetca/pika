@@ -267,7 +267,10 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
     return typeof classroomId === 'string' ? classroomId : ''
   }
   const assignmentAccess = await authorizeContextualAssignmentCreationRequest(resolveClassroomId)
-  const body = teacherAssignmentCreateSchema.parse(await resolveRawBody())
+  const rawBody = await resolveRawBody()
+  const body = assignmentAccess.mode === 'contextual'
+    ? teacherAssignmentCreateSchema.parse(rawBody)
+    : rawBody as any
   const {
     classroom_id,
     title,
@@ -277,6 +280,27 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
     submission_requirements,
   } = body
   const user = assignmentAccess.user
+
+  if (assignmentAccess.mode === 'legacy') {
+    if (!classroom_id) {
+      return NextResponse.json(
+        { error: 'classroom_id is required' },
+        { status: 400 }
+      )
+    }
+    if (!title || !title.trim()) {
+      return NextResponse.json(
+        { error: 'Title is required' },
+        { status: 400 }
+      )
+    }
+    if (!due_at) {
+      return NextResponse.json(
+        { error: 'Due date is required' },
+        { status: 400 }
+      )
+    }
+  }
 
   const instructionFields = buildAssignmentInstructionFields(
     typeof instructions_markdown === 'string'
@@ -371,7 +395,7 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
 
   const insertBody: TableInsert<'assignments'> = {
     classroom_id,
-    title,
+    title: title.trim(),
     instructions_markdown: instructionFields.instructions_markdown,
     rich_instructions: instructionFields.rich_instructions,
     description: instructionFields.description,

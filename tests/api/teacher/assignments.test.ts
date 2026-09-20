@@ -662,11 +662,9 @@ describe('GET /api/teacher/assignments', () => {
 })
 
 describe('POST /api/teacher/assignments', () => {
-  const classroomId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
-
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('should return 400 when required fields are missing', async () => {
+  it('preserves legacy required-field validation messages', async () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments', {
       method: 'POST',
       body: JSON.stringify({}),
@@ -674,6 +672,7 @@ describe('POST /api/teacher/assignments', () => {
 
     const response = await POST(request)
     expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toEqual({ error: 'classroom_id is required' })
   })
 
   it('creates a basic assignment without repo review config', async () => {
@@ -735,9 +734,10 @@ describe('POST /api/teacher/assignments', () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments', {
       method: 'POST',
       body: JSON.stringify({
-        classroom_id: classroomId,
+        classroom_id: 'c1',
         title: 'Essay Draft',
         due_at: '2026-03-20T23:59:59.000Z',
+        ignored_legacy_key: true,
       }),
     })
 
@@ -797,7 +797,7 @@ describe('POST /api/teacher/assignments', () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments', {
       method: 'POST',
       body: JSON.stringify({
-        classroom_id: classroomId,
+        classroom_id: 'c1',
         title: 'Essay Draft',
         due_at: '2026-03-20T23:59:59.000Z',
       }),
