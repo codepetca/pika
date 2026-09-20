@@ -10,8 +10,9 @@ student or a selected student set. A matched current Assignment owner may be
 teacher- or student-valued; global account role is not used as ownership
 evidence.
 
-Feedback return, repository review, AI auto-grading, bulk Assignment operations,
-classwork reorder, UI routing and rollout activation remain outside this slice.
+Feedback return is covered by its separate dormant gate. Repository review, AI
+auto-grading, bulk Assignment operations, classwork reorder, UI routing and
+rollout activation remain outside this slice.
 
 ## Admission and compatibility
 
@@ -57,6 +58,5 @@ deadlock. Neither harness applies migrations.
 
 Keep the gate disabled until migrations 194–195 are deployed to the target environment
 and the broader classroom pilot checklist approves the exact user/Assignment
-pairs. Feedback return, AI grading/repository review, bulk/reorder and remaining
-owner surfaces must be completed before the whole owner experience is considered
-role-neutral.
+pairs. AI grading/repository review, bulk/reorder and remaining owner surfaces
+must be completed before the whole owner experience is considered role-neutral.

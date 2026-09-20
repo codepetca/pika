@@ -247,6 +247,12 @@ jobs:
       - name: Verify contextual Assignment manual grading concurrency
         run: node scripts/check-contextual-assignment-grading-concurrency.mjs
 
+      - name: Verify contextual Assignment feedback-return atomicity
+        run: bash scripts/check-contextual-assignment-feedback-return-database.sh
+
+      - name: Verify contextual Assignment feedback-return concurrency
+        run: node scripts/check-contextual-assignment-feedback-return-concurrency.mjs
+
       - name: Verify contextual learner assignment-save concurrent authorization
         run: node scripts/check-contextual-assignment-doc-save-concurrency.mjs
 
