@@ -1,12 +1,13 @@
 const DIRECT_IDENTIFIER_PATTERNS: Array<[RegExp, string]> = [
-  [/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email redacted]'],
+  // End at any non-letter: resumes often run an email straight into a phone number.
+  [/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}(?![A-Z])/gi, '[email redacted]'],
   [/\bhttps?:\/\/[^\s<>"')]+/gi, '[url redacted]'],
   [
     /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi,
     '[id redacted]',
   ],
   [
-    /\b(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}\b/g,
+    /(?<!\d)(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}(?!\d)/g,
     '[phone redacted]',
   ],
   [

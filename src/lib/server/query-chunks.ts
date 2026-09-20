@@ -11,6 +11,7 @@ type LoadChunkedRowsOptions = {
   chunkSize?: number
   pageSize?: number
   pageOrderColumn?: string
+  requireDataArray?: boolean
 }
 
 const DEFAULT_FILTER_CHUNK_SIZE = 50
@@ -23,7 +24,12 @@ export function chunkValues<T>(values: T[], chunkSize = DEFAULT_FILTER_CHUNK_SIZ
   return chunks
 }
 
-export async function loadPagedRows<T>(buildQuery: () => any, pageSize?: number, pageOrderColumn = 'id') {
+export async function loadPagedRows<T>(
+  buildQuery: () => any,
+  pageSize?: number,
+  pageOrderColumn = 'id',
+  requireDataArray = false,
+) {
   const rows: T[] = []
   let offset = 0
 
@@ -41,6 +47,12 @@ export async function loadPagedRows<T>(buildQuery: () => any, pageSize?: number,
     const { data, error } = await query
     if (error) {
       return { rows: [] as T[], error }
+    }
+    if (requireDataArray && !Array.isArray(data)) {
+      return {
+        rows: [] as T[],
+        error: { code: 'PIKA_NULL_DATA', message: 'Expected an array result' },
+      }
     }
 
     const pageRows = (data || []) as T[]
@@ -73,6 +85,7 @@ export async function loadChunkedRows<T>(options: LoadChunkedRowsOptions): Promi
     chunkSize = DEFAULT_FILTER_CHUNK_SIZE,
     pageSize,
     pageOrderColumn,
+    requireDataArray = false,
   } = options
 
   const filters = normalizeFilters(options.filters)
@@ -98,7 +111,7 @@ export async function loadChunkedRows<T>(options: LoadChunkedRowsOptions): Promi
           query = query.in(activeChunk.column, activeChunk.values)
         }
         return query
-      }, pageSize, pageOrderColumn)
+      }, pageSize, pageOrderColumn, requireDataArray)
 
       if (result.error) {
         return result

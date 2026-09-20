@@ -7764,6 +7764,10 @@ export type Database = {
         Args: { p_teacher_id: string }
         Returns: Json
       }
+      activate_classroom_creation_entitlement_cutover_v1: {
+        Args: { p_actor_ref: string; p_operation_id: string }
+        Returns: Json
+      }
       activate_managed_storage_enforcement: {
         Args: { p_generation: number; p_inventory_digest: string }
         Returns: boolean
@@ -9519,6 +9523,14 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_assignment_artifact_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_requirement_id: string
+        }
+        Returns: Json
+      }
       delete_assignment_submission_artifact_atomic: {
         Args: {
           p_assignment_id: string
@@ -9905,6 +9917,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_assignment_doc_history_for_actor_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_member_only?: boolean
+          p_requested_student_id?: string
+        }
+        Returns: Json
+      }
       get_attendance_classroom_access_v1: {
         Args: { p_at?: string; p_classroom_id: string; p_teacher_id: string }
         Returns: Json
@@ -9935,6 +9956,10 @@ export type Database = {
       }
       get_classroom_creation_access_v1: {
         Args: { p_at?: string; p_subject_user_id: string }
+        Returns: Json
+      }
+      get_classroom_creation_entitlement_cutover_status_v1: {
+        Args: never
         Returns: Json
       }
       get_cleanup_history_cron_health_snapshot: {
@@ -10281,7 +10306,28 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      open_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_pal_event?: Json
+          p_viewed_at: string
+        }
+        Returns: Json
+      }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
+      prepare_assignment_artifact_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_requirement_id: string
+        }
+        Returns: Json
+      }
+      prepare_assignment_doc_submission_for_member_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
+        Returns: Json
+      }
       prepare_attendance_snapshot_v1: {
         Args: {
           p_classroom_id: string
@@ -10639,6 +10685,23 @@ export type Database = {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: Json
       }
+      restore_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_history_id: string
+          p_metric_session_id: string
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
+          p_word_count: number
+        }
+        Returns: Json
+      }
       restore_removed_classroom_students: {
         Args: {
           p_classroom_id: string
@@ -10770,6 +10833,25 @@ export type Database = {
           p_save_session_id: string
           p_snapshot: Json
           p_student_id: string
+          p_trigger: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
+      save_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_keystroke_count: number
+          p_metric_session_id: string
+          p_paste_word_count: number
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
           p_trigger: string
           p_word_count: number
         }
@@ -11130,6 +11212,20 @@ export type Database = {
             }
             Returns: Json
           }
+      submit_assignment_doc_for_member_v1: {
+        Args: {
+          p_acknowledged_missing_requirement_ids: string[]
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_emit_pal_event: boolean
+          p_expected_updated_at: string
+          p_pal_event: Json
+          p_word_count: number
+        }
+        Returns: Json
+      }
       submit_assignment_doc_with_pal_event_atomic:
         | {
             Args: {
@@ -11218,6 +11314,10 @@ export type Database = {
         Args: { p_assignment_id: string; p_student_id: string }
         Returns: Json
       }
+      unsubmit_assignment_doc_for_member_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
+        Returns: Json
+      }
       unsubmit_test_attempts_atomic: {
         Args: {
           p_student_ids: string[]
@@ -11252,6 +11352,26 @@ export type Database = {
           p_student_ids: string[]
           p_test_id: string
           p_updated_by: string
+        }
+        Returns: Json
+      }
+      upsert_assignment_artifact_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_github_login?: string
+          p_github_validation_message?: string
+          p_github_validation_status?: string
+          p_managed_object_id: string
+          p_metadata_json: Json
+          p_requirement_id: string
+          p_save_github_identity?: boolean
+          p_storage_path: string
+          p_type: string
+          p_url: string
+          p_validated_at: string
+          p_validation_message: string
+          p_validation_status: string
         }
         Returns: Json
       }

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { withRedirectCanary } from '../helpers/redirect-canary'
-import { createOpenAiResponsesProvider } from '@/lib/grading/providers/openai-responses'
+import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
 import { sendBrevoEmail } from '@/lib/brevo'
 import { callOpenAIForSummary } from '@/lib/log-summary'
 import { callOpenAIForDeveloperFeedback } from '@/lib/developer-log-feedback'
@@ -8,8 +8,9 @@ import { extractCourseGuideImportDraft } from '@/lib/server/course-guide-import'
 import { mintPalReadToken } from '@/lib/server/pal-read-token'
 
 const openaiUrl = 'https://api.openai.com/v1/responses'
+const deepseekUrl = 'https://api.deepseek.com/chat/completions'
 const callers = [
-  { name: 'OpenAI grading', url: openaiUrl, run: () => createOpenAiResponsesProvider({ apiKey: 'synthetic-key' }).generate({
+  { name: 'DeepSeek grading', url: deepseekUrl, run: () => createDeepSeekChatProvider({ apiKey: 'synthetic-key' }).generate({
     model: 'synthetic', systemPrompt: 'Synthetic', userPrompt: 'Synthetic work',
     schemaName: 'synthetic', jsonSchema: { type: 'object' }, reasoningEffort: 'minimal',
     initialMaxOutputTokens: 100, fallbackMaxOutputTokens: 200,
@@ -27,6 +28,7 @@ const callers = [
 
 describe('authenticated outbound redirect boundaries', () => {
   beforeEach(() => {
+    vi.stubEnv('DEEPSEEK_API_KEY', 'synthetic-key')
     vi.stubEnv('OPENAI_API_KEY', 'synthetic-key')
     vi.stubEnv('BREVO_API_KEY', 'synthetic-key')
     vi.stubEnv('BREVO_TEMPLATE_ID', '1')

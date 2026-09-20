@@ -41,12 +41,12 @@ import {
   PIKA_TEST_SINGLE_GRADE_OUTPUT,
   resolvePikaTestPromptGuideline,
 } from '@/lib/grading/profiles/pika-test-open-response'
-import { createOpenAiResponsesProvider } from '@/lib/grading/providers/openai-responses'
+import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
 import { GradingProviderError } from '@/lib/grading/providers/types'
 
-const DEFAULT_MODEL = 'gpt-5-nano'
+const DEFAULT_MODEL = 'deepseek-flash'
 const MAX_REFERENCE_ANSWERS = 3
-const TEST_AI_REASONING_EFFORT = 'minimal'
+const TEST_AI_REASONING_EFFORT = 'medium'
 const TEST_AI_REQUEST_TIMEOUT_MS = 25_000
 
 export type TestOpenResponsePromptProfile = 'manual' | 'bulk'
@@ -140,15 +140,15 @@ export interface TestOpenResponseBatchSuggestion extends TestOpenResponseSuggest
   responseId: string
 }
 
-function getOpenAIKey(): string | null {
-  const key = process.env.OPENAI_API_KEY
+function getDeepSeekKey(): string | null {
+  const key = process.env.DEEPSEEK_API_KEY
   if (!key) return null
   const trimmed = key.trim()
   return trimmed || null
 }
 
 export function getTestOpenResponseGradingModel(): string {
-  return process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  return process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
 }
 
 function toTestAiGradingError(error: unknown): TestAiGradingError {
@@ -179,7 +179,7 @@ function toTestAiGradingError(error: unknown): TestAiGradingError {
   ) {
     return new TestAiGradingError({
       kind: 'timeout',
-      message: 'OpenAI grading request timed out',
+      message: 'Grading request timed out',
       retryable: true,
     })
   }
@@ -199,7 +199,7 @@ function toTestAiGradingError(error: unknown): TestAiGradingError {
   })
 }
 
-async function callOpenAIForJson(opts: {
+async function callProviderForJson(opts: {
   apiKey: string
   model: string
   systemPrompt: string
@@ -214,7 +214,7 @@ async function callOpenAIForJson(opts: {
 }> {
   try {
     const result = await executeStructuredOutput({
-      provider: createOpenAiResponsesProvider({ apiKey: opts.apiKey }),
+      provider: createDeepSeekChatProvider({ apiKey: opts.apiKey }),
       policy: {
         version: PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION,
         model: opts.model,
@@ -460,7 +460,7 @@ async function generateReferenceAnswers(opts: {
   })
 
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
-  const { parsed, usage } = await callOpenAIForJson({
+  const { parsed, usage } = await callProviderForJson({
     apiKey: opts.apiKey,
     model: opts.model,
     systemPrompt,
@@ -624,9 +624,9 @@ export async function generateTestOpenResponseReferences(input: {
   maxPoints: number
   responseMonospace?: boolean
 }): Promise<TestOpenResponseReferences> {
-  const apiKey = getOpenAIKey()
+  const apiKey = getDeepSeekKey()
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured')
+    throw new Error('DEEPSEEK_API_KEY is not configured')
   }
 
   const model = getTestOpenResponseGradingModel()
@@ -714,9 +714,9 @@ export async function prepareTestOpenResponseGradingContext(input: {
     })
   }
 
-  const apiKey = getOpenAIKey()
+  const apiKey = getDeepSeekKey()
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured')
+    throw new Error('DEEPSEEK_API_KEY is not configured')
   }
 
   const referenceAnswers = await generateReferenceAnswers({
@@ -773,14 +773,14 @@ export async function suggestTestOpenResponseGradeWithContext(
   telemetryContext?: TestOpenResponseTelemetryContext,
   requestTimeoutMs?: number,
 ): Promise<TestOpenResponseSuggestion> {
-  const apiKey = getOpenAIKey()
+  const apiKey = getDeepSeekKey()
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured')
+    throw new Error('DEEPSEEK_API_KEY is not configured')
   }
 
   const userPrompt = buildTestOpenResponseSingleUserPrompt(prepared, responseText)
   const promptMetrics = estimatePromptMetrics(prepared.systemPrompt, userPrompt)
-  const { parsed, usage, execution } = await callOpenAIForJson({
+  const { parsed, usage, execution } = await callProviderForJson({
     apiKey,
     model: prepared.model,
     systemPrompt: prepared.systemPrompt,
@@ -833,9 +833,9 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
   telemetryContext?: TestOpenResponseTelemetryContext,
   requestTimeoutMs?: number,
 ): Promise<TestOpenResponseBatchSuggestion[]> {
-  const apiKey = getOpenAIKey()
+  const apiKey = getDeepSeekKey()
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured')
+    throw new Error('DEEPSEEK_API_KEY is not configured')
   }
   if (responses.length === 0) return []
 
@@ -856,7 +856,7 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     })),
   )
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
-  const { parsed, usage, execution } = await callOpenAIForJson({
+  const { parsed, usage, execution } = await callProviderForJson({
     apiKey,
     model: prepared.model,
     systemPrompt,

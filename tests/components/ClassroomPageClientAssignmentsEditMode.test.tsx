@@ -20,6 +20,7 @@ const mockTeacherAttendanceTabProps = vi.hoisted(() => vi.fn())
 const mockUseStudentAttendanceStatusView = vi.hoisted(() => vi.fn())
 const mockLeftSidebarProps = vi.hoisted(() => vi.fn())
 const mockAppShellProps = vi.hoisted(() => vi.fn())
+const mockNavItemsProps = vi.hoisted(() => vi.fn())
 const mockClassDays = vi.hoisted(() => [
   { id: 'day-today', classroom_id: 'classroom-1', date: '2026-05-12', is_class_day: true, prompt_text: null },
   { id: 'day-last', classroom_id: 'classroom-1', date: '2026-05-11', is_class_day: true, prompt_text: null },
@@ -116,8 +117,9 @@ vi.mock('@/components/layout', async () => {
       return <div data-testid="left-sidebar">{children}</div>
     },
     MainContent: ({ children, className }: any) => <main data-testid="main-content" className={className}>{children}</main>,
-    NavItems: ({ onTabChange, onTabIntent, palEnabled, featureVisibility }: any) => (
-      <nav>
+    NavItems: ({ onTabChange, onTabIntent, palEnabled, featureVisibility, ...props }: any) => {
+      mockNavItemsProps({ onTabChange, onTabIntent, palEnabled, featureVisibility, ...props })
+      return <nav>
         <button type="button" onMouseEnter={() => onTabIntent?.('assignments')}>
           Emit Classwork Intent
         </button>
@@ -152,7 +154,7 @@ vi.mock('@/components/layout', async () => {
           Go Course Guide
         </button>
       </nav>
-    ),
+    },
     RightSidebar: ({ children, headerActions, title }: any) => {
       const { isRightOpen, setRightOpen } = useLayoutContext()
       if (!isRightOpen) return null
@@ -460,6 +462,8 @@ function renderStudentClient(options?: {
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
   palEnabled?: boolean
+  sessionRole?: 'student' | 'teacher'
+  classroomRole?: 'student' | 'teacher'
 }) {
   const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'today'
@@ -469,7 +473,8 @@ function renderStudentClient(options?: {
     <MarkdownPreferenceProvider>
       <ClassroomPageClient
         classroom={targetClassroom}
-        user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
+        user={{ id: 'student-1', email: 'student1@example.com', role: options?.sessionRole ?? 'student' }}
+        classroomRole={options?.classroomRole}
         teacherClassrooms={[]}
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
@@ -505,6 +510,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     })
     mockLeftSidebarProps.mockReset()
     mockAppShellProps.mockReset()
+    mockNavItemsProps.mockReset()
     mockFetchJSONWithCache.mockResolvedValue({
       assignments: [
         {
@@ -862,6 +868,21 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
         isActive: true,
       })
     })
+  })
+
+  it('keeps the real session role while a classroom relationship selects the member experience', () => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    renderStudentClient({
+      sessionRole: 'teacher',
+      classroomRole: 'student',
+      initialTab: 'today',
+      initialSearchParams: { tab: 'today' },
+    })
+
+    expect(mockAppShellProps.mock.lastCall?.[0].user).toMatchObject({ role: 'teacher' })
+    expect(mockNavItemsProps.mock.lastCall?.[0]).toMatchObject({ role: 'student' })
+    expect(screen.getByTestId('student-today-primary')).toBeInTheDocument()
+    expect(screen.queryByTestId('teacher-daily')).not.toBeInTheDocument()
   })
 
   it('removes mobile classroom navigation and blocks home exits during active student exam mode', async () => {

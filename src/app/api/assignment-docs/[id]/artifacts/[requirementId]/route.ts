@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getImageValidationError } from '@/lib/image-upload'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
@@ -25,6 +24,16 @@ import {
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assignmentArtifactPutRequestSchema } from '@/lib/validations/assignment-doc-submissions'
 import type { AssignmentSubmissionArtifact, AssignmentSubmissionRequirement } from '@/types'
+import {
+  assertContextualAssignmentGitHubIdentity,
+  authorizeContextualAssignmentArtifactRequest,
+} from '@/lib/server/contextual-assignment-doc-access'
+import {
+  deleteContextualAssignmentArtifact,
+  prepareContextualAssignmentArtifact,
+  upsertContextualAssignmentArtifact,
+  type ContextualAssignmentArtifactClient,
+} from '@/lib/server/contextual-assignment-artifacts'
 import {
   queueManagedStorageCleanupBestEffort,
   reserveManagedStorageUpload,
@@ -180,9 +189,49 @@ async function loadStudentAssignmentContext(opts: {
 
   return {
     kind: 'context' as const,
+    accessMode: 'legacy' as const,
     supabase,
     requirement: requirement as AssignmentSubmissionRequirement,
     doc,
+    classroomId: assignment.classroom_id,
+    existingArtifact: null as AssignmentSubmissionArtifact | null,
+  }
+}
+
+async function loadContextualAssignmentContext(opts: {
+  assignmentId: string
+  requirementId: string
+  actorId: string
+}) {
+  const supabase = getServiceRoleClient()
+  const prepared = await prepareContextualAssignmentArtifact({
+    supabase: supabase as unknown as ContextualAssignmentArtifactClient,
+    actorId: opts.actorId,
+    assignmentId: opts.assignmentId,
+    requirementId: opts.requirementId,
+  })
+  if (!prepared.ok) {
+    return {
+      kind: 'response' as const,
+      response: NextResponse.json(
+        { error: prepared.error, error_code: prepared.errorCode },
+        { status: prepared.status },
+      ),
+    }
+  }
+
+  return {
+    kind: 'context' as const,
+    accessMode: 'contextual' as const,
+    supabase,
+    requirement: prepared.requirement,
+    doc: {
+      id: prepared.assignmentDocId,
+      student_id: opts.actorId,
+      is_submitted: false,
+    },
+    classroomId: prepared.classroomId,
+    existingArtifact: prepared.artifact,
   }
 }
 
@@ -200,21 +249,32 @@ async function withSignedImageUrl(supabase: ReturnType<typeof getServiceRoleClie
 }
 
 export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (request: NextRequest, context) => {
-  const user = await requireRole('student')
-  const { id: assignmentId, requirementId } = await context.params
+  const assignmentAccess = await authorizeContextualAssignmentArtifactRequest(async () => (
+    await context.params
+  ).id)
+  const user = assignmentAccess.user
+  const assignmentId = assignmentAccess.assignmentId
+  const { requirementId } = await context.params
   const body = assignmentArtifactPutRequestSchema.parse(await request.json())
-  const result = await loadStudentAssignmentContext({ assignmentId, requirementId, studentId: user.id })
+  const result = assignmentAccess.mode === 'contextual'
+    ? await loadContextualAssignmentContext({ assignmentId, requirementId, actorId: user.id })
+    : await loadStudentAssignmentContext({ assignmentId, requirementId, studentId: user.id })
   if (result.kind === 'response') return result.response
 
-  const { requirement, supabase, doc } = result
+  const { requirement, supabase, doc, accessMode } = result
   if (requirement.type === 'image') {
     return NextResponse.json({ error: 'Use image upload for image attachments.' }, { status: 400 })
   }
 
   const url = body.url
   const identity = requirement.type === 'repo_link'
-    ? await loadUserGitHubIdentity(supabase, user.id)
+    ? await loadUserGitHubIdentity(supabase, user.id, {
+        requireEvidence: accessMode === 'contextual',
+      })
     : null
+  if (accessMode === 'contextual') {
+    assertContextualAssignmentGitHubIdentity(user.id, identity)
+  }
   const githubLogin = requirement.type === 'repo_link'
     ? normalizeGitHubLogin(body.github_login ?? identity?.github_login)
     : null
@@ -230,6 +290,43 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
     ...validation.metadata_json,
     ...(githubLogin ? { github_login: githubLogin } : {}),
   }
+  const validatedAt = new Date().toISOString()
+  const identityValidation = requirement.type === 'repo_link' && githubLogin
+    ? getGitHubIdentityValidationFromArtifact(validation)
+    : null
+
+  if (accessMode === 'contextual') {
+    const saved = await upsertContextualAssignmentArtifact({
+      supabase: supabase as unknown as ContextualAssignmentArtifactClient,
+      actorId: user.id,
+      assignmentId,
+      requirementId,
+      type: requirement.type,
+      url: validation.normalized_url ?? url.trim(),
+      storagePath: null,
+      metadata,
+      validationStatus: validation.validation_status,
+      validationMessage: validation.validation_message,
+      validatedAt,
+      managedObjectId: null,
+      ...(identityValidation && body.save_github_login !== false
+        ? {
+            githubIdentity: {
+              login: githubLogin as string,
+              validationStatus: identityValidation.validation_status,
+              validationMessage: identityValidation.validation_message,
+            },
+          }
+        : {}),
+    })
+    if (!saved.ok) {
+      return NextResponse.json(
+        { error: saved.error, error_code: saved.errorCode },
+        { status: saved.status },
+      )
+    }
+    return NextResponse.json({ artifact: saved.artifact })
+  }
 
   const { data: artifact, error } = await supabase
     .from('assignment_submission_artifacts')
@@ -243,7 +340,7 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
       metadata_json: metadata,
       validation_status: validation.validation_status,
       validation_message: validation.validation_message,
-      validated_at: new Date().toISOString(),
+      validated_at: validatedAt,
     }, { onConflict: 'assignment_doc_id,requirement_id' })
     .select('*')
     .single()
@@ -258,8 +355,12 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
     throw new Error('Failed to save submission artifact')
   }
 
-  if (requirement.type === 'repo_link' && githubLogin && body.save_github_login !== false) {
-    const identityValidation = getGitHubIdentityValidationFromArtifact(validation)
+  if (
+    requirement.type === 'repo_link'
+    && githubLogin
+    && identityValidation
+    && body.save_github_login !== false
+  ) {
     await supabase
       .from('user_github_identities')
       .upsert({
@@ -267,7 +368,7 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
         github_login: githubLogin,
         validation_status: identityValidation.validation_status,
         validation_message: identityValidation.validation_message,
-        validated_at: new Date().toISOString(),
+        validated_at: validatedAt,
       }, { onConflict: 'user_id' })
   }
 
@@ -275,12 +376,18 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
 })
 
 export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', async (request: NextRequest, context) => {
-  const user = await requireRole('student')
-  const { id: assignmentId, requirementId } = await context.params
-  const result = await loadStudentAssignmentContext({ assignmentId, requirementId, studentId: user.id })
+  const assignmentAccess = await authorizeContextualAssignmentArtifactRequest(async () => (
+    await context.params
+  ).id)
+  const user = assignmentAccess.user
+  const assignmentId = assignmentAccess.assignmentId
+  const { requirementId } = await context.params
+  const result = assignmentAccess.mode === 'contextual'
+    ? await loadContextualAssignmentContext({ assignmentId, requirementId, actorId: user.id })
+    : await loadStudentAssignmentContext({ assignmentId, requirementId, studentId: user.id })
   if (result.kind === 'response') return result.response
 
-  const { requirement, supabase, doc } = result
+  const { requirement, supabase, doc, accessMode, classroomId, existingArtifact } = result
   if (requirement.type !== 'image') {
     return NextResponse.json({ error: 'Image upload is only available for image attachments.' }, { status: 400 })
   }
@@ -296,34 +403,30 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     return NextResponse.json({ error: validationError }, { status: 400 })
   }
 
-  const { data: previousArtifact, error: previousArtifactError } = await supabase
-    .from('assignment_submission_artifacts')
-    .select('id, storage_path')
-    .eq('assignment_doc_id', doc.id)
-    .eq('requirement_id', requirement.id)
-    .maybeSingle()
-  if (previousArtifactError) {
-    throw new Error('Failed to load the previous image artifact')
+  let previousStoragePath = existingArtifact?.storage_path ?? null
+  if (accessMode === 'legacy') {
+    const previousLookup = await supabase
+      .from('assignment_submission_artifacts')
+      .select('id, storage_path')
+      .eq('assignment_doc_id', doc.id)
+      .eq('requirement_id', requirement.id)
+      .maybeSingle()
+    if (previousLookup.error) {
+      throw new Error('Failed to load the previous image artifact')
+    }
+    previousStoragePath = previousLookup.data?.storage_path ?? null
   }
 
   const ext = file.name.split('.').pop() || 'png'
   const objectId = crypto.randomUUID()
   const storagePath = `${user.id}/${assignmentId}/${requirement.id}-${Date.now()}-${objectId}.${ext}`
-  const { data: assignmentOwner, error: assignmentOwnerError } = await supabase
-    .from('assignments')
-    .select('classroom_id')
-    .eq('id', assignmentId)
-    .single()
-  if (assignmentOwnerError || !assignmentOwner) {
-    throw new Error('Failed to resolve assignment file ownership')
-  }
-  const managedStoragePath = `classrooms/${assignmentOwner.classroom_id}/students/${user.id}/assignment-docs/${doc.id}/artifacts/${objectId}.${ext}`
+  const managedStoragePath = `classrooms/${classroomId}/students/${user.id}/assignment-docs/${doc.id}/artifacts/${objectId}.${ext}`
   const reservation = await reserveManagedStorageUpload({
     supabase,
     objectId,
     bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
     path: managedStoragePath,
-    classroomId: assignmentOwner.classroom_id,
+    classroomId,
     purpose: 'student_assignment_artifact',
     createdByUserId: user.id,
     dataSubjectUserId: user.id,
@@ -331,7 +434,7 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     resourceId: doc.id,
     contentType: file.type,
     byteSize: file.size,
-    allowLegacyCompatibility: true,
+    allowLegacyCompatibility: accessMode === 'legacy',
   })
   const effectiveStoragePath = reservation ? managedStoragePath : storagePath
   const provisionalCleanup = reservation
@@ -407,13 +510,51 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
       validated_at: new Date().toISOString(),
       ...(reservation ? { managed_object_id: objectId } : {}),
     }
-    const save = await supabase
-      .from('assignment_submission_artifacts')
-      .upsert(artifactWrite as any, { onConflict: 'assignment_doc_id,requirement_id' })
-      .select('*')
-      .single()
-    artifact = save.data
-    error = save.error
+    if (accessMode === 'contextual') {
+      const save = await upsertContextualAssignmentArtifact({
+        supabase: supabase as unknown as ContextualAssignmentArtifactClient,
+        actorId: user.id,
+        assignmentId,
+        requirementId,
+        type: 'image',
+        url: null,
+        storagePath: effectiveStoragePath,
+        metadata: artifactWrite.metadata_json,
+        validationStatus: validation.validation_status,
+        validationMessage: validation.validation_message,
+        validatedAt: artifactWrite.validated_at,
+        managedObjectId: reservation?.id ?? null,
+      })
+      if (!save.ok) {
+        if (reservation) {
+          await queueManagedStorageCleanupBestEffort({
+            supabase,
+            objectId,
+            errorCode: 'assignment_artifact_attachment_failed',
+          })
+        } else {
+          await compensateUploadedArtifact({
+            supabase,
+            storagePath: effectiveStoragePath,
+            provisionalCleanup,
+          })
+        }
+        return NextResponse.json(
+          { error: save.error, error_code: save.errorCode },
+          { status: save.status },
+        )
+      }
+      artifact = save.artifact
+      previousStoragePath = save.previousStoragePath
+    } else {
+      const save = await supabase
+        .from('assignment_submission_artifacts')
+        .upsert(artifactWrite as any, { onConflict: 'assignment_doc_id,requirement_id' })
+        .select('*')
+        .single()
+      artifact = save.data
+      error = save.error
+    }
   } catch (saveError) {
     if (reservation) {
       await queueManagedStorageCleanupBestEffort({
@@ -462,10 +603,10 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
     })
   }
 
-  if (previousArtifact?.storage_path && previousArtifact.storage_path !== effectiveStoragePath) {
+  if (previousStoragePath && previousStoragePath !== effectiveStoragePath) {
     await removeQueuedAssignmentArtifactStoragePath({
       supabase,
-      storagePath: previousArtifact.storage_path,
+      storagePath: previousStoragePath,
     })
   }
 
@@ -473,18 +614,31 @@ export const POST = withErrorHandler('PostAssignmentSubmissionArtifactImage', as
 })
 
 export const DELETE = withErrorHandler('DeleteAssignmentSubmissionArtifact', async (request, context) => {
-  const user = await requireRole('student')
-  const { id: assignmentId, requirementId } = await context.params
-  const result = await loadStudentAssignmentContext({ assignmentId, requirementId, studentId: user.id })
+  const assignmentAccess = await authorizeContextualAssignmentArtifactRequest(async () => (
+    await context.params
+  ).id)
+  const user = assignmentAccess.user
+  const assignmentId = assignmentAccess.assignmentId
+  const { requirementId } = await context.params
+  const result = assignmentAccess.mode === 'contextual'
+    ? await loadContextualAssignmentContext({ assignmentId, requirementId, actorId: user.id })
+    : await loadStudentAssignmentContext({ assignmentId, requirementId, studentId: user.id })
   if (result.kind === 'response') return result.response
 
   const { supabase } = result
-  const deletion = await deleteAssignmentSubmissionArtifactAtomic({
-    supabase,
-    assignmentId,
-    studentId: user.id,
-    requirementId,
-  })
+  const deletion = assignmentAccess.mode === 'contextual'
+    ? await deleteContextualAssignmentArtifact({
+        supabase: supabase as unknown as ContextualAssignmentArtifactClient,
+        actorId: user.id,
+        assignmentId,
+        requirementId,
+      })
+    : await deleteAssignmentSubmissionArtifactAtomic({
+        supabase,
+        assignmentId,
+        studentId: user.id,
+        requirementId,
+      })
   if (!deletion.ok) {
     return NextResponse.json({ error: deletion.error }, { status: deletion.status })
   }

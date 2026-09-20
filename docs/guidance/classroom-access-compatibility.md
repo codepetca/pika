@@ -41,11 +41,65 @@ requires complete reachable-domain coverage. Co-teachers and school administrati
 remain deferred. No calendar estimate is implied: the broad route/resource migration
 is the dominant complexity, while the current observation slice is comparatively small.
 
+The dormant [contextual classroom home backend](contextual-classroom-home.md) now
+provides the subject-bound combined list contract for batch B. Classroom SSR routing
+and navigation can independently select the existing owner/member experience for an
+exact pair through the off-by-default page pilot described in
+[the UI change record](ui/changes/contextual-classroom-page-routing.md). The combined
+live home, complete visual matrix and compatible downstream domains remain outstanding,
+so this does not satisfy batch B's exit gate or authorize a mixed-role cohort.
+
+The first batch D announcement slice now contextually authorizes the two list-read
+endpoints behind an independent exact-pair gate and validates returned classroom
+bindings. Teacher announcement mutations and member read receipts deliberately remain
+legacy until transaction-time relationship checks exist. A second independent gate
+now covers owner/member lesson-plan list reads, preserving member visibility limits and
+validating both the visibility record and returned plan bindings. Lesson-plan date,
+bulk and copy writes remain legacy. A third independent gate covers owner/member material
+list reads, retains member draft filtering and validates every returned classroom binding,
+including the missing-position fallback. Material writes remain legacy. Entries,
+surveys, tests and the remaining work domains are still outstanding; these read slices do not
+make the page or home gate safe to enable. See
+[the announcement read contract](contextual-classroom-announcement-reads.md) and
+[the lesson-plan read contract](contextual-classroom-lesson-plan-reads.md), plus
+[the material read contract](contextual-classroom-material-reads.md).
+
+A fourth independent gate now covers owner/member assignment list reads. It preserves
+owner roster statistics and submission requirements, member release visibility and
+own-document sanitization while validating all supporting bindings. Assignment item
+routes, owner mutations and grading remain legacy. Entries, surveys, tests and
+the remaining work domains are still outstanding; the page and home gates remain unsafe
+to enable. See [the assignment read contract](contextual-classroom-assignment-reads.md).
+
+A fifth, separately configured exact user/assignment gate covers the owner aggregate and
+individual student-work assignment-detail reads. A student-valued owner receives the
+existing roster/submission summary and may inspect one enrolled student's work after every
+supporting resource binding is validated. Independent dormant GET, PATCH, submission and
+history gates now let an exact teacher- or student-valued active member open, autosave,
+submit, unsubmit, inspect history and restore only their own learner document. Migrations
+182 and 184–190 perform current
+membership and visibility authorization under removal fences, with assignment-document
+mutation fences acquired first for safe save/submit/restore ordering; migration 187 keeps
+submit preflight evidence behind the same current-member boundary, while migration 183 keeps
+membership-scoped Pal identity role-neutral. Migration 188 also gives a role-neutral owner
+the existing one-enrollee history projection and makes member restore recheck the exact
+history target transactionally. Migration 190 adds exact-member artifact preparation,
+attach and delete boundaries, including managed-image ownership and post-upload
+reauthorization. Grading, release and the remaining owner mutation behavior stays legacy, so
+none of these gates may be activated. See
+[the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
+See [the learner assignment-open contract](contextual-assignment-doc-open.md) and
+[the learner assignment-save contract](contextual-assignment-doc-save.md), plus
+[the learner assignment-submission contract](contextual-assignment-doc-submission.md),
+[the learner assignment-history contract](contextual-assignment-doc-history.md), and
+[the learner assignment-artifact contract](contextual-assignment-artifacts.md).
+
 ### Concrete blockers to a role-neutral pilot found in the inventory
 
-- `src/app/classrooms/[classroomId]/page.tsx` branches on `user.role`, so a teacher
-  enrolled in someone else's class cannot use the student branch; the inverse owner
-  also cannot use the teacher branch. Helper parity alone cannot repair that routing.
+- `src/app/classrooms/[classroomId]/page.tsx` preserves its `user.role` branch by
+  default. An independently gated exact pair now selects the trusted owner/member
+  experience without rewriting the session role, but the gate cannot be enabled until
+  the APIs and resources reachable from that experience are also contextual.
 - `src/app/api/student/classrooms/join/route.ts` retains its student-gated UUID/code path
   by default. Its off-by-default exact-pair branch requires a scoped code for creation,
   recognizes but never creates membership from a UUID, charges invalid guesses and uses

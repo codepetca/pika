@@ -8,6 +8,7 @@ import { updateClassroomPublishingSchema } from '@/lib/validations/teacher'
 import { normalizeActualCourseSiteConfig } from '@/lib/course-site-publishing'
 import { isMissingClassroomFeatureVisibilityColumnError } from '@/lib/classroom-feature-visibility'
 import { mapClassroomCreationDatabaseError } from '@/lib/server/classroom-creation-entitlement'
+import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -230,6 +231,12 @@ export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, co
         error_code: creationDenial.errorCode,
         retryable: creationDenial.retryable,
       }, { status: creationDenial.status })
+    }
+    if (isRetryableDatabaseContention(updateError)) {
+      return NextResponse.json(
+        { error: 'Classroom changed during this update. Refresh and try again.' },
+        { status: 409 }
+      )
     }
     if (isMissingClassroomFeatureVisibilityColumnError(updateError)) {
       return NextResponse.json(

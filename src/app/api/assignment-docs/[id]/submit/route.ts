@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { parseContentField } from '@/lib/tiptap-content'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
@@ -23,16 +22,178 @@ import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
 import { buildLearningItemCompletedEvent } from '@/lib/server/pal-events'
 import { attemptImmediatePalEventDelivery } from '@/lib/server/pal-outbox'
+import { authorizeContextualAssignmentDocSubmissionRequest } from '@/lib/server/contextual-assignment-doc-access'
+import {
+  prepareContextualAssignmentDocSubmission,
+  submitContextualAssignmentDoc,
+  type ContextualAssignmentSubmissionClient,
+} from '@/lib/server/contextual-assignment-doc-submission'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 const STUDENT_ASSIGNMENT_DOC_SELECT = 'id, assignment_id, student_id, content, repo_url, github_username, is_submitted, submitted_at, viewed_at, score_completion, score_thinking, score_workflow, feedback, feedback_returned_at, teacher_cleared_at, graded_at, graded_by, returned_at, authenticity_score, authenticity_flags, created_at, updated_at' as const
 
+type AssignmentDocSubmitRequest = ReturnType<typeof assignmentDocSubmitRequestSchema.parse>
+
+async function submitContextualMemberAssignment(input: {
+  userId: string
+  assignmentId: string
+  submitRequest: AssignmentDocSubmitRequest
+  supabase: ReturnType<typeof getServiceRoleClient>
+}) {
+  const { userId, assignmentId, submitRequest, supabase } = input
+  const preflight = await prepareContextualAssignmentDocSubmission({
+    supabase: supabase as unknown as ContextualAssignmentSubmissionClient,
+    actorId: userId,
+    assignmentId,
+  })
+  const assignment = preflight.assignment
+  const existingDoc = preflight.doc
+  if (!existingDoc) {
+    return NextResponse.json(
+      { error: 'No work to submit. Please save your work first.' },
+      { status: 400 },
+    )
+  }
+
+  const submissionRequirements = preflight.submissionRequirements
+  const submissionArtifacts = preflight.submissionArtifacts
+
+  const submissionCompletion = getSubmissionRequirementCompletion(
+    submissionRequirements,
+    submissionArtifacts,
+  )
+  const requestedAcknowledgementIds = submitRequest.acknowledged_missing_attachment_ids
+  const acknowledgedMissingAttachmentIds = new Set(requestedAcknowledgementIds)
+  const currentMissingAttachmentIds = submissionCompletion.missingRequiredRequirementIds
+  const acknowledgesExactCurrentMissingAttachments =
+    submitRequest.allow_missing_attachments
+    && requestedAcknowledgementIds.length === acknowledgedMissingAttachmentIds.size
+    && acknowledgedMissingAttachmentIds.size === currentMissingAttachmentIds.length
+    && currentMissingAttachmentIds.every(
+      (requirementId) => acknowledgedMissingAttachmentIds.has(requirementId),
+    )
+  const attachmentGate = getAssignmentAttachmentSubmissionGate(
+    submissionCompletion,
+    acknowledgesExactCurrentMissingAttachments,
+  )
+
+  if (!attachmentGate.ok && attachmentGate.reason === 'invalid_attachments') {
+    return NextResponse.json({ error: 'Fix invalid attachments before submitting.' }, { status: 400 })
+  }
+  if (!attachmentGate.ok && attachmentGate.reason === 'missing_confirmation_required') {
+    return NextResponse.json({
+      error: 'Confirm that you want to submit without the missing attachments.',
+      error_code: 'assignment_attachments_confirmation_required',
+      missing_attachment_ids: currentMissingAttachmentIds,
+    }, { status: 400 })
+  }
+
+  const submissionContent = submitRequest.content
+  const hasStructuredArtifacts = submissionArtifacts.some(isSubmissionArtifactPresent)
+  const hasAcknowledgedMissingAttachments =
+    attachmentGate.ok && attachmentGate.acknowledgedMissingAttachments
+  if (
+    !hasAssignmentSubmissionContent({ content: submissionContent })
+    && !hasStructuredArtifacts
+    && !hasAcknowledgedMissingAttachments
+  ) {
+    return NextResponse.json(
+      { error: 'No work to submit. Please write something or add an attachment first.' },
+      { status: 400 },
+    )
+  }
+
+  if (
+    existingDoc.is_submitted
+    && createJsonPatch(existingDoc.content, submissionContent).length > 0
+  ) {
+    return NextResponse.json(
+      { error: 'This assignment is already submitted and cannot be changed.' },
+      { status: 409 },
+    )
+  }
+
+  const palEnabled = isPalEnabled()
+  const palEvent = palEnabled && !isClassroomPalRequested()
+    ? buildLearningItemCompletedEvent({
+        learnerId: userId,
+        itemId: assignmentId,
+        occurredAt: new Date(),
+        dueAt: assignment.due_at,
+      })
+    : null
+  const submitResult = await submitContextualAssignmentDoc({
+    supabase: supabase as unknown as ContextualAssignmentSubmissionClient,
+    actorId: userId,
+    assignmentId,
+    content: submissionContent as TiptapContent,
+    expectedUpdatedAt: submitRequest.expected_updated_at,
+    acknowledgedMissingRequirementIds: hasAcknowledgedMissingAttachments
+      ? currentMissingAttachmentIds
+      : [],
+    ...(palEnabled ? { palEvent } : {}),
+  })
+
+  if (!submitResult.ok) {
+    if (submitResult.errorCode === 'assignment_submission_requirements_missing') {
+      const latestPreflight = await prepareContextualAssignmentDocSubmission({
+        supabase: supabase as unknown as ContextualAssignmentSubmissionClient,
+        actorId: userId,
+        assignmentId,
+      })
+      if (latestPreflight.doc?.id !== existingDoc.id) {
+        return NextResponse.json({
+          error: 'Assignment work changed before submission. Refresh and try again.',
+          error_code: 'assignment_doc_contention',
+        }, { status: 409 })
+      }
+      const latestCompletion = getSubmissionRequirementCompletion(
+        latestPreflight.submissionRequirements,
+        latestPreflight.submissionArtifacts,
+      )
+      if (latestCompletion.missingRequiredRequirementIds.length === 0) {
+        return NextResponse.json({
+          error: 'Attachment requirements changed before submission. Review them and try again.',
+          error_code: 'assignment_submission_requirements_changed',
+        }, { status: 409 })
+      }
+      return NextResponse.json({
+        error: 'Confirm that you want to submit without the missing attachments.',
+        error_code: 'assignment_attachments_confirmation_required',
+        missing_attachment_ids: latestCompletion.missingRequiredRequirementIds,
+      }, { status: 400 })
+    }
+    return NextResponse.json(
+      { error: submitResult.error, error_code: submitResult.errorCode },
+      { status: submitResult.status },
+    )
+  }
+
+  const palDelivery = palEnabled && (palEvent || isClassroomPalRequested())
+    ? await attemptImmediatePalEventDelivery({
+        event: palEvent,
+        supabase,
+        membership: { studentId: userId, classroomId: submitResult.classroomId },
+      })
+    : undefined
+
+  const doc = submitResult.doc
+  doc.content = parseContentField(doc.content)
+
+  return NextResponse.json({
+    doc: sanitizeDocForStudent(doc),
+    pal_delivery: palDelivery,
+  })
+}
+
 // POST /api/assignment-docs/[id]/submit - Submit assignment
 export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, context) => {
-  const user = await requireRole('student')
-  const { id: assignmentId } = await context.params
-  const supabase = getServiceRoleClient()
+  const assignmentAccess = await authorizeContextualAssignmentDocSubmissionRequest(async () => (
+    await context.params
+  ).id)
+  const user = assignmentAccess.user
+  const assignmentId = assignmentAccess.assignmentId
   if (!request.body) {
     return NextResponse.json(
       { error: 'Reload this assignment before submitting from an older browser tab.' },
@@ -40,6 +201,16 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
     )
   }
   const submitRequest = assignmentDocSubmitRequestSchema.parse(await request.json())
+  const supabase = getServiceRoleClient()
+
+  if (assignmentAccess.mode === 'contextual') {
+    return submitContextualMemberAssignment({
+      userId: user.id,
+      assignmentId,
+      submitRequest,
+      supabase,
+    })
+  }
 
   // Get assignment and verify enrollment
   const { data: assignment, error: assignmentError } = await supabase

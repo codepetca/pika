@@ -205,6 +205,27 @@ jobs:
       - name: Verify contextual enrollment concurrent writers and guess limits
         run: node scripts/check-contextual-enrollment-concurrency.mjs
 
+      - name: Verify contextual learner assignment-open atomicity and privileges
+        run: bash scripts/check-contextual-assignment-doc-open-database.sh
+
+      - name: Verify contextual learner assignment-open concurrent authorization
+        run: node scripts/check-contextual-assignment-doc-open-concurrency.mjs
+
+      - name: Verify contextual learner assignment-save atomicity and privileges
+        run: bash scripts/check-contextual-assignment-doc-save-database.sh
+
+      - name: Verify contextual learner assignment submit and unsubmit atomicity
+        run: bash scripts/check-contextual-assignment-doc-submission-database.sh
+
+      - name: Verify contextual learner assignment history and restore atomicity
+        run: bash scripts/check-contextual-assignment-doc-history-database.sh
+
+      - name: Verify contextual learner assignment artifact atomicity
+        run: bash scripts/check-contextual-assignment-artifacts-database.sh
+
+      - name: Verify contextual learner assignment-save concurrent authorization
+        run: node scripts/check-contextual-assignment-doc-save-concurrency.mjs
+
       - name: Verify atomic assignment draft and submission integrity
         run: bash scripts/check-atomic-assignment-submissions.sh
 

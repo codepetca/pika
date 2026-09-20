@@ -26,6 +26,26 @@ insert into public.users(id,email,role) values
   ('c1690000-0000-4000-8000-000000000001','teacher-169@example.invalid','teacher'),
   ('c1690000-0000-4000-8000-000000000002','student-169@example.invalid','student'),
   ('c1690000-0000-4000-8000-000000000003','other-169@example.invalid','student');
+set local role service_role;
+select public.set_effective_feature_entitlement_v1(
+  gen_random_uuid(),
+  'c1690000-0000-4000-8000-000000000001',
+  'classrooms.create',
+  'manual',
+  true,
+  clock_timestamp(),
+  null,
+  10,
+  'test:pal-classroom',
+  'pal_classroom_fixture',
+  coalesce((
+    select revision
+    from public.effective_feature_entitlements
+    where subject_user_id = 'c1690000-0000-4000-8000-000000000001'
+      and feature_key = 'classrooms.create'
+  ), 0)
+);
+reset role;
 insert into public.classrooms(id,teacher_id,title,class_code) values
   ('c1690000-0000-4000-8000-000000000010','c1690000-0000-4000-8000-000000000001','Pal A','C169A'),
   ('c1690000-0000-4000-8000-000000000011','c1690000-0000-4000-8000-000000000001','Pal B','C169B');

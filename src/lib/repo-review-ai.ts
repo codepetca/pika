@@ -26,15 +26,15 @@ import {
   PIKA_REPO_REVIEW_HEURISTIC_MODEL,
   PIKA_REPO_REVIEW_LOCAL_PROVIDER,
 } from '@/lib/grading/profiles/pika-repo-review'
-import { createOpenAiResponsesProvider } from '@/lib/grading/providers/openai-responses'
+import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
 import type { RepoReviewEvidenceItem, RepoReviewSemanticBreakdown } from '@/types'
 
-const DEFAULT_MODEL = 'gpt-5-nano'
-const REPO_REVIEW_REASONING_EFFORT = 'minimal'
+const DEFAULT_MODEL = 'deepseek-flash'
+const REPO_REVIEW_REASONING_EFFORT = 'medium'
 const REPO_REVIEW_REQUEST_TIMEOUT_MS = 25_000
 
-function getOpenAIKey(): string | null {
-  const key = process.env.OPENAI_API_KEY
+function getDeepSeekKey(): string | null {
+  const key = process.env.DEEPSEEK_API_KEY
   if (!key) return null
   return key.trim() || null
 }
@@ -221,10 +221,10 @@ export async function classifyAmbiguousRepoReviewChanges(
   items: Array<{ id: string; summary: string }>,
   sanitizationContext?: AiSanitizationContext,
 ): Promise<Record<string, string>> {
-  const apiKey = getOpenAIKey()
+  const apiKey = getDeepSeekKey()
   if (!apiKey || items.length === 0) return {}
 
-  const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const model = process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
   const providerItems = createProviderRefMap(
     items.map((item) => ({
       localId: item.id,
@@ -233,7 +233,7 @@ export async function classifyAmbiguousRepoReviewChanges(
     'change',
   )
   const providerRefToLocalId = mapProviderRefToLocalId(providerItems)
-  const provider = createOpenAiResponsesProvider({ apiKey })
+  const provider = createDeepSeekChatProvider({ apiKey })
   const classifications: Array<[string, string]> = []
 
   for (let index = 0; index < providerItems.length; index += PIKA_REPO_REVIEW_CLASSIFICATION_BATCH_SIZE) {
@@ -261,7 +261,7 @@ export async function classifyAmbiguousRepoReviewChanges(
 }
 
 export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): Promise<RepoReviewFeedbackResult> {
-  const apiKey = getOpenAIKey()
+  const apiKey = getDeepSeekKey()
   if (!apiKey) {
     return sanitizeRepoReviewFeedbackResult(
       buildHeuristicRepoReviewFeedback(input),
@@ -269,7 +269,7 @@ export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): P
     )
   }
 
-  const model = process.env.OPENAI_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const model = process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
   const sanitizationContext = input.sanitizationContext
   const prompt = buildPikaRepoReviewFeedbackPrompt({
     assignmentTitle: sanitizeAiText(input.assignmentTitle, sanitizationContext),
@@ -293,7 +293,7 @@ export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): P
 
   try {
     const result = await executeStructuredOutput({
-      provider: createOpenAiResponsesProvider({ apiKey }),
+      provider: createDeepSeekChatProvider({ apiKey }),
       policy: {
         version: PIKA_REPO_REVIEW_FEEDBACK_POLICY_VERSION,
         model,
