@@ -10605,6 +10605,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      reorder_assignments_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_ids: Json
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       reorder_assignments_preserve_materials: {
         Args: { p_assignment_ids: Json; p_classroom_id: string }
         Returns: undefined
@@ -10612,6 +10620,10 @@ export type Database = {
       reorder_classwork_items: {
         Args: { p_classroom_id: string; p_items: Json }
         Returns: undefined
+      }
+      reorder_classwork_items_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_items: Json }
+        Returns: Json
       }
       replace_assignment_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json }

@@ -10,8 +10,9 @@ one learner and full return for a selected learner set. A matched current
 Assignment owner may be teacher- or student-valued; global account role is not
 used as ownership evidence.
 
-AI auto-grading, repository review, bulk Assignment operations, classwork
-reorder, UI routing and rollout activation remain outside this slice.
+AI auto-grading, repository review, bulk Assignment operations, UI routing and
+rollout activation remain outside this slice. Classwork reorder is covered by
+its separate migration 197 contract.
 
 ## Admission and compatibility
 
@@ -61,5 +62,5 @@ applies migrations.
 
 Keep the gate disabled until migration 196 is deployed to the target environment
 and the broader classroom pilot checklist approves the exact user/Assignment
-pairs. AI grading/repository review, bulk/reorder and remaining owner surfaces
+pairs. AI grading/repository review, bulk Assignment operations and remaining owner surfaces
 must be completed before the whole owner experience is considered role-neutral.

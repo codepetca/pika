@@ -219,15 +219,19 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   user/Classroom gate and migrations 192–193. A matched teacher- or student-valued current
   owner is rechecked under the shared Classroom-operation fence before an Assignment,
   material or survey and its mixed-classwork position are inserted atomically; Assignment
-  requirements are included in that transaction. Bulk/reorder flows remain legacy.
+  requirements are included in that transaction. Bulk flows remain legacy.
   Manual Assignment grading now has an eighth independent exact user/Assignment
   gate and migrations 194–195. Matched teacher- or student-valued current owners are rechecked
   under the established grading then Classroom-operation fences before the existing atomic
   grade save runs. Feedback-only and selected-student return now share a ninth independent
   exact user/Assignment gate and migration 196. Matched teacher- or student-valued current
   owners are rechecked under the established feedback-return then Classroom-operation and
-  learner-purge fences before the existing atomic return operations run. AI grading and
-  repository review remain legacy. All nine gates must therefore stay disabled.
+  learner-purge fences before the existing atomic return operations run. Assignment-only
+  and mixed-classwork ordering now share a tenth independent exact user/Classroom gate and
+  migration 197. Matched teacher- or student-valued current owners are rechecked under the
+  shared Classroom-operation fence before the established ordering functions run, so
+  contextual classwork creation and ordering serialize. AI grading, repository review and
+  bulk Assignment operations remain legacy. All ten gates must therefore stay disabled.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
   See also [the learner assignment-open contract](contextual-assignment-doc-open.md).
   See also [the learner assignment-save contract](contextual-assignment-doc-save.md).
@@ -238,6 +242,7 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   See also [the Assignment creation contract](contextual-assignment-creation.md).
   See also [the manual Assignment grading contract](contextual-assignment-grading.md).
   See also [the Assignment feedback-return contract](contextual-assignment-feedback-return.md).
+  See also [the classwork reorder contract](contextual-classwork-reorder.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
