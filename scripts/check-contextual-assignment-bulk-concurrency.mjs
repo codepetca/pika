@@ -14,9 +14,12 @@ assert.equal(
 
 const tag = `assignment_bulk_${randomUUID().replaceAll('-', '').slice(0, 8)}`
 const owner = randomUUID()
+const otherOwner = randomUUID()
 const classroom = randomUUID()
+const otherClassroom = randomUUID()
 const assignmentOne = randomUUID()
 const assignmentTwo = randomUUID()
+const otherAssignment = randomUUID()
 const sessions = []
 
 function adminSql(sql) {
@@ -125,12 +128,13 @@ function bulkSql(items) {
 
 try {
   assert.equal(adminSql(`select exists (
-    select 1 from supabase_migrations.schema_migrations where version = '198'
-  );`), 't', 'Migration 198 must already be applied')
+    select 1 from supabase_migrations.schema_migrations where version = '199'
+  );`), 't', 'Migration 199 must already be applied')
 
   adminSql(`
-    insert into public.users (id, email, role)
-    values ('${owner}', '${tag}-owner@example.invalid', 'student');
+    insert into public.users (id, email, role) values
+      ('${owner}', '${tag}-owner@example.invalid', 'student'),
+      ('${otherOwner}', '${tag}-other-owner@example.invalid', 'teacher');
     set role service_role;
     select public.set_effective_feature_entitlement_v1(
       gen_random_uuid(), '${owner}', 'classrooms.create', 'manual', true,
@@ -138,13 +142,48 @@ try {
       coalesce((select revision from public.effective_feature_entitlements
         where subject_user_id = '${owner}' and feature_key = 'classrooms.create'), 0)
     );
+    select public.set_effective_feature_entitlement_v1(
+      gen_random_uuid(), '${otherOwner}', 'classrooms.create', 'manual', true,
+      clock_timestamp(), null, 2, 'test:migration-199', '${tag}-other',
+      coalesce((select revision from public.effective_feature_entitlements
+        where subject_user_id = '${otherOwner}' and feature_key = 'classrooms.create'), 0)
+    );
     reset role;
-    insert into public.classrooms (id, teacher_id, title, class_code)
-    values ('${classroom}', '${owner}', '${tag}', upper(substr(replace('${classroom}', '-', ''), 1, 8)));
+    insert into public.classrooms (id, teacher_id, title, class_code) values
+      ('${classroom}', '${owner}', '${tag}', upper(substr(replace('${classroom}', '-', ''), 1, 8))),
+      ('${otherClassroom}', '${otherOwner}', '${tag}-other', upper(substr(replace('${otherClassroom}', '-', ''), 1, 8)));
     insert into public.assignments (id, classroom_id, title, description, due_at, created_by, position) values
       ('${assignmentOne}', '${classroom}', 'First', '', clock_timestamp() + interval '7 days', '${owner}', 0),
-      ('${assignmentTwo}', '${classroom}', 'Second', '', clock_timestamp() + interval '7 days', '${owner}', 1);
+      ('${assignmentTwo}', '${classroom}', 'Second', '', clock_timestamp() + interval '7 days', '${owner}', 1),
+      ('${otherAssignment}', '${otherClassroom}', 'Other tenant', '', clock_timestamp() + interval '7 days', '${otherOwner}', 0);
   `)
+
+  const classroomFence = new Session('classroom_a_fence')
+  const foreignBulk = new Session('foreign_bulk')
+  const otherProbe = new Session('classroom_b_probe')
+  await classroomFence.run(`begin; select pg_advisory_xact_lock(
+    hashtextextended('pika-classroom-operation:${classroom}', 0)
+  );`)
+  const foreignResult = await Promise.race([
+    foreignBulk.run(`begin; ${bulkSql(`[${item(otherAssignment, 'Must stay foreign')}]`)}`),
+    delay(2_000).then(() => { throw new Error('Foreign-ID preflight waited on Classroom A') }),
+  ])
+  assert.equal(foreignResult, 'false')
+  assert.equal(await otherProbe.run(`begin;
+    do $probe$ begin
+      if not pg_try_advisory_xact_lock(
+        hashtextextended('assignment_submission:${otherAssignment}', 0)
+      ) then
+        raise exception 'Foreign bulk held the other Assignment advisory lock';
+      end if;
+      perform 1 from public.assignments where id = '${otherAssignment}' for update;
+    end $probe$;
+    select 'free';`), 'free')
+  await otherProbe.run('commit;')
+  await foreignBulk.run('rollback;')
+  await classroomFence.run('rollback;')
+  assert.equal(adminSql(`select title from public.assignments where id = '${otherAssignment}';`), 'Other tenant')
+  console.log('Passed: foreign_assignment_preflight_takes_no_cross_tenant_locks')
 
   const archive = new Session('archive_first')
   const deniedBulk = new Session('bulk_second')
@@ -200,8 +239,9 @@ try {
 } finally {
   await Promise.allSettled(sessions.map((session) => session.close()))
   adminSql(`
-    delete from public.classrooms where id = '${classroom}';
-    delete from public.effective_feature_entitlement_audit where subject_user_id = '${owner}';
-    delete from public.users where id = '${owner}';
+    delete from public.classrooms where id in ('${classroom}', '${otherClassroom}');
+    delete from public.effective_feature_entitlement_audit
+      where subject_user_id in ('${owner}', '${otherOwner}');
+    delete from public.users where id in ('${owner}', '${otherOwner}');
   `)
 }

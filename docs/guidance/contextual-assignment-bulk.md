@@ -5,7 +5,7 @@ approved for cohort activation or production migration application.
 
 ## Scope
 
-Migration 198 and the matching server gate cover the existing markdown
+Migrations 198–199 and the matching server gate cover the existing markdown
 Assignment bulk editor at `POST /api/teacher/assignments/bulk`. A matched
 current Classroom owner may be teacher- or student-valued and may create draft
 Assignments, edit existing Assignments, release drafts, move scheduled work
@@ -35,6 +35,8 @@ exact matched pair uses the contextual transaction.
 `public.save_assignments_bulk_for_owner_v1` receives server-normalized
 instruction fields and the complete batch. It:
 
+- authorizes the requested Classroom and rejects missing or foreign existing
+  Assignment IDs before taking any request-supplied Assignment lock;
 - resolves new Assignment IDs and acquires every Assignment submission fence in
   canonical UUID order;
 - acquires the shared Classroom-operation fence and locks the current Classroom;
@@ -48,20 +50,22 @@ instruction fields and the complete batch. It:
 - returns actor, Classroom, count and Assignment binding evidence that the
   server verifies.
 
-The RPC is `SECURITY DEFINER` with an empty search path and is executable only
-by `service_role`. Applying migration 198 changes no durable product rows and
-routes no requests.
+The public RPC is `SECURITY DEFINER` with an empty search path and is executable
+only by `service_role`. Migration 199 moves migration 198's original implementation
+into `private`, revokes direct service-role execution, and exposes the tenant-scoped
+wrapper. Applying either migration changes no durable product rows and routes no requests.
 
 ## Verification and rollout
 
 The rollback-only database harness covers a student-valued owner, mixed create
 and update, release timestamps, forced drafts for new work, preserved mixed
 positions, missing-ID atomicity, live un-release denial, unrelated actors,
-archived Classrooms and function privileges. The multi-connection harness proves
-archive-first denial, bulk-first completion before archive, and deterministic
-serialization of overlapping batches with reversed input order.
+archived Classrooms, malformed dates and function privileges. The multi-connection
+harness proves archive-first denial, bulk-first completion before archive,
+deterministic serialization of overlapping batches with reversed input order,
+and that a foreign Assignment ID cannot lock another Classroom's Assignment.
 
-Keep the gate disabled until migration 198 is deployed to the target
+Keep the gate disabled until migrations 198–199 are deployed to the target
 environment and the broader classroom pilot checklist approves the exact
 user/Classroom pairs. The same pair must have dependent classwork creation,
 owner mutation and reorder gates active before this gate is enabled. AI grading,

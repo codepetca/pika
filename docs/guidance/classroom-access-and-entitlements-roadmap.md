@@ -231,7 +231,7 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   migration 197. Matched teacher- or student-valued current owners are rechecked under the
   shared Classroom-operation fence before the established ordering functions run, so
   contextual classwork creation and ordering serialize. The markdown Assignment bulk editor
-  now has an eleventh independent exact user/Classroom gate and migration 198. Matched
+  now has an eleventh independent exact user/Classroom gate and migrations 198–199. Matched
   teacher- or student-valued current owners are rechecked under canonically ordered Assignment
   fences and the shared Classroom-operation fence before the complete create/update/release/
   position batch commits atomically. AI grading and repository review remain legacy. All

@@ -21,9 +21,9 @@ declare
   v_signature constant text := 'public.save_assignments_bulk_for_owner_v1(uuid,uuid,jsonb)';
 begin
   if not exists (
-    select 1 from supabase_migrations.schema_migrations where version = '198'
+    select 1 from supabase_migrations.schema_migrations where version = '199'
   ) then
-    raise exception 'Migration 198 is required; this harness never applies it';
+    raise exception 'Migration 199 is required; this harness never applies it';
   end if;
   if to_regprocedure(v_signature) is null then
     raise exception 'Contextual Assignment bulk function is missing';
@@ -40,6 +40,13 @@ begin
   where procedure.oid = to_regprocedure(v_signature);
   if not v_security_definer or not (v_config @> array['search_path=""']::text[]) then
     raise exception 'Contextual Assignment bulk security metadata is incorrect';
+  end if;
+  if has_function_privilege(
+    'service_role',
+    'private.save_assignments_bulk_unscoped_v1(uuid,uuid,jsonb)',
+    'execute'
+  ) then
+    raise exception 'Private unscoped Assignment bulk implementation is directly executable';
   end if;
 end;
 $check$;
@@ -160,6 +167,23 @@ begin
     or (select count(*) from public.assignments where classroom_id = v_classroom) <> v_before
   then
     raise exception 'Missing-ID validation did not remain atomic: %', v_result;
+  end if;
+
+  begin
+    perform public.save_assignments_bulk_for_owner_v1(
+      v_owner,
+      v_classroom,
+      jsonb_build_array(jsonb_build_object(
+        'title', 'Invalid date must not write', 'due_at', 'not-a-date',
+        'instructions_markdown', '', 'description', '',
+        'rich_instructions', '{"type":"doc","content":[]}'::jsonb, 'is_draft', true
+      ))
+    );
+    raise exception 'Expected malformed date rejection';
+  exception when invalid_datetime_format then null;
+  end;
+  if (select count(*) from public.assignments where classroom_id = v_classroom) <> v_before then
+    raise exception 'Malformed date wrote an Assignment';
   end if;
 
   v_result := public.save_assignments_bulk_for_owner_v1(

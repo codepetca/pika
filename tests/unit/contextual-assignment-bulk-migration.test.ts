@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync('supabase/migrations/198_contextual_assignment_bulk.sql', 'utf8')
+const hardeningSql = readFileSync('supabase/migrations/199_harden_contextual_assignment_bulk_scope.sql', 'utf8')
 const ci = readFileSync('.github/workflows/ci.yml', 'utf8')
 
 describe('contextual Assignment bulk migration', () => {
@@ -37,5 +38,19 @@ describe('contextual Assignment bulk migration', () => {
   it('runs rollback and multi-connection checks in database CI', () => {
     expect(ci).toContain('bash scripts/check-contextual-assignment-bulk-database.sh')
     expect(ci).toContain('node scripts/check-contextual-assignment-bulk-concurrency.mjs')
+  })
+
+  it('moves the original implementation private and preflights scope before request-supplied locks', () => {
+    expect(hardeningSql).toContain('set schema private')
+    expect(hardeningSql).toContain('rename to save_assignments_bulk_unscoped_v1')
+    expect(hardeningSql).toMatch(/revoke all on function private\.save_assignments_bulk_unscoped_v1\([\s\S]*?service_role/)
+    const foreignCheck = hardeningSql.indexOf('Reject missing or foreign IDs')
+    const assignmentFence = hardeningSql.indexOf("'assignment_submission:'")
+    const scopedRowLock = hardeningSql.indexOf('and assignment.classroom_id = p_classroom_id\n  order by assignment.id\n  for update')
+    const delegate = hardeningSql.lastIndexOf('return private.save_assignments_bulk_unscoped_v1')
+    expect(foreignCheck).toBeGreaterThan(0)
+    expect(foreignCheck).toBeLessThan(assignmentFence)
+    expect(assignmentFence).toBeLessThan(scopedRowLock)
+    expect(scopedRowLock).toBeLessThan(delegate)
   })
 })

@@ -69,7 +69,11 @@ function mapBulkError(error: RpcError): never {
   if (error.code === '40001' || isRetryableDatabaseContention(error)) {
     throw new ApiError(409, 'Classroom changed during this update. Refresh and try again.')
   }
-  if (error.code === '22023' || error.code === '22P02' || error.code === '23502') {
+  if (error.code === '22023'
+    || error.code === '22007'
+    || error.code === '22P02'
+    || error.code === '23502'
+  ) {
     throw new ApiError(400, 'Invalid assignment bulk request')
   }
   throw new ApiError(503, 'Unable to save assignments')

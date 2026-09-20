@@ -103,6 +103,7 @@ describe('contextual Assignment bulk adapter', () => {
     ['55000', 'assignment_bulk_archived', 403],
     ['40001', 'Assignment binding changed', 409],
     ['22023', 'Invalid assignment bulk request', 400],
+    ['22007', 'invalid input syntax for type timestamp with time zone', 400],
     ['XX000', 'database unavailable', 503],
   ])('maps database error %s/%s to HTTP %s', async (code, message, statusCode) => {
     rpc.mockResolvedValue({ data: null, error: { code, message } })
