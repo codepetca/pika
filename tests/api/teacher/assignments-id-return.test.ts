@@ -162,7 +162,9 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       assignmentId: 'a0000000-0000-4000-8000-000000000001',
     }])
 
-    const response = await POST(makeRequest({ student_ids: [student1, student2, student3, student4] }), {
+    const response = await POST(makeRequest({
+      student_ids: [student1.toUpperCase(), student1, student2, student3, student4],
+    }), {
       params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
     })
 

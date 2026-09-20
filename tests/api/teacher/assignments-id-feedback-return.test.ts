@@ -288,7 +288,7 @@ describe('POST /api/teacher/assignments/[id]/feedback-return', () => {
       error: null,
     })
 
-    const response = await POST(makeRequest({ student_id: studentId, feedback: 'Contextual feedback' }), {
+    const response = await POST(makeRequest({ student_id: studentId.toUpperCase(), feedback: 'Contextual feedback' }), {
       params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
     })
 

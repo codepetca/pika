@@ -26,6 +26,19 @@ describe('assignment return request contracts', () => {
     })
   })
 
+  it('canonicalizes uppercase feedback and selected-student UUIDs before database access', () => {
+    const uppercase = 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA'
+    const lowercase = uppercase.toLowerCase()
+
+    expect(returnAssignmentFeedbackSchema.parse({
+      student_id: uppercase,
+      expected_doc_updated_at: now,
+    }).studentId).toBe(lowercase)
+    expect(returnAssignmentsSchema.parse({
+      student_ids: [uppercase, lowercase],
+    }).studentIds).toEqual([lowercase])
+  })
+
   it('leaves null feedback absent so the stored draft can be used', () => {
     expect(returnAssignmentFeedbackSchema.parse({
       student_id: studentId,

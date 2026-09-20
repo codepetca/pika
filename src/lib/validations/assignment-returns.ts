@@ -25,7 +25,8 @@ export const returnAssignmentFeedbackSchema = z.preprocess(
     addIssue(ctx, 'student_id is required')
     return z.NEVER
   }
-  if (!uuidSchema.safeParse(body.student_id).success) {
+  const parsedStudentId = uuidSchema.safeParse(body.student_id)
+  if (!parsedStudentId.success) {
     addIssue(ctx, 'student_id must be a valid UUID')
     return z.NEVER
   }
@@ -35,7 +36,7 @@ export const returnAssignmentFeedbackSchema = z.preprocess(
   }
 
   return {
-    studentId: body.student_id,
+    studentId: parsedStudentId.data.toLowerCase(),
     feedback: typeof body.feedback === 'string' ? body.feedback.trim() : undefined,
     expectedDocUpdatedAt: body.expected_doc_updated_at,
   }
@@ -57,19 +58,19 @@ export const returnAssignmentsSchema = z.preprocess(
     return z.NEVER
   }
 
-  const studentIds = Array.from(
-    new Set(body.student_ids.filter((studentId): studentId is string => typeof studentId === 'string')),
+  const stringStudentIds = body.student_ids.filter(
+    (studentId): studentId is string => typeof studentId === 'string',
   )
-  if (studentIds.length === 0) {
+  if (stringStudentIds.length === 0) {
     addIssue(ctx, 'student_ids array is required')
     return z.NEVER
   }
-  if (studentIds.some((studentId) => !uuidSchema.safeParse(studentId).success)) {
+  if (stringStudentIds.some((studentId) => !uuidSchema.safeParse(studentId).success)) {
     addIssue(ctx, 'student_ids must contain valid UUIDs')
     return z.NEVER
   }
 
-  return { studentIds }
+  return { studentIds: Array.from(new Set(stringStudentIds.map((studentId) => studentId.toLowerCase()))) }
 })
 
 const uuidArraySchema = z.array(uuidSchema)

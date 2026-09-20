@@ -155,6 +155,7 @@ export async function returnAssignmentFeedbackForOwner(opts: {
     || result.entry.entry_kind !== 'teacher_feedback'
     || result.entry.author_type !== 'teacher'
     || result.entry.created_by !== opts.actorId
+    || result.entry.body !== result.doc.feedback
     || result.entry.returned_at !== result.doc.feedback_returned_at
   ) {
     throw new ApiError(503, 'Invalid assignment feedback return result')
@@ -197,6 +198,7 @@ export async function returnAssignmentsForOwner(opts: {
     && result.cleared_count === result.returned_count
     && result.updated_count + result.created_count === result.returned_count
     && result.created_count === result.created_student_ids.length
+    && new Set(result.created_student_ids).size === result.created_student_ids.length
     && result.created_student_ids.every((id) => result.returned_student_ids.includes(id))
     && result.blocked_count === result.blocked_student_ids.length
     && result.already_returned_count === result.already_returned_student_ids.length

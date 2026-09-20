@@ -60,6 +60,7 @@ describe('contextual assignment feedback return adapters', () => {
     feedbackResult({ doc: { ...feedbackResult().doc, assignment_id: studentTwo } }),
     feedbackResult({ entry: { ...feedbackResult().entry, created_by: studentTwo } }),
     feedbackResult({ entry: { ...feedbackResult().entry, returned_at: '2026-09-20T21:00:00.000Z' } }),
+    feedbackResult({ entry: { ...feedbackResult().entry, body: 'Contradictory feedback' } }),
   ])('rejects substituted feedback-only evidence', async (data) => {
     rpc.mockResolvedValue({ data, error: null })
     await expect(returnAssignmentFeedbackForOwner({
@@ -72,6 +73,27 @@ describe('contextual assignment feedback return adapters', () => {
     await expect(returnAssignmentsForOwner({ actorId, assignmentId, studentIds: [studentOne, studentTwo] }))
       .resolves.toMatchObject({ returned_count: 1, missing_count: 1 })
     rpc.mockResolvedValueOnce({ data: batchResult({ returned_student_ids: [studentOne, actorId] }), error: null })
+    await expect(returnAssignmentsForOwner({ actorId, assignmentId, studentIds: [studentOne, studentTwo] }))
+      .rejects.toMatchObject({ statusCode: 503 })
+  })
+
+  it('rejects duplicate created-student evidence', async () => {
+    rpc.mockResolvedValue({
+      data: batchResult({
+        returned_count: 2,
+        cleared_count: 2,
+        updated_count: 0,
+        created_count: 2,
+        created_student_ids: [studentOne, studentOne],
+        returned_student_ids: [studentOne, studentTwo],
+        missing_count: 0,
+        missing_student_ids: [],
+        not_enrolled_count: 0,
+        not_enrolled_student_ids: [],
+      }),
+      error: null,
+    })
+
     await expect(returnAssignmentsForOwner({ actorId, assignmentId, studentIds: [studentOne, studentTwo] }))
       .rejects.toMatchObject({ statusCode: 503 })
   })
