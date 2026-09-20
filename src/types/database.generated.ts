@@ -11166,6 +11166,20 @@ export type Database = {
             }
             Returns: Json
           }
+      submit_assignment_doc_for_member_v1: {
+        Args: {
+          p_acknowledged_missing_requirement_ids: string[]
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_emit_pal_event: boolean
+          p_expected_updated_at: string
+          p_pal_event: Json
+          p_word_count: number
+        }
+        Returns: Json
+      }
       submit_assignment_doc_with_pal_event_atomic:
         | {
             Args: {
@@ -11252,6 +11266,10 @@ export type Database = {
       }
       unsubmit_assignment_doc_atomic: {
         Args: { p_assignment_id: string; p_student_id: string }
+        Returns: Json
+      }
+      unsubmit_assignment_doc_for_member_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
         Returns: Json
       }
       unsubmit_test_attempts_atomic: {

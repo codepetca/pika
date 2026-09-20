@@ -74,16 +74,17 @@ to enable. See [the assignment read contract](contextual-classroom-assignment-re
 A fifth, separately configured exact user/assignment gate covers the owner aggregate and
 individual student-work assignment-detail reads. A student-valued owner receives the
 existing roster/submission summary and may inspect one enrolled student's work after every
-supporting resource binding is validated. Independent dormant GET and PATCH gates now let
-an exact teacher- or student-valued active member open and autosave only their own learner
-document. Migrations 182 and 184–185 perform current membership and visibility authorization
-under removal fences, with assignment-document mutation fences acquired first for safe
-save/submit/restore ordering; migration 183 keeps membership-scoped Pal identity role-neutral.
-Submission, unsubmit, history/restore, grading, artifact and release behavior remains
-legacy, so none of these gates may be activated. See
+supporting resource binding is validated. Independent dormant GET, PATCH and submission
+gates now let an exact teacher- or student-valued active member open, autosave, submit and
+unsubmit only their own learner document. Migrations 182 and 184–186 perform current
+membership and visibility authorization under removal fences, with assignment-document
+mutation fences acquired first for safe save/submit/restore ordering; migration 183 keeps
+membership-scoped Pal identity role-neutral. History/restore, grading, artifact and release
+behavior remains legacy, so none of these gates may be activated. See
 [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
 See [the learner assignment-open contract](contextual-assignment-doc-open.md) and
-[the learner assignment-save contract](contextual-assignment-doc-save.md).
+[the learner assignment-save contract](contextual-assignment-doc-save.md), plus
+[the learner assignment-submission contract](contextual-assignment-doc-submission.md).
 
 ### Concrete blockers to a role-neutral pilot found in the inventory
 

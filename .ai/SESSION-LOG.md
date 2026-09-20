@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-13 — Phase3 final review correction batch
-
-DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal retry classification finding and independently detected warning-level SQL lint failure. Batched retryable generic404/malformed/unexpected-success outcomes with same-binding/no-proof regressions;42focused tests pass. Added forward172 replacing only receipt authorization's unused assignment withPERFORM, preserving171/hash598ee035 and all behavior/signatures/grants. New172hash4aac47ce is unapplied; requires separate exactlocalapproval and postapplication lint/type/DB validation. Final targeted review pending within16:31UTC cap/MAX5launches. No provider traffic, committed fixtures, rollout or merge.
-
 ## 2026-09-13 — Disabled removed-membership academic stage source checkpoint
 
 - Owner01a09bf4 on codex/removed-membership-academic-cleanup, base29cde0b0. Clarified academic ownership is student+classroom; retained generation authenticates operation. No prospective provenance capture or backfill.
@@ -267,3 +263,9 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added an independent off-by-default exact user/assignment PATCH gate. A matched teacher- or student-valued active member saves only their own document; bounded preflight and RPC evidence are strictly rebound to the authenticated actor and assignment. Disabled and unmatched requests retain the legacy student-only route, and missing schema never falls back after admission.
 - With exact local authorization, migration184 SHA256 `5a761230159d7ad1b795426eac2b290d58e75da508124bb389e4a90a080edc5d` applied locally. Rollback-only behavior and multi-connection removal/archive/draft/save/duplicate-save contracts pass, generated types match local history001–184, and the GET/PATCH gates remain off. Submission, unsubmit, history/restore and artifact mutations remain legacy, so no cohort may be activated.
 - Initial security review found that migration184 could hold classroom/member fences while an existing submit, unsubmit, restore or legacy save held its document fence, making ordinary overlap deadlock or surface raw contention. Batch1 adds migration185's fixed submission→editor-save→classroom/member ordering, maps guarded assignment/classroom contention to safe 409 retry responses, and expands real two-connection coverage to both save/submit and contextual/legacy-save orderings, unsubmit-first, and save-first draft/archive retries. With exact local authorization, migration185 SHA256 `833b009433c95d288bccb241b6a360234186b6b5ae143be717950e67a3febd88` applied locally; all 12 race cases pass and randomized fixtures are removed.
+
+## 2026-09-20 — Dormant contextual learner assignment submit/unsubmit
+
+- Owner `codex/contextual-assignment-submit`, based on merged assignment-save PR1297. Migration186 adds service-only submit and unsubmit transactions that recheck live assignment/classroom state and exact enrollment under the established submission→editor→classroom/member lock order before delegating to the legacy atomic operations.
+- Added one independent off-by-default exact user/assignment gate shared by the submit and unsubmit routes. Matched teacher- or student-valued active members mutate only their own document; strict adapter and preflight evidence binding fail closed without legacy fallback. Disabled and unmatched requests retain the legacy student-only path.
+- With exact local-only authorization, migration186 SHA256 `a06d0915a0df1930ef35e3acf459e271f93d6a7d579d52b23afe48cb5047959f` applied after local history001–185. Warning-level schema lint, generated-type parity, rollback-only behavior checks and all 18 removal/save/submit/unsubmit concurrency contracts pass; randomized fixtures are removed. Production remains001–180 and every contextual assignment gate remains off. History/restore and artifact mutations still block cohort activation.
