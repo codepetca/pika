@@ -52,6 +52,30 @@ function makeDoc(overrides: Record<string, unknown> = {}) {
 }
 
 describe('atomic assignment document operations', () => {
+  it.each(['40001', '40P01', '55000', '55P03'])('maps database contention %s to a retryable save conflict', async (code) => {
+    const result = await saveAssignmentDocAtomic({
+      supabase: { rpc: vi.fn().mockResolvedValue({ data: null, error: { code } }) },
+      assignmentId: 'assignment-1',
+      studentId: 'student-1',
+      previousContent: beforeContent,
+      content: afterContent,
+      expectedUpdatedAt: '2026-07-16T12:00:00.000Z',
+      trigger: 'autosave',
+      pasteWordCount: 0,
+      keystrokeCount: 1,
+      saveSessionId: '10000000-0000-4000-8000-000000000001',
+      saveSequence: 1,
+      metricSessionId: '10000000-0000-4000-8000-000000000002',
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      status: 409,
+      error: 'Assignment work changed during this operation. Refresh and try again.',
+      errorCode: 'assignment_doc_contention',
+    })
+  })
+
   it('passes revision, history, and metric-session evidence to the save RPC', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {

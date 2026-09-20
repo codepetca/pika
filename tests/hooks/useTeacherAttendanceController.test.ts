@@ -108,6 +108,210 @@ describe('useTeacherAttendanceController', () => {
     vi.unstubAllGlobals()
   })
 
+  it('projects a staff mark before the request completes', async () => {
+    let resolvePost!: (value: Response) => void
+    const post = new Promise<Response>((resolve) => { resolvePost = resolve })
+    let markSubmitted = false
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        const next = attendanceView(url.searchParams.get('date') ?? '2026-05-05')
+        if (markSubmitted) {
+          next.students[0] = {
+            ...next.students[0],
+            status: 'late',
+            source: 'staff',
+            revision: 2,
+            hasManualOverride: true,
+          }
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(next) }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        markSubmitted = true
+        return post
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks([studentId], 'late')
+    })
+
+    expect(result.current.studentsById.get(studentId)).toMatchObject({
+      status: 'late',
+      source: 'staff',
+      hasManualOverride: true,
+    })
+
+    await act(async () => {
+      resolvePost(new Response(JSON.stringify({ outcome: 'applied', appliedCount: 1 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      await command
+    })
+  })
+
+  it('preserves an in-flight optimistic mark through a stale refresh', async () => {
+    let resolvePost!: (value: Response) => void
+    const post = new Promise<Response>((resolve) => { resolvePost = resolve })
+    let markApplied = false
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        const next = attendanceView(url.searchParams.get('date') ?? '2026-05-05')
+        if (markApplied) {
+          next.students[0] = {
+            ...next.students[0],
+            status: 'late',
+            source: 'staff',
+            revision: 2,
+            hasManualOverride: true,
+          }
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(next) }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/marks' && init?.method === 'POST') return post
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks([studentId], 'late')
+    })
+
+    await act(async () => {
+      await result.current.loadView(true)
+    })
+    expect(result.current.studentsById.get(studentId)).toMatchObject({
+      status: 'late',
+      source: 'staff',
+      hasManualOverride: true,
+    })
+
+    markApplied = true
+    await act(async () => {
+      resolvePost(new Response(JSON.stringify({ outcome: 'applied', appliedCount: 1 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      await command
+    })
+  })
+
+  it('projects the automatic status immediately when restoring an override', async () => {
+    let resolvePost!: (value: Response) => void
+    const post = new Promise<Response>((resolve) => { resolvePost = resolve })
+    let overrideActive = true
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        const next = attendanceView(url.searchParams.get('date') ?? '2026-05-05')
+        if (overrideActive) {
+          next.students[0] = {
+            ...next.students[0],
+            status: 'absent',
+            source: 'staff',
+            revision: 2,
+            hasManualOverride: true,
+          }
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(next) }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        overrideActive = false
+        return post
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.studentsById.get(studentId)?.hasManualOverride).toBe(true))
+    let command!: Promise<void>
+    act(() => {
+      command = result.current.submitMarks([studentId], 'automatic')
+    })
+
+    expect(result.current.studentsById.get(studentId)).toMatchObject({
+      status: 'present',
+      source: 'student_qr',
+      hasManualOverride: false,
+    })
+
+    await act(async () => {
+      resolvePost(new Response(JSON.stringify({ outcome: 'applied', appliedCount: 1 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+      await command
+    })
+  })
+
+  it('restores the previous attendance record when a mark request fails', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(attendanceView(url.searchParams.get('date') ?? '2026-05-05')),
+        }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        return Promise.resolve(new Response(JSON.stringify({ error: 'Write failed' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        }))
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    await act(async () => {
+      await result.current.submitMarks([studentId], 'absent')
+    })
+
+    expect(result.current.studentsById.get(studentId)).toMatchObject({
+      status: 'present',
+      source: 'student_qr',
+      hasManualOverride: false,
+    })
+    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
+      text: 'Write failed',
+      tone: 'warning',
+    })
+  })
+
   it('rejects another command for a student who still owns a pending confirmation', async () => {
     const fetchMock = mockPendingMarksFetch()
     const { result } = renderHook(() => useTeacherAttendanceController({
@@ -142,6 +346,143 @@ describe('useTeacherAttendanceController', () => {
       new URL(String(input), 'http://localhost').pathname === '/api/teacher/attendance/marks'
       && init?.method === 'POST'
     ))).toHaveLength(1)
+  })
+
+  it('preserves an earlier optimistic mark while a different student is confirmed', async () => {
+    let submittedMarks = 0
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        const next = attendanceView(url.searchParams.get('date') ?? '2026-05-05')
+        next.students.push({
+          ...next.students[0],
+          studentId: secondStudentId,
+          firstName: 'Grace',
+          lastName: 'Hopper',
+          ...(submittedMarks >= 2 ? {
+            status: 'absent' as const,
+            source: 'staff' as const,
+            revision: 2,
+            hasManualOverride: true,
+          } : {}),
+        })
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(next) }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        submittedMarks += 1
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ outcome: 'applied', appliedCount: 1 }),
+        }) as any
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    vi.useFakeTimers()
+
+    let firstCommand!: Promise<void>
+    await act(async () => {
+      firstCommand = result.current.submitMarks([studentId], 'late')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_250)
+      await firstCommand
+    })
+    expect(result.current.studentsById.get(studentId)).toMatchObject({
+      status: 'late',
+      source: 'staff',
+      hasManualOverride: true,
+    })
+
+    await act(async () => {
+      await result.current.submitMarks([secondStudentId], 'absent')
+    })
+
+    expect(result.current.studentsById.get(secondStudentId)).toMatchObject({
+      status: 'absent',
+      source: 'staff',
+      hasManualOverride: true,
+    })
+    expect(result.current.studentsById.get(studentId)).toMatchObject({
+      status: 'late',
+      source: 'staff',
+      hasManualOverride: true,
+    })
+    expect(result.current.pendingStudentIds.has(studentId)).toBe(true)
+  })
+
+  it('preserves two unresolved optimistic marks through background revalidation', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (url.pathname === '/api/teacher/attendance/session' && !init?.method) {
+        const next = attendanceView(url.searchParams.get('date') ?? '2026-05-05')
+        next.students.push({
+          ...next.students[0],
+          studentId: secondStudentId,
+          firstName: 'Grace',
+          lastName: 'Hopper',
+        })
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(next) }) as any
+      }
+      if (url.pathname === '/api/teacher/attendance/marks' && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ outcome: 'applied', appliedCount: 1 }),
+        }) as any
+      }
+      throw new Error(`Unhandled fetch: ${url.toString()}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({
+      classroom,
+      selectedDate: '2026-05-05',
+      enabled: true,
+      isActive: true,
+    }))
+
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    vi.useFakeTimers()
+
+    let firstCommand!: Promise<void>
+    await act(async () => {
+      firstCommand = result.current.submitMarks([studentId], 'late')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_250)
+      await firstCommand
+    })
+
+    let secondCommand!: Promise<void>
+    await act(async () => {
+      secondCommand = result.current.submitMarks([secondStudentId], 'absent')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_250)
+      await secondCommand
+      await vi.advanceTimersByTimeAsync(3_000)
+    })
+
+    expect(result.current.studentsById.get(studentId)).toMatchObject({
+      status: 'late', source: 'staff', hasManualOverride: true,
+    })
+    expect(result.current.studentsById.get(secondStudentId)).toMatchObject({
+      status: 'absent', source: 'staff', hasManualOverride: true,
+    })
+    expect(result.current.pendingStudentIds).toEqual(new Set([studentId, secondStudentId]))
   })
 
   it.each([

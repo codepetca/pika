@@ -325,4 +325,33 @@ describe('assignment repo target helpers', () => {
       repoName: null,
     })).rejects.toThrow('Failed to save repo target')
   })
+
+  it('uses injected strict evidence and rejects ambiguous target rows', async () => {
+    const target = buildRepoTarget()
+    const limit = vi.fn()
+      .mockResolvedValueOnce({ data: [target], error: null })
+      .mockResolvedValueOnce({ data: [target, target], error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+    const query: any = {
+      eq: vi.fn(() => query),
+      limit,
+    }
+    const supabase = {
+      from: vi.fn(() => ({ select: vi.fn(() => query) })),
+    }
+
+    await expect(loadAssignmentRepoTarget('assignment-1', 'student-1', {
+      supabase: supabase as never,
+      requireEvidence: true,
+    })).resolves.toEqual(target)
+    await expect(loadAssignmentRepoTarget('assignment-1', 'student-1', {
+      supabase: supabase as never,
+      requireEvidence: true,
+    })).rejects.toThrow('Failed to verify repo target')
+    await expect(loadAssignmentRepoTarget('assignment-1', 'student-1', {
+      supabase: supabase as never,
+      requireEvidence: true,
+    })).rejects.toThrow('Failed to verify repo target')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
 })

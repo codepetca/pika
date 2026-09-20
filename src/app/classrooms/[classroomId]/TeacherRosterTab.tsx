@@ -23,9 +23,6 @@ import {
 } from '@/ui'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
-import { recoverCleanupTargets } from '@/lib/live-student-cleanup-client'
-import { liveCleanupTargetSchema, type LiveCleanupTarget } from '@/lib/validations/live-student-cleanup'
-import { StudentPurgeDialog } from '@/components/StudentPurgeDialog'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import {
   TeacherWorkSurfaceActionCluster,
@@ -117,7 +114,6 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [loading, setLoading] = useState(true)
   const [isRetryingRoster, setIsRetryingRoster] = useState(false)
   const [roster, setRoster] = useState<RosterRow[]>([])
-  const [liveCleanupTargets, setLiveCleanupTargets] = useState<LiveCleanupTarget[]>([])
   const [loadError, setLoadError] = useState<string>('')
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
   const [isAddModalOpen, setAddModalOpen] = useState(false)
@@ -130,7 +126,6 @@ export function TeacherRosterTab({ classroom }: Props) {
   } | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
   const [removalError, setRemovalError] = useState('')
-  const [pendingPurge, setPendingPurge] = useState(false)
   const [selectedRosterId, setSelectedRosterId] = useState<string | null>(null)
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const loadRequestIdRef = useRef(0)
@@ -194,7 +189,15 @@ export function TeacherRosterTab({ classroom }: Props) {
           sortDirection,
         )
       }
-      return applyDirection(Number(a.joined) - Number(b.joined), sortDirection)
+      const joinedComparison = Number(a.joined) - Number(b.joined)
+      if (joinedComparison !== 0) return applyDirection(joinedComparison, sortDirection)
+
+      return compareByNameFields(
+        { firstName: a.first_name, lastName: a.last_name, id: a.id },
+        { firstName: b.first_name, lastName: b.last_name, id: b.id },
+        'last_name',
+        'asc',
+      )
     })
     return rows
   }, [currentRoster, sortColumn, sortDirection])
@@ -271,10 +274,6 @@ export function TeacherRosterTab({ classroom }: Props) {
         || rosterMutationVersionRef.current !== mutationVersion
       ) return
       setRoster(normalizeRosterRows(data.roster || []))
-      const cleanupTargets = liveCleanupTargetSchema.array().parse(data.live_cleanup_targets ?? [])
-      const savedTargets = recoverCleanupTargets(classroomId).filter(saved =>
-        !cleanupTargets.some(target => target.generation_id === saved.generation_id))
-      setLiveCleanupTargets([...cleanupTargets, ...savedTargets])
       setLoadedClassroomId(classroomId)
       setLoadError('')
       clearSelection()
@@ -286,7 +285,6 @@ export function TeacherRosterTab({ classroom }: Props) {
       ) return
       if (!preserveRoster) {
         setRoster([])
-        setLiveCleanupTargets([])
         setLoadedClassroomId(null)
       }
       setLoadError(err.message || 'Failed to load roster')
@@ -304,7 +302,6 @@ export function TeacherRosterTab({ classroom }: Props) {
     counselorEditEpochRef.current += 1
     loadRequestIdRef.current += 1
     setRoster([])
-    setLiveCleanupTargets([])
     setLoadedClassroomId(null)
     setLoadError('')
     setIsRetryingRoster(false)
@@ -314,7 +311,6 @@ export function TeacherRosterTab({ classroom }: Props) {
     setUploadModalOpen(false)
     setAddModalOpen(false)
     setIsRemoving(false)
-    setPendingPurge(false)
     setEditingCounselorId(null)
     setEditingCounselorValue('')
     setSavingCounselor(null)
@@ -604,14 +600,14 @@ export function TeacherRosterTab({ classroom }: Props) {
 
     if (rows.length === 1) {
       const row = rows[0]
-      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThey will lose access to this class and leave the roster. This cannot be undone. They cannot be re-added until their old class data is permanently deleted. Removal does not delete that data immediately or guarantee its recovery. Their account and other classes are unaffected.`
+      return `${formatRemovalTargetName(row)}\n${row.email}\n\nThey will lose access to this class and leave the roster. This cannot be undone. The system handles any required live-data cleanup separately. They cannot be re-added until cleanup is verified. Their account and other classes are unaffected.`
     }
 
     const previewRows = rows.slice(0, 5)
     const preview = previewRows.map((row) => `${formatRemovalTargetName(row)} - ${row.email}`).join('\n')
     const remaining = rows.length > previewRows.length ? `\n+ ${rows.length - previewRows.length} more` : ''
 
-    return `${preview}${remaining}\n\nThey will lose access to this class and leave the roster. This cannot be undone. They cannot be re-added until their old class data is permanently deleted. Removal does not delete that data immediately or guarantee its recovery. Their accounts and other classes are unaffected.`
+    return `${preview}${remaining}\n\nThey will lose access to this class and leave the roster. This cannot be undone. The system handles any required live-data cleanup separately. They cannot be re-added until cleanup is verified. Their accounts and other classes are unaffected.`
   }
 
   const rosterActionOptions: TeacherWorkSurfaceActionItem[] = [
@@ -640,13 +636,6 @@ export function TeacherRosterTab({ classroom }: Props) {
       disabled: selectedCounselorEmails.length === 0,
     },
   ]
-
-  if (liveCleanupTargets.length && !isReadOnly) rosterActionOptions.push({
-    id: 'cleanup-removed-student', label: 'Clean up live class data',
-    description: 'Review cleanup for one removed student.',
-    onSelect: () => setPendingPurge(true), disabled: isRosterLoading || isRemoving,
-    destructive: true,
-  })
 
   if (hasStudentActionRows) {
     studentActionOptions.push({
@@ -1040,14 +1029,6 @@ export function TeacherRosterTab({ classroom }: Props) {
         onConfirm={confirmRemoveStudent}
       />
 
-      {pendingPurge ? (
-        <StudentPurgeDialog key={classroom.id}
-          classroomId={classroom.id} classroomTitle={classroom.title}
-          targets={liveCleanupTargets} isOpen
-          onClose={() => setPendingPurge(false)}
-          onCompleted={() => { void refreshRosterAfterMutation(classroom.id) }}
-        />
-      ) : null}
     </>
   )
 }

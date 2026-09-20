@@ -22,6 +22,22 @@ import {
   type PalImmediateDeliveryStatus,
 } from '@/lib/server/pal-outbox'
 import { createAssignmentDocWithPalEvent } from '@/lib/server/pal-source-writes'
+import { ApiError } from '@/lib/api-error'
+import { openContextualAssignmentDoc } from '@/lib/server/contextual-assignment-doc-open'
+import {
+  authorizeContextualAssignmentDocSaveRequest,
+  assertContextualAssignmentGitHubIdentity,
+  resolveContextualAssignmentDocAccess,
+} from '@/lib/server/contextual-assignment-doc-access'
+import {
+  saveContextualAssignmentDoc,
+  verifyContextualAssignmentDocSaveEvidence,
+} from '@/lib/server/contextual-assignment-doc-save'
+import {
+  assertContextualAssignmentDetailArtifacts,
+  assertContextualAssignmentDetailRequirements,
+  assertContextualAssignmentStudentFeedback,
+} from '@/lib/server/classroom-assignment-detail-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -51,12 +67,21 @@ async function loadStudentSubmissionContext(
   supabase: ReturnType<typeof getServiceRoleClient>,
   assignmentId: string,
   docId: string | null,
-  studentId: string
+  studentId: string,
+  options: { requireEvidence?: boolean } = {},
 ) {
   const [submissionRequirements, submissionArtifacts, githubIdentity] = await Promise.all([
-    loadAssignmentSubmissionRequirements(supabase, assignmentId),
-    docId ? loadAssignmentSubmissionArtifactsForDoc(supabase, docId) : Promise.resolve([]),
-    loadUserGitHubIdentity(supabase, studentId),
+    loadAssignmentSubmissionRequirements(supabase, assignmentId, {
+      requireDataArray: options.requireEvidence,
+    }),
+    docId
+      ? loadAssignmentSubmissionArtifactsForDoc(supabase, docId, {
+          requireDataArray: options.requireEvidence,
+        })
+      : Promise.resolve([]),
+    loadUserGitHubIdentity(supabase, studentId, {
+      requireEvidence: options.requireEvidence,
+    }),
   ])
 
   return {
@@ -70,7 +95,9 @@ async function loadStudentSubmissionContext(
 // The [id] here is the assignment_id, not the doc id
 export const GET = withErrorHandler('GetAssignmentDoc', async (request, context) => {
   const user = await requireAuth()
-  const { id: assignmentId } = await context.params
+  const { id: requestedAssignmentId } = await context.params
+  const assignmentAccess = resolveContextualAssignmentDocAccess(user, requestedAssignmentId)
+  const assignmentId = assignmentAccess.assignmentId
   const { searchParams } = new URL(request.url)
   const requestedStudentId = searchParams.get('student_id')
   const supabase = getServiceRoleClient()
@@ -93,6 +120,85 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
       { error: 'Assignment not found' },
       { status: 404 }
     )
+  }
+
+  if (assignmentAccess.mode === 'contextual') {
+    if (requestedStudentId !== null) {
+      throw new ApiError(400, 'student_id is not supported for classroom member assignment documents')
+    }
+    const viewedAt = new Date()
+    const effectiveReleaseAt = assignment.released_at ?? assignment.created_at
+    const palEnabled = isPalEnabled()
+    let palEvent = null
+    if (palEnabled && !isClassroomPalRequested()) {
+      if (!effectiveReleaseAt) {
+        throw new ApiError(503, 'Unable to verify assignment access')
+      }
+      palEvent = buildLearningItemViewedEvent({
+        learnerId: user.id,
+        itemId: assignmentId,
+        occurredAt: viewedAt,
+        releasedAt: effectiveReleaseAt,
+      })
+    }
+
+    const result = await openContextualAssignmentDoc({
+      supabase,
+      actorId: user.id,
+      assignmentId,
+      viewedAt: viewedAt.toISOString(),
+      event: palEvent,
+    })
+    result.doc.content = parseContentField(result.doc.content)
+
+    let palDelivery: PalImmediateDeliveryStatus | undefined
+    if (result.created && palEnabled) {
+      palDelivery = await attemptImmediatePalEventDelivery({
+        membership: { studentId: user.id, classroomId: result.assignment.classroom_id },
+        event: palEvent,
+        supabase,
+      })
+    }
+
+    let feedbackEntries
+    let submissionContext
+    try {
+      [feedbackEntries, submissionContext] = await Promise.all([
+        loadAssignmentFeedbackEntries(assignmentId, user.id, {
+          supabase,
+          requireDataArray: true,
+        }),
+        loadStudentSubmissionContext(supabase, assignmentId, result.doc.id, user.id, {
+          requireEvidence: true,
+        }),
+      ])
+      assertContextualAssignmentStudentFeedback(assignmentId, user.id, feedbackEntries)
+      assertContextualAssignmentDetailRequirements(
+        assignmentId,
+        submissionContext.submission_requirements,
+      )
+      assertContextualAssignmentDetailArtifacts(
+        [result.doc],
+        submissionContext.submission_requirements,
+        submissionContext.submission_artifacts,
+      )
+      assertContextualAssignmentGitHubIdentity(user.id, submissionContext.github_identity)
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 503) throw error
+      throw new ApiError(503, 'Unable to verify assignment document evidence')
+    }
+
+    return NextResponse.json({
+      assignment: {
+        ...result.assignment,
+        instructions_markdown: getAssignmentInstructionsMarkdown(result.assignment).markdown,
+      },
+      doc: sanitizeDocForStudent(result.doc),
+      feedback_entries: feedbackEntries,
+      ...submissionContext,
+      wasFirstView: result.viewed_at_changed,
+      pal_delivery: palDelivery,
+    })
   }
 
   let studentId = user.id
@@ -353,8 +459,11 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
 
 // PATCH /api/assignment-docs/[id] - Save content (autosave)
 export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, context) => {
-  const user = await requireRole('student')
-  const { id: assignmentId } = await context.params
+  const assignmentAccess = await authorizeContextualAssignmentDocSaveRequest(async () => (
+    await context.params
+  ).id)
+  const user = assignmentAccess.user
+  const assignmentId = assignmentAccess.assignmentId
   const body = assignmentDocSaveRequestSchema.parse(await request.json())
   const { content, trigger } = body
   const isLegacySave = !('save_session_id' in body)
@@ -362,6 +471,61 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
   const keystroke_count = body.keystroke_count ?? 0
 
   const supabase = getServiceRoleClient()
+  if (assignmentAccess.mode === 'contextual') {
+    const { data: evidence, error: evidenceError } = await supabase
+      .from('assignment_docs')
+      .select('id, assignment_id, student_id, is_submitted, content, updated_at')
+      .eq('assignment_id', assignmentId)
+      .eq('student_id', user.id)
+      .limit(2)
+
+    if (evidenceError) {
+      throw new ApiError(503, 'Unable to verify assignment document')
+    }
+    const existingDoc = verifyContextualAssignmentDocSaveEvidence({
+      actorId: user.id,
+      assignmentId,
+      rows: evidence,
+    })
+    if (existingDoc?.is_submitted) {
+      return NextResponse.json(
+        { error: 'Cannot edit a submitted document' },
+        { status: 403 }
+      )
+    }
+
+    const saveSessionId = isLegacySave ? crypto.randomUUID() : body.save_session_id
+    const saveResult = await saveContextualAssignmentDoc({
+      supabase,
+      assignmentId,
+      actorId: user.id,
+      previousContent: existingDoc
+        ? existingDoc.content
+        : { type: 'doc', content: [] },
+      content,
+      expectedUpdatedAt: isLegacySave ? existingDoc?.updated_at ?? null : body.expected_updated_at,
+      trigger: trigger ?? 'autosave',
+      pasteWordCount: paste_word_count,
+      keystrokeCount: keystroke_count,
+      saveSessionId,
+      saveSequence: isLegacySave ? 1 : body.save_sequence,
+      metricSessionId: isLegacySave ? saveSessionId : body.metric_session_id,
+    })
+
+    if (!saveResult.ok) {
+      return NextResponse.json(
+        { error: saveResult.error, error_code: saveResult.errorCode },
+        { status: saveResult.status }
+      )
+    }
+
+    saveResult.doc.content = parseContentField(saveResult.doc.content)
+    return NextResponse.json({
+      doc: sanitizeDocForStudent(saveResult.doc),
+      historyEntry: saveResult.historyEntry,
+    })
+  }
+
   // Get assignment and verify enrollment
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')

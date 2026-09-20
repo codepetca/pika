@@ -58,7 +58,7 @@ export function StudentPastLogs({ logs }: { logs: PastLog[] }) {
           const expanded = expandedDate === date
           const content = (
             <>
-              <time dateTime={date} className="w-24 shrink-0 text-xs font-normal leading-5 text-text-muted">{dateLabel}</time>
+              <time dateTime={date} className="w-24 shrink-0 whitespace-nowrap text-xs font-normal leading-5 text-text-muted">{dateLabel}</time>
               <span className={`min-w-0 flex-1 text-sm font-normal text-text-default ${expanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>
                 {entry ? entry.text || '' : <span className="text-text-muted">No log submitted</span>}
               </span>

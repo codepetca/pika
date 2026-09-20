@@ -7,6 +7,27 @@ insert into public.users(id,email,role) values
  ('c1690001-0000-4000-8000-000000000001','producer-teacher@example.invalid','teacher'),
  ('c1690001-0000-4000-8000-000000000002','producer-student@example.invalid','student');
 
+set local role service_role;
+select public.set_effective_feature_entitlement_v1(
+  gen_random_uuid(),
+  'c1690001-0000-4000-8000-000000000001',
+  'classrooms.create',
+  'manual',
+  true,
+  clock_timestamp(),
+  null,
+  10,
+  'test:pal-classroom-producer',
+  'pal_classroom_producer_fixture',
+  coalesce((
+    select revision
+    from public.effective_feature_entitlements
+    where subject_user_id = 'c1690001-0000-4000-8000-000000000001'
+      and feature_key = 'classrooms.create'
+  ), 0)
+);
+reset role;
+
 do $$
 declare
  student uuid := 'c1690001-0000-4000-8000-000000000002';

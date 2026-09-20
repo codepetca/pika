@@ -7764,6 +7764,10 @@ export type Database = {
         Args: { p_teacher_id: string }
         Returns: Json
       }
+      activate_classroom_creation_entitlement_cutover_v1: {
+        Args: { p_actor_ref: string; p_operation_id: string }
+        Returns: Json
+      }
       activate_managed_storage_enforcement: {
         Args: { p_generation: number; p_inventory_digest: string }
         Returns: boolean
@@ -8832,6 +8836,10 @@ export type Database = {
           p_limit?: number
           p_student_id?: string
         }
+        Returns: Json
+      }
+      claim_removed_student_cleanup_job: {
+        Args: { p_lease_token: string }
         Returns: Json
       }
       claim_student_purge_object: {
@@ -9933,6 +9941,10 @@ export type Database = {
         Args: { p_at?: string; p_subject_user_id: string }
         Returns: Json
       }
+      get_classroom_creation_entitlement_cutover_status_v1: {
+        Args: never
+        Returns: Json
+      }
       get_cleanup_history_cron_health_snapshot: {
         Args: { p_scheduled_max_age_minutes?: number; p_stale_minutes?: number }
         Returns: Json
@@ -10277,6 +10289,15 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      open_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_pal_event?: Json
+          p_viewed_at: string
+        }
+        Returns: Json
+      }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
       prepare_attendance_snapshot_v1: {
         Args: {
@@ -10441,6 +10462,16 @@ export type Database = {
       }
       release_course_guide_import_extraction_slot: {
         Args: { p_lease_token: string; p_teacher_id: string }
+        Returns: boolean
+      }
+      release_removed_student_cleanup_job: {
+        Args: {
+          p_completed: boolean
+          p_error_code?: string
+          p_job_id: string
+          p_lease_token: string
+          p_retry_delay_seconds?: number
+        }
         Returns: boolean
       }
       remove_classroom_roster_entries_atomic: {
@@ -10756,6 +10787,25 @@ export type Database = {
           p_save_session_id: string
           p_snapshot: Json
           p_student_id: string
+          p_trigger: string
+          p_word_count: number
+        }
+        Returns: Json
+      }
+      save_assignment_doc_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_char_count: number
+          p_content: Json
+          p_expected_updated_at: string
+          p_keystroke_count: number
+          p_metric_session_id: string
+          p_paste_word_count: number
+          p_patch: Json
+          p_save_sequence: number
+          p_save_session_id: string
+          p_snapshot: Json
           p_trigger: string
           p_word_count: number
         }

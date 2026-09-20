@@ -1,6 +1,5 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
 import { Button, SegmentedControl, Tooltip, cn } from '@/ui'
 import type { TeacherAttendanceStatus } from '@/lib/teacher-attendance'
 import type { TeacherAttendanceMark } from '@/hooks/useTeacherAttendanceController'
@@ -78,14 +77,12 @@ export function AttendanceStatusSortChip({
   active,
   onClick,
   tooltipContent,
-  showSortIndicator = false,
 }: {
   status: TeacherAttendanceMark
   count: number
   active: boolean
   onClick: () => void
   tooltipContent?: string
-  showSortIndicator?: boolean
 }) {
   const label = ATTENDANCE_STATUS_LABELS[status]
   const studentLabel = count === 1 ? 'student' : 'students'
@@ -105,21 +102,11 @@ export function AttendanceStatusSortChip({
           aria-hidden="true"
           className={cn(
             'inline-flex h-5 w-7 items-center justify-center rounded-badge px-0 text-xs font-semibold tabular-nums',
-            showSortIndicator && 'relative',
             STATUS_CHIP_CLASSES[status],
             active && 'ring-foundation ring-focus ring-offset-2 ring-offset-surface',
           )}
         >
           {count}
-          {showSortIndicator ? (
-            <ChevronDown
-              className={cn(
-                'absolute right-0.5 top-1/2 h-2.5 w-2.5 -translate-y-1/2',
-                active ? 'text-current' : 'opacity-0',
-              )}
-              aria-hidden="true"
-            />
-          ) : null}
         </span>
       </Button>
     </Tooltip>

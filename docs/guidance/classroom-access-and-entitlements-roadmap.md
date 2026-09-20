@@ -145,6 +145,66 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   deployed definition; migration 161 requires separate target-specific application
   authorization. No cohort or production configuration changed, so
   every current production request remains on the legacy join path.
+- The contextual classroom home backend exposes a new authenticated `owned` / `joined`
+  summary only for an exact server-configured user cohort. It is off by default and has no
+  live page consumer, so `/classrooms`, global-role routing and current users remain unchanged.
+  It fails closed on either source or malformed relationship evidence and gives ownership
+  precedence over historical self-enrollment. See
+  [the home backend contract](contextual-classroom-home.md).
+- Classroom SSR routing/navigation has a separate dormant exact-pair gate. Admitted
+  relationships select the existing owner/member experience while the authenticated
+  session role remains unchanged. It is intentionally independent from the classroom-core
+  API gate and must not be enabled until every downstream surface reachable from that
+  experience is compatible. See the
+  [UI change record](ui/changes/contextual-classroom-page-routing.md).
+- Classroom announcement list reads have their own dormant exact-pair gate. It lets a
+  student-valued owner use the owner projection and a teacher-valued member use the
+  published member projection while validating every returned classroom binding.
+  Publishing/editing/deleting and member read receipts remain legacy mutations pending
+  transaction-time relationship checks, so this does not make the announcement tab or
+  classroom page rollout-ready. See
+  [the announcement read contract](contextual-classroom-announcement-reads.md).
+- Classroom lesson-plan list reads have a separate dormant exact-pair gate. It lets a
+  student-valued owner use the owner calendar projection and a teacher-valued active
+  member use the visibility-limited member projection, while binding both returned
+  plans and the visibility record to the requested classroom. Date, bulk and copy
+  writes remain legacy pending transaction-time relationship checks, so the calendar
+  and page gates must remain disabled. See
+  [the lesson-plan read contract](contextual-classroom-lesson-plan-reads.md).
+- Classroom material list reads have another dormant exact-pair gate. It lets a
+  student-valued owner receive the owner projection, including drafts, and a
+  teacher-valued active member receive only published materials. Every returned
+  material is bound to the requested classroom, including after the legacy ordering
+  fallback. Create/edit/delete remain legacy pending transaction-time relationship
+  and resource checks. See
+  [the material read contract](contextual-classroom-material-reads.md).
+- Classroom assignment list reads have a separate dormant exact-pair gate. It lets a
+  student-valued owner receive drafts plus roster-scoped statistics and lets a
+  teacher-valued active member receive only live assignments and their own sanitized
+  document. Assignment, roster, statistics, requirement and member-document evidence
+  is bound before use. All assignment writes, grading and submission flows remain
+  legacy. See
+  [the assignment read contract](contextual-classroom-assignment-reads.md).
+- The owner aggregate and individual student-work assignment-detail reads share a
+  dormant exact user/assignment gate. They let a student-valued owner inspect the
+  existing roster, submission summary and one enrolled student's work while
+  validating assignment/classroom, roster, profile, document, feedback, requirement,
+  artifact, repository-target, repository-review, history and grading-run bindings.
+  The learner assignment-document GET now has its own dormant exact user/assignment
+  gate. A matched teacher- or student-valued active member opens only their own document
+  through the migration 182 transaction; the route binds the returned document,
+  feedback, requirements, artifacts and GitHub identity before responding and preserves
+  immediate Pal delivery. Disabled and unmatched requests remain on the legacy path.
+  Learner autosave/PATCH now has a second independent exact-pair gate and migrations 184–185
+  transaction. A matched teacher- or student-valued active member can save only their own
+  document while live enrollment and assignment visibility are locked; revision, history
+  and metric behavior stays delegated to the established atomic save. Disabled and
+  unmatched requests remain legacy. Both gates must stay disabled because submission,
+  unsubmit, history/restore, artifact mutations and the remaining assignment writes are
+  still outstanding.
+  See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
+  See also [the learner assignment-open contract](contextual-assignment-doc-open.md).
+  See also [the learner assignment-save contract](contextual-assignment-doc-save.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
@@ -153,9 +213,14 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   atomic `classrooms.create` active-count guard. Missing snapshots preserve legacy behavior;
   no account is seeded or cut over. Ordinary inserts, Blueprint instantiation, reactivation
   and ownership transfer share the database guard. Forward migration 167 makes ordinary
-  creation retries replay one stored classroom instead of consuming capacity twice. Both are
-  verified on shared local Supabase; neither is applied to hosted production, and no account
-  has been seeded or cut over.
+  creation retries replay one stored classroom instead of consuming capacity twice.
+- Migration 181 is the separately controlled Free-provisioning and fail-closed cutover
+  slice. After activation it gives future accounts an audited Free snapshot transactionally;
+  before activation it leaves existing and newly created unmanaged accounts compatible.
+  Strict activation is permitted only after every current account has an explicit snapshot.
+  Source landing does not authorize applying it or
+  classifying/activating any environment. The exact two-release procedure and canaries are
+  in the [classroom creation entitlement cutover runbook](classroom-creation-entitlement-cutover.md).
 
 ## Safe rollout while real classes continue
 

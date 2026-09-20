@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { calculateAssignmentStatus, sanitizeDocForStudent } from '@/lib/assignments'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
+import { ApiError } from '@/lib/api-error'
+import {
+  assertContextualAssignmentRows,
+  assertContextualStudentAssignmentDocs,
+  authorizeClassroomAssignmentRequest,
+} from '@/lib/server/classroom-assignment-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET /api/student/assignments?classroom_id=xxx - List assignments for student
 export const GET = withErrorHandler('GetStudentAssignments', async (request, context) => {
-  const user = await requireRole('student')
-  const { searchParams } = new URL(request.url)
-  const classroomId = searchParams.get('classroom_id')
+  const resolveClassroomId = () => new URL(request.url).searchParams.get('classroom_id')
+  const assignmentAccess = await authorizeClassroomAssignmentRequest(resolveClassroomId, {
+    legacyRole: 'student',
+    permission: 'member',
+  })
+  const classroomId = resolveClassroomId()
 
   if (!classroomId) {
     return NextResponse.json(
@@ -24,12 +32,14 @@ export const GET = withErrorHandler('GetStudentAssignments', async (request, con
 
   const supabase = getServiceRoleClient()
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroomId)
-  if (!access.ok) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    )
+  if (assignmentAccess.mode === 'legacy') {
+    const access = await assertStudentCanAccessClassroom(assignmentAccess.user.id, classroomId)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
+    }
   }
 
   const { data: assignments, error } = await supabase
@@ -47,12 +57,21 @@ export const GET = withErrorHandler('GetStudentAssignments', async (request, con
     )
   }
 
+  if (assignmentAccess.mode === 'contextual') {
+    assertContextualAssignmentRows(classroomId, assignments, { publishedOnly: true })
+  }
+
   const assignmentIds = assignments?.map((assignment) => assignment.id) || []
-  const { data: docs } = await supabase
+  const { data: docs, error: docsError } = await supabase
     .from('assignment_docs')
     .select('*')
-    .eq('student_id', user.id)
+    .eq('student_id', assignmentAccess.user.id)
     .in('assignment_id', assignmentIds)
+
+  if (assignmentAccess.mode === 'contextual') {
+    if (docsError) throw new ApiError(503, 'Unable to verify student assignment documents')
+    assertContextualStudentAssignmentDocs(assignmentAccess.user.id, assignmentIds, docs)
+  }
 
   const docMap = new Map(docs?.map((doc) => [doc.assignment_id, doc]) || [])
 

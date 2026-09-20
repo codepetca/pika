@@ -41,9 +41,9 @@ describe('teacher explicit live purge boundary', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(mocks.target).toHaveBeenCalledWith(teacher, classroom, student)
   })
-  it('binds explicit reservation to the authenticated teacher and URL scope', async () => {
-    expect((await POST(request(), context)).status).toBe(202)
-    expect(mocks.reserve).toHaveBeenCalledWith({ teacherId: teacher, classroomId: classroom, studentId: student, operationId: operation, generationId: generation })
+  it('rejects teacher-directed reservation after authentication and validation', async () => {
+    expect((await POST(request(), context)).status).toBe(404)
+    expect(mocks.reserve).not.toHaveBeenCalled()
     expect(mocks.advance).not.toHaveBeenCalled()
   })
   it.each([{ confirmation: '' }, { generation_id: 'invalid' }, { teacherId: student }, { action: 'restore' }, { policy: 'strict-v1' }])('rejects invalid or widened input %j', async patch => {
@@ -51,10 +51,9 @@ describe('teacher explicit live purge boundary', () => {
     expect(mocks.reserve).not.toHaveBeenCalled()
     expect(mocks.advance).not.toHaveBeenCalled()
   })
-  it('returns 200 only for verified completed advancement', async () => {
-    expect((await POST(request({ action: 'advance' }), context)).status).toBe(200)
-    mocks.advance.mockResolvedValue({ status: 'provider_pending', cleanup_completed: false })
-    expect((await POST(request({ action: 'advance' }), context)).status).toBe(202)
+  it('rejects teacher-directed advancement', async () => {
+    expect((await POST(request({ action: 'advance' }), context)).status).toBe(404)
+    expect(mocks.advance).not.toHaveBeenCalled()
   })
   it('reads exact status with activation off without progressing any provider', async () => {
     mocks.gate.mockImplementation(() => { throw new ApiError(404, 'Disabled') })
@@ -70,7 +69,7 @@ afterEach(() => vi.unstubAllEnvs())
 const liveFlags = ['PIKA_LIVE_STUDENT_CLEANUP_ENABLED', 'STUDENT_PROVIDER_CLEANUP_ENABLED',
   'PAL_PROFILE_ERASURE_ENABLED', 'PIKA_BARA_PARTICIPANT_ERASURE_ENABLED',
   'PIKA_REMOVED_STUDENT_ACADEMIC_CLEANUP_ENABLED']
-it.each(liveFlags)('rejects reserve and advance before coordinator calls when %s is off, but reads status', async disabled => {
+it.each(liveFlags)('keeps teacher writes unavailable when %s is off, but reads status', async disabled => {
   const actual = await vi.importActual<typeof import('@/lib/server/live-student-cleanup')>('@/lib/server/live-student-cleanup')
   liveFlags.forEach(flag => vi.stubEnv(flag, flag === disabled ? 'false' : 'true'))
   mocks.gate.mockImplementation(actual.requireLiveStudentCleanupEnabled)

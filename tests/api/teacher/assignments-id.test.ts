@@ -722,6 +722,36 @@ describe('PATCH /api/teacher/assignments/[id]', () => {
     expect(response.status).toBe(200)
   })
 
+  it.each(['40001', '40P01', '55000', '55P03'])('maps assignment update contention %s to a safe conflict', async (code) => {
+    ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
+      if (table !== 'assignments') throw new Error(`Unexpected table: ${table}`)
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            single: vi.fn().mockResolvedValue({ data: makeAssignment(), error: null }),
+          })),
+        })),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => ({
+              single: vi.fn().mockResolvedValue({ data: null, error: { code } }),
+            })),
+          })),
+        })),
+      }
+    })
+
+    const response = await PATCH(new NextRequest(
+      'http://localhost:3000/api/teacher/assignments/a-1',
+      { method: 'PATCH', body: JSON.stringify({ title: 'Updated title' }) },
+    ), { params: { id: 'a-1' } })
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Assignment changed during this update. Refresh and try again.',
+    })
+  })
+
   it('rejects rescheduling a scheduled assignment after the due date', async () => {
     let updateCalled = false
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {

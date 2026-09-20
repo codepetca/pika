@@ -17,6 +17,14 @@ import {
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
+import { ApiError } from '@/lib/api-error'
+import {
+  assertContextualAssignmentRequirements,
+  assertContextualAssignmentRows,
+  assertContextualAssignmentStatsDocs,
+  authorizeClassroomAssignmentRequest,
+  loadContextualClassroomStudentIds,
+} from '@/lib/server/classroom-assignment-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -50,7 +58,8 @@ const ASSIGNMENT_LIST_STATS_FALLBACK_COLUMNS =
 async function loadAssignmentDocsForListStats(
   supabase: any,
   assignmentIds: string[],
-  studentIds: string[]
+  studentIds: string[],
+  options: { requireDataArray?: boolean } = {},
 ): Promise<{ docs: AssignmentStatsDocRow[]; error: any }> {
   if (assignmentIds.length === 0 || studentIds.length === 0) {
     return { docs: [], error: null }
@@ -68,6 +77,7 @@ async function loadAssignmentDocsForListStats(
     chunkSize: ASSIGNMENT_LIST_STATS_FILTER_CHUNK_SIZE,
     pageSize: ASSIGNMENT_LIST_STATS_PAGE_SIZE,
     pageOrderColumn: 'id',
+    requireDataArray: options.requireDataArray,
   })
 
   if (!withMailboxTracking.error) {
@@ -86,6 +96,7 @@ async function loadAssignmentDocsForListStats(
     chunkSize: ASSIGNMENT_LIST_STATS_FILTER_CHUNK_SIZE,
     pageSize: ASSIGNMENT_LIST_STATS_PAGE_SIZE,
     pageOrderColumn: 'id',
+    requireDataArray: options.requireDataArray,
   })
 
   if (fallback.error) {
@@ -103,9 +114,12 @@ async function loadAssignmentDocsForListStats(
 
 // GET /api/teacher/assignments?classroom_id=xxx - List assignments for a classroom
 export const GET = withErrorHandler('GetTeacherAssignments', async (request, context) => {
-  const user = await requireRole('teacher')
-  const { searchParams } = new URL(request.url)
-  const classroomId = searchParams.get('classroom_id')
+  const resolveClassroomId = () => new URL(request.url).searchParams.get('classroom_id')
+  const assignmentAccess = await authorizeClassroomAssignmentRequest(resolveClassroomId, {
+    legacyRole: 'teacher',
+    permission: 'owner',
+  })
+  const classroomId = resolveClassroomId()
 
   if (!classroomId) {
     return NextResponse.json(
@@ -114,12 +128,14 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
     )
   }
 
-  const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
-  if (!ownership.ok) {
-    return NextResponse.json(
-      { error: ownership.error },
-      { status: ownership.status }
-    )
+  if (assignmentAccess.mode === 'legacy') {
+    const ownership = await assertTeacherOwnsClassroom(assignmentAccess.user.id, classroomId)
+    if (!ownership.ok) {
+      return NextResponse.json(
+        { error: ownership.error },
+        { status: ownership.status }
+      )
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -149,7 +165,13 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
     assignments = withPosition.data
   }
 
-  const classroomStudentsResult = await getClassroomStudentIds(supabase, classroomId)
+  if (assignmentAccess.mode === 'contextual') {
+    assertContextualAssignmentRows(classroomId, assignments, { publishedOnly: false })
+  }
+
+  const classroomStudentsResult = assignmentAccess.mode === 'contextual'
+    ? { ...await loadContextualClassroomStudentIds(supabase, classroomId), error: null }
+    : await getClassroomStudentIds(supabase, classroomId)
   if (classroomStudentsResult.error) {
     console.error('Error fetching classroom enrollments:', classroomStudentsResult.error)
     return NextResponse.json({ error: 'Failed to fetch classroom enrollments' }, { status: 500 })
@@ -162,12 +184,24 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
   const { docs: assignmentDocs, error: assignmentDocsError } = await loadAssignmentDocsForListStats(
     supabase,
     assignmentIds,
-    classroomStudentsResult.studentIds
+    classroomStudentsResult.studentIds,
+    { requireDataArray: assignmentAccess.mode === 'contextual' },
   )
 
   if (assignmentDocsError) {
+    if (assignmentAccess.mode === 'contextual') {
+      throw new ApiError(503, 'Unable to verify assignment statistics')
+    }
     console.error('Error fetching assignment doc stats:', assignmentDocsError)
     return NextResponse.json({ error: 'Failed to fetch assignment stats' }, { status: 500 })
+  }
+
+  if (assignmentAccess.mode === 'contextual') {
+    assertContextualAssignmentStatsDocs(
+      assignmentIds,
+      classroomStudentsResult.studentIds,
+      assignmentDocs,
+    )
   }
 
   const docsByAssignmentId = new Map<string, AssignmentStatsDocRow[]>()
@@ -186,7 +220,23 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
         docsByAssignmentId.get(assignment.id) || [],
         classroomStudentsResult.totalStudents
       )
-      const submissionRequirements = await loadAssignmentSubmissionRequirements(supabase, assignment.id)
+      let submissionRequirements
+      try {
+        submissionRequirements = await loadAssignmentSubmissionRequirements(
+          supabase,
+          assignment.id,
+          { requireDataArray: assignmentAccess.mode === 'contextual' },
+        )
+      } catch (error) {
+        if (assignmentAccess.mode === 'contextual') {
+          throw new ApiError(503, 'Unable to verify assignment submission requirements')
+        }
+        throw error
+      }
+
+      if (assignmentAccess.mode === 'contextual') {
+        assertContextualAssignmentRequirements(assignment.id, submissionRequirements)
+      }
 
       return {
         ...assignment,

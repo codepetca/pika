@@ -3,21 +3,33 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import {
+  assertContextualAnnouncementRows,
+  authorizeClassroomAnnouncementRequest,
+} from '@/lib/server/classroom-announcement-access'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET /api/student/classrooms/[id]/announcements - List announcements (newest first)
 export const GET = withErrorHandler('GetStudentAnnouncements', async (request, context) => {
-  const user = await requireRole('student')
-  const { id: classroomId } = await context.params
+  const params = context.params
+  const announcementAccess = await authorizeClassroomAnnouncementRequest(async () => (
+    await params
+  ).id, {
+    legacyRole: 'student',
+    permission: 'member',
+  })
+  const { id: classroomId } = await params
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroomId)
-  if (!access.ok) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    )
+  if (announcementAccess.mode === 'legacy') {
+    const access = await assertStudentCanAccessClassroom(announcementAccess.user.id, classroomId)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
+    }
   }
 
   const supabase = getServiceRoleClient()
@@ -37,6 +49,10 @@ export const GET = withErrorHandler('GetStudentAnnouncements', async (request, c
       { error: 'Failed to fetch announcements' },
       { status: 500 }
     )
+  }
+
+  if (announcementAccess.mode === 'contextual') {
+    assertContextualAnnouncementRows(classroomId, announcements)
   }
 
   return NextResponse.json({ announcements: announcements || [] })
