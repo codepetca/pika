@@ -2,7 +2,7 @@
 
 ## Status
 
-Migration 188 and the assignment-document history/restore route integrations are
+Migrations 188-189 and the assignment-document history/restore route integrations are
 additive, dormant foundations. Both routes share an independent exact
 user/assignment pair gate that is disabled by default. Applying the migration changes
 no durable product rows and does not activate either route.
@@ -42,14 +42,18 @@ the member also owns the classroom, because restore is a learner-work mutation.
 
 ## Transactional restore contract
 
-The contextual restore route reconstructs the selected revision only from the locked,
-strictly validated history evidence. `public.restore_assignment_doc_for_member_v1` then
-independently:
+The contextual restore route reconstructs the selected revision for display from the
+strictly validated history response. `public.restore_assignment_doc_for_member_v1`
+does not trust that reconstruction: it independently:
 
 - repeats the established document and membership lock order;
 - rechecks live assignment visibility and exact current enrollment;
 - locks the actor's exact assignment document;
 - requires the selected history UUID to still belong to that document;
+- locks the target and its snapshot/patch chain, reconstructs the selected content in
+  the database, and rejects caller content that differs from that exact revision;
+- derives the restore snapshot and word/character counts from the locked target rather
+  than accepting caller-provided audit evidence;
 - delegates revision, immutable-submission, history, save-operation and metric behavior
   to `save_assignment_doc_atomic` with the established `restore` trigger;
 - validates the returned actor, assignment, document and history bindings.
@@ -61,9 +65,10 @@ succeed on authorization inferred only from its earlier read.
 
 Rollback-only database contracts cover teacher-valued and student-valued members,
 student-valued owners, owner draft/archived reads, own-document scoping, outsiders,
-removed members, live visibility and exact history targets. Twenty-two multi-connection
-cases cover restore in both orderings against membership removal and contextual saves,
-in addition to the existing save/submit/unsubmit races.
+removed members, live visibility, patch-based exact history targets, and atomic rejection
+of a valid target UUID paired with tampered content. Twenty-two multi-connection cases
+cover patch-target restore in both orderings against membership removal and contextual
+saves, in addition to the existing save/submit/unsubmit races.
 
 This slice does not widen assignment artifact mutations. Assignment open, save,
 submission and history/restore gates remain independent and must stay disabled until

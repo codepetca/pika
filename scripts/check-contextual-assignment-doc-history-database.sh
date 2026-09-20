@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Local-only, rollback-only behavioral fixture. It never applies migrations and
-# leaves no durable rows. Run only after migration 188 is applied locally.
+# leaves no durable rows. Run only after migrations 188-189 are applied locally.
 ASSIGNMENT_HISTORY_DB_CONTAINER="$(docker ps --filter 'name=^supabase_db_pika$' --format '{{.Names}}')"
 if [[ "$ASSIGNMENT_HISTORY_DB_CONTAINER" != 'supabase_db_pika' ]]; then
   echo 'The exact local Supabase container supabase_db_pika must be running.' >&2
@@ -22,9 +22,9 @@ declare
   v_owner text;
 begin
   if not exists (
-    select 1 from supabase_migrations.schema_migrations where version = '188'
+    select 1 from supabase_migrations.schema_migrations where version = '189'
   ) then
-    raise exception 'Migration 188 is required; this harness never applies it';
+    raise exception 'Migration 189 is required; this harness never applies it';
   end if;
 
   foreach v_signature in array array[
@@ -107,7 +107,8 @@ insert into public.assignment_doc_history (
   id, assignment_doc_id, patch, snapshot, word_count, char_count,
   paste_word_count, keystroke_count, trigger, created_at
 ) values
-  ('c1880000-0000-4000-8000-000000000040', 'c1880000-0000-4000-8000-000000000030', null, '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Restored teacher work"}]}]}'::jsonb, 3, 21, 0, 0, 'baseline', clock_timestamp() - interval '1 hour'),
+  ('c1880000-0000-4000-8000-000000000040', 'c1880000-0000-4000-8000-000000000030', null, '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Restored teacher work"}]}]}'::jsonb, 3, 21, 0, 0, 'baseline', clock_timestamp() - interval '2 hours'),
+  ('c1880000-0000-4000-8000-000000000044', 'c1880000-0000-4000-8000-000000000030', '[{"op":"replace","path":"/content/0/content/0/text","value":"Patch target work"}]'::jsonb, null, 3, 17, 0, 0, 'restore', clock_timestamp() - interval '1 hour'),
   ('c1880000-0000-4000-8000-000000000041', 'c1880000-0000-4000-8000-000000000031', null, '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Restored student work"}]}]}'::jsonb, 3, 21, 0, 0, 'baseline', clock_timestamp() - interval '1 hour'),
   ('c1880000-0000-4000-8000-000000000042', 'c1880000-0000-4000-8000-000000000032', null, '{"type":"doc","content":[]}'::jsonb, 0, 0, 0, 0, 'baseline', clock_timestamp() - interval '1 hour'),
   ('c1880000-0000-4000-8000-000000000043', 'c1880000-0000-4000-8000-000000000033', null, '{"type":"doc","content":[]}'::jsonb, 0, 0, 0, 0, 'baseline', clock_timestamp() - interval '1 hour');
@@ -124,12 +125,16 @@ declare
   v_student_live constant uuid := 'c1880000-0000-4000-8000-000000000021';
   v_result jsonb;
   v_revision timestamptz;
+  v_before_content jsonb;
+  v_before_updated_at timestamptz;
+  v_before_history_count bigint;
+  v_rejected boolean := false;
 begin
   v_result := public.get_assignment_doc_history_for_actor_v1(v_teacher, v_live, null, false);
   if v_result->>'access_mode' is distinct from 'member'
     or v_result->>'subject_id' is distinct from v_teacher::text
     or v_result->'doc'->>'student_id' is distinct from v_teacher::text
-    or jsonb_array_length(v_result->'history') <> 1
+    or jsonb_array_length(v_result->'history') <> 2
   then
     raise exception 'Teacher-valued member history returned invalid evidence: %', v_result;
   end if;
@@ -157,19 +162,54 @@ begin
     raise exception 'Member history did not remain own-document scoped: %', v_result;
   end if;
 
+  select content, updated_at into v_before_content, v_before_updated_at
+  from public.assignment_docs
+  where assignment_id = v_live and student_id = v_teacher;
+  select count(*) into v_before_history_count
+  from public.assignment_doc_history
+  where assignment_doc_id = 'c1880000-0000-4000-8000-000000000030';
+  begin
+    perform public.restore_assignment_doc_for_member_v1(
+      v_teacher,
+      v_live,
+      'c1880000-0000-4000-8000-000000000044',
+      '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Tampered work"}]}]}'::jsonb,
+      v_before_updated_at,
+      '[]'::jsonb,
+      '{"type":"doc","content":[]}'::jsonb,
+      999,
+      999,
+      'c1880000-0000-4000-8000-000000000052',
+      1,
+      'c1880000-0000-4000-8000-000000000053'
+    );
+  exception when invalid_parameter_value then
+    v_rejected := true;
+  end;
+  if not v_rejected
+    or (select content from public.assignment_docs
+        where assignment_id = v_live and student_id = v_teacher) is distinct from v_before_content
+    or (select updated_at from public.assignment_docs
+        where assignment_id = v_live and student_id = v_teacher) is distinct from v_before_updated_at
+    or (select count(*) from public.assignment_doc_history
+        where assignment_doc_id = 'c1880000-0000-4000-8000-000000000030') <> v_before_history_count
+  then
+    raise exception 'Mismatched restore content was not rejected atomically';
+  end if;
+
   select updated_at into v_revision
   from public.assignment_docs
   where assignment_id = v_live and student_id = v_teacher;
   v_result := public.restore_assignment_doc_for_member_v1(
     v_teacher,
     v_live,
-    'c1880000-0000-4000-8000-000000000040',
-    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Restored teacher work"}]}]}'::jsonb,
+    'c1880000-0000-4000-8000-000000000044',
+    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Patch target work"}]}]}'::jsonb,
     v_revision,
     '[]'::jsonb,
-    '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Restored teacher work"}]}]}'::jsonb,
-    3,
-    21,
+    null,
+    999,
+    999,
     'c1880000-0000-4000-8000-000000000050',
     1,
     'c1880000-0000-4000-8000-000000000051'
@@ -178,6 +218,10 @@ begin
     or v_result->>'classroom_id' is distinct from 'c1880000-0000-4000-8000-000000000010'
     or v_result->'doc'->>'student_id' is distinct from v_teacher::text
     or v_result->'history_entry'->>'trigger' is distinct from 'restore'
+    or v_result->'history_entry'->'snapshot' is distinct from '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Patch target work"}]}]}'::jsonb
+    or v_result->'history_entry'->'patch' is distinct from 'null'::jsonb
+    or (v_result->'history_entry'->>'word_count')::integer <> 3
+    or (v_result->'history_entry'->>'char_count')::integer <> 17
   then
     raise exception 'Teacher-valued member restore returned invalid evidence: %', v_result;
   end if;

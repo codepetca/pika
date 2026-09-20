@@ -25,6 +25,7 @@ const saveSessions = Array.from({ length: 20 }, () => randomUUID())
 const metricSessions = Array.from({ length: 20 }, () => randomUUID())
 const restoreSessions = Array.from({ length: 20 }, () => randomUUID())
 const restoreMetricSessions = Array.from({ length: 20 }, () => randomUUID())
+const restoreTargetHistoryIds = Array.from({ length: 20 }, () => randomUUID())
 const sessions = []
 
 class Session {
@@ -206,16 +207,45 @@ function contextualRestoreSql(index) {
     SELECT concat(result->>'ok', '|', coalesce(result->>'error_code', 'ok'))
     FROM (SELECT public.restore_assignment_doc_for_member_v1(
         '${actor}', '${assignments[index]}',
-        (SELECT history.id FROM public.assignment_doc_history AS history
-          JOIN public.assignment_docs AS doc ON doc.id = history.assignment_doc_id
-          WHERE doc.assignment_id = '${assignments[index]}' AND doc.student_id = '${actor}'
-          ORDER BY history.created_at, history.id LIMIT 1),
+        '${restoreTargetHistoryIds[index]}',
         '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}_restored"}]}]}'::jsonb,
         ${revisionSql(index)}, '[]'::jsonb,
         '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}_restored"}]}]}'::jsonb,
         1, ${tag.length + 9}, '${restoreSessions[index]}', 1, '${restoreMetricSessions[index]}'
       ) AS result
     ) AS restored;
+    RESET ROLE;`
+}
+
+function seedContextualRestoreHistorySql(index) {
+  return `SET ROLE service_role;
+    UPDATE public.assignment_doc_history AS history
+    SET snapshot = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}_base"}]}]}'::jsonb,
+        word_count = 1,
+        char_count = ${tag.length + 5},
+        created_at = clock_timestamp() - interval '3 minutes'
+    FROM public.assignment_docs AS doc
+    WHERE history.assignment_doc_id = doc.id
+      AND doc.assignment_id = '${assignments[index]}'
+      AND doc.student_id = '${actor}';
+    INSERT INTO public.assignment_doc_history (
+      id, assignment_doc_id, patch, snapshot, word_count, char_count,
+      paste_word_count, keystroke_count, trigger, created_at
+    )
+    SELECT '${restoreTargetHistoryIds[index]}', doc.id,
+      '[{"op":"replace","path":"/content/0/content/0/text","value":"${tag}_restored"}]'::jsonb,
+      null, 1, ${tag.length + 9}, 0, 0, 'restore', clock_timestamp() - interval '2 minutes'
+    FROM public.assignment_docs AS doc
+    WHERE doc.assignment_id = '${assignments[index]}' AND doc.student_id = '${actor}';
+    INSERT INTO public.assignment_doc_history (
+      assignment_doc_id, patch, snapshot, word_count, char_count,
+      paste_word_count, keystroke_count, trigger, created_at
+    )
+    SELECT doc.id, null,
+      '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}"}]}]}'::jsonb,
+      1, ${tag.length}, 0, 0, 'restore', clock_timestamp() - interval '1 minute'
+    FROM public.assignment_docs AS doc
+    WHERE doc.assignment_id = '${assignments[index]}' AND doc.student_id = '${actor}';
     RESET ROLE;`
 }
 
@@ -624,6 +654,7 @@ try {
   // Seed documents and baseline history for contextual restore ordering.
   for (const index of [16, 17, 18, 19]) {
     assert.equal(await admin.run(saveSql(index)), 'true|true')
+    await admin.run(seedContextualRestoreHistorySql(index))
   }
 
   // Removal commits first: contextual restore rechecks current membership and

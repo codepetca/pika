@@ -1,18 +1,28 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const migration = () => readFileSync(
+const foundationMigration = () => readFileSync(
   'supabase/migrations/188_contextual_assignment_doc_history_restore.sql',
+  'utf8',
+)
+const integrityMigration = () => readFileSync(
+  'supabase/migrations/189_contextual_assignment_doc_restore_target_integrity.sql',
   'utf8',
 )
 
 function functionBody(name: string): string {
-  return migration().split(`function public.${name}(`)[1]?.split('$function$;')[0] ?? ''
+  const matches = [...`${foundationMigration()}\n${integrityMigration()}`.matchAll(
+    new RegExp(
+      `create(?: or replace)? function public\\.${name}\\([\\s\\S]*?as \\$function\\$([\\s\\S]*?)\\$function\\$;`,
+      'g',
+    ),
+  )]
+  return matches.at(-1)?.[1] ?? ''
 }
 
 describe('contextual assignment document history migration', () => {
   it('adds service-only history and restore boundaries with hardened metadata', () => {
-    const sql = migration()
+    const sql = foundationMigration()
     for (const name of [
       'get_assignment_doc_history_for_actor_v1',
       'restore_assignment_doc_for_member_v1',
@@ -85,10 +95,26 @@ describe('contextual assignment document history migration', () => {
     expect(historyLock).toBeLessThan(atomicSave)
     expect(body).toContain('history.id = p_history_id')
     expect(body).toContain('history.assignment_doc_id = v_doc.id')
+    expect(body).toContain('private.apply_assignment_json_patch_v1(')
+    expect(body).toContain('v_target_content is distinct from p_content')
+    expect(body).toContain('v_target_content,\n    p_expected_updated_at')
+    expect(body).toContain('v_target.word_count')
+    expect(body).toContain('v_target.char_count')
     expect(body).toContain("'restore'")
     expect(body).toContain("v_result->'doc'->>'assignment_id' is distinct from p_assignment_id::text")
     expect(body).toContain("v_result->'doc'->>'student_id' is distinct from p_actor_id::text")
     expect(body).toContain("jsonb_build_object('classroom_id', v_assignment_classroom_id)")
+  })
+
+  it('supports only deterministic generated patch operations with strict JSON Pointer paths', () => {
+    const sql = integrityMigration()
+    expect(sql).toContain('function private.assignment_json_pointer_path_v1(p_pointer text)')
+    expect(sql).toContain('function private.apply_assignment_json_patch_v1(')
+    expect(sql).toContain("v_operation_name not in ('add', 'remove', 'replace')")
+    expect(sql).toContain("p_pointer ~ '~([^01]|$)'")
+    expect(sql).toContain('v_array_index > jsonb_array_length(v_parent)')
+    expect(sql).toContain("v_document := jsonb_insert(v_document, v_path, v_operation->'value', false)")
+    expect(sql).toContain('v_document := v_document #- v_path')
   })
 
   it('keeps rollback-only behavior and concurrent restore races in the architecture lane', () => {
@@ -101,7 +127,9 @@ describe('contextual assignment document history migration', () => {
       'utf8',
     )
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
-    expect(behavior).toContain('Migration 188 is required; this harness never applies it')
+    expect(behavior).toContain('Migration 189 is required; this harness never applies it')
+    expect(behavior).toContain('Mismatched restore content was not rejected atomically')
+    expect(behavior).toContain('Patch target work')
     expect(behavior).toContain('Teacher-valued member history returned invalid evidence')
     expect(behavior).toContain('Student-valued owner draft history returned invalid evidence')
     expect(behavior).toContain('Removed member history disclosed state')
