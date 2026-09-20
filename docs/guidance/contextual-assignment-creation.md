@@ -38,7 +38,8 @@ sequence; only an exact matched pair enters a contextual transaction.
 `public.create_survey_for_owner_v1` accept the authenticated actor and exact
 Classroom IDs plus server-normalized fields. Together they:
 
-- allocate each record identity before locking;
+- allocate the Assignment identity before its submission lock; material and survey
+  identities are assigned by their inserts after the shared Classroom fence;
 - acquires the Assignment-submission advisory namespace before the shared
   Classroom-operation namespace;
 - locks the current Classroom row and rechecks exact ownership and active state;
