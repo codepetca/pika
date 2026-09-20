@@ -9531,6 +9531,10 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_assignment_for_owner_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
+        Returns: Json
+      }
       delete_assignment_submission_artifact_atomic: {
         Args: {
           p_assignment_id: string
@@ -9556,6 +9560,14 @@ export type Database = {
           p_assignment_id: string
           p_expected_updated_at: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      discard_pristine_assignment_draft_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_updated_at: string
         }
         Returns: Json
       }
@@ -10489,6 +10501,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      release_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_released_at: string
+          p_scheduled: boolean
+        }
+        Returns: Json
+      }
       release_course_guide_import_extraction_slot: {
         Args: { p_lease_token: string; p_teacher_id: string }
         Returns: boolean
@@ -11323,6 +11344,15 @@ export type Database = {
           p_student_ids: string[]
           p_test_id: string
           p_updated_by: string
+        }
+        Returns: Json
+      }
+      update_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_requirements?: Json
+          p_updates: Json
         }
         Returns: Json
       }
