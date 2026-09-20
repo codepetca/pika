@@ -71,6 +71,25 @@ describe('saveAssignmentRepoTargetForOwner', () => {
     }))
   })
 
+  it('accepts the equivalent PostgreSQL UTC timestamp representation', async () => {
+    const rpc = vi.fn(async (_name, args) => ({
+      data: {
+        ok: true,
+        actor_id: actorId,
+        assignment_id: assignmentId,
+        student_id: studentId,
+        repo_target: repoTarget({ validated_at: args.p_now.replace('Z', '+00:00') }),
+      },
+      error: null,
+    }))
+
+    await expect(saveAssignmentRepoTargetForOwner(input(rpc))).resolves.toMatchObject({
+      assignment_id: assignmentId,
+      student_id: studentId,
+      validation_status: 'valid',
+    })
+  })
+
   it('supports an exact reset result', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {

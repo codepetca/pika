@@ -6,7 +6,9 @@ import type { AssignmentRepoTarget, AssignmentRepoTargetSelectionMode, Assignmen
 import type { Json } from '@/types/database.generated'
 
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
-const timestamp = z.string().datetime({ offset: true })
+const timestamp = z.string().datetime({ offset: true }).transform((value) => (
+  new Date(value).toISOString()
+))
 const repoTargetSchema = z.object({
   id: canonicalUuid,
   assignment_id: canonicalUuid,
