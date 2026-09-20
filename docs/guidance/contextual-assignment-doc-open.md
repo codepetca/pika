@@ -60,7 +60,8 @@ different learner on this member projection.
 
 The independent learner autosave and submission foundations are documented in
 [the contextual save contract](contextual-assignment-doc-save.md) and
-[the contextual submission contract](contextual-assignment-doc-submission.md). All gates
-must remain disabled until history/restore and artifact mutations enforce contextual
+[the contextual submission contract](contextual-assignment-doc-submission.md).
+History/restore is now covered by the separately gated migration 188 contract. All gates
+must remain disabled until artifact mutations enforce contextual
 membership at transaction time. Production migration application and any route activation
 require their own rollout approval.

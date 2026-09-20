@@ -58,8 +58,9 @@ the transaction.
 
 Submit and unsubmit now have their own independent dormant transaction and route gate,
 documented in [the contextual submission contract](contextual-assignment-doc-submission.md).
-This slice still does not widen restore/history or artifact mutations. The GET, PATCH and
-submission gates are independent and must remain disabled until those remaining learner
+This slice itself does not widen restore/history or artifact mutations. Restore/history is
+now covered by the separate migration 188 gate. The GET, PATCH, submission and history
+gates are independent and must remain disabled until the remaining learner
 mutations are compatible, the complete pilot matrix passes and rollout is separately
 approved. Production migration application and any route activation each require their
 own explicit authorization.

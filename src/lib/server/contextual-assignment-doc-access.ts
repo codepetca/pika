@@ -10,6 +10,7 @@ export type ContextualAssignmentDocAccess =
 
 export type ContextualAssignmentDocSaveAccess = ContextualAssignmentDocAccess
 export type ContextualAssignmentDocSubmissionAccess = ContextualAssignmentDocAccess
+export type ContextualAssignmentDocHistoryAccess = ContextualAssignmentDocAccess
 
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
 const assignmentPairsSchema = z.array(z.object({
@@ -52,6 +53,66 @@ function configuredSubmissionAssignmentPairs(): z.infer<typeof assignmentPairsSc
   } catch {
     return null
   }
+}
+
+function configuredHistoryAssignmentPairs(): z.infer<typeof assignmentPairsSchema> | null {
+  const raw = process.env.PIKA_CLASSROOM_ASSIGNMENT_DOC_HISTORY_ACCESS_PAIRS
+  if (!raw || raw.length > 20_000) return null
+  try {
+    const parsed = assignmentPairsSchema.safeParse(JSON.parse(raw))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
+}
+
+async function resolveContextualAssignmentDocHistoryAccess(
+  assignmentId: string | (() => string | Promise<string>),
+  legacyAuth: 'authenticated' | 'student',
+): Promise<ContextualAssignmentDocHistoryAccess> {
+  if (process.env.PIKA_CLASSROOM_ASSIGNMENT_DOC_HISTORY_ACCESS_ENABLED !== 'true') {
+    const user = legacyAuth === 'student' ? await requireRole('student') : await requireAuth()
+    const resolvedAssignmentId = typeof assignmentId === 'function'
+      ? await assignmentId()
+      : assignmentId
+    return { mode: 'legacy', user, assignmentId: resolvedAssignmentId }
+  }
+
+  const user = await requireAuth()
+  const pairs = configuredHistoryAssignmentPairs()
+  const identity = canonicalUuid.safeParse(user.id)
+  if (pairs === null || !identity.success) {
+    throw new ApiError(503, 'Classroom assignment history configuration is unavailable')
+  }
+
+  const rawAssignmentId = typeof assignmentId === 'function'
+    ? await assignmentId()
+    : assignmentId
+  const requestedId = canonicalUuid.safeParse(rawAssignmentId)
+  if (!requestedId.success || !pairs.some((pair) => (
+    pair.userId === identity.data && pair.assignmentId === requestedId.data
+  ))) {
+    if (legacyAuth === 'student' && user.role !== 'student') {
+      throw new AuthorizationError('Forbidden: student role required')
+    }
+    return { mode: 'legacy', user, assignmentId: rawAssignmentId }
+  }
+
+  return { mode: 'contextual', user, assignmentId: requestedId.data }
+}
+
+/** Dormant exact-pair admission for assignment-document history reads. */
+export function authorizeContextualAssignmentDocHistoryRequest(
+  assignmentId: string | (() => string | Promise<string>),
+): Promise<ContextualAssignmentDocHistoryAccess> {
+  return resolveContextualAssignmentDocHistoryAccess(assignmentId, 'authenticated')
+}
+
+/** Dormant exact-pair admission for learner assignment-document restores. */
+export function authorizeContextualAssignmentDocRestoreRequest(
+  assignmentId: string | (() => string | Promise<string>),
+): Promise<ContextualAssignmentDocHistoryAccess> {
+  return resolveContextualAssignmentDocHistoryAccess(assignmentId, 'student')
 }
 
 /** Dormant exact-pair admission for learner submit and unsubmit routes only. */
