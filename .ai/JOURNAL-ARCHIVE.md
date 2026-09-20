@@ -32322,3 +32322,12 @@ DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal r
 
 - Final cumulative Sol review found an unfenced repo-review run INSERT could race local cleanup after a route cached student data. Prepared forward174;173 remains immutable.174 extends the latest indirect purge guard to repo-review runs and installs insert/update/delete protection, preserving old/new scope locking and existing behavior.
 - Added route regressions proving denied/failed run creation stops cached-data analysis/AI grading, and deterministic fixture regressions for late run insertion after inventory/completion and moves into/out of fenced classrooms. These do not claim committed-row MVCC proof.174 application requires fresh exact local approval. One targeted review remains within the approved20:20:10–20:50:10 extension; PR1259 remains draft. Latest execution/CI receipts are recorded in that PR.
+
+<!-- pika-session-log-archive-batch:421fe8c42fa8fad71130695b9b4399b66f9cd8c09e73a6542951d2ec8a4e381b -->
+## 2026-09-13 — Explicit live membership purge integration
+
+Task01a09d38, branch codex/explicit-live-membership-purge: added default-off explicit
+Palv2/Bara/academic orchestration, forward175 completion/rejoin candidate and
+synthetic lifecycle tests. Preserves strictv1, permanent generation evidence and
+shared-data blockers; updates existing roadmap to settled historical-backup
+exclusion. No persistent DB/provider/config action. Review/CI still pending.

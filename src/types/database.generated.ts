@@ -10796,6 +10796,15 @@ export type Database = {
           skipped_count: number
         }[]
       }
+      return_assignment_docs_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_now: string
+          p_student_ids: string[]
+        }
+        Returns: Json
+      }
       return_assignment_docs_with_feedback_atomic: {
         Args: {
           p_assignment_id: string
@@ -10813,6 +10822,17 @@ export type Database = {
           p_now: string
           p_student_id: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      return_assignment_feedback_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_doc_updated_at: string
+          p_feedback: string
+          p_now: string
+          p_student_id: string
         }
         Returns: Json
       }

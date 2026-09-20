@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-13 — Explicit live membership purge integration
-
-Task01a09d38, branch codex/explicit-live-membership-purge: added default-off explicit
-Palv2/Bara/academic orchestration, forward175 completion/rejoin candidate and
-synthetic lifecycle tests. Preserves strictv1, permanent generation evidence and
-shared-data blockers; updates existing roadmap to settled historical-backup
-exclusion. No persistent DB/provider/config action. Review/CI still pending.
-
 ## 2026-09-13 — Teacher live classroom cleanup integration
 
 Owner `01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch `codex/teacher-live-purge-dialog` on PR1260 base. Added the removed-membership selector in the roster's existing dialog, explicit live-only confirmation, bounded progress, pre-request saved-key recovery, and guarded completion. Live provider entry rejects incompatible policy before transport; strict APIs and ordinary removal remain unchanged. DeepSeek attempt4 supplied verified bounded mapping (corrected persistence timing). Focused checks, mocked teacher desktop/mobile light/dark screenshots, Pattern Lab reference, and student privacy/draft-preservation fixtures pass. Draft-first independent review and final CI follow; no activation, live purge, migration, production release, or merge authority consumed.
@@ -290,3 +282,9 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Added one independent off-by-default exact user/Assignment gate shared by the single-student and selected-students grade routes. Matched teacher- or student-valued current owners use migration194 with exact returned Assignment/student binding; disabled and unmatched requests preserve the legacy teacher-only path. Feedback return, AI grading/repository review, bulk/reorder, UI and activation remain out of scope.
 - Under standing local-migration authorization, migration194 applied locally after a ledger/dry-run showing only194. Generated types and warning-level DB lint are clean; rollback behavior and archive-first/grade-first multi-connection contracts pass. Production remains001–180 and all contextual gates remain off. Focused verification and independent review follow.
 - PR1305 initial compatibility review signed off exact head `ba617df6`. Security review found a reverse-order deadlock with individual-student purge and an overbroad `55000` archive mapping. Remediation migration195 acquires each target learner's purge subject/pair fences nonblocking after Classroom admission, making a started purge return deterministic retry instead of deadlocking; the server now reserves403 for the exact archive sentinel and maps other lifecycle contention to409. A real purge-subject/grade race joins the archive races; targeted and final cumulative review follow.
+
+## 2026-09-20 — Dormant contextual Assignment feedback return
+
+- Owner `codex/contextual-assignment-feedback-return`, based on merged manual-grading PR1305. Migration196 adds service-only actor-bound wrappers for one feedback-only return and one selected-student full return. Both take the established Assignment return fence, then the Classroom-operation and target learner purge fences, lock authorization parents, recheck stable binding, exact current ownership and active lifecycle, and delegate to the established atomic return operations in the same transaction.
+- Added one independent off-by-default exact user/Assignment gate shared by both return routes. Matched teacher- or student-valued current owners use migration196 with strict returned document, feedback-entry, actor and batch-partition binding; disabled and unmatched requests preserve the legacy teacher-only path. AI grading/repository review, bulk/reorder, UI and activation remain out of scope.
+- Under standing local-migration authorization, migration196 is applied locally. Generated types match local history001–196; error-level DB lint, rollback behavior and purge-first/archive-first/return-first multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
