@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import {
   calculateAssignmentStatus,
   isAssignmentLive,
@@ -41,6 +40,11 @@ import {
   authorizeClassroomAssignmentDetailRequest,
   resolveContextualAssignmentDetailAccess,
 } from '@/lib/server/classroom-assignment-detail-access'
+import { authorizeContextualAssignmentOwnerMutationRequest } from '@/lib/server/contextual-assignment-owner-mutation-access'
+import {
+  deleteAssignmentForOwner,
+  updateAssignmentForOwner,
+} from '@/lib/server/contextual-assignment-owner-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -470,8 +474,10 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
 
 // PATCH /api/teacher/assignments/[id] - Update assignment
 export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, context) => {
-  const user = await requireRole('teacher')
-  const { id } = await context.params
+  const resolveAssignmentId = async () => (await context.params).id
+  const assignmentAccess = await authorizeContextualAssignmentOwnerMutationRequest(resolveAssignmentId)
+  const id = assignmentAccess.assignmentId
+  const user = assignmentAccess.user
   const {
     title,
     instructions_markdown,
@@ -651,7 +657,23 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
 
   let assignment: TableRow<'assignments'> = existing
   let submissionRequirements
-  if (hasSubmissionRequirementsUpdate) {
+  if (assignmentAccess.mode === 'contextual') {
+    const atomicUpdate = await updateAssignmentForOwner({
+      supabase,
+      actorId: user.id,
+      assignmentId: id,
+      updates,
+      requirements: submission_requirements,
+    })
+    if (!atomicUpdate.ok) {
+      return NextResponse.json(
+        { error: atomicUpdate.error },
+        { status: atomicUpdate.status }
+      )
+    }
+    assignment = atomicUpdate.assignment
+    submissionRequirements = atomicUpdate.submissionRequirements
+  } else if (hasSubmissionRequirementsUpdate) {
     const atomicUpdate = await updateAssignmentWithSubmissionRequirementsAtomic({
       supabase,
       assignmentId: id,
@@ -712,8 +734,10 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
 
 // DELETE /api/teacher/assignments/[id] - Delete assignment
 export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request, context) => {
-  const user = await requireRole('teacher')
-  const { id } = await context.params
+  const resolveAssignmentId = async () => (await context.params).id
+  const assignmentAccess = await authorizeContextualAssignmentOwnerMutationRequest(resolveAssignmentId)
+  const id = assignmentAccess.assignmentId
+  const user = assignmentAccess.user
   const supabase = getServiceRoleClient()
 
   const { data: existing, error: existingError } = await supabase
@@ -749,17 +773,25 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
     )
   }
 
-  const { error } = await supabase
-    .from('assignments')
-    .delete()
-    .eq('id', id)
+  if (assignmentAccess.mode === 'contextual') {
+    await deleteAssignmentForOwner({
+      supabase,
+      actorId: user.id,
+      assignmentId: id,
+    })
+  } else {
+    const { error } = await supabase
+      .from('assignments')
+      .delete()
+      .eq('id', id)
 
-  if (error) {
-    console.error('Error deleting assignment:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete assignment' },
-      { status: 500 }
-    )
+    if (error) {
+      console.error('Error deleting assignment:', error)
+      return NextResponse.json(
+        { error: 'Failed to delete assignment' },
+        { status: 500 }
+      )
+    }
   }
 
   try {

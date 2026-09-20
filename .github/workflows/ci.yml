@@ -223,6 +223,12 @@ jobs:
       - name: Verify contextual learner assignment artifact atomicity
         run: bash scripts/check-contextual-assignment-artifacts-database.sh
 
+      - name: Verify contextual Assignment owner mutation atomicity
+        run: bash scripts/check-contextual-assignment-owner-mutations-database.sh
+
+      - name: Verify contextual Assignment owner mutation concurrency
+        run: node scripts/check-contextual-assignment-owner-mutations-concurrency.mjs
+
       - name: Verify contextual learner assignment-save concurrent authorization
         run: node scripts/check-contextual-assignment-doc-save-concurrency.mjs
 

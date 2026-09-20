@@ -211,14 +211,19 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   and migration 190. A matched teacher- or student-valued active member can mutate only
   their own exact requirement/document binding; image attachment rechecks membership after
   upload and binds the managed object to database-derived classroom, subject and document
-  evidence. All five gates must stay disabled because the remaining assignment writes are
-  still outstanding.
+  evidence. Existing-assignment owner edit, release, delete and pristine-draft discard now
+  have a sixth independent exact-pair gate and migration 191. A matched teacher- or
+  student-valued current owner is authorized under the shared assignment/classroom lock
+  order, with allowed update keys, release state, archive state and ownership rechecked in
+  the mutation transaction. Creation, bulk/reorder, grading and return flows remain legacy,
+  so all six gates must stay disabled.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
   See also [the learner assignment-open contract](contextual-assignment-doc-open.md).
   See also [the learner assignment-save contract](contextual-assignment-doc-save.md).
   See also [the learner assignment-submission contract](contextual-assignment-doc-submission.md).
   See also [the learner assignment-history contract](contextual-assignment-doc-history.md).
   See also [the learner assignment-artifact contract](contextual-assignment-artifacts.md).
+  See also [the owner assignment-mutation contract](contextual-assignment-owner-mutations.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
