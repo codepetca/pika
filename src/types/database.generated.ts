@@ -10928,6 +10928,23 @@ export type Database = {
         }
         Returns: Json
       }
+      save_assignment_grades_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_apply_comments: boolean
+          p_apply_grade: boolean
+          p_assignment_id: string
+          p_expected_doc_updated_at_by_student: Json
+          p_feedback: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_student_ids: string[]
+        }
+        Returns: Json
+      }
       save_course_blueprint_version_atomic: {
         Args: {
           p_blueprint_id: string

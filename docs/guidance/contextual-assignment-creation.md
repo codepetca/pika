@@ -70,5 +70,6 @@ Keep the gate disabled until migrations 192–193 are deployed to the target env
 and the broader classroom pilot checklist approves the exact user/Classroom
 pairs. Assignment, material and survey creation must always use the same exact-pair
 gate so admitted owners cannot split between transactional and legacy position
-allocation. Bulk/reorder, grading and feedback/return compatibility must still be
-completed before the whole owner experience is considered role-neutral.
+allocation. Bulk/reorder, feedback/return, AI grading and repository-review
+compatibility must still be completed before the whole owner experience is
+considered role-neutral. Manual grading is covered by its separate dormant gate.
