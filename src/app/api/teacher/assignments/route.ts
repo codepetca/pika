@@ -24,7 +24,7 @@ import {
   authorizeClassroomAssignmentRequest,
   loadContextualClassroomStudentIds,
 } from '@/lib/server/classroom-assignment-access'
-import { authorizeContextualAssignmentCreationRequest } from '@/lib/server/contextual-assignment-creation-access'
+import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contextual-classwork-creation-access'
 import { createAssignmentForOwner } from '@/lib/server/contextual-assignment-creation'
 import { teacherAssignmentCreateSchema } from '@/lib/validations/assignment-authoring'
 import type { Json } from '@/types/database.generated'
@@ -266,7 +266,7 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
     const classroomId = (rawBody as { classroom_id?: unknown }).classroom_id
     return typeof classroomId === 'string' ? classroomId : ''
   }
-  const assignmentAccess = await authorizeContextualAssignmentCreationRequest(resolveClassroomId)
+  const assignmentAccess = await authorizeContextualClassworkCreationRequest(resolveClassroomId)
   const rawBody = await resolveRawBody()
   const body = assignmentAccess.mode === 'contextual'
     ? teacherAssignmentCreateSchema.parse(rawBody)

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -10,6 +9,10 @@ import {
   assertContextualMaterialRows,
   authorizeClassroomMaterialRequest,
 } from '@/lib/server/classroom-material-access'
+import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contextual-classwork-creation-access'
+import { createClassworkMaterialForOwner } from '@/lib/server/contextual-classwork-creation'
+import { contextualMaterialCreateSchema } from '@/lib/validations/classwork-authoring'
+import type { Json } from '@/types/database.generated'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -81,9 +84,14 @@ export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_requ
 })
 
 export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (request, context) => {
-  const user = await requireRole('teacher')
-  const { id: classroomId } = await context.params
-  const body = await request.json()
+  const materialAccess = await authorizeContextualClassworkCreationRequest(async () => (
+    await context.params
+  ).id)
+  const classroomId = materialAccess.classroomId
+  const rawBody = await request.json()
+  const body = materialAccess.mode === 'contextual'
+    ? contextualMaterialCreateSchema.parse(rawBody)
+    : rawBody
   const { title, content, is_draft: isDraft = true } = body as {
     title?: string
     content?: unknown
@@ -99,12 +107,24 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
     return NextResponse.json({ error: 'Invalid content format' }, { status: 400 })
   }
 
-  const ownership = await assertTeacherCanMutateClassroom(user.id, classroomId)
+  const supabase = getServiceRoleClient()
+  if (materialAccess.mode === 'contextual') {
+    const material = await createClassworkMaterialForOwner({
+      supabase,
+      actorId: materialAccess.user.id,
+      classroomId,
+      title: cleanTitle,
+      content: content as unknown as Json,
+      isDraft: !!isDraft,
+    })
+    return NextResponse.json({ material }, { status: 201 })
+  }
+
+  const ownership = await assertTeacherCanMutateClassroom(materialAccess.user.id, classroomId)
   if (!ownership.ok) {
     return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   }
 
-  const supabase = getServiceRoleClient()
   const [lastAssignmentResult, lastMaterialResult, lastSurveyResult] = await Promise.all([
     supabase
       .from('assignments')
@@ -160,7 +180,7 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
     content,
     is_draft: !!isDraft,
     released_at: isDraft ? null : new Date().toISOString(),
-    created_by: user.id,
+    created_by: materialAccess.user.id,
   }
 
   if (!isMissingMaterialsPositionError(lastMaterialResult.error)) {
