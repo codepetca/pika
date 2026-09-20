@@ -230,8 +230,12 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   and mixed-classwork ordering now share a tenth independent exact user/Classroom gate and
   migration 197. Matched teacher- or student-valued current owners are rechecked under the
   shared Classroom-operation fence before the established ordering functions run, so
-  contextual classwork creation and ordering serialize. AI grading, repository review and
-  bulk Assignment operations remain legacy. All ten gates must therefore stay disabled.
+  contextual classwork creation and ordering serialize. The markdown Assignment bulk editor
+  now has an eleventh independent exact user/Classroom gate and migration 198. Matched
+  teacher- or student-valued current owners are rechecked under canonically ordered Assignment
+  fences and the shared Classroom-operation fence before the complete create/update/release/
+  position batch commits atomically. AI grading and repository review remain legacy. All
+  eleven gates must therefore stay disabled.
   See [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
   See also [the learner assignment-open contract](contextual-assignment-doc-open.md).
   See also [the learner assignment-save contract](contextual-assignment-doc-save.md).
@@ -243,6 +247,7 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   See also [the manual Assignment grading contract](contextual-assignment-grading.md).
   See also [the Assignment feedback-return contract](contextual-assignment-feedback-return.md).
   See also [the classwork reorder contract](contextual-classwork-reorder.md).
+  See also [the Assignment bulk contract](contextual-assignment-bulk.md).
 - A pure quota check is not a reservation. Do not wire it to paid/expensive work until a
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races

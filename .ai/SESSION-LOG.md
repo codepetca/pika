@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-14 — Keep Daily attendance columns beneath the sticky header
-
-- Owner `codex/daily-attendance-sticky-fix`, PR1262, base `main@1fd8a1da`. On teacher Daily the four pinned attendance status cells and the trailing undo cell in each row shared the `z-sticky-table` layer with the sticky `thead`, so scrolled rows painted over the sortable header band (reported as the columns riding over the header and reaching the control bar).
-- Removed the shared layer from those `tbody` cells in `TeacherAttendanceTab.tsx` and the Pattern Lab `DailyMockup.tsx`; they keep `position: sticky` and their left/right offsets, so pinning is unchanged. Header layer untouched, matching the Gradebook frozen-column pattern.
-- Added a regression test: the header keeps `sticky top-0 z-sticky-table` and every `tbody td.sticky` omits it (fails if the old layer returns). Focused gate 17 files/244 tests; live hit-testing 0/8 pinned-cell samples above the header after the fix vs 8/8 with the layer re-applied, and no pinned cell reaches the control bar. Draft-first independent review, session entry and exact-head CI tracked on PR1262.
-
 ## 2026-09-15 — Compact student past logs
 - Task/branch: student past logs, `codex/student-past-logs-compact`.
 - Replaced stacked previews with muted date / single-line text rows, click/keyboard expansion, and viewport-sized Older/Newer pages over the existing ten class days. Mobile history now precedes lesson plans so the rows fit below the editor.
@@ -290,3 +284,9 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Owner `codex/contextual-classwork-reorder`, based on merged feedback-return PR1307. Migration197 adds service-only actor-bound wrappers for Assignment-only and mixed Assignment/material/survey ordering. Both take the shared Classroom-operation fence, lock the current Classroom, recheck exact ownership and active lifecycle, delegate to the established migration068 ordering functions, and return actor/Classroom binding evidence.
 - Added one independent off-by-default exact user/Classroom gate shared by both reorder routes. Matched teacher- or student-valued current owners use migration197; disabled and unmatched requests preserve the legacy teacher-only path. Bulk Assignment operations, AI grading, repository review, UI and activation remain out of scope.
 - Under standing local-migration authorization, migration197 applied after a clean dry run showing only197. Generated types match local history001–197; rollback behavior and archive-first/reorder-first/creation-first multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
+
+## 2026-09-20 — Dormant contextual Assignment bulk editing
+
+- Owner `codex/contextual-assignment-bulk`, based on merged classwork-reorder PR1308. Migration198 adds one service-only actor-bound transaction for the markdown Assignment bulk editor. It takes canonically ordered Assignment submission fences before the shared Classroom-operation fence, locks and rebinds every parent, validates the complete batch, preserves material/survey slots, and commits creates, updates, releases and positions atomically.
+- Added an independent off-by-default exact user/Classroom gate. Matched teacher- or student-valued current owners use migration198; disabled and unmatched requests preserve the legacy teacher-only path. AI grading, repository review, UI and activation remain out of scope.
+- Under standing local-migration authorization, migration198 applied after the dry run showed only198. Generated types match local history001–198; rollback behavior and archive-first/bulk-first/overlapping reversed-order multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.

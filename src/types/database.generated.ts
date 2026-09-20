@@ -10977,6 +10977,14 @@ export type Database = {
         }
         Returns: Json
       }
+      save_assignments_bulk_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignments: Json
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       save_course_blueprint_version_atomic: {
         Args: {
           p_blueprint_id: string
