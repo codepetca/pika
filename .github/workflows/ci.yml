@@ -241,6 +241,12 @@ jobs:
       - name: Verify shared contextual classwork creation concurrency
         run: node scripts/check-contextual-classwork-creation-concurrency.mjs
 
+      - name: Verify contextual Assignment manual grading atomicity
+        run: bash scripts/check-contextual-assignment-grading-database.sh
+
+      - name: Verify contextual Assignment manual grading concurrency
+        run: node scripts/check-contextual-assignment-grading-concurrency.mjs
+
       - name: Verify contextual learner assignment-save concurrent authorization
         run: node scripts/check-contextual-assignment-doc-save-concurrency.mjs
 

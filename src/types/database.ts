@@ -474,6 +474,15 @@ type FunctionOverrides = {
       p_score_workflow: number | null
     }>
   >
+  save_assignment_grades_for_owner_v1: FunctionContract<
+    'save_assignment_grades_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['save_assignment_grades_for_owner_v1']['Args'], {
+      p_score_completion: number | null
+      p_score_thinking: number | null
+      p_score_workflow: number | null
+    }>
+  >
   save_assignment_ai_grade_atomic: FunctionContract<
     'save_assignment_ai_grade_atomic',
     Json,
