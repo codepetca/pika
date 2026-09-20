@@ -93,7 +93,7 @@ declare
   v_effective_is_draft boolean;
   v_effective_released_at timestamptz;
   v_existing_live boolean;
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz;
   v_requirements jsonb;
   v_result jsonb;
 begin
@@ -116,6 +116,7 @@ begin
     p_actor_id,
     p_assignment_id
   );
+  v_now := clock_timestamp();
 
   v_existing_live := not v_assignment.is_draft
     and (v_assignment.released_at is null or v_assignment.released_at <= v_now);
@@ -228,7 +229,7 @@ set search_path = ''
 as $function$
 declare
   v_assignment public.assignments%rowtype;
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz;
 begin
   if p_released_at is null or p_scheduled is null then
     raise exception using errcode = '22023', message = 'Invalid assignment release request';
@@ -238,6 +239,7 @@ begin
     p_actor_id,
     p_assignment_id
   );
+  v_now := clock_timestamp();
 
   if not v_assignment.is_draft then
     return jsonb_build_object(

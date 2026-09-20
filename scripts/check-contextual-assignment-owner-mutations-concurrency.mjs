@@ -177,10 +177,35 @@ try {
   assert.equal(adminSql(`select title from public.assignments where id = '${assignment}';`), 'Mutation wins')
   assert.equal(adminSql(`select archived_at is not null from public.classrooms where id = '${classroom}';`), 't')
   console.log('Passed: assignment_mutation_wins_archive')
+
+  adminSql(`
+    update public.classrooms set archived_at = null where id = '${classroom}';
+    update public.assignments set is_draft = true, released_at = null, due_at = clock_timestamp() + interval '7 days'
+    where id = '${assignment}';
+  `)
+
+  const clockBlocker = new Session('clock_blocker')
+  const scheduledRelease = new Session('clock_release')
+  await clockBlocker.run(`begin; select id from public.classrooms where id = '${classroom}' for update;`)
+  const releaseResult = scheduledRelease.run(`begin; set role service_role;
+    select result->>'error_code'
+    from (select public.release_assignment_for_owner_v1(
+      '${owner}', '${assignment}', clock_timestamp() + interval '500 milliseconds', true
+    ) as result) as released;
+    reset role;`)
+  await waitBlocked(scheduledRelease, clockBlocker)
+  await delay(750)
+  await clockBlocker.run('commit;')
+  assert.equal(await releaseResult, 'assignment_release_not_future')
+  await scheduledRelease.run('rollback;')
+  assert.equal(adminSql(`select is_draft from public.assignments where id = '${assignment}';`), 't')
+  console.log('Passed: release_clock_sampled_after_lock_wait')
 } finally {
   await Promise.allSettled(sessions.map((session) => session.close()))
   adminSql(`
     delete from public.classrooms where id = '${classroom}';
+    delete from public.effective_feature_entitlement_audit
+    where subject_user_id in ('${owner}', '${successor}');
     delete from public.users where id in ('${owner}', '${successor}');
   `)
 }

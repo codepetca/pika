@@ -60,11 +60,15 @@ describe('contextual assignment owner mutations migration', () => {
     expect(body).toContain('v_existing_live')
     expect(body).toContain('v_effective_due_at < v_effective_released_at')
     expect(body).toContain('public.update_assignment_with_submission_requirements_atomic')
+    expect(body.indexOf('private.lock_assignment_owner_mutation_context_v1'))
+      .toBeLessThan(body.indexOf('v_now := clock_timestamp()'))
   })
 
   it('keeps release, delete, and pristine discard inside the owner lock', () => {
     expect(functionBody('release_assignment_for_owner_v1'))
       .toContain('private.lock_assignment_owner_mutation_context_v1')
+    expect(functionBody('release_assignment_for_owner_v1').indexOf('private.lock_assignment_owner_mutation_context_v1'))
+      .toBeLessThan(functionBody('release_assignment_for_owner_v1').indexOf('v_now := clock_timestamp()'))
     expect(functionBody('delete_assignment_for_owner_v1'))
       .toContain('private.lock_assignment_owner_mutation_context_v1')
     expect(functionBody('discard_pristine_assignment_draft_for_owner_v1'))
@@ -91,6 +95,7 @@ describe('contextual assignment owner mutations migration', () => {
     expect(concurrency).toContain('Migration 191 must already be applied')
     expect(concurrency).toContain('Passed: owner_transfer_wins_assignment_mutation')
     expect(concurrency).toContain('Passed: assignment_mutation_wins_archive')
+    expect(concurrency).toContain('Passed: release_clock_sampled_after_lock_wait')
     expect(workflow).toContain('bash scripts/check-contextual-assignment-owner-mutations-database.sh')
     expect(workflow).toContain('node scripts/check-contextual-assignment-owner-mutations-concurrency.mjs')
   })
