@@ -19,10 +19,12 @@ assert.match(
 const tag = `assignment_save_${randomUUID().replaceAll('-', '').slice(0, 10)}`
 const actor = randomUUID()
 const owner = randomUUID()
-const classrooms = Array.from({ length: 16 }, () => randomUUID())
-const assignments = Array.from({ length: 16 }, () => randomUUID())
-const saveSessions = Array.from({ length: 16 }, () => randomUUID())
-const metricSessions = Array.from({ length: 16 }, () => randomUUID())
+const classrooms = Array.from({ length: 20 }, () => randomUUID())
+const assignments = Array.from({ length: 20 }, () => randomUUID())
+const saveSessions = Array.from({ length: 20 }, () => randomUUID())
+const metricSessions = Array.from({ length: 20 }, () => randomUUID())
+const restoreSessions = Array.from({ length: 20 }, () => randomUUID())
+const restoreMetricSessions = Array.from({ length: 20 }, () => randomUUID())
 const sessions = []
 
 class Session {
@@ -199,6 +201,24 @@ function contextualUnsubmitSql(index) {
     RESET ROLE;`
 }
 
+function contextualRestoreSql(index) {
+  return `SET ROLE service_role;
+    SELECT concat(result->>'ok', '|', coalesce(result->>'error_code', 'ok'))
+    FROM (SELECT public.restore_assignment_doc_for_member_v1(
+        '${actor}', '${assignments[index]}',
+        (SELECT history.id FROM public.assignment_doc_history AS history
+          JOIN public.assignment_docs AS doc ON doc.id = history.assignment_doc_id
+          WHERE doc.assignment_id = '${assignments[index]}' AND doc.student_id = '${actor}'
+          ORDER BY history.created_at, history.id LIMIT 1),
+        '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}_restored"}]}]}'::jsonb,
+        ${revisionSql(index)}, '[]'::jsonb,
+        '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"${tag}_restored"}]}]}'::jsonb,
+        1, ${tag.length + 9}, '${restoreSessions[index]}', 1, '${restoreMetricSessions[index]}'
+      ) AS result
+    ) AS restored;
+    RESET ROLE;`
+}
+
 async function blockingRace(label, holderSql, waiterSql, expectedCode) {
   const holder = await newSession(`${label}_holder`)
   const waiter = await newSession(`${label}_waiter`)
@@ -233,6 +253,11 @@ try {
     await admin.run("SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '186');"),
     't',
     'Migration 186 must already be applied',
+  )
+  assert.equal(
+    await admin.run("SELECT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '188');"),
+    't',
+    'Migration 188 must already be applied',
   )
   await admin.run(`BEGIN;
     INSERT INTO public.users (id, email, role) VALUES
@@ -596,7 +621,88 @@ try {
     console.log('Passed: save_wins_contextual_unsubmit')
   }
 
-  console.log('All contextual assignment-save/submission concurrency contracts passed.')
+  // Seed documents and baseline history for contextual restore ordering.
+  for (const index of [16, 17, 18, 19]) {
+    assert.equal(await admin.run(saveSql(index)), 'true|true')
+  }
+
+  // Removal commits first: contextual restore rechecks current membership and
+  // leaves the existing document unchanged.
+  await blockingRace(
+    'removal_wins_contextual_restore',
+    `DELETE FROM public.classroom_enrollments WHERE classroom_id = '${classrooms[16]}' AND student_id = '${actor}';`,
+    contextualRestoreSql(16),
+    '42501',
+  )
+  assert.equal(
+    await admin.run(`SELECT content #>> '{content,0,content,0,text}' FROM public.assignment_docs WHERE assignment_id = '${assignments[16]}' AND student_id = '${actor}';`),
+    tag,
+  )
+
+  // An authorized restore holds the membership fence; removal can revoke only
+  // after the exact history restore commits.
+  {
+    const restorer = await newSession('contextual_restore_wins_removal_holder')
+    const remover = await newSession('contextual_restore_wins_removal_waiter')
+    assert.equal(await restorer.run(`BEGIN; ${contextualRestoreSql(17)}`), 'true|ok')
+    const outcome = remover.run(
+      `DELETE FROM public.classroom_enrollments WHERE classroom_id = '${classrooms[17]}' AND student_id = '${actor}';`,
+    ).then((value) => ({ value }), (error) => ({ error }))
+    await waitBlocked(remover, restorer)
+    await restorer.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    await restorer.close()
+    await remover.close()
+    assert.equal(await admin.run(`SELECT NOT EXISTS (
+      SELECT 1 FROM public.classroom_enrollments
+      WHERE classroom_id = '${classrooms[17]}' AND student_id = '${actor}'
+    ) AND EXISTS (
+      SELECT 1 FROM public.assignment_docs
+      WHERE assignment_id = '${assignments[17]}' AND student_id = '${actor}'
+        AND content #>> '{content,0,content,0,text}' = '${tag}_restored'
+    );`), 't')
+    console.log('Passed: contextual_restore_wins_removal')
+  }
+
+  // Restore and contextual save share submission->editor ordering in both
+  // directions and surface structured revision conflicts instead of deadlocks.
+  {
+    const restorer = await newSession('contextual_restore_wins_save_holder')
+    const saver = await newSession('contextual_restore_wins_save_waiter')
+    assert.equal(await restorer.run(`BEGIN; ${contextualRestoreSql(18)}`), 'true|ok')
+    const outcome = saver.run(saveSql(18, revisionSql(18), 2)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(saver, restorer)
+    await restorer.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.match(result.value, /^false\|/)
+    await restorer.close()
+    await saver.close()
+    console.log('Passed: contextual_restore_wins_save')
+  }
+  {
+    const saver = await newSession('save_wins_contextual_restore_holder')
+    const restorer = await newSession('save_wins_contextual_restore_waiter')
+    assert.equal(await saver.run(`BEGIN; ${saveSql(19, revisionSql(19), 2)}`), 'true|false')
+    const outcome = restorer.run(contextualRestoreSql(19)).then(
+      (value) => ({ value }),
+      (error) => ({ error }),
+    )
+    await waitBlocked(restorer, saver)
+    await saver.run('COMMIT;')
+    const result = await outcome
+    if (result.error) throw result.error
+    assert.equal(result.value, 'false|assignment_doc_revision_conflict')
+    await saver.close()
+    await restorer.close()
+    console.log('Passed: save_wins_contextual_restore')
+  }
+
+  console.log('All contextual assignment save, submission, history, and restore concurrency contracts passed.')
 } finally {
   try {
     const workers = sessions.filter((session) => session !== admin)

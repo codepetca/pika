@@ -217,6 +217,9 @@ jobs:
       - name: Verify contextual learner assignment submit and unsubmit atomicity
         run: bash scripts/check-contextual-assignment-doc-submission-database.sh
 
+      - name: Verify contextual learner assignment history and restore atomicity
+        run: bash scripts/check-contextual-assignment-doc-history-database.sh
+
       - name: Verify contextual learner assignment-save concurrent authorization
         run: node scripts/check-contextual-assignment-doc-save-concurrency.mjs
 
