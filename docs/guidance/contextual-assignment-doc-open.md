@@ -58,6 +58,8 @@ the authenticated actor, assignment and document before return. A created docume
 retains immediate Pal delivery. A `student_id` query parameter cannot substitute a
 different learner on this member projection.
 
-The gate must remain disabled until learner
-autosave, submission and artifact mutations enforce contextual membership at transaction
-time. Migration application and any route activation require their own rollout approval.
+The independent learner autosave foundation is documented in
+[the contextual save contract](contextual-assignment-doc-save.md). Both gates must remain
+disabled until submission, unsubmit, history/restore and artifact mutations enforce
+contextual membership at transaction time. Migration application and any route activation
+require their own rollout approval.
