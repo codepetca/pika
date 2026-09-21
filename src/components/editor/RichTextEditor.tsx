@@ -30,6 +30,7 @@ import {
 import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
 import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node'
 import { ManagedImage } from '@/components/tiptap-node/managed-image-node'
+import { ReadOnlyImageUpload } from '@/components/tiptap-node/read-only-image-upload-node'
 import { uploadFileDirectly } from '@/lib/direct-storage-upload'
 import type { ImageUploadResult } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension'
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
@@ -468,7 +469,7 @@ export function RichTextEditor({
         class: 'max-w-full h-auto rounded',
       },
     }),
-    ...(enableImageUpload
+    ...(canEdit && enableImageUpload
       ? [
           ImageUploadNode.configure({
             type: 'image',
@@ -478,8 +479,8 @@ export function RichTextEditor({
             upload: (file, onProgress) => uploadImage(file, onProgress, assignmentDocId),
           }),
         ]
-      : []),
-  ], [assignmentDocId, enableImageUpload, placeholder])
+      : [ReadOnlyImageUpload]),
+  ], [assignmentDocId, canEdit, enableImageUpload, placeholder])
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -538,7 +539,7 @@ export function RichTextEditor({
     onUpdate: ({ editor }) => {
       onChange(editor.getJSON() as TiptapContent)
     },
-  })
+  }, [extensions])
 
   // Sync content changes from parent
   useEffect(() => {
@@ -586,7 +587,7 @@ export function RichTextEditor({
 
   // Handle image paste and drag-drop when enabled
   useEffect(() => {
-    if (!editor || !enableImageUpload) return
+    if (!editor || !canEdit || !enableImageUpload) return
 
     const handlePaste = (event: ClipboardEvent) => {
       const files = event.clipboardData?.files
@@ -629,7 +630,7 @@ export function RichTextEditor({
       editorElement.removeEventListener('drop', handleDrop)
       editorElement.removeEventListener('dragover', handleDragOver)
     }
-  }, [assignmentDocId, editor, enableImageUpload, onImageUploadError])
+  }, [assignmentDocId, canEdit, editor, enableImageUpload, onImageUploadError])
 
   if (!editor) {
     return null

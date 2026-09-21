@@ -2,8 +2,13 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RichTextEditor } from '@/components/editor'
+import { uploadFileDirectly } from '@/lib/direct-storage-upload'
 import { FormField } from '@/ui/FormField'
 import type { TiptapContent } from '@/types'
+
+vi.mock('@/lib/direct-storage-upload', () => ({
+  uploadFileDirectly: vi.fn(),
+}))
 
 describe('RichTextEditor', () => {
   it('forwards FormField naming and validation semantics to the editable area', async () => {
@@ -97,6 +102,162 @@ describe('RichTextEditor', () => {
       '/api/storage/submission-images?object_id=30000000-0000-4000-8000-000000000002',
     )
     expect(image.getAttribute('src')).not.toContain('supabase.co')
+  })
+
+  it('renders unfinished image uploads as noninteractive notes when read-only', async () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Work before the upload.' }],
+        },
+        {
+          type: 'imageUpload',
+          attrs: {
+            accept: 'image/*',
+            limit: 1,
+            maxSize: 10_000_000,
+          },
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Work after the upload.' }],
+        },
+      ],
+    }
+
+    const { container } = render(
+      <RichTextEditor
+        content={content}
+        onChange={vi.fn()}
+        editable={false}
+        enableImageUpload
+      />,
+    )
+
+    expect(await screen.findByText('Work before the upload.')).toBeInTheDocument()
+    expect(screen.getByRole('note')).toHaveTextContent('Image upload was not completed')
+    expect(screen.getByText('Work after the upload.')).toBeInTheDocument()
+    expect(container.querySelector('input[type="file"]')).not.toBeInTheDocument()
+    expect(screen.queryByText('Click to upload')).not.toBeInTheDocument()
+  })
+
+  it('keeps unfinished image uploads interactive when editing is allowed', async () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'imageUpload',
+          attrs: {
+            accept: 'image/*',
+            limit: 1,
+            maxSize: 10_000_000,
+          },
+        },
+      ],
+    }
+
+    const { container } = render(
+      <RichTextEditor content={content} onChange={vi.fn()} enableImageUpload />,
+    )
+
+    expect(await screen.findByText('Click to upload')).toBeInTheDocument()
+    expect(container.querySelector('input[type="file"]')).toBeInTheDocument()
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
+  it('replaces the interactive uploader when an editable document enters read-only mode', async () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Work before the upload.' }],
+        },
+        {
+          type: 'imageUpload',
+          attrs: {
+            accept: 'image/*',
+            limit: 1,
+            maxSize: 10_000_000,
+          },
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Work after the upload.' }],
+        },
+      ],
+    }
+
+    const { container, rerender } = render(
+      <RichTextEditor content={content} onChange={vi.fn()} enableImageUpload />,
+    )
+
+    expect(await screen.findByText('Click to upload')).toBeInTheDocument()
+    expect(container.querySelector('input[type="file"]')).toBeInTheDocument()
+
+    rerender(
+      <RichTextEditor
+        content={content}
+        onChange={vi.fn()}
+        editable={false}
+        enableImageUpload
+      />,
+    )
+
+    expect(await screen.findByRole('note')).toHaveTextContent('Image upload was not completed')
+    expect(screen.getByText('Work before the upload.')).toBeInTheDocument()
+    expect(screen.getByText('Work after the upload.')).toBeInTheDocument()
+    expect(container.querySelector('input[type="file"]')).not.toBeInTheDocument()
+    expect(screen.queryByText('Click to upload')).not.toBeInTheDocument()
+  })
+
+  it('does not upload pasted images after an editable document enters read-only mode', async () => {
+    const uploadMock = vi.mocked(uploadFileDirectly)
+    uploadMock.mockClear()
+    const onChange = vi.fn()
+    const onImageUploadError = vi.fn()
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Saved work.' }] }],
+    }
+
+    const { rerender } = render(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        assignmentDocId="assignment-doc-1"
+        enableImageUpload
+        onImageUploadError={onImageUploadError}
+      />,
+    )
+
+    await screen.findByRole('textbox')
+    rerender(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        assignmentDocId="assignment-doc-1"
+        editable={false}
+        enableImageUpload
+        onImageUploadError={onImageUploadError}
+      />,
+    )
+
+    const pasteEvent = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(pasteEvent, 'clipboardData', {
+      value: {
+        files: [new File(['image'], 'evidence.png', { type: 'image/png' })],
+        getData: () => '',
+      },
+    })
+    screen.getByRole('document').dispatchEvent(pasteEvent)
+
+    expect(pasteEvent.defaultPrevented).toBe(false)
+    expect(uploadMock).not.toHaveBeenCalled()
+    expect(onImageUploadError).not.toHaveBeenCalled()
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('should render the toolbar when editable', async () => {

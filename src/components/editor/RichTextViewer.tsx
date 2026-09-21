@@ -22,6 +22,7 @@ import { Typography } from '@tiptap/extension-typography'
 import { Subscript } from '@tiptap/extension-subscript'
 import { Superscript } from '@tiptap/extension-superscript'
 import { ManagedImage } from '@/components/tiptap-node/managed-image-node'
+import { ReadOnlyImageUpload } from '@/components/tiptap-node/read-only-image-upload-node'
 
 // --- Tiptap Node Styles ---
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
@@ -101,6 +102,7 @@ export function RichTextViewer({
           class: 'max-w-full h-auto rounded',
         },
       }),
+      ReadOnlyImageUpload,
     ],
     content,
   })
