@@ -352,6 +352,51 @@ describe('RichTextEditor', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('discards a completed upload when the assignment document changes before insertion', async () => {
+    const uploadMock = vi.mocked(uploadFileDirectly)
+    const discardMock = vi.mocked(discardDirectUpload)
+    let finishUpload!: (value: Record<string, unknown>) => void
+    uploadMock.mockImplementationOnce(() => new Promise((resolve) => { finishUpload = resolve }))
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+
+    const { rerender } = render(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        assignmentDocId="assignment-doc-1"
+        enableImageUpload
+      />,
+    )
+    fireEvent.change(await screen.findByTestId('editor-image-input'), {
+      target: { files: [new File(['image'], 'old-document.png', { type: 'image/png' })] },
+    })
+    await screen.findByRole('status')
+
+    rerender(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        assignmentDocId="assignment-doc-2"
+        enableImageUpload
+      />,
+    )
+    finishUpload({
+      url: '/api/storage/submission-images?object_id=managed-old-document',
+      managed_object_id: 'managed-old-document',
+      storage_bucket: 'submission-images',
+      storage_path: 'student/assignment/old-document.png',
+    })
+
+    await waitFor(() => {
+      expect(discardMock).toHaveBeenCalledWith({
+        endpoint: '/api/upload-image',
+        managedObjectId: 'managed-old-document',
+      })
+    })
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('replaces the interactive uploader when an editable document enters read-only mode', async () => {
     const content: TiptapContent = {
       type: 'doc',

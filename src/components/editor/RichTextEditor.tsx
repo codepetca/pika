@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref } from '@/lib/tiptap-content'
@@ -371,6 +371,9 @@ export function RichTextEditor({
   const imageInputRef = useRef<HTMLInputElement>(null)
   const imageUploadGenerationRef = useRef(0)
   const imageUploadDocIdRef = useRef(assignmentDocId)
+  const imageUploadContextRef = useRef({ assignmentDocId, canEdit, mounted: true })
+  imageUploadContextRef.current.assignmentDocId = assignmentDocId
+  imageUploadContextRef.current.canEdit = canEdit
   const imageUploadStateRef = useRef<TransientImageUploadState>({ status: 'idle' })
   const [imageUploadState, setImageUploadState] = useState<TransientImageUploadState>({ status: 'idle' })
   const { viewportRef, minimapState } = useHistoryPreviewViewport(
@@ -545,6 +548,7 @@ export function RichTextEditor({
     }
 
     const generation = imageUploadGenerationRef.current + 1
+    const uploadAssignmentDocId = assignmentDocId
     imageUploadGenerationRef.current = generation
     updateImageUploadState({ status: 'uploading', file, progress: 0 })
 
@@ -560,7 +564,12 @@ export function RichTextEditor({
         assignmentDocId,
       )
       managedObjectId = result.managedObjectId
-      if (imageUploadGenerationRef.current !== generation || !editor.isEditable) {
+      const currentContext = imageUploadContextRef.current
+      if (imageUploadGenerationRef.current !== generation
+        || !currentContext.mounted
+        || !currentContext.canEdit
+        || currentContext.assignmentDocId !== uploadAssignmentDocId
+        || !editor.isEditable) {
         if (managedObjectId) {
           void discardDirectUpload({
             endpoint: '/api/upload-image',
@@ -631,8 +640,12 @@ export function RichTextEditor({
     }
   }, [assignmentDocId, updateImageUploadState])
 
-  useEffect(() => () => {
-    imageUploadGenerationRef.current += 1
+  useLayoutEffect(() => {
+    imageUploadContextRef.current.mounted = true
+    return () => {
+      imageUploadContextRef.current.mounted = false
+      imageUploadGenerationRef.current += 1
+    }
   }, [])
 
   // Sync content changes from parent
