@@ -539,7 +539,7 @@ export function RichTextEditor({
     onUpdate: ({ editor }) => {
       onChange(editor.getJSON() as TiptapContent)
     },
-  })
+  }, [extensions])
 
   // Sync content changes from parent
   useEffect(() => {
