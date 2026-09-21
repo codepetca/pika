@@ -461,6 +461,7 @@ export function TeacherWorkInspector({
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
 }) {
   const gradeMutationsDisabled = gradeSaving || feedbackReturning || mutationsDisabled
+  const feedbackEditorDisabled = feedbackReturning || mutationsDisabled
   const gradeStatusLabel = gradeSaving
     ? `Saving ${gradeMode === 'graded' ? 'graded' : 'draft'}...`
     : data.doc?.graded_at
@@ -566,7 +567,7 @@ export function TeacherWorkInspector({
               onChange={setFeedbackDraft}
               onFocus={onAIDraftAcknowledge}
               hasFreshAIDraft={hasFreshAIDraft}
-              disabled={gradeMutationsDisabled}
+              disabled={feedbackEditorDisabled}
             />
             {hasFreshAIDraft && (
               <div className="flex justify-start">

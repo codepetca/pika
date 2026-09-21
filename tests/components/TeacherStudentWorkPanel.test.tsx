@@ -80,6 +80,7 @@ function makeStudentWork(
     repoReviewResult?: Record<string, any> | null
     authenticityScore?: number | null
     emptyContent?: boolean
+    content?: Record<string, any>
     submissionArtifacts?: Array<Record<string, any>>
     submissionRequirements?: Array<Record<string, any>>
   },
@@ -88,7 +89,7 @@ function makeStudentWork(
     id: `doc-${studentId}`,
     assignment_id: 'assignment-1',
     student_id: studentId,
-    content: opts.emptyContent
+    content: opts.content ?? (opts.emptyContent
       ? { type: 'doc', content: [] }
       : {
           type: 'doc',
@@ -98,7 +99,7 @@ function makeStudentWork(
               content: [{ type: 'text', text: `Work for ${studentId}` }],
             },
           ],
-        },
+        }),
     repo_url: null,
     github_username: null,
     is_submitted: true,
@@ -195,6 +196,7 @@ function mockFetchByStudent(
       repoReviewResult?: Record<string, any> | null
       authenticityScore?: number | null
       emptyContent?: boolean
+      content?: Record<string, any>
       submissionArtifacts?: Array<Record<string, any>>
       submissionRequirements?: Array<Record<string, any>>
       historyEntries?: Array<Record<string, any>>
@@ -544,7 +546,7 @@ describe('TeacherStudentWorkPanel', () => {
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/grade'))).toHaveLength(0)
   })
 
-  it('disables TeacherWorkInspector comment sending while grade autosave is in flight', async () => {
+  it('keeps the focused comment editor active while grade autosave is in flight', async () => {
     mockFetchByStudent({
       'student-1': { graded: false },
     })
@@ -577,7 +579,14 @@ describe('TeacherStudentWorkPanel', () => {
       await new Promise((resolve) => setTimeout(resolve, 1100))
     })
     const sendButton = screen.getByRole('button', { name: 'Send comment' })
+    expect(draft).toBeEnabled()
+    expect(draft).toHaveFocus()
     expect(sendButton).toBeDisabled()
+    expect(screen.getByLabelText('Completion score')).toBeDisabled()
+    expect(screen.getByLabelText('Thinking score')).toBeDisabled()
+    expect(screen.getByLabelText('Workflow score')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Final' })).toBeDisabled()
 
     gradeResponse.resolve({
       ok: true,
@@ -632,6 +641,38 @@ describe('TeacherStudentWorkPanel', () => {
 
     expect(await screen.findByText('Attachments')).toBeInTheDocument()
     expect(screen.getByText(/Link . demo.example.com/i)).toBeInTheDocument()
+    expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
+  })
+
+  it('renders an upload-only current document instead of the empty state', async () => {
+    mockFetchByStudent({
+      'student-1': {
+        graded: false,
+        content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'imageUpload',
+              attrs: { accept: 'image/*', limit: 1, maxSize: 10_000_000 },
+            },
+          ],
+        },
+      },
+    })
+
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    expect(await screen.findByTestId('rich-text-viewer')).toHaveTextContent('imageUpload')
     expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
   })
 
@@ -1473,6 +1514,57 @@ describe('TeacherStudentWorkPanel', () => {
     await user.click(screen.getByRole('button', { name: 'Exit preview' }))
     expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-history-preview-mode', 'current')
     expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('Work for student-1')
+  })
+
+  it('renders an upload-only history preview when the current document is empty', async () => {
+    mockFetchByStudent({
+      'student-1': {
+        graded: false,
+        emptyContent: true,
+        historyEntries: [
+          {
+            id: 'history-upload',
+            assignment_doc_id: 'doc-student-1',
+            patch: null,
+            snapshot: {
+              type: 'doc',
+              content: [
+                {
+                  type: 'imageUpload',
+                  attrs: { accept: 'image/*', limit: 1, maxSize: 10_000_000 },
+                },
+              ],
+            },
+            word_count: 0,
+            char_count: 0,
+            paste_word_count: 0,
+            keystroke_count: 0,
+            trigger: 'save',
+            created_at: '2026-02-20T11:00:00Z',
+          },
+        ],
+      },
+    })
+
+    const user = userEvent.setup()
+    render(
+      <TeacherStudentWorkPanel
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        studentId="student-1"
+        mode="details"
+        inspectorCollapsed={false}
+        inspectorWidth={40}
+        totalWidth={1200}
+      />,
+    )
+
+    await user.click(await screen.findByRole('button', { name: 'History' }))
+    await user.hover(screen.getByRole('button', { name: 'history-upload' }))
+
+    expect(screen.getByTestId('rich-text-viewer')).toHaveTextContent('imageUpload')
+    expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-history-preview-mode', 'focused')
+    expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
   })
 
   it('shows no comments summary pills when collapsed and keeps expanded returned feedback details', async () => {

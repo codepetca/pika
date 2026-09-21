@@ -121,6 +121,25 @@ export function isEmpty(content: TiptapContent): boolean {
 }
 
 /**
+ * Check whether read-only student work has anything the viewer can display.
+ *
+ * Keep this separate from isEmpty so image-only work and unfinished upload
+ * placeholders do not change text counts or submission semantics.
+ */
+export function hasRenderableContent(content: TiptapContent): boolean {
+  if (!isEmpty(content)) return true
+
+  const nodes = [...(content.content ?? [])]
+  while (nodes.length > 0) {
+    const node = nodes.pop()!
+    if (node.type === 'image' || node.type === 'imageUpload') return true
+    if (node.content) nodes.push(...node.content)
+  }
+
+  return false
+}
+
+/**
  * Count characters in Tiptap content (plain text, no formatting)
  */
 export function countCharacters(content: TiptapContent): number {

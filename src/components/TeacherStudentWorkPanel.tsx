@@ -20,7 +20,7 @@ import {
   type AssignmentWorkspaceMode,
   type AssignmentWorkspacePaneLayout,
 } from '@/lib/assignment-grading-layout'
-import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import { countCharacters, hasRenderableContent, isEmpty } from '@/lib/tiptap-content'
 import { formatRelativeDateTimeInToronto } from '@/lib/timezone'
 import type { InspectorSectionId } from '@/components/assignment-workspace/types'
 import type { AssignmentSubmissionArtifact, AssignmentSubmissionRequirement } from '@/types'
@@ -480,7 +480,7 @@ export function TeacherStudentWorkPanel({
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-auto scrollbar-hover">
-        {displayContent && !isEmpty(displayContent) ? (
+        {displayContent && hasRenderableContent(displayContent) ? (
           <RichTextViewer
             content={displayContent}
             fillHeight
