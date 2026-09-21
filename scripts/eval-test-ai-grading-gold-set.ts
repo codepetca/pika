@@ -40,8 +40,8 @@ async function gradeFixture(id: string, promptProfile: TestOpenResponsePromptPro
 }
 
 async function main() {
-  if (!process.env.OPENAI_API_KEY?.trim()) {
-    throw new Error('OPENAI_API_KEY must be set to run the gold-set evaluation.')
+  if (!process.env.DEEPSEEK_API_KEY?.trim()) {
+    throw new Error('DEEPSEEK_API_KEY must be set to run the gold-set evaluation.')
   }
 
   console.log(`Gold-set review status: ${TEST_AI_GOLD_SET_REVIEW_STATUS}`)
