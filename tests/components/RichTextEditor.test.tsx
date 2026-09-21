@@ -1,16 +1,22 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RichTextEditor } from '@/components/editor'
-import { uploadFileDirectly } from '@/lib/direct-storage-upload'
+import { discardDirectUpload, uploadFileDirectly } from '@/lib/direct-storage-upload'
 import { FormField } from '@/ui/FormField'
 import type { TiptapContent } from '@/types'
 
 vi.mock('@/lib/direct-storage-upload', () => ({
+  discardDirectUpload: vi.fn(),
   uploadFileDirectly: vi.fn(),
 }))
 
 describe('RichTextEditor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(discardDirectUpload).mockResolvedValue(undefined)
+  })
+
   it('forwards FormField naming and validation semantics to the editable area', async () => {
     const onChange = vi.fn()
     const content: TiptapContent = { type: 'doc', content: [] }
@@ -264,6 +270,85 @@ describe('RichTextEditor', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Remove' }))
     expect(screen.queryByTestId('editor-image-upload-status')).not.toBeInTheDocument()
     expect(onImageUploadPendingChange).toHaveBeenLastCalledWith(false)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('preserves a failed upload until the student explicitly retries or removes it', async () => {
+    const uploadMock = vi.mocked(uploadFileDirectly)
+    uploadMock.mockRejectedValueOnce(new Error('Network unavailable'))
+
+    render(
+      <RichTextEditor
+        content={{ type: 'doc', content: [] }}
+        onChange={vi.fn()}
+        assignmentDocId="assignment-doc-1"
+        enableImageUpload
+      />,
+    )
+
+    fireEvent.change(await screen.findByTestId('editor-image-input'), {
+      target: { files: [new File(['first'], 'failed.png', { type: 'image/png' })] },
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent('failed.png')
+
+    const pasteEvent = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(pasteEvent, 'clipboardData', {
+      value: {
+        files: [new File(['second'], 'replacement.png', { type: 'image/png' })],
+        getData: () => '',
+      },
+    })
+    screen.getByRole('textbox').dispatchEvent(pasteEvent)
+
+    expect(pasteEvent.defaultPrevented).toBe(true)
+    expect(uploadMock).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('alert')).toHaveTextContent('failed.png')
+    expect(screen.getByRole('alert')).not.toHaveTextContent('replacement.png')
+  })
+
+  it('discards a completed upload when the editor becomes read-only before insertion', async () => {
+    const uploadMock = vi.mocked(uploadFileDirectly)
+    const discardMock = vi.mocked(discardDirectUpload)
+    let finishUpload!: (value: Record<string, unknown>) => void
+    uploadMock.mockImplementationOnce(() => new Promise((resolve) => { finishUpload = resolve }))
+    const onChange = vi.fn()
+    const content: TiptapContent = { type: 'doc', content: [] }
+
+    const { rerender } = render(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        assignmentDocId="assignment-doc-1"
+        enableImageUpload
+      />,
+    )
+    fireEvent.change(await screen.findByTestId('editor-image-input'), {
+      target: { files: [new File(['image'], 'late.png', { type: 'image/png' })] },
+    })
+    await screen.findByRole('status')
+
+    rerender(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        assignmentDocId="assignment-doc-1"
+        editable={false}
+        enableImageUpload
+      />,
+    )
+    finishUpload({
+      url: '/api/storage/submission-images?object_id=managed-late',
+      managed_object_id: 'managed-late',
+      storage_bucket: 'submission-images',
+      storage_path: 'student/assignment/late.png',
+    })
+
+    await waitFor(() => {
+      expect(discardMock).toHaveBeenCalledWith({
+        endpoint: '/api/upload-image',
+        managedObjectId: 'managed-late',
+      })
+    })
     expect(onChange).not.toHaveBeenCalled()
   })
 

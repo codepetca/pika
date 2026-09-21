@@ -167,11 +167,13 @@ export const DELETE = withErrorHandler('CancelUploadImage', async (request: Next
     .eq('id', input.managed_object_id)
     .maybeSingle()
   if (object?.created_by_user_id === user.id && object.purpose === 'student_inline_image'
-    && object.status === 'reserved') {
+    && ['reserved', 'verified'].includes(object.status)) {
     await queueManagedStorageCleanupBestEffort({
       supabase,
       objectId: object.id,
-      errorCode: 'submission_image_client_upload_failed',
+      errorCode: object.status === 'verified'
+        ? 'submission_image_not_inserted'
+        : 'submission_image_client_upload_failed',
     })
   }
   return new NextResponse(null, { status: 204 })

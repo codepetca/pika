@@ -190,4 +190,16 @@ describe('/api/upload-image direct storage flow', () => {
       p_object_id: objectId,
     }))
   })
+
+  it('queues an owned finalized image that was not inserted into student work', async () => {
+    managedObject = { ...managedObject, status: 'verified' }
+
+    const response = await DELETE(request('DELETE', { managed_object_id: objectId }))
+
+    expect(response.status).toBe(204)
+    expect(rpc).toHaveBeenCalledWith('queue_managed_storage_cleanup', {
+      p_error_code: 'submission_image_not_inserted',
+      p_object_id: objectId,
+    })
+  })
 })

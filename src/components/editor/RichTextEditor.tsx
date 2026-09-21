@@ -29,7 +29,7 @@ import {
 import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
 import { ManagedImage } from '@/components/tiptap-node/managed-image-node'
 import { ReadOnlyImageUpload } from '@/components/tiptap-node/read-only-image-upload-node'
-import { uploadFileDirectly } from '@/lib/direct-storage-upload'
+import { discardDirectUpload, uploadFileDirectly } from '@/lib/direct-storage-upload'
 import type { ImageUploadResult } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension'
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
 import '@/components/tiptap-node/code-block-node/code-block-node.scss'
@@ -532,8 +532,10 @@ export function RichTextEditor({
     setImageUploadState(next)
   }, [])
 
-  const startImageUpload = useCallback(async (file: File) => {
-    if (!editor || !editor.isEditable || imageUploadStateRef.current.status === 'uploading') return
+  const startImageUpload = useCallback(async (file: File, options?: { retry?: boolean }) => {
+    const currentStatus = imageUploadStateRef.current.status
+    const canRetry = options?.retry === true && currentStatus === 'error'
+    if (!editor || !editor.isEditable || (currentStatus !== 'idle' && !canRetry)) return
 
     const validationError = getImageValidationError(file)
     if (validationError) {
@@ -546,6 +548,8 @@ export function RichTextEditor({
     imageUploadGenerationRef.current = generation
     updateImageUploadState({ status: 'uploading', file, progress: 0 })
 
+    let managedObjectId: string | undefined
+    let imageInserted = false
     try {
       const result = await uploadImage(
         file,
@@ -555,9 +559,18 @@ export function RichTextEditor({
         },
         assignmentDocId,
       )
-      if (imageUploadGenerationRef.current !== generation || !editor.isEditable) return
+      managedObjectId = result.managedObjectId
+      if (imageUploadGenerationRef.current !== generation || !editor.isEditable) {
+        if (managedObjectId) {
+          void discardDirectUpload({
+            endpoint: '/api/upload-image',
+            managedObjectId,
+          }).catch(() => {})
+        }
+        return
+      }
 
-      const inserted = editor
+      imageInserted = editor
         .chain()
         .focus()
         .setImage({
@@ -568,10 +581,16 @@ export function RichTextEditor({
           storage_path: result.storagePath ?? null,
         } as any)
         .run()
-      if (!inserted) throw new Error('The image uploaded but could not be added to your work')
+      if (!imageInserted) throw new Error('The image uploaded but could not be added to your work')
 
       updateImageUploadState({ status: 'idle' })
     } catch (error) {
+      if (managedObjectId && !imageInserted) {
+        void discardDirectUpload({
+          endpoint: '/api/upload-image',
+          managedObjectId,
+        }).catch(() => {})
+      }
       if (imageUploadGenerationRef.current !== generation) return
       const message = error instanceof Error ? error.message : 'Failed to upload image'
       console.error('Failed to upload image:', error)
@@ -611,6 +630,10 @@ export function RichTextEditor({
       updateImageUploadState({ status: 'idle' })
     }
   }, [assignmentDocId, updateImageUploadState])
+
+  useEffect(() => () => {
+    imageUploadGenerationRef.current += 1
+  }, [])
 
   // Sync content changes from parent
   useEffect(() => {
@@ -780,7 +803,7 @@ export function RichTextEditor({
                   type="button"
                   size="xs"
                   variant="secondary"
-                  onClick={() => void startImageUpload(imageUploadState.file)}
+                  onClick={() => void startImageUpload(imageUploadState.file, { retry: true })}
                 >
                   Retry
                 </AppButton>
