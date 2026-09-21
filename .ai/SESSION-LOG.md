@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-15 — Student-work diagnostic privacy, second batch
-
-- Owner `codex/log-privacy-grading-batch`, based on `main@d0971c02`. Replaced direct raw error logging in test save/submit/history/finalization, Gradebook reads/writes, assignment/test auto-grade entry points and test reference-cache writes with allowlisted content-free diagnostics. Existing authorization, queries, responses, retries and best-effort behavior unchanged.
-- Added synthetic failure assertions using the real logger and extended the static adoption boundary. Targeted 9 suites/147 tests pass; required focused gate and independent draft-first review follow. Risk profiles: async-grading and runtime-platform. No UI, dependency or migration changes.
-- `docs/guidance/application-log-privacy.md` records the diagnostic contract, debugging tradeoff, coverage limits and remaining audit inventory. No production records inspected, historical logs deleted, vendor settings changed or deployment performed. Kept the separate cleanup task and dirty hub context untouched.
-- PR1267 initial review: Terra/high found no blockers; Sol/high identified the adjacent student test-history read endpoint as a coverage gap. Remediation batch1 adopts its four raw error sites, adds exact-output/fail-closed tests for each and expands the static boundary. Initial focused gate passed223suites/1993tests; updated focused checks, targeted privacy re-review and final integration review follow. No changes to query/access/response behavior.
-- History remediation passed223suites/1998tests and Sol targeted/Terra final review. First ready CI35048462094 exposed one stale architecture-test import allowlist (7013passed/1failed), not a runtime failure. Returned PR to draft and stopped remaining CI. Remediation batch2 adds only the intentional diagnostics import to that exact allowlist; all retired-Quiz/transport guards remain. Final allowed targeted review and fresh exact-head CI follow; no production changes.
-
-## 2026-09-15 Daily log save failure investigation
-
-- Task owns `codex/fix-daily-log-save`. Production logs confirm PATCH student entries and Pal read-token HTTP 500s.
-- Production environment had PAL_ENABLED=true and missing PAL_INTEGRATION_SECRET. Correction on 2026-09-16: PAL_PSEUDONYM_SECRET is sensitive and its empty export did not prove it was empty. Reproduced requirePalEnvironment exception with current production config; PAL_ENABLED=false bypasses the failing integration check. No secret values recorded.
-- Proposed immediate recovery: disable Pal in production and redeploy the existing production revision. Awaiting live deployment approval; no application or database changes made.
-
-## 2026-09-15 Daily log production recovery
-
-- User approved temporarily disabling Pal achievements and redeploying the existing production revision. Set production PAL_ENABLED=false; verified configuration and removed temporary environment file.
-- Redeployed existing production deployment dpl_12DNkzWZKgxpW95KCzPcCMLh8hL9 (production commit 08fae08) to dpl_AbQSHr2x2eDUADM5kfGugmztsLiB. Ready with pika.codepet.ca alias.
-- Verification: login HTTP 200; real production PATCH /api/student/entries HTTP 200 at 13:57:52 Toronto; no HTTP 500 logs on new deployment at verification. Achievements remain disabled pending credential repair. No application or database changes.
-
 ## 2026-09-15 — Automatic removed-student cleanup source checkpoint
 
 - User selected a five-minute conditional watchdog and automatic system-owned cleanup for new removals. On `codex/removed-student-cleanup`, added migration 176: a private future-only queue, redacted completion evidence, leased service-only claims, an asynchronous Vault-backed immediate callback, callback coalescing, and a conditional Supabase Cron schedule. Historical removals are not backfilled.
@@ -298,6 +278,7 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Owner `codex/fix-assignment-viewer-upload-placeholder`, based on `origin/main@3424be87`. Read-only Tiptap surfaces now register a noninteractive `imageUpload` compatibility node, preventing an autosaved unfinished upload from invalidating and blanking the rest of a student's document.
 - The compatibility node renders a semantic note, “Image upload was not completed,” while preserving all surrounding work. Pattern Lab now carries the persisted-node case in both teacher and student history previews.
 - Regression coverage proves text before and after the placeholder remains visible, read-only editors expose no uploader or image paste/drop side effects, editable editors retain upload behavior, and a live editable editor rebuilds with the inert node when entering history preview. A separate renderability predicate lets teacher panels and modals show current or historical image/upload-only work without changing text counts or submission semantics; the compatibility node also supplies an explicit plain-text serialization. Targeted tests, TypeScript, lint, Pika audit and the focused full gate (161 files/2110 tests plus architecture and UI/design policy) pass. Playwright verified teacher/student desktop/mobile light mode and teacher desktop dark mode, including the exact read-only editor configuration with uploads enabled. Composite checklist reviewed: the read-only node is noninteractive, semantic state is covered by role-based testing, keyboard behavior is not applicable, and no manual follow-up remains. Risk profile: none. Model recommendation: GPT-5 — small compatibility fix with UI verification.
+
 ## 2026-09-21 — Hide unreturned grading status from students
 
 - Added a student-specific Assignment status projection that ignores internal `graded_at` state until work is returned. Student Classwork now retains its submission status before return and shows `Returned` only after the existing return boundary; teacher-facing `Graded` behavior is unchanged.
@@ -310,3 +291,8 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Focused gate passes 45 files/699 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verified default, uploading and failure recovery on student desktop/mobile in light/dark; teacher is n/a because this follow-up changes only editable student state. Composite checklist passed with a labeled native picker, polite live progress, alert recovery and keyboard-reachable actions. Risk profile: none. Model recommendation: GPT-5 — bounded editor state transition with autosave and submit coordination.
 - Initial independent review found two non-blocking recovery gaps: paste/drop could replace a visible failed upload without an explicit student choice, and a finalized image could be orphaned if the editor became read-only before insertion. Remediation batch 1 preserves the failed item until Retry/Remove and requests reference-safe managed-storage cleanup for finalized-but-uninserted images; focused regressions and API coverage pass.
 - Targeted review found a blocking commit-to-passive-effect race where read-only or document-identity changes could occur just before upload completion. Remediation batch 2 makes completion validate render-current editability and document identity synchronously, with layout-phase unmount invalidation and both transition regressions.
+## 2026-09-21 — Classroom Grades page patterns
+
+- Owner `codex/classroom-grades-patterns`, based on `origin/main@ed6e6ca1`. Pattern Lab now places a default-off “Show grades to students” switch at the top of the teacher Gradebook page pattern and adds a student Classroom Grades tab showing a returned-work-only 84% fixture with counted and excluded examples.
+- The paired Student Grades visibility pattern reuses the same teacher control and student card, while retaining the standalone returned-marks comparison. These development-only fixtures do not alter production navigation, persistence, authorization, or grade APIs.
+- Focused verification passes with 15 files and 147 tests plus architecture, UI/design policy, TypeScript and lint. Visual verification covered teacher and student desktop/mobile in light/dark, both teacher switch states, the enabled student Grades view, and zero horizontal page overflow. Risk profile: none.

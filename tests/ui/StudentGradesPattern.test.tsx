@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { StudentGradesPattern } from '@/app/__ui/StudentGradesPattern'
@@ -7,6 +7,7 @@ describe('Pattern Lab student Grades visibility concept', () => {
   it('shows only the minimal returned-grade contract when enabled', () => {
     render(<StudentGradesPattern />)
 
+    fireEvent.click(screen.getByRole('switch', { name: 'Show grades to students' }))
     expect(screen.getByRole('switch', { name: 'Show grades to students' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('Current grade')).toBeInTheDocument()
     expect(screen.getByText('84%')).toBeInTheDocument()
@@ -34,13 +35,15 @@ describe('Pattern Lab student Grades visibility concept', () => {
     render(<StudentGradesPattern />)
 
     const visibility = screen.getByRole('switch', { name: 'Show grades to students' })
-    await user.click(visibility)
-
     expect(visibility).toHaveAttribute('aria-checked', 'false')
     expect(screen.queryByText('Current grade')).not.toBeInTheDocument()
     expect(screen.getByText('Grades is hidden from student navigation.')).toBeInTheDocument()
     expect(screen.getByText('Returned feedback remains available in Classwork and Tests.')).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Returned marks' })).toBeInTheDocument()
+
+    await user.click(visibility)
+    expect(visibility).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('Current grade')).toBeInTheDocument()
   })
 
   it('renders the production standalone list with deterministic zero and excluded marks', () => {

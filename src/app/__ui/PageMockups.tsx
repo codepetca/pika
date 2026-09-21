@@ -58,6 +58,7 @@ import { WorkSurfaceMockup } from './WorkSurfaceMockup'
 import { GradebookAssessmentEditorMockup } from './GradebookAssessmentEditorMockup'
 import { GradebookCategoryEditorMockup } from './GradebookCategoryEditorMockup'
 import { GradebookWeightInputMockup } from './GradebookWeightInputMockup'
+import { TeacherGradebookVisibilityControl } from './StudentGradesPattern'
 import {
   Button,
   Card,
@@ -560,6 +561,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
   const [showStudentIds, setShowStudentIds] = useState(false)
   const [showWeights, setShowWeights] = useState(false)
   const [keepKeyColumnsVisible, setKeepKeyColumnsVisible] = useState(true)
+  const [gradesVisible, setGradesVisible] = useState(false)
   const [firstColumnWidth, setFirstColumnWidth] = useState(96)
   const [lastColumnWidth, setLastColumnWidth] = useState(96)
   const [selected, setSelected] = useState<string[]>([])
@@ -731,6 +733,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
 
   return (
     <div className="space-y-3">
+      <TeacherGradebookVisibilityControl gradesVisible={gradesVisible} onChange={setGradesVisible} />
       <TeacherWorkSurfaceContextBar
         ariaLabel="Gradebook mockup controls"
         primaryClassName="max-w-44 sm:max-w-none"

@@ -574,8 +574,8 @@ export function UiGallery({ role }: Props) {
           eyebrow="Experimental · page compositions"
           title="Classroom page patterns"
           description={role === 'teacher'
-            ? 'Interactive teacher fixtures for Daily, Classrooms, Gradebook, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces.'
-            : 'Interactive student fixtures for Today, Classwork, Tests, Calendar, Announcements, and Resources.'}
+            ? 'Interactive teacher fixtures for Daily, Classrooms, Gradebook visibility, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces.'
+            : 'Interactive student fixtures for Today, Classwork, Tests, Grades, Calendar, Announcements, and Resources.'}
         >
           <PageMockups role={role} />
         </PatternSection>
@@ -678,10 +678,11 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
       { value: 'assignment-creation', label: 'Creation dialogs — Assignment' },
       { value: 'assignment-edit-split', label: 'Assignment edit — Split prototype' },
     ] : [
-      { value: 'page-mockups', label: 'Page mockups — Today, classwork, tests, calendar, announcements, and resources' },
+      { value: 'page-mockups', label: 'Page mockups — Today, classwork, tests, grades, calendar, announcements, and resources' },
       { value: 'mockup-student-today-panel', label: 'Page mockups — Today' },
       { value: 'mockup-student-classwork-panel', label: 'Page mockups — Classwork' },
       { value: 'mockup-student-tests-panel', label: 'Page mockups — Tests' },
+      { value: 'mockup-student-grades-panel', label: 'Page mockups — Grades' },
       { value: 'mockup-student-calendar-panel', label: 'Page mockups — Calendar' },
       { value: 'mockup-student-announcements-panel', label: 'Page mockups — Announcements' },
       { value: 'mockup-student-resources-panel', label: 'Page mockups — Resources' },
