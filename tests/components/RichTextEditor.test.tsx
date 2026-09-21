@@ -99,6 +99,69 @@ describe('RichTextEditor', () => {
     expect(image.getAttribute('src')).not.toContain('supabase.co')
   })
 
+  it('renders unfinished image uploads as noninteractive notes when read-only', async () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Work before the upload.' }],
+        },
+        {
+          type: 'imageUpload',
+          attrs: {
+            accept: 'image/*',
+            limit: 1,
+            maxSize: 10_000_000,
+          },
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'text', text: 'Work after the upload.' }],
+        },
+      ],
+    }
+
+    const { container } = render(
+      <RichTextEditor
+        content={content}
+        onChange={vi.fn()}
+        editable={false}
+        enableImageUpload
+      />,
+    )
+
+    expect(await screen.findByText('Work before the upload.')).toBeInTheDocument()
+    expect(screen.getByRole('note')).toHaveTextContent('Image upload was not completed')
+    expect(screen.getByText('Work after the upload.')).toBeInTheDocument()
+    expect(container.querySelector('input[type="file"]')).not.toBeInTheDocument()
+    expect(screen.queryByText('Click to upload')).not.toBeInTheDocument()
+  })
+
+  it('keeps unfinished image uploads interactive when editing is allowed', async () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        {
+          type: 'imageUpload',
+          attrs: {
+            accept: 'image/*',
+            limit: 1,
+            maxSize: 10_000_000,
+          },
+        },
+      ],
+    }
+
+    const { container } = render(
+      <RichTextEditor content={content} onChange={vi.fn()} enableImageUpload />,
+    )
+
+    expect(await screen.findByText('Click to upload')).toBeInTheDocument()
+    expect(container.querySelector('input[type="file"]')).toBeInTheDocument()
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
+  })
+
   it('should render the toolbar when editable', async () => {
     const onChange = vi.fn()
     const content: TiptapContent = { type: 'doc', content: [] }

@@ -469,7 +469,7 @@ export function RichTextEditor({
         class: 'max-w-full h-auto rounded',
       },
     }),
-    ...(enableImageUpload
+    ...(canEdit && enableImageUpload
       ? [
           ImageUploadNode.configure({
             type: 'image',
@@ -480,7 +480,7 @@ export function RichTextEditor({
           }),
         ]
       : [ReadOnlyImageUpload]),
-  ], [assignmentDocId, enableImageUpload, placeholder])
+  ], [assignmentDocId, canEdit, enableImageUpload, placeholder])
 
   const editor = useEditor({
     immediatelyRender: false,

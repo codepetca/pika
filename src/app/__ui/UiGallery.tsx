@@ -868,6 +868,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
               content={previewContent}
               onChange={() => undefined}
               editable={false}
+              enableImageUpload
               className="h-full"
               historyPreviewMode={previewMode}
               historyPreviewChange={preview?.change}
