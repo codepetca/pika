@@ -544,7 +544,7 @@ describe('TeacherStudentWorkPanel', () => {
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/grade'))).toHaveLength(0)
   })
 
-  it('disables TeacherWorkInspector comment sending while grade autosave is in flight', async () => {
+  it('keeps the focused comment editor active while grade autosave is in flight', async () => {
     mockFetchByStudent({
       'student-1': { graded: false },
     })
@@ -577,7 +577,14 @@ describe('TeacherStudentWorkPanel', () => {
       await new Promise((resolve) => setTimeout(resolve, 1100))
     })
     const sendButton = screen.getByRole('button', { name: 'Send comment' })
+    expect(draft).toBeEnabled()
+    expect(draft).toHaveFocus()
     expect(sendButton).toBeDisabled()
+    expect(screen.getByLabelText('Completion score')).toBeDisabled()
+    expect(screen.getByLabelText('Thinking score')).toBeDisabled()
+    expect(screen.getByLabelText('Workflow score')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Final' })).toBeDisabled()
 
     gradeResponse.resolve({
       ok: true,
