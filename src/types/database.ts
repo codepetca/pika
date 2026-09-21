@@ -465,10 +465,31 @@ type FunctionOverrides = {
       p_feedback: string | null
     }>
   >
+  return_assignment_docs_for_owner_v1: FunctionContract<
+    'return_assignment_docs_for_owner_v1',
+    Json
+  >
+  return_assignment_feedback_for_owner_v1: FunctionContract<
+    'return_assignment_feedback_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['return_assignment_feedback_for_owner_v1']['Args'], {
+      p_expected_doc_updated_at: string | null
+      p_feedback: string | null
+    }>
+  >
   save_assignment_grades_atomic: FunctionContract<
     'save_assignment_grades_atomic',
     Json,
     Replace<GeneratedFunctions['save_assignment_grades_atomic']['Args'], {
+      p_score_completion: number | null
+      p_score_thinking: number | null
+      p_score_workflow: number | null
+    }>
+  >
+  save_assignment_grades_for_owner_v1: FunctionContract<
+    'save_assignment_grades_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['save_assignment_grades_for_owner_v1']['Args'], {
       p_score_completion: number | null
       p_score_thinking: number | null
       p_score_workflow: number | null

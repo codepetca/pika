@@ -9337,6 +9337,19 @@ export type Database = {
         }
         Returns: Json
       }
+      create_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_description: string
+          p_due_at: string
+          p_instructions_markdown: string
+          p_requirements: Json
+          p_rich_instructions: Json
+          p_title: string
+        }
+        Returns: Json
+      }
       create_classroom_atomic_v1: {
         Args: {
           p_class_code: string
@@ -9376,6 +9389,16 @@ export type Database = {
           p_classroom_id: string
           p_pal_event: Json
           p_student_id: string
+        }
+        Returns: Json
+      }
+      create_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_is_draft: boolean
+          p_title: string
         }
         Returns: Json
       }
@@ -9506,6 +9529,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_survey_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_dynamic_responses: boolean
+          p_show_results: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
       create_test_ai_grading_run_atomic: {
         Args: {
           p_eligible_student_count: number
@@ -9529,6 +9562,10 @@ export type Database = {
           p_assignment_id: string
           p_requirement_id: string
         }
+        Returns: Json
+      }
+      delete_assignment_for_owner_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
         Returns: Json
       }
       delete_assignment_submission_artifact_atomic: {
@@ -9556,6 +9593,14 @@ export type Database = {
           p_assignment_id: string
           p_expected_updated_at: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      discard_pristine_assignment_draft_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_updated_at: string
         }
         Returns: Json
       }
@@ -10489,6 +10534,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      release_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_released_at: string
+          p_scheduled: boolean
+        }
+        Returns: Json
+      }
       release_course_guide_import_extraction_slot: {
         Args: { p_lease_token: string; p_teacher_id: string }
         Returns: boolean
@@ -10551,6 +10605,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      reorder_assignments_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_ids: Json
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       reorder_assignments_preserve_materials: {
         Args: { p_assignment_ids: Json; p_classroom_id: string }
         Returns: undefined
@@ -10558,6 +10620,10 @@ export type Database = {
       reorder_classwork_items: {
         Args: { p_classroom_id: string; p_items: Json }
         Returns: undefined
+      }
+      reorder_classwork_items_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_items: Json }
+        Returns: Json
       }
       replace_assignment_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json }
@@ -10742,6 +10808,15 @@ export type Database = {
           skipped_count: number
         }[]
       }
+      return_assignment_docs_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_now: string
+          p_student_ids: string[]
+        }
+        Returns: Json
+      }
       return_assignment_docs_with_feedback_atomic: {
         Args: {
           p_assignment_id: string
@@ -10759,6 +10834,17 @@ export type Database = {
           p_now: string
           p_student_id: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      return_assignment_feedback_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_doc_updated_at: string
+          p_feedback: string
+          p_now: string
+          p_student_id: string
         }
         Returns: Json
       }
@@ -10871,6 +10957,41 @@ export type Database = {
           p_score_workflow: number
           p_student_ids: string[]
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      save_assignment_grades_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_apply_comments: boolean
+          p_apply_grade: boolean
+          p_assignment_id: string
+          p_expected_doc_updated_at_by_student: Json
+          p_feedback: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_student_ids: string[]
+        }
+        Returns: Json
+      }
+      save_assignment_repo_target_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_now: string
+          p_student_id: string
+          p_target: Json
+        }
+        Returns: Json
+      }
+      save_assignments_bulk_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignments: Json
+          p_classroom_id: string
         }
         Returns: Json
       }
@@ -11323,6 +11444,15 @@ export type Database = {
           p_student_ids: string[]
           p_test_id: string
           p_updated_by: string
+        }
+        Returns: Json
+      }
+      update_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_requirements?: Json
+          p_updates: Json
         }
         Returns: Json
       }

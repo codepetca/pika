@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/assignments/[id]/return/route'
 import { ApiError } from '@/lib/api-handler'
@@ -15,6 +15,11 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/lib/auth', () => ({
+  requireAuth: vi.fn(async () => ({
+    id: '50000000-0000-4000-8000-000000000001',
+    email: 'owner@example.com',
+    role: 'student',
+  })),
   requireRole: vi.fn(async () => ({
     id: 'teacher-1',
     email: 'teacher@example.com',
@@ -65,6 +70,11 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       classrooms: { teacher_id: 'teacher-1', archived_at: null },
     })
     mockSupabaseClient.rpc.mockResolvedValue({ data: successfulResult, error: null })
+  })
+
+  afterEach(() => {
+    delete process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_ENABLED
+    delete process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_PAIRS
   })
 
   it('authenticates before parsing the request body', async () => {
@@ -130,6 +140,47 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
     )
   })
 
+  it('preserves case-variant UUIDs on the disabled legacy path', async () => {
+    const lowercaseStudent = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
+    const uppercaseStudent = lowercaseStudent.toUpperCase()
+    const response = await POST(makeRequest({ student_ids: [uppercaseStudent, lowercaseStudent] }), {
+      params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'return_assignment_docs_with_feedback_atomic',
+      expect.objectContaining({ p_student_ids: [uppercaseStudent, lowercaseStudent] }),
+    )
+  })
+
+  it('preserves case-variant UUIDs for an unmatched teacher when the gate is enabled', async () => {
+    const { requireAuth } = await import('@/lib/auth')
+    const contextualOwner = '50000000-0000-4000-8000-000000000001'
+    const lowercaseStudent = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
+    const uppercaseStudent = lowercaseStudent.toUpperCase()
+    vi.mocked(requireAuth).mockResolvedValueOnce({
+      id: contextualOwner,
+      email: 'owner@example.com',
+      role: 'teacher',
+    })
+    process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_ENABLED = 'true'
+    process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_PAIRS = JSON.stringify([{
+      userId: contextualOwner,
+      assignmentId: 'a0000000-0000-4000-8000-000000000002',
+    }])
+
+    const response = await POST(makeRequest({ student_ids: [uppercaseStudent, lowercaseStudent] }), {
+      params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'return_assignment_docs_with_feedback_atomic',
+      expect.objectContaining({ p_student_ids: [uppercaseStudent, lowercaseStudent] }),
+    )
+  })
+
   it('returns the complete atomic result unchanged', async () => {
     const response = await POST(makeRequest({
       student_ids: [student1, student2, student3, student4],
@@ -143,6 +194,53 @@ describe('POST /api/teacher/assignments/[id]/return', () => {
       assignmentId: 'a0000000-0000-4000-8000-000000000001',
       teacherId: 'teacher-1',
     })
+  })
+
+  it('uses the owner-fenced RPC for an exact contextual student-owner pair', async () => {
+    const lowercaseStudent = 'abcdefab-cdef-4abc-8def-abcdefabcdef'
+    process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_ENABLED = 'true'
+    process.env.PIKA_CLASSROOM_ASSIGNMENT_FEEDBACK_RETURN_ACCESS_PAIRS = JSON.stringify([{
+      userId: '50000000-0000-4000-8000-000000000001',
+      assignmentId: 'a0000000-0000-4000-8000-000000000001',
+    }])
+
+    mockSupabaseClient.rpc.mockResolvedValue({
+      data: {
+        returned_count: 1,
+        cleared_count: 1,
+        updated_count: 1,
+        created_count: 0,
+        created_student_ids: [],
+        returned_student_ids: [lowercaseStudent],
+        blocked_count: 0,
+        blocked_student_ids: [],
+        already_returned_count: 0,
+        already_returned_student_ids: [],
+        missing_count: 0,
+        missing_student_ids: [],
+        not_enrolled_count: 0,
+        not_enrolled_student_ids: [],
+        mailbox_tracking_available: true,
+      },
+      error: null,
+    })
+    const response = await POST(makeRequest({
+      student_ids: [lowercaseStudent.toUpperCase(), lowercaseStudent],
+    }), {
+      params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(loadTeacherOwnedAssignment).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'return_assignment_docs_for_owner_v1',
+      {
+        p_actor_id: '50000000-0000-4000-8000-000000000001',
+        p_assignment_id: 'a0000000-0000-4000-8000-000000000001',
+        p_student_ids: [lowercaseStudent],
+        p_now: expect.any(String),
+      },
+    )
   })
 
   it('rejects mutation of an archived classroom before the RPC', async () => {

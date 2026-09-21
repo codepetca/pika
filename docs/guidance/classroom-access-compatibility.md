@@ -85,14 +85,18 @@ membership-scoped Pal identity role-neutral. Migration 188 also gives a role-neu
 the existing one-enrollee history projection and makes member restore recheck the exact
 history target transactionally. Migration 190 adds exact-member artifact preparation,
 attach and delete boundaries, including managed-image ownership and post-upload
-reauthorization. Grading, release and the remaining owner mutation behavior stays legacy, so
-none of these gates may be activated. See
+reauthorization. Migration 191 adds a separate exact-pair boundary for existing-Assignment
+owner edit, release, delete and pristine-draft discard; current ownership, archive state and
+the exact Assignment/Classroom binding are rechecked under the mutation locks. Creation,
+bulk/reorder, grading and return behavior stays legacy, so none of these gates may be
+activated. See
 [the assignment detail contract](contextual-classroom-assignment-detail-reads.md).
 See [the learner assignment-open contract](contextual-assignment-doc-open.md) and
 [the learner assignment-save contract](contextual-assignment-doc-save.md), plus
 [the learner assignment-submission contract](contextual-assignment-doc-submission.md),
 [the learner assignment-history contract](contextual-assignment-doc-history.md), and
-[the learner assignment-artifact contract](contextual-assignment-artifacts.md).
+[the learner assignment-artifact contract](contextual-assignment-artifacts.md), plus
+[the owner assignment-mutation contract](contextual-assignment-owner-mutations.md).
 
 ### Concrete blockers to a role-neutral pilot found in the inventory
 

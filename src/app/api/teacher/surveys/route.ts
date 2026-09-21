@@ -6,6 +6,9 @@ import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
+import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contextual-classwork-creation-access'
+import { createSurveyForOwner } from '@/lib/server/contextual-classwork-creation'
+import { contextualSurveyCreateSchema } from '@/lib/validations/classwork-authoring'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -182,8 +185,22 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
 })
 
 export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
-  const user = await requireRole('teacher')
-  const body = await request.json()
+  let bodyPromise: Promise<unknown> | null = null
+  const resolveRawBody = () => {
+    bodyPromise ??= request.json()
+    return bodyPromise
+  }
+  const resolveClassroomId = async () => {
+    const rawBody = await resolveRawBody()
+    if (!rawBody || typeof rawBody !== 'object' || !('classroom_id' in rawBody)) return ''
+    const classroomId = (rawBody as { classroom_id?: unknown }).classroom_id
+    return typeof classroomId === 'string' ? classroomId : ''
+  }
+  const surveyAccess = await authorizeContextualClassworkCreationRequest(resolveClassroomId)
+  const rawBody = await resolveRawBody()
+  const body = surveyAccess.mode === 'contextual'
+    ? contextualSurveyCreateSchema.parse(rawBody)
+    : rawBody
   const { classroom_id, title, show_results = true, dynamic_responses = false } = body as {
     classroom_id?: string
     title?: string
@@ -197,12 +214,24 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
 
   const cleanTitle = title?.trim() || getFallbackAssessmentTitle()
 
-  const ownership = await assertTeacherCanMutateClassroom(user.id, classroom_id)
+  const supabase = getServiceRoleClient()
+  if (surveyAccess.mode === 'contextual') {
+    const survey = await createSurveyForOwner({
+      supabase,
+      actorId: surveyAccess.user.id,
+      classroomId: surveyAccess.classroomId,
+      title: cleanTitle,
+      showResults: show_results === true,
+      dynamicResponses: dynamic_responses === true,
+    })
+    return NextResponse.json({ survey }, { status: 201 })
+  }
+
+  const ownership = await assertTeacherCanMutateClassroom(surveyAccess.user.id, classroom_id)
   if (!ownership.ok) {
     return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   }
 
-  const supabase = getServiceRoleClient()
   let position = 0
   try {
     position = await getNextClassworkPosition(classroom_id)
@@ -218,7 +247,7 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
       title: cleanTitle,
       show_results: show_results === true,
       dynamic_responses: dynamic_responses === true,
-      created_by: user.id,
+      created_by: surveyAccess.user.id,
       position,
     })
     .select()

@@ -223,6 +223,54 @@ jobs:
       - name: Verify contextual learner assignment artifact atomicity
         run: bash scripts/check-contextual-assignment-artifacts-database.sh
 
+      - name: Verify contextual Assignment owner mutation atomicity
+        run: bash scripts/check-contextual-assignment-owner-mutations-database.sh
+
+      - name: Verify contextual Assignment owner mutation concurrency
+        run: node scripts/check-contextual-assignment-owner-mutations-concurrency.mjs
+
+      - name: Verify contextual Assignment creation atomicity
+        run: bash scripts/check-contextual-assignment-creation-database.sh
+
+      - name: Verify contextual Assignment creation concurrency
+        run: node scripts/check-contextual-assignment-creation-concurrency.mjs
+
+      - name: Verify shared contextual classwork creation atomicity
+        run: bash scripts/check-contextual-classwork-creation-database.sh
+
+      - name: Verify shared contextual classwork creation concurrency
+        run: node scripts/check-contextual-classwork-creation-concurrency.mjs
+
+      - name: Verify contextual classwork reorder atomicity
+        run: bash scripts/check-contextual-classwork-reorder-database.sh
+
+      - name: Verify contextual classwork reorder concurrency
+        run: node scripts/check-contextual-classwork-reorder-concurrency.mjs
+
+      - name: Verify contextual Assignment bulk database contracts
+        run: bash scripts/check-contextual-assignment-bulk-database.sh
+
+      - name: Verify contextual Assignment bulk concurrency
+        run: node scripts/check-contextual-assignment-bulk-concurrency.mjs
+
+      - name: Verify contextual Assignment repo target atomicity
+        run: bash scripts/check-contextual-assignment-repo-target-database.sh
+
+      - name: Verify contextual Assignment repo target concurrency
+        run: node scripts/check-contextual-assignment-repo-target-concurrency.mjs
+
+      - name: Verify contextual Assignment manual grading atomicity
+        run: bash scripts/check-contextual-assignment-grading-database.sh
+
+      - name: Verify contextual Assignment manual grading concurrency
+        run: node scripts/check-contextual-assignment-grading-concurrency.mjs
+
+      - name: Verify contextual Assignment feedback-return atomicity
+        run: bash scripts/check-contextual-assignment-feedback-return-database.sh
+
+      - name: Verify contextual Assignment feedback-return concurrency
+        run: node scripts/check-contextual-assignment-feedback-return-concurrency.mjs
+
       - name: Verify contextual learner assignment-save concurrent authorization
         run: node scripts/check-contextual-assignment-doc-save-concurrency.mjs
 

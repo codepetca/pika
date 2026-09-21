@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler, apiErrors } from '@/lib/api-handler'
 import {
   extractRepoArtifactsFromContent,
@@ -13,14 +12,21 @@ import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment
 import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
 import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { authorizeContextualAssignmentRepoTargetRequest } from '@/lib/server/contextual-assignment-repo-target-access'
+import { saveAssignmentRepoTargetForOwner } from '@/lib/server/contextual-assignment-repo-target'
+import type { AssignmentRepoTargetSelectionMode } from '@/types'
 
 export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (request, context) => {
-  const user = await requireRole('teacher')
-  const { id: assignmentId, studentId } = await context.params
+  const access = await authorizeContextualAssignmentRepoTargetRequest(async () => (
+    await context.params
+  ).id)
+  const { studentId } = await context.params
+  const assignmentId = access.assignmentId
+  const user = access.user
   const assignment = await assertTeacherCanMutateAssignment(user.id, assignmentId)
 
   const body = await request.json()
-  const selectionMode = body.selection_mode === 'teacher_override' ? 'teacher_override'
+  const selectionMode: AssignmentRepoTargetSelectionMode = body.selection_mode === 'teacher_override' ? 'teacher_override'
     : 'auto'
   const selectedRepoUrl = typeof body.selected_repo_url === 'string' ? body.selected_repo_url.trim() : ''
   const overrideGitHubUsername = typeof body.override_github_username === 'string'
@@ -59,7 +65,15 @@ export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (req
   })
 
   if (selectionMode === 'auto' && !selectedRepoUrl && !overrideGitHubUsername) {
-    if (repoTarget?.id) {
+    if (access.mode === 'contextual') {
+      repoTarget = await saveAssignmentRepoTargetForOwner({
+        supabase,
+        actorId: user.id,
+        assignmentId,
+        studentId,
+        target: null,
+      })
+    } else if (repoTarget?.id) {
       await supabase
         .from('assignment_repo_targets')
         .delete()
@@ -74,17 +88,34 @@ export const PUT = withErrorHandler('PutTeacherAssignmentRepoTarget', async (req
     }
 
     const validation = await validatePublicGitHubRepo(repoUrlToValidate)
-    repoTarget = await saveAssignmentRepoTarget({
-      assignmentId,
-      studentId,
-      repoUrl: selectionMode === 'teacher_override' ? validation.repoUrl : null,
+    const target = {
+      selectedRepoUrl: selectionMode === 'teacher_override' ? validation.repoUrl : null,
       overrideGitHubUsername: selectionMode === 'teacher_override' ? (overrideGitHubUsername || null) : null,
       selectionMode,
       validationStatus: validation.validationStatus,
       validationMessage: validation.validationMessage,
       repoOwner: validation.repoOwner || null,
       repoName: validation.repoName || null,
-    })
+    }
+    repoTarget = access.mode === 'contextual'
+      ? await saveAssignmentRepoTargetForOwner({
+          supabase,
+          actorId: user.id,
+          assignmentId,
+          studentId,
+          target,
+        })
+      : await saveAssignmentRepoTarget({
+          assignmentId,
+          studentId,
+          repoUrl: target.selectedRepoUrl,
+          overrideGitHubUsername: target.overrideGitHubUsername,
+          selectionMode: target.selectionMode,
+          validationStatus: target.validationStatus,
+          validationMessage: target.validationMessage,
+          repoOwner: target.repoOwner,
+          repoName: target.repoName,
+        })
   }
 
   return NextResponse.json({

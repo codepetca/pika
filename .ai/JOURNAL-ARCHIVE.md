@@ -32298,3 +32298,209 @@ DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal r
 ## 2026-09-13 — Register academic cleanup CI verification
 
 - Targeted Sol cleared source1498a9d7 after the mixed-attendance correction; no source blocker remains. Added the rollback academic harness to normal Architecture Database Contracts CI, following migration replay and generated-type checks. Workflow/routing tests pass28 cases. The exact173 file/hash is unchanged; direct local schema and separate fixture permission are still pending, and the PR remains draft. Final integration review remains reserved for the runtime/types/typed-bridge-complete change.
+
+<!-- pika-session-log-archive-batch:1a23668375bf9fa44e6b7ba7c7a325ff2700d00f973f0e6161f89375e1e3337e -->
+## 2026-09-13 — Apply local academic schema and connect generated RPC
+
+- Direct owning-task approval authorized one LOCAL173 application and one separate rollback fixture execution. Normal migration command applied only reviewed173 at SHA256 df86be920c80d21b0530a7d9d3812c6d81608374679bf7b10e99958e6e39dbdd. Ledger001–173 verified; warning-level lint clean; academic/provider gates remain false.171–173 are immutable. Canonical types generated and checked; typed service-only RPC bridge and failure-category/privacy tests added.
+- The single approved fixture run failed during setup: a student-only check-in reference collided across two classrooms. Transaction rolled back, zero synthetic users remain and both gates remain false. Corrected fixture ID to include classroom and student. No cleanup/runtime proof claimed; a fresh fixture-run approval is required. Final review extension (up to30minutes from runtime-complete final review launch, one cumulative plus one targeted correction review) has not started. No provider calls/live byte deletion/activation/merge.
+
+<!-- pika-session-log-archive-batch:f652ed83beefe804282fa40f3e623262c953caa9fe1d1ea64e52d354e5906487 -->
+## 2026-09-13 — Correct rollback fixture integration assumptions
+
+- Direct approval allowed up to3 local rollback-only retries with fixture-only fixes. All3 attempts rolled back; failures exposed missing simulated storage-readiness fields, a PL/pgSQL variable/alias collision, then an existing Gradebook constraint intercepting the parent-move test. Fixed those fixture assumptions; parent-move now clears the category and requires the exact cleanup guard error. Latest run passed setup/inventory/blocked-case checks but did not reach storage/row deletion or final absence assertions.
+- Zero synthetic users, both cleanup gates false and storage mode compatibility verified after each attempt.173 remains byte-identical. Retry permission consumed; further fixture execution needs direct approval. Final review clock has not started because runtime verification is incomplete.
+
+<!-- pika-session-log-archive-batch:366f282c7e5238a8eba2cc44d23473964c5ce48117e5dd1911e4bd32b398c110 -->
+## 2026-09-13 — Verify local academic cleanup end to end
+
+- Direct approval resumed same-local rollback-only fixture validation with fixture-only corrections. Adopted the existing managed-storage fixture pattern for Storage API SQL-delete permission inside the transaction; added exact denial checks without completed providers and with expired leases. The full fixture passes, including22 success categories, all29 allowlisted row tables across success/blocked cases, two file leases, target absence and preserved peer/other-class/account/roster/provider/fence evidence.
+- Postflight: zero synthetic users/managed objects/storage rows; both cleanup gates false; storage compatibility restored. Warning-level database lint clean and173 unchanged. No provider HTTP/live byte deletion or committed-row MVCC proof. Final cumulative review follows the runtime-complete committed head under the approved30-minute extension; PR1259 remains draft until review and actual stable-head CI pass.
+
+<!-- pika-session-log-archive-batch:1d34c6d2d8195198708c9fca8054eca0c5a34e050f17dc5a9715e07fcbec11ac -->
+## 2026-09-13 — Fence late repository grading producers
+
+- Final cumulative Sol review found an unfenced repo-review run INSERT could race local cleanup after a route cached student data. Prepared forward174;173 remains immutable.174 extends the latest indirect purge guard to repo-review runs and installs insert/update/delete protection, preserving old/new scope locking and existing behavior.
+- Added route regressions proving denied/failed run creation stops cached-data analysis/AI grading, and deterministic fixture regressions for late run insertion after inventory/completion and moves into/out of fenced classrooms. These do not claim committed-row MVCC proof.174 application requires fresh exact local approval. One targeted review remains within the approved20:20:10–20:50:10 extension; PR1259 remains draft. Latest execution/CI receipts are recorded in that PR.
+
+<!-- pika-session-log-archive-batch:421fe8c42fa8fad71130695b9b4399b66f9cd8c09e73a6542951d2ec8a4e381b -->
+## 2026-09-13 — Explicit live membership purge integration
+
+Task01a09d38, branch codex/explicit-live-membership-purge: added default-off explicit
+Palv2/Bara/academic orchestration, forward175 completion/rejoin candidate and
+synthetic lifecycle tests. Preserves strictv1, permanent generation evidence and
+shared-data blockers; updates existing roadmap to settled historical-backup
+exclusion. No persistent DB/provider/config action. Review/CI still pending.
+
+<!-- pika-session-log-archive-batch:18961bce74c0a95b0f9eaa9ac017f4e6c0c4cf7be2adb9279c98e0299d3cc1ed -->
+## 2026-09-13 — Teacher live classroom cleanup integration
+
+Owner `01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch `codex/teacher-live-purge-dialog` on PR1260 base. Added the removed-membership selector in the roster's existing dialog, explicit live-only confirmation, bounded progress, pre-request saved-key recovery, and guarded completion. Live provider entry rejects incompatible policy before transport; strict APIs and ordinary removal remain unchanged. DeepSeek attempt4 supplied verified bounded mapping (corrected persistence timing). Focused checks, mocked teacher desktop/mobile light/dark screenshots, Pattern Lab reference, and student privacy/draft-preservation fixtures pass. Draft-first independent review and final CI follow; no activation, live purge, migration, production release, or merge authority consumed.
+
+Browser CI follow-up: replaced obsolete active-student purge expectations with absence assertions, retained ordinary removal/re-add/student boundaries, and added the seven-test live cleanup fixture to the existing CI browser selection. The first reviewed-commit Test & Build and database contracts passed; obsolete browser run canceled before this test-only correction. No application/gate configuration changed.
+
+<!-- pika-session-log-archive-batch:e78dc26c1a989e4f2214a9249802f8ad183e98ac52afc1e4550bf433b668434e -->
+## 2026-09-14 — Keep Daily attendance columns beneath the sticky header
+
+- Owner `codex/daily-attendance-sticky-fix`, PR1262, base `main@1fd8a1da`. On teacher Daily the four pinned attendance status cells and the trailing undo cell in each row shared the `z-sticky-table` layer with the sticky `thead`, so scrolled rows painted over the sortable header band (reported as the columns riding over the header and reaching the control bar).
+- Removed the shared layer from those `tbody` cells in `TeacherAttendanceTab.tsx` and the Pattern Lab `DailyMockup.tsx`; they keep `position: sticky` and their left/right offsets, so pinning is unchanged. Header layer untouched, matching the Gradebook frozen-column pattern.
+- Added a regression test: the header keeps `sticky top-0 z-sticky-table` and every `tbody td.sticky` omits it (fails if the old layer returns). Focused gate 17 files/244 tests; live hit-testing 0/8 pinned-cell samples above the header after the fix vs 8/8 with the layer re-applied, and no pinned cell reaches the control bar. Draft-first independent review, session entry and exact-head CI tracked on PR1262.
+
+<!-- pika-session-log-archive-batch:b1591b3e762f0ea97f0349bdc63085830b4fc43a003ffca39d17819564c8fe1b -->
+## 2026-09-15 — Compact student past logs
+- Task/branch: student past logs, `codex/student-past-logs-compact`.
+- Replaced stacked previews with muted date / single-line text rows, click/keyboard expansion, and viewport-sized Older/Newer pages over the existing ten class days. Mobile history now precedes lesson plans so the rows fit below the editor.
+- Reused canonical Button (Pattern Lab controls); removed the retired native-button exception. Feature-owned composition only; no shared pattern promotion or unrelated refactor.
+- Verification: history and paging interaction tests; focused checks; Playwright student light/dark at 1440×900, 1280×720, and 390×844, collapsed/expanded/focus/paging. Desktop fits 10 rows at 900px and 5 at 720px; mobile fits 10 rows. Teacher n/a (student-only owner). Local screenshots: `output/playwright/past-logs-*`.
+- Risk profile: none. Model recommendation: GPT-6 — bounded student UI behavior and visual verification. No schema or data mutations.
+
+<!-- pika-session-log-archive-batch:478fa6d418ffbf7e7703656532cbd0b9bbe24477a6a59d00866f71bfd548fa8b -->
+## 2026-09-12 — Abbreviate calendar day modal dates
+
+- Updated the shared week-header day modal to show `Fri Sep 11, 2026`; adjusted its two existing dialog-name assertions.
+- Verified: focused checks passed (254 tests, TypeScript, lint, architecture, UI/design policy); audit clean. Playwright screenshots reviewed for teacher/student, 1440×900 and 390×844, light/dark; next-day, ArrowLeft, and Escape checks passed in all eight combinations. Evidence: `output/playwright/calendar-*.png` in the task worktree.
+- Owner: calendar modal date task; branch `codex/calendar-modal-date-format`. Risk profile: none. Reused LessonCalendar date formatting and DialogPanel; Pattern Lab controls/dialog reference inspected. No new pattern or composite behavior.
+- Follow-up: gave the date/navigation row a full-width muted header band and divider using existing semantic tokens. Rechecked all eight screenshots, day navigation/Escape, and 254 focused tests. The pre-commit audit's whole-file composite heuristic requests a newly changed test for this class-only follow-up; existing dialog tests and the keyboard browser matrix passed, with no semantics or handlers changed. Targeted independent review will cover the refinement in the same PR.
+
+## 2026-09-12 — Begin Free / Access classroom-creation enforcement
+
+- Approved policy: Free is join/participate-only; Access permits one active owned classroom and unlimited joining. Initial Access is manually granted. Trial remains a separate, time-limited future overlay with at most one trial period per account; Plus/Pro and billing are deferred.
+- Authored additive migration166 with service-only effective snapshots, immutable idempotent audit, exact validity windows and a transaction-serialized active-classroom limit. Missing snapshots preserve current teacher-role behavior and no cohort is seeded. The database trigger covers direct inserts, reactivation and ownership transfer; the Blueprint entry point is wrapped before its internal error boundary.
+- Ordinary and Blueprint creation paths map exact database denials to safe 403/409/503 responses. Added source, API/helper and Blueprint tests plus a rollback-only database/concurrency harness wired into CI. Owner authorized and consumed one local application of migration166 checksum `c66842db8c504d50a438c8e6f3c841e759cac87923fa3531300b6a84ceeede6c`; preview contained only166 and application succeeded. Transactional and two-writer race contracts pass, database lint is warning-free, and regenerated public types match. Production remains164 and no entitlement row/cohort was created.
+
+## 2026-09-12 — Make ordinary classroom creation retry-safe
+
+- Initial Sol/Terra review of draft PR #1252 found that a lost ordinary-create response could duplicate an unmanaged classroom or consume Access capacity before the retry, and that reactivation denials collapsed to a generic 500. Remediation batch1 adds forward migration167 with a service-only operation ledger and atomic replay RPC, gives the existing blank-class modal a stable per-request idempotency key, and maps exact entitlement errors on restore. No visible modal contract changed.
+- Owner authorized and consumed one shared-local application of migration167 checksum `f14c853330729d6e48a8e6d6cf18c9a7fbf34f32bb11067a5edf175062a29759`; dry run contained only167. Sequential replay, changed-request conflict, missing-result fail-closed behavior, same-key concurrency, Access quota concurrency, privileges, database lint and generated types all pass. Production remains164 and no entitlement cohort was seeded.
+- Focused gate passes1144 tests/105files plus static checks. The Create Classroom browser scenario passes; teacher modal desktop/mobile light/dark and mobile error-state captures were inspected with no visible drift. A real browser retry probe sent the same UUID key twice. Student is n/a because creation remains teacher-gated. Targeted and final independent review remain before exact-head CI; no merge/deployment authorization.
+- Targeted Sol review found one lost-success-body edge: the modal discarded its operation key before validating the returned classroom identity. Remediation batch2 now retains that key until a usable classroom ID is confirmed, so a retry replays the committed operation instead of attempting a duplicate. The focused component regression passes23/23; cumulative checks and review follow. No migration, entitlement, UI layout or rollout change.
+- Targeted Sol and final Terra reviews then cleared stable `1da0bc20`. Ready-head CI run34706856667 passed full test/build but its schema inventory correctly rejected `classroom_creation_operations` as unclassified; returning the PR to draft cancelled the still-running browser lane. Owner approved a bounded extension for remediation batch3 and reviewer launches6–7. The ledger is now explicitly account-owned, non-portable workflow metadata for both its classroom result pointer and subject-account reference; the exact live-schema audit passes241 foreign-key relationships and the inventory suite passes16tests. No migration or runtime behavior changed.
+- Targeted Terra and final Sol reviews cleared corrected `6dbc0741`; exact-head CI run34707881236 then passed classification, full test/build, database architecture including the corrected schema inventory, browser matrix, and PR Gate. Main advanced during that run through calendar-only #1255, leaving conflicts only in the continuity logs. Owner authorized one final sync, reviewer launch8, exact-head CI, and merge to main if green. Rebased onto `5cc127ec`, preserving both log histories; range comparison shows no product/migration change beyond the already reviewed PR. Production remains164 and no rollout state changed.
+
+## 2026-09-12 — Use the existing local Pika database for Pal
+
+User corrected the target to the existing local database. Integrated reviewed prerequisite#1252 at7923cfaf into this branch, preserving both history logs. Shared local already had001–167; verified project pika, exact pending-only168 preview, unchanged reviewed checksum and no ambiguous backfill generations, then applied168 once with db push --local. History001–168, source/ledger backfill counts and both disabled rollout gates verified. Rollback-only membership lifecycle/lock tests, canonical generated types/check, warning-free DB lint and241-relationship schema audit pass. Combined focused gate passes1676tests/145files plus static checks. Stopped only task-created disposable containers and retained volumes. Notified the prerequisite owner of shared local168; #1252 final CI/authorized main merge still running, so #1253 remains draft pending final integration review/CI. No production application, provider calls or real-data erasure.
+
+## 2026-09-12 — Sync Pal with merged classroom prerequisites
+
+Prerequisite#1252 merged to main as0aeba623 after all exact-head CI gates passed. Synced main into the Pal branch, resolving only continuity conflicts and retaining verified shared local001–168 status. Product and migration trees remain unchanged from the locally verified7eb26f75 integration. Final focused checks and the approved sixth review (Sol/high,20minute cap) precede stable-head Pal CI; production remains untouched.
+
+## 2026-09-12 — Implement disabled classroom Pal signals and presentation
+
+- Owner task01a0978b-297c-70c1-9199-76a9f104cac0, branch codex/pal-classroom-signals, base3a225b0f. Authored migration169 with disabled database gate, immutable activation boundary, private generation-bound outbox/week state, all six existing v1 event families, legacy quiescence, scoped claims and bounded weekly planning. Historical/earlier-generation source rows are excluded; academic and outbox writes remain atomic.
+- Added authenticated classroom token/visit paths with before/after authorization, generation/provider-config token cache boundaries, two-second immediate delivery and leased background retries. Reused the existing widget with complete generation remount, scoped refresh and stale reward protections. All application/database rollout gates remain disabled; no provider provisioning, production action, migration application, reset or real-data erasure occurred.
+- Browser matrix passed14 tests including setup: four synthetic A/B switching, reload, logout and stale-response contracts plus eight ordinary teacher/student desktop/mobile light/dark regressions. Inspected all12 settled screenshots in output/playwright/pal-phase2. Unit/API and source checks cover actor isolation, no fallback, outages, leases and cache boundaries. SQL rollback/concurrency fixtures are authored but not executed.
+- Exact local migration preview contains only169; existing local history matches001–168. Canonical type check correctly stops at missing169. One-time exact local169 approval is required before SQL execution, generated public types, draft PR publication, independent review and exact-head CI. Goal remains active; full Phase2/provider exit gates are not claimed. Updated the existing approved roadmap and Phase1 completion evidence; see docs/guidance/pal-classroom-signals.md.
+
+## 2026-09-12 — Apply approved local classroom Pal schema
+
+Coordinator relayed explicit one-time approval for169 on the existing local Pika database. Verified checkpoint6c8ab914, approved SHA256 e98c01b2df3986aabf7f0539605f97ee742503a13020ec5b37331a3db55b63bd, container/project pika, matching001–168 and pending-only169 dry run. One db push --local succeeded; ledger001–169 matches, both private gates false and activation null. Rollback-only six-family/isolation/week/lease/removal/academic rollback and concurrent-planner contracts pass. Canonical public types generated and checked; replaced temporary RPC adapter with direct typed calls. Source focused gate passes1854tests/203files and static checks. DB lint reports two warnings (calendar volatility, unread visit variable), to correct forward after initial independent review. Production remains168; no provider calls, activation, reset or erasure. Sanitized receipt: ~/.codex/metrics/pika-local-pal-migrations.jsonl. Draft PR/review/CI next; no Pika merge authority.
+
+## 2026-09-12 — Correct reviewed classroom Pal producer boundaries
+
+DraftPR1256 at95c87afb received independent Sol/high and Terra/high review. Both found the enabled contextual join would demand suppressed legacy evidence and roll back; Terra also found partial classroom flags still constructed legacy daily/assignment/join events. One remediation batch suppresses legacy payloads on every touched source whenever classroom routing is requested while preserving atomic academic RPCs and scoped immediate delivery. Added actual contextual-join/daily/view/submit database contracts, including no legacy events under partial gates and no residual roster/enrollment/outbox on failed join. Those rollback-only contracts pass on local169; app flag-matrix and null-payload/no-HTTP tests pass. Authored forward170 for calendar volatility and unused visit variable; hash70ffa9a3ed187fa95e66f59d87946437b58711b09cac66068045e7259f7decb8, exact local approval pending.169 remains unchanged. Two reviewer launches/one batch consumed; targeted/final review and exact-head CI pending. UI unchanged, visual evidence reused. No provider/production/activation/erasure or merge action.
+
+## 2026-09-13 — Restore student action-bar header clearance
+
+- Task branch `codex/student-actionbar-spacing`: student-density `PageActionBar` now owns the existing 12px comfortable top inset, fixing Calendar and Classwork Instructions/Submit header collisions. Teacher/default spacing remains caller-owned. Updated the canonical API note and role-aware Pattern Lab example; reused existing controls and spacing tokens. Risk profile: none; no new visual pattern or interaction semantics.
+- Local Playwright matrix covers student/teacher Calendar, selected assignment, and Pattern Lab at 1440×900/390×844 in light/dark; student Calendar Week/Month/All and assignment focus/open-instructions states also captured. Evidence: ignored `output/playwright/`, capture script `/tmp/pika-actionbar-verify.cjs`, local port3137. No page overflow; student action bars have 12px padding and controls retain 44px targets.
+- Focused check passed 1,665 tests in168 files plus architecture, UI/design policy, TypeScript and lint. The optional audit flags unchanged composite semantics by scanning whole touched files; this spacing-only diff changes no ARIA or keyboard behavior and has direct browser focus/dialog verification. Draft-first independent review and final CI follow; no merge or production authorization.
+
+## 2026-09-13 — Phase3 provider prerequisite checkpoint
+
+Fresh owner task01a09b31 starts at merged Phase2f67852cf. Authored disabled exact
+Pal/Bara adapters, provider_pending prerequisite and permanent generation guards
+in unapplied171; initial source review requested before local application approval.
+85 unit tests pass; local ledger001–170 and pending-only171 dry run verified.
+No provider/network erase, SQL application, rollout, merge or deployment performed.
+See docs/guidance/student-provider-cleanup-integration.md for pending verification.
+
+## 2026-09-13 — Phase3 initial review correction batch
+
+Independent Sol/high and Terra/high reviewed frozen8aab0054 before local171 application approval. Corrected three accepted blockers: provisional whole-class copy/intent policy and producer serialization, exact-reference attendance removal closure, and provider-pending ordinary-cron health. Added transaction-only SQL cases (unexecuted), plus43 passing cron/purge tests and passing TypeScript. Full initial source gate passed520 tests. No SQL/provider traffic/config/rollout or PR publication occurred. Further typed RPC integration, browser revocation, actual SQL and race verification remain incomplete.
+
+## 2026-09-13 — Phase3 browser revocation and independent provider steps
+
+Finished membership browser reauthorization/cache-memory clearing on revoked access, preserving academic children and dismissing pending rewards/late replies. Synthetic Playwright8cases desktop/mobile/light/dark passed and screenshots inspected;45focused unit tests and full source605tests/types/policies/lint passed, Pikaauditpassed. Provider advancement now explicitly selects one provider per bounded step so Pal pending does not starve Bara. SQL171 remains unchanged at reviewedhash598ee035 and unapplied; exactlocalpacket sent coordinator. Typed RPC bridge, attendance consumers, actual SQL/concurrency verification and final review/PR remain pending. No rollout/provider calls.
+
+## 2026-09-13 — Phase3 runtime integration pending generated contract
+
+Authored direct typed provider reservation/read/authorization/receipt RPC bridge and attendance generation consumers. Scans recheck before retry and response; exact participant joins enabled payload/idempotency scope; delivery and stored replay authorize exact payload/lease. Pre171 missing-RPC fallback is restricted to disabled rollout, with real permission/malformed failures closed. Attendance/provider regression:191 tests in28files pass; architecture, lint and all11changedTypeScriptfile audit pass. TypeScript has exactly six missing new RPC names until authorized171 application and canonical generation; no generated contract edits or generic RPC workaround. Changes remain uncommitted pending that validation. Migration hash598ee035 remains unchanged; no SQL/provider requests. Review45minute cap expired15:44UTC after3launches/1batch; final independent review requires explicit extension. Full SQL and cross-connection race evidence remain unexecuted.
+
+## 2026-09-13 — Approved local171 application and runtime verification
+
+Direct user approval authorized exactlocal171/hash598ee035 and bounded review extension. Single application succeeded; ledger001–171 and membership/signals/cleanup gates remainoff. Canonical types generated and drift check pass; nullable replay input refined in application contract. Fixed two SQL fixture assumptions, then rollback suite passed with no retained c171rows. Two-connection harness verifies five real RPC/producer lock conflicts and rollback/release; no committed-row MVCC rehearsal or fixture seed is claimed. Full focused checks passed622tests/types/policies/lint; prior8browsercases and visuals remain applicable. Review extension up30minutes/MAX2extra launches begins at final review, prior3launches/1batch retained. No hosted rollout/provider requests/merge; stable draft PR and cumulative review follow.
+
+## 2026-09-13 — Phase3 final review correction batch
+
+DraftPR1258 atf168c2c3 received final Sol/high cumulative review. Accepted Pal retry classification finding and independently detected warning-level SQL lint failure. Batched retryable generic404/malformed/unexpected-success outcomes with same-binding/no-proof regressions;42focused tests pass. Added forward172 replacing only receipt authorization's unused assignment withPERFORM, preserving171/hash598ee035 and all behavior/signatures/grants. New172hash4aac47ce is unapplied; requires separate exactlocalapproval and postapplication lint/type/DB validation. Final targeted review pending within16:31UTC cap/MAX5launches. No provider traffic, committed fixtures, rollout or merge.
+
+## 2026-09-13 — Disabled removed-membership academic stage source checkpoint
+
+- Owner01a09bf4 on codex/removed-membership-academic-cleanup, base29cde0b0. Clarified academic ownership is student+classroom; retained generation authenticates operation. No prospective provenance capture or backfill.
+- Authored forward173, existing-ledger local progress/claims, strict provider/no-copy fences, narrow retained marks redaction and rollback-only harness. Existing171/172 hashes preserved. No schema or provider action.
+-14 orchestration tests,10 source contracts and focused checks passed; TypeScript passed. Canonical types check correctly stops at unapplied173. DB/storage/MVCC proofs remain unexecuted; source review and exact local approval next. Refreshed existing roadmap/integration status.
+
+## 2026-09-13 — Batch academic cleanup source-review corrections
+
+- PR1259 initial Sol/high and Terra/high reviews found exact attendance overblocking and incomplete rollback coverage. One batch permits only staged exact attendance deletes, orders override events before parents, and tightens file ownership to exact assignment docs. All overall provider/re-add fences remain.
+- Expanded the unexecuted rollback harness to22 success resource categories, all29 allowlisted tables across success/blocked fixtures, two files, eight blocked cases, row-hash isolation and callback/backoff/lease scenarios. Source tests pass; SQL173 remains unapplied and database/types proof remains gated on direct local173 approval. Targeted source review follows; no migration or provider activation occurred.
+
+## 2026-09-13 — Fence mixed attendance parent links
+
+- PR1259 targeted Sol review found that the legacy attendance event FK permits cross-student/classroom children and cascading deletion outside the inventory. Batch2 blocks mismatched identity/occurrence, locks both event and parent scopes for reference mutations, and rejects every unstaged child during local finalization even after a cascading parent disappears. Added pre-existing peer/other-class mismatches and late insertion rejection fixtures; these are unexecuted serialized checks, not committed-row race proof. Migration173 remains unapplied.
+
+## 2026-09-13 — Register academic cleanup CI verification
+
+- Targeted Sol cleared source1498a9d7 after the mixed-attendance correction; no source blocker remains. Added the rollback academic harness to normal Architecture Database Contracts CI, following migration replay and generated-type checks. Workflow/routing tests pass28 cases. The exact173 file/hash is unchanged; direct local schema and separate fixture permission are still pending, and the PR remains draft. Final integration review remains reserved for the runtime/types/typed-bridge-complete change.
+
+## 2026-09-13 — Apply local academic schema and connect generated RPC
+
+- Direct owning-task approval authorized one LOCAL173 application and one separate rollback fixture execution. Normal migration command applied only reviewed173 at SHA256 df86be920c80d21b0530a7d9d3812c6d81608374679bf7b10e99958e6e39dbdd. Ledger001–173 verified; warning-level lint clean; academic/provider gates remain false.171–173 are immutable. Canonical types generated and checked; typed service-only RPC bridge and failure-category/privacy tests added.
+- The single approved fixture run failed during setup: a student-only check-in reference collided across two classrooms. Transaction rolled back, zero synthetic users remain and both gates remain false. Corrected fixture ID to include classroom and student. No cleanup/runtime proof claimed; a fresh fixture-run approval is required. Final review extension (up to30minutes from runtime-complete final review launch, one cumulative plus one targeted correction review) has not started. No provider calls/live byte deletion/activation/merge.
+
+## 2026-09-13 — Correct rollback fixture integration assumptions
+
+- Direct approval allowed up to3 local rollback-only retries with fixture-only fixes. All3 attempts rolled back; failures exposed missing simulated storage-readiness fields, a PL/pgSQL variable/alias collision, then an existing Gradebook constraint intercepting the parent-move test. Fixed those fixture assumptions; parent-move now clears the category and requires the exact cleanup guard error. Latest run passed setup/inventory/blocked-case checks but did not reach storage/row deletion or final absence assertions.
+- Zero synthetic users, both cleanup gates false and storage mode compatibility verified after each attempt.173 remains byte-identical. Retry permission consumed; further fixture execution needs direct approval. Final review clock has not started because runtime verification is incomplete.
+
+## 2026-09-13 — Verify local academic cleanup end to end
+
+- Direct approval resumed same-local rollback-only fixture validation with fixture-only corrections. Adopted the existing managed-storage fixture pattern for Storage API SQL-delete permission inside the transaction; added exact denial checks without completed providers and with expired leases. The full fixture passes, including22 success categories, all29 allowlisted row tables across success/blocked cases, two file leases, target absence and preserved peer/other-class/account/roster/provider/fence evidence.
+- Postflight: zero synthetic users/managed objects/storage rows; both cleanup gates false; storage compatibility restored. Warning-level database lint clean and173 unchanged. No provider HTTP/live byte deletion or committed-row MVCC proof. Final cumulative review follows the runtime-complete committed head under the approved30-minute extension; PR1259 remains draft until review and actual stable-head CI pass.
+
+## 2026-09-13 — Fence late repository grading producers
+
+- Final cumulative Sol review found an unfenced repo-review run INSERT could race local cleanup after a route cached student data. Prepared forward174;173 remains immutable.174 extends the latest indirect purge guard to repo-review runs and installs insert/update/delete protection, preserving old/new scope locking and existing behavior.
+- Added route regressions proving denied/failed run creation stops cached-data analysis/AI grading, and deterministic fixture regressions for late run insertion after inventory/completion and moves into/out of fenced classrooms. These do not claim committed-row MVCC proof.174 application requires fresh exact local approval. One targeted review remains within the approved20:20:10–20:50:10 extension; PR1259 remains draft. Latest execution/CI receipts are recorded in that PR.
+
+## 2026-09-13 — Explicit live membership purge integration
+
+Task01a09d38, branch codex/explicit-live-membership-purge: added default-off explicit
+Palv2/Bara/academic orchestration, forward175 completion/rejoin candidate and
+synthetic lifecycle tests. Preserves strictv1, permanent generation evidence and
+shared-data blockers; updates existing roadmap to settled historical-backup
+exclusion. No persistent DB/provider/config action. Review/CI still pending.
+
+## 2026-09-13 — Teacher live classroom cleanup integration
+
+Owner `01a09d9e-e75e-7153-8cb6-c15e1d5e3d2a`, branch `codex/teacher-live-purge-dialog` on PR1260 base. Added the removed-membership selector in the roster's existing dialog, explicit live-only confirmation, bounded progress, pre-request saved-key recovery, and guarded completion. Live provider entry rejects incompatible policy before transport; strict APIs and ordinary removal remain unchanged. DeepSeek attempt4 supplied verified bounded mapping (corrected persistence timing). Focused checks, mocked teacher desktop/mobile light/dark screenshots, Pattern Lab reference, and student privacy/draft-preservation fixtures pass. Draft-first independent review and final CI follow; no activation, live purge, migration, production release, or merge authority consumed.
+
+Browser CI follow-up: replaced obsolete active-student purge expectations with absence assertions, retained ordinary removal/re-add/student boundaries, and added the seven-test live cleanup fixture to the existing CI browser selection. The first reviewed-commit Test & Build and database contracts passed; obsolete browser run canceled before this test-only correction. No application/gate configuration changed.
+
+## 2026-09-14 — Keep Daily attendance columns beneath the sticky header
+
+- Owner `codex/daily-attendance-sticky-fix`, PR1262, base `main@1fd8a1da`. On teacher Daily the four pinned attendance status cells and the trailing undo cell in each row shared the `z-sticky-table` layer with the sticky `thead`, so scrolled rows painted over the sortable header band (reported as the columns riding over the header and reaching the control bar).
+- Removed the shared layer from those `tbody` cells in `TeacherAttendanceTab.tsx` and the Pattern Lab `DailyMockup.tsx`; they keep `position: sticky` and their left/right offsets, so pinning is unchanged. Header layer untouched, matching the Gradebook frozen-column pattern.
+- Added a regression test: the header keeps `sticky top-0 z-sticky-table` and every `tbody td.sticky` omits it (fails if the old layer returns). Focused gate 17 files/244 tests; live hit-testing 0/8 pinned-cell samples above the header after the fix vs 8/8 with the layer re-applied, and no pinned cell reaches the control bar. Draft-first independent review, session entry and exact-head CI tracked on PR1262.
+
+## 2026-09-15 — Compact student past logs
+- Task/branch: student past logs, `codex/student-past-logs-compact`.
+- Replaced stacked previews with muted date / single-line text rows, click/keyboard expansion, and viewport-sized Older/Newer pages over the existing ten class days. Mobile history now precedes lesson plans so the rows fit below the editor.
+- Reused canonical Button (Pattern Lab controls); removed the retired native-button exception. Feature-owned composition only; no shared pattern promotion or unrelated refactor.
+- Verification: history and paging interaction tests; focused checks; Playwright student light/dark at 1440×900, 1280×720, and 390×844, collapsed/expanded/focus/paging. Desktop fits 10 rows at 900px and 5 at 720px; mobile fits 10 rows. Teacher n/a (student-only owner). Local screenshots: `output/playwright/past-logs-*`.
+- Risk profile: none. Model recommendation: GPT-6 — bounded student UI behavior and visual verification. No schema or data mutations.
+
+## 2026-09-15 — Past logs without paging
+- User refinement: removed Older/Newer and range controls. Show only the latest rows fitting the viewport, with an explicit maximum of ten; preserve click/keyboard expansion.
+- Updated fit/resize coverage for the ten-row cap and insufficient remaining space. Existing Daily tests pass. Student light/dark desktop/mobile captures refreshed on the local smoke-test server at port 3015.
