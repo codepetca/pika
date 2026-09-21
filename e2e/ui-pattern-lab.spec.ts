@@ -203,6 +203,7 @@ for (const role of ['teacher', 'student'] as const) {
     expect(target.width).toBeGreaterThanOrEqual(44)
     expect(target.height).toBeGreaterThanOrEqual(44)
     await expect(visibility).toHaveAttribute('aria-checked', 'false')
+    await expect(example.getByTestId('student-grades-visible-preview')).toHaveCount(0)
     await expect(example.getByText('Grades is hidden from student navigation.')).toBeVisible()
     await expect(example.getByText('Returned feedback remains available in Classwork and Tests.')).toBeVisible()
     const standalone = example.getByTestId('standalone-returned-marks-preview')
