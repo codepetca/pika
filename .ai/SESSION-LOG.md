@@ -302,3 +302,9 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 
 - Added a student-specific Assignment status projection that ignores internal `graded_at` state until work is returned. Student Classwork now retains its submission status before return and shows `Returned` only after the existing return boundary; teacher-facing `Graded` behavior is unchanged.
 - Added utility, API, and integration coverage. Focused checks pass with 76 files and 1,017 tests plus architecture, UI/design policy, TypeScript and lint. Visual verification covered the student Classwork summary at desktop/mobile in light/dark, including the exact unreturned-graded fixture; teacher reference captures showed no surface change.
+
+## 2026-09-21 — Prevent incomplete student image uploads
+
+- Owner `codex/prevent-incomplete-image-uploads`, based on merged PR1313. The Assignment editor now opens the native picker before changing content, keeps progress/failure state outside Tiptap JSON, and inserts only completed managed images. Canceling leaves the response unchanged; failures expose Retry/Remove; paste/drop use the same transient path.
+- Student submission is disabled and guarded imperatively while an image is uploading or awaiting recovery. Legacy saved `imageUpload` nodes remain readable through the inert compatibility note and can no longer be created by the toolbar/shortcut.
+- Focused gate passes 45 files/699 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verified default, uploading and failure recovery on student desktop/mobile in light/dark; teacher is n/a because this follow-up changes only editable student state. Composite checklist passed with a labeled native picker, polite live progress, alert recovery and keyboard-reachable actions. Risk profile: none. Model recommendation: GPT-5 — bounded editor state transition with autosave and submit coordination.
