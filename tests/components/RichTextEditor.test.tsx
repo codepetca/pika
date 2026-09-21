@@ -2,8 +2,13 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RichTextEditor } from '@/components/editor'
+import { uploadFileDirectly } from '@/lib/direct-storage-upload'
 import { FormField } from '@/ui/FormField'
 import type { TiptapContent } from '@/types'
+
+vi.mock('@/lib/direct-storage-upload', () => ({
+  uploadFileDirectly: vi.fn(),
+}))
 
 describe('RichTextEditor', () => {
   it('forwards FormField naming and validation semantics to the editable area', async () => {
@@ -206,6 +211,53 @@ describe('RichTextEditor', () => {
     expect(screen.getByText('Work after the upload.')).toBeInTheDocument()
     expect(container.querySelector('input[type="file"]')).not.toBeInTheDocument()
     expect(screen.queryByText('Click to upload')).not.toBeInTheDocument()
+  })
+
+  it('does not upload pasted images after an editable document enters read-only mode', async () => {
+    const uploadMock = vi.mocked(uploadFileDirectly)
+    uploadMock.mockClear()
+    const onChange = vi.fn()
+    const onImageUploadError = vi.fn()
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Saved work.' }] }],
+    }
+
+    const { rerender } = render(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        assignmentDocId="assignment-doc-1"
+        enableImageUpload
+        onImageUploadError={onImageUploadError}
+      />,
+    )
+
+    await screen.findByRole('textbox')
+    rerender(
+      <RichTextEditor
+        content={content}
+        onChange={onChange}
+        assignmentDocId="assignment-doc-1"
+        editable={false}
+        enableImageUpload
+        onImageUploadError={onImageUploadError}
+      />,
+    )
+
+    const pasteEvent = new Event('paste', { bubbles: true, cancelable: true })
+    Object.defineProperty(pasteEvent, 'clipboardData', {
+      value: {
+        files: [new File(['image'], 'evidence.png', { type: 'image/png' })],
+        getData: () => '',
+      },
+    })
+    screen.getByRole('document').dispatchEvent(pasteEvent)
+
+    expect(pasteEvent.defaultPrevented).toBe(false)
+    expect(uploadMock).not.toHaveBeenCalled()
+    expect(onImageUploadError).not.toHaveBeenCalled()
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('should render the toolbar when editable', async () => {

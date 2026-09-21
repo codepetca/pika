@@ -587,7 +587,7 @@ export function RichTextEditor({
 
   // Handle image paste and drag-drop when enabled
   useEffect(() => {
-    if (!editor || !enableImageUpload) return
+    if (!editor || !canEdit || !enableImageUpload) return
 
     const handlePaste = (event: ClipboardEvent) => {
       const files = event.clipboardData?.files
@@ -630,7 +630,7 @@ export function RichTextEditor({
       editorElement.removeEventListener('drop', handleDrop)
       editorElement.removeEventListener('dragover', handleDragOver)
     }
-  }, [assignmentDocId, editor, enableImageUpload, onImageUploadError])
+  }, [assignmentDocId, canEdit, editor, enableImageUpload, onImageUploadError])
 
   if (!editor) {
     return null
