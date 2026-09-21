@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, History, X } from 'lucide-react'
 import { Button } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
-import { countCharacters, isEmpty } from '@/lib/tiptap-content'
+import { countCharacters, hasRenderableContent } from '@/lib/tiptap-content'
 import {
   buildAssignmentHistoryPreview,
   type AssignmentHistoryChange,
@@ -165,6 +165,7 @@ export function TeacherStudentWorkModal({
   }, [assignmentId, isOpen, studentId])
 
   const isPreviewLocked = lockedEntryId !== null
+  const displayContent = previewContent ?? data?.doc?.content ?? null
 
   if (!isOpen) return null
 
@@ -273,11 +274,11 @@ export function TeacherStudentWorkModal({
                 <div className="flex flex-1 min-h-0 flex-col md:flex-row">
                   {/* Student Response */}
                   <div className={`flex-1 min-h-0 border-b md:border-b-0 border-border flex flex-col ${isHistoryOpen ? 'md:border-r' : ''}`}>
-                    {data.doc && data.doc.content && !isEmpty(data.doc.content) ? (
+                    {displayContent && hasRenderableContent(displayContent) ? (
                       <div className="flex-1 min-h-0">
                         <div className={previewEntry ? 'ring-2 ring-primary rounded-lg p-2 h-full' : 'h-full'}>
                           <RichTextViewer
-                            content={previewContent || data.doc.content}
+                            content={displayContent}
                             showPlainText={showPlainText}
                             fillHeight
                             historyPreviewMode={previewEntry ? (isPreviewLocked ? 'locked' : 'focused') : 'current'}
@@ -285,7 +286,7 @@ export function TeacherStudentWorkModal({
                           />
                         </div>
                         <div className="mt-2 text-xs text-text-muted">
-                          {countCharacters(previewContent || data.doc.content)} characters
+                          {countCharacters(displayContent)} characters
                         </div>
                       </div>
                     ) : (
