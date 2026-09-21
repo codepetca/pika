@@ -949,6 +949,14 @@ function makeFocusedPreviewEntries(): AssignmentDocHistoryEntry[] {
       text: 'New evidence. The shaded plot retained more moisture than the exposed plot after the afternoon temperature increased.',
     }],
   })
+  addition.content!.splice(2, 0, {
+    type: 'imageUpload',
+    attrs: {
+      accept: 'image/*',
+      limit: 1,
+      maxSize: 10_000_000,
+    },
+  })
 
   const deletion = clonePreviewContent(addition)
   deletion.content!.splice(4, 1)

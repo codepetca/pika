@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-15 — Past logs without paging
-- User refinement: removed Older/Newer and range controls. Show only the latest rows fitting the viewport, with an explicit maximum of ten; preserve click/keyboard expansion.
-- Updated fit/resize coverage for the ten-row cap and insufficient remaining space. Existing Daily tests pass. Student light/dark desktop/mobile captures refreshed on the local smoke-test server at port 3015.
-
-## 2026-09-15 — Student-work diagnostic privacy, second batch
-
-- Owner `codex/log-privacy-grading-batch`, based on `main@d0971c02`. Replaced direct raw error logging in test save/submit/history/finalization, Gradebook reads/writes, assignment/test auto-grade entry points and test reference-cache writes with allowlisted content-free diagnostics. Existing authorization, queries, responses, retries and best-effort behavior unchanged.
-- Added synthetic failure assertions using the real logger and extended the static adoption boundary. Targeted 9 suites/147 tests pass; required focused gate and independent draft-first review follow. Risk profiles: async-grading and runtime-platform. No UI, dependency or migration changes.
-- `docs/guidance/application-log-privacy.md` records the diagnostic contract, debugging tradeoff, coverage limits and remaining audit inventory. No production records inspected, historical logs deleted, vendor settings changed or deployment performed. Kept the separate cleanup task and dirty hub context untouched.
-- PR1267 initial review: Terra/high found no blockers; Sol/high identified the adjacent student test-history read endpoint as a coverage gap. Remediation batch1 adopts its four raw error sites, adds exact-output/fail-closed tests for each and expands the static boundary. Initial focused gate passed223suites/1993tests; updated focused checks, targeted privacy re-review and final integration review follow. No changes to query/access/response behavior.
-- History remediation passed223suites/1998tests and Sol targeted/Terra final review. First ready CI35048462094 exposed one stale architecture-test import allowlist (7013passed/1failed), not a runtime failure. Returned PR to draft and stopped remaining CI. Remediation batch2 adds only the intentional diagnostics import to that exact allowlist; all retired-Quiz/transport guards remain. Final allowed targeted review and fresh exact-head CI follow; no production changes.
-
 ## 2026-09-15 Daily log save failure investigation
 
 - Task owns `codex/fix-daily-log-save`. Production logs confirm PATCH student entries and Pal read-token HTTP 500s.
@@ -290,8 +278,15 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Owner `codex/contextual-assignment-repo-target`, based on merged Assignment bulk PR1309. Migration200 adds a service-only owner-bound save/reset transaction for one enrolled learner's repository target under Assignment, Classroom-operation and learner-purge fences.
 - Added an independent off-by-default exact user/Assignment gate. Matched teacher- or student-valued current owners retain the existing read-only preflight before external GitHub validation, then recheck ownership, lifecycle and enrollment transactionally; disabled and unmatched requests preserve the legacy teacher-only path. Repository analysis, AI grading, UI and activation remain out of scope.
 - Under standing local-migration authorization, migration200 is applied locally. Generated types match local history001–200; error-level DB lint, rollback behavior and purge/archive multi-connection contracts pass. Production remains001–180 and all twelve contextual Assignment gates remain off. Focused verification and independent review follow.
+
 ## 2026-09-20 — Preserve grading comment focus during autosave
 
 - Owner `codex/grading-comment-focus-main`, based on `origin/main@cbb80e93`. The assignment grading comment textarea now remains enabled while its background grade autosave is in flight, so the browser keeps keyboard focus; comment sending and conflicting grade actions remain disabled until the save completes.
 - Added a regression that holds the grade request open and proves the editor remains enabled and focused while Send comment is disabled. Targeted 30 tests and the focused application-browser gate (14 files/225 tests plus architecture, UI/design policy, TypeScript and lint) pass.
 - Playwright verified the live teacher grading editor retains focus after autosave on desktop/mobile in light/dark themes; the student baseline is unaffected. Composite checklist reviewed: native textbox keyboard behavior and tested focus/disabled semantics pass, no manual follow-up. Risk profile: none. Model recommendation: GPT-6 — bounded focus-state bug with browser verification.
+
+## 2026-09-21 — Preserve assignment work around unfinished image uploads
+
+- Owner `codex/fix-assignment-viewer-upload-placeholder`, based on `origin/main@3424be87`. Read-only Tiptap surfaces now register a noninteractive `imageUpload` compatibility node, preventing an autosaved unfinished upload from invalidating and blanking the rest of a student's document.
+- The compatibility node renders a semantic note, “Image upload was not completed,” while preserving all surrounding work. Pattern Lab now carries the persisted-node case in both teacher and student history previews.
+- Regression coverage proves text before and after the placeholder remains visible. Targeted tests, TypeScript, lint, Pika audit and the focused application-browser gate (46 files/688 tests plus architecture and UI/design policy) pass. Playwright verified teacher/student desktop/mobile light mode and teacher desktop dark mode. Composite checklist reviewed: the new node is noninteractive, semantic state is covered by role-based testing, keyboard behavior is not applicable, and no manual follow-up remains. Risk profile: none. Model recommendation: GPT-5 — small compatibility fix with UI verification.

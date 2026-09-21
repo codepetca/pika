@@ -159,8 +159,8 @@ describe('UiGallery history preview fixture', () => {
       name: 'History point',
     })
     expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '22')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '13')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '23')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '14')
     expect(previewPoint).toHaveAttribute('data-show-heading', 'no')
     expect(previewPoint).toHaveAttribute('data-entry-count', '5')
     expect(screen.getByText(/six-week project/i)).toBeInTheDocument()
@@ -173,7 +173,7 @@ describe('UiGallery history preview fixture', () => {
     expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '9')
 
     fireEvent.mouseEnter(latestPreviewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '42')
     expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '20')
 
     await user.click(latestPreviewPoint)
@@ -196,8 +196,8 @@ describe('UiGallery history preview fixture', () => {
 
     const previewPoint = screen.getAllByRole('button', { name: 'History point' })[0]
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('focused')
-    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-content-blocks', '22')
-    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-changed-blocks', '13')
+    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-content-blocks', '23')
+    expect(screen.getByTestId('student-preview-mode')).toHaveAttribute('data-changed-blocks', '14')
 
     fireEvent.mouseEnter(previewPoint)
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('focused')

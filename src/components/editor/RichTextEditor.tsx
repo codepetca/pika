@@ -30,6 +30,7 @@ import {
 import { HorizontalRule } from '@/components/tiptap-node/horizontal-rule-node/horizontal-rule-node-extension'
 import { ImageUploadNode } from '@/components/tiptap-node/image-upload-node'
 import { ManagedImage } from '@/components/tiptap-node/managed-image-node'
+import { ReadOnlyImageUpload } from '@/components/tiptap-node/read-only-image-upload-node'
 import { uploadFileDirectly } from '@/lib/direct-storage-upload'
 import type { ImageUploadResult } from '@/components/tiptap-node/image-upload-node/image-upload-node-extension'
 import '@/components/tiptap-node/blockquote-node/blockquote-node.scss'
@@ -478,7 +479,7 @@ export function RichTextEditor({
             upload: (file, onProgress) => uploadImage(file, onProgress, assignmentDocId),
           }),
         ]
-      : []),
+      : [ReadOnlyImageUpload]),
   ], [assignmentDocId, enableImageUpload, placeholder])
 
   const editor = useEditor({
