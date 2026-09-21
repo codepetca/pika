@@ -38,4 +38,8 @@ export const ReadOnlyImageUpload = Node.create({
       'Image upload was not completed',
     ]
   },
+
+  renderText() {
+    return 'Image upload was not completed'
+  },
 })

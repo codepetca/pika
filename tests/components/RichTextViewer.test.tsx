@@ -33,4 +33,19 @@ describe('RichTextViewer', () => {
     expect(screen.getByRole('note')).toHaveTextContent('Image upload was not completed')
     expect(screen.getByText('Work after the upload.')).toBeInTheDocument()
   })
+
+  it('preserves unfinished image uploads in plain-text mode', async () => {
+    const content: TiptapContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'Before.' }] },
+        { type: 'imageUpload' },
+        { type: 'paragraph', content: [{ type: 'text', text: 'After.' }] },
+      ],
+    }
+
+    render(<RichTextViewer content={content} showPlainText />)
+
+    expect(await screen.findByText(/Before\.\s*Image upload was not completed\s*After\./)).toBeInTheDocument()
+  })
 })

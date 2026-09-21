@@ -13,15 +13,18 @@ vi.mock('@/components/editor', () => ({
     content,
     historyPreviewMode,
     historyPreviewChange,
+    showPlainText,
   }: {
     content: TiptapContent
     historyPreviewMode: string
     historyPreviewChange?: { changedBlocks: unknown[] } | null
+    showPlainText?: boolean
   }) => (
     <div
       data-testid="rich-text-viewer"
       data-mode={historyPreviewMode}
       data-changed-blocks={historyPreviewChange?.changedBlocks.length ?? 0}
+      data-plain-text={showPlainText ? 'yes' : 'no'}
     >
       {JSON.stringify(content)}
     </div>
@@ -179,6 +182,9 @@ describe('TeacherStudentWorkModal history preview', () => {
 
     expect(await screen.findByTestId('rich-text-viewer')).toHaveTextContent('imageUpload')
     expect(screen.queryByText('No work submitted yet')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show plain text' }))
+    expect(screen.getByTestId('rich-text-viewer')).toHaveAttribute('data-plain-text', 'yes')
   })
 
   it('renders an upload-only selected history save when the current document is empty', async () => {
