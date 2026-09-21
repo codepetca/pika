@@ -83,25 +83,32 @@ const batchGradeJsonSchema = {
   additionalProperties: false,
 } as const
 
+// DeepSeek counts reasoning against max_tokens, so these budgets are sized by
+// thinking cost rather than answer length. Measured over 12 real responses at
+// medium effort, a single grade spent 71 to 4509 output tokens; the old 220/420
+// pair truncated roughly half of them and failed outright on the rest.
+const TEST_INITIAL_MAX_OUTPUT_TOKENS = 6000
+const TEST_FALLBACK_MAX_OUTPUT_TOKENS = 8000
+
 export const PIKA_TEST_REFERENCE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_reference_answers',
   jsonSchema: referenceJsonSchema,
-  initialMaxOutputTokens: 220,
-  fallbackMaxOutputTokens: 420,
+  initialMaxOutputTokens: TEST_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
 export const PIKA_TEST_SINGLE_GRADE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_single_grade',
   jsonSchema: singleGradeJsonSchema,
-  initialMaxOutputTokens: 220,
-  fallbackMaxOutputTokens: 420,
+  initialMaxOutputTokens: TEST_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
 export const PIKA_TEST_BATCH_GRADE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_batch_grade',
   jsonSchema: batchGradeJsonSchema,
-  initialMaxOutputTokens: 600,
-  fallbackMaxOutputTokens: 900,
+  initialMaxOutputTokens: TEST_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
 export function getPikaTestPromptVersion(profile: 'manual' | 'bulk'): string {
