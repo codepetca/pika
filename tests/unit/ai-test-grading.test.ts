@@ -333,7 +333,7 @@ describe('suggestTestOpenResponseGrade', () => {
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
 
     expect(gradingBody.reasoning_effort).toBe('high')
-    expect(gradingBody.max_tokens).toBe(220)
+    expect(gradingBody.max_tokens).toBe(6000)
     expect(gradingBody.response_format).toEqual({ type: 'json_object' })
     expect(gradingBody.messages[0].content).toContain('test_single_grade')
     expect(suggestion.provenance).toMatchObject({
@@ -438,8 +438,8 @@ describe('suggestTestOpenResponseGrade', () => {
 
     expect(suggestions).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_tokens).toBe(600)
-    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_tokens).toBe(900)
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_tokens).toBe(6000)
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_tokens).toBe(8000)
     expect(suggestions[0].provenance).toMatchObject({
       operation: 'batch',
       batchSize: 1,
