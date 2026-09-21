@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { calculateAssignmentStatus, sanitizeDocForStudent } from '@/lib/assignments'
+import { calculateStudentAssignmentStatus, sanitizeDocForStudent } from '@/lib/assignments'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -82,7 +82,7 @@ export const GET = withErrorHandler('GetStudentAssignments', async (request, con
 
       return {
         ...assignment,
-        status: calculateAssignmentStatus(assignment, doc),
+        status: calculateStudentAssignmentStatus(assignment, doc),
         doc: doc ? sanitizeDocForStudent(doc) : null,
       }
     })
