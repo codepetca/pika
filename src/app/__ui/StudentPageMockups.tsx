@@ -13,13 +13,15 @@ import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
 import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import type { Classroom, ClassDay, LessonPlan, TiptapContent } from '@/types'
 import { Button, Card, SaveStatus } from '@/ui'
+import { StudentGradesView } from './StudentGradesPattern'
 
-export type StudentPageId = 'today' | 'classwork' | 'tests' | 'calendar' | 'announcements' | 'resources'
+export type StudentPageId = 'today' | 'classwork' | 'tests' | 'grades' | 'calendar' | 'announcements' | 'resources'
 
 export const STUDENT_PAGE_ITEMS = [
   { value: 'today', label: 'Today' },
   { value: 'classwork', label: 'Classwork' },
   { value: 'tests', label: 'Tests' },
+  { value: 'grades', label: 'Grades' },
   { value: 'calendar', label: 'Calendar' },
   { value: 'announcements', label: 'Announcements' },
   { value: 'resources', label: 'Resources' },
@@ -61,9 +63,20 @@ export function StudentPageMockup({
   if (page === 'today') return <StudentTodayMockup onPrototypeAction={onPrototypeAction} />
   if (page === 'classwork') return <StudentClassworkMockup onPrototypeAction={onPrototypeAction} />
   if (page === 'tests') return <StudentTestsMockup onPrototypeAction={onPrototypeAction} />
+  if (page === 'grades') return <StudentGradesMockup onPrototypeAction={onPrototypeAction} />
   if (page === 'calendar') return <StudentCalendarMockup />
   if (page === 'announcements') return <StudentAnnouncementsMockup />
   return <StudentResourcesMockup onPrototypeAction={onPrototypeAction} />
+}
+
+function StudentGradesMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
+  return (
+    <div className="mx-auto max-w-3xl" data-testid="student-grades-mockup">
+      <StudentGradesView
+        onSelectGrade={(title) => onPrototypeAction(`Open returned feedback for ${title}`)}
+      />
+    </div>
+  )
 }
 
 function StudentTodayMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
