@@ -42,11 +42,12 @@ vi.mock('@/components/HistoryGraph', () => ({
 
 vi.mock('@/components/editor', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/editor')>()),
-  RichTextEditor: ({ content, historyPreviewMode, historyPreviewChange }: any) => (
+  RichTextEditor: ({ content, historyPreviewMode, historyPreviewChange, enableImageUpload }: any) => (
     <div
-      data-testid="student-preview-mode"
+      data-testid={historyPreviewMode ? 'student-preview-mode' : 'student-image-upload-fixture'}
       data-content-blocks={content.content.length}
       data-changed-blocks={historyPreviewChange?.changedBlocks.length ?? 0}
+      data-image-upload={enableImageUpload ? 'enabled' : 'disabled'}
     >
       {historyPreviewMode}
     </div>
@@ -193,6 +194,7 @@ describe('UiGallery history preview fixture', () => {
     renderGallery('student')
     expect(screen.queryByRole('button', { name: 'Open assignment example' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open material example' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('student-image-upload-fixture')).toHaveAttribute('data-image-upload', 'enabled')
 
     const previewPoint = screen.getAllByRole('button', { name: 'History point' })[0]
     expect(screen.getByTestId('student-preview-mode')).toHaveTextContent('focused')

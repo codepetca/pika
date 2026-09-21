@@ -83,7 +83,7 @@ const largeDraft = {
 }
 
 vi.mock('@/components/editor', () => ({
-  RichTextEditor: ({ assignmentDocId, content, historyPreviewMode, onBlur, onChange, onKeystroke }: any) => (
+  RichTextEditor: ({ assignmentDocId, content, historyPreviewMode, onBlur, onChange, onKeystroke, onImageUploadPendingChange }: any) => (
     <div>
       <output data-testid="editor-content">{JSON.stringify(content)}</output>
       <output data-testid="editor-assignment-doc-id">{assignmentDocId}</output>
@@ -94,6 +94,8 @@ vi.mock('@/components/editor', () => ({
       <button type="button" onClick={() => onChange(largeDraft)}>Edit large response</button>
       <button type="button" onClick={onKeystroke}>Record keystroke</button>
       <button type="button" onClick={onBlur}>Blur response</button>
+      <button type="button" onClick={() => onImageUploadPendingChange?.(true)}>Start editor image upload</button>
+      <button type="button" onClick={() => onImageUploadPendingChange?.(false)}>Finish editor image upload</button>
     </div>
   ),
   RichTextViewer: () => <div data-testid="rich-text-viewer" />,
@@ -3788,5 +3790,49 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Retry the failed image upload')
     expect(screen.queryByRole('dialog', { name: 'Submit without attachments?' })).not.toBeInTheDocument()
     expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/submit'))).toHaveLength(0)
+  })
+
+  it('blocks assignment submission while an editor image still needs attention', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      if (url.endsWith('/assignment-docs/assignment-1') && !init?.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            assignment: makeAssignment(), doc: makeDoc(), feedback_entries: [],
+            submission_requirements: [], submission_artifacts: [], wasFirstView: false,
+          }),
+        }
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    const ref = createRef<StudentAssignmentEditorHandle>()
+    const user = userEvent.setup()
+    render(
+      <StudentAssignmentEditor
+        ref={ref}
+        classroomId="classroom-1"
+        assignmentId="assignment-1"
+        variant="embedded"
+      />,
+    )
+
+    await screen.findByText('Assignment Title')
+    expect(ref.current?.canSubmit).toBe(true)
+
+    await user.click(screen.getByRole('button', { name: 'Start editor image upload' }))
+    expect(ref.current?.canSubmit).toBe(false)
+
+    await act(async () => { await ref.current?.submit() })
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Finish the image upload, retry it, or remove it before submitting.',
+    )
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/submit'))).toHaveLength(0)
+
+    await user.click(screen.getByRole('button', { name: 'Finish editor image upload' }))
+    expect(ref.current?.canSubmit).toBe(true)
   })
 })
