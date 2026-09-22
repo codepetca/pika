@@ -947,7 +947,7 @@ describe('StudentTodayTab history section', () => {
     await waitFor(() => expect(patchBodies).toHaveLength(1))
     expect(patchBodies[0]).toMatchObject({ date: '2025-05-11' })
     expect(JSON.stringify(patchBodies[0].rich_content)).toContain('Worked today')
-    expect(editor).toHaveValue('Worked today')
+    await waitFor(() => expect(screen.getByLabelText('Daily Log')).toHaveValue('Worked today'))
   })
 
   it('sends rollover typing even if browser draft storage is unavailable', async () => {
@@ -1006,7 +1006,7 @@ describe('StudentTodayTab history section', () => {
     getTodayInTorontoMock.mockReturnValue('2025-05-11')
     fireEvent.change(editor, { target: { value: 'A' } })
     await waitFor(() => expect(patchBodies).toHaveLength(1))
-    fireEvent.change(editor, { target: { value: 'AB' } })
+    fireEvent.change(screen.getByLabelText('Daily Log'), { target: { value: 'AB' } })
     expect(window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-05-11')).toContain('AB')
 
     savedEntries = [{ ...entries[0], id: 'new-day-entry', date: '2025-05-11', text: 'A', rich_content: patchBodies[0].rich_content }]
@@ -1019,6 +1019,33 @@ describe('StudentTodayTab history section', () => {
       window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-05-11')?.includes('AB') ||
       patchBodies.slice(1).some(body => JSON.stringify(body).includes('AB')),
     ).toBe(true))
+  })
+
+  it('does not overwrite another device’s new-day log when rollover storage fails', async () => {
+    getTodayInTorontoMock.mockReturnValue('2025-05-06')
+    const originalSetItem = Storage.prototype.setItem
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+      if (this === window.localStorage && key.startsWith('daily-log-draft:v2:')) throw new Error('Storage blocked')
+      return originalSetItem.call(this, key, value)
+    })
+    const newDayEntry = { ...entries[0], id: 'other-device-entry', date: '2025-05-11', text: 'Already saved elsewhere.', version: 3 }
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith('/api/student/entries?')) return mockJson({ entries: [newDayEntry] })
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      throw new Error(`Unexpected save: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+    const editor = await screen.findByLabelText('Daily Log')
+    getTodayInTorontoMock.mockReturnValue('2025-05-11')
+    fireEvent.change(editor, { target: { value: 'My new-day draft.' } })
+
+    expect(await screen.findByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Daily Log')).toHaveValue('My new-day draft.')
+    expect(screen.getByText(/changed elsewhere/)).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === '/api/student/entries')).toBe(false)
   })
 
   it('moves the previous log into history at Toronto midnight and opens a clean new day', async () => {

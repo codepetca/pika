@@ -252,7 +252,8 @@ export function StudentTodayTab({
             rolloverDraft.classroomId === requestedClassroomId && rolloverDraft.date === todayDate
             ? rolloverDraft
             : null
-          const draftContent = matchingRolloverDraft?.content ?? durableDraft?.content
+          const recoverableDraft = matchingRolloverDraft ?? durableDraft
+          const draftContent = recoverableDraft?.content
           if (
             draftContent &&
             (todayEntry || !isEmpty(draftContent)) &&
@@ -265,8 +266,8 @@ export function StudentTodayTab({
             setRestoredDraftVersion(version => version + 1)
             hasLocalEditSinceLoadRef.current = true
             setSaveStatus('unsaved')
-            if (durableDraft && todayEntry && (
-              durableDraft.entryId !== todayEntry.id || durableDraft.version !== (todayEntry.version ?? 1)
+            if (recoverableDraft && todayEntry && (
+              recoverableDraft.entryId !== todayEntry.id || recoverableDraft.version !== (todayEntry.version ?? 1)
             )) {
               restoredDraftAutosaveRef.current = null
               setConflictEntry(todayEntry)
@@ -284,8 +285,8 @@ export function StudentTodayTab({
           }
 
           lastSavedContentRef.current = JSON.stringify(loadedContent)
-          if (!durableDraft || !todayEntry || (
-            durableDraft.entryId === todayEntry.id && durableDraft.version === (todayEntry.version ?? 1)
+          if (!recoverableDraft || !todayEntry || (
+            recoverableDraft.entryId === todayEntry.id && recoverableDraft.version === (todayEntry.version ?? 1)
           )) {
             setSaveError('')
             setConflictEntry(null)
@@ -304,7 +305,7 @@ export function StudentTodayTab({
           entriesSnapshotClassroomIdRef.current = requestedClassroomId
           entriesSnapshotDateRef.current = todayDate
           setEntriesSnapshotClassroomId(requestedClassroomId)
-          setLoading(false)
+          setLoading(Boolean(restoredDraftAutosaveRef.current))
         }
 
         const entriesPromise = fetchStudentEntriesForClassroom(requestedClassroomId)
@@ -315,6 +316,13 @@ export function StudentTodayTab({
             entriesSnapshotDateRef.current = todayDate
             setEntriesSnapshotClassroomId(requestedClassroomId)
             if (hasLocalEditSinceLoadRef.current) {
+              const todayEntry = relevantEntries.find((e: Entry) => e.date === todayDate) || null
+              if ((rolloverDraftRef.current?.studentId === studentId &&
+                rolloverDraftRef.current.classroomId === requestedClassroomId &&
+                rolloverDraftRef.current.date === todayDate) ||
+                readDailyLogDraft(studentId, requestedClassroomId, todayDate)) {
+                applyEntryState(todayEntry)
+              }
               setHistoryEntries(prev => {
                 if (!isCurrentLoad()) return prev
                 const currentTodayEntry = prev.find((e: Entry) => e.date === todayDate) || null
