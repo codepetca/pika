@@ -200,8 +200,10 @@ describe('TeacherGradebookTab', () => {
       </AppMessageProvider>,
     )
 
-    const toggle = screen.getByRole('switch', { name: 'Show grades to students' })
-    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    const toggle = screen.getByRole('button', { name: 'Student grades visibility' })
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.focus(toggle)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
     fireEvent.click(toggle)
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
@@ -213,7 +215,7 @@ describe('TeacherGradebookTab', () => {
       featureVisibility: { student_grades: true },
     })
     await waitFor(() => expect(onClassroomUpdated).toHaveBeenCalled())
-    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
   })
 
   async function renderWeightEditor() {

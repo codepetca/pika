@@ -26,25 +26,25 @@ for review, not authorization to expose production grade data.
 
 - **Surface:** development-only teacher Gradebook visibility control, student
   Classroom Grades tab, and paired visibility-state comparison.
-- **Reference:** `SettingsSwitchRow`, the teacher Gradebook, and the returned
+- **Reference:** the approved teacher Gradebook action bar, `IconButton`, and the returned
   score treatments in student Classwork and Tests.
 - **Affected roles:** teacher and student.
 - **Required viewports:** desktop and mobile.
 - **Required themes:** light and dark.
-- **Key states:** grades shown and grades hidden; switch hover and focus.
-- **Primary signal:** the teacher's `Show grades to students` switch and the
+- **Key states:** grades shown and grades hidden; action hover, focus, and saving.
+- **Primary signal:** the teacher's eye/eye-off visibility action and the
   student's `Current grade` value.
 - **Must not add:** charts, trends, ranks, projections, reporting, attendance,
   category dashboards, or additional publication controls.
 - **Composite widget accessibility review:** reviewed. The only interactive
-  product control is one semantic switch; its name, checked state, keyboard
-  behavior, visible focus treatment, and 44px target are covered.
+  product control is one semantic pressed-state button; its name, pressed state,
+  keyboard behavior, concise action tooltip, visible focus treatment, and 44px target are covered.
 
 ## Ownership decisions
 
 | Need | Existing candidate | Decision | Reason |
 |---|---|---|---|
-| Teacher visibility control | `SettingsSwitchRow` | extend | The feature-owned production control wraps the existing switch row without changing its visible track or semantics. |
+| Teacher visibility control | Gradebook action bar and `IconButton` | extend | The feature-owned control uses Eye/EyeOff beside More actions, with a stable accessible name and a concise show/hide tooltip. |
 | Student content framing | `Card` and the stable student content rhythm | reuse | The view is a calm reading surface, not a teacher operational table. |
 | Returned assessment rows | Existing Classwork and Test result language | create | The feature-owned production view is shared by the student Classroom tab and deterministic Pattern Lab fixture. |
 | Shown/hidden comparison | Pattern Lab fixture state | create | Deterministic review behavior belongs to the development-only gallery. |
@@ -69,8 +69,8 @@ API projects only returned work after classroom-scoped authorization, and the
 persisted classroom visibility setting defaults off. Pattern Lab remains the
 place to compare shown and hidden states without live data.
 
-The Classroom page patterns now show the proposed placement in context. The
-teacher Gradebook switch defaults off. The student page set includes the
+The Classroom page patterns now show the approved placement in context. The
+teacher Gradebook action defaults off. The student page set includes the
 enabled-state Grades tab so reviewers can inspect its complete layout. These
 fixtures remain deterministic; production navigation is controlled separately
 by the persisted `student_grades` preference.

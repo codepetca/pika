@@ -2,25 +2,31 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { StudentGradesPattern } from '@/app/__ui/StudentGradesPattern'
+import { TooltipProvider } from '@/ui'
+
+function renderPattern() {
+  return render(<TooltipProvider><StudentGradesPattern /></TooltipProvider>)
+}
 
 describe('Pattern Lab student Grades visibility concept', () => {
-  it('supports keyboard operation for the production visibility switch', async () => {
+  it('supports keyboard operation for the production visibility action', async () => {
     const user = userEvent.setup()
-    render(<StudentGradesPattern />)
+    renderPattern()
 
     await user.tab()
-    const visibility = screen.getByRole('switch', { name: 'Show grades to students' })
+    const visibility = screen.getByRole('button', { name: 'Student grades visibility' })
     expect(visibility).toHaveFocus()
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
     await user.keyboard(' ')
-    expect(visibility).toHaveAttribute('aria-checked', 'true')
+    expect(visibility).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('Current grade')).toBeVisible()
   })
 
   it('shows only the minimal returned-grade contract when enabled', () => {
-    render(<StudentGradesPattern />)
+    renderPattern()
 
-    fireEvent.click(screen.getByRole('switch', { name: 'Show grades to students' }))
-    expect(screen.getByRole('switch', { name: 'Show grades to students' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Student grades visibility' }))
+    expect(screen.getByRole('button', { name: 'Student grades visibility' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('Current grade')).toBeInTheDocument()
     expect(screen.getByText('84%')).toBeInTheDocument()
     expect(screen.getByText('Based on returned work')).toBeInTheDocument()
@@ -44,22 +50,22 @@ describe('Pattern Lab student Grades visibility concept', () => {
 
   it('removes the aggregate student area without retracting returned feedback', async () => {
     const user = userEvent.setup()
-    render(<StudentGradesPattern />)
+    renderPattern()
 
-    const visibility = screen.getByRole('switch', { name: 'Show grades to students' })
-    expect(visibility).toHaveAttribute('aria-checked', 'false')
+    const visibility = screen.getByRole('button', { name: 'Student grades visibility' })
+    expect(visibility).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByText('Current grade')).not.toBeInTheDocument()
     expect(screen.getByText('Grades is hidden from student navigation.')).toBeInTheDocument()
     expect(screen.getByText('Returned feedback remains available in Classwork and Tests.')).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Returned marks' })).toBeInTheDocument()
 
     await user.click(visibility)
-    expect(visibility).toHaveAttribute('aria-checked', 'true')
+    expect(visibility).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('Current grade')).toBeInTheDocument()
   })
 
   it('renders the production standalone list with deterministic zero and excluded marks', () => {
-    render(<StudentGradesPattern />)
+    renderPattern()
     expect(
       screen.getByText('Returned standalone marks appear in both Classwork and the live aggregate Grades view above.'),
     ).toBeInTheDocument()

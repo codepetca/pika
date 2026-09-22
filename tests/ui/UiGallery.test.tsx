@@ -54,12 +54,12 @@ describe('UiGallery accessibility contracts', () => {
     expect(home.getByRole('combobox', { name: 'Creation access' })).toBeVisible()
   })
 
-  it.each(['teacher', 'student'] as const)('includes the student Grades visibility switch for %s reviewers', (role) => {
+  it.each(['teacher', 'student'] as const)('includes the student Grades visibility action for %s reviewers', (role) => {
     renderGallery(role)
 
     const example = within(screen.getByTestId('student-grades-pattern'))
-    expect(example.getByRole('switch', { name: 'Show grades to students' })).toHaveAttribute(
-      'aria-checked',
+    expect(example.getByRole('button', { name: 'Student grades visibility' })).toHaveAttribute(
+      'aria-pressed',
       'false',
     )
     expect(example.getByTestId('student-grades-hidden-preview')).toBeVisible()

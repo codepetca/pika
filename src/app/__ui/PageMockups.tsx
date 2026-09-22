@@ -733,7 +733,6 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
 
   return (
     <div className="space-y-3">
-      <TeacherGradebookVisibilityControl gradesVisible={gradesVisible} onChange={setGradesVisible} />
       <TeacherWorkSurfaceContextBar
         ariaLabel="Gradebook mockup controls"
         primaryClassName="max-w-44 sm:max-w-none"
@@ -790,15 +789,18 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
             /></span>
           </div>
         </TeacherWorkSurfaceActionCluster>}
-        actions={<MoreMenu label="Gradebook" items={[
-          { id: 'edit-gradebook', label: 'Edit categories', icon: <Settings className="h-4 w-4" aria-hidden="true" />, onSelect: () => setGradebookEditorOpen(true) },
-          { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => setItemEditorOpen(true) },
-          { id: 'name-order', dividerBefore: true, label: nameOrder === 'first-last' ? 'Show last name in column 1' : 'Show first name in column 1', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
-          { id: 'student-ids', label: 'Show student IDs', checked: showStudentIds, onSelect: () => setShowStudentIds((current) => !current) },
-          { id: 'sticky-columns', label: 'Keep key columns visible', checked: keepKeyColumnsVisible, onSelect: () => setKeepKeyColumnsVisible((current) => !current) },
-          ...(Object.keys(manualScores).length ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => setUndoAllOpen(true) }] : []),
-          { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: () => onPrototypeAction('Export gradebook') },
-        ]} />}
+        actions={<>
+          <TeacherGradebookVisibilityControl gradesVisible={gradesVisible} onChange={setGradesVisible} />
+          <MoreMenu label="Gradebook" items={[
+            { id: 'edit-gradebook', label: 'Edit categories', icon: <Settings className="h-4 w-4" aria-hidden="true" />, onSelect: () => setGradebookEditorOpen(true) },
+            { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => setItemEditorOpen(true) },
+            { id: 'name-order', dividerBefore: true, label: nameOrder === 'first-last' ? 'Show last name in column 1' : 'Show first name in column 1', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
+            { id: 'student-ids', label: 'Show student IDs', checked: showStudentIds, onSelect: () => setShowStudentIds((current) => !current) },
+            { id: 'sticky-columns', label: 'Keep key columns visible', checked: keepKeyColumnsVisible, onSelect: () => setKeepKeyColumnsVisible((current) => !current) },
+            ...(Object.keys(manualScores).length ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, onSelect: () => setUndoAllOpen(true) }] : []),
+            { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: () => onPrototypeAction('Export gradebook') },
+          ]} />
+        </>}
       />
       <TeacherWorkSurfaceTableFrame
         data-testid="gradebook-scroll-frame"

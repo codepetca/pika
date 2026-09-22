@@ -11,7 +11,6 @@ import { GradebookTable } from '@/components/gradebook/GradebookTable'
 import { GradebookItemEditor, type GradebookItemDetails } from '@/components/gradebook/GradebookItemEditor'
 import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 import { GradebookToolbar, type GradebookDisplayPreferences } from '@/components/gradebook/GradebookToolbar'
-import { TeacherGradebookVisibilityControl } from '@/components/gradebook/TeacherGradebookVisibilityControl'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { safeLocalGetJson, safeLocalSetJson } from '@/lib/client-storage'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
@@ -780,6 +779,9 @@ export function TeacherGradebookTab({
         void copySelectedEmailsToClipboard(getGradebookEmail2Addresses(email2.rows, selectedIds), 'Email 2 addresses')
       }}
       onExport={() => downloadGradebookCsv(students, assessmentColumns, scoreDisplayMode)}
+      studentGradesVisible={studentGradesVisible}
+      onStudentGradesVisibilityChange={(visible) => { void updateStudentGradesVisibility(visible) }}
+      savingStudentGradesVisibility={savingStudentGradesVisibility}
     />
   )
 
@@ -906,8 +908,9 @@ export function TeacherGradebookTab({
         workspaceFrame="standalone"
         primary={actionBar}
         feedback={
-          actionError || email2.error ? <div className="space-y-2">
+          actionError || email2.error || studentGradesVisibilityError ? <div className="space-y-2">
             {actionError ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{actionError}</div> : null}
+            {studentGradesVisibilityError ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{studentGradesVisibilityError}</div> : null}
             {email2.error ? <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
               <span>Email 2 addresses could not be loaded. Grades are still available.</span>
               <Button variant="secondary" onClick={() => { void email2.reload() }}>Retry Email 2</Button>
@@ -916,16 +919,7 @@ export function TeacherGradebookTab({
         }
         summary={null}
         workspace={(
-          <div className="flex h-full min-h-0 flex-col gap-3">
-            <TeacherGradebookVisibilityControl
-              gradesVisible={studentGradesVisible}
-              onChange={(visible) => { void updateStudentGradesVisibility(visible) }}
-              disabled={isReadOnly}
-              saving={savingStudentGradesVisibility}
-              error={studentGradesVisibilityError}
-            />
-            <div className="flex min-h-0 flex-1 flex-col">{gradesWorkspace}</div>
-          </div>
+          <div className="flex h-full min-h-0 flex-col">{gradesWorkspace}</div>
         )}
         workspaceFrameClassName="min-h-80 border-0 bg-page"
       />
