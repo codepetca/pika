@@ -845,10 +845,10 @@ export async function loadTeacherGradebook(opts: {
     }
   }
 
-  function getAssignmentCell(
+  function getAssignmentScore(
     studentId: string,
     assignment: typeof assignments[number]
-  ): GradebookAssessmentCell {
+  ): { cell: GradebookAssessmentCell; rawEarned: number | null } {
     const score = assignmentDocMap.get(cellKey(studentId, assignment.id))
     const sc = score?.score_completion
     const st = score?.score_thinking
@@ -860,32 +860,41 @@ export async function loadTeacherGradebook(opts: {
     if (manualOverride != null) {
       const calculatedEarned = isGraded ? ((Number(sc) + Number(st) + Number(sw)) / 30) * possible : null
       return {
-        assessment_id: assignment.id,
-        assessment_type: 'assignment',
-        earned: round2(manualOverride),
-        possible: round2(possible),
-        percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
-        is_graded: possible > 0,
-        is_manual_override: true,
-        calculated_earned: calculatedEarned == null ? null : round2(calculatedEarned),
-        ...(status ? { status } : {}),
+        rawEarned: possible > 0 ? manualOverride : null,
+        cell: {
+          assessment_id: assignment.id,
+          assessment_type: 'assignment',
+          earned: round2(manualOverride),
+          possible: round2(possible),
+          percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
+          is_graded: possible > 0,
+          is_manual_override: true,
+          calculated_earned: calculatedEarned == null ? null : round2(calculatedEarned),
+          ...(status ? { status } : {}),
+        },
       }
     }
     if (sc == null || st == null || sw == null) {
-      return blankAssessmentCell('assignment', assignment.id, possible, undefined, status)
+      return {
+        rawEarned: null,
+        cell: blankAssessmentCell('assignment', assignment.id, possible, undefined, status),
+      }
     }
 
     const raw = Number(sc) + Number(st) + Number(sw)
     const earned = (raw / 30) * possible
 
     return {
-      assessment_id: assignment.id,
-      assessment_type: 'assignment',
-      earned: round2(earned),
-      possible: round2(possible),
-      percent: round2((earned / possible) * 100),
-      is_graded: true,
-      ...(status ? { status } : {}),
+      rawEarned: earned,
+      cell: {
+        assessment_id: assignment.id,
+        assessment_type: 'assignment',
+        earned: round2(earned),
+        possible: round2(possible),
+        percent: round2((earned / possible) * 100),
+        is_graded: true,
+        ...(status ? { status } : {}),
+      },
     }
   }
 
@@ -980,8 +989,9 @@ export async function loadTeacherGradebook(opts: {
   const students = (enrollments || []).map((enrollment) => {
     const studentId = enrollment.student_id
     const profile = profileMap.get(studentId)
+    const assignmentScores = assignments.map((assignment) => getAssignmentScore(studentId, assignment))
     const assessmentScores = [
-      ...assignments.map((assignment) => getAssignmentCell(studentId, assignment)),
+      ...assignmentScores.map(({ cell }) => cell),
       ...tests.map((test) => {
         const questionsForTest = testQuestionsByTest.get(test.id) || []
         const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
@@ -1013,9 +1023,9 @@ export async function loadTeacherGradebook(opts: {
       return [{ earned: cell.earned, possible: cell.possible, weight: Number(item.gradebook_weight), categoryId: item.gradebook_category_id }]
     })
     const assignmentRows = assignments.flatMap((assignment, index) => {
-      const cell = assessmentScores[index]
-      if (!assignment.include_in_final || assignment.is_draft || cell.earned == null || cell.possible <= 0) return []
-      return [{ earned: cell.earned, possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
+      const { cell, rawEarned } = assignmentScores[index]
+      if (!assignment.include_in_final || assignment.is_draft || rawEarned == null || cell.possible <= 0) return []
+      return [{ earned: rawEarned, possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
     })
     const testOffset = assignments.length
     const testRows = tests.flatMap((test, index) => {
