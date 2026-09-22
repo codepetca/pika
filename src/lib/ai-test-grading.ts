@@ -47,7 +47,11 @@ import { GradingProviderError } from '@/lib/grading/providers/types'
 const DEFAULT_MODEL = 'deepseek-flash'
 const MAX_REFERENCE_ANSWERS = 3
 const TEST_AI_REASONING_EFFORT = 'medium'
-const TEST_AI_REQUEST_TIMEOUT_MS = 25_000
+// 25s was set when a test grade was capped at 220 output tokens. DeepSeek now thinks at
+// its 'high' tier and a single grade can legitimately emit ~4.5k reasoning tokens, which
+// does not fit in 25s. An 80-response calibration run failed repeatedly around response 41
+// and completed only at 60s.
+const TEST_AI_REQUEST_TIMEOUT_MS = 60_000
 
 export type TestOpenResponsePromptProfile = 'manual' | 'bulk'
 type ReferenceAnswerSource = 'teacher_key' | 'provided' | 'generated'
@@ -257,6 +261,7 @@ function buildTestGradingProvenance(input: {
     batchSize: input.batchSize,
     providerRequestCount: input.execution.providerRequestCount,
     tokenUsage: input.execution.tokenUsage,
+    reasoningEffortUsed: input.execution.reasoningEffortUsed,
   })
 }
 

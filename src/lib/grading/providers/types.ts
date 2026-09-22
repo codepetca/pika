@@ -43,6 +43,12 @@ export interface StructuredOutputResponse {
   outputText: string
   tokenUsage: GradingTokenUsage
   requestCount: number
+  /**
+   * The effort the successful attempt actually ran at. Lower than the requested effort
+   * when a provider had to think less to fit its output budget, so a downgraded grade is
+   * distinguishable from a normal one after the fact.
+   */
+  reasoningEffortUsed: StructuredOutputRequest['reasoningEffort']
 }
 
 export interface StructuredOutputProvider {

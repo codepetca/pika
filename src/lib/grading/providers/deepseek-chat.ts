@@ -18,6 +18,17 @@ const DEEPSEEK_REASONING_EFFORT: Record<StructuredOutputRequest['reasoningEffort
   high: 'max',
 }
 
+// Reasoning is what consumes the output budget, so when even the fallback budget truncates,
+// raising the ceiling is the wrong lever — the model will simply think up to the new one, and
+// the ceiling is capped by the model regardless. Thinking less is the lever that works. A
+// grade produced with shallower reasoning beats no grade at all.
+const DEEPSEEK_EFFORT_DOWNGRADE: Partial<
+  Record<StructuredOutputRequest['reasoningEffort'], StructuredOutputRequest['reasoningEffort']>
+> = {
+  high: 'medium',
+  medium: 'low',
+}
+
 function isTimeoutError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const name = (error as { name?: unknown }).name
@@ -52,6 +63,21 @@ export function createDeepSeekChatProvider(opts: {
         tokenUsage = addTokenUsage(tokenUsage, readTokenUsage(payload))
       }
 
+      let reasoningEffortUsed = request.reasoningEffort
+      const reducedEffort = DEEPSEEK_EFFORT_DOWNGRADE[request.reasoningEffort]
+      if (isMaxOutputIncomplete(payload) && reducedEffort) {
+        requestCount += 1
+        payload = await fetchPayload(
+          fetchImpl,
+          opts.apiKey,
+          request,
+          request.fallbackMaxOutputTokens,
+          reducedEffort,
+        )
+        tokenUsage = addTokenUsage(tokenUsage, readTokenUsage(payload))
+        reasoningEffortUsed = reducedEffort
+      }
+
       if (isMaxOutputIncomplete(payload)) {
         throw new GradingProviderError({
           kind: 'bad_response',
@@ -69,7 +95,7 @@ export function createDeepSeekChatProvider(opts: {
         })
       }
 
-      return { outputText, tokenUsage, requestCount }
+      return { outputText, tokenUsage, requestCount, reasoningEffortUsed }
     },
   }
 }
@@ -79,6 +105,7 @@ async function fetchPayload(
   apiKey: string,
   request: StructuredOutputRequest,
   maxOutputTokens: number,
+  reasoningEffortOverride?: StructuredOutputRequest['reasoningEffort'],
 ): Promise<unknown> {
   let response: Response
   try {
@@ -96,7 +123,7 @@ async function fetchPayload(
           { role: 'system', content: buildSchemaDirectedSystemPrompt(request) },
           { role: 'user', content: request.userPrompt },
         ],
-        reasoning_effort: DEEPSEEK_REASONING_EFFORT[request.reasoningEffort],
+        reasoning_effort: DEEPSEEK_REASONING_EFFORT[reasoningEffortOverride ?? request.reasoningEffort],
         max_tokens: maxOutputTokens,
         response_format: { type: 'json_object' },
       }),
