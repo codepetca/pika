@@ -1631,4 +1631,70 @@ describe('StudentTodayTab history section', () => {
     fireEvent.change(editor, { target: { value: 'Today.' } })
     await waitFor(() => expect(requests.some(body => body.date === '2025-12-16')).toBe(true))
   })
+
+  it('keeps queued saves bound to their classroom when switching on the same date', async () => {
+    const firstSave = deferred<any>()
+    const requests: any[] = []
+    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/student/entries?')) return mockJson({ entries: [] })
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      if (url === '/api/student/entries' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        requests.push(body)
+        if (body.classroom_id === 'c1' && requests.length === 1) return firstSave.promise
+        return mockJson({ entry: { ...entries[0], id: `${body.classroom_id}-entry`, classroom_id: body.classroom_id, text: body.classroom_id === 'c1' ? 'A second edit.' : 'B text.', rich_content: body.rich_content, version: 2 } })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(<StudentTodayTab classroom={classroom} />)
+    const editor = await screen.findByLabelText('Daily Log')
+    fireEvent.change(editor, { target: { value: 'A first edit.' } })
+    await waitFor(() => expect(requests).toHaveLength(1))
+    fireEvent.change(editor, { target: { value: 'A second edit.' } })
+    fireEvent.blur(editor)
+
+    view.rerender(<StudentTodayTab classroom={secondClassroom} />)
+    await waitFor(() => expect(screen.getByLabelText('Daily Log')).toHaveValue(''))
+    fireEvent.change(screen.getByLabelText('Daily Log'), { target: { value: 'B text.' } })
+    await waitFor(() => expect(requests.some(body => body.classroom_id === 'c2')).toBe(true))
+
+    firstSave.resolve(await mockJson({ entry: { ...entries[0], text: 'A first edit.', rich_content: requests[0].rich_content, version: 1 } }))
+    await waitFor(() => expect(requests.filter(body => body.classroom_id === 'c1')).toHaveLength(2))
+    const secondA = requests.filter(body => body.classroom_id === 'c1')[1]
+    expect(JSON.stringify(secondA.rich_content)).toContain('A second edit.')
+    expect(JSON.stringify(secondA.rich_content)).not.toContain('B text.')
+  })
+
+  it('reconciles a blank old draft with a first save whose response was lost', async () => {
+    window.localStorage.setItem('daily-log-draft:v2:s1:c1:2025-12-15', JSON.stringify({
+      studentId: 's1', classroomId: 'c1', date: '2025-12-15', entryId: null, version: 1,
+      updatedAt: '2025-12-15T14:00:00Z', content: { type: 'doc', content: [] },
+    }))
+    let getCount = 0
+    const patchBodies: any[] = []
+    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/student/entries?')) {
+        getCount += 1
+        return mockJson({ entries: getCount === 1 ? [] : [entries[1]] })
+      }
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      if (url === '/api/student/entries' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        patchBodies.push(body)
+        return mockJson({ entry: { ...entries[1], text: '', rich_content: body.rich_content, version: 2 } })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+    await screen.findByLabelText('Daily Log')
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+    expect(patchBodies[0]).toMatchObject({ classroom_id: 'c1', date: '2025-12-15', entry_id: 'e2' })
+    expect(patchBodies[0].rich_content).toEqual({ type: 'doc', content: [] })
+  })
 })

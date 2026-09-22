@@ -396,6 +396,25 @@ export function StudentTodayTab({
     const draftKey = getDailyLogDraftKey(classroom.id, entryDate)
 
     if (!entryId && isEmpty(newContent)) {
+      if (!activeAtStart) {
+        try {
+          invalidateStudentEntriesForClassroom(classroom.id)
+          const entries = await fetchStudentEntriesForClassroom(classroom.id)
+          const existingOnDate = entries.find(entry => entry.date === entryDate)
+          if (existingOnDate) {
+            if (storedDraft) writeDailyLogDraft({
+              ...storedDraft,
+              entryId: existingOnDate.id,
+              version: existingOnDate.version ?? 1,
+            })
+            await saveContent(newContent, entryDate, { forceFull: true })
+            return
+          }
+        } catch (error) {
+          setOlderDraftError(prev => ({ ...prev, [entryDate]: 'Could not check the saved log. Retry when connected.' }))
+          return
+        }
+      }
       if (activeAtStart) lastSavedContentRef.current = newContentStr
       safeSessionRemove(draftKey)
       removeDailyLogDraft(studentId, classroom.id, entryDate)
@@ -584,35 +603,37 @@ export function StudentTodayTab({
   }, [MAX_CHARS, classroom.id, historyLimit, updateHistoryEntries, notifications, studentId])
 
   const enqueueSave = useCallback((entryDate: string) => {
-    const requestedContent = entryDate === todayRef.current
+    const saveKey = `${studentId}:${classroom.id}:${entryDate}`
+    const isCurrentEditor = () => currentClassroomIdRef.current === classroom.id && entryDate === todayRef.current
+    const requestedContent = isCurrentEditor()
       ? pendingContentRef.current
       : readDailyLogDraft(studentId, classroom.id, entryDate)?.content
     if (!requestedContent) return
     const requestedContentStr = JSON.stringify(requestedContent)
-    if (queuedContentByDateRef.current.get(entryDate) === requestedContentStr) return
-    queuedContentByDateRef.current.set(entryDate, requestedContentStr)
-    const previousSave = saveQueuesByDateRef.current.get(entryDate) ?? Promise.resolve()
+    if (queuedContentByDateRef.current.get(saveKey) === requestedContentStr) return
+    queuedContentByDateRef.current.set(saveKey, requestedContentStr)
+    const previousSave = saveQueuesByDateRef.current.get(saveKey) ?? Promise.resolve()
     const nextSave = previousSave.catch(() => undefined).then(async () => {
-      const latest = entryDate === todayRef.current
+      const latest = isCurrentEditor()
         ? pendingContentRef.current
         : readDailyLogDraft(studentId, classroom.id, entryDate)?.content
       if (!latest) {
-        if (queuedContentByDateRef.current.get(entryDate) === requestedContentStr) {
-          queuedContentByDateRef.current.delete(entryDate)
+        if (queuedContentByDateRef.current.get(saveKey) === requestedContentStr) {
+          queuedContentByDateRef.current.delete(saveKey)
         }
         return
       }
-      saveInFlightDatesRef.current.add(entryDate)
+      saveInFlightDatesRef.current.add(saveKey)
       try {
         await saveContent(latest, entryDate)
       } finally {
-        saveInFlightDatesRef.current.delete(entryDate)
-        if (queuedContentByDateRef.current.get(entryDate) === requestedContentStr) {
-          queuedContentByDateRef.current.delete(entryDate)
+        saveInFlightDatesRef.current.delete(saveKey)
+        if (queuedContentByDateRef.current.get(saveKey) === requestedContentStr) {
+          queuedContentByDateRef.current.delete(saveKey)
         }
       }
     })
-    saveQueuesByDateRef.current.set(entryDate, nextSave.catch(() => undefined))
+    saveQueuesByDateRef.current.set(saveKey, nextSave.catch(() => undefined))
   }, [classroom.id, saveContent, studentId])
 
   useEffect(() => {
@@ -731,7 +752,8 @@ export function StudentTodayTab({
       ? getDailyLogDraftKey(classroom.id, todayRef.current)
       : null
 
-    const hasOutstandingSave = saveInFlightDatesRef.current.has(todayRef.current) || queuedContentByDateRef.current.has(todayRef.current)
+    const saveKey = `${studentId}:${classroom.id}:${todayRef.current}`
+    const hasOutstandingSave = saveInFlightDatesRef.current.has(saveKey) || queuedContentByDateRef.current.has(saveKey)
     if ((newContentStr === lastSavedContentRef.current && !hasOutstandingSave) || (!entryIdRef.current && isEmpty(newContent) && !hasOutstandingSave)) {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
@@ -837,9 +859,10 @@ export function StudentTodayTab({
     setConflictEntry(null)
     const latest = pendingContentRef.current ?? content
     const date = todayRef.current
-    const previousSave = saveQueuesByDateRef.current.get(date) ?? Promise.resolve()
+    const saveKey = `${studentId}:${classroom.id}:${date}`
+    const previousSave = saveQueuesByDateRef.current.get(saveKey) ?? Promise.resolve()
     const retry = previousSave.catch(() => undefined).then(() => saveContent(latest, date, { forceFull: true }))
-    saveQueuesByDateRef.current.set(date, retry.catch(() => undefined))
+    saveQueuesByDateRef.current.set(saveKey, retry.catch(() => undefined))
   }, [conflictEntry, content, saveContent, studentId, classroom.id])
 
   function acceptSavedOlderLog(date: string) {
