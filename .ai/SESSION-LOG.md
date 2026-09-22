@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-15 — Automatic removed-student cleanup source checkpoint
-
-- User selected a five-minute conditional watchdog and automatic system-owned cleanup for new removals. On `codex/removed-student-cleanup`, added migration 176: a private future-only queue, redacted completion evidence, leased service-only claims, an asynchronous Vault-backed immediate callback, callback coalescing, and a conditional Supabase Cron schedule. Historical removals are not backfilled.
-- Direct user approval authorized the exact local migration. It applied successfully at SHA256 `274fb228880248e982287c643f1f49d8c03fd7bd91c9082e6134508d2f3f8f71`; the local ledger now matches 001–176, database lint is clean, and all cleanup gates remain false. Canonical generated types include the claim/release RPCs.
-- Added the default-off protected worker route and bounded retry orchestration. Removed the teacher-owned live cleanup action and documented system ownership. Focused unit/API/component coverage passes 71 tests; teacher and student Playwright verification passes 20 tests across desktop/mobile and light/dark, with screenshots inspected. No Vault configuration, schedule execution, provider request, student removal, purge, hosted migration, rollout, or production change occurred.
-- Added a CI-registered rollback-only synthetic queue/lease harness covering enqueue identity, exclusive claims, retry, stale leases, and completed-row redaction. Its source contract passes, but the harness has not been executed locally because the migration-only approval does not authorize synthetic fixture writes.
-- Direct user approval authorized one execution of the exact local rollback-only harness. It passed enqueue identity, exclusive claim, retry/reclaim, stale-lease rejection, and completed-row redaction, then rolled back. Postflight found zero synthetic users/classrooms/roster rows, zero queue jobs, all cleanup gates false, and migration 176 unchanged at its approved hash.
-- Initial high-risk Sol/Terra review found three blocking rollout gaps: default-off UI overpromised deletion, claims omitted academic/storage prerequisites, and permanent failures retried forever. Batch1 makes confirmation copy gate-neutral, adds forward177 with atomic academic/enforced-storage claim requirements and terminal quarantine, and classifies non-retryable provider/unsupported ownership failures while continuing later jobs. A 288-attempt ceiling escalates otherwise endless transient retries. Targeted65tests/types and the14-case teacher/student visual matrix pass; revised mobile copy was inspected. Migration177 is source-only and unapplied pending separate exact local approval.
-- Targeted Sol review cleared the copy but found post-claim prerequisite drift and lossy SQLSTATE55000 classification. Batch2 rechecks academic/enforced-storage settings at every live provider authorization, treats gate pauses plus active archive/copy conflicts as retryable, and keeps immutable generation/binding failures terminal. The live SQL harness now toggles each prerequisite after reservation, and an adapter-to-worker regression proves a real operation-conflict category performs no provider transport, records retry and avoids quarantine. Targeted42tests/types pass; migration177 remains unapplied.
-- Second targeted Sol and final cumulative Terra review cleared all blockers at6d404341. With explicit extension and exact local approval, applied migration177 at SHA256 `f5d8df6e42a4443ca8a0abf954ccb7ff111985d477bfe87157aa97c432c8fbf5`; the expanded rollback-only automatic queue harness passed once. Postflight ledger177, queue/synthetic residues0, provider/live/automatic/academic gates false, storage compatibility, warning-level DB lint clean and generated types match. Batch3 corrects the Phase4 source status and declares/checks both harness prerequisites; one extra targeted review is authorized.
-- Stable-head CI exposed a disposable-database portability issue: migration176 correctly installs/schedules pg_cron in the configured postgres database, while the Pal and individual-purge concurrency harnesses replay the migration chain into isolated temporary databases where pg_cron installation is forbidden. Both harnesses now omit only the host-specific extension/schedule statements while replaying all schema and function changes. The exact failed Pal harness, the second affected replay harness, and focused checks (23 files/267 tests plus architecture/UI/design/types/lint) pass locally. Migrations176–177 remain byte-identical; PR1266 stays draft pending a new reviewed stable SHA and green CI.
-
-## 2026-09-16 — Pal empty-request follow-up
-
-- Daily-log resilience PR1269 and production PR1270 merged; production SHA `6375ca1591cf271ecf746e93680383218929e520` deployed, then PAL_ENABLED restored true on deployment `dpl_GE22YKr7oTSgbGhP6brhfW6oEPJ5`. Shared integration credential repaired on both services; original pseudonym secret preserved.
-- Live achievement-token requests returned404 without500s. Found account-token route used request.body non-null as a classroom-request signal, but Next server adapters can supply an empty stream for a bodyless POST. Added regression reproducing404 before fix; use actual content length, continuing to reject every nonempty request when classroom rollout is off.
-- No classroom rollout flags enabled, no migrations, no student data changed. User authorized release and restoration in this task.
-
-# Pika Session Log
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
 ## 2026-09-16 Daily log Pal failure containment and credential repair
 
 - Owner `codex/fix-daily-log-save`. Added best-effort preparation/delivery boundaries for POST and PATCH daily logs; malformed Pal configuration/event construction cannot block an authorized save, and delivery exceptions cannot turn a committed entry into a failure. Atomic RPC errors and version conflicts still fail without a second write. Content-free diagnostics; no UI, schema, dependency, or authorization change.
@@ -273,6 +242,12 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Added a regression that holds the grade request open and proves the editor remains enabled and focused while Send comment is disabled. Targeted 30 tests and the focused application-browser gate (14 files/225 tests plus architecture, UI/design policy, TypeScript and lint) pass.
 - Playwright verified the live teacher grading editor retains focus after autosave on desktop/mobile in light/dark themes; the student baseline is unaffected. Composite checklist reviewed: native textbox keyboard behavior and tested focus/disabled semantics pass, no manual follow-up. Risk profile: none. Model recommendation: GPT-6 — bounded focus-state bug with browser verification.
 
+## 2026-09-21 — Dormant metered paid-operation reservations
+
+- Product decision: AI grading and repository review are metered paid owner tools; joining a Classroom and completing assigned student work remain free. Prices, plan allowances, billing periods, trials and grace behavior are still deferred.
+- Migration201 adds a service-only `grading.ai` reservation ledger with assignment-grading, Test-grading and repository-review operation kinds. Reserve, settle and release are idempotent, bind one effective-entitlement revision, expire pending work, and serialize concurrent quota checks without holding locks across provider calls.
+- Under standing local-migration authorization, migration201 is applied locally. Generated types, error-level DB lint, rollback behavior and the concurrent quota race pass. No route uses the ledger, no grant or billing state changed, and production remains001–180.
+
 ## 2026-09-21 — Preserve assignment work around unfinished image uploads
 
 - Owner `codex/fix-assignment-viewer-upload-placeholder`, based on `origin/main@3424be87`. Read-only Tiptap surfaces now register a noninteractive `imageUpload` compatibility node, preventing an autosaved unfinished upload from invalidating and blanking the rest of a student's document.
@@ -291,6 +266,7 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Focused gate passes 45 files/699 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verified default, uploading and failure recovery on student desktop/mobile in light/dark; teacher is n/a because this follow-up changes only editable student state. Composite checklist passed with a labeled native picker, polite live progress, alert recovery and keyboard-reachable actions. Risk profile: none. Model recommendation: GPT-5 — bounded editor state transition with autosave and submit coordination.
 - Initial independent review found two non-blocking recovery gaps: paste/drop could replace a visible failed upload without an explicit student choice, and a finalized image could be orphaned if the editor became read-only before insertion. Remediation batch 1 preserves the failed item until Retry/Remove and requests reference-safe managed-storage cleanup for finalized-but-uninserted images; focused regressions and API coverage pass.
 - Targeted review found a blocking commit-to-passive-effect race where read-only or document-identity changes could occur just before upload completion. Remediation batch 2 makes completion validate render-current editability and document identity synchronously, with layout-phase unmount invalidation and both transition regressions.
+
 ## 2026-09-21 — Classroom Grades page patterns
 
 - Owner `codex/classroom-grades-patterns`, based on `origin/main@ed6e6ca1`. Pattern Lab now places a default-off “Show grades to students” switch at the top of the teacher Gradebook page pattern and adds a student Classroom Grades tab showing a returned-work-only 84% fixture with counted and excluded examples.
