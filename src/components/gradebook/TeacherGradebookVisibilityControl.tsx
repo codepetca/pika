@@ -1,6 +1,6 @@
 'use client'
 
-import { DoorClosed, DoorOpen } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { SettingsSwitch } from '@/components/settings/SettingsSwitchRow'
 import { cn } from '@/ui'
 
@@ -16,8 +16,6 @@ export function TeacherGradebookVisibilityControl({
   saving?: boolean
 }) {
   const tooltip = gradesVisible ? 'Hide grades from students' : 'Show grades to students'
-  const StatusIcon = gradesVisible ? DoorOpen : DoorClosed
-
   return (
     <div
       data-testid="teacher-gradebook-visibility-control"
@@ -31,13 +29,14 @@ export function TeacherGradebookVisibilityControl({
           gradesVisible ? 'text-success' : 'text-danger',
         )}
       >
-        <StatusIcon className="h-4 w-4" />
+        <Users className="h-4 w-4" />
       </span>
       <SettingsSwitch
         checked={gradesVisible}
         onChange={onChange}
         ariaLabel="Student grades visibility"
         tooltip={tooltip}
+        checkedTone="success"
         disabled={disabled || saving}
       />
       <span className="sr-only" aria-live="polite">{saving ? 'Saving grade visibility' : ''}</span>

@@ -9,12 +9,14 @@ export function SettingsSwitch({
   disabled,
   ariaLabel,
   tooltip,
+  checkedTone = 'default',
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
   disabled?: boolean
   ariaLabel: string
   tooltip?: ReactNode
+  checkedTone?: 'default' | 'success'
 }) {
   const control = (
     <button
@@ -36,13 +38,16 @@ export function SettingsSwitch({
           disabled
             ? 'border-border bg-surface-2'
             : checked
-              ? 'border-primary bg-info-bg group-hover:border-primary-hover group-hover:bg-info-bg-hover'
+              ? checkedTone === 'success'
+                ? 'border-success bg-success-solid group-hover:bg-success-solid-hover'
+                : 'border-primary bg-info-bg group-hover:border-primary-hover group-hover:bg-info-bg-hover'
               : 'border-border bg-surface-2 group-hover:bg-surface-hover',
         )}
       >
         <span
           className={cn(
-            'absolute left-0 top-1 h-5 w-5 rounded-full bg-primary shadow-sm transition-transform',
+            'absolute left-0 top-1 h-5 w-5 rounded-full shadow-sm transition-transform',
+            checked && checkedTone === 'success' ? 'bg-surface' : 'bg-primary',
             checked ? 'translate-x-7' : 'translate-x-1',
           )}
         />

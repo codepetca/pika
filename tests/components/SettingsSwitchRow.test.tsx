@@ -50,4 +50,18 @@ describe('SettingsSwitchRow', () => {
     await user.hover(screen.getByRole('switch', { name: 'Student grades visibility' }))
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
   })
+
+  it('supports an optional green checked treatment', () => {
+    render(
+      <SettingsSwitch
+        checked
+        checkedTone="success"
+        onChange={vi.fn()}
+        ariaLabel="Visible to students"
+      />,
+    )
+
+    const track = screen.getByRole('switch', { name: 'Visible to students' }).firstElementChild
+    expect(track).toHaveClass('bg-success-solid')
+  })
 })
