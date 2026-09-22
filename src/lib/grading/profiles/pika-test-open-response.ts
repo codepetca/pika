@@ -9,11 +9,11 @@ import {
 
 export const PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION = 'pika-test-open-response-v1'
 export const PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION = 'pika-test-open-response-rubric-v1'
-export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v3'
+export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v4'
 export const PIKA_TEST_OPEN_RESPONSE_MANUAL_PROMPT_VERSION =
-  'pika-test-open-response-manual-prompt-v2'
+  'pika-test-open-response-manual-prompt-v3'
 export const PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION =
-  'pika-test-open-response-bulk-prompt-v2'
+  'pika-test-open-response-bulk-prompt-v3'
 
 // Calibrated against 8 adjudicated responses from two archived classrooms. The grader
 // forgave one or two transcription slips but began deducting as they accumulated, costing
@@ -23,6 +23,14 @@ export const PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION =
 // between them, not absence from either.
 const TRANSCRIPTION_TOLERANCE_GUIDANCE = `- Transcription errors never reduce the score. A missing semicolon or parenthesis, a comma typed as a period, an unclosed quote, or a misspelled identifier is a handwriting artifact, not an error in the work. Deduct only for mistakes that change the program's logic, structure, or output.
 - Apply this no matter how many transcription errors appear. Five slips in otherwise correct code is still correct code; never let them accumulate into a deduction.`
+
+// Second calibration finding, from the same archived responses once the transcription
+// noise above stopped masking it. On a ten-bullet key worth ten marks, submissions that
+// cleanly satisfied six and seven bullets scored four — the teacher adjudicated both at
+// 6-8 and 7-8. Failures were being charged more than once: stacked beyond the bullets
+// that actually failed, or counted again under a second bullet describing the same defect.
+const RUBRIC_BULLET_FLOOR_GUIDANCE = `- When the answer key is a list of criteria, score it as a checklist. Each criterion the response satisfies is worth its share of the marks, and the score never falls below the number of criteria clearly met.
+- Deduct once per criterion that genuinely fails, and no more. Never let one defect reduce the score under two criteria, and never add further penalty for the number of things wrong — a response missing three criteria loses three marks, not more.`
 export const PIKA_TEST_REFERENCE_PROFILE_VERSION = 'pika-test-reference-v1'
 export const PIKA_TEST_REFERENCE_PROMPT_VERSION = 'pika-test-reference-prompt-v1'
 
@@ -321,6 +329,7 @@ function buildCodingRubric(
 - This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
 - Award strong partial credit when the core approach is correct, even if the implementation is rough.
 ${TRANSCRIPTION_TOLERANCE_GUIDANCE}
+${RUBRIC_BULLET_FLOOR_GUIDANCE}
 - Treat CodeHS Java helpers (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid.
 - Accept alternate valid solutions unless the prompt explicitly requires a specific structure.
 ${readabilityGuidance}`
@@ -330,6 +339,7 @@ ${readabilityGuidance}`
 - This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
 - If the approach is logically sound and clearly communicated but has minor implementation issues, award high partial credit (typically 80-95% of max points).
 ${TRANSCRIPTION_TOLERANCE_GUIDANCE}
+${RUBRIC_BULLET_FLOOR_GUIDANCE}
 - Formatting/readability can affect the score only through the capped readability deduction below.
 - For Java/CodeHS classroom contexts, treat platform helper APIs (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid and do not penalize solely for using them.
 - If language is unspecified, infer likely language from prompt/context/response. If still ambiguous, evaluate logic language-agnostically and do not penalize language choice alone.
