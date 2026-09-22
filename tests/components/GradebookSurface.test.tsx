@@ -39,7 +39,7 @@ describe('Gradebook surface owners', () => {
   it('toggles percentage display with one pressed button and keeps menu semantics in the toolbar', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
-    render(<TooltipProvider><GradebookToolbar preferences={DEFAULT_GRADEBOOK_PREFERENCES} onChange={onChange} selectedCount={1} isReadOnly={false} classAverage="84.6%" classMedian="86%" mobileStudentOptions={[{ value: 's1', label: 'Demo Student' }]} mobileStudentId="s1" onMobileStudentChange={vi.fn()} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} /></TooltipProvider>)
+    render(<TooltipProvider><GradebookToolbar preferences={DEFAULT_GRADEBOOK_PREFERENCES} onChange={onChange} selectedCount={1} isReadOnly={false} classAverage="84.6%" classMedian="86%" mobileStudentOptions={[{ value: 's1', label: 'Demo Student' }]} mobileStudentId="s1" onMobileStudentChange={vi.fn()} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} studentGradesVisible={false} onStudentGradesVisibilityChange={vi.fn()} /></TooltipProvider>)
     expect(screen.getByLabelText('Class Average 84.6% · Median 86%')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Class summary' })).not.toBeInTheDocument()
     const percentToggle = screen.getByRole('button', { name: 'Show %' })
@@ -167,7 +167,7 @@ describe('Gradebook surface owners', () => {
 
   it('shows Undo all overrides only in More actions while overrides exist', () => {
     const onUndoManualChanges = vi.fn()
-    render(<TooltipProvider><GradebookToolbar preferences={DEFAULT_GRADEBOOK_PREFERENCES} onChange={vi.fn()} selectedCount={0} isReadOnly={false} hasManualChanges onUndoManualChanges={onUndoManualChanges} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} /></TooltipProvider>)
+    render(<TooltipProvider><GradebookToolbar preferences={DEFAULT_GRADEBOOK_PREFERENCES} onChange={vi.fn()} selectedCount={0} isReadOnly={false} hasManualChanges onUndoManualChanges={onUndoManualChanges} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} studentGradesVisible={false} onStudentGradesVisibilityChange={vi.fn()} /></TooltipProvider>)
     expect(screen.queryByRole('button', { name: 'Undo all overrides' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Gradebook more actions' }))
     fireEvent.click(within(screen.getByRole('menu', { name: 'Gradebook more actions' })).getByRole('menuitem', { name: 'Undo all overrides' }))
@@ -194,7 +194,7 @@ describe('standalone Gradebook controls', () => {
   it('keeps other assessment creation in More actions and disables it in read-only classrooms', async () => {
     const user = userEvent.setup()
     const onAddItem = vi.fn()
-    const props = { preferences: DEFAULT_GRADEBOOK_PREFERENCES, onChange: vi.fn(), selectedCount: 0, onAddItem, onEditCategories: vi.fn(), onCopyEmails: vi.fn(), onExport: vi.fn() }
+    const props = { preferences: DEFAULT_GRADEBOOK_PREFERENCES, onChange: vi.fn(), selectedCount: 0, onAddItem, onEditCategories: vi.fn(), onCopyEmails: vi.fn(), onExport: vi.fn(), studentGradesVisible: false, onStudentGradesVisibilityChange: vi.fn() }
     const view = render(<TooltipProvider><GradebookToolbar {...props} isReadOnly={false} /></TooltipProvider>)
     expect(screen.queryByRole('button', { name: /Add item|Add other assessment/ })).not.toBeInTheDocument()
     const trigger = screen.getByRole('button', { name: 'Gradebook more actions' })

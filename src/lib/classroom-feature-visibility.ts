@@ -3,6 +3,7 @@ export const CLASSROOM_FEATURE_KEYS = [
   'classwork',
   'tests',
   'gradebook',
+  'student_grades',
   'calendar',
   'syllabus',
   'announcements',
@@ -17,6 +18,7 @@ export type ClassroomTabId =
   | 'daily'
   | 'attendance'
   | 'gradebook'
+  | 'grades'
   | 'assignments'
   | 'tests'
   | 'calendar'
@@ -34,6 +36,7 @@ export const DEFAULT_CLASSROOM_FEATURE_VISIBILITY: ClassroomFeatureVisibility = 
   classwork: true,
   tests: true,
   gradebook: true,
+  student_grades: false,
   calendar: true,
   syllabus: true,
   announcements: true,
@@ -57,6 +60,7 @@ const STUDENT_TABS: readonly ClassroomTabId[] = [
   'achievements',
   'assignments',
   'tests',
+  'grades',
   'calendar',
   'resources',
   'announcements',
@@ -67,6 +71,7 @@ const TAB_FEATURES: Partial<Record<ClassroomTabId, ClassroomFeatureKey>> = {
   assignments: 'classwork',
   tests: 'tests',
   gradebook: 'gradebook',
+  grades: 'student_grades',
   calendar: 'calendar',
   resources: 'syllabus',
   announcements: 'announcements',
@@ -95,6 +100,7 @@ export function isClassroomFeatureEffectivelyEnabled(
 ): boolean {
   if (!visibility[feature]) return false
   if (feature === 'gradebook') return visibility.classwork || visibility.tests
+  if (feature === 'student_grades') return visibility.classwork || visibility.tests
   if (feature === 'achievements') return palEnabled
   return true
 }

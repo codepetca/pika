@@ -27,14 +27,15 @@ describe('PageMockups', () => {
     const mockups = within(screen.getByTestId('page-mockups'))
     await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
     const gradebook = within(mockups.getByRole('tabpanel', { name: 'Gradebook' }))
-    const visibility = gradebook.getByRole('switch', { name: 'Show grades to students' })
+    const visibility = gradebook.getByRole('switch', { name: 'Student grades visibility' })
     const visibilityControl = gradebook.getByTestId('teacher-gradebook-visibility-control')
 
     expect(visibility).toHaveAttribute('aria-checked', 'false')
-    expect(visibilityControl).toHaveTextContent('Grades is hidden from student classroom navigation.')
+    expect(visibilityControl.closest('[aria-label="Gradebook mockup controls"]')).not.toBeNull()
+    await user.hover(visibility)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
     await user.click(visibility)
     expect(visibility).toHaveAttribute('aria-checked', 'true')
-    expect(visibilityControl).toHaveTextContent('Grades is visible in student classroom navigation.')
   })
 
   it('shows the enabled student Grades view as a Classroom page tab', async () => {
@@ -51,7 +52,10 @@ describe('PageMockups', () => {
     expect(grades.getByRole('list', { name: 'Returned grades' })).toBeVisible()
     expect(grades.getByText('Not counted')).toBeVisible()
 
-    await user.click(grades.getByRole('link', { name: /Functions and Graphs/ }))
+    const returnedGradeLink = grades.getByRole('link', { name: /Functions and Graphs/ })
+    returnedGradeLink.focus()
+    expect(returnedGradeLink).toHaveFocus()
+    await user.keyboard('{Enter}')
     expect(mockups.getByRole('status')).toHaveTextContent('Open returned feedback for Functions and Graphs selected. Example only')
   })
 
