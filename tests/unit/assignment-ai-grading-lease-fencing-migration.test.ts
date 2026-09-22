@@ -25,6 +25,7 @@ describe('assignment AI grading lease fencing migration', () => {
     expect(migration).toContain('to service_role')
     expect(migration).toContain('guard_assignment_ai_grading_run_lease_contract')
     expect(migration).toContain('guard_assignment_ai_grading_item_lease_contract')
+    expect(migration.match(/before update or delete/g)).toHaveLength(2)
     expect(migration).toContain('revoke execute on function public.finalize_assignment_ai_grading_item_atomic')
   })
 })

@@ -151,6 +151,22 @@ begin
     null;
   end;
 
+  begin
+    delete from public.assignment_ai_grading_run_items
+    where id = v_item.id;
+    raise exception 'Direct service-role delete bypassed the item lease contract';
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  begin
+    delete from public.assignment_ai_grading_runs
+    where id = 'e2020000-0000-4000-8000-000000000013';
+    raise exception 'Direct service-role delete bypassed the run lease contract';
+  exception when insufficient_privilege then
+    null;
+  end;
+
   perform public.patch_assignment_ai_grading_item_with_lease_v1(
     v_item.id, v_new_token, '{"status":"queued","last_error_code":null}'
   );

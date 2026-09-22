@@ -18,6 +18,9 @@ begin
   then
     raise exception 'Assignment AI grading lease is required' using errcode = '42501';
   end if;
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
   return new;
 end;
 $function$;
@@ -40,16 +43,19 @@ begin
   then
     raise exception 'Assignment AI grading lease is required' using errcode = '42501';
   end if;
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
   return new;
 end;
 $function$;
 
 create trigger guard_assignment_ai_grading_run_lease_contract
-  before update on public.assignment_ai_grading_runs
+  before update or delete on public.assignment_ai_grading_runs
   for each row execute function public.guard_assignment_ai_grading_run_lease_contract_v1();
 
 create trigger guard_assignment_ai_grading_item_lease_contract
-  before update on public.assignment_ai_grading_run_items
+  before update or delete on public.assignment_ai_grading_run_items
   for each row execute function public.guard_assignment_ai_grading_item_lease_contract_v1();
 
 create or replace function public.finalize_assignment_ai_grading_item_with_provenance_atomic(
