@@ -193,6 +193,9 @@ jobs:
       - name: Verify Assignment AI grading lease fencing
         run: bash scripts/check-assignment-ai-grading-lease-fencing.sh
 
+      - name: Verify metered Assignment AI grading
+        run: bash scripts/check-metered-assignment-ai-grading.sh
+
       - name: Verify Gradebook category contracts
         run: bash scripts/check-gradebook-categories-database.sh
 

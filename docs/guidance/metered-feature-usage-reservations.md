@@ -20,18 +20,19 @@ behavior remain separate product decisions.
 
 ## Reservation lifecycle
 
-`feature_usage_reservations` records one business operation under one effective
-entitlement revision:
+`feature_usage_reservations` records one business operation and the effective
+entitlement revision that admitted it:
 
 - `reserved`: units immediately count against quota while paid work is pending;
-- `settled`: successful paid work permanently consumes the units in that
-  entitlement revision;
+- `settled`: successful paid work consumes the units;
 - `released`: cancelled, failed, stale, superseded or expired work no longer
   consumes quota.
 
 Reservations expire after a caller-selected TTL between 60 seconds and 24
-hours. A later reservation in the same bucket releases expired rows before
-counting quota. Settlement rejects an expired reservation, so route workers must
+hours. A later reservation in the same subject/feature bucket releases expired
+rows before counting quota. Quota counts all reserved and settled rows across
+entitlement revisions, so changing entitlement metadata does not silently mint
+fresh capacity. Settlement rejects an expired reservation, so route workers must
 choose a TTL that covers one bounded paid operation. Long-running coordinators
 should reserve per bounded item/attempt, not hold one database transaction or
 reservation across an unbounded run.
@@ -66,6 +67,27 @@ be created as version 1, where every run/item mutation and grade finalization is
 the exact current, unexpired run lease; legacy finalizers and direct service-role DML are
 rejected for those runs. This does not call the usage ledger or activate metering. Migration
 202 must be present before deploying the version-aware coordinator code.
+
+Migration 203 adds the dormant Assignment-specific accounting boundary. Its
+run-admission RPC atomically creates a version-1 run and reserves exactly one
+unit for every queued, gradable student item; missing or empty skipped items
+reserve zero. If queued work becomes missing or empty before provider dispatch,
+its skipped result and reservation release commit together. Admission is
+all-or-nothing when quota is unavailable. An item retry reuses its original
+reservation, successful grade/provenance finalization settles in the same
+transaction, and terminal item or run failure releases in the same transaction.
+Provider dispatch and grade/provenance finalization revalidate the current lease,
+Classroom owner, active Assignment/Classroom, enrollment and exact document
+revision. The stale-source terminal path intentionally locks the same current
+lease/resource/enrollment binding without requiring the obsolete document
+revision, then changes only the run item to skipped while releasing its unit.
+
+The Assignment reservation TTL is 24 hours. If it expires, finalization fails
+closed and the operation is terminally released; a caller must create a fresh
+run/item rather than resurrect the released operation. Migration 203 changes no
+route, creates no entitlement and activates no enforcement. The existing
+version-0 run creator remains unmetered until separately gated application code
+selects the version-1 RPC.
 
 For each separately reviewed paid operation:
 
