@@ -69,11 +69,16 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
   for (const row of assignmentResult.rows) {
     const assignment = row.assignments
     if (!assignment || assignment.is_draft || !row.returned_at) continue
-    if (row.score_completion == null || row.score_thinking == null || row.score_workflow == null) continue
     const possible = Number(assignment.points_possible)
     if (!(possible > 0)) continue
-    const calculated = ((Number(row.score_completion) + Number(row.score_thinking) + Number(row.score_workflow)) / 30) * possible
-    const earned = overrides.get(itemKey('assignment', assignment.id)) ?? calculated
+    const override = overrides.get(itemKey('assignment', assignment.id))
+    let earned: number
+    if (override !== undefined) {
+      earned = override
+    } else {
+      if (row.score_completion == null || row.score_thinking == null || row.score_workflow == null) continue
+      earned = ((Number(row.score_completion) + Number(row.score_thinking) + Number(row.score_workflow)) / 30) * possible
+    }
     const category = assignment.gradebook_category_id ? categoryMap.get(assignment.gradebook_category_id) : null
     items.push({
       id: assignment.id,
@@ -141,12 +146,17 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
     const test = row.tests
     const questions = questionsByTest.get(row.test_id) ?? []
     if (questions.length === 0) continue
-    const responses = responsesByTest.get(row.test_id)
-    if (!responses || questions.some((question) => responses.get(question.id) == null)) continue
     const possible = questions.reduce((sum, question) => sum + question.points, 0)
     if (!(possible > 0)) continue
-    const calculated = questions.reduce((sum, question) => sum + Number(responses.get(question.id)), 0)
-    const earned = overrides.get(itemKey('test', test.id)) ?? calculated
+    const override = overrides.get(itemKey('test', test.id))
+    let earned: number
+    if (override !== undefined) {
+      earned = override
+    } else {
+      const responses = responsesByTest.get(row.test_id)
+      if (!responses || questions.some((question) => responses.get(question.id) == null)) continue
+      earned = questions.reduce((sum, question) => sum + Number(responses.get(question.id)), 0)
+    }
     const category = test.gradebook_category_id ? categoryMap.get(test.gradebook_category_id) : null
     items.push({
       id: test.id,

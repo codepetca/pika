@@ -104,4 +104,54 @@ describe('student grades server projection', () => {
     expect(JSON.stringify(result)).not.toContain('returned_at')
     expect(JSON.stringify(result)).not.toContain('categoryId')
   })
+
+  it('uses returned assessment overrides when underlying scores are incomplete', async () => {
+    mocks.loadPagedRows
+      .mockResolvedValueOnce({ rows: [
+        { id: 'term', name: 'Term', percentage: 100 },
+      ], error: null })
+      .mockResolvedValueOnce({ rows: [
+        { assessment_type: 'assignment', assessment_id: 'assignment-override', earned: 0 },
+        { assessment_type: 'test', assessment_id: 'test-override', earned: 7 },
+      ], error: null })
+      .mockResolvedValueOnce({ rows: [
+        {
+          assignment_id: 'assignment-override', score_completion: 1, score_thinking: null, score_workflow: null,
+          returned_at: '2026-09-20T12:00:00Z',
+          assignments: { id: 'assignment-override', title: 'Overridden assignment', points_possible: 10, include_in_final: true, gradebook_weight: 1, gradebook_category_id: 'term', is_draft: false },
+        },
+        {
+          assignment_id: 'assignment-incomplete', score_completion: 1, score_thinking: null, score_workflow: null,
+          returned_at: '2026-09-20T12:00:00Z',
+          assignments: { id: 'assignment-incomplete', title: 'Incomplete assignment', points_possible: 10, include_in_final: true, gradebook_weight: 1, gradebook_category_id: 'term', is_draft: false },
+        },
+      ], error: null })
+      .mockResolvedValueOnce({ rows: [
+        {
+          test_id: 'test-override', returned_at: '2026-09-21T12:00:00Z',
+          tests: { id: 'test-override', title: 'Overridden test', status: 'closed', include_in_final: true, gradebook_weight: 1, gradebook_category_id: 'term' },
+        },
+        {
+          test_id: 'test-incomplete', returned_at: '2026-09-21T12:00:00Z',
+          tests: { id: 'test-incomplete', title: 'Incomplete test', status: 'closed', include_in_final: true, gradebook_weight: 1, gradebook_category_id: 'term' },
+        },
+      ], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+    mocks.loadChunkedRows
+      .mockResolvedValueOnce({ rows: [
+        { id: 'q1', test_id: 'test-override', points: 10 },
+        { id: 'q2', test_id: 'test-incomplete', points: 10 },
+      ], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+
+    const result = await getStudentGrades(studentId, classroomId)
+
+    expect(result.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'assignment-override', earned: 0, possible: 10, percent: 0 }),
+      expect.objectContaining({ id: 'test-override', earned: 7, possible: 10, percent: 70 }),
+    ]))
+    expect(result.items.map((item) => item.id)).not.toContain('assignment-incomplete')
+    expect(result.items.map((item) => item.id)).not.toContain('test-incomplete')
+    expect(result.currentPercent).toBe(35)
+  })
 })
