@@ -981,6 +981,46 @@ describe('StudentTodayTab history section', () => {
     expect(screen.getByText(/could not be kept on this device/)).toBeInTheDocument()
   })
 
+  it('keeps a newer rollover edit after the first save completes and the tab reloads', async () => {
+    getTodayInTorontoMock.mockReturnValue('2025-05-06')
+    const firstSave = deferred<any>()
+    const patchBodies: any[] = []
+    let savedEntries: Entry[] = []
+    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/student/entries?')) return mockJson({ entries: savedEntries })
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      if (url === '/api/student/entries' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        patchBodies.push(body)
+        return patchBodies.length === 1
+          ? firstSave.promise
+          : mockJson({ entry: { ...savedEntries[0], text: 'AB', rich_content: body.rich_content, version: 2 } })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const view = render(<StudentTodayTab classroom={classroom} />)
+    const editor = await screen.findByLabelText('Daily Log')
+    getTodayInTorontoMock.mockReturnValue('2025-05-11')
+    fireEvent.change(editor, { target: { value: 'A' } })
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+    fireEvent.change(editor, { target: { value: 'AB' } })
+    expect(window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-05-11')).toContain('AB')
+
+    savedEntries = [{ ...entries[0], id: 'new-day-entry', date: '2025-05-11', text: 'A', rich_content: patchBodies[0].rich_content }]
+    firstSave.resolve(await mockJson({ entry: savedEntries[0] }))
+    await waitFor(() => expect(screen.getByText('Unsaved')).toBeInTheDocument())
+    view.rerender(<StudentTodayTab classroom={classroom} onLessonPlanLoad={() => undefined} />)
+
+    await waitFor(() => expect(screen.getByLabelText('Daily Log')).toHaveValue('AB'))
+    await waitFor(() => expect(
+      window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-05-11')?.includes('AB') ||
+      patchBodies.slice(1).some(body => JSON.stringify(body).includes('AB')),
+    ).toBe(true))
+  })
+
   it('moves the previous log into history at Toronto midnight and opens a clean new day', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-12-17T04:59:59.900Z'))

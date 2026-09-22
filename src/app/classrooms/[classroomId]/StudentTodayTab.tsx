@@ -572,7 +572,7 @@ export function StudentTodayTab({
         })
       }
       if (savedContentStillCurrent) {
-        if (rolloverDraftRef.current?.date === entryDate && rolloverDraftRef.current.classroomId === classroom.id) {
+        if (rolloverDraftRef.current?.studentId === studentId && rolloverDraftRef.current.classroomId === classroom.id && rolloverDraftRef.current.date === entryDate) {
           rolloverDraftRef.current = null
         }
         safeSessionRemove(draftKey)
@@ -781,6 +781,11 @@ export function StudentTodayTab({
         safeSessionRemove(draftKey)
         removeDailyLogDraft(studentId, classroom.id, todayRef.current)
       }
+      if (rolloverDraftRef.current?.studentId === studentId &&
+        rolloverDraftRef.current.classroomId === classroom.id &&
+        rolloverDraftRef.current.date === todayRef.current) {
+        rolloverDraftRef.current = null
+      }
       pendingContentRef.current = null
       hasLocalEditSinceLoadRef.current = false
       setSaveStatus('saved')
@@ -792,7 +797,7 @@ export function StudentTodayTab({
     setSaveStatus('unsaved')
     pendingContentRef.current = newContent
     if (draftKey) {
-      const draftStored = writeDailyLogDraft({
+      const draft: DailyLogDraft = {
         studentId,
         classroomId: classroom.id,
         date: todayRef.current,
@@ -800,7 +805,13 @@ export function StudentTodayTab({
         entryId: entryIdRef.current,
         version: entryVersionRef.current,
         updatedAt: new Date().toISOString(),
-      })
+      }
+      const draftStored = writeDailyLogDraft(draft)
+      if (rolloverDraftRef.current?.studentId === studentId &&
+        rolloverDraftRef.current.classroomId === classroom.id &&
+        rolloverDraftRef.current.date === todayRef.current) {
+        rolloverDraftRef.current = draftStored ? null : draft
+      }
       setDraftStorageUnavailable(!draftStored)
     }
 
@@ -847,6 +858,11 @@ export function StudentTodayTab({
     throttledSaveTimeoutRef.current = null
     pendingContentRef.current = null
     restoredDraftAutosaveRef.current = null
+    if (rolloverDraftRef.current?.studentId === studentId &&
+      rolloverDraftRef.current.classroomId === classroom.id &&
+      rolloverDraftRef.current.date === todayRef.current) {
+      rolloverDraftRef.current = null
+    }
     const serverContent = resolveEntryContent(conflictEntry)
     setContent(serverContent)
     currentContentRef.current = serverContent
