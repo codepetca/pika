@@ -20,14 +20,14 @@ describe('Pika test open-response profile', () => {
     )
   })
 
-  it('preserves the existing single and batch output budgets', () => {
+  it('budgets single and batch output for reasoning, not answer length', () => {
     expect(PIKA_TEST_SINGLE_GRADE_OUTPUT).toMatchObject({
-      initialMaxOutputTokens: 220,
-      fallbackMaxOutputTokens: 420,
+      initialMaxOutputTokens: 6000,
+      fallbackMaxOutputTokens: 8000,
     })
     expect(PIKA_TEST_BATCH_GRADE_OUTPUT).toMatchObject({
-      initialMaxOutputTokens: 600,
-      fallbackMaxOutputTokens: 900,
+      initialMaxOutputTokens: 6000,
+      fallbackMaxOutputTokens: 8000,
     })
   })
 

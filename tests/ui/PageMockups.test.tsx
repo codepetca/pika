@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { DailyMockup } from '@/app/__ui/DailyMockup'
 import { PageMockups } from '@/app/__ui/PageMockups'
+import { STUDENT_PAGE_ITEMS } from '@/app/__ui/StudentPageMockups'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
 
@@ -15,7 +16,45 @@ function renderMockups() {
   return render(<ThemeProvider><TooltipProvider><PageMockups /></TooltipProvider></ThemeProvider>)
 }
 
+function renderStudentMockups() {
+  return render(<ThemeProvider><TooltipProvider><PageMockups role="student" /></TooltipProvider></ThemeProvider>)
+}
+
 describe('PageMockups', () => {
+  it('places the default-off student visibility control in teacher Gradebook', async () => {
+    const user = userEvent.setup()
+    renderMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
+    const gradebook = within(mockups.getByRole('tabpanel', { name: 'Gradebook' }))
+    const visibility = gradebook.getByRole('switch', { name: 'Show grades to students' })
+    const visibilityControl = gradebook.getByTestId('teacher-gradebook-visibility-control')
+
+    expect(visibility).toHaveAttribute('aria-checked', 'false')
+    expect(visibilityControl).toHaveTextContent('Grades is hidden from student classroom navigation.')
+    await user.click(visibility)
+    expect(visibility).toHaveAttribute('aria-checked', 'true')
+    expect(visibilityControl).toHaveTextContent('Grades is visible in student classroom navigation.')
+  })
+
+  it('shows the enabled student Grades view as a Classroom page tab', async () => {
+    const user = userEvent.setup()
+    renderStudentMockups()
+    const mockups = within(screen.getByTestId('page-mockups'))
+    expect(STUDENT_PAGE_ITEMS.map((item) => item.label)).toContain('Grades')
+
+    await user.click(mockups.getByRole('tab', { name: 'Grades' }))
+    const grades = within(mockups.getByRole('tabpanel', { name: 'Grades' }))
+    expect(grades.getByTestId('student-grades-mockup')).toBeVisible()
+    expect(grades.getByText('Current grade')).toBeVisible()
+    expect(grades.getByText('84%')).toBeVisible()
+    expect(grades.getByRole('list', { name: 'Returned grades' })).toBeVisible()
+    expect(grades.getByText('Not counted')).toBeVisible()
+
+    await user.click(grades.getByRole('link', { name: /Functions and Graphs/ }))
+    expect(mockups.getByRole('status')).toHaveTextContent('Open returned feedback for Functions and Graphs selected. Example only')
+  })
+
   it('opens the standalone item editor with deterministic defaults and restores focus on Escape', async () => {
     const user = userEvent.setup()
     renderMockups()

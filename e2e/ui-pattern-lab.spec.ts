@@ -202,6 +202,24 @@ for (const role of ['teacher', 'student'] as const) {
     const target = (await visibility.boundingBox())!
     expect(target.width).toBeGreaterThanOrEqual(44)
     expect(target.height).toBeGreaterThanOrEqual(44)
+    await expect(visibility).toHaveAttribute('aria-checked', 'false')
+    await expect(example.getByTestId('student-grades-visible-preview')).toHaveCount(0)
+    await expect(example.getByText('Grades is hidden from student navigation.')).toBeVisible()
+    await expect(example.getByText('Returned feedback remains available in Classwork and Tests.')).toBeVisible()
+    const standalone = example.getByTestId('standalone-returned-marks-preview')
+    await expect(standalone.getByText('Not counted')).toBeVisible()
+    await expect(standalone.getByRole('link')).toHaveCount(0)
+    await testInfo.attach('student-grades-hidden', {
+      body: await example.screenshot({
+        path: testInfo.outputPath('student-grades-hidden.png'),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+
+    await visibility.focus()
+    await expect(visibility).toBeFocused()
+    await page.keyboard.press('Space')
     await expect(visibility).toHaveAttribute('aria-checked', 'true')
     await expect(
       example.getByTestId('student-grades-visible-preview').getByText('Current grade', { exact: true })
@@ -210,9 +228,6 @@ for (const role of ['teacher', 'student'] as const) {
     await expect(
       example.getByTestId('student-grades-visible-preview').getByText('Not counted')
     ).toBeVisible()
-    const standalone = example.getByTestId('standalone-returned-marks-preview')
-    await expect(standalone.getByText('Not counted')).toBeVisible()
-    await expect(standalone.getByRole('link')).toHaveCount(0)
     const feedbackLinks = example.getByRole('link')
     await expect(feedbackLinks).toHaveCount(3)
     await testInfo.attach('student-grades-visible', {
@@ -233,19 +248,6 @@ for (const role of ['teacher', 'student'] as const) {
       contentType: 'image/png',
     })
 
-    await visibility.focus()
-    await expect(visibility).toBeFocused()
-    await page.keyboard.press('Space')
-    await expect(visibility).toHaveAttribute('aria-checked', 'false')
-    await expect(example.getByText('Grades is hidden from student navigation.')).toBeVisible()
-    await expect(example.getByText('Returned feedback remains available in Classwork and Tests.')).toBeVisible()
-    await testInfo.attach('student-grades-hidden', {
-      body: await example.screenshot({
-        path: testInfo.outputPath('student-grades-hidden.png'),
-        animations: 'disabled',
-      }),
-      contentType: 'image/png',
-    })
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
   })
 

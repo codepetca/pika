@@ -41,6 +41,7 @@ vi.mock('@/lib/server/repo-review', () => ({
 }))
 
 import { POST } from '@/app/api/teacher/assignments/[id]/auto-grade/route'
+import { throwAssignmentAiUsageError } from '@/lib/server/assignment-ai-grading-usage'
 
 const mockSupabaseClient = { from: vi.fn() }
 
@@ -83,6 +84,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
+    delete process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED
     assertTeacherCanMutateAssignment.mockResolvedValue({
       id: 'a0000000-0000-4000-8000-000000000001',
       classroom_id: 'classroom-1',
@@ -124,6 +126,34 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
         created_at: '2026-04-20T12:00:00.000Z',
       },
     })
+  })
+
+  it.each([false, true])('uses durable admission for a metered single student (Gradex %s)', async (gradex) => {
+    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
+    if (gradex) process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
+    mockAutoGradeTables({ enrolledIds: ['b0000000-0000-4000-8000-000000000001'] })
+    const response = await POST(new NextRequest('http://localhost/auto-grade', {
+      method: 'POST', body: JSON.stringify({ student_ids: ['b0000000-0000-4000-8000-000000000001'] }),
+    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
+    expect(response.status).toBe(202)
+    expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledOnce()
+    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
+    expect(markAssignmentDocMissingGrade).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['PGRST202', 'missing RPC private detail', 503, 'AI grading is temporarily unavailable'],
+    ['23514', 'feature_usage_quota_exhausted', 429, 'AI grading limit reached'],
+  ])('returns a content-free metering error for %s', async (code, message, status, expected) => {
+    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
+    mockAutoGradeTables({ enrolledIds: ['b0000000-0000-4000-8000-000000000001'] })
+    createOrResumeAssignmentAiGradingRun.mockImplementationOnce(() => throwAssignmentAiUsageError({ code: String(code), message: String(message) }))
+    const response = await POST(new NextRequest('http://localhost/auto-grade', {
+      method: 'POST', body: JSON.stringify({ student_ids: ['b0000000-0000-4000-8000-000000000001'] }),
+    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
+    expect(response.status).toBe(status)
+    expect(await response.json()).toEqual({ error: expected })
+    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
   })
 
   it('grades a single legacy stringified assignment doc synchronously', async () => {

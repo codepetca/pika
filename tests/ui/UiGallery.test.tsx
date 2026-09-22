@@ -60,9 +60,9 @@ describe('UiGallery accessibility contracts', () => {
     const example = within(screen.getByTestId('student-grades-pattern'))
     expect(example.getByRole('switch', { name: 'Show grades to students' })).toHaveAttribute(
       'aria-checked',
-      'true',
+      'false',
     )
-    expect(example.getByTestId('student-grades-visible-preview')).toBeVisible()
+    expect(example.getByTestId('student-grades-hidden-preview')).toBeVisible()
   })
 
   // Exercise StudentTestListItem through its real gallery composition, including disabled-card tab order.

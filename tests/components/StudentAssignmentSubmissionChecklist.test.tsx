@@ -182,6 +182,36 @@ describe('StudentAssignmentSubmissionChecklist', () => {
     await waitFor(() => expect(onArtifactsChange).toHaveBeenCalledWith(expect.arrayContaining([nextArtifact])))
   })
 
+  it('does not send GitHub fields when saving a standard link', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ artifact: artifact({ url: 'https://example.com/final' }) }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <StudentAssignmentSubmissionChecklist
+        assignmentId="assignment-1"
+        requirements={[requirement({})]}
+        artifacts={[]}
+        githubIdentity={null}
+        onArtifactsChange={vi.fn()}
+        onError={vi.fn()}
+      />
+    )
+
+    fireEvent.change(screen.getByLabelText('URL'), {
+      target: { value: 'https://example.com/final' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    const request = fetchMock.mock.calls[0]?.[1]
+    expect(JSON.parse(String(request?.body))).toEqual({
+      url: 'https://example.com/final',
+    })
+  })
+
   it('blocks a failed image upload until the student explicitly continues without it', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: false,

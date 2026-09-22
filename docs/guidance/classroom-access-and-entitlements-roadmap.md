@@ -259,6 +259,25 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
   between the read-only resolver and the write.
+- Migration 201 adds that dormant reservation foundation for the shared `grading.ai`
+  entitlement bucket. Assignment AI grading, Test AI grading and repository review have
+  distinct operation kinds for reporting, while reserve/settle/release serialize against one
+  subject/feature bucket and reject idempotency conflicts or concurrent overspend.
+  No route uses the ledger yet, and no price, allowance, billing period or grant is inferred.
+  Joining Classrooms and completing assigned student work remain free and unmetered. See
+  [the metered usage contract](metered-feature-usage-reservations.md).
+- Migration 202 adds the first AI-grading integration prerequisite without activating
+  metering: a versioned Assignment-worker contract. Existing runs remain version 0 for
+  rolling compatibility; future metered runs opt into version 1, where every run/item
+  mutation and grade finalization is bound to the exact current, unexpired lease and legacy
+  service-role paths are rejected.
+- Migration 203 adds the dormant Assignment reservation boundary. A future gated
+  coordinator can atomically admit a version-1 run at one unit per queued student item,
+  settle the unit with grade/provenance finalization, or release it with terminal item/run
+  failure. Skipped missing/empty work costs zero, retries reuse the item reservation, quota
+  admission is all-or-nothing, and quota remains consumed across entitlement metadata
+  revisions. No application route calls these RPCs yet, so current behavior remains
+  version-0 and unmetered.
 - Migration 166 authors the first database-resolved effective-entitlement snapshot and an
   atomic `classrooms.create` active-count guard. Missing snapshots preserve legacy behavior;
   no account is seeded or cut over. Ordinary inserts, Blueprint instantiation, reactivation

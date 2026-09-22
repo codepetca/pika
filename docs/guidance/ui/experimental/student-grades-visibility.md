@@ -2,7 +2,9 @@
 status: experimental
 scope: paired teacher and student grade visibility
 source_files:
+  - src/app/__ui/PageMockups.tsx
   - src/app/__ui/StudentGradesPattern.tsx
+  - src/app/__ui/StudentPageMockups.tsx
   - src/components/settings/SettingsSwitchRow.tsx
   - src/app/classrooms/[classroomId]/TeacherSettingsTab.tsx
   - src/app/classrooms/[classroomId]/TeacherGradebookTab.tsx
@@ -20,8 +22,8 @@ for review, not authorization to expose production grade data.
 
 ## UI change brief
 
-- **Surface:** development-only paired teacher visibility control and student
-  Grades preview.
+- **Surface:** development-only teacher Gradebook visibility control, student
+  Classroom Grades tab, and paired visibility-state comparison.
 - **Reference:** `SettingsSwitchRow`, the teacher Gradebook, and the returned
   score treatments in student Classwork and Tests.
 - **Affected roles:** teacher and student.
@@ -40,9 +42,9 @@ for review, not authorization to expose production grade data.
 
 | Need | Existing candidate | Decision | Reason |
 |---|---|---|---|
-| Teacher visibility control | `SettingsSwitchRow` | extend | Export and render the existing production owner without changing its visible track or semantics. |
+| Teacher visibility control | `SettingsSwitchRow` | extend | Place the existing production owner in the Gradebook page pattern without changing its visible track or semantics. |
 | Student content framing | `Card` and the stable student content rhythm | reuse | The view is a calm reading surface, not a teacher operational table. |
-| Returned assessment rows | Existing Classwork and Test result language | create | Keep the composition feature-owned until production behavior exists and converges. |
+| Returned assessment rows | Existing Classwork and Test result language | create | Keep the composition feature-owned and reuse it in the student Classroom Grades tab until production behavior exists and converges. |
 | Shown/hidden comparison | Pattern Lab fixture state | create | Deterministic review behavior belongs to the development-only gallery. |
 
 No new shared primitive is proposed.
@@ -64,6 +66,11 @@ Human acceptance of the Pattern Lab composition may guide a production change,
 but the production feature still requires a returned-only student API,
 classroom-scoped authorization, persisted visibility state, focused tests, and
 the full teacher/student visual verification matrix.
+
+The Classroom page patterns now show the proposed placement in context. The
+teacher Gradebook switch defaults off. The student page set includes the
+enabled-state Grades tab so reviewers can inspect its complete layout. These
+fixtures remain deterministic and do not change production navigation.
 
 ## Standalone marks integration
 

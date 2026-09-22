@@ -333,7 +333,7 @@ describe('suggestTestOpenResponseGrade', () => {
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
 
     expect(gradingBody.reasoning_effort).toBe('high')
-    expect(gradingBody.max_tokens).toBe(220)
+    expect(gradingBody.max_tokens).toBe(6000)
     expect(gradingBody.response_format).toEqual({ type: 'json_object' })
     expect(gradingBody.messages[0].content).toContain('test_single_grade')
     expect(suggestion.provenance).toMatchObject({
@@ -341,8 +341,8 @@ describe('suggestTestOpenResponseGrade', () => {
       gradingRequestId: expect.any(String),
       provider: 'deepseek',
       model: 'deepseek-flash',
-      policyVersion: 'pika-test-open-response-policy-v2',
-      promptVersion: 'pika-test-open-response-manual-prompt-v1',
+      policyVersion: 'pika-test-open-response-policy-v3',
+      promptVersion: 'pika-test-open-response-manual-prompt-v2',
       gradingProfileVersion: 'pika-test-open-response-v1',
       rubricVersion: 'pika-test-open-response-rubric-v1',
       operation: 'single',
@@ -438,8 +438,8 @@ describe('suggestTestOpenResponseGrade', () => {
 
     expect(suggestions).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_tokens).toBe(600)
-    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_tokens).toBe(900)
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_tokens).toBe(6000)
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_tokens).toBe(8000)
     expect(suggestions[0].provenance).toMatchObject({
       operation: 'batch',
       batchSize: 1,

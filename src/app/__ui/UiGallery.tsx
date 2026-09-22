@@ -574,8 +574,8 @@ export function UiGallery({ role }: Props) {
           eyebrow="Experimental · page compositions"
           title="Classroom page patterns"
           description={role === 'teacher'
-            ? 'Interactive teacher fixtures for Daily, Classrooms, Gradebook, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces.'
-            : 'Interactive student fixtures for Today, Classwork, Tests, Calendar, Announcements, and Resources.'}
+            ? 'Interactive teacher fixtures for Daily, Classrooms, Gradebook visibility, Calendar, Announcements, Roster, Settings, and selected Classwork/Test workspaces.'
+            : 'Interactive student fixtures for Today, Classwork, Tests, Grades, Calendar, Announcements, and Resources.'}
         >
           <PageMockups role={role} />
         </PatternSection>
@@ -601,6 +601,7 @@ export function UiGallery({ role }: Props) {
               <StudentTestExamples />
             </PatternSection>
 
+            {role === 'student' ? <StudentImageUploadGallery /> : null}
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />
           </div>
@@ -677,13 +678,15 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
       { value: 'assignment-creation', label: 'Creation dialogs — Assignment' },
       { value: 'assignment-edit-split', label: 'Assignment edit — Split prototype' },
     ] : [
-      { value: 'page-mockups', label: 'Page mockups — Today, classwork, tests, calendar, announcements, and resources' },
+      { value: 'page-mockups', label: 'Page mockups — Today, classwork, tests, grades, calendar, announcements, and resources' },
       { value: 'mockup-student-today-panel', label: 'Page mockups — Today' },
       { value: 'mockup-student-classwork-panel', label: 'Page mockups — Classwork' },
       { value: 'mockup-student-tests-panel', label: 'Page mockups — Tests' },
+      { value: 'mockup-student-grades-panel', label: 'Page mockups — Grades' },
       { value: 'mockup-student-calendar-panel', label: 'Page mockups — Calendar' },
       { value: 'mockup-student-announcements-panel', label: 'Page mockups — Announcements' },
       { value: 'mockup-student-resources-panel', label: 'Page mockups — Resources' },
+      { value: 'student-image-upload', label: 'Student editor — Image upload' },
     ]),
     { value: 'student-tests', label: 'Student tests — Progress and access' },
     { value: 'history-preview', label: 'History — Document preview' },
@@ -806,6 +809,38 @@ function makePreviewContent(paragraphCount: number): TiptapContent {
 
 const PREVIEW_CONTENT = makePreviewContent(40)
 
+function StudentImageUploadGallery() {
+  const [content, setContent] = useState<TiptapContent>({
+    type: 'doc',
+    content: [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'Add a photo of your work below.' }],
+    }],
+  })
+
+  return (
+    <div
+      id="student-image-upload"
+      data-testid="student-image-upload-gallery"
+      className="scroll-mt-28 rounded-lg border border-border bg-surface p-4"
+    >
+      <h2 className="text-lg font-semibold text-text-default">Student image upload</h2>
+      <p className="mt-1 text-sm text-text-muted">
+        The picker and upload status stay outside the saved response. Choose a non-image file to inspect failure recovery without calling an API.
+      </p>
+      <div className="mt-4 overflow-hidden rounded-lg border border-border">
+        <RichTextEditor
+          content={content}
+          onChange={setContent}
+          enableImageUpload
+          assignmentDocId="pattern-lab-assignment-doc"
+          toolbarPreset="document"
+        />
+      </div>
+    </div>
+  )
+}
+
 function HistoryPreviewGallery({ role }: { role: Role }) {
   const [previewMode, setPreviewMode] = useState<HistoryPreviewMode>('current')
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
@@ -868,6 +903,7 @@ function HistoryPreviewGallery({ role }: { role: Role }) {
               content={previewContent}
               onChange={() => undefined}
               editable={false}
+              enableImageUpload
               className="h-full"
               historyPreviewMode={previewMode}
               historyPreviewChange={preview?.change}
@@ -948,6 +984,14 @@ function makeFocusedPreviewEntries(): AssignmentDocHistoryEntry[] {
       type: 'text',
       text: 'New evidence. The shaded plot retained more moisture than the exposed plot after the afternoon temperature increased.',
     }],
+  })
+  addition.content!.splice(2, 0, {
+    type: 'imageUpload',
+    attrs: {
+      accept: 'image/*',
+      limit: 1,
+      maxSize: 10_000_000,
+    },
   })
 
   const deletion = clonePreviewContent(addition)

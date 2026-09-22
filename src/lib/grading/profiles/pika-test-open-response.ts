@@ -9,11 +9,20 @@ import {
 
 export const PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION = 'pika-test-open-response-v1'
 export const PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION = 'pika-test-open-response-rubric-v1'
-export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v2'
+export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v3'
 export const PIKA_TEST_OPEN_RESPONSE_MANUAL_PROMPT_VERSION =
-  'pika-test-open-response-manual-prompt-v1'
+  'pika-test-open-response-manual-prompt-v2'
 export const PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION =
-  'pika-test-open-response-bulk-prompt-v1'
+  'pika-test-open-response-bulk-prompt-v2'
+
+// Calibrated against 8 adjudicated responses from two archived classrooms. The grader
+// forgave one or two transcription slips but began deducting as they accumulated, costing
+// a submission that matched the sample solution 3 of 10 marks for a stray period and a
+// missing parenthesis. These are handwriting artifacts: students write this code on paper
+// without a compiler. Stated for both profiles because the defect was inconsistency
+// between them, not absence from either.
+const TRANSCRIPTION_TOLERANCE_GUIDANCE = `- Transcription errors never reduce the score. A missing semicolon or parenthesis, a comma typed as a period, an unclosed quote, or a misspelled identifier is a handwriting artifact, not an error in the work. Deduct only for mistakes that change the program's logic, structure, or output.
+- Apply this no matter how many transcription errors appear. Five slips in otherwise correct code is still correct code; never let them accumulate into a deduction.`
 export const PIKA_TEST_REFERENCE_PROFILE_VERSION = 'pika-test-reference-v1'
 export const PIKA_TEST_REFERENCE_PROMPT_VERSION = 'pika-test-reference-prompt-v1'
 
@@ -83,25 +92,32 @@ const batchGradeJsonSchema = {
   additionalProperties: false,
 } as const
 
+// DeepSeek counts reasoning against max_tokens, so these budgets are sized by
+// thinking cost rather than answer length. Measured over 12 real responses at
+// medium effort, a single grade spent 71 to 4509 output tokens; the old 220/420
+// pair truncated roughly half of them and failed outright on the rest.
+const TEST_INITIAL_MAX_OUTPUT_TOKENS = 6000
+const TEST_FALLBACK_MAX_OUTPUT_TOKENS = 8000
+
 export const PIKA_TEST_REFERENCE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_reference_answers',
   jsonSchema: referenceJsonSchema,
-  initialMaxOutputTokens: 220,
-  fallbackMaxOutputTokens: 420,
+  initialMaxOutputTokens: TEST_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
 export const PIKA_TEST_SINGLE_GRADE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_single_grade',
   jsonSchema: singleGradeJsonSchema,
-  initialMaxOutputTokens: 220,
-  fallbackMaxOutputTokens: 420,
+  initialMaxOutputTokens: TEST_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
 export const PIKA_TEST_BATCH_GRADE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_batch_grade',
   jsonSchema: batchGradeJsonSchema,
-  initialMaxOutputTokens: 600,
-  fallbackMaxOutputTokens: 900,
+  initialMaxOutputTokens: TEST_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
 export function getPikaTestPromptVersion(profile: 'manual' | 'bulk'): string {
@@ -304,6 +320,7 @@ function buildCodingRubric(
     return `
 - This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
 - Award strong partial credit when the core approach is correct, even if the implementation is rough.
+${TRANSCRIPTION_TOLERANCE_GUIDANCE}
 - Treat CodeHS Java helpers (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid.
 - Accept alternate valid solutions unless the prompt explicitly requires a specific structure.
 ${readabilityGuidance}`
@@ -312,6 +329,7 @@ ${readabilityGuidance}`
   return `
 - This is a coding response. Prioritize algorithmic correctness and logical reasoning over minor syntax/runtime mistakes.
 - If the approach is logically sound and clearly communicated but has minor implementation issues, award high partial credit (typically 80-95% of max points).
+${TRANSCRIPTION_TOLERANCE_GUIDANCE}
 - Formatting/readability can affect the score only through the capped readability deduction below.
 - For Java/CodeHS classroom contexts, treat platform helper APIs (for example: ConsoleProgram, readInt/readLine, println, Randomizer) as valid and do not penalize solely for using them.
 - If language is unspecified, infer likely language from prompt/context/response. If still ambiguous, evaluate logic language-agnostically and do not penalize language choice alone.

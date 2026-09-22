@@ -405,6 +405,7 @@ export interface AssignmentAiGradingRun {
   triggered_by: string
   model: string | null
   gradex_run_id?: string | null
+  gradex_idempotency_key?: string | null
   gradex_status?: string | null
   gradex_submitted_at?: string | null
   gradex_last_polled_at?: string | null
@@ -418,6 +419,7 @@ export interface AssignmentAiGradingRun {
   skipped_empty_count: number
   failed_count: number
   error_samples_json: AssignmentAiGradingRunErrorSample[]
+  worker_contract_version: number
   lease_token: string | null
   lease_expires_at: string | null
   started_at: string | null
@@ -433,6 +435,8 @@ export interface AssignmentAiGradingRunItem {
   student_id: string
   assignment_doc_id: string | null
   assignment_doc_updated_at: string | null
+  assignment_source_fingerprint: string | null
+  gradex_submission_id: string | null
   queue_position: number
   status: AssignmentAiGradingItemStatus
   skip_reason: AssignmentAiGradingSkipReason | null

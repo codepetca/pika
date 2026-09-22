@@ -165,9 +165,11 @@ export type Database = {
           assignment_doc_id: string | null
           assignment_doc_updated_at: string | null
           assignment_id: string
+          assignment_source_fingerprint: string | null
           attempt_count: number
           completed_at: string | null
           created_at: string
+          gradex_submission_id: string | null
           id: string
           last_error_code: string | null
           last_error_message: string | null
@@ -184,9 +186,11 @@ export type Database = {
           assignment_doc_id?: string | null
           assignment_doc_updated_at?: string | null
           assignment_id: string
+          assignment_source_fingerprint?: string | null
           attempt_count?: number
           completed_at?: string | null
           created_at?: string
+          gradex_submission_id?: string | null
           id?: string
           last_error_code?: string | null
           last_error_message?: string | null
@@ -203,9 +207,11 @@ export type Database = {
           assignment_doc_id?: string | null
           assignment_doc_updated_at?: string | null
           assignment_id?: string
+          assignment_source_fingerprint?: string | null
           attempt_count?: number
           completed_at?: string | null
           created_at?: string
+          gradex_submission_id?: string | null
           id?: string
           last_error_code?: string | null
           last_error_message?: string | null
@@ -258,6 +264,7 @@ export type Database = {
           error_samples_json: Json
           failed_count: number
           gradable_count: number
+          gradex_idempotency_key: string | null
           gradex_last_polled_at: string | null
           gradex_run_id: string | null
           gradex_status: string | null
@@ -276,6 +283,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }
         Insert: {
           assignment_id: string
@@ -285,6 +293,7 @@ export type Database = {
           error_samples_json?: Json
           failed_count?: number
           gradable_count?: number
+          gradex_idempotency_key?: string | null
           gradex_last_polled_at?: string | null
           gradex_run_id?: string | null
           gradex_status?: string | null
@@ -303,6 +312,7 @@ export type Database = {
           status?: string
           triggered_by: string
           updated_at?: string
+          worker_contract_version?: number
         }
         Update: {
           assignment_id?: string
@@ -312,6 +322,7 @@ export type Database = {
           error_samples_json?: Json
           failed_count?: number
           gradable_count?: number
+          gradex_idempotency_key?: string | null
           gradex_last_polled_at?: string | null
           gradex_run_id?: string | null
           gradex_status?: string | null
@@ -330,6 +341,7 @@ export type Database = {
           status?: string
           triggered_by?: string
           updated_at?: string
+          worker_contract_version?: number
         }
         Relationships: [
           {
@@ -5391,6 +5403,74 @@ export type Database = {
           },
         ]
       }
+      feature_usage_reservations: {
+        Row: {
+          created_at: string
+          entitlement_revision: number
+          expires_at: string
+          feature_key: string
+          id: string
+          operation_id: string
+          operation_kind: string
+          release_reason: string | null
+          released_at: string | null
+          request_fingerprint: string
+          reserved_at: string
+          settled_at: string | null
+          status: string
+          subject_user_id: string
+          units: number
+          updated_at: string
+          usage_ref: string
+        }
+        Insert: {
+          created_at?: string
+          entitlement_revision: number
+          expires_at: string
+          feature_key: string
+          id?: string
+          operation_id: string
+          operation_kind: string
+          release_reason?: string | null
+          released_at?: string | null
+          request_fingerprint: string
+          reserved_at: string
+          settled_at?: string | null
+          status: string
+          subject_user_id: string
+          units: number
+          updated_at?: string
+          usage_ref: string
+        }
+        Update: {
+          created_at?: string
+          entitlement_revision?: number
+          expires_at?: string
+          feature_key?: string
+          id?: string
+          operation_id?: string
+          operation_kind?: string
+          release_reason?: string | null
+          released_at?: string | null
+          request_fingerprint?: string
+          reserved_at?: string
+          settled_at?: string | null
+          status?: string
+          subject_user_id?: string
+          units?: number
+          updated_at?: string
+          usage_ref?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_usage_reservations_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gradebook_categories: {
         Row: {
           classroom_id: string
@@ -8332,6 +8412,7 @@ export type Database = {
           error_samples_json: Json
           failed_count: number
           gradable_count: number
+          gradex_idempotency_key: string | null
           gradex_last_polled_at: string | null
           gradex_run_id: string | null
           gradex_status: string | null
@@ -8350,6 +8431,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }[]
         SetofOptions: {
           from: "*"
@@ -9302,6 +9384,7 @@ export type Database = {
           error_samples_json: Json
           failed_count: number
           gradable_count: number
+          gradex_idempotency_key: string | null
           gradex_last_polled_at: string | null
           gradex_run_id: string | null
           gradex_status: string | null
@@ -9320,6 +9403,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }
         SetofOptions: {
           from: "*"
@@ -9529,6 +9613,104 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_metered_assignment_ai_grading_run_v1: {
+        Args: {
+          p_assignment_id: string
+          p_gradable_count: number
+          p_item_rows: Json
+          p_model: string
+          p_now?: string
+          p_requested_student_ids: string[]
+          p_selection_hash: string
+          p_skipped_empty_count: number
+          p_skipped_missing_count: number
+          p_teacher_id: string
+        }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_metered_assignment_ai_grading_run_v2: {
+        Args: {
+          p_assignment_id: string
+          p_gradable_count: number
+          p_item_rows: Json
+          p_model: string
+          p_now?: string
+          p_requested_student_ids: string[]
+          p_selection_hash: string
+          p_skipped_empty_count: number
+          p_skipped_missing_count: number
+          p_teacher_id: string
+        }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_survey_for_owner_v1: {
         Args: {
           p_actor_id: string
@@ -9722,6 +9904,87 @@ export type Database = {
         Args: { p_items: Json }
         Returns: Json
       }
+      fail_assignment_ai_grading_item_and_release_usage_with_lease_v1: {
+        Args: {
+          p_attempt_count: number
+          p_error_code: string
+          p_error_message: string
+          p_item_id: string
+          p_lease_token: string
+          p_release_reason: string
+        }
+        Returns: {
+          assignment_doc_id: string | null
+          assignment_doc_updated_at: string | null
+          assignment_id: string
+          assignment_source_fingerprint: string | null
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          gradex_submission_id: string | null
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          next_retry_at: string | null
+          queue_position: number
+          run_id: string
+          skip_reason: string | null
+          started_at: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_run_items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      fail_assignment_ai_grading_run_and_release_usage_with_lease_v1: {
+        Args: {
+          p_error_code: string
+          p_error_message: string
+          p_lease_token: string
+          p_release_reason: string
+          p_run_id: string
+        }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       fail_assignment_artifact_storage_cleanup: {
         Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
         Returns: boolean
@@ -9848,6 +10111,28 @@ export type Database = {
         Args: { p_cleanup_id: string; p_error: string; p_lease_token: string }
         Returns: boolean
       }
+      finalize_assignment_ai_grading_item_and_settle_usage_v1: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
+          p_apply_teacher_feedback_draft: boolean
+          p_attempt_count: number
+          p_feedback: string
+          p_graded_by: string
+          p_item_id: string
+          p_item_status: string
+          p_lease_token: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_skip_reason: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       finalize_assignment_ai_grading_item_atomic: {
         Args: {
           p_ai_feedback_model: string
@@ -9879,6 +10164,28 @@ export type Database = {
           p_graded_by: string
           p_item_id: string
           p_item_status: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_skip_reason: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      finalize_assignment_ai_grading_item_with_provenance_lease_v1: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
+          p_apply_teacher_feedback_draft: boolean
+          p_attempt_count: number
+          p_feedback: string
+          p_graded_by: string
+          p_item_id: string
+          p_item_status: string
+          p_lease_token: string
           p_mark_graded: boolean
           p_now: string
           p_score_completion: number
@@ -9961,6 +10268,10 @@ export type Database = {
           p_status: string
         }
         Returns: boolean
+      }
+      get_assignment_ai_grading_usage_contract_v2: {
+        Args: never
+        Returns: Json
       }
       get_assignment_doc_history_for_actor_v1: {
         Args: {
@@ -10360,7 +10671,84 @@ export type Database = {
         }
         Returns: Json
       }
+      patch_assignment_ai_grading_item_with_lease_v1: {
+        Args: { p_item_id: string; p_lease_token: string; p_patch: Json }
+        Returns: {
+          assignment_doc_id: string | null
+          assignment_doc_updated_at: string | null
+          assignment_id: string
+          assignment_source_fingerprint: string | null
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          gradex_submission_id: string | null
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          next_retry_at: string | null
+          queue_position: number
+          run_id: string
+          skip_reason: string | null
+          started_at: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_run_items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      patch_assignment_ai_grading_run_with_lease_v1: {
+        Args: { p_lease_token: string; p_patch: Json; p_run_id: string }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
+      prepare_assignment_ai_gradex_submission_v1: {
+        Args: {
+          p_idempotency_key: string
+          p_item_refs: Json
+          p_lease_token: string
+          p_run_id: string
+        }
+        Returns: Json
+      }
       prepare_assignment_artifact_for_member_v1: {
         Args: {
           p_actor_id: string
@@ -10411,6 +10799,52 @@ export type Database = {
       reconcile_managed_storage_relational_references: {
         Args: never
         Returns: number
+      }
+      record_assignment_ai_gradex_submission_v1: {
+        Args: {
+          p_gradex_run_id: string
+          p_gradex_status: string
+          p_idempotency_key: string
+          p_last_polled_at: string
+          p_lease_token: string
+          p_run_id: string
+          p_submitted_at: string
+        }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_idempotency_key: string | null
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       record_attendance_decommission_receipt: {
         Args: {
@@ -10547,6 +10981,16 @@ export type Database = {
         Args: { p_lease_token: string; p_teacher_id: string }
         Returns: boolean
       }
+      release_feature_usage_v1: {
+        Args: {
+          p_expected_units: number
+          p_feature_key: string
+          p_operation_id: string
+          p_release_reason: string
+          p_subject_user_id: string
+        }
+        Returns: Json
+      }
       release_removed_student_cleanup_job: {
         Args: {
           p_completed: boolean
@@ -10672,6 +11116,22 @@ export type Database = {
       requeue_pal_event_outbox: {
         Args: { p_outbox_id: string }
         Returns: boolean
+      }
+      reserve_assignment_ai_grading_item_usage_with_lease_v1: {
+        Args: { p_item_id: string; p_lease_token: string }
+        Returns: Json
+      }
+      reserve_feature_usage_v1: {
+        Args: {
+          p_feature_key: string
+          p_operation_id: string
+          p_operation_kind: string
+          p_subject_user_id: string
+          p_ttl_seconds?: number
+          p_units: number
+          p_usage_ref: string
+        }
+        Returns: Json
       }
       reserve_student_provider_cleanup: {
         Args: {
@@ -11176,6 +11636,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      settle_feature_usage_v1: {
+        Args: {
+          p_expected_units: number
+          p_feature_key: string
+          p_operation_id: string
+          p_subject_user_id: string
+        }
+        Returns: Json
+      }
       settle_managed_storage_blueprint_copy_owner: {
         Args: {
           p_created_by_user_id: string
@@ -11185,6 +11654,41 @@ export type Database = {
           p_source_course_blueprint_id: string
         }
         Returns: boolean
+      }
+      skip_assignment_ai_grading_item_and_release_usage_v1: {
+        Args: {
+          p_attempt_count: number
+          p_item_id: string
+          p_lease_token: string
+          p_skip_reason: string
+        }
+        Returns: {
+          assignment_doc_id: string | null
+          assignment_doc_updated_at: string | null
+          assignment_id: string
+          assignment_source_fingerprint: string | null
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          gradex_submission_id: string | null
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          next_retry_at: string | null
+          queue_position: number
+          run_id: string
+          skip_reason: string | null
+          started_at: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_run_items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       stage_attendance_roster_snapshot_v1: {
         Args: {
