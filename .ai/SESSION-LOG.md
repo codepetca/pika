@@ -11,6 +11,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-16 — Student past-log date wrapping
+- Keep the StudentPastLogs date label on one line with whitespace-nowrap; reuse existing date column and Button, following stable classroom date language and Pattern Lab controls. No new pattern or composite behavior; teacher n/a.
+- Playwright rendered the production component with deterministic September 14/11 fixtures at 1440, 390, and 320px in light/dark, collapsed/expanded and missing-entry states. Date text occupied one line in all 12 captures (/tmp/pika-date-*.png); temporary fixture removed.
+
 ## 2026-09-16 — Automatic cleanup production eligibility guard
 
 - Broad production activation was paused before enabling gates: production has 173 active memberships, 61 attendance mappings, and zero immutable provider-generation captures because provider cleanup remains disabled. Migration176 would have queued those legacy removals and quarantined them during reservation.
@@ -263,6 +267,52 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - The paired Student Grades visibility pattern reuses the same teacher control and student card, while retaining the standalone returned-marks comparison. These development-only fixtures do not alter production navigation, persistence, authorization, or grade APIs.
 - Focused verification passes with 15 files and 147 tests plus architecture, UI/design policy, TypeScript and lint. Visual verification covered teacher and student desktop/mobile in light/dark, both teacher switch states, the enabled student Grades view, and zero horizontal page overflow. Risk profile: none.
 
+## 2026-09-22 — Test grading repaired and calibrated against archived work
+
+Goal was to improve AI grading of open-response test questions the way assignment grading
+was improved in `b0557ac3`. Reaching that goal required fixing three defects the DeepSeek
+migration left on the test path; the assignment path had been migrated thoroughly and the
+test path had not.
+
+Shipped: PR1316 raised test output budgets from 220/420 (and 600/900 batch) to 6000/8000.
+DeepSeek counts reasoning against `max_tokens` and effort had been raised to `medium`
+(provider tier `high`), so every open-response test grade truncated twice and threw —
+broken in production, reachable from the teacher AI-suggest route, not only from tooling.
+Values measured, not guessed: 12 real responses spent 71-4509 output tokens. PR1312 fixed
+the gold-set harness, which gated on `OPENAI_API_KEY` and ran bare `tsx` with no
+`--env-file`. PR1319 added transcription-tolerance guidance to both prompt profiles; policy
+to v3, both prompt versions to v2.
+
+PR1319 came from adjudicating real archived work with the teacher, not from inspection.
+Codex exported two archived classrooms (684 teacher-scored responses, all coding,
+de-identified via `sanitizeAiText`; retained as JSONB in
+`classroom_retired_assessment_records`, no timed purge). A new `pnpm calibrate:test-grading`
+samples balanced across classroom and point scale and ranks disagreements for human
+adjudication, explicitly treating recorded marks as a second opinion rather than ground
+truth — the teacher had stated their own marking may contain errors, and that proved
+correct in both directions. Eight cases adjudicated. Finding: the grader reads concepts
+accurately (it caught backwards inheritance and an integer-division bug) but over-penalised
+transcription, costing a submission that matched the sample solution 3 of 10 marks for a
+stray period and a missing parenthesis. The defect was inconsistent application of its own
+leniency rule, not harshness. Post-fix run on the same seed: target cell improved from
+-0.254 to -0.185, agreement 1/13 to 4/13.
+
+Open and unresolved. The rule was validated on the same 80 responses it was derived from,
+so generalisation is untested; a different seed on unseen work is the honest check. Only
+1 of 13 nine-point cases was adjudicated, so that cell's apparent regression is read as a
+yardstick artifact rather than demonstrated. PR1321 (request timeout 25s to 60s) is
+deliberately draft until a full run is observed completing at the shipped value; the
+evidence so far came from a temporary local override, and the timeout only began biting
+because PR1316 let grading think longer. Branch `claude/test-grading-calibrator` holds the
+calibrator, token/effort tracking and provenance stamping, unpushed with no PR; it carries
+a production change (optional `reasoningEffort` override, production default unchanged) and
+wants real review. Assignment and repo-review paths still carry the same 25s timeout,
+untouched for lack of evidence. DeepSeek retention remains account-level only, confirmed
+against `docs/guidance/ai-grading-egress.md` but not settled with the owner.
+
+Process note: this session worked in the hub checkout rather than a feature worktree, and
+opened its first two PRs ready instead of draft, which PR Gate correctly rejected. Both
+violate `.ai/START-HERE.md`. Risk profile: async-grading.
 ## 2026-09-22 — Assignment AI grading lease-fencing prerequisite
 
 - Owner `codex/meter-ai-grading`, based on merged metered-reservation PR1318. Migration202 adds a versioned worker contract plus service-only run/item patch and provenance-finalization boundaries. Existing and rolling-deploy runs remain legacy version0; future metered runs opt into version1, requiring the exact current, unexpired lease across DeepSeek and Gradex work while legacy finalizers/direct service-role updates are rejected.
