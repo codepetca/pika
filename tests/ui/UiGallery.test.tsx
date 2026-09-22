@@ -58,8 +58,8 @@ describe('UiGallery accessibility contracts', () => {
     renderGallery(role)
 
     const example = within(screen.getByTestId('student-grades-pattern'))
-    expect(example.getByRole('button', { name: 'Student grades visibility' })).toHaveAttribute(
-      'aria-pressed',
+    expect(example.getByRole('switch', { name: 'Student grades visibility' })).toHaveAttribute(
+      'aria-checked',
       'false',
     )
     expect(example.getByTestId('student-grades-hidden-preview')).toBeVisible()

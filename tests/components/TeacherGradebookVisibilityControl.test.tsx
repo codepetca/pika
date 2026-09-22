@@ -17,9 +17,9 @@ describe('TeacherGradebookVisibilityControl', () => {
   it('offers to show hidden grades and exposes the unpressed state', async () => {
     const user = userEvent.setup()
     const { onChange } = renderControl(false)
-    const button = screen.getByRole('button', { name: 'Student grades visibility' })
+    const button = screen.getByRole('switch', { name: 'Student grades visibility' })
 
-    expect(button).toHaveAttribute('aria-pressed', 'false')
+    expect(button).toHaveAttribute('aria-checked', 'false')
     await user.hover(button)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
     await user.click(button)
@@ -29,9 +29,9 @@ describe('TeacherGradebookVisibilityControl', () => {
   it('offers to hide visible grades and exposes the pressed state', async () => {
     const user = userEvent.setup()
     const { onChange } = renderControl(true)
-    const button = screen.getByRole('button', { name: 'Student grades visibility' })
+    const button = screen.getByRole('switch', { name: 'Student grades visibility' })
 
-    expect(button).toHaveAttribute('aria-pressed', 'true')
+    expect(button).toHaveAttribute('aria-checked', 'true')
     await user.hover(button)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Hide grades from students')
     await user.click(button)

@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
+import { SettingsSwitch, SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
+import { TooltipProvider } from '@/ui'
 
 describe('SettingsSwitchRow', () => {
   it('exposes its checked state and toggles from the keyboard', async () => {
@@ -31,5 +32,22 @@ describe('SettingsSwitchRow', () => {
     )
 
     expect(screen.getByRole('switch', { name: 'Disabled setting' })).toBeDisabled()
+  })
+
+  it('can explain a compact switch with a tooltip', async () => {
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <SettingsSwitch
+          checked={false}
+          onChange={vi.fn()}
+          ariaLabel="Student grades visibility"
+          tooltip="Show grades to students"
+        />
+      </TooltipProvider>,
+    )
+
+    await user.hover(screen.getByRole('switch', { name: 'Student grades visibility' }))
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
   })
 })

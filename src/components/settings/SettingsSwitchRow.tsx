@@ -1,20 +1,22 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { cn } from '@/ui'
+import { Tooltip, cn } from '@/ui'
 
 export function SettingsSwitch({
   checked,
   onChange,
   disabled,
   ariaLabel,
+  tooltip,
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
   disabled?: boolean
   ariaLabel: string
+  tooltip?: ReactNode
 }) {
-  return (
+  const control = (
     <button
       type="button"
       role="switch"
@@ -47,6 +49,8 @@ export function SettingsSwitch({
       </span>
     </button>
   )
+
+  return tooltip ? <Tooltip content={tooltip}>{control}</Tooltip> : control
 }
 
 export function SettingsSwitchRow({

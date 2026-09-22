@@ -14,19 +14,19 @@ describe('Pattern Lab student Grades visibility concept', () => {
     renderPattern()
 
     await user.tab()
-    const visibility = screen.getByRole('button', { name: 'Student grades visibility' })
+    const visibility = screen.getByRole('switch', { name: 'Student grades visibility' })
     expect(visibility).toHaveFocus()
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
     await user.keyboard(' ')
-    expect(visibility).toHaveAttribute('aria-pressed', 'true')
+    expect(visibility).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('Current grade')).toBeVisible()
   })
 
   it('shows only the minimal returned-grade contract when enabled', () => {
     renderPattern()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Student grades visibility' }))
-    expect(screen.getByRole('button', { name: 'Student grades visibility' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('switch', { name: 'Student grades visibility' }))
+    expect(screen.getByRole('switch', { name: 'Student grades visibility' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('Current grade')).toBeInTheDocument()
     expect(screen.getByText('84%')).toBeInTheDocument()
     expect(screen.getByText('Based on returned work')).toBeInTheDocument()
@@ -52,15 +52,15 @@ describe('Pattern Lab student Grades visibility concept', () => {
     const user = userEvent.setup()
     renderPattern()
 
-    const visibility = screen.getByRole('button', { name: 'Student grades visibility' })
-    expect(visibility).toHaveAttribute('aria-pressed', 'false')
+    const visibility = screen.getByRole('switch', { name: 'Student grades visibility' })
+    expect(visibility).toHaveAttribute('aria-checked', 'false')
     expect(screen.queryByText('Current grade')).not.toBeInTheDocument()
     expect(screen.getByText('Grades is hidden from student navigation.')).toBeInTheDocument()
     expect(screen.getByText('Returned feedback remains available in Classwork and Tests.')).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Returned marks' })).toBeInTheDocument()
 
     await user.click(visibility)
-    expect(visibility).toHaveAttribute('aria-pressed', 'true')
+    expect(visibility).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('Current grade')).toBeInTheDocument()
   })
 

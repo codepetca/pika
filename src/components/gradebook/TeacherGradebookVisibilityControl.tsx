@@ -1,7 +1,8 @@
 'use client'
 
 import { Eye, EyeOff } from 'lucide-react'
-import { IconButton } from '@/ui'
+import { SettingsSwitch } from '@/components/settings/SettingsSwitchRow'
+import { cn } from '@/ui'
 
 export function TeacherGradebookVisibilityControl({
   gradesVisible,
@@ -15,19 +16,31 @@ export function TeacherGradebookVisibilityControl({
   saving?: boolean
 }) {
   const tooltip = gradesVisible ? 'Hide grades from students' : 'Show grades to students'
+  const StatusIcon = gradesVisible ? Eye : EyeOff
 
   return (
-    <div data-testid="teacher-gradebook-visibility-control" className="inline-flex">
-      <IconButton
-        icon={gradesVisible ? Eye : EyeOff}
-        label="Student grades visibility"
+    <div
+      data-testid="teacher-gradebook-visibility-control"
+      className="inline-flex items-center gap-1"
+      aria-busy={saving || undefined}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'inline-flex h-11 w-7 items-center justify-center',
+          gradesVisible ? 'text-success' : 'text-danger',
+        )}
+      >
+        <StatusIcon className="h-4 w-4" />
+      </span>
+      <SettingsSwitch
+        checked={gradesVisible}
+        onChange={onChange}
+        ariaLabel="Student grades visibility"
         tooltip={tooltip}
-        variant={gradesVisible ? 'subtle' : 'ghost'}
-        aria-pressed={gradesVisible}
-        disabled={disabled}
-        loading={saving}
-        onClick={() => onChange(!gradesVisible)}
+        disabled={disabled || saving}
       />
+      <span className="sr-only" aria-live="polite">{saving ? 'Saving grade visibility' : ''}</span>
     </div>
   )
 }

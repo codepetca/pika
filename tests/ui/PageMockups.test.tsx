@@ -27,15 +27,15 @@ describe('PageMockups', () => {
     const mockups = within(screen.getByTestId('page-mockups'))
     await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
     const gradebook = within(mockups.getByRole('tabpanel', { name: 'Gradebook' }))
-    const visibility = gradebook.getByRole('button', { name: 'Student grades visibility' })
+    const visibility = gradebook.getByRole('switch', { name: 'Student grades visibility' })
     const visibilityControl = gradebook.getByTestId('teacher-gradebook-visibility-control')
 
-    expect(visibility).toHaveAttribute('aria-pressed', 'false')
+    expect(visibility).toHaveAttribute('aria-checked', 'false')
     expect(visibilityControl.closest('[aria-label="Gradebook mockup controls"]')).not.toBeNull()
     await user.hover(visibility)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
     await user.click(visibility)
-    expect(visibility).toHaveAttribute('aria-pressed', 'true')
+    expect(visibility).toHaveAttribute('aria-checked', 'true')
   })
 
   it('shows the enabled student Grades view as a Classroom page tab', async () => {
