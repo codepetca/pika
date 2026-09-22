@@ -1,6 +1,6 @@
 'use client'
 
-import { Eye, EyeOff } from 'lucide-react'
+import { DoorClosed, DoorOpen } from 'lucide-react'
 import { SettingsSwitch } from '@/components/settings/SettingsSwitchRow'
 import { cn } from '@/ui'
 
@@ -16,7 +16,7 @@ export function TeacherGradebookVisibilityControl({
   saving?: boolean
 }) {
   const tooltip = gradesVisible ? 'Hide grades from students' : 'Show grades to students'
-  const StatusIcon = gradesVisible ? Eye : EyeOff
+  const StatusIcon = gradesVisible ? DoorOpen : DoorClosed
 
   return (
     <div

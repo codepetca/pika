@@ -20,6 +20,7 @@ describe('TeacherGradebookVisibilityControl', () => {
     const button = screen.getByRole('switch', { name: 'Student grades visibility' })
 
     expect(button).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByTestId('teacher-gradebook-visibility-control').querySelector('.lucide-door-closed')).toBeTruthy()
     await user.hover(button)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
     await user.click(button)
@@ -32,6 +33,7 @@ describe('TeacherGradebookVisibilityControl', () => {
     const button = screen.getByRole('switch', { name: 'Student grades visibility' })
 
     expect(button).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('teacher-gradebook-visibility-control').querySelector('.lucide-door-open')).toBeTruthy()
     await user.hover(button)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Hide grades from students')
     await user.click(button)
