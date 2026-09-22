@@ -196,6 +196,7 @@ declare
 begin
   if p_operation_id is null
     or p_subject_user_id is null
+    or p_feature_key is null
     or p_feature_key <> 'grading.ai'
     or p_expected_units is null
     or p_expected_units not between 1 and 100000
@@ -260,9 +261,11 @@ declare
 begin
   if p_operation_id is null
     or p_subject_user_id is null
+    or p_feature_key is null
     or p_feature_key <> 'grading.ai'
     or p_expected_units is null
     or p_expected_units not between 1 and 100000
+    or p_release_reason is null
     or p_release_reason not in ('cancelled', 'expired', 'provider_failed', 'stale', 'superseded')
   then
     raise exception using errcode = '22023', message = 'feature_usage_release_request_invalid';
@@ -471,7 +474,68 @@ as $function$
 declare
   v_run public.assignment_ai_grading_runs%rowtype;
   v_item_id uuid;
+  v_classroom_id uuid;
+  v_owner_id uuid;
+  v_classroom_archived_at timestamptz;
+  v_blueprint_archived_at timestamptz;
+  v_queued_count integer;
+  v_missing_count integer;
+  v_empty_count integer;
+  v_invalid_count integer;
 begin
+  if p_item_rows is null
+    or jsonb_typeof(p_item_rows) <> 'array'
+    or p_gradable_count is null or p_gradable_count < 0
+    or p_skipped_missing_count is null or p_skipped_missing_count < 0
+    or p_skipped_empty_count is null or p_skipped_empty_count < 0
+  then
+    raise exception using errcode = '22023', message = 'metered_assignment_item_counts_invalid';
+  end if;
+
+  select
+    count(*) filter (where item.status = 'queued' and item.skip_reason is null),
+    count(*) filter (where item.status = 'skipped' and item.skip_reason = 'missing_doc'),
+    count(*) filter (where item.status = 'skipped' and item.skip_reason = 'empty_doc'),
+    count(*) filter (where not coalesce((
+      (item.status = 'queued' and item.skip_reason is null)
+      or (item.status = 'skipped' and item.skip_reason in ('missing_doc', 'empty_doc'))
+    ), false))
+  into v_queued_count, v_missing_count, v_empty_count, v_invalid_count
+  from jsonb_to_recordset(p_item_rows) as item(status text, skip_reason text);
+
+  if v_queued_count <> p_gradable_count
+    or v_missing_count <> p_skipped_missing_count
+    or v_empty_count <> p_skipped_empty_count
+    or v_invalid_count <> 0
+  then
+    raise exception using errcode = '22023', message = 'metered_assignment_item_counts_invalid';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_assignment_id::text, 0));
+  select assignment.classroom_id into v_classroom_id
+  from public.assignments assignment where assignment.id = p_assignment_id;
+  if not found then
+    raise exception using errcode = '42501', message = 'Assignment mutation is not allowed';
+  end if;
+  perform pg_advisory_xact_lock(
+    hashtextextended('pika-classroom-operation:' || v_classroom_id::text, 0)
+  );
+
+  select classroom.teacher_id, classroom.archived_at, assignment.blueprint_archived_at
+  into v_owner_id, v_classroom_archived_at, v_blueprint_archived_at
+  from public.assignments assignment
+  join public.classrooms classroom on classroom.id = assignment.classroom_id
+  where assignment.id = p_assignment_id
+    and assignment.classroom_id = v_classroom_id
+  for update of assignment, classroom;
+  if not found
+    or v_owner_id is distinct from p_teacher_id
+    or v_classroom_archived_at is not null
+    or v_blueprint_archived_at is not null
+  then
+    raise exception using errcode = '42501', message = 'Assignment mutation is not allowed';
+  end if;
+
   v_run := public.create_assignment_ai_grading_run_atomic(
     p_assignment_id,
     p_teacher_id,
@@ -579,6 +643,10 @@ declare
   v_result jsonb;
   v_reservation public.feature_usage_reservations%rowtype;
 begin
+  if p_item_status is distinct from 'completed' or p_skip_reason is not null then
+    raise exception using errcode = '22023', message = 'metered_assignment_settlement_state_invalid';
+  end if;
+
   select * into v_locked
   from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, false);
   if v_locked.triggered_by is distinct from p_teacher_id then
@@ -618,6 +686,87 @@ begin
   );
 
   perform public.settle_feature_usage_v1(p_item_id, v_locked.triggered_by, 'grading.ai', 1);
+  return v_result;
+end;
+$function$;
+
+create function public.finalize_skipped_assignment_ai_grading_item_and_release_v1(
+  p_item_id uuid,
+  p_lease_token uuid,
+  p_teacher_id uuid,
+  p_score_completion integer,
+  p_score_thinking integer,
+  p_score_workflow integer,
+  p_feedback text,
+  p_apply_teacher_feedback_draft boolean,
+  p_mark_graded boolean,
+  p_ai_feedback_suggestion text,
+  p_ai_feedback_model text,
+  p_ai_grading_provenance jsonb,
+  p_graded_by text,
+  p_attempt_count integer,
+  p_skip_reason text,
+  p_now timestamptz
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_locked record;
+  v_result jsonb;
+  v_reservation public.feature_usage_reservations%rowtype;
+begin
+  if p_skip_reason is null or p_skip_reason not in ('missing_doc', 'empty_doc') then
+    raise exception using errcode = '22023', message = 'metered_assignment_skip_state_invalid';
+  end if;
+
+  select * into v_locked
+  from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, false);
+  if v_locked.triggered_by is distinct from p_teacher_id then
+    raise exception using errcode = '42501', message = 'metered_assignment_teacher_mismatch';
+  end if;
+
+  select reservation.* into v_reservation
+  from public.feature_usage_reservations reservation
+  where reservation.operation_id = p_item_id;
+  if not found
+    or v_reservation.operation_kind <> 'assignment_ai_grading'
+    or v_reservation.usage_ref <> v_locked.usage_ref
+    or v_reservation.subject_user_id <> v_locked.triggered_by
+    or v_reservation.units <> 1
+  then
+    raise exception using errcode = '42501', message = 'feature_usage_reservation_binding_mismatch';
+  end if;
+
+  v_result := public.finalize_assignment_ai_grading_item_with_provenance_lease_v1(
+    p_item_id,
+    p_lease_token,
+    p_teacher_id,
+    p_score_completion,
+    p_score_thinking,
+    p_score_workflow,
+    p_feedback,
+    p_apply_teacher_feedback_draft,
+    p_mark_graded,
+    p_ai_feedback_suggestion,
+    p_ai_feedback_model,
+    p_ai_grading_provenance,
+    p_graded_by,
+    p_attempt_count,
+    'skipped',
+    p_skip_reason,
+    p_now
+  );
+
+  perform public.release_feature_usage_v1(
+    p_item_id,
+    v_locked.triggered_by,
+    'grading.ai',
+    1,
+    'stale'
+  );
   return v_result;
 end;
 $function$;
@@ -817,6 +966,10 @@ revoke all on function public.finalize_assignment_ai_grading_item_and_settle_usa
   uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
   jsonb, text, integer, text, text, timestamptz
 ) from public, anon, authenticated, service_role;
+revoke all on function public.finalize_skipped_assignment_ai_grading_item_and_release_v1(
+  uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
+  jsonb, text, integer, text, timestamptz
+) from public, anon, authenticated, service_role;
 revoke all on function public.fail_assignment_ai_grading_item_and_release_usage_with_lease_v1(
   uuid, uuid, integer, text, text, text
 ) from public, anon, authenticated, service_role;
@@ -832,6 +985,10 @@ grant execute on function public.reserve_assignment_ai_grading_item_usage_with_l
 grant execute on function public.finalize_assignment_ai_grading_item_and_settle_usage_v1(
   uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
   jsonb, text, integer, text, text, timestamptz
+) to service_role;
+grant execute on function public.finalize_skipped_assignment_ai_grading_item_and_release_v1(
+  uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
+  jsonb, text, integer, text, timestamptz
 ) to service_role;
 grant execute on function public.fail_assignment_ai_grading_item_and_release_usage_with_lease_v1(
   uuid, uuid, integer, text, text, text
@@ -849,5 +1006,9 @@ comment on function public.finalize_assignment_ai_grading_item_and_settle_usage_
   uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
   jsonb, text, integer, text, text, timestamptz
 ) is 'Atomically saves one Assignment AI grade and settles its exact one-unit reservation.';
+comment on function public.finalize_skipped_assignment_ai_grading_item_and_release_v1(
+  uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
+  jsonb, text, integer, text, timestamptz
+) is 'Atomically saves one newly missing or empty Assignment result and releases its reserved unit.';
 
 commit;

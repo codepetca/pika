@@ -10148,6 +10148,27 @@ export type Database = {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
+      finalize_skipped_assignment_ai_grading_item_and_release_v1: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
+          p_apply_teacher_feedback_draft: boolean
+          p_attempt_count: number
+          p_feedback: string
+          p_graded_by: string
+          p_item_id: string
+          p_lease_token: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_skip_reason: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       finalize_student_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json

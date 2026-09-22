@@ -15,6 +15,8 @@ describe('metered Assignment AI grading migration', () => {
     expect(migration).toContain("'assignment_ai_grading'")
     expect(migration).toContain("'grading.ai'")
     expect(migration).toContain('p_units => 1')
+    expect(migration).toContain('metered_assignment_item_counts_invalid')
+    expect(migration).toContain('assignment.blueprint_archived_at')
   })
 
   it('binds provider admission, settlement, and terminal release to the current lease', () => {
@@ -26,12 +28,16 @@ describe('metered Assignment AI grading migration', () => {
       'fail_assignment_ai_grading_item_and_release_usage_with_lease_v1',
     )
     expect(migration).toContain(
+      'finalize_skipped_assignment_ai_grading_item_and_release_v1',
+    )
+    expect(migration).toContain(
       'fail_assignment_ai_grading_run_and_release_usage_with_lease_v1',
     )
     expect(migration).toContain('run.lease_token is distinct from p_lease_token')
     expect(migration).toContain('run.lease_expires_at <= clock_timestamp()')
     expect(migration).toContain('settle_feature_usage_v1')
     expect(migration).toContain('release_feature_usage_v1')
+    expect(migration).toContain('metered_assignment_settlement_state_invalid')
   })
 
   it('hardens accounting time and prevents entitlement revisions from resetting usage', () => {

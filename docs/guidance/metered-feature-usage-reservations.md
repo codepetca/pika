@@ -71,10 +71,12 @@ rejected for those runs. This does not call the usage ledger or activate meterin
 Migration 203 adds the dormant Assignment-specific accounting boundary. Its
 run-admission RPC atomically creates a version-1 run and reserves exactly one
 unit for every queued, gradable student item; missing or empty skipped items
-reserve zero. Admission is all-or-nothing when quota is unavailable. An item
-retry reuses its original reservation, successful grade/provenance finalization
-settles in the same transaction, and terminal item or run failure releases in
-the same transaction. Every item operation revalidates the current lease,
+reserve zero. If queued work becomes missing or empty before provider dispatch,
+its skipped result and reservation release commit together. Admission is
+all-or-nothing when quota is unavailable. An item retry reuses its original
+reservation, successful grade/provenance finalization settles in the same
+transaction, and terminal item or run failure releases in the same transaction.
+Every item operation revalidates the current lease,
 Classroom owner, active Assignment/Classroom, enrollment and exact document
 revision before provider dispatch or mutation.
 
