@@ -127,6 +127,30 @@ describe('DeepSeek structured-output request shape', () => {
       .toBe(request.fallbackMaxOutputTokens)
   })
 
+  it('drops reasoning effort for a final attempt when the fallback budget still truncates', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{ message: { content: '{"partial"' }, finish_reason: 'length' }],
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{ message: { content: '{"still partial"' }, finish_reason: 'length' }],
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }],
+      }))
+
+    const result = await createDeepSeekChatProvider({ apiKey: 'synthetic-key', fetchImpl })
+      .generate({ ...request, reasoningEffort: 'medium' })
+
+    expect(result.requestCount).toBe(3)
+    expect(result.outputText).toBe('{"ok":true}')
+    // medium maps to the provider's 'high' tier; the final attempt drops to 'low'.
+    expect(JSON.parse(String(fetchImpl.mock.calls[1][1].body)).reasoning_effort).toBe('high')
+    expect(JSON.parse(String(fetchImpl.mock.calls[2][1].body)).reasoning_effort).toBe('low')
+    expect(JSON.parse(String(fetchImpl.mock.calls[2][1].body)).max_tokens)
+      .toBe(request.fallbackMaxOutputTokens)
+  })
+
   it('fails without retrying further when the fallback reply is still truncated', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({
       choices: [{ message: { content: '{"partial"' }, finish_reason: 'length' }],
