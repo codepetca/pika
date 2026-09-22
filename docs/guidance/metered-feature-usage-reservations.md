@@ -76,9 +76,11 @@ its skipped result and reservation release commit together. Admission is
 all-or-nothing when quota is unavailable. An item retry reuses its original
 reservation, successful grade/provenance finalization settles in the same
 transaction, and terminal item or run failure releases in the same transaction.
-Every item operation revalidates the current lease,
+Provider dispatch and grade/provenance finalization revalidate the current lease,
 Classroom owner, active Assignment/Classroom, enrollment and exact document
-revision before provider dispatch or mutation.
+revision. The stale-source terminal path intentionally locks the same current
+lease/resource/enrollment binding without requiring the obsolete document
+revision, then changes only the run item to skipped while releasing its unit.
 
 The Assignment reservation TTL is 24 hours. If it expires, finalization fails
 closed and the operation is terminally released; a caller must create a fresh
