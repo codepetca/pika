@@ -16,11 +16,10 @@ describe('student Grades visibility migration', () => {
   })
 
   it('keeps the archive restore adapter current', () => {
-    expect(migration).toContain('normalize_classroom_archive_restore_row')
-    expect(migration).toContain("p_table_name = 'assignment_docs'")
-    expect(migration).toContain("'questions_locked_at'")
-    expect(migration).toContain("'response_revision'")
-    expect(migration).toContain("'question_grading_snapshot'")
-    expect(migration).toContain("p_table_name = 'test_ai_grading_runs'")
+    expect(migration).toContain('rename to normalize_classroom_archive_restore_row_pre_v201')
+    expect(migration).toContain('p_row := public.normalize_classroom_archive_restore_row_pre_v201(')
+    expect(migration).toContain("'{feature_visibility,student_grades}'")
+    expect(migration).toContain('grant execute on function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)')
+    expect(migration).not.toContain('create or replace function public.normalize_classroom_archive_restore_row')
   })
 })

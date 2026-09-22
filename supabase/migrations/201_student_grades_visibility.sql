@@ -47,9 +47,15 @@ alter table public.classrooms
 comment on column public.classrooms.feature_visibility is
   'Classroom-scoped navigation and student Grades disclosure preferences. Hidden features preserve their content.';
 
--- Cold archives can contain the pre-201 visibility object. Preserve every
--- existing restore adapter and add the default-off disclosure key.
-create or replace function public.normalize_classroom_archive_restore_row(
+-- Cold archives can contain the pre-201 visibility object. Extend the current
+-- adapter chain so every later compatibility layer remains active.
+alter function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)
+  rename to normalize_classroom_archive_restore_row_pre_v201;
+
+revoke all on function public.normalize_classroom_archive_restore_row_pre_v201(uuid, text, jsonb)
+  from public, anon, authenticated;
+
+create function public.normalize_classroom_archive_restore_row(
   p_operation_id uuid,
   p_table_name text,
   p_row jsonb
@@ -59,114 +65,31 @@ language plpgsql
 stable
 set search_path = ''
 as $$
-declare
-  v_response_revision bigint;
-  v_missing_response_revision boolean;
 begin
+  p_row := public.normalize_classroom_archive_restore_row_pre_v201(
+    p_operation_id,
+    p_table_name,
+    p_row
+  );
+
   if p_table_name = 'classrooms' then
-    if not (p_row ? 'feature_visibility') then
-      p_row := p_row || jsonb_build_object(
-        'feature_visibility',
-        '{
-          "attendance": true,
-          "classwork": true,
-          "tests": true,
-          "gradebook": true,
-          "student_grades": false,
-          "calendar": true,
-          "syllabus": true,
-          "announcements": true,
-          "achievements": true
-        }'::jsonb
-      );
-    elsif jsonb_typeof(p_row -> 'feature_visibility' -> 'student_grades') is distinct from 'boolean' then
-      p_row := jsonb_set(p_row, '{feature_visibility,student_grades}', 'false'::jsonb, true);
-    end if;
-    return p_row;
-  end if;
-
-  if p_table_name = 'assignment_docs' then
-    if not (p_row ? 'save_session_id') then
-      p_row := p_row || jsonb_build_object('save_session_id', null);
-    end if;
-    if not (p_row ? 'save_sequence') then
-      p_row := p_row || jsonb_build_object('save_sequence', null);
-    end if;
-    return p_row;
-  end if;
-
-  if p_table_name = 'tests' then
-    if not (p_row ? 'questions_locked_at') then
-      p_row := p_row || jsonb_build_object('questions_locked_at', null);
-    end if;
-    return p_row;
-  end if;
-
-  if p_table_name = 'test_responses' then
-    if not (p_row ? 'revision') or jsonb_typeof(p_row->'revision') = 'null' then
-      p_row := p_row || jsonb_build_object('revision', 1);
-    end if;
-    if not (p_row ? 'ai_suggested_score') then
-      p_row := p_row || jsonb_build_object('ai_suggested_score', null);
-    end if;
-    if not (p_row ? 'ai_suggested_feedback') then
-      p_row := p_row || jsonb_build_object('ai_suggested_feedback', null);
-    end if;
-    return p_row;
-  end if;
-
-  if p_table_name = 'test_ai_grading_run_items' then
-    v_missing_response_revision := not (p_row ? 'response_revision')
-      or jsonb_typeof(p_row->'response_revision') = 'null';
-    if v_missing_response_revision then
-      select coalesce((staged.row_data->>'revision')::bigint, 1)
-      into v_response_revision
-      from public.classroom_archive_restore_staging staged
-      where staged.operation_id = p_operation_id
-        and staged.table_name = 'test_responses'
-        and staged.row_id::text = p_row->>'response_id';
-
-      p_row := p_row || jsonb_build_object(
-        'response_revision', coalesce(v_response_revision, 1)
-      );
-    end if;
-    if p_row->>'status' in ('queued', 'processing') then
-      p_row := p_row || jsonb_build_object(
-        'status', 'failed',
-        'next_retry_at', null,
-        'last_error_code', case
-          when v_missing_response_revision then 'revision_baseline_unavailable'
-          when p_row->>'last_error_code' is null then 'archive_restore_invalidated'
-          else p_row->'last_error_code'
-        end,
-        'last_error_message', 'Retry this response in a new AI grading run',
-        'completed_at', coalesce(p_row->'updated_at', p_row->'created_at')
-      );
-    end if;
-    if not (p_row ? 'question_grading_snapshot') then
-      p_row := p_row || jsonb_build_object('question_grading_snapshot', null);
-    end if;
-    return p_row;
-  end if;
-
-  if p_table_name = 'test_ai_grading_runs'
-    and p_row->>'status' in ('queued', 'running')
-  then
-    p_row := p_row || jsonb_build_object(
-      'status', 'failed',
-      'processed_count', coalesce((p_row->>'queued_response_count')::integer, 0),
-      'failed_count', greatest(
-        coalesce((p_row->>'failed_count')::integer, 0),
-        coalesce((p_row->>'queued_response_count')::integer, 0)
-          - coalesce((p_row->>'completed_count')::integer, 0)
-      ),
-      'lease_token', null,
-      'lease_expires_at', null,
-      'completed_at', coalesce(p_row->'updated_at', p_row->'created_at')
+    p_row := jsonb_set(
+      p_row,
+      '{feature_visibility,student_grades}',
+      case
+        when jsonb_typeof(p_row -> 'feature_visibility' -> 'student_grades') = 'boolean'
+          then p_row -> 'feature_visibility' -> 'student_grades'
+        else 'false'::jsonb
+      end,
+      true
     );
-    return p_row;
   end if;
 
   return p_row;
 end;
 $$;
+
+revoke all on function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)
+  to service_role;
