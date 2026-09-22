@@ -124,6 +124,7 @@ export function StudentTodayTab({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [saveError, setSaveError] = useState('')
   const [draftStorageUnavailable, setDraftStorageUnavailable] = useState(false)
+  const [restoredDraftVersion, setRestoredDraftVersion] = useState(0)
   const [conflictEntry, setConflictEntry] = useState<Entry | null>(null)
   const [olderDrafts, setOlderDrafts] = useState<DailyLogDraft[]>([])
   const [olderDraftError, setOlderDraftError] = useState<Record<string, string>>({})
@@ -140,6 +141,7 @@ export function StudentTodayTab({
   const saveInFlightDatesRef = useRef(new Set<string>())
   const initialSaveRequestedRef = useRef(false)
   const olderDraftAttemptsRef = useRef(new Set<string>())
+  const rolloverDraftRef = useRef<DailyLogDraft | null>(null)
   const pendingContentRef = useRef<TiptapContent | null>(null)
   const restoredDraftAutosaveRef = useRef<TiptapContent | null>(null)
   const currentContentRef = useRef<TiptapContent>(EMPTY_DOC)
@@ -186,7 +188,7 @@ export function StudentTodayTab({
         initialSaveRequestedRef.current = false
         setSaveStatus('saved')
         setSaveError('')
-        setDraftStorageUnavailable(false)
+        if (rolloverDraftRef.current?.date !== todayDate) setDraftStorageUnavailable(false)
         setConflictEntry(null)
       }
       try {
@@ -245,7 +247,12 @@ export function StudentTodayTab({
 
           const loadedContent = resolveEntryContent(todayEntry)
           const durableDraft = readDailyLogDraft(studentId, requestedClassroomId, todayDate)
-          const draftContent = durableDraft?.content
+          const rolloverDraft = rolloverDraftRef.current
+          const matchingRolloverDraft = rolloverDraft?.studentId === studentId &&
+            rolloverDraft.classroomId === requestedClassroomId && rolloverDraft.date === todayDate
+            ? rolloverDraft
+            : null
+          const draftContent = matchingRolloverDraft?.content ?? durableDraft?.content
           if (
             draftContent &&
             (todayEntry || !isEmpty(draftContent)) &&
@@ -255,6 +262,7 @@ export function StudentTodayTab({
             currentContentRef.current = draftContent
             pendingContentRef.current = draftContent
             restoredDraftAutosaveRef.current = draftContent
+            setRestoredDraftVersion(version => version + 1)
             hasLocalEditSinceLoadRef.current = true
             setSaveStatus('unsaved')
             if (durableDraft && todayEntry && (
@@ -564,6 +572,9 @@ export function StudentTodayTab({
         })
       }
       if (savedContentStillCurrent) {
+        if (rolloverDraftRef.current?.date === entryDate && rolloverDraftRef.current.classroomId === classroom.id) {
+          rolloverDraftRef.current = null
+        }
         safeSessionRemove(draftKey)
         pendingContentRef.current = null
         restoredDraftAutosaveRef.current = null
@@ -717,7 +728,7 @@ export function StudentTodayTab({
 
     restoredDraftAutosaveRef.current = null
     scheduleSave(restoredDraft, { force: true })
-  }, [conflictEntry, loading, scheduleSave])
+  }, [conflictEntry, loading, restoredDraftVersion, scheduleSave])
 
   function handleContentChange(newContent: TiptapContent) {
     const actualTorontoDate = getTodayInToronto()
@@ -731,7 +742,7 @@ export function StudentTodayTab({
       const newlyTypedText = nextText.slice(prefix, nextText.length - suffix)
       if (newlyTypedText.trim()) {
         const newDayContent = plainTextToTiptapContent(newlyTypedText)
-        writeDailyLogDraft({
+        const rolloverDraft: DailyLogDraft = {
           studentId,
           classroomId: classroom.id,
           date: actualTorontoDate,
@@ -739,7 +750,9 @@ export function StudentTodayTab({
           entryId: null,
           version: 1,
           updatedAt: new Date().toISOString(),
-        })
+        }
+        rolloverDraftRef.current = rolloverDraft
+        setDraftStorageUnavailable(!writeDailyLogDraft(rolloverDraft))
       }
       setCurrentTorontoDate(actualTorontoDate)
       return
