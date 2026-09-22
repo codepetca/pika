@@ -306,4 +306,4 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 
 ## 2026-09-22 — Student Grades merge preparation
 
-- PR1320 was rebased onto current main after an AI-log archive conflict was resolved without dropping either existing archived entry. Main now owns migrations202–204, so the unapplied student Grades migration was resequenced to205 and its private archive-adapter name and regression updated. The user requested merge; final CI and merge gates follow. No migration was applied.
+- PR1320 was rebased onto current main after an AI-log archive conflict was resolved without dropping either existing archived entry. Main now owns migrations202–204, so the unapplied student Grades migration was resequenced to205 and its private archive-adapter name and regression updated. The first exact-head CI replay applied205 in its ephemeral database, then found the generated types lacked the new private adapter; the checked-in types were synchronized to CI's exact generated diff. The user requested merge; final CI and merge gates follow. No migration was applied to a persistent environment.
