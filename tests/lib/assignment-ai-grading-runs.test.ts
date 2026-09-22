@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as aiGrading from '@/lib/ai-grading'
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
 
 const { mockLoadClassroomAiSanitizationContext, mockSubmitOrPollGradexAssignmentRun, mockSupabaseClient } = vi.hoisted(() => ({
   mockLoadClassroomAiSanitizationContext: vi.fn(),
@@ -264,6 +267,8 @@ function buildTickHarness(opts: {
       student_id: 'student-1',
       assignment_doc_id: opts.assignmentDoc?.id ?? null,
       assignment_doc_updated_at: opts.assignmentDoc?.updated_at ?? null,
+      assignment_source_fingerprint: 'a'.repeat(64),
+      gradex_submission_id: null,
       queue_position: 0,
       status: 'queued',
       skip_reason: opts.skipReason,
@@ -279,6 +284,12 @@ function buildTickHarness(opts: {
   ]
 
   mockSupabaseClient.rpc.mockImplementation(async (fn: string, args: Record<string, any>) => {
+    if (fn === 'get_assignment_ai_grading_usage_contract_v2') {
+      return { data: {
+        contract: 'assignment-ai-grading-usage', version: 2,
+        source_fingerprint_version: 1, gradex_correlation_version: 1,
+      }, error: null }
+    }
     if (fn === 'claim_assignment_ai_grading_run') {
       run.lease_token = args.p_lease_token
       run.lease_expires_at = '2099-04-21T12:01:00.000Z'
@@ -292,6 +303,32 @@ function buildTickHarness(opts: {
       const item = items.find((candidate) => candidate.id === args.p_item_id)
       if (item) Object.assign(item, args.p_patch)
       return { data: item ? { ...item } : null, error: null }
+    }
+    if (fn === 'reserve_assignment_ai_grading_item_usage_with_lease_v1') {
+      return { data: { reservation: { operation_id: args.p_item_id, subject_user_id: run.triggered_by,
+        feature_key: 'grading.ai', operation_kind: 'assignment_ai_grading',
+        usage_ref: `assignment-ai-item-v1:${args.p_item_id}`, units: 1, status: 'reserved',
+        expires_at: '2099-01-01T00:00:00Z' } }, error: null }
+    }
+    if (fn === 'skip_assignment_ai_grading_item_and_release_usage_v1'
+      || fn === 'fail_assignment_ai_grading_item_and_release_usage_with_lease_v1') {
+      Object.assign(items[0], { status: fn.startsWith('skip_') ? 'skipped' : 'failed',
+        skip_reason: args.p_skip_reason ?? null, attempt_count: args.p_attempt_count,
+        last_error_message: args.p_error_message ?? null })
+      return { data: { ...items[0] }, error: null }
+    }
+    if (fn === 'fail_assignment_ai_grading_run_and_release_usage_with_lease_v1') {
+      Object.assign(run, { status: 'failed', failed_count: 1, processed_count: 1 })
+      Object.assign(items[0], { status: 'failed' })
+      return { data: { ...run }, error: null }
+    }
+    if (fn === 'finalize_assignment_ai_grading_item_and_settle_usage_v1') {
+      if (opts.upsertError) return { data: null, error: opts.upsertError }
+      Object.assign(items[0], { status: 'completed', attempt_count: args.p_attempt_count })
+      return { data: { docs: [{ id: 'doc-1', assignment_id: 'assignment-1', student_id: 'student-1',
+        updated_at: '2026-04-21T12:00:00Z', score_completion: 7, score_thinking: 8, score_workflow: 9,
+        teacher_feedback_draft: 'Feedback', teacher_feedback_draft_updated_at: null,
+        graded_at: null, graded_by: null }] }, error: null }
     }
     if (
       fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic'
@@ -432,12 +469,185 @@ function buildTickHarness(opts: {
   return { run, items }
 }
 
+describe('metered Assignment run lifecycle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockLoadClassroomAiSanitizationContext.mockResolvedValue({ students: [], initialsMap: {} })
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'false')
+  })
+  const doc = { id: 'doc-1', student_id: 'student-1',
+    content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'I completed every part of the work and explained my answer in detail.' }] }] },
+    feedback: null, authenticity_score: 50, updated_at: '2026-04-21T12:00:00Z' }
+  function setup() {
+    return buildTickHarness({ workerContractVersion: 1, skipReason: null, assignmentDoc: doc, upsertError: null })
+  }
+  const tick = () => tickAssignmentAiGradingRun({ assignmentId: 'assignment-1', runId: 'run-1' })
+  it('fails closed before lease claim or provider egress when the M204 sentinel is unavailable', async () => {
+    setup()
+    const original = mockSupabaseClient.rpc.getMockImplementation()!
+    mockSupabaseClient.rpc.mockImplementation((name, args) =>
+      name === 'get_assignment_ai_grading_usage_contract_v2'
+        ? Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'private missing migration' } })
+        : original(name, args))
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork')
+    await expect(tick()).rejects.toMatchObject({ statusCode: 503, message: 'AI grading is temporarily unavailable' })
+    expect(provider).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc.mock.calls.map(([name]) => name)).not.toContain('claim_assignment_ai_grading_run')
+  })
+
+  it('reserves then settles persisted v1 even with the rollout flag off', async () => {
+    const harness = setup()
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork').mockResolvedValue({
+      score_completion: 7, score_thinking: 8, score_workflow: 9, feedback: 'Good work', model: 'deepseek-flash',
+    } as never)
+    const result = await tick()
+    expect(result.run.status).toBe('completed')
+    expect(harness.items[0].status).toBe('completed')
+    const rpcCalls = mockSupabaseClient.rpc.mock.calls
+    expect(rpcCalls.map(([name]) => name)).toContain('finalize_assignment_ai_grading_item_and_settle_usage_v1')
+    const reserveIndex = rpcCalls.findIndex(([name]) => name === 'reserve_assignment_ai_grading_item_usage_with_lease_v1')
+    expect(mockSupabaseClient.rpc.mock.invocationCallOrder[reserveIndex]).toBeLessThan(provider.mock.invocationCallOrder[0])
+  })
+  it.each([null, { ...doc, content: { type: 'doc', content: [] } }])('releases missing or blank source without a provider call', async (source) => {
+    const harness = buildTickHarness({ workerContractVersion: 1, skipReason: null, assignmentDoc: source, upsertError: null })
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork')
+    await tick()
+    expect(harness.items[0].status).toBe('skipped')
+    expect(provider).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('skip_assignment_ai_grading_item_and_release_usage_v1', expect.anything())
+  })
+  it('retains the reservation on retryable provider failure then releases on exhaustion', async () => {
+    const harness = setup()
+    vi.spyOn(aiGrading, 'gradeStudentWork').mockRejectedValue(new aiGrading.AssignmentAiGradingError({
+      kind: 'timeout', message: 'PRIVATE provider body', retryable: true,
+    }))
+    await tick()
+    expect(harness.items[0].status).toBe('queued')
+    expect(harness.items[0].last_error_message).toBe('AI grading failed')
+    expect(mockSupabaseClient.rpc.mock.calls.map(([name]) => name)).not.toContain('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1')
+    harness.items[0].attempt_count = 2
+    harness.items[0].next_retry_at = null
+    await tick()
+    expect(harness.items[0].status).toBe('failed')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1', expect.objectContaining({ p_attempt_count: 3, p_release_reason: 'provider_failed' }))
+  })
+  it.each([
+    { code: 'PGRST202', message: 'private missing contract' },
+    { code: '23514', message: 'feature_usage_quota_exhausted' },
+  ])('rejects admission before provider work for $code', async (error) => {
+    setup()
+    const original = mockSupabaseClient.rpc.getMockImplementation()!
+    mockSupabaseClient.rpc.mockImplementation((name, args) => name === 'reserve_assignment_ai_grading_item_usage_with_lease_v1'
+      ? Promise.resolve({ data: null, error }) : original(name, args))
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork')
+    await tick()
+    expect(provider).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1', expect.anything())
+  })
+  it('does not release or call the provider after lease loss', async () => {
+    setup()
+    const original = mockSupabaseClient.rpc.getMockImplementation()!
+    mockSupabaseClient.rpc.mockImplementation((name, args) => name === 'reserve_assignment_ai_grading_item_usage_with_lease_v1'
+      ? Promise.resolve({ data: null, error: { code: '40001', message: 'Assignment AI grading lease was lost' } }) : original(name, args))
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork')
+    expect((await tick()).claimed).toBe(false)
+    expect(provider).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc.mock.calls.map(([name]) => name).filter((name) => name.includes('release_usage'))).toEqual([])
+  })
+  it.each([
+    { code: '40001', message: 'metered_assignment_source_changed', reason: 'stale' },
+    { code: 'PGRST202', message: 'private schema detail', reason: 'internal_failure' },
+  ])('classifies pre-provider cleanup as $reason', async ({ code, message, reason }) => {
+    const harness = setup()
+    const original = mockSupabaseClient.rpc.getMockImplementation()!
+    mockSupabaseClient.rpc.mockImplementation((name, args) => name === 'reserve_assignment_ai_grading_item_usage_with_lease_v1'
+      ? Promise.resolve({ data: null, error: { code, message } }) : original(name, args))
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork')
+    await tick()
+    expect(provider).not.toHaveBeenCalled()
+    expect(harness.items[0].status).toBe('failed')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1',
+      expect.objectContaining({ p_release_reason: reason }))
+  })
+  it('terminates expired admission without provider work or an expired-reason fallback', async () => {
+    const harness = setup()
+    const original = mockSupabaseClient.rpc.getMockImplementation()!
+    mockSupabaseClient.rpc.mockImplementation(async (name, args) => {
+      const result = await original(name, args)
+      if (name === 'reserve_assignment_ai_grading_item_usage_with_lease_v1') {
+        result.data.reservation.status = 'released'
+        result.data.reservation.release_reason = 'expired'
+      }
+      return result
+    })
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork')
+    expect((await tick()).run.status).toBe('completed_with_errors')
+    expect(harness.items[0].status).toBe('failed')
+    expect(provider).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc.mock.calls.filter(([name]) => name.includes('release_usage'))).toEqual([
+      ['fail_assignment_ai_grading_item_and_release_usage_with_lease_v1', expect.objectContaining({ p_release_reason: 'internal_failure' })],
+    ])
+  })
+  it.each(['stale', 'internal_failure'])('classifies settlement failures as %s rather than provider failures', async (reason) => {
+    setup()
+    vi.spyOn(aiGrading, 'gradeStudentWork').mockResolvedValue({
+      score_completion: 7, score_thinking: 8, score_workflow: 9, feedback: 'Good work', model: 'deepseek-flash',
+    } as never)
+    const original = mockSupabaseClient.rpc.getMockImplementation()!
+    mockSupabaseClient.rpc.mockImplementation((name, args) => name === 'finalize_assignment_ai_grading_item_and_settle_usage_v1'
+      ? Promise.resolve({ data: null, error: reason === 'stale'
+        ? { code: '40001', message: 'metered_assignment_source_changed' }
+        : { code: 'PGRST202', message: 'private schema detail' } }) : original(name, args))
+    await tick()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1',
+      expect.objectContaining({ p_release_reason: reason }))
+  })
+  it('releases the entire run on an outer fatal failure', async () => {
+    setup()
+    mockLoadClassroomAiSanitizationContext.mockRejectedValueOnce(new Error('PRIVATE source data'))
+    expect((await tick()).run.status).toBe('failed')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_run_and_release_usage_with_lease_v1', expect.objectContaining({ p_error_message: 'AI grading failed', p_release_reason: 'internal_failure' }))
+  })
+  it.each([0, 1])('conflicts with v0 and resumes matching v1 (%s)', async (version) => {
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'true')
+    buildTickHarness({ workerContractVersion: version, skipReason: null, assignmentDoc: doc, upsertError: null })
+    const result = await createOrResumeAssignmentAiGradingRun({ assignmentId: 'assignment-1', teacherId: 'teacher-1', studentIds: ['student-1'] })
+    expect(result.kind).toBe(version === 1 ? 'resumed' : 'conflict')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('get_assignment_ai_grading_usage_contract_v2')
+  })
+  it.each([1, 2])('creates %s students through metered admission only', async (count) => {
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'true')
+    const ids = Array.from({ length: count }, (_, i) => `student-${i + 1}`)
+    mockSupabaseClient.from.mockImplementation((table) => {
+      if (table === 'assignment_ai_grading_runs') return buildRunsTable()
+      if (table === 'assignment_docs') return buildAssignmentDocsTable(ids.map((id) => ({ ...doc, id: `doc-${id}`, student_id: id })))
+      if (table === 'assignment_submission_artifacts') return buildAssignmentSubmissionArtifactsTable()
+      throw new Error(`Unexpected table ${table}`)
+    })
+    mockSupabaseClient.rpc.mockImplementation(async (name, args) => {
+      if (name === 'get_assignment_ai_grading_usage_contract_v2') {
+        return { data: { contract: 'assignment-ai-grading-usage', version: 2,
+          source_fingerprint_version: 1, gradex_correlation_version: 1 }, error: null }
+      }
+      return { data: { id: 'run-1', assignment_id: args.p_assignment_id,
+        triggered_by: args.p_teacher_id, worker_contract_version: 1, selection_hash: args.p_selection_hash,
+        status: 'queued', created_at: '2026-04-21T12:00:00Z' }, error: null }
+    })
+    expect((await createOrResumeAssignmentAiGradingRun({ assignmentId: 'assignment-1', teacherId: 'teacher-1', studentIds: ids })).kind).toBe('created')
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('create_metered_assignment_ai_grading_run_v2', expect.objectContaining({ p_gradable_count: count }))
+    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'PRIVATE RPC data' } })
+    await expect(createOrResumeAssignmentAiGradingRun({ assignmentId: 'assignment-1', teacherId: 'teacher-1', studentIds: ids })).rejects.toMatchObject({ statusCode: 503 })
+  })
+})
+
 describe('createOrResumeAssignmentAiGradingRun', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSupabaseClient.rpc.mockReset()
     mockSubmitOrPollGradexAssignmentRun.mockResolvedValue(undefined)
     delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
+    delete process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED
     mockLoadClassroomAiSanitizationContext.mockResolvedValue({
       students: [],
       initialsMap: {},
@@ -760,7 +970,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
 
   it('marks a missing-doc item failed when saving the Missing grade fails', async () => {
     const harness = buildTickHarness({
-      workerContractVersion: 1,
+      workerContractVersion: 0,
       skipReason: 'missing_doc',
       assignmentDoc: null,
       upsertError: { message: 'upsert failed' },
@@ -785,8 +995,8 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       last_error_message: 'Failed to finalize AI assignment grade',
     }))
     expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
-      'finalize_assignment_ai_grading_item_with_provenance_lease_v1',
-      expect.objectContaining({ p_lease_token: expect.any(String) }),
+      'finalize_assignment_ai_grading_item_with_provenance_atomic',
+      expect.objectContaining({ p_item_id: 'item-1' }),
     )
   })
 

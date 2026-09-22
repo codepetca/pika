@@ -22,6 +22,51 @@ guides before changing schema or deploying a grading contract.
 - Normal grading does not call remote Gradex. The remote Gradex worker remains
   disabled during the internal grading pilot.
 
+### Assignment usage admission (default off)
+
+`ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED` is a server-only, exact-`true`
+opt-in requiring the Assignment usage RPCs from migrations 203–204. With it unset or
+false, single-student DeepSeek grading stays synchronous and newly created
+durable runs remain version 0. With it enabled, all Assignment AI grading uses
+durable version-1 admission, including single-student and Gradex requests.
+Missing accounting contracts fail closed with a generic unavailable response;
+quota exhaustion returns `429` and `AI grading limit reached`.
+
+The application first validates migration 204's exact service-only capability
+sentinel. Version-1 items persist a SHA-256 fingerprint over every durable Pika
+grading source: Assignment instructions/settings, the submitted document,
+structured submission artifacts, and workflow history. The same fingerprint is
+checked under the Assignment/Classroom/document locks at provider admission and
+again during atomic finalization, so changed or deleted source input cannot be
+graded or settled as the original work.
+
+The persisted worker contract version owns the rest of a run's lifecycle even
+if the flag is disabled later. Version-1 workers revalidate per-item reservations
+before provider work, settle successful grades atomically, release skipped or
+terminally failed work, and retain reservations for retryable errors. Matching
+active version-1 selections resume; enabling the flag does not convert active
+version-0 runs. Joining and student work remain unmetered. This integration adds
+no plan, entitlement, pricing, or quota-detail UI and does not enable rollout.
+
+Migration 204 renews a still-live reservation to a bounded 24-hour window at
+lease-fenced provider admission. Expired reservations never resume or settle;
+Assignment terminal cleanup treats an already-expired release as an idempotent
+duplicate and preserves its original reason and timestamps. Other differing
+release reasons still conflict. Cleanup records `stale` for source/resource
+changes, `provider_failed` for terminal provider/result failures, and
+`internal_failure` for schema, persistence, or contract failures. No whole-run
+retry substitutes `expired` as a cleanup reason.
+
+For the dormant Gradex path, Pika persists the run idempotency key and each
+item's external submission reference before provider egress, then records the
+remote run under the same worker lease. Restarts therefore reuse the original
+correlation even if pseudonym configuration changes. Polling renews admission
+only for still-live local items, fetches only their remote results, and lets
+admitted siblings finish persistence before propagating a terminal worker
+failure. `internal_failure` is valid only for Assignment AI reservations; the
+shared usage ledger continues to reject it for test grading and repository
+review operations.
+
 ## Goals
 
 1. Keep classroom identity and production persistence inside Pika.
