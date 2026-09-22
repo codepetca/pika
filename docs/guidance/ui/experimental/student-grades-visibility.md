@@ -32,8 +32,8 @@ for review, not authorization to expose production grade data.
 - **Required viewports:** desktop and mobile.
 - **Required themes:** light and dark.
 - **Key states:** grades shown and grades hidden; switch hover, focus, and saving.
-- **Primary signal:** the teacher's settings-style visibility switch with a semantic
-  Users audience icon and the
+- **Primary signal:** the teacher's settings-style visibility switch with a Users
+  audience icon inside the shown-state thumb and the
   student's `Current grade` value.
 - **Must not add:** charts, trends, ranks, projections, reporting, attendance,
   category dashboards, or additional publication controls.
@@ -45,7 +45,7 @@ for review, not authorization to expose production grade data.
 
 | Need | Existing candidate | Decision | Reason |
 |---|---|---|---|
-| Teacher visibility control | Gradebook action bar and `SettingsSwitch` | extend | The feature-owned control uses the shared settings switch beside More actions, reinforced by a red/green Users audience icon and an optional green checked treatment, plus a stable accessible name and concise show/hide tooltip. |
+| Teacher visibility control | Gradebook action bar and `SettingsSwitch` | extend | The feature-owned control uses a slightly larger shared settings switch beside More actions. Hidden is neutral; shown uses a green track with the Users audience icon inside the right thumb, plus a stable accessible name and concise show/hide tooltip. |
 | Student content framing | `Card` and the stable student content rhythm | reuse | The view is a calm reading surface, not a teacher operational table. |
 | Returned assessment rows | Existing Classwork and Test result language | create | The feature-owned production view is shared by the student Classroom tab and deterministic Pattern Lab fixture. |
 | Shown/hidden comparison | Pattern Lab fixture state | create | Deterministic review behavior belongs to the development-only gallery. |

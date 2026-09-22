@@ -2,7 +2,6 @@
 
 import { Users } from 'lucide-react'
 import { SettingsSwitch } from '@/components/settings/SettingsSwitchRow'
-import { cn } from '@/ui'
 
 export function TeacherGradebookVisibilityControl({
   gradesVisible,
@@ -19,24 +18,16 @@ export function TeacherGradebookVisibilityControl({
   return (
     <div
       data-testid="teacher-gradebook-visibility-control"
-      className="inline-flex items-center gap-1"
+      className="inline-flex"
       aria-busy={saving || undefined}
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          'inline-flex h-11 w-7 items-center justify-center',
-          gradesVisible ? 'text-success' : 'text-danger',
-        )}
-      >
-        <Users className="h-4 w-4" />
-      </span>
       <SettingsSwitch
         checked={gradesVisible}
         onChange={onChange}
         ariaLabel="Student grades visibility"
         tooltip={tooltip}
         checkedTone="success"
+        checkedIcon={<Users className="h-3.5 w-3.5 text-success" aria-hidden="true" />}
         disabled={disabled || saving}
       />
       <span className="sr-only" aria-live="polite">{saving ? 'Saving grade visibility' : ''}</span>

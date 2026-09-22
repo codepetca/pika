@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { Users } from 'lucide-react'
 import { SettingsSwitch, SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
 import { TooltipProvider } from '@/ui'
 
@@ -51,17 +52,35 @@ describe('SettingsSwitchRow', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
   })
 
-  it('supports an optional green checked treatment', () => {
-    render(
+  it('supports an optional green checked treatment with an icon inside the larger thumb', () => {
+    const { rerender } = render(
       <SettingsSwitch
-        checked
+        checked={false}
         checkedTone="success"
+        checkedIcon={<Users data-testid="checked-icon" />}
         onChange={vi.fn()}
         ariaLabel="Visible to students"
       />,
     )
 
-    const track = screen.getByRole('switch', { name: 'Visible to students' }).firstElementChild
-    expect(track).toHaveClass('bg-success-solid')
+    const switchControl = screen.getByRole('switch', { name: 'Visible to students' })
+    expect(switchControl).toHaveClass('w-16')
+    expect(switchControl.firstElementChild).toHaveClass('bg-surface-2')
+    expect(switchControl.firstElementChild?.firstElementChild).toHaveClass('bg-text-muted', 'translate-x-1')
+    expect(screen.queryByTestId('checked-icon')).not.toBeInTheDocument()
+
+    rerender(
+      <SettingsSwitch
+        checked
+        checkedTone="success"
+        checkedIcon={<Users data-testid="checked-icon" />}
+        onChange={vi.fn()}
+        ariaLabel="Visible to students"
+      />,
+    )
+
+    expect(switchControl.firstElementChild).toHaveClass('bg-success-solid')
+    expect(switchControl.firstElementChild?.firstElementChild).toHaveClass('h-6', 'w-6', 'translate-x-9')
+    expect(screen.getByTestId('checked-icon')).toBeInTheDocument()
   })
 })
