@@ -123,6 +123,7 @@ describe('atomic assignment feedback return migration', () => {
     expect(gradeService).toContain("rpc('save_assignment_grades_atomic'")
     expect(gradeService).toContain("rpc('save_assignment_ai_grade_with_provenance_atomic'")
     expect(gradeService).toContain("rpc('save_assignment_ai_grades_atomic'")
+    expect(gradeService).toContain("rpc('finalize_assignment_ai_grading_item_with_provenance_atomic'")
     expect(gradeService).toContain("rpc('finalize_assignment_ai_grading_item_with_provenance_lease_v1'")
     expect(gradeService).toContain("rpc('complete_assignment_repo_review_run_with_provenance_atomic'")
     expect(gradeService).not.toContain("upsert(")

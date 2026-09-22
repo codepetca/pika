@@ -276,6 +276,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }
         Insert: {
           assignment_id: string
@@ -303,6 +304,7 @@ export type Database = {
           status?: string
           triggered_by: string
           updated_at?: string
+          worker_contract_version?: number
         }
         Update: {
           assignment_id?: string
@@ -330,6 +332,7 @@ export type Database = {
           status?: string
           triggered_by?: string
           updated_at?: string
+          worker_contract_version?: number
         }
         Relationships: [
           {
@@ -8418,6 +8421,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }[]
         SetofOptions: {
           from: "*"
@@ -9388,6 +9392,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }
         SetofOptions: {
           from: "*"
@@ -10506,6 +10511,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }
         SetofOptions: {
           from: "*"

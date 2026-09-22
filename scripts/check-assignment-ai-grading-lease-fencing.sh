@@ -32,11 +32,11 @@ insert into public.assignment_docs (id, assignment_id, student_id, content, is_s
   ('e2020000-0000-4000-8000-000000000012', 'e2020000-0000-4000-8000-000000000011', 'e2020000-0000-4000-8000-000000000002', '{"type":"doc","content":[]}', true, now());
 insert into public.assignment_ai_grading_runs (
   id, assignment_id, status, triggered_by, model, requested_student_ids_json,
-  selection_hash, requested_count, gradable_count
+  selection_hash, requested_count, gradable_count, worker_contract_version
 ) values (
   'e2020000-0000-4000-8000-000000000013', 'e2020000-0000-4000-8000-000000000011', 'queued',
   'e2020000-0000-4000-8000-000000000001', 'test-model', '["e2020000-0000-4000-8000-000000000002"]',
-  repeat('a', 64), 1, 1
+  repeat('a', 64), 1, 1, 1
 );
 insert into public.assignment_ai_grading_run_items (
   id, run_id, assignment_id, student_id, assignment_doc_id, assignment_doc_updated_at,
@@ -58,6 +58,7 @@ begin
     or has_function_privilege('authenticated', 'public.patch_assignment_ai_grading_item_with_lease_v1(uuid,uuid,jsonb)', 'execute')
     or has_function_privilege('authenticated', 'public.finalize_assignment_ai_grading_item_with_provenance_lease_v1(uuid,uuid,uuid,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,integer,text,text,timestamp with time zone)', 'execute')
     or not has_function_privilege('service_role', 'public.patch_assignment_ai_grading_item_with_lease_v1(uuid,uuid,jsonb)', 'execute')
+    or has_function_privilege('service_role', 'public.finalize_assignment_ai_grading_item_atomic(uuid,uuid,integer,integer,integer,text,boolean,boolean,text,text,text,integer,text,text,timestamp with time zone)', 'execute')
   then
     raise exception 'Unexpected assignment AI grading lease RPC privileges';
   end if;
@@ -79,6 +80,15 @@ begin
   where id = 'e2020000-0000-4000-8000-000000000013';
 
   set local role service_role;
+  begin
+    perform public.patch_assignment_ai_grading_run_with_lease_v1(
+      'e2020000-0000-4000-8000-000000000013', v_old_token, '{"status":"failed"}'
+    );
+    raise exception 'Expired lease mutated an assignment AI grading run';
+  exception when serialization_failure then
+    null;
+  end;
+
   perform public.claim_assignment_ai_grading_run(
     'e2020000-0000-4000-8000-000000000013', v_new_token, 120
   );
@@ -93,6 +103,15 @@ begin
   end;
 
   begin
+    perform public.patch_assignment_ai_grading_run_with_lease_v1(
+      'e2020000-0000-4000-8000-000000000013', v_old_token, '{"status":"failed"}'
+    );
+    raise exception 'Stale lease mutated an assignment AI grading run';
+  exception when serialization_failure then
+    null;
+  end;
+
+  begin
     perform public.finalize_assignment_ai_grading_item_with_provenance_lease_v1(
       v_item.id, v_old_token, 'e2020000-0000-4000-8000-000000000001',
       9, 9, 9, 'stale', true, true, 'stale', 'test-model', null, 'teacher',
@@ -100,6 +119,35 @@ begin
     );
     raise exception 'Stale lease finalized an assignment AI grading item';
   exception when serialization_failure then
+    null;
+  end;
+
+  begin
+    perform public.finalize_assignment_ai_grading_item_with_provenance_atomic(
+      v_item.id, 'e2020000-0000-4000-8000-000000000001',
+      9, 9, 9, 'legacy stale', true, true, 'legacy stale', 'test-model', null, 'teacher',
+      1, 'completed', null, clock_timestamp()
+    );
+    raise exception 'Legacy finalizer bypassed the lease contract';
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  begin
+    update public.assignment_ai_grading_runs
+    set status = 'failed'
+    where id = 'e2020000-0000-4000-8000-000000000013';
+    raise exception 'Direct service-role DML bypassed the run lease contract';
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  begin
+    update public.assignment_ai_grading_run_items
+    set status = 'failed'
+    where id = v_item.id;
+    raise exception 'Direct service-role DML bypassed the item lease contract';
+  exception when insufficient_privilege then
     null;
   end;
 

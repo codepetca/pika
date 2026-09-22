@@ -1,4 +1,5 @@
 import { getServiceRoleClient } from '@/lib/supabase'
+import type { TableUpdate } from '@/types/database'
 import type { Json } from '@/types/database.generated'
 import type { AssignmentAiGradingRun, AssignmentAiGradingRunItem } from '@/types'
 
@@ -25,8 +26,22 @@ export async function patchAssignmentAiGradingRunWithLease(opts: {
   supabase: ServiceRoleSupabase
   runId: string
   leaseToken: string
+  leaseFencingEnabled: boolean
   patch: Json
 }): Promise<AssignmentAiGradingRun> {
+  if (!opts.leaseFencingEnabled) {
+    const { data, error } = await opts.supabase
+      .from('assignment_ai_grading_runs')
+      .update(opts.patch as TableUpdate<'assignment_ai_grading_runs'>)
+      .eq('id', opts.runId)
+      .select('*')
+      .single()
+    if (error || !data) {
+      throw new Error('Failed to update assignment AI grading run')
+    }
+    return data as unknown as AssignmentAiGradingRun
+  }
+
   const { data, error } = await opts.supabase.rpc('patch_assignment_ai_grading_run_with_lease_v1', {
     p_run_id: opts.runId,
     p_lease_token: opts.leaseToken,
@@ -47,8 +62,21 @@ export async function patchAssignmentAiGradingItemWithLease(opts: {
   supabase: ServiceRoleSupabase
   itemId: string
   leaseToken: string
+  leaseFencingEnabled: boolean
   patch: Json
-}): Promise<AssignmentAiGradingRunItem> {
+}): Promise<AssignmentAiGradingRunItem | null> {
+  if (!opts.leaseFencingEnabled) {
+    const { error } = await opts.supabase
+      .from('assignment_ai_grading_run_items')
+      .update(opts.patch as TableUpdate<'assignment_ai_grading_run_items'>)
+      .eq('id', opts.itemId)
+      .in('status', ['queued', 'processing'])
+    if (error) {
+      throw new Error('Failed to update assignment AI grading run item')
+    }
+    return null
+  }
+
   const { data, error } = await opts.supabase.rpc('patch_assignment_ai_grading_item_with_lease_v1', {
     p_item_id: opts.itemId,
     p_lease_token: opts.leaseToken,

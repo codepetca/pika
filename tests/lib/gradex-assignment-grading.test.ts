@@ -41,6 +41,7 @@ function submitOrPollGradexAssignmentRun(opts: Record<string, unknown>) {
   return submitOrPollGradexAssignmentRunWithLease({
     ...opts,
     leaseToken: 'lease-1',
+    leaseFencingEnabled: opts.leaseFencingEnabled === true,
   } as Parameters<typeof submitOrPollGradexAssignmentRunWithLease>[0])
 }
 
@@ -249,6 +250,7 @@ describe('Gradex assignment grading processor', () => {
       assignment: assignment(),
       run: run({ gradex_run_id: null }),
       items: [item()],
+      leaseFencingEnabled: true,
     })
 
     expect(mockBuildPikaAssignmentGradexRunPayload).toHaveBeenCalledWith(
@@ -276,6 +278,10 @@ describe('Gradex assignment grading processor', () => {
         }),
       }),
     ])
+    expect(supabase.client.rpc).toHaveBeenCalledWith(
+      'patch_assignment_ai_grading_item_with_lease_v1',
+      expect.objectContaining({ p_lease_token: 'lease-1' }),
+    )
   })
 
   it('rejects a malformed successful submission response before storing metadata', async () => {
@@ -674,7 +680,7 @@ function buildSupabase() {
           })
           return { data: run(args.p_patch as Record<string, unknown>), error: null }
         }
-        if (fn === 'finalize_assignment_ai_grading_item_with_provenance_lease_v1') {
+        if (fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic') {
           aiGradeCalls.push(args)
           return {
             data: {
@@ -722,9 +728,16 @@ function buildSupabase() {
         if (table === 'assignment_ai_grading_runs') {
           return {
             update: vi.fn((payload: Record<string, unknown>) => ({
-              eq: vi.fn(async (_field: string, id: string) => {
+              eq: vi.fn((_field: string, id: string) => {
                 runUpdates.push({ table, id, payload })
-                return { error: null }
+                return {
+                  select: vi.fn(() => ({
+                    single: vi.fn(async () => ({
+                      data: run(payload),
+                      error: null,
+                    })),
+                  })),
+                }
               }),
             })),
           }

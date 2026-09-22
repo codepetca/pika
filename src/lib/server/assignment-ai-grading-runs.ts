@@ -115,6 +115,7 @@ type GradeAssignmentDocWithAiOptions = {
     id: string
     attemptCount: number
     leaseToken: string
+    leaseFencingEnabled: boolean
   }
   telemetry?: {
     operation?: string
@@ -453,6 +454,7 @@ export async function gradeAssignmentDocWithAi({
         supabase,
         itemId: runItem.id,
         leaseToken: runItem.leaseToken,
+        leaseFencingEnabled: runItem.leaseFencingEnabled,
         teacherId: gradedBy ?? assignment.created_by,
         grade: {
           scoreCompletion: 0,
@@ -519,6 +521,7 @@ export async function gradeAssignmentDocWithAi({
       supabase,
       itemId: runItem.id,
       leaseToken: runItem.leaseToken,
+      leaseFencingEnabled: runItem.leaseFencingEnabled,
       teacherId: gradedBy ?? assignment.created_by,
       grade: {
         scoreCompletion: result.score_completion,
@@ -566,6 +569,7 @@ async function refreshAssignmentAiGradingRun(
   supabase: ServiceRoleSupabase,
   runId: string,
   leaseToken: string,
+  leaseFencingEnabled: boolean,
   options?: { clearLease?: boolean },
 ): Promise<AssignmentAiGradingRunSummary> {
   const run = await fetchAssignmentAiGradingRunRow(supabase, runId)
@@ -637,6 +641,7 @@ async function refreshAssignmentAiGradingRun(
     supabase,
     runId,
     leaseToken,
+    leaseFencingEnabled,
     patch: updates,
   })
 
@@ -699,12 +704,14 @@ async function updateRunItem(
   supabase: ServiceRoleSupabase,
   itemId: string,
   leaseToken: string,
+  leaseFencingEnabled: boolean,
   payload: Record<string, unknown>,
 ): Promise<void> {
   await patchAssignmentAiGradingItemWithLease({
     supabase,
     itemId,
     leaseToken,
+    leaseFencingEnabled,
     patch: payload as Json,
   })
 }
@@ -715,9 +722,10 @@ async function processAssignmentAiRunItem(opts: {
   run: AssignmentAiGradingRun
   item: AssignmentAiGradingRunItem
   leaseToken: string
+  leaseFencingEnabled: boolean
   sanitizationContext?: AiSanitizationContext | null
 }): Promise<void> {
-  const { supabase, assignment, run, item, leaseToken, sanitizationContext } = opts
+  const { supabase, assignment, run, item, leaseToken, leaseFencingEnabled, sanitizationContext } = opts
   const attemptCount = item.attempt_count + 1
   const now = new Date().toISOString()
 
@@ -727,6 +735,7 @@ async function processAssignmentAiRunItem(opts: {
         supabase,
         itemId: item.id,
         leaseToken,
+        leaseFencingEnabled,
         teacherId: run.triggered_by,
         grade: {
           scoreCompletion: 0,
@@ -743,7 +752,7 @@ async function processAssignmentAiRunItem(opts: {
         now,
       })
     } catch (error) {
-      await updateRunItem(supabase, item.id, leaseToken, {
+      await updateRunItem(supabase, item.id, leaseToken, leaseFencingEnabled, {
         status: 'failed',
         skip_reason: null,
         attempt_count: attemptCount,
@@ -764,7 +773,7 @@ async function processAssignmentAiRunItem(opts: {
     return
   }
 
-  await updateRunItem(supabase, item.id, leaseToken, {
+  await updateRunItem(supabase, item.id, leaseToken, leaseFencingEnabled, {
     status: 'processing',
     started_at: item.started_at ?? now,
     next_retry_at: null,
@@ -777,7 +786,7 @@ async function processAssignmentAiRunItem(opts: {
     .maybeSingle()
 
   if (assignmentDocError) {
-    await updateRunItem(supabase, item.id, leaseToken, {
+    await updateRunItem(supabase, item.id, leaseToken, leaseFencingEnabled, {
       status: 'failed',
       attempt_count: attemptCount,
       last_error_code: 'load_doc_failed',
@@ -825,6 +834,7 @@ async function processAssignmentAiRunItem(opts: {
         id: item.id,
         attemptCount,
         leaseToken,
+        leaseFencingEnabled,
       },
     })
   } catch (error) {
@@ -834,7 +844,7 @@ async function processAssignmentAiRunItem(opts: {
       isRetryableAssignmentAiGradingError(error) &&
       attemptCount < ASSIGNMENT_AI_GRADING_MAX_ATTEMPTS
     ) {
-      await updateRunItem(supabase, item.id, leaseToken, {
+      await updateRunItem(supabase, item.id, leaseToken, leaseFencingEnabled, {
         status: 'queued',
         attempt_count: attemptCount,
         last_error_code: error.kind,
@@ -844,7 +854,7 @@ async function processAssignmentAiRunItem(opts: {
       return
     }
 
-    await updateRunItem(supabase, item.id, leaseToken, {
+    await updateRunItem(supabase, item.id, leaseToken, leaseFencingEnabled, {
       status: 'failed',
       attempt_count: attemptCount,
       last_error_code:
@@ -1092,6 +1102,7 @@ export async function tickAssignmentAiGradingRun(opts: {
     if (!claimedRun) {
       throw new Error('Assignment AI grading run disappeared during processing')
     }
+    const leaseFencingEnabled = claimedRun.worker_contract_version === 1
 
     const assignment = await loadAssignmentForRun(supabase, claimedRun.assignment_id)
     const allItems = await fetchAssignmentAiGradingRunItems(supabase, claimedRun.id)
@@ -1099,7 +1110,7 @@ export async function tickAssignmentAiGradingRun(opts: {
     for (const item of allItems) {
       const isPending = item.status === 'queued' || item.status === 'processing'
       if (isPending && item.assignment_doc_id && !item.assignment_doc_updated_at) {
-        await updateRunItem(supabase, item.id, leaseToken, {
+        await updateRunItem(supabase, item.id, leaseToken, leaseFencingEnabled, {
           status: 'failed',
           attempt_count: item.attempt_count + 1,
           last_error_code: 'source_revision_unavailable',
@@ -1118,10 +1129,17 @@ export async function tickAssignmentAiGradingRun(opts: {
         run: claimedRun,
         items: sourceReadyItems,
         leaseToken,
+        leaseFencingEnabled,
       })
 
       return {
-        run: await refreshAssignmentAiGradingRun(supabase, claimedRun.id, leaseToken, { clearLease: true }),
+        run: await refreshAssignmentAiGradingRun(
+          supabase,
+          claimedRun.id,
+          leaseToken,
+          leaseFencingEnabled,
+          { clearLease: true },
+        ),
         claimed: true,
       }
     }
@@ -1148,6 +1166,7 @@ export async function tickAssignmentAiGradingRun(opts: {
             run: claimedRun,
             item,
             leaseToken,
+            leaseFencingEnabled,
             sanitizationContext,
           })
         },
@@ -1155,7 +1174,13 @@ export async function tickAssignmentAiGradingRun(opts: {
     }
 
     return {
-      run: await refreshAssignmentAiGradingRun(supabase, claimedRun.id, leaseToken, { clearLease: true }),
+      run: await refreshAssignmentAiGradingRun(
+        supabase,
+        claimedRun.id,
+        leaseToken,
+        leaseFencingEnabled,
+        { clearLease: true },
+      ),
       claimed: true,
     }
   } catch (error) {
@@ -1175,6 +1200,7 @@ export async function tickAssignmentAiGradingRun(opts: {
         supabase,
         runId: run.id,
         leaseToken,
+        leaseFencingEnabled: run.worker_contract_version === 1,
         patch: {
           status: 'failed',
           lease_token: null,

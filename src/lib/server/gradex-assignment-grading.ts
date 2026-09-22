@@ -270,12 +270,14 @@ async function updateRunGradexMetadata(
   supabase: ServiceRoleSupabase,
   runId: string,
   leaseToken: string,
+  leaseFencingEnabled: boolean,
   payload: Record<string, unknown>,
 ): Promise<void> {
   await patchAssignmentAiGradingRunWithLease({
     supabase,
     runId,
     leaseToken,
+    leaseFencingEnabled,
     patch: payload as Json,
   })
 }
@@ -284,12 +286,14 @@ async function updateRunItem(
   supabase: ServiceRoleSupabase,
   itemId: string,
   leaseToken: string,
+  leaseFencingEnabled: boolean,
   payload: Record<string, unknown>,
 ): Promise<void> {
   await patchAssignmentAiGradingItemWithLease({
     supabase,
     itemId,
     leaseToken,
+    leaseFencingEnabled,
     patch: payload as Json,
   })
 }
@@ -317,6 +321,7 @@ async function markGradexItemsForRetryOrFailure(opts: {
   supabase: ServiceRoleSupabase
   items: AssignmentAiGradingRunItem[]
   leaseToken: string
+  leaseFencingEnabled: boolean
   errorCode: string
   errorMessage: string
   now: string
@@ -327,7 +332,7 @@ async function markGradexItemsForRetryOrFailure(opts: {
       .map((item) => {
         const attemptCount = item.attempt_count + 1
         const exhausted = attemptCount >= GRADEX_ASSIGNMENT_MAX_ATTEMPTS
-        return updateRunItem(opts.supabase, item.id, opts.leaseToken, {
+        return updateRunItem(opts.supabase, item.id, opts.leaseToken, opts.leaseFencingEnabled, {
           status: exhausted ? 'failed' : 'queued',
           attempt_count: attemptCount,
           next_retry_at: exhausted ? null : getGradexRetryAt(attemptCount),
@@ -343,6 +348,7 @@ async function handleRetryableGradexError(opts: {
   supabase: ServiceRoleSupabase
   items: AssignmentAiGradingRunItem[]
   leaseToken: string
+  leaseFencingEnabled: boolean
   error: GradexRetryableRequestError
   now: string
 }): Promise<void> {
@@ -350,6 +356,7 @@ async function handleRetryableGradexError(opts: {
     supabase: opts.supabase,
     items: opts.items,
     leaseToken: opts.leaseToken,
+    leaseFencingEnabled: opts.leaseFencingEnabled,
     errorCode: opts.error.code,
     errorMessage: opts.error.message,
     now: opts.now,
@@ -360,6 +367,7 @@ async function failUnresolvedGradexItems(opts: {
   supabase: ServiceRoleSupabase
   items: AssignmentAiGradingRunItem[]
   leaseToken: string
+  leaseFencingEnabled: boolean
   completedAssignmentDocIds: Set<string>
   errorCode: string
   errorMessage: string
@@ -373,7 +381,7 @@ async function failUnresolvedGradexItems(opts: {
         !opts.completedAssignmentDocIds.has(item.assignment_doc_id)
       )
       .map((item) =>
-        updateRunItem(opts.supabase, item.id, opts.leaseToken, {
+        updateRunItem(opts.supabase, item.id, opts.leaseToken, opts.leaseFencingEnabled, {
           status: 'failed',
           attempt_count: item.attempt_count + 1,
           next_retry_at: null,
@@ -409,6 +417,7 @@ async function submitGradexAssignmentRun(opts: {
   run: AssignmentAiGradingRun
   items: AssignmentAiGradingRunItem[]
   leaseToken: string
+  leaseFencingEnabled: boolean
 }): Promise<void> {
   const config = getGradexConfig()
   const dueItems = getDueGradexItems(opts.items)
@@ -426,7 +435,7 @@ async function submitGradexAssignmentRun(opts: {
 
   await Promise.all(
     dueItems.map((item) =>
-      updateRunItem(opts.supabase, item.id, opts.leaseToken, {
+      updateRunItem(opts.supabase, item.id, opts.leaseToken, opts.leaseFencingEnabled, {
         status: 'processing',
         started_at: item.started_at ?? now,
         next_retry_at: null,
@@ -450,6 +459,7 @@ async function submitGradexAssignmentRun(opts: {
         supabase: opts.supabase,
         items: dueItems,
         leaseToken: opts.leaseToken,
+        leaseFencingEnabled: opts.leaseFencingEnabled,
         error,
         now,
       })
@@ -458,7 +468,7 @@ async function submitGradexAssignmentRun(opts: {
     throw error
   }
 
-  await updateRunGradexMetadata(opts.supabase, opts.run.id, opts.leaseToken, {
+  await updateRunGradexMetadata(opts.supabase, opts.run.id, opts.leaseToken, opts.leaseFencingEnabled, {
     gradex_run_id: gradexRun.id,
     gradex_status: gradexRun.status,
     gradex_submitted_at: now,
@@ -484,6 +494,7 @@ async function applyCompletedGradexRecord(opts: {
   run: AssignmentAiGradingRun
   item: AssignmentAiGradingRunItem
   leaseToken: string
+  leaseFencingEnabled: boolean
   record: ReturnType<typeof mapGradexItemsToPikaGradeRecords>[number]
   now: string
 }): Promise<void> {
@@ -493,7 +504,7 @@ async function applyCompletedGradexRecord(opts: {
     !isValidScore(opts.record.score_workflow) ||
     !opts.record.feedback?.trim()
   ) {
-    await updateRunItem(opts.supabase, opts.item.id, opts.leaseToken, {
+    await updateRunItem(opts.supabase, opts.item.id, opts.leaseToken, opts.leaseFencingEnabled, {
       status: 'failed',
       attempt_count: opts.item.attempt_count + 1,
       last_error_code: 'invalid_gradex_result',
@@ -509,6 +520,7 @@ async function applyCompletedGradexRecord(opts: {
       supabase: opts.supabase,
       itemId: opts.item.id,
       leaseToken: opts.leaseToken,
+      leaseFencingEnabled: opts.leaseFencingEnabled,
       teacherId: opts.run.triggered_by,
       grade: {
         scoreCompletion: opts.record.score_completion,
@@ -524,7 +536,7 @@ async function applyCompletedGradexRecord(opts: {
       now: opts.now,
     })
   } catch {
-    await updateRunItem(opts.supabase, opts.item.id, opts.leaseToken, {
+    await updateRunItem(opts.supabase, opts.item.id, opts.leaseToken, opts.leaseFencingEnabled, {
       status: 'failed',
       attempt_count: opts.item.attempt_count + 1,
       last_error_code: 'save_gradex_grade_failed',
@@ -542,6 +554,7 @@ async function pollGradexAssignmentRun(opts: {
   run: AssignmentAiGradingRun
   items: AssignmentAiGradingRunItem[]
   leaseToken: string
+  leaseFencingEnabled: boolean
 }): Promise<void> {
   const config = getGradexConfig()
   const gradexRunId = opts.run.gradex_run_id
@@ -569,6 +582,7 @@ async function pollGradexAssignmentRun(opts: {
         supabase: opts.supabase,
         items: dueItems,
         leaseToken: opts.leaseToken,
+        leaseFencingEnabled: opts.leaseFencingEnabled,
         error,
         now,
       })
@@ -577,7 +591,7 @@ async function pollGradexAssignmentRun(opts: {
     throw error
   }
 
-  await updateRunGradexMetadata(opts.supabase, opts.run.id, opts.leaseToken, {
+  await updateRunGradexMetadata(opts.supabase, opts.run.id, opts.leaseToken, opts.leaseFencingEnabled, {
     gradex_status: gradexRun.status,
     gradex_last_polled_at: now,
   })
@@ -614,6 +628,7 @@ async function pollGradexAssignmentRun(opts: {
         supabase: opts.supabase,
         items: dueItems,
         leaseToken: opts.leaseToken,
+        leaseFencingEnabled: opts.leaseFencingEnabled,
         error,
         now,
       })
@@ -630,6 +645,7 @@ async function pollGradexAssignmentRun(opts: {
       supabase: opts.supabase,
       items: dueItems,
       leaseToken: opts.leaseToken,
+      leaseFencingEnabled: opts.leaseFencingEnabled,
       errorCode: 'gradex_mapping_failed',
       errorMessage: 'Failed to map Gradex results to Pika records',
       now,
@@ -645,7 +661,7 @@ async function pollGradexAssignmentRun(opts: {
       resolvedAssignmentDocIds.add(record.assignment_doc_id)
 
       if (record.status !== 'completed') {
-        await updateRunItem(opts.supabase, item.id, opts.leaseToken, {
+        await updateRunItem(opts.supabase, item.id, opts.leaseToken, opts.leaseFencingEnabled, {
           status: 'failed',
           attempt_count: item.attempt_count + 1,
           last_error_code: 'gradex_item_failed',
@@ -660,6 +676,7 @@ async function pollGradexAssignmentRun(opts: {
         run: opts.run,
         item,
         leaseToken: opts.leaseToken,
+        leaseFencingEnabled: opts.leaseFencingEnabled,
         record,
         now,
       })
@@ -670,6 +687,7 @@ async function pollGradexAssignmentRun(opts: {
     supabase: opts.supabase,
     items: dueItems,
     leaseToken: opts.leaseToken,
+    leaseFencingEnabled: opts.leaseFencingEnabled,
     completedAssignmentDocIds: resolvedAssignmentDocIds,
     errorCode: 'gradex_item_missing',
     errorMessage: `Gradex run ended with status ${gradexRun.status} without a result for this submission`,
@@ -683,6 +701,7 @@ export async function submitOrPollGradexAssignmentRun(opts: {
   run: AssignmentAiGradingRun
   items: AssignmentAiGradingRunItem[]
   leaseToken: string
+  leaseFencingEnabled: boolean
 }): Promise<void> {
   if (!opts.run.gradex_run_id) {
     await submitGradexAssignmentRun(opts)

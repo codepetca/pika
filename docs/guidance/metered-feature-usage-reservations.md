@@ -60,11 +60,12 @@ calls must happen outside these short transactions.
 
 ## Future route integration
 
-Migration 202 adds the Assignment worker prerequisite: every run/item mutation and grade
-finalization can be fenced by the exact current, unexpired run lease. A worker that loses
-its lease may observe the replacement state but cannot overwrite it. This does not call the
-usage ledger or activate metering; migration 202 must be present before deploying the
-lease-fenced coordinator code.
+Migration 202 adds the Assignment worker prerequisite as a versioned contract. Existing
+and rolling-deploy runs remain version 0 and retain legacy behavior. Future metered runs can
+be created as version 1, where every run/item mutation and grade finalization is fenced by
+the exact current, unexpired run lease; legacy finalizers and direct service-role updates are
+rejected for those runs. This does not call the usage ledger or activate metering. Migration
+202 must be present before deploying the version-aware coordinator code.
 
 For each separately reviewed paid operation:
 

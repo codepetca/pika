@@ -3,6 +3,142 @@
 
 begin;
 
+alter table public.assignment_ai_grading_runs
+  add column worker_contract_version smallint not null default 0
+  check (worker_contract_version in (0, 1));
+
+create function public.guard_assignment_ai_grading_run_lease_contract_v1()
+returns trigger
+language plpgsql
+set search_path = ''
+as $function$
+begin
+  if old.worker_contract_version = 1
+    and current_user = 'service_role'
+  then
+    raise exception 'Assignment AI grading lease is required' using errcode = '42501';
+  end if;
+  return new;
+end;
+$function$;
+
+create function public.guard_assignment_ai_grading_item_lease_contract_v1()
+returns trigger
+language plpgsql
+set search_path = ''
+as $function$
+declare
+  v_contract_version smallint;
+begin
+  select run.worker_contract_version
+  into v_contract_version
+  from public.assignment_ai_grading_runs run
+  where run.id = old.run_id;
+
+  if v_contract_version = 1
+    and current_user = 'service_role'
+  then
+    raise exception 'Assignment AI grading lease is required' using errcode = '42501';
+  end if;
+  return new;
+end;
+$function$;
+
+create trigger guard_assignment_ai_grading_run_lease_contract
+  before update on public.assignment_ai_grading_runs
+  for each row execute function public.guard_assignment_ai_grading_run_lease_contract_v1();
+
+create trigger guard_assignment_ai_grading_item_lease_contract
+  before update on public.assignment_ai_grading_run_items
+  for each row execute function public.guard_assignment_ai_grading_item_lease_contract_v1();
+
+create or replace function public.finalize_assignment_ai_grading_item_with_provenance_atomic(
+  p_item_id uuid,
+  p_teacher_id uuid,
+  p_score_completion integer,
+  p_score_thinking integer,
+  p_score_workflow integer,
+  p_feedback text,
+  p_apply_teacher_feedback_draft boolean,
+  p_mark_graded boolean,
+  p_ai_feedback_suggestion text,
+  p_ai_feedback_model text,
+  p_ai_grading_provenance jsonb,
+  p_graded_by text,
+  p_attempt_count integer,
+  p_item_status text,
+  p_skip_reason text,
+  p_now timestamptz
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_assignment_id uuid;
+  v_item_status text;
+  v_contract_version smallint;
+  v_result jsonb;
+  v_doc_id uuid;
+begin
+  select item.assignment_id, item.status, run.worker_contract_version
+  into v_assignment_id, v_item_status, v_contract_version
+  from public.assignment_ai_grading_run_items item
+  join public.assignment_ai_grading_runs run on run.id = item.run_id
+  where item.id = p_item_id;
+
+  if not found then
+    raise exception 'Assignment AI grading item not found' using errcode = '22023';
+  end if;
+  if v_contract_version = 1 then
+    raise exception 'Assignment AI grading lease is required' using errcode = '42501';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(v_assignment_id::text, 0));
+
+  select item.status
+  into v_item_status
+  from public.assignment_ai_grading_run_items item
+  where item.id = p_item_id
+    and item.assignment_id = v_assignment_id
+  for update;
+
+  v_result := public.finalize_assignment_ai_grading_item_atomic(
+    p_item_id,
+    p_teacher_id,
+    p_score_completion,
+    p_score_thinking,
+    p_score_workflow,
+    p_feedback,
+    p_apply_teacher_feedback_draft,
+    p_mark_graded,
+    p_ai_feedback_suggestion,
+    p_ai_feedback_model,
+    p_graded_by,
+    p_attempt_count,
+    p_item_status,
+    p_skip_reason,
+    p_now
+  );
+
+  v_doc_id := (v_result->'docs'->0->>'id')::uuid;
+
+  if v_item_status not in ('completed', 'skipped') then
+    update public.assignment_docs d
+    set ai_grading_provenance = p_ai_grading_provenance
+    where d.id = v_doc_id;
+  end if;
+
+  select jsonb_build_object('docs', jsonb_build_array(to_jsonb(d)))
+  into v_result
+  from public.assignment_docs d
+  where d.id = v_doc_id;
+
+  return v_result;
+end;
+$function$;
+
 create function public.patch_assignment_ai_grading_run_with_lease_v1(
   p_run_id uuid,
   p_lease_token uuid,
@@ -45,6 +181,7 @@ begin
   if v_run.lease_token is distinct from p_lease_token
     or v_run.lease_expires_at is null
     or v_run.lease_expires_at <= clock_timestamp()
+    or v_run.worker_contract_version <> 1
   then
     raise exception 'Assignment AI grading lease was lost' using errcode = '40001';
   end if;
@@ -118,6 +255,7 @@ begin
   if v_run.lease_token is distinct from p_lease_token
     or v_run.lease_expires_at is null
     or v_run.lease_expires_at <= clock_timestamp()
+    or v_run.worker_contract_version <> 1
   then
     raise exception 'Assignment AI grading lease was lost' using errcode = '40001';
   end if;
@@ -182,6 +320,9 @@ declare
   v_run_id uuid;
   v_assignment_id uuid;
   v_run public.assignment_ai_grading_runs%rowtype;
+  v_item_status text;
+  v_result jsonb;
+  v_doc_id uuid;
 begin
   select item.run_id, item.assignment_id
   into v_run_id, v_assignment_id
@@ -202,11 +343,13 @@ begin
   if v_run.lease_token is distinct from p_lease_token
     or v_run.lease_expires_at is null
     or v_run.lease_expires_at <= clock_timestamp()
+    or v_run.worker_contract_version <> 1
   then
     raise exception 'Assignment AI grading lease was lost' using errcode = '40001';
   end if;
 
-  perform 1
+  select item.status
+  into v_item_status
   from public.assignment_ai_grading_run_items item
   where item.id = p_item_id
     and item.run_id = v_run.id
@@ -216,7 +359,7 @@ begin
     raise exception 'Assignment AI grading lease was lost' using errcode = '40001';
   end if;
 
-  return public.finalize_assignment_ai_grading_item_with_provenance_atomic(
+  v_result := public.finalize_assignment_ai_grading_item_atomic(
     p_item_id,
     p_teacher_id,
     p_score_completion,
@@ -227,13 +370,27 @@ begin
     p_mark_graded,
     p_ai_feedback_suggestion,
     p_ai_feedback_model,
-    p_ai_grading_provenance,
     p_graded_by,
     p_attempt_count,
     p_item_status,
     p_skip_reason,
     p_now
   );
+
+  v_doc_id := (v_result->'docs'->0->>'id')::uuid;
+
+  if v_item_status not in ('completed', 'skipped') then
+    update public.assignment_docs d
+    set ai_grading_provenance = p_ai_grading_provenance
+    where d.id = v_doc_id;
+  end if;
+
+  select jsonb_build_object('docs', jsonb_build_array(to_jsonb(d)))
+  into v_result
+  from public.assignment_docs d
+  where d.id = v_doc_id;
+
+  return v_result;
 end;
 $function$;
 
@@ -245,6 +402,10 @@ revoke all on function public.finalize_assignment_ai_grading_item_with_provenanc
   uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
   jsonb, text, integer, text, text, timestamptz
 ) from public, anon, authenticated, service_role;
+revoke execute on function public.finalize_assignment_ai_grading_item_atomic(
+  uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
+  text, integer, text, text, timestamptz
+) from service_role;
 
 grant execute on function public.patch_assignment_ai_grading_run_with_lease_v1(uuid, uuid, jsonb)
   to service_role;

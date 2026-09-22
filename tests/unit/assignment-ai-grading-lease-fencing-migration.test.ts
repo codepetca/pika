@@ -9,6 +9,8 @@ const migration = readFileSync(
 
 describe('assignment AI grading lease fencing migration', () => {
   it('checks both the run and item lease before mutation or finalization', () => {
+    expect(migration).toContain('worker_contract_version smallint not null default 0')
+    expect(migration).toContain('v_run.worker_contract_version <> 1')
     expect(migration).toContain('run.lease_token is distinct from p_lease_token')
     expect(migration).toContain('run.lease_expires_at <= clock_timestamp()')
     expect(migration).toContain('item.run_id = v_run.id')
@@ -17,9 +19,12 @@ describe('assignment AI grading lease fencing migration', () => {
   })
 
   it('keeps every mutation service-only with a fixed search path', () => {
-    expect(migration.match(/security definer/g)).toHaveLength(3)
-    expect(migration.match(/set search_path = ''/g)).toHaveLength(3)
+    expect(migration.match(/security definer/g)).toHaveLength(4)
+    expect(migration.match(/set search_path = ''/g)).toHaveLength(6)
     expect(migration).toContain('from public, anon, authenticated, service_role')
     expect(migration).toContain('to service_role')
+    expect(migration).toContain('guard_assignment_ai_grading_run_lease_contract')
+    expect(migration).toContain('guard_assignment_ai_grading_item_lease_contract')
+    expect(migration).toContain('revoke execute on function public.finalize_assignment_ai_grading_item_atomic')
   })
 })

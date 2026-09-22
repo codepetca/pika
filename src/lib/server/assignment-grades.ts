@@ -265,6 +265,7 @@ export async function finalizeAssignmentAiGradingItemAtomic(opts: {
   supabase: SupabaseClient
   itemId: string
   leaseToken: string
+  leaseFencingEnabled: boolean
   teacherId: string
   grade: Omit<AssignmentAiGradeInput, 'studentId' | 'expectedDocUpdatedAt'>
   attemptCount: number
@@ -272,9 +273,8 @@ export async function finalizeAssignmentAiGradingItemAtomic(opts: {
   skipReason?: 'missing_doc' | 'empty_doc' | null
   now?: string
 }) {
-  const { data, error } = await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_lease_v1', {
+  const commonArgs = {
     p_item_id: opts.itemId,
-    p_lease_token: opts.leaseToken,
     p_teacher_id: opts.teacherId,
     p_score_completion: opts.grade.scoreCompletion,
     p_score_thinking: opts.grade.scoreThinking,
@@ -290,7 +290,13 @@ export async function finalizeAssignmentAiGradingItemAtomic(opts: {
     p_item_status: opts.itemStatus,
     p_skip_reason: opts.skipReason ?? null,
     p_now: opts.now ?? new Date().toISOString(),
-  })
+  }
+  const { data, error } = opts.leaseFencingEnabled
+    ? await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_lease_v1', {
+        ...commonArgs,
+        p_lease_token: opts.leaseToken,
+      })
+    : await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_atomic', commonArgs)
 
   if (error) {
     throwAssignmentGradeRpcError(error, 'Failed to finalize AI assignment grade')
