@@ -11,6 +11,7 @@ import { fetchJSON } from '@/lib/request-cache'
 import { useDelayedBusy } from '@/hooks/useDelayedBusy'
 import type {
   AssignmentDoc,
+  AssignmentAiGradingRunSummary,
   AssignmentDocHistoryEntry,
   AssignmentFeedbackEntry,
   TiptapContent,
@@ -300,6 +301,23 @@ export function useTeacherStudentWorkController({
   const [showDraftAutosavedNotice, setShowDraftAutosavedNotice] = useState(false)
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
+  const autoGradeOwnerKey = `${classroomId}:${assignmentId}:${studentId}`
+  const autoGradeOwnerRef = useRef({ key: autoGradeOwnerKey, pending: false })
+  if (autoGradeOwnerRef.current.key !== autoGradeOwnerKey) {
+    autoGradeOwnerRef.current = { key: autoGradeOwnerKey, pending: false }
+  }
+  useEffect(() => {
+    if (autoGradeOwnerRef.current.key !== autoGradeOwnerKey) {
+      autoGradeOwnerRef.current = { key: autoGradeOwnerKey, pending: false }
+    }
+    const owner = autoGradeOwnerRef.current
+    setAutoGrading(false)
+    setGradeError('')
+    return () => {
+      if (autoGradeOwnerRef.current === owner) autoGradeOwnerRef.current = { key: '', pending: false }
+      studentLoadRequestIdRef.current += 1
+    }
+  }, [autoGradeOwnerKey])
   const [feedbackReturning, setFeedbackReturning] = useState(false)
   const [expandedSections, setExpandedSections] = useState<InspectorSectionId[]>(() =>
     parseExpandedSections(readCookie(getInspectorSectionsCookieName(classroomId))),
@@ -786,8 +804,11 @@ export function useTeacherStudentWorkController({
   )
 
   const handleAutoGrade = useCallback(async () => {
-    if (!data || gradeSaving || feedbackReturning || mutationsDisabled) return
+    if (!data || gradeSaving || feedbackReturning || mutationsDisabled || autoGradeOwnerRef.current.pending) return
 
+    const owner = autoGradeOwnerRef.current
+    owner.pending = true
+    const isCurrent = () => autoGradeOwnerRef.current === owner
     setAutoGrading(true)
     setGradeError('')
     try {
@@ -797,23 +818,57 @@ export function useTeacherStudentWorkController({
         body: JSON.stringify({ student_ids: [studentId] }),
       })
       const result = await response.json()
+      if (!isCurrent()) return
       if (!response.ok) throw new Error(result.error || 'Auto-grade failed')
-      if (result.errors?.length) {
-        setGradeError(result.errors.join(', '))
-        return
-      }
-      if ((result.graded_count ?? 0) === 0) {
-        setGradeError('No gradable content found — the submission may be empty')
-        return
+      if (response.status === 202 && result.mode === 'background' && result.run?.id) {
+        let run = result.run as AssignmentAiGradingRunSummary
+        const runUrl = `/api/teacher/assignments/${assignmentId}/auto-grade-runs/${encodeURIComponent(run.id)}`
+        let failures = 0
+        while (run.status === 'queued' || run.status === 'running') {
+          try {
+            // Run progress requires fresh reads, including after another worker's tick.
+            const status = await fetchJSON<{ run: AssignmentAiGradingRunSummary }>(runUrl)
+            if (!isCurrent()) return
+            run = status.run
+            if (run.status !== 'queued' && run.status !== 'running') break
+            if (!run.next_retry_at || Date.parse(run.next_retry_at) <= Date.now()) {
+              const tick = await fetchJSON<{ run: AssignmentAiGradingRunSummary }>(`${runUrl}/tick`, {
+                init: { method: 'POST' },
+              })
+              if (!isCurrent()) return
+              run = tick.run
+            }
+            failures = 0
+          } catch {
+            if (!isCurrent()) return
+            if (++failures >= 3) throw new Error('AI grading is temporarily unavailable')
+          }
+          if (run.status === 'queued' || run.status === 'running') {
+            const delay = run.next_retry_at ? Date.parse(run.next_retry_at) - Date.now() : 2000
+            await new Promise((resolve) => window.setTimeout(resolve, Math.max(2000, Math.min(delay, 15000))))
+            if (!isCurrent()) return
+          }
+        }
+        if (run.status !== 'completed' || run.failed_count > 0) throw new Error('Auto-grade failed')
+      } else {
+        if (result.errors?.length) {
+          setGradeError(result.errors.join(', '))
+          return
+        }
+        if ((result.graded_count ?? 0) === 0) {
+          setGradeError('No gradable content found — the submission may be empty')
+          return
+        }
       }
       const refreshed = await loadStudentWork({
         mergeFeedbackIntoDraftFrom: feedbackDraft.trim() ? feedbackDraft : null,
       })
-      dispatchGradeUpdated(refreshed?.doc ?? null)
+      if (isCurrent()) dispatchGradeUpdated(refreshed?.doc ?? null)
     } catch (err: any) {
-      setGradeError(err.message || 'Auto-grade failed')
+      if (isCurrent()) setGradeError(err.message || 'Auto-grade failed')
     } finally {
-      setAutoGrading(false)
+      owner.pending = false
+      if (isCurrent()) setAutoGrading(false)
     }
   }, [assignmentId, data, dispatchGradeUpdated, feedbackDraft, feedbackReturning, gradeSaving, loadStudentWork, mutationsDisabled, studentId])
 

@@ -427,5 +427,175 @@ begin
 end;
 $contract$;
 
-select 'Passed: Assignment AI usage is reserved per queued item, settled on success, released on terminal failure, revision-safe, and default-off';
+do $expiry_contract$
+declare
+  v_teacher constant uuid := 'e2030000-0000-4000-8000-000000000001';
+  v_assignment constant uuid := 'e2030000-0000-4000-8000-000000000011';
+  v_lease constant uuid := 'e2030000-0000-4000-8000-000000000022';
+  v_run public.assignment_ai_grading_runs%rowtype;
+  v_items uuid[];
+  v_students uuid[];
+  v_rows jsonb;
+  v_result jsonb;
+  v_before public.feature_usage_reservations%rowtype;
+  v_after public.feature_usage_reservations%rowtype;
+  v_mode text;
+  v_reason text;
+  v_other uuid := gen_random_uuid();
+  v_now timestamptz;
+  v_source public.assignment_docs%rowtype;
+begin
+  if has_function_privilege('anon', 'public.release_feature_usage_v1(uuid,uuid,text,integer,text)', 'execute')
+    or has_function_privilege('authenticated', 'public.release_feature_usage_v1(uuid,uuid,text,integer,text)', 'execute')
+    or has_function_privilege('anon', 'public.reserve_assignment_ai_grading_item_usage_with_lease_v1(uuid,uuid)', 'execute')
+    or not has_function_privilege('service_role', 'public.release_feature_usage_v1(uuid,uuid,text,integer,text)', 'execute')
+    or not has_function_privilege('service_role', 'public.reserve_assignment_ai_grading_item_usage_with_lease_v1(uuid,uuid)', 'execute')
+  then
+    raise exception 'Unexpected expiry recovery privileges';
+  end if;
+
+  -- Only this harness-owned teacher/assignment is changed.
+  update public.effective_feature_entitlements set quota_limit = 99
+  where subject_user_id = v_teacher and feature_key = 'grading.ai';
+  update public.assignment_ai_grading_runs set status = 'failed'
+  where assignment_id = v_assignment and status in ('queued', 'running');
+
+  foreach v_mode in array array['item_failure', 'missing_doc', 'empty_doc', 'mixed_run'] loop
+    select array_agg(d.student_id order by d.id), jsonb_agg(jsonb_build_object(
+      'student_id', d.student_id, 'assignment_doc_id', d.id,
+      'assignment_doc_updated_at', d.updated_at, 'assignment_doc_revision_provided', true,
+      'queue_position', case when d.id::text = 'e2030000-0000-4000-8000-000000000012' then 0 else 1 end,
+      'status', 'queued', 'attempt_count', 0
+    ) order by d.id) into v_students, v_rows
+    from public.assignment_docs d where d.assignment_id = v_assignment;
+
+    set local role service_role;
+    v_run := public.create_metered_assignment_ai_grading_run_v1(
+      v_assignment, v_teacher, 'test-model', v_students, md5(v_mode) || md5(v_mode),
+      2, 0, 0, v_rows, clock_timestamp()
+    );
+    perform public.claim_assignment_ai_grading_run(v_run.id, v_lease, 120);
+    reset role;
+    select array_agg(item.id order by item.queue_position) into v_items
+    from public.assignment_ai_grading_run_items item where item.run_id = v_run.id;
+
+    -- Renewal is bounded, fenced, and does not change accounting identity.
+    update public.feature_usage_reservations
+    set expires_at = clock_timestamp() + interval '30 minutes'
+    where operation_id = v_items[1];
+    select * into v_before from public.feature_usage_reservations where operation_id = v_items[1];
+    set local role service_role;
+    begin
+      perform public.reserve_assignment_ai_grading_item_usage_with_lease_v1(v_items[1], gen_random_uuid());
+      raise exception 'Lost lease renewed reservation';
+    exception when serialization_failure then
+      if sqlerrm <> 'Assignment AI grading lease was lost' then raise; end if;
+    end;
+    v_now := clock_timestamp();
+    v_result := public.reserve_assignment_ai_grading_item_usage_with_lease_v1(v_items[1], v_lease);
+    reset role;
+    select * into v_after from public.feature_usage_reservations where operation_id = v_items[1];
+    if v_after.expires_at < v_now + interval '24 hours'
+      or v_after.expires_at > clock_timestamp() + interval '24 hours'
+      or v_result->'reservation' is distinct from to_jsonb(v_after)
+      or (to_jsonb(v_before) - 'expires_at' - 'updated_at') is distinct from
+        (to_jsonb(v_after) - 'expires_at' - 'updated_at')
+    then raise exception 'Renewal changed accounting identity or returned stale evidence'; end if;
+
+    update public.feature_usage_reservations
+    set reserved_at = clock_timestamp() - interval '2 days', expires_at = clock_timestamp() - interval '1 day'
+    where operation_id = v_items[1];
+    set local role service_role;
+    v_result := public.reserve_assignment_ai_grading_item_usage_with_lease_v1(v_items[1], v_lease);
+    if v_result->'reservation'->>'status' <> 'released'
+      or v_result->'reservation'->>'release_reason' <> 'expired'
+    then raise exception 'Expired admission was resurrected'; end if;
+    reset role;
+    select * into v_before from public.feature_usage_reservations where operation_id = v_items[1];
+
+    set local role service_role;
+    perform public.reserve_assignment_ai_grading_item_usage_with_lease_v1(v_items[1], v_lease);
+    begin
+      perform public.finalize_assignment_ai_grading_item_and_settle_usage_v1(
+        v_items[1], v_lease, v_teacher, 3, 3, 3, 'must not persist', true, true,
+        'must not persist', 'test-model', null, 'teacher', 1, 'completed', null, clock_timestamp()
+      );
+      raise exception 'Released reservation settled';
+    exception when object_not_in_prerequisite_state then
+      if sqlerrm <> 'feature_usage_reservation_released' then raise; end if;
+    end;
+    begin
+      perform public.release_feature_usage_v1(v_items[1], v_teacher, 'grading.ai', 1, 'unknown_reason');
+      raise exception 'Expiry compatibility bypassed reason validation';
+    exception when invalid_parameter_value then null;
+    end;
+    begin
+      perform public.release_feature_usage_v1(v_items[1], v_teacher, 'grading.ai', 2, 'stale');
+      raise exception 'Expiry compatibility bypassed binding validation';
+    exception when insufficient_privilege then null;
+    end;
+    foreach v_reason in array array['cancelled', 'expired', 'provider_failed', 'stale', 'superseded', 'internal_failure'] loop
+      v_result := public.release_feature_usage_v1(v_items[1], v_teacher, 'grading.ai', 1, v_reason);
+      if (v_result->>'duplicate')::boolean is not true then
+        raise exception 'Expired terminal cleanup was not idempotent';
+      end if;
+    end loop;
+
+    if v_mode = 'item_failure' then
+      perform public.fail_assignment_ai_grading_item_and_release_usage_with_lease_v1(
+        v_items[1], v_lease, 1, 'grading_failed', 'AI grading failed', 'internal_failure'
+      );
+    elsif v_mode = 'missing_doc' then
+      reset role;
+      delete from public.assignment_docs where id = 'e2030000-0000-4000-8000-000000000012'
+      returning * into v_source;
+      set local role service_role;
+      perform public.skip_assignment_ai_grading_item_and_release_usage_v1(v_items[1], v_lease, 1, v_mode);
+      reset role;
+      insert into public.assignment_docs (id, assignment_id, student_id, content, updated_at)
+      values (v_source.id, v_source.assignment_id, v_source.student_id, v_source.content, v_source.updated_at);
+      set local role service_role;
+    elsif v_mode = 'empty_doc' then
+      perform public.skip_assignment_ai_grading_item_and_release_usage_v1(v_items[1], v_lease, 1, v_mode);
+    end if;
+    perform public.fail_assignment_ai_grading_run_and_release_usage_with_lease_v1(
+      v_run.id, v_lease, 'run_failed', 'AI grading failed', 'internal_failure'
+    );
+    reset role;
+    select * into v_after from public.feature_usage_reservations where operation_id = v_items[1];
+    if to_jsonb(v_before) is distinct from to_jsonb(v_after) then
+      raise exception 'Cleanup or readmission rewrote expired audit evidence';
+    end if;
+    if exists (select 1 from public.assignment_ai_grading_run_items
+      where run_id = v_run.id and status in ('queued', 'processing'))
+      or not exists (select 1 from public.assignment_ai_grading_runs where id = v_run.id and status = 'failed')
+      or not exists (select 1 from public.feature_usage_reservations where operation_id = v_items[2]
+        and status = 'released' and release_reason = 'internal_failure')
+    then raise exception 'Mixed expired/live cleanup did not terminate atomically'; end if;
+
+    set local role service_role;
+    begin
+      perform public.release_feature_usage_v1(v_items[2], v_teacher, 'grading.ai', 1, 'expired');
+      raise exception 'Non-expired release lost strict reason conflict';
+    exception when unique_violation then
+      if sqlerrm <> 'feature_usage_release_conflict' then raise; end if;
+    end;
+    reset role;
+  end loop;
+
+  -- Expiry compatibility is Assignment-only, not a generic weakening.
+  set local role service_role;
+  perform public.reserve_feature_usage_v1(v_other, v_teacher, 'grading.ai', 'test_ai_grading', 'expiry-harness:test', 1, 86400);
+  perform public.release_feature_usage_v1(v_other, v_teacher, 'grading.ai', 1, 'expired');
+  begin
+    perform public.release_feature_usage_v1(v_other, v_teacher, 'grading.ai', 1, 'provider_failed');
+    raise exception 'Non-Assignment expiry accepted differing reason';
+  exception when unique_violation then
+    if sqlerrm <> 'feature_usage_release_conflict' then raise; end if;
+  end;
+  reset role;
+end;
+$expiry_contract$;
+
+select 'Passed: Assignment admission, settlement, expiry-safe terminal cleanup, bounded renewal, strict release conflicts, privileges, and default-off behavior';
 SQL

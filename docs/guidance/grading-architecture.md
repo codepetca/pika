@@ -22,6 +22,33 @@ guides before changing schema or deploying a grading contract.
 - Normal grading does not call remote Gradex. The remote Gradex worker remains
   disabled during the internal grading pilot.
 
+### Assignment usage admission (default off)
+
+`ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED` is a server-only, exact-`true`
+opt-in requiring the Assignment usage RPCs from migrations 203–204. With it unset or
+false, single-student DeepSeek grading stays synchronous and newly created
+durable runs remain version 0. With it enabled, all Assignment AI grading uses
+durable version-1 admission, including single-student and Gradex requests.
+Missing accounting contracts fail closed with a generic unavailable response;
+quota exhaustion returns `429` and `AI grading limit reached`.
+
+The persisted worker contract version owns the rest of a run's lifecycle even
+if the flag is disabled later. Version-1 workers revalidate per-item reservations
+before provider work, settle successful grades atomically, release skipped or
+terminally failed work, and retain reservations for retryable errors. Matching
+active version-1 selections resume; enabling the flag does not convert active
+version-0 runs. Joining and student work remain unmetered. This integration adds
+no plan, entitlement, pricing, or quota-detail UI and does not enable rollout.
+
+Migration 204 renews a still-live reservation to a bounded 24-hour window at
+lease-fenced provider admission. Expired reservations never resume or settle;
+Assignment terminal cleanup treats an already-expired release as an idempotent
+duplicate and preserves its original reason and timestamps. Other differing
+release reasons still conflict. Cleanup records `stale` for source/resource
+changes, `provider_failed` for terminal provider/result failures, and
+`internal_failure` for schema, persistence, or contract failures. No whole-run
+retry substitutes `expired` as a cleanup reason.
+
 ## Goals
 
 1. Keep classroom identity and production persistence inside Pika.

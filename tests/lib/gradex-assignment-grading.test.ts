@@ -97,6 +97,133 @@ describe('Gradex assignment grading processor', () => {
     expect(isGradexAssignmentGradingEnabled()).toBe(false)
   })
 
+  function meteredSetup() {
+    const docs = [1, 2].map((n) => ({ id: `doc-${n}`, student_id: `student-${n}`,
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'This is a complete submission with at least ten words and detailed explanations.' }] }] },
+      updated_at: '2026-06-01T12:00:00Z' }))
+    const supabase = buildSupabase(docs)
+    const built = mockBuildPikaAssignmentGradexRunPayload()
+    built.gradexRequest.submissions = docs.map((doc) => ({ external_submission_id: `safe-${doc.id}`, external_student_id: 'safe-student', content_type: 'text', content: 'Sanitized work' }))
+    built.gradexRequest.workflow_evidence_by_submission_id = Object.fromEntries(docs.map((doc) => [`safe-${doc.id}`, {}]))
+    built.mappings = docs.map((doc) => ({ assignment_doc_id: doc.id, student_id: doc.student_id,
+      gradex_submission_id: `safe-${doc.id}` }))
+    mockBuildPikaAssignmentGradexRunPayload.mockReturnValue(built)
+    const items = [item(), item({ id: 'item-2', assignment_doc_id: 'doc-2', student_id: 'student-2' })]
+    const opts = { supabase: supabase.client, assignment: assignment(), run: run({ worker_contract_version: 1 }), items }
+    return { supabase, opts, docs }
+  }
+
+  const remoteRun = (status = 'queued') => ({ id: 'remote-1', status,
+    counts: { requested: 2, processed: status === 'queued' ? 0 : 2, completed: status === 'queued' ? 0 : 1, failed: 0, skipped: 0, pending: status === 'queued' ? 2 : 0 },
+    provider: null, model: null, tier: null, policy_version: null, prompt_version: null, items: [] })
+
+  it('sends only admitted metered items and their workflow evidence to Gradex', async () => {
+    const { supabase, opts } = meteredSetup()
+    const original = supabase.client.rpc.getMockImplementation()!
+    supabase.client.rpc.mockImplementation(async (name, args) => {
+      if (name === 'reserve_assignment_ai_grading_item_usage_with_lease_v1' && args.p_item_id === 'item-2') {
+        return { data: null, error: { code: '23514', message: 'feature_usage_quota_exhausted' } } as never
+      }
+      return original(name, args)
+    })
+    const fetcher = vi.fn(async (_input, init) => {
+      const body = JSON.parse(String(init.body))
+      expect(body.submissions.map((entry: any) => entry.external_submission_id)).toEqual(['safe-doc-1'])
+      expect(Object.keys(body.workflow_evidence_by_submission_id)).toEqual(['safe-doc-1'])
+      return jsonResponse(202, remoteRun())
+    })
+    vi.stubGlobal('fetch', fetcher)
+    await submitOrPollGradexAssignmentRun(opts)
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(supabase.client.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1', expect.objectContaining({ p_item_id: 'item-2' }))
+    expect(supabase.client.rpc.mock.calls.filter(([name]) => name === 'reserve_assignment_ai_grading_item_usage_with_lease_v1')).toHaveLength(2)
+  })
+
+  it.each([0, 2])('retains retry reservations and releases exhausted Gradex items (attempt %s)', async (attempt) => {
+    const { supabase, opts } = meteredSetup()
+    opts.items.forEach((entry) => { entry.attempt_count = attempt })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 503 })))
+    await submitOrPollGradexAssignmentRun(opts)
+    expect(supabase.client.rpc.mock.calls.filter(([name]) => name === 'fail_assignment_ai_grading_item_and_release_usage_with_lease_v1')).toHaveLength(attempt === 2 ? 2 : 0)
+    if (attempt === 0) expect(supabase.itemUpdates.filter(({ payload }) => payload.status === 'queued')).toHaveLength(2)
+    if (attempt === 2) expect(supabase.client.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1',
+      expect.objectContaining({ p_release_reason: 'provider_failed' }))
+  })
+
+  it('rejects expired Gradex admission with per-item terminal cleanup and no provider call', async () => {
+    const { supabase, opts } = meteredSetup()
+    const original = supabase.client.rpc.getMockImplementation()!
+    supabase.client.rpc.mockImplementation(async (name, args) => {
+      const result = await original(name, args)
+      if (name === 'reserve_assignment_ai_grading_item_usage_with_lease_v1') {
+        result.data.reservation.status = 'released'
+        result.data.reservation.release_reason = 'expired'
+      }
+      return result
+    })
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    await submitOrPollGradexAssignmentRun(opts)
+    expect(fetcher).not.toHaveBeenCalled()
+    const failures = supabase.client.rpc.mock.calls.filter(([name]) => name.includes('release_usage'))
+    expect(failures).toHaveLength(2)
+    for (const [name, args] of failures) {
+      expect(name).toBe('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1')
+      expect(args.p_release_reason).toBe('internal_failure')
+    }
+  })
+
+  it.each([
+    ['reserve_assignment_ai_grading_item_usage_with_lease_v1', '40001', 'metered_assignment_source_changed', 'stale'],
+    ['reserve_assignment_ai_grading_item_usage_with_lease_v1', 'PGRST202', 'private contract detail', 'internal_failure'],
+    ['finalize_assignment_ai_grading_item_and_settle_usage_v1', '40001', 'metered_assignment_source_changed', 'stale'],
+    ['finalize_assignment_ai_grading_item_and_settle_usage_v1', 'PGRST202', 'private contract detail', 'internal_failure'],
+  ])('classifies Gradex %s failures as %s/%s/%s', async (rpcName, code, message, reason) => {
+    const { supabase, opts } = meteredSetup()
+    opts.run.gradex_run_id = 'remote-1'
+    const original = supabase.client.rpc.getMockImplementation()!
+    supabase.client.rpc.mockImplementation((name, args) => name === rpcName
+      ? Promise.resolve({ data: null, error: { code, message } }) as never : original(name, args))
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse(200, remoteRun('completed')))
+    vi.stubGlobal('fetch', fetcher)
+    mockMapGradexItemsToPikaGradeRecords.mockReturnValue([1, 2].map((n) => ({
+      assignment_doc_id: `doc-${n}`, status: 'completed', score_completion: 7, score_thinking: 8,
+      score_workflow: 9, feedback: 'Good work', model: 'test',
+    })))
+    await submitOrPollGradexAssignmentRun(opts)
+    expect(fetcher).toHaveBeenCalledTimes(rpcName.startsWith('reserve') ? 0 : 1)
+    expect(supabase.client.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1',
+      expect.objectContaining({ p_release_reason: reason }))
+  })
+
+  it('settles each completed Gradex item and releases each failed item after the gate turns off', async () => {
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'false')
+    const { supabase, opts } = meteredSetup()
+    opts.run.gradex_run_id = 'remote-1'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, remoteRun('completed_with_errors'))))
+    mockMapGradexItemsToPikaGradeRecords.mockReturnValue([
+      { assignment_doc_id: 'doc-1', status: 'completed', score_completion: 7, score_thinking: 8,
+        score_workflow: 9, feedback: 'Good work', model: 'test' },
+      { assignment_doc_id: 'doc-2', status: 'failed' },
+    ])
+    await submitOrPollGradexAssignmentRun(opts)
+    expect(supabase.client.rpc).toHaveBeenCalledWith('finalize_assignment_ai_grading_item_and_settle_usage_v1', expect.objectContaining({ p_item_id: 'item-1' }))
+    expect(supabase.client.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1', expect.objectContaining({ p_item_id: 'item-2' }))
+    expect(supabase.aiGradeCalls).toHaveLength(1)
+  })
+
+  it('skips blank and missing Gradex sources without provider work', async () => {
+    const { supabase, opts, docs } = meteredSetup()
+    docs[0].content.content = []
+    docs.pop()
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    await submitOrPollGradexAssignmentRun(opts)
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(supabase.client.rpc).toHaveBeenCalledWith('skip_assignment_ai_grading_item_and_release_usage_v1', expect.objectContaining({ p_item_id: 'item-1', p_skip_reason: 'empty_doc' }))
+    expect(supabase.client.rpc).toHaveBeenCalledWith('skip_assignment_ai_grading_item_and_release_usage_v1', expect.objectContaining({ p_item_id: 'item-2', p_skip_reason: 'missing_doc' }))
+  })
+
   it.each([307, 308])('rejects HTTP %i without forwarding a submission, preserving retry state', async (status) => {
     await withRedirectCanary(status, 'https://gradex.example.test/api/v1/grading-runs', async (canary) => {
       vi.stubGlobal('fetch', canary.fetchImpl)
@@ -653,7 +780,7 @@ function item(overrides: Partial<any> = {}) {
   }
 }
 
-function buildSupabase() {
+function buildSupabase(docs?: unknown[]) {
   const runUpdates: Array<{ table: string; id: string; payload: Record<string, unknown> }> = []
   const itemUpdates: Array<{ table: string; id: string; payload: Record<string, unknown> }> = []
   const aiGradeCalls: Array<Record<string, unknown>> = []
@@ -664,6 +791,14 @@ function buildSupabase() {
     aiGradeCalls,
     client: {
       rpc: vi.fn(async (fn: string, args: Record<string, unknown>) => {
+        if (fn === 'reserve_assignment_ai_grading_item_usage_with_lease_v1') {
+          return { data: { reservation: { operation_id: args.p_item_id, subject_user_id: 'teacher-1',
+            feature_key: 'grading.ai', operation_kind: 'assignment_ai_grading',
+            usage_ref: `assignment-ai-item-v1:${args.p_item_id}`, units: 1, status: 'reserved', expires_at: '2099-01-01T00:00:00Z' } }, error: null }
+        }
+        if (fn === 'skip_assignment_ai_grading_item_and_release_usage_v1' || fn === 'fail_assignment_ai_grading_item_and_release_usage_with_lease_v1') {
+          return { data: item({ id: args.p_item_id, status: fn.startsWith('skip_') ? 'skipped' : 'failed' }), error: null }
+        }
         if (fn === 'patch_assignment_ai_grading_item_with_lease_v1') {
           itemUpdates.push({
             table: 'assignment_ai_grading_run_items',
@@ -680,7 +815,7 @@ function buildSupabase() {
           })
           return { data: run(args.p_patch as Record<string, unknown>), error: null }
         }
-        if (fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic') {
+        if (fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic' || fn === 'finalize_assignment_ai_grading_item_and_settle_usage_v1') {
           aiGradeCalls.push(args)
           return {
             data: {
@@ -708,7 +843,7 @@ function buildSupabase() {
           return {
             select: vi.fn(() => ({
               in: vi.fn(async () => ({
-                data: [
+                data: docs ?? [
                   {
                     id: 'doc-1',
                     student_id: 'student-1',
