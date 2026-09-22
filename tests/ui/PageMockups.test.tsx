@@ -51,7 +51,10 @@ describe('PageMockups', () => {
     expect(grades.getByRole('list', { name: 'Returned grades' })).toBeVisible()
     expect(grades.getByText('Not counted')).toBeVisible()
 
-    await user.click(grades.getByRole('link', { name: /Functions and Graphs/ }))
+    const returnedGradeLink = grades.getByRole('link', { name: /Functions and Graphs/ })
+    returnedGradeLink.focus()
+    expect(returnedGradeLink).toHaveFocus()
+    await user.keyboard('{Enter}')
     expect(mockups.getByRole('status')).toHaveTextContent('Open returned feedback for Functions and Graphs selected. Example only')
   })
 

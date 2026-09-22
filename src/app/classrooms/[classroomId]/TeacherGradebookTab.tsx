@@ -11,6 +11,7 @@ import { GradebookTable } from '@/components/gradebook/GradebookTable'
 import { GradebookItemEditor, type GradebookItemDetails } from '@/components/gradebook/GradebookItemEditor'
 import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 import { GradebookToolbar, type GradebookDisplayPreferences } from '@/components/gradebook/GradebookToolbar'
+import { TeacherGradebookVisibilityControl } from '@/components/gradebook/TeacherGradebookVisibilityControl'
 import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
 import { safeLocalGetJson, safeLocalSetJson } from '@/lib/client-storage'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
@@ -22,10 +23,11 @@ import { useGradebookEmail2 } from '@/hooks/useGradebookEmail2'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
+import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
 
 type GradebookSection = 'grades' | 'settings'
 type GradebookSortColumn = GradebookIdentityColumn
-interface Props { classroom: Classroom; isActive?: boolean; sectionParam?: string | null; onSectionChange?: (section: GradebookSection) => void }
+interface Props { classroom: Classroom; isActive?: boolean; sectionParam?: string | null; onSectionChange?: (section: GradebookSection) => void; onClassroomUpdated?: (classroom: Classroom) => void }
 interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; items_available?: boolean; students: GradebookStudentSummary[] }
 type GradebookScoreEditTarget =
   | { kind: 'assessment'; student: GradebookStudentSummary; column: GradebookAssessmentColumn }
@@ -46,6 +48,7 @@ export function TeacherGradebookTab({
   isActive = true,
   sectionParam,
   onSectionChange = () => {},
+  onClassroomUpdated = () => {},
 }: Props) {
   const isReadOnly = !!classroom.archived_at
   const { showMessage } = useAppMessage()
@@ -54,6 +57,11 @@ export function TeacherGradebookTab({
   const [isRetrying, setIsRetrying] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [actionError, setActionError] = useState('')
+  const [studentGradesVisible, setStudentGradesVisible] = useState(
+    normalizeClassroomFeatureVisibility(classroom.feature_visibility).student_grades,
+  )
+  const [savingStudentGradesVisibility, setSavingStudentGradesVisibility] = useState(false)
+  const [studentGradesVisibilityError, setStudentGradesVisibilityError] = useState('')
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES)
   const [preferencesLoaded, setPreferencesLoaded] = useState(false)
@@ -116,6 +124,43 @@ export function TeacherGradebookTab({
       }
     }
   }, [classroom.id])
+
+  useEffect(() => {
+    setStudentGradesVisible(normalizeClassroomFeatureVisibility(classroom.feature_visibility).student_grades)
+    setStudentGradesVisibilityError('')
+    setSavingStudentGradesVisibility(false)
+  }, [classroom.feature_visibility])
+
+  async function updateStudentGradesVisibility(visible: boolean) {
+    if (savingStudentGradesVisibility || isReadOnly) return
+    const previous = studentGradesVisible
+    setStudentGradesVisible(visible)
+    setSavingStudentGradesVisibility(true)
+    setStudentGradesVisibilityError('')
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${classroom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          featureVisibility: {
+            ...normalizeClassroomFeatureVisibility(classroom.feature_visibility),
+            student_grades: visible,
+          },
+        }),
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json.error || 'Could not update grade visibility')
+      const updatedClassroom = json.classroom as Classroom
+      setStudentGradesVisible(normalizeClassroomFeatureVisibility(updatedClassroom.feature_visibility).student_grades)
+      invalidateCachedJSONMatching(`student-grades:${classroom.id}`)
+      onClassroomUpdated(updatedClassroom)
+    } catch (caught) {
+      setStudentGradesVisible(previous)
+      setStudentGradesVisibilityError(caught instanceof Error ? caught.message : 'Could not update grade visibility')
+    } finally {
+      setSavingStudentGradesVisibility(false)
+    }
+  }
 
   const hasCurrentSnapshot = loadedClassroomId === classroom.id
 
@@ -870,7 +915,18 @@ export function TeacherGradebookTab({
           </div> : null
         }
         summary={null}
-        workspace={gradesWorkspace}
+        workspace={(
+          <div className="flex h-full min-h-0 flex-col gap-3">
+            <TeacherGradebookVisibilityControl
+              gradesVisible={studentGradesVisible}
+              onChange={(visible) => { void updateStudentGradesVisibility(visible) }}
+              disabled={isReadOnly}
+              saving={savingStudentGradesVisibility}
+              error={studentGradesVisibilityError}
+            />
+            <div className="flex min-h-0 flex-1 flex-col">{gradesWorkspace}</div>
+          </div>
+        )}
         workspaceFrameClassName="min-h-80 border-0 bg-page"
       />
       <GradebookEditorDialog

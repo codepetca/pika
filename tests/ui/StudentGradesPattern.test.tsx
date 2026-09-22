@@ -4,6 +4,18 @@ import { describe, expect, it } from 'vitest'
 import { StudentGradesPattern } from '@/app/__ui/StudentGradesPattern'
 
 describe('Pattern Lab student Grades visibility concept', () => {
+  it('supports keyboard operation for the production visibility switch', async () => {
+    const user = userEvent.setup()
+    render(<StudentGradesPattern />)
+
+    await user.tab()
+    const visibility = screen.getByRole('switch', { name: 'Show grades to students' })
+    expect(visibility).toHaveFocus()
+    await user.keyboard(' ')
+    expect(visibility).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByText('Current grade')).toBeVisible()
+  })
+
   it('shows only the minimal returned-grade contract when enabled', () => {
     render(<StudentGradesPattern />)
 

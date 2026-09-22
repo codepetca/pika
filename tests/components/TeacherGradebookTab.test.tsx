@@ -179,6 +179,43 @@ describe('TeacherGradebookTab', () => {
     return screen.getByRole('menu')
   }
 
+  it('keeps student Grades off by default and persists the teacher visibility switch', async () => {
+    const onClassroomUpdated = vi.fn()
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        return {
+          ok: true,
+          json: async () => ({ classroom: { ...classroom, feature_visibility: body.featureVisibility } }),
+        }
+      }
+      return { ok: true, json: async () => gradebookResponse() }
+    })
+
+    render(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={classroom} onClassroomUpdated={onClassroomUpdated} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+
+    const toggle = screen.getByRole('switch', { name: 'Show grades to students' })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `/api/teacher/classrooms/${classroom.id}`,
+      expect.objectContaining({ method: 'PATCH' }),
+    ))
+    const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toMatchObject({
+      featureVisibility: { student_grades: true },
+    })
+    await waitFor(() => expect(onClassroomUpdated).toHaveBeenCalled())
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+  })
+
   async function renderWeightEditor() {
     const view = renderGradebook('grades')
     await screen.findByText('Ada')

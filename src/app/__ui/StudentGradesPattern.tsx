@@ -1,9 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { SettingsSwitchRow } from '@/components/settings/SettingsSwitchRow'
+import { TeacherGradebookVisibilityControl } from '@/components/gradebook/TeacherGradebookVisibilityControl'
+import { StudentGradesView } from '@/components/gradebook/StudentGradesView'
 import { StudentReturnedMarksList } from '@/components/gradebook/StudentReturnedMarks'
-import { Card } from '@/ui'
+import type { StudentGradesResponse } from '@/lib/student-grades'
+
+export { TeacherGradebookVisibilityControl, StudentGradesView }
 
 const RETURNED_GRADES = [
   {
@@ -33,111 +36,31 @@ const RETURNED_GRADES = [
     counted: false,
     feedbackHref: '/classrooms/example-classroom?tab=assignments&assignmentId=practice-check',
   },
-] as const
+] satisfies ReadonlyArray<{
+  id: string
+  title: string
+  kind: 'Classwork' | 'Test'
+  score: string
+  percent: string
+  counted: boolean
+  feedbackHref: string
+}>
 
-export function TeacherGradebookVisibilityControl({
-  gradesVisible,
-  onChange,
-}: {
-  gradesVisible: boolean
-  onChange: (visible: boolean) => void
-}) {
-  return (
-    <div data-testid="teacher-gradebook-visibility-control">
-      <Card tone="muted" padding="none">
-        <SettingsSwitchRow
-          checked={gradesVisible}
-          onChange={onChange}
-          ariaLabel="Show grades to students"
-          className="px-4 py-3"
-        >
-          <span className="block font-medium">Show grades to students</span>
-          <span className="mt-0.5 block text-xs leading-5 text-text-muted">
-            Students see their current grade and returned work.
-          </span>
-        </SettingsSwitchRow>
-        <p className="border-t border-border px-4 py-2 text-xs leading-5 text-text-muted">
-          {gradesVisible
-            ? 'Grades is visible in student classroom navigation.'
-            : 'Grades is hidden from student classroom navigation.'}
-          {' '}Returning Classwork or a Test remains the release action for each result.
-        </p>
-      </Card>
-    </div>
-  )
-}
-
-export function StudentGradesView({
-  visible = true,
-  showRoleLabel = false,
-  onSelectGrade,
-}: {
-  visible?: boolean
-  showRoleLabel?: boolean
-  onSelectGrade?: (title: string) => void
-}) {
-  return (
-    <div data-testid="student-grades-view">
-      <Card tone="panel" padding="none">
-        <div className="border-b border-border px-4 py-3">
-          {showRoleLabel ? <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Student</p> : null}
-          <h4 className={showRoleLabel ? 'mt-1 font-semibold text-text-default' : 'font-semibold text-text-default'}>Grades</h4>
-        </div>
-
-        <div aria-live="polite">
-          {visible ? (
-            <div data-testid="student-grades-visible-preview">
-              <div className="flex items-end justify-between gap-4 px-4 py-4">
-                <div>
-                  <p className="text-sm font-medium text-text-default">Current grade</p>
-                  <p className="mt-0.5 text-xs text-text-muted">Based on returned work</p>
-                </div>
-                <p className="text-3xl font-semibold tabular-nums text-text-default">84%</p>
-              </div>
-
-              <ul aria-label="Returned grades" className="divide-y divide-border border-t border-border">
-                {RETURNED_GRADES.map((grade) => (
-                  <li key={grade.id}>
-                    <a
-                      href={grade.feedbackHref}
-                      onClick={onSelectGrade ? (event) => {
-                        event.preventDefault()
-                        onSelectGrade(grade.title)
-                      } : undefined}
-                      className="flex min-h-11 items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-surface-hover focus:outline-none focus-visible:ring-inset focus-visible:ring-foundation focus-visible:ring-focus"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-text-default">{grade.title}</p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-                          <span>{grade.kind}</span>
-                          {!grade.counted ? (
-                            <span className="rounded-badge bg-surface-2 px-2 py-0.5 font-medium text-text-muted">
-                              Not counted
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right tabular-nums">
-                        <p className="text-sm font-semibold text-text-default">{grade.percent}</p>
-                        <p className="mt-0.5 text-xs text-text-muted">{grade.score}</p>
-                      </div>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <div data-testid="student-grades-hidden-preview" className="px-4 py-8 text-center">
-              <p className="text-sm font-medium text-text-default">Grades is hidden from student navigation.</p>
-              <p className="mt-1 text-xs leading-5 text-text-muted">
-                Returned feedback remains available in Classwork and Tests.
-              </p>
-            </div>
-          )}
-        </div>
-      </Card>
-    </div>
-  )
+export const VISIBLE_GRADES: StudentGradesResponse = {
+  currentPercent: 84,
+  items: RETURNED_GRADES.map((grade) => {
+    const [earned, possible] = grade.score.split(' / ').map(Number)
+    return {
+      id: grade.id,
+      title: grade.title,
+      kind: grade.kind,
+      earned,
+      possible,
+      percent: Number(grade.percent.replace('%', '')),
+      included: grade.counted,
+      href: grade.feedbackHref,
+    }
+  }),
 }
 
 export function StudentGradesPattern() {
@@ -171,7 +94,14 @@ export function StudentGradesPattern() {
           </div>
         </div>
 
-        <StudentGradesView visible={gradesVisible} showRoleLabel />
+        {gradesVisible ? (
+          <StudentGradesView grades={VISIBLE_GRADES} showRoleLabel />
+        ) : (
+          <div data-testid="student-grades-hidden-preview" className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
+            <p className="text-sm font-medium text-text-default">Grades is hidden from student navigation.</p>
+            <p className="mt-1 text-xs leading-5 text-text-muted">Returned feedback remains available in Classwork and Tests.</p>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3" data-testid="standalone-returned-marks-preview">

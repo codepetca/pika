@@ -11,6 +11,8 @@ source_files:
   - src/components/StudentAssignmentEditor.tsx
   - src/components/StudentTestResults.tsx
   - src/components/gradebook/StudentReturnedMarks.tsx
+  - src/components/gradebook/StudentGradesView.tsx
+  - src/components/gradebook/TeacherGradebookVisibilityControl.tsx
 human_review_required: true
 ---
 
@@ -42,9 +44,9 @@ for review, not authorization to expose production grade data.
 
 | Need | Existing candidate | Decision | Reason |
 |---|---|---|---|
-| Teacher visibility control | `SettingsSwitchRow` | extend | Place the existing production owner in the Gradebook page pattern without changing its visible track or semantics. |
+| Teacher visibility control | `SettingsSwitchRow` | extend | The feature-owned production control wraps the existing switch row without changing its visible track or semantics. |
 | Student content framing | `Card` and the stable student content rhythm | reuse | The view is a calm reading surface, not a teacher operational table. |
-| Returned assessment rows | Existing Classwork and Test result language | create | Keep the composition feature-owned and reuse it in the student Classroom Grades tab until production behavior exists and converges. |
+| Returned assessment rows | Existing Classwork and Test result language | create | The feature-owned production view is shared by the student Classroom tab and deterministic Pattern Lab fixture. |
 | Shown/hidden comparison | Pattern Lab fixture state | create | Deterministic review behavior belongs to the development-only gallery. |
 
 No new shared primitive is proposed.
@@ -60,23 +62,24 @@ No new shared primitive is proposed.
 4. When hidden, is it clear that only the aggregate Grades area disappears and
    returned feedback remains with the original work?
 
-## Promotion boundary
+## Promotion status
 
-Human acceptance of the Pattern Lab composition may guide a production change,
-but the production feature still requires a returned-only student API,
-classroom-scoped authorization, persisted visibility state, focused tests, and
-the full teacher/student visual verification matrix.
+The approved composition has been promoted to production owners. The student
+API projects only returned work after classroom-scoped authorization, and the
+persisted classroom visibility setting defaults off. Pattern Lab remains the
+place to compare shown and hidden states without live data.
 
 The Classroom page patterns now show the proposed placement in context. The
 teacher Gradebook switch defaults off. The student page set includes the
 enabled-state Grades tab so reviewers can inspect its complete layout. These
-fixtures remain deterministic and do not change production navigation.
+fixtures remain deterministic; production navigation is controlled separately
+by the persisted `student_grades` preference.
 
 ## Standalone marks integration
 
 The standalone Gradebook feature adds a bounded returned-marks list within the
-existing student Classwork summary. This does not implement the aggregate Grades
-prototype or its visibility switch. Pattern Lab renders the production
+existing student Classwork summary and the live aggregate Grades projection.
+Pattern Lab renders the production
 `StudentReturnedMarksList` owner with deterministic counted, zero, and excluded
 fixtures, without API reads. This remains experimental composition evidence;
 it does not promote the future aggregate surface into the stable canon.

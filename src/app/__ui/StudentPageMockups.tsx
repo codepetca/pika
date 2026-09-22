@@ -13,7 +13,7 @@ import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
 import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import type { Classroom, ClassDay, LessonPlan, TiptapContent } from '@/types'
 import { Button, Card, SaveStatus } from '@/ui'
-import { StudentGradesView } from './StudentGradesPattern'
+import { StudentGradesView, VISIBLE_GRADES } from './StudentGradesPattern'
 
 export type StudentPageId = 'today' | 'classwork' | 'tests' | 'grades' | 'calendar' | 'announcements' | 'resources'
 
@@ -73,6 +73,7 @@ function StudentGradesMockup({ onPrototypeAction }: { onPrototypeAction: (action
   return (
     <div className="mx-auto max-w-3xl" data-testid="student-grades-mockup">
       <StudentGradesView
+        grades={VISIBLE_GRADES}
         onSelectGrade={(title) => onPrototypeAction(`Open returned feedback for ${title}`)}
       />
     </div>
