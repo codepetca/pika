@@ -1,5 +1,6 @@
 import { ApiError, apiErrors } from '@/lib/api-handler'
 import { AssignmentAiGradingLeaseLostError } from '@/lib/server/assignment-ai-grading-lease'
+import { throwAssignmentAiUsageError } from '@/lib/server/assignment-ai-grading-usage'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { ParsedAssignmentGradePayload } from '@/lib/validations/assignment-grading'
@@ -292,13 +293,14 @@ export async function finalizeAssignmentAiGradingItemAtomic(opts: {
     p_now: opts.now ?? new Date().toISOString(),
   }
   const { data, error } = opts.leaseFencingEnabled
-    ? await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_lease_v1', {
+    ? await opts.supabase.rpc('finalize_assignment_ai_grading_item_and_settle_usage_v1', {
         ...commonArgs,
         p_lease_token: opts.leaseToken,
       })
     : await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_atomic', commonArgs)
 
   if (error) {
+    if (opts.leaseFencingEnabled) throwAssignmentAiUsageError(error)
     throwAssignmentGradeRpcError(error, 'Failed to finalize AI assignment grade')
   }
 
