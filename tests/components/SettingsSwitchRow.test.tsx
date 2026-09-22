@@ -83,4 +83,21 @@ describe('SettingsSwitchRow', () => {
     expect(switchControl.firstElementChild?.firstElementChild).toHaveClass('h-6', 'w-6', 'translate-x-9')
     expect(screen.getByTestId('checked-icon')).toBeInTheDocument()
   })
+
+  it('can retain its checked tone while a save temporarily disables it', () => {
+    render(
+      <SettingsSwitch
+        checked
+        checkedTone="success"
+        retainCheckedToneWhenDisabled
+        disabled
+        onChange={vi.fn()}
+        ariaLabel="Saving visible state"
+      />,
+    )
+
+    const switchControl = screen.getByRole('switch', { name: 'Saving visible state' })
+    expect(switchControl).toBeDisabled()
+    expect(switchControl.firstElementChild).toHaveClass('bg-success-solid')
+  })
 })

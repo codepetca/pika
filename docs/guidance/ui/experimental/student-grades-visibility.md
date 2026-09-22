@@ -45,7 +45,7 @@ for review, not authorization to expose production grade data.
 
 | Need | Existing candidate | Decision | Reason |
 |---|---|---|---|
-| Teacher visibility control | Gradebook action bar and `SettingsSwitch` | extend | The feature-owned control uses a slightly larger shared settings switch beside More actions. Hidden is neutral; shown uses a green track with the Users audience icon inside the right thumb, plus a stable accessible name and concise show/hide tooltip. |
+| Teacher visibility control | Gradebook action bar and `SettingsSwitch` | extend | The feature-owned control uses a slightly larger shared settings switch beside More actions. Hidden is neutral; shown uses a green track with the Users audience icon inside the right thumb, including while its optimistic save is in flight. It also has a stable accessible name and concise show/hide tooltip. |
 | Student content framing | `Card` and the stable student content rhythm | reuse | The view is a calm reading surface, not a teacher operational table. |
 | Returned assessment rows | Existing Classwork and Test result language | create | The feature-owned production view is shared by the student Classroom tab and deterministic Pattern Lab fixture. |
 | Shown/hidden comparison | Pattern Lab fixture state | create | Deterministic review behavior belongs to the development-only gallery. |

@@ -28,6 +28,7 @@ export function TeacherGradebookVisibilityControl({
         tooltip={tooltip}
         checkedTone="success"
         checkedIcon={<Users className="h-3.5 w-3.5 text-success" aria-hidden="true" />}
+        retainCheckedToneWhenDisabled
         disabled={disabled || saving}
       />
       <span className="sr-only" aria-live="polite">{saving ? 'Saving grade visibility' : ''}</span>

@@ -11,6 +11,7 @@ export function SettingsSwitch({
   tooltip,
   checkedTone = 'default',
   checkedIcon,
+  retainCheckedToneWhenDisabled = false,
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
@@ -19,8 +20,10 @@ export function SettingsSwitch({
   tooltip?: ReactNode
   checkedTone?: 'default' | 'success'
   checkedIcon?: ReactNode
+  retainCheckedToneWhenDisabled?: boolean
 }) {
   const hasCheckedIcon = Boolean(checkedIcon)
+  const retainCheckedTone = disabled && checked && retainCheckedToneWhenDisabled
   const control = (
     <button
       type="button"
@@ -40,7 +43,7 @@ export function SettingsSwitch({
         className={cn(
           'absolute inset-x-0 rounded-full border transition-colors',
           hasCheckedIcon ? 'top-1.5 h-8' : 'top-2 h-7',
-          disabled
+          disabled && !retainCheckedTone
             ? 'border-border bg-surface-2'
             : checked
               ? checkedTone === 'success'

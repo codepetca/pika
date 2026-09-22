@@ -43,4 +43,19 @@ describe('TeacherGradebookVisibilityControl', () => {
     await user.click(button)
     expect(onChange).toHaveBeenCalledWith(false)
   })
+
+  it('keeps the visible treatment while an optimistic save is in flight', () => {
+    render(
+      <TooltipProvider>
+        <TeacherGradebookVisibilityControl gradesVisible onChange={vi.fn()} saving />
+      </TooltipProvider>,
+    )
+
+    const button = screen.getByRole('switch', { name: 'Student grades visibility' })
+    expect(button).toHaveAttribute('aria-checked', 'true')
+    expect(button).toBeDisabled()
+    expect(button.firstElementChild).toHaveClass('bg-success-solid')
+    expect(button.querySelector('.lucide-users')).toBeTruthy()
+    expect(screen.getByTestId('teacher-gradebook-visibility-control')).toHaveAttribute('aria-busy', 'true')
+  })
 })
