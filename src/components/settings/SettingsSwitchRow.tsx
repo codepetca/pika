@@ -11,6 +11,7 @@ export function SettingsSwitch({
   tooltip,
   checkedTone = 'default',
   checkedIcon,
+  uncheckedIcon,
   retainCheckedToneWhenDisabled = false,
 }: {
   checked: boolean
@@ -20,9 +21,10 @@ export function SettingsSwitch({
   tooltip?: ReactNode
   checkedTone?: 'default' | 'success'
   checkedIcon?: ReactNode
+  uncheckedIcon?: ReactNode
   retainCheckedToneWhenDisabled?: boolean
 }) {
-  const hasCheckedIcon = Boolean(checkedIcon)
+  const hasIcon = Boolean(checkedIcon || uncheckedIcon)
   const retainCheckedTone = disabled && checked && retainCheckedToneWhenDisabled
   const control = (
     <button
@@ -34,7 +36,7 @@ export function SettingsSwitch({
       onClick={() => onChange(!checked)}
       className={cn(
         'group relative h-11 shrink-0 rounded-control focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation',
-        hasCheckedIcon ? 'w-16' : 'w-14',
+        hasIcon ? 'w-16' : 'w-14',
         disabled ? 'cursor-not-allowed' : 'cursor-pointer',
       )}
     >
@@ -42,7 +44,7 @@ export function SettingsSwitch({
         aria-hidden="true"
         className={cn(
           'absolute inset-x-0 rounded-full border transition-colors',
-          hasCheckedIcon ? 'top-1.5 h-8' : 'top-2 h-7',
+          hasIcon ? 'top-1.5 h-8' : 'top-2 h-7',
           disabled && !retainCheckedTone
             ? 'border-border bg-surface-2'
             : checked
@@ -52,16 +54,21 @@ export function SettingsSwitch({
               : 'border-border bg-surface-2 group-hover:bg-surface-hover',
         )}
       >
+        {uncheckedIcon && !checked ? (
+          <span className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center">
+            {uncheckedIcon}
+          </span>
+        ) : null}
         <span
           className={cn(
             'absolute left-0 top-1 inline-flex items-center justify-center rounded-full shadow-sm transition-transform',
-            hasCheckedIcon ? 'h-6 w-6' : 'h-5 w-5',
+            hasIcon ? 'h-6 w-6' : 'h-5 w-5',
             checked && checkedTone === 'success'
               ? 'bg-surface'
-              : hasCheckedIcon && !checked
+              : hasIcon && !checked
                 ? 'bg-text-muted'
                 : 'bg-primary',
-            checked ? (hasCheckedIcon ? 'translate-x-9' : 'translate-x-7') : 'translate-x-1',
+            checked ? (hasIcon ? 'translate-x-9' : 'translate-x-7') : 'translate-x-1',
           )}
         >
           {checked ? checkedIcon : null}

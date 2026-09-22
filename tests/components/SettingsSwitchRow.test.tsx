@@ -58,6 +58,7 @@ describe('SettingsSwitchRow', () => {
         checked={false}
         checkedTone="success"
         checkedIcon={<Users data-testid="checked-icon" />}
+        uncheckedIcon={<Users data-testid="unchecked-icon" />}
         onChange={vi.fn()}
         ariaLabel="Visible to students"
       />,
@@ -66,14 +67,16 @@ describe('SettingsSwitchRow', () => {
     const switchControl = screen.getByRole('switch', { name: 'Visible to students' })
     expect(switchControl).toHaveClass('w-16')
     expect(switchControl.firstElementChild).toHaveClass('bg-surface-2')
-    expect(switchControl.firstElementChild?.firstElementChild).toHaveClass('bg-text-muted', 'translate-x-1')
+    expect(switchControl.firstElementChild?.lastElementChild).toHaveClass('bg-text-muted', 'translate-x-1')
     expect(screen.queryByTestId('checked-icon')).not.toBeInTheDocument()
+    expect(screen.getByTestId('unchecked-icon').parentElement).toHaveClass('right-1')
 
     rerender(
       <SettingsSwitch
         checked
         checkedTone="success"
         checkedIcon={<Users data-testid="checked-icon" />}
+        uncheckedIcon={<Users data-testid="unchecked-icon" />}
         onChange={vi.fn()}
         ariaLabel="Visible to students"
       />,
@@ -82,6 +85,7 @@ describe('SettingsSwitchRow', () => {
     expect(switchControl.firstElementChild).toHaveClass('bg-success-solid')
     expect(switchControl.firstElementChild?.firstElementChild).toHaveClass('h-6', 'w-6', 'translate-x-9')
     expect(screen.getByTestId('checked-icon')).toBeInTheDocument()
+    expect(screen.queryByTestId('unchecked-icon')).not.toBeInTheDocument()
   })
 
   it('can retain its checked tone while a save temporarily disables it', () => {

@@ -28,6 +28,7 @@ export function TeacherGradebookVisibilityControl({
         tooltip={tooltip}
         checkedTone="success"
         checkedIcon={<Users className="h-3.5 w-3.5 text-success" aria-hidden="true" />}
+        uncheckedIcon={<Users className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />}
         retainCheckedToneWhenDisabled
         disabled={disabled || saving}
       />
