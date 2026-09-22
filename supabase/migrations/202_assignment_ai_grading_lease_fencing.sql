@@ -13,10 +13,15 @@ language plpgsql
 set search_path = ''
 as $function$
 begin
-  if old.worker_contract_version = 1
-    and current_user = 'service_role'
-  then
-    raise exception 'Assignment AI grading lease is required' using errcode = '42501';
+  if current_user = 'service_role' then
+    if (tg_op = 'INSERT' and new.worker_contract_version = 1)
+      or (tg_op = 'UPDATE' and (
+        old.worker_contract_version = 1 or new.worker_contract_version = 1
+      ))
+      or (tg_op = 'DELETE' and old.worker_contract_version = 1)
+    then
+      raise exception 'Assignment AI grading lease is required' using errcode = '42501';
+    end if;
   end if;
   if tg_op = 'DELETE' then
     return old;
@@ -31,17 +36,29 @@ language plpgsql
 set search_path = ''
 as $function$
 declare
-  v_contract_version smallint;
+  v_requires_lease boolean;
 begin
-  select run.worker_contract_version
-  into v_contract_version
-  from public.assignment_ai_grading_runs run
-  where run.id = old.run_id;
+  if current_user = 'service_role' then
+    if tg_op = 'INSERT' then
+      select exists (
+        select 1 from public.assignment_ai_grading_runs run
+        where run.id = new.run_id and run.worker_contract_version = 1
+      ) into v_requires_lease;
+    elsif tg_op = 'DELETE' then
+      select exists (
+        select 1 from public.assignment_ai_grading_runs run
+        where run.id = old.run_id and run.worker_contract_version = 1
+      ) into v_requires_lease;
+    else
+      select exists (
+        select 1 from public.assignment_ai_grading_runs run
+        where run.id in (old.run_id, new.run_id) and run.worker_contract_version = 1
+      ) into v_requires_lease;
+    end if;
 
-  if v_contract_version = 1
-    and current_user = 'service_role'
-  then
-    raise exception 'Assignment AI grading lease is required' using errcode = '42501';
+    if v_requires_lease then
+      raise exception 'Assignment AI grading lease is required' using errcode = '42501';
+    end if;
   end if;
   if tg_op = 'DELETE' then
     return old;
@@ -51,11 +68,11 @@ end;
 $function$;
 
 create trigger guard_assignment_ai_grading_run_lease_contract
-  before update or delete on public.assignment_ai_grading_runs
+  before insert or update or delete on public.assignment_ai_grading_runs
   for each row execute function public.guard_assignment_ai_grading_run_lease_contract_v1();
 
 create trigger guard_assignment_ai_grading_item_lease_contract
-  before update or delete on public.assignment_ai_grading_run_items
+  before insert or update or delete on public.assignment_ai_grading_run_items
   for each row execute function public.guard_assignment_ai_grading_item_lease_contract_v1();
 
 create or replace function public.finalize_assignment_ai_grading_item_with_provenance_atomic(

@@ -167,6 +167,53 @@ begin
     null;
   end;
 
+  begin
+    insert into public.assignment_ai_grading_runs (
+      id, assignment_id, status, triggered_by, model, requested_student_ids_json,
+      selection_hash, requested_count, gradable_count, worker_contract_version
+    ) values (
+      'e2020000-0000-4000-8000-000000000015',
+      'e2020000-0000-4000-8000-000000000011', 'failed',
+      'e2020000-0000-4000-8000-000000000001', 'test-model',
+      '["e2020000-0000-4000-8000-000000000002"]', repeat('b', 64), 1, 1, 1
+    );
+    raise exception 'Direct service-role insert bypassed the run lease contract';
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  begin
+    insert into public.assignment_ai_grading_run_items (
+      id, run_id, assignment_id, student_id, assignment_doc_id,
+      assignment_doc_updated_at, queue_position, status
+    ) values (
+      'e2020000-0000-4000-8000-000000000016',
+      'e2020000-0000-4000-8000-000000000013',
+      'e2020000-0000-4000-8000-000000000011',
+      'e2020000-0000-4000-8000-000000000002',
+      'e2020000-0000-4000-8000-000000000012',
+      v_item.assignment_doc_updated_at, 1, 'queued'
+    );
+    raise exception 'Direct service-role insert bypassed the item lease contract';
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  insert into public.assignment_ai_grading_runs (
+    id, assignment_id, status, triggered_by, model, requested_student_ids_json,
+    selection_hash, requested_count, gradable_count, worker_contract_version
+  ) values (
+    'e2020000-0000-4000-8000-000000000017',
+    'e2020000-0000-4000-8000-000000000011', 'failed',
+    'e2020000-0000-4000-8000-000000000001', 'test-model',
+    '["e2020000-0000-4000-8000-000000000002"]', repeat('c', 64), 1, 1, 0
+  );
+  update public.assignment_ai_grading_runs
+  set error_samples_json = '["legacy-compatible"]'
+  where id = 'e2020000-0000-4000-8000-000000000017';
+  delete from public.assignment_ai_grading_runs
+  where id = 'e2020000-0000-4000-8000-000000000017';
+
   perform public.patch_assignment_ai_grading_item_with_lease_v1(
     v_item.id, v_new_token, '{"status":"queued","last_error_code":null}'
   );
