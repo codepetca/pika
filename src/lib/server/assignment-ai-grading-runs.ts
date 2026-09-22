@@ -41,6 +41,7 @@ import {
 } from '@/lib/server/gradex-assignment-grading'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
+  assertAssignmentAiGradingUsageContract,
   failAssignmentAiGradingItemUsage,
   failAssignmentAiGradingRunUsage,
   getAssignmentAiUsageFailureReason,
@@ -938,6 +939,9 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   const normalizedStudentIds = normalizeStudentIds(opts.studentIds)
   const selectionHash = buildSelectionHash(normalizedStudentIds)
   const metered = isAssignmentAiGradingUsageMeteringEnabled()
+  if (metered) {
+    await assertAssignmentAiGradingUsageContract(supabase)
+  }
   let activeRun: AssignmentAiGradingRun | null
   try {
     activeRun = await fetchLatestActiveRun(supabase, opts.assignmentId, { requireEvidence: metered })
@@ -1048,7 +1052,7 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
 
   const now = new Date().toISOString()
   const { data: run, error: runError } = await supabase.rpc(
-    metered ? 'create_metered_assignment_ai_grading_run_v1' : 'create_assignment_ai_grading_run_atomic', {
+    metered ? 'create_metered_assignment_ai_grading_run_v2' : 'create_assignment_ai_grading_run_atomic', {
     p_assignment_id: opts.assignmentId,
     p_teacher_id: opts.teacherId,
     p_model: getAssignmentRunModelAlias(),
@@ -1141,6 +1145,12 @@ export async function tickAssignmentAiGradingRun(opts: {
   if (!['queued', 'running'].includes(run.status)) {
     const items = await fetchAssignmentAiGradingRunItems(supabase, run.id)
     return { run: toAssignmentAiGradingRunSummary(run, { items }), claimed: false }
+  }
+
+  if (run.worker_contract_version === 1) {
+    // A persisted metered run must never execute against the incomplete M203
+    // contract during a rolling deploy.
+    await assertAssignmentAiGradingUsageContract(supabase)
   }
 
   const leaseToken = await claimAssignmentAiGradingRun(supabase, run.id)

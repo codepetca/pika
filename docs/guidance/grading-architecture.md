@@ -32,6 +32,14 @@ durable version-1 admission, including single-student and Gradex requests.
 Missing accounting contracts fail closed with a generic unavailable response;
 quota exhaustion returns `429` and `AI grading limit reached`.
 
+The application first validates migration 204's exact service-only capability
+sentinel. Version-1 items persist a SHA-256 fingerprint over every durable Pika
+grading source: Assignment instructions/settings, the submitted document,
+structured submission artifacts, and workflow history. The same fingerprint is
+checked under the Assignment/Classroom/document locks at provider admission and
+again during atomic finalization, so changed or deleted source input cannot be
+graded or settled as the original work.
+
 The persisted worker contract version owns the rest of a run's lifecycle even
 if the flag is disabled later. Version-1 workers revalidate per-item reservations
 before provider work, settle successful grades atomically, release skipped or
@@ -48,6 +56,16 @@ release reasons still conflict. Cleanup records `stale` for source/resource
 changes, `provider_failed` for terminal provider/result failures, and
 `internal_failure` for schema, persistence, or contract failures. No whole-run
 retry substitutes `expired` as a cleanup reason.
+
+For the dormant Gradex path, Pika persists the run idempotency key and each
+item's external submission reference before provider egress, then records the
+remote run under the same worker lease. Restarts therefore reuse the original
+correlation even if pseudonym configuration changes. Polling renews admission
+only for still-live local items, fetches only their remote results, and lets
+admitted siblings finish persistence before propagating a terminal worker
+failure. `internal_failure` is valid only for Assignment AI reservations; the
+shared usage ledger continues to reject it for test grading and repository
+review operations.
 
 ## Goals
 

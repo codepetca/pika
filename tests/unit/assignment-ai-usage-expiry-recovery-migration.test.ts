@@ -23,7 +23,8 @@ describe('Assignment usage expiry recovery migration', () => {
     expect(release.indexOf('pg_advisory_xact_lock')).toBeLessThan(release.indexOf('lock_effective_feature_entitlement_v1'))
     expect(release.indexOf('lock_effective_feature_entitlement_v1')).toBeLessThan(release.indexOf('for update'))
     expect(release).toContain('feature_usage_reservation_binding_mismatch')
-    expect(migration.match(/'internal_failure'/g)).toHaveLength(2)
+    expect(migration).toContain("operation_kind = 'assignment_ai_grading' and release_reason = 'internal_failure'")
+    expect(release).toContain("p_release_reason = 'internal_failure'\n    and v_reservation.operation_kind <> 'assignment_ai_grading'")
   })
 
   it('renews only live reservations after lease/resource-fenced generic admission', () => {
@@ -35,10 +36,19 @@ describe('Assignment usage expiry recovery migration', () => {
     expect(reserve).not.toContain('set status')
   })
 
-  it('retains empty search paths and service-only grants for both replaced functions', () => {
-    expect(migration.match(/set search_path = ''/g)).toHaveLength(2)
-    expect(migration.match(/from public, anon, authenticated/g)).toHaveLength(2)
-    expect(migration.match(/to service_role/g)).toHaveLength(2)
+  it('uses empty search paths and service-only grants for the complete M204 contract', () => {
+    const serviceFunctions = [
+      'get_assignment_ai_grading_usage_contract_v2',
+      'create_metered_assignment_ai_grading_run_v2',
+      'prepare_assignment_ai_gradex_submission_v1',
+      'record_assignment_ai_gradex_submission_v1',
+    ]
+    for (const functionName of serviceFunctions) {
+      expect(migration).toContain(`function public.${functionName}`)
+      expect(migration).toMatch(new RegExp(`grant execute on function public\\.${functionName}\\([\\s\\S]*?to service_role;`))
+    }
+    expect(migration.match(/set search_path = ''/g)?.length).toBeGreaterThanOrEqual(serviceFunctions.length)
+    expect(migration).toContain('from public, anon, authenticated, service_role;')
     const ci = readFileSync(resolve(process.cwd(), '.github/workflows/ci.yml'), 'utf8')
     expect(ci).toContain('bash scripts/check-metered-assignment-ai-grading.sh')
   })

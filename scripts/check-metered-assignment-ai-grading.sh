@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_CONTAINER="supabase_db_pika"
+DB_CONTAINER="${DB_CONTAINER:-supabase_db_pika}"
 if ! docker inspect "$DB_CONTAINER" >/dev/null 2>&1; then
   echo "Supabase database container is not running." >&2
   exit 2
@@ -66,13 +66,13 @@ declare
   v_run_count integer;
   v_status text;
 begin
-  if has_function_privilege('authenticated', 'public.create_metered_assignment_ai_grading_run_v1(uuid,uuid,text,uuid[],text,integer,integer,integer,jsonb,timestamp with time zone)', 'execute')
+  if has_function_privilege('authenticated', 'public.create_metered_assignment_ai_grading_run_v2(uuid,uuid,text,uuid[],text,integer,integer,integer,jsonb,timestamp with time zone)', 'execute')
     or has_function_privilege('authenticated', 'public.reserve_assignment_ai_grading_item_usage_with_lease_v1(uuid,uuid)', 'execute')
     or has_function_privilege('authenticated', 'public.finalize_assignment_ai_grading_item_and_settle_usage_v1(uuid,uuid,uuid,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,integer,text,text,timestamp with time zone)', 'execute')
     or has_function_privilege('authenticated', 'public.skip_assignment_ai_grading_item_and_release_usage_v1(uuid,uuid,integer,text)', 'execute')
     or has_function_privilege('authenticated', 'public.fail_assignment_ai_grading_item_and_release_usage_with_lease_v1(uuid,uuid,integer,text,text,text)', 'execute')
     or has_function_privilege('authenticated', 'public.fail_assignment_ai_grading_run_and_release_usage_with_lease_v1(uuid,uuid,text,text,text)', 'execute')
-    or not has_function_privilege('service_role', 'public.create_metered_assignment_ai_grading_run_v1(uuid,uuid,text,uuid[],text,integer,integer,integer,jsonb,timestamp with time zone)', 'execute')
+    or not has_function_privilege('service_role', 'public.create_metered_assignment_ai_grading_run_v2(uuid,uuid,text,uuid[],text,integer,integer,integer,jsonb,timestamp with time zone)', 'execute')
     or not has_function_privilege('service_role', 'public.skip_assignment_ai_grading_item_and_release_usage_v1(uuid,uuid,integer,text)', 'execute')
   then
     raise exception 'Unexpected metered Assignment AI grading privileges';
@@ -106,7 +106,7 @@ begin
     null;
   end;
   begin
-    perform public.create_metered_assignment_ai_grading_run_v1(
+    perform public.create_metered_assignment_ai_grading_run_v2(
       v_assignment,
       v_teacher,
       'test-model',
@@ -133,7 +133,7 @@ begin
   where id = v_assignment;
   set local role service_role;
   begin
-    perform public.create_metered_assignment_ai_grading_run_v1(
+    perform public.create_metered_assignment_ai_grading_run_v2(
       v_assignment,
       v_teacher,
       'test-model',
@@ -171,7 +171,7 @@ begin
   end if;
 
   set local role service_role;
-  v_run := public.create_metered_assignment_ai_grading_run_v1(
+  v_run := public.create_metered_assignment_ai_grading_run_v2(
     v_assignment,
     v_teacher,
     'test-model',
@@ -313,7 +313,7 @@ begin
   from public.assignment_docs d where d.id = v_doc_1;
 
   set local role service_role;
-  v_expired_run := public.create_metered_assignment_ai_grading_run_v1(
+  v_expired_run := public.create_metered_assignment_ai_grading_run_v2(
     v_assignment, v_teacher, 'test-model',
     array['e2030000-0000-4000-8000-000000000002'::uuid],
     repeat('g', 64), 1, 0, 0, v_rows, clock_timestamp()
@@ -387,7 +387,7 @@ begin
 
   set local role service_role;
   begin
-    perform public.create_metered_assignment_ai_grading_run_v1(
+    perform public.create_metered_assignment_ai_grading_run_v2(
       v_assignment, v_teacher, 'test-model',
       array['e2030000-0000-4000-8000-000000000002'::uuid],
       repeat('b', 64), 1, 0, 0, v_rows, clock_timestamp()
@@ -470,7 +470,7 @@ begin
     from public.assignment_docs d where d.assignment_id = v_assignment;
 
     set local role service_role;
-    v_run := public.create_metered_assignment_ai_grading_run_v1(
+    v_run := public.create_metered_assignment_ai_grading_run_v2(
       v_assignment, v_teacher, 'test-model', v_students, md5(v_mode) || md5(v_mode),
       2, 0, 0, v_rows, clock_timestamp()
     );
@@ -586,6 +586,22 @@ begin
   -- Expiry compatibility is Assignment-only, not a generic weakening.
   set local role service_role;
   perform public.reserve_feature_usage_v1(v_other, v_teacher, 'grading.ai', 'test_ai_grading', 'expiry-harness:test', 1, 86400);
+  reset role;
+  begin
+    update public.feature_usage_reservations
+    set status = 'released', released_at = clock_timestamp(), release_reason = 'internal_failure'
+    where operation_id = v_other;
+    raise exception 'Reservation constraint accepted non-Assignment internal_failure';
+  exception when check_violation then
+    null;
+  end;
+  set local role service_role;
+  begin
+    perform public.release_feature_usage_v1(v_other, v_teacher, 'grading.ai', 1, 'internal_failure');
+    raise exception 'Non-Assignment usage accepted internal_failure';
+  exception when invalid_parameter_value then
+    null;
+  end;
   perform public.release_feature_usage_v1(v_other, v_teacher, 'grading.ai', 1, 'expired');
   begin
     perform public.release_feature_usage_v1(v_other, v_teacher, 'grading.ai', 1, 'provider_failed');
@@ -597,5 +613,195 @@ begin
 end;
 $expiry_contract$;
 
-select 'Passed: Assignment admission, settlement, expiry-safe terminal cleanup, bounded renewal, strict release conflicts, privileges, and default-off behavior';
+do $m204_contract$
+declare
+  v_teacher constant uuid := 'e2030000-0000-4000-8000-000000000001';
+  v_assignment constant uuid := 'e2030000-0000-4000-8000-000000000011';
+  v_doc constant uuid := 'e2030000-0000-4000-8000-000000000012';
+  v_requirement constant uuid := 'e2030000-0000-4000-8000-000000000030';
+  v_artifact constant uuid := 'e2030000-0000-4000-8000-000000000031';
+  v_lease uuid;
+  v_run public.assignment_ai_grading_runs%rowtype;
+  v_item public.assignment_ai_grading_run_items%rowtype;
+  v_rows jsonb;
+  v_result jsonb;
+begin
+  if has_function_privilege('authenticated', 'public.get_assignment_ai_grading_usage_contract_v2()', 'execute')
+    or has_function_privilege('authenticated', 'public.create_metered_assignment_ai_grading_run_v2(uuid,uuid,text,uuid[],text,integer,integer,integer,jsonb,timestamp with time zone)', 'execute')
+    or has_function_privilege('authenticated', 'public.prepare_assignment_ai_gradex_submission_v1(uuid,uuid,text,jsonb)', 'execute')
+    or has_function_privilege('authenticated', 'public.record_assignment_ai_gradex_submission_v1(uuid,uuid,text,text,text,timestamp with time zone,timestamp with time zone)', 'execute')
+    or not has_function_privilege('service_role', 'public.get_assignment_ai_grading_usage_contract_v2()', 'execute')
+  then
+    raise exception 'Unexpected M204 service contract privileges';
+  end if;
+
+  set local role service_role;
+  v_result := public.get_assignment_ai_grading_usage_contract_v2();
+  reset role;
+  if v_result is distinct from jsonb_build_object(
+    'contract', 'assignment-ai-grading-usage',
+    'version', 2,
+    'source_fingerprint_version', 1,
+    'gradex_correlation_version', 1
+  ) then
+    raise exception 'M204 capability sentinel returned invalid evidence';
+  end if;
+
+  update public.effective_feature_entitlements
+  set quota_limit = 200, revision = revision + 1, updated_at = clock_timestamp()
+  where subject_user_id = v_teacher and feature_key = 'grading.ai';
+  update public.assignment_ai_grading_runs
+  set status = 'failed', completed_at = coalesce(completed_at, clock_timestamp())
+  where assignment_id = v_assignment and status in ('queued', 'running');
+
+  insert into public.assignment_submission_requirements (
+    id, assignment_id, type, label, instructions, position
+  ) values (
+    v_requirement, v_assignment, 'link', 'Evidence', 'Attach evidence', 0
+  );
+  insert into public.assignment_submission_artifacts (
+    id, assignment_doc_id, requirement_id, student_id, type, url,
+    metadata_json, validation_status
+  ) values (
+    v_artifact, v_doc, v_requirement,
+    'e2030000-0000-4000-8000-000000000002', 'link',
+    'https://example.test/evidence-v1', '{}'::jsonb, 'valid'
+  );
+
+  select jsonb_build_array(jsonb_build_object(
+    'student_id', d.student_id,
+    'assignment_doc_id', d.id,
+    'assignment_doc_updated_at', d.updated_at,
+    'assignment_doc_revision_provided', true,
+    'queue_position', 0,
+    'status', 'queued',
+    'attempt_count', 0
+  )) into v_rows
+  from public.assignment_docs d where d.id = v_doc;
+
+  -- Deleting a structured artifact after admission must still fail the
+  -- correlation fence before provider egress.
+  v_lease := gen_random_uuid();
+  set local role service_role;
+  v_run := public.create_metered_assignment_ai_grading_run_v2(
+    v_assignment, v_teacher, 'test-model',
+    array['e2030000-0000-4000-8000-000000000002'::uuid],
+    repeat('d', 64), 1, 0, 0, v_rows, clock_timestamp()
+  );
+  perform public.claim_assignment_ai_grading_run(v_run.id, v_lease, 120);
+  reset role;
+  select * into v_item from public.assignment_ai_grading_run_items where run_id = v_run.id;
+  if v_item.assignment_source_fingerprint is null then
+    raise exception 'M204 metered run omitted its complete source fingerprint';
+  end if;
+  set local role service_role;
+  perform public.reserve_assignment_ai_grading_item_usage_with_lease_v1(v_item.id, v_lease);
+  reset role;
+  delete from public.assignment_submission_artifacts where id = v_artifact;
+  set local role service_role;
+  begin
+    perform public.prepare_assignment_ai_gradex_submission_v1(
+      v_run.id, v_lease, 'pika-run-deleted-artifact',
+      jsonb_build_array(jsonb_build_object(
+        'item_id', v_item.id,
+        'external_submission_id', 'pika-submission-deleted'
+      ))
+    );
+    raise exception 'Artifact deletion passed the pre-egress correlation fence';
+  exception when serialization_failure then
+    if sqlerrm <> 'metered_assignment_source_changed' then raise; end if;
+  end;
+  perform public.fail_assignment_ai_grading_run_and_release_usage_with_lease_v1(
+    v_run.id, v_lease, 'source_changed', 'AI grading failed', 'stale'
+  );
+  reset role;
+
+  insert into public.assignment_submission_artifacts (
+    id, assignment_doc_id, requirement_id, student_id, type, url,
+    metadata_json, validation_status
+  ) values (
+    v_artifact, v_doc, v_requirement,
+    'e2030000-0000-4000-8000-000000000002', 'link',
+    'https://example.test/evidence-v1', '{}'::jsonb, 'valid'
+  );
+
+  -- Replacing structured-artifact input after admission must fail settlement.
+  v_lease := gen_random_uuid();
+  set local role service_role;
+  v_run := public.create_metered_assignment_ai_grading_run_v2(
+    v_assignment, v_teacher, 'test-model',
+    array['e2030000-0000-4000-8000-000000000002'::uuid],
+    repeat('e', 64), 1, 0, 0, v_rows, clock_timestamp()
+  );
+  perform public.claim_assignment_ai_grading_run(v_run.id, v_lease, 120);
+  reset role;
+  select * into v_item from public.assignment_ai_grading_run_items where run_id = v_run.id;
+  set local role service_role;
+  perform public.reserve_assignment_ai_grading_item_usage_with_lease_v1(v_item.id, v_lease);
+  reset role;
+  update public.assignment_submission_artifacts
+  set url = 'https://example.test/evidence-v2', updated_at = clock_timestamp()
+  where id = v_artifact;
+  set local role service_role;
+  begin
+    perform public.finalize_assignment_ai_grading_item_and_settle_usage_v1(
+      v_item.id, v_lease, v_teacher, 3, 3, 3, 'must not persist', true, true,
+      'must not persist', 'test-model', null, 'teacher', 1, 'completed', null,
+      clock_timestamp()
+    );
+    raise exception 'Artifact replacement passed the pre-settlement source fence';
+  exception when serialization_failure then
+    if sqlerrm <> 'metered_assignment_source_changed' then raise; end if;
+  end;
+  perform public.fail_assignment_ai_grading_run_and_release_usage_with_lease_v1(
+    v_run.id, v_lease, 'source_changed', 'AI grading failed', 'stale'
+  );
+  reset role;
+
+  -- External correlation is durable and lease-fenced before provider submission.
+  v_lease := gen_random_uuid();
+  set local role service_role;
+  v_run := public.create_metered_assignment_ai_grading_run_v2(
+    v_assignment, v_teacher, 'gradex:test',
+    array['e2030000-0000-4000-8000-000000000002'::uuid],
+    repeat('f', 64), 1, 0, 0, v_rows, clock_timestamp()
+  );
+  perform public.claim_assignment_ai_grading_run(v_run.id, v_lease, 120);
+  reset role;
+  select * into v_item from public.assignment_ai_grading_run_items where run_id = v_run.id;
+  set local role service_role;
+  v_result := public.prepare_assignment_ai_gradex_submission_v1(
+    v_run.id, v_lease, 'pika-run-durable-correlation',
+    jsonb_build_array(jsonb_build_object(
+      'item_id', v_item.id,
+      'external_submission_id', 'pika-submission-durable'
+    ))
+  );
+  if (v_result->>'prepared_count')::integer <> 1 then
+    raise exception 'Gradex correlation preparation omitted a live item';
+  end if;
+  perform public.record_assignment_ai_gradex_submission_v1(
+    v_run.id, v_lease, 'pika-run-durable-correlation',
+    'gradex-run-durable', 'queued', clock_timestamp(), clock_timestamp()
+  );
+  reset role;
+  if not exists (
+    select 1 from public.assignment_ai_grading_runs run
+    join public.assignment_ai_grading_run_items item on item.run_id = run.id
+    where run.id = v_run.id
+      and run.gradex_idempotency_key = 'pika-run-durable-correlation'
+      and run.gradex_run_id = 'gradex-run-durable'
+      and item.gradex_submission_id = 'pika-submission-durable'
+  ) then
+    raise exception 'Gradex correlation did not persist atomically';
+  end if;
+  set local role service_role;
+  perform public.fail_assignment_ai_grading_run_and_release_usage_with_lease_v1(
+    v_run.id, v_lease, 'harness_complete', 'AI grading failed', 'internal_failure'
+  );
+  reset role;
+end;
+$m204_contract$;
+
+select 'Passed: Assignment admission, source fencing, Gradex correlation, settlement, expiry-safe cleanup, strict release conflicts, privileges, and default-off behavior';
 SQL

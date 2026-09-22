@@ -51,6 +51,20 @@ const reservationSchema = z.object({
   }),
 })
 
+const assignmentAiUsageContractSchema = z.object({
+  contract: z.literal('assignment-ai-grading-usage'),
+  version: z.literal(2),
+  source_fingerprint_version: z.literal(1),
+  gradex_correlation_version: z.literal(1),
+}).strict()
+
+export async function assertAssignmentAiGradingUsageContract(supabase: Supabase): Promise<void> {
+  const { data, error } = await supabase.rpc('get_assignment_ai_grading_usage_contract_v2')
+  if (error || !assignmentAiUsageContractSchema.safeParse(data).success) {
+    throwAssignmentAiUsageError(error)
+  }
+}
+
 export async function reserveAssignmentAiGradingItemUsage(opts: ItemLease & { teacherId: string }): Promise<void> {
   const { data, error } = await opts.supabase.rpc('reserve_assignment_ai_grading_item_usage_with_lease_v1', {
     p_item_id: opts.itemId,

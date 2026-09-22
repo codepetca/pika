@@ -267,6 +267,8 @@ function buildTickHarness(opts: {
       student_id: 'student-1',
       assignment_doc_id: opts.assignmentDoc?.id ?? null,
       assignment_doc_updated_at: opts.assignmentDoc?.updated_at ?? null,
+      assignment_source_fingerprint: 'a'.repeat(64),
+      gradex_submission_id: null,
       queue_position: 0,
       status: 'queued',
       skip_reason: opts.skipReason,
@@ -282,6 +284,12 @@ function buildTickHarness(opts: {
   ]
 
   mockSupabaseClient.rpc.mockImplementation(async (fn: string, args: Record<string, any>) => {
+    if (fn === 'get_assignment_ai_grading_usage_contract_v2') {
+      return { data: {
+        contract: 'assignment-ai-grading-usage', version: 2,
+        source_fingerprint_version: 1, gradex_correlation_version: 1,
+      }, error: null }
+    }
     if (fn === 'claim_assignment_ai_grading_run') {
       run.lease_token = args.p_lease_token
       run.lease_expires_at = '2099-04-21T12:01:00.000Z'
@@ -474,6 +482,19 @@ describe('metered Assignment run lifecycle', () => {
     return buildTickHarness({ workerContractVersion: 1, skipReason: null, assignmentDoc: doc, upsertError: null })
   }
   const tick = () => tickAssignmentAiGradingRun({ assignmentId: 'assignment-1', runId: 'run-1' })
+  it('fails closed before lease claim or provider egress when the M204 sentinel is unavailable', async () => {
+    setup()
+    const original = mockSupabaseClient.rpc.getMockImplementation()!
+    mockSupabaseClient.rpc.mockImplementation((name, args) =>
+      name === 'get_assignment_ai_grading_usage_contract_v2'
+        ? Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'private missing migration' } })
+        : original(name, args))
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork')
+    await expect(tick()).rejects.toMatchObject({ statusCode: 503, message: 'AI grading is temporarily unavailable' })
+    expect(provider).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc.mock.calls.map(([name]) => name)).not.toContain('claim_assignment_ai_grading_run')
+  })
+
   it('reserves then settles persisted v1 even with the rollout flag off', async () => {
     const harness = setup()
     const provider = vi.spyOn(aiGrading, 'gradeStudentWork').mockResolvedValue({
@@ -592,7 +613,8 @@ describe('metered Assignment run lifecycle', () => {
     buildTickHarness({ workerContractVersion: version, skipReason: null, assignmentDoc: doc, upsertError: null })
     const result = await createOrResumeAssignmentAiGradingRun({ assignmentId: 'assignment-1', teacherId: 'teacher-1', studentIds: ['student-1'] })
     expect(result.kind).toBe(version === 1 ? 'resumed' : 'conflict')
-    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledOnce()
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('get_assignment_ai_grading_usage_contract_v2')
   })
   it.each([1, 2])('creates %s students through metered admission only', async (count) => {
     vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'true')
@@ -603,11 +625,17 @@ describe('metered Assignment run lifecycle', () => {
       if (table === 'assignment_submission_artifacts') return buildAssignmentSubmissionArtifactsTable()
       throw new Error(`Unexpected table ${table}`)
     })
-    mockSupabaseClient.rpc.mockImplementation(async (_name, args) => ({ data: { id: 'run-1', assignment_id: args.p_assignment_id,
-      triggered_by: args.p_teacher_id, worker_contract_version: 1, selection_hash: args.p_selection_hash,
-      status: 'queued', created_at: '2026-04-21T12:00:00Z' }, error: null }))
+    mockSupabaseClient.rpc.mockImplementation(async (name, args) => {
+      if (name === 'get_assignment_ai_grading_usage_contract_v2') {
+        return { data: { contract: 'assignment-ai-grading-usage', version: 2,
+          source_fingerprint_version: 1, gradex_correlation_version: 1 }, error: null }
+      }
+      return { data: { id: 'run-1', assignment_id: args.p_assignment_id,
+        triggered_by: args.p_teacher_id, worker_contract_version: 1, selection_hash: args.p_selection_hash,
+        status: 'queued', created_at: '2026-04-21T12:00:00Z' }, error: null }
+    })
     expect((await createOrResumeAssignmentAiGradingRun({ assignmentId: 'assignment-1', teacherId: 'teacher-1', studentIds: ids })).kind).toBe('created')
-    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('create_metered_assignment_ai_grading_run_v1', expect.objectContaining({ p_gradable_count: count }))
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('create_metered_assignment_ai_grading_run_v2', expect.objectContaining({ p_gradable_count: count }))
     mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'PRIVATE RPC data' } })
     await expect(createOrResumeAssignmentAiGradingRun({ assignmentId: 'assignment-1', teacherId: 'teacher-1', studentIds: ids })).rejects.toMatchObject({ statusCode: 503 })
   })

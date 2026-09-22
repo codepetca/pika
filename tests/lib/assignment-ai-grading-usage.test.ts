@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  assertAssignmentAiGradingUsageContract,
   isAssignmentAiGradingUsageMeteringEnabled,
   getAssignmentAiUsageFailureReason,
   reserveAssignmentAiGradingItemUsage,
@@ -10,6 +11,27 @@ import { AssignmentAiGradingLeaseLostError } from '@/lib/server/assignment-ai-gr
 afterEach(() => vi.unstubAllEnvs())
 
 describe('Assignment AI usage boundary', () => {
+  const contract = {
+    contract: 'assignment-ai-grading-usage', version: 2,
+    source_fingerprint_version: 1, gradex_correlation_version: 1,
+  }
+
+  it('accepts only the complete M204 service contract', async () => {
+    const supabase = { rpc: vi.fn().mockResolvedValue({ data: contract, error: null }) }
+    await expect(assertAssignmentAiGradingUsageContract(supabase as never)).resolves.toBeUndefined()
+    expect(supabase.rpc).toHaveBeenCalledWith('get_assignment_ai_grading_usage_contract_v2')
+  })
+
+  it.each([
+    { data: null, error: { code: 'PGRST202', message: 'missing private contract' } },
+    { data: { ...contract, version: 1 }, error: null },
+    { data: { ...contract, unexpected: true }, error: null },
+  ])('fails closed with a generic error for missing or invalid M204 evidence', async (result) => {
+    const supabase = { rpc: vi.fn().mockResolvedValue(result) }
+    await expect(assertAssignmentAiGradingUsageContract(supabase as never))
+      .rejects.toMatchObject({ statusCode: 503, message: 'AI grading is temporarily unavailable' })
+  })
+
   it.each([undefined, '', 'false', 'TRUE', ' true ', '1'])('is disabled for %s', (value) => {
     vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', value)
     expect(isAssignmentAiGradingUsageMeteringEnabled()).toBe(false)
