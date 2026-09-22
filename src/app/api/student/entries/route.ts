@@ -430,16 +430,12 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     return classDayCheck.response
   }
 
-  let entryQuery = supabase
+  const entryQuery = supabase
     .from('entries')
-    .select('id, version, text, rich_content, minutes_reported, mood')
+    .select('*')
     .eq('student_id', user.id)
     .eq('classroom_id', classroom_id)
     .eq('date', date)
-
-  if (entry_id) {
-    entryQuery = entryQuery.eq('id', entry_id)
-  }
 
   const { data: existing, error: existingError } = await entryQuery.single()
 
@@ -528,6 +524,15 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
   }
 
   const currentVersion = existing.version ?? 1
+  if (rich_content && JSON.stringify(normalizeContent(rich_content, null)) === JSON.stringify(normalizeContent(existing.rich_content, existing.text))) {
+    return NextResponse.json({ entry: existing })
+  }
+  if (!entry_id || entry_id !== existing.id) {
+    return NextResponse.json(
+      { error: 'Entry has been updated elsewhere', entry: existing },
+      { status: 409 },
+    )
+  }
   if (version !== currentVersion) {
     const normalizedEntry = {
       ...existing,
@@ -612,14 +617,27 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
       version: nextVersion,
     })
     .eq('id', existing.id)
+    .eq('version', currentVersion)
     .select()
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Error updating entry:', error)
     return NextResponse.json(
       { error: 'Failed to update entry' },
       { status: 500 }
+    )
+  }
+
+  if (!data) {
+    const { data: latest } = await supabase
+      .from('entries')
+      .select('id, version, text, rich_content, minutes_reported, mood')
+      .eq('id', existing.id)
+      .maybeSingle()
+    return NextResponse.json(
+      { error: 'Entry has been updated elsewhere', entry: latest },
+      { status: 409 },
     )
   }
 
