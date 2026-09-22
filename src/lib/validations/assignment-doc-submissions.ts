@@ -50,7 +50,10 @@ export const assignmentDocSaveRequestSchema = z.union([
 
 export const assignmentArtifactPutRequestSchema = z.object({
   url: z.string().max(2_048),
-  github_login: z.string().trim().min(1).max(39).optional(),
+  github_login: z.preprocess(
+    (value) => typeof value === 'string' && value.trim() === '' ? undefined : value,
+    z.string().trim().min(1).max(39).optional(),
+  ),
   save_github_login: z.boolean().optional(),
 }).strict()
 

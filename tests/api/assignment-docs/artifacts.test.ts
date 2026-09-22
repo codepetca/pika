@@ -306,6 +306,18 @@ describe('PUT /api/assignment-docs/[id]/artifacts/[requirementId]', () => {
 
     expect(response.status).toBe(200)
   })
+
+  it('ignores a blank optional GitHub login from older clients for a link artifact', async () => {
+    mocks.supabase = makeSupabase({ requirementType: 'link' })
+
+    const response = await putArtifact({
+      url: 'https://example.com/evidence',
+      github_login: '',
+      save_github_login: false,
+    })
+
+    expect(response.status).toBe(200)
+  })
 })
 
 describe('POST /api/assignment-docs/[id]/artifacts/[requirementId]', () => {

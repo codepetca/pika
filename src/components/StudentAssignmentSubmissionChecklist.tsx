@@ -128,8 +128,12 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: draft.url,
-          github_login: draft.githubLogin,
-          save_github_login: requirement.type === 'repo_link',
+          ...(requirement.type === 'repo_link'
+            ? {
+                github_login: draft.githubLogin,
+                save_github_login: true,
+              }
+            : {}),
         }),
       })
       const data = await response.json()

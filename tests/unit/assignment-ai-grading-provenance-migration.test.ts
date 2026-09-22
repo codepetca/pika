@@ -46,6 +46,7 @@ describe('assignment AI grading provenance migration', () => {
   it('routes both Pika persistence paths through the provenance-aware RPCs', () => {
     expect(service).toContain("rpc('save_assignment_ai_grade_with_provenance_atomic'")
     expect(service).toContain("rpc('finalize_assignment_ai_grading_item_with_provenance_atomic'")
+    expect(service).toContain("rpc('finalize_assignment_ai_grading_item_with_provenance_lease_v1'")
     expect(service).toContain('p_ai_grading_provenance: opts.aiGradingProvenance ?? null')
     expect(service).toContain('p_ai_grading_provenance: opts.grade.aiGradingProvenance ?? null')
   })
