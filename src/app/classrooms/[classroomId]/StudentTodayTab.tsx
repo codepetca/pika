@@ -135,9 +135,9 @@ export function StudentTodayTab({
   const lastSavedContentRef = useRef('')
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
-  const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const saveQueuesByDateRef = useRef(new Map<string, Promise<void>>())
   const queuedContentByDateRef = useRef(new Map<string, string>())
-  const saveInFlightRef = useRef(false)
+  const saveInFlightDatesRef = useRef(new Set<string>())
   const initialSaveRequestedRef = useRef(false)
   const olderDraftAttemptsRef = useRef(new Set<string>())
   const pendingContentRef = useRef<TiptapContent | null>(null)
@@ -245,25 +245,12 @@ export function StudentTodayTab({
 
           const loadedContent = resolveEntryContent(todayEntry)
           const durableDraft = readDailyLogDraft(studentId, requestedClassroomId, todayDate)
-          const draftContent = durableDraft?.content ?? safeSessionGetJson<TiptapContent>(
-            getDailyLogDraftKey(requestedClassroomId, todayDate)
-          )
+          const draftContent = durableDraft?.content
           if (
             draftContent &&
-            !isEmpty(draftContent) &&
+            (todayEntry || !isEmpty(draftContent)) &&
             JSON.stringify(draftContent) !== JSON.stringify(loadedContent)
           ) {
-            if (!durableDraft) {
-              writeDailyLogDraft({
-                studentId,
-                classroomId: requestedClassroomId,
-                date: todayDate,
-                content: draftContent,
-                entryId: todayEntry?.id ?? null,
-                version: todayEntry?.version ?? 1,
-                updatedAt: new Date().toISOString(),
-              })
-            }
             setContent(draftContent)
             currentContentRef.current = draftContent
             pendingContentRef.current = draftContent
@@ -279,7 +266,7 @@ export function StudentTodayTab({
             }
           }
 
-          if (!draftContent || isEmpty(draftContent) || JSON.stringify(draftContent) === JSON.stringify(loadedContent)) {
+          if (!draftContent || (!todayEntry && isEmpty(draftContent)) || JSON.stringify(draftContent) === JSON.stringify(loadedContent)) {
             setContent(loadedContent)
             currentContentRef.current = loadedContent
             pendingContentRef.current = null
@@ -408,7 +395,7 @@ export function StudentTodayTab({
     const newContentStr = JSON.stringify(newContent)
     const draftKey = getDailyLogDraftKey(classroom.id, entryDate)
 
-    if (activeAtStart && !entryId && isEmpty(newContent)) {
+    if (!entryId && isEmpty(newContent)) {
       if (activeAtStart) lastSavedContentRef.current = newContentStr
       safeSessionRemove(draftKey)
       removeDailyLogDraft(studentId, classroom.id, entryDate)
@@ -604,7 +591,8 @@ export function StudentTodayTab({
     const requestedContentStr = JSON.stringify(requestedContent)
     if (queuedContentByDateRef.current.get(entryDate) === requestedContentStr) return
     queuedContentByDateRef.current.set(entryDate, requestedContentStr)
-    const nextSave = saveQueueRef.current.catch(() => undefined).then(async () => {
+    const previousSave = saveQueuesByDateRef.current.get(entryDate) ?? Promise.resolve()
+    const nextSave = previousSave.catch(() => undefined).then(async () => {
       const latest = entryDate === todayRef.current
         ? pendingContentRef.current
         : readDailyLogDraft(studentId, classroom.id, entryDate)?.content
@@ -614,17 +602,17 @@ export function StudentTodayTab({
         }
         return
       }
-      saveInFlightRef.current = true
+      saveInFlightDatesRef.current.add(entryDate)
       try {
         await saveContent(latest, entryDate)
       } finally {
-        saveInFlightRef.current = false
+        saveInFlightDatesRef.current.delete(entryDate)
         if (queuedContentByDateRef.current.get(entryDate) === requestedContentStr) {
           queuedContentByDateRef.current.delete(entryDate)
         }
       }
     })
-    saveQueueRef.current = nextSave.catch(() => undefined)
+    saveQueuesByDateRef.current.set(entryDate, nextSave.catch(() => undefined))
   }, [classroom.id, saveContent, studentId])
 
   useEffect(() => {
@@ -713,6 +701,25 @@ export function StudentTodayTab({
   function handleContentChange(newContent: TiptapContent) {
     const actualTorontoDate = getTodayInToronto()
     if (actualTorontoDate !== todayRef.current) {
+      const previousText = extractPlainText(currentContentRef.current)
+      const nextText = extractPlainText(newContent)
+      let prefix = 0
+      while (prefix < previousText.length && prefix < nextText.length && previousText[prefix] === nextText[prefix]) prefix += 1
+      let suffix = 0
+      while (suffix < previousText.length - prefix && suffix < nextText.length - prefix && previousText[previousText.length - 1 - suffix] === nextText[nextText.length - 1 - suffix]) suffix += 1
+      const newlyTypedText = nextText.slice(prefix, nextText.length - suffix)
+      if (newlyTypedText.trim()) {
+        const newDayContent = plainTextToTiptapContent(newlyTypedText)
+        writeDailyLogDraft({
+          studentId,
+          classroomId: classroom.id,
+          date: actualTorontoDate,
+          content: newDayContent,
+          entryId: null,
+          version: 1,
+          updatedAt: new Date().toISOString(),
+        })
+      }
       setCurrentTorontoDate(actualTorontoDate)
       return
     }
@@ -724,7 +731,7 @@ export function StudentTodayTab({
       ? getDailyLogDraftKey(classroom.id, todayRef.current)
       : null
 
-    const hasOutstandingSave = saveInFlightRef.current || queuedContentByDateRef.current.has(todayRef.current)
+    const hasOutstandingSave = saveInFlightDatesRef.current.has(todayRef.current) || queuedContentByDateRef.current.has(todayRef.current)
     if ((newContentStr === lastSavedContentRef.current && !hasOutstandingSave) || (!entryIdRef.current && isEmpty(newContent) && !hasOutstandingSave)) {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
@@ -750,7 +757,6 @@ export function StudentTodayTab({
     setSaveStatus('unsaved')
     pendingContentRef.current = newContent
     if (draftKey) {
-      safeSessionSetJson(draftKey, newContent)
       const draftStored = writeDailyLogDraft({
         studentId,
         classroomId: classroom.id,
@@ -800,6 +806,12 @@ export function StudentTodayTab({
 
   const resolveConflict = useCallback(() => {
     if (!conflictEntry) return
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
+    saveTimeoutRef.current = null
+    throttledSaveTimeoutRef.current = null
+    pendingContentRef.current = null
+    restoredDraftAutosaveRef.current = null
     const serverContent = resolveEntryContent(conflictEntry)
     setContent(serverContent)
     currentContentRef.current = serverContent
@@ -824,8 +836,10 @@ export function StudentTodayTab({
     if (draft) writeDailyLogDraft({ ...draft, entryId: conflictEntry.id, version: conflictEntry.version ?? draft.version })
     setConflictEntry(null)
     const latest = pendingContentRef.current ?? content
-    const retry = saveQueueRef.current.catch(() => undefined).then(() => saveContent(latest, todayRef.current, { forceFull: true }))
-    saveQueueRef.current = retry.catch(() => undefined)
+    const date = todayRef.current
+    const previousSave = saveQueuesByDateRef.current.get(date) ?? Promise.resolve()
+    const retry = previousSave.catch(() => undefined).then(() => saveContent(latest, date, { forceFull: true }))
+    saveQueuesByDateRef.current.set(date, retry.catch(() => undefined))
   }, [conflictEntry, content, saveContent, studentId, classroom.id])
 
   function acceptSavedOlderLog(date: string) {

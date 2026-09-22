@@ -915,16 +915,22 @@ describe('StudentTodayTab history section', () => {
     expect(window.sessionStorage.getItem(cacheKey)).toContain('Server refreshed today entry.')
   })
 
-  it('reloads a new Toronto day instead of carrying stale editor content into it', async () => {
+  it('saves first new-day typing under the new Toronto date after a stale tab resumes', async () => {
     getTodayInTorontoMock.mockReturnValue('2025-05-06')
+    const patchBodies: any[] = []
 
-    const fetchMock = vi.fn((input: RequestInfo, _init?: RequestInit) => {
+    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
         return mockJson({ entries: [] })
       }
       if (url.includes('/lesson-plans')) {
         return mockJson({ lesson_plans: [] })
+      }
+      if (url === '/api/student/entries' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        patchBodies.push(body)
+        return mockJson({ entry: { id: 'new-day-entry', student_id: 's1', classroom_id: classroom.id, date: body.date, text: 'Worked today', rich_content: body.rich_content, version: 1 } })
       }
       throw new Error(`Unhandled fetch: ${url}`)
     })
@@ -938,12 +944,10 @@ describe('StudentTodayTab history section', () => {
     fireEvent.change(editor, { target: { value: 'Worked today' } })
     fireEvent.blur(editor)
 
-    await waitFor(() => expect(editor).toHaveValue(''))
-    expect(fetchMock.mock.calls.some(([input, init]) => (
-      String(input) === '/api/student/entries' && init?.method === 'PATCH'
-    ))).toBe(false)
-    expect(invalidateStudentEntriesForClassroomMock).not.toHaveBeenCalled()
-    expect(notifyImmediatePalDeliveryMock).not.toHaveBeenCalled()
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+    expect(patchBodies[0]).toMatchObject({ date: '2025-05-11' })
+    expect(JSON.stringify(patchBodies[0].rich_content)).toContain('Worked today')
+    expect(editor).toHaveValue('Worked today')
   })
 
   it('moves the previous log into history at Toronto midnight and opens a clean new day', async () => {
@@ -1160,7 +1164,7 @@ describe('StudentTodayTab history section', () => {
   })
 
   it('clears the saved draft and refreshes only its classroom after confirmed Pal delivery', async () => {
-    const draftKey = getDailyLogDraftKey(classroom.id, '2025-12-16')
+    const draftKey = 'daily-log-draft:v2:s1:c1:2025-12-16'
     const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
       const url = String(input)
       if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) {
@@ -1198,14 +1202,14 @@ describe('StudentTodayTab history section', () => {
     const editor = await screen.findByLabelText('Daily Log')
     fireEvent.change(editor, { target: { value: 'Draft that should clear.' } })
 
-    expect(window.sessionStorage.getItem(draftKey)).toContain('Draft that should clear.')
+    expect(window.localStorage.getItem(draftKey)).toContain('Draft that should clear.')
 
     fireEvent.blur(editor)
 
     await waitFor(() => {
       expect(screen.getByText('Saved')).toBeInTheDocument()
     })
-    expect(window.sessionStorage.getItem(draftKey)).toBeNull()
+    expect(window.localStorage.getItem(draftKey)).toBeNull()
     expect(notifyImmediatePalDeliveryMock).toHaveBeenCalledWith('delivered', classroom.id)
   })
 
@@ -1310,12 +1314,12 @@ describe('StudentTodayTab history section', () => {
   })
 
   it('autosaves a restored daily log draft after the page reloads with an active session', async () => {
-    const draftKey = getDailyLogDraftKey(classroom.id, '2025-12-16')
-    window.sessionStorage.setItem(
+    const draftKey = 'daily-log-draft:v2:s1:c1:2025-12-16'
+    window.localStorage.setItem(
       draftKey,
       JSON.stringify({
-        type: 'doc',
-        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Autosave after login.' }] }],
+        studentId: 's1', classroomId: 'c1', date: '2025-12-16', entryId: null, version: 1, updatedAt: '2025-12-16T14:00:00Z',
+        content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Autosave after login.' }] }] },
       })
     )
     const saveRequest = deferred<any>()
@@ -1366,7 +1370,7 @@ describe('StudentTodayTab history section', () => {
     await waitFor(() => {
       expect(screen.getByText('Saved')).toBeInTheDocument()
     })
-    expect(window.sessionStorage.getItem(draftKey)).toBeNull()
+    expect(window.localStorage.getItem(draftKey)).toBeNull()
   })
 
   it('starts the first nonblank save without waiting for blur or the debounce timer', async () => {
@@ -1512,5 +1516,119 @@ describe('StudentTodayTab history section', () => {
 
     expect(fetchMock).toHaveBeenCalledWith('/api/student/entries', expect.objectContaining({ keepalive: true }))
     expect(window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-12-16')).toContain('Before leaving.')
+  })
+
+  it('does not restore another student’s unscoped legacy draft in a shared tab', async () => {
+    window.sessionStorage.setItem(getDailyLogDraftKey('c1', '2025-12-16'), JSON.stringify({
+      type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Student A private draft.' }] }],
+    }))
+    window.localStorage.setItem('daily-log-draft:v2:s1:c1:2025-12-16', JSON.stringify({
+      studentId: 's1', classroomId: 'c1', date: '2025-12-16', entryId: null, version: 1,
+      updatedAt: '2025-12-16T14:00:00Z',
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Student A durable draft.' }] }] },
+    }))
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith('/api/student/entries?')) return mockJson({ entries: [] })
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      throw new Error(`Unexpected save: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTabComponent classroom={classroom} studentId="s2" />)
+    expect(await screen.findByLabelText('Daily Log')).toHaveValue('')
+    expect(screen.queryByText(/Student A private draft/)).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === '/api/student/entries')).toBe(false)
+  })
+
+  it('does not resend a rejected draft after Reload latest and page exit', async () => {
+    window.localStorage.setItem('daily-log-draft:v2:s1:c1:2025-12-16', JSON.stringify({
+      studentId: 's1', classroomId: 'c1', date: '2025-12-16', entryId: 'e1', version: 1,
+      updatedAt: '2025-12-16T14:00:00Z',
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Rejected draft.' }] }] },
+    }))
+    const newerEntry = { ...entries[0], version: 2, text: 'Newer saved log.' }
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith('/api/student/entries?')) return mockJson({ entries: [newerEntry] })
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      throw new Error(`Unexpected save: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Reload latest' }))
+    expect(screen.getByLabelText('Daily Log')).toHaveValue('Newer saved log.')
+    fireEvent(window, new Event('pagehide'))
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === '/api/student/entries')).toBe(false)
+    expect(window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-12-16')).toBeNull()
+  })
+
+  it('never submits an empty unsent prior-day draft as a new entry', async () => {
+    window.localStorage.setItem('daily-log-draft:v2:s1:c1:2025-12-15', JSON.stringify({
+      studentId: 's1', classroomId: 'c1', date: '2025-12-15', entryId: null, version: 1,
+      updatedAt: '2025-12-15T14:00:00Z', content: { type: 'doc', content: [] },
+    }))
+    const fetchMock = vi.fn((input: RequestInfo) => {
+      const url = String(input)
+      if (url.startsWith('/api/student/entries?')) return mockJson({ entries: [] })
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      throw new Error(`Unexpected save: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+    await screen.findByLabelText('Daily Log')
+    await waitFor(() => expect(window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-12-15')).toBeNull())
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === '/api/student/entries')).toBe(false)
+  })
+
+  it('restores a blank edit when it differs from an existing saved log', async () => {
+    window.localStorage.setItem('daily-log-draft:v2:s1:c1:2025-12-16', JSON.stringify({
+      studentId: 's1', classroomId: 'c1', date: '2025-12-16', entryId: 'e1', version: 1,
+      updatedAt: '2025-12-16T14:00:00Z', content: { type: 'doc', content: [] },
+    }))
+    const saveRequest = deferred<any>()
+    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/student/entries?')) return mockJson({ entries: [entries[0]] })
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      if (url === '/api/student/entries' && init?.method === 'PATCH') return saveRequest.promise
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+    expect(await screen.findByLabelText('Daily Log')).toHaveValue('')
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input) === '/api/student/entries')).toBe(true))
+    expect(window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-12-16')).toContain('"content":[]')
+  })
+
+  it('does not let a stalled older recovery delay today’s first save', async () => {
+    window.localStorage.setItem('daily-log-draft:v2:s1:c1:2025-12-15', JSON.stringify({
+      studentId: 's1', classroomId: 'c1', date: '2025-12-15', entryId: null, version: 1,
+      updatedAt: '2025-12-15T14:00:00Z',
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Yesterday.' }] }] },
+    }))
+    const olderSave = deferred<any>()
+    const requests: any[] = []
+    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith('/api/student/entries?')) return mockJson({ entries: [] })
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      if (url === '/api/student/entries' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        requests.push(body)
+        return body.date === '2025-12-15' ? olderSave.promise : mockJson({ entry: { ...entries[0], text: 'Today.', rich_content: body.rich_content } })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<StudentTodayTab classroom={classroom} />)
+    const editor = await screen.findByLabelText('Daily Log')
+    await waitFor(() => expect(requests.some(body => body.date === '2025-12-15')).toBe(true))
+    fireEvent.change(editor, { target: { value: 'Today.' } })
+    await waitFor(() => expect(requests.some(body => body.date === '2025-12-16')).toBe(true))
   })
 })
