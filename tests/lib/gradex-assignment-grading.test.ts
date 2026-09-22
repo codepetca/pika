@@ -34,8 +34,16 @@ vi.mock('@/lib/server/gradex-smoke-runner', () => ({
 import {
   GRADEX_ASSIGNMENT_RUN_MODEL,
   isGradexAssignmentGradingEnabled,
-  submitOrPollGradexAssignmentRun,
+  submitOrPollGradexAssignmentRun as submitOrPollGradexAssignmentRunWithLease,
 } from '@/lib/server/gradex-assignment-grading'
+
+function submitOrPollGradexAssignmentRun(opts: Record<string, unknown>) {
+  return submitOrPollGradexAssignmentRunWithLease({
+    ...opts,
+    leaseToken: 'lease-1',
+    leaseFencingEnabled: opts.leaseFencingEnabled === true,
+  } as Parameters<typeof submitOrPollGradexAssignmentRunWithLease>[0])
+}
 
 describe('Gradex assignment grading processor', () => {
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
@@ -242,6 +250,7 @@ describe('Gradex assignment grading processor', () => {
       assignment: assignment(),
       run: run({ gradex_run_id: null }),
       items: [item()],
+      leaseFencingEnabled: true,
     })
 
     expect(mockBuildPikaAssignmentGradexRunPayload).toHaveBeenCalledWith(
@@ -269,6 +278,10 @@ describe('Gradex assignment grading processor', () => {
         }),
       }),
     ])
+    expect(supabase.client.rpc).toHaveBeenCalledWith(
+      'patch_assignment_ai_grading_item_with_lease_v1',
+      expect.objectContaining({ p_lease_token: 'lease-1' }),
+    )
   })
 
   it('rejects a malformed successful submission response before storing metadata', async () => {
@@ -651,28 +664,44 @@ function buildSupabase() {
     aiGradeCalls,
     client: {
       rpc: vi.fn(async (fn: string, args: Record<string, unknown>) => {
-        if (fn !== 'finalize_assignment_ai_grading_item_with_provenance_atomic') {
-          throw new Error(`Unexpected RPC: ${fn}`)
+        if (fn === 'patch_assignment_ai_grading_item_with_lease_v1') {
+          itemUpdates.push({
+            table: 'assignment_ai_grading_run_items',
+            id: args.p_item_id as string,
+            payload: args.p_patch as Record<string, unknown>,
+          })
+          return { data: item(args.p_patch as Record<string, unknown>), error: null }
         }
-        aiGradeCalls.push(args)
-        return {
-          data: {
-            docs: [{
-              id: 'doc-1',
-              assignment_id: 'assignment-1',
-              student_id: 'student-1',
-              updated_at: '2026-06-01T12:05:00.000Z',
-              score_completion: args.p_score_completion,
-              score_thinking: args.p_score_thinking,
-              score_workflow: args.p_score_workflow,
-              teacher_feedback_draft: args.p_feedback,
-              teacher_feedback_draft_updated_at: args.p_now,
-              graded_at: args.p_now,
-              graded_by: args.p_graded_by,
-            }],
-          },
-          error: null,
+        if (fn === 'patch_assignment_ai_grading_run_with_lease_v1') {
+          runUpdates.push({
+            table: 'assignment_ai_grading_runs',
+            id: args.p_run_id as string,
+            payload: args.p_patch as Record<string, unknown>,
+          })
+          return { data: run(args.p_patch as Record<string, unknown>), error: null }
         }
+        if (fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic') {
+          aiGradeCalls.push(args)
+          return {
+            data: {
+              docs: [{
+                id: 'doc-1',
+                assignment_id: 'assignment-1',
+                student_id: 'student-1',
+                updated_at: '2026-06-01T12:05:00.000Z',
+                score_completion: args.p_score_completion,
+                score_thinking: args.p_score_thinking,
+                score_workflow: args.p_score_workflow,
+                teacher_feedback_draft: args.p_feedback,
+                teacher_feedback_draft_updated_at: args.p_now,
+                graded_at: args.p_now,
+                graded_by: args.p_graded_by,
+              }],
+            },
+            error: null,
+          }
+        }
+        throw new Error(`Unexpected RPC: ${fn}`)
       }),
       from(table: string) {
         if (table === 'assignment_docs') {
@@ -699,9 +728,16 @@ function buildSupabase() {
         if (table === 'assignment_ai_grading_runs') {
           return {
             update: vi.fn((payload: Record<string, unknown>) => ({
-              eq: vi.fn(async (_field: string, id: string) => {
+              eq: vi.fn((_field: string, id: string) => {
                 runUpdates.push({ table, id, payload })
-                return { error: null }
+                return {
+                  select: vi.fn(() => ({
+                    single: vi.fn(async () => ({
+                      data: run(payload),
+                      error: null,
+                    })),
+                  })),
+                }
               }),
             })),
           }

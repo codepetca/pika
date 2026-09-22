@@ -276,6 +276,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }
         Insert: {
           assignment_id: string
@@ -303,6 +304,7 @@ export type Database = {
           status?: string
           triggered_by: string
           updated_at?: string
+          worker_contract_version?: number
         }
         Update: {
           assignment_id?: string
@@ -330,6 +332,7 @@ export type Database = {
           status?: string
           triggered_by?: string
           updated_at?: string
+          worker_contract_version?: number
         }
         Relationships: [
           {
@@ -8418,6 +8421,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }[]
         SetofOptions: {
           from: "*"
@@ -9388,6 +9392,7 @@ export type Database = {
           status: string
           triggered_by: string
           updated_at: string
+          worker_contract_version: number
         }
         SetofOptions: {
           from: "*"
@@ -9957,6 +9962,28 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_assignment_ai_grading_item_with_provenance_lease_v1: {
+        Args: {
+          p_ai_feedback_model: string
+          p_ai_feedback_suggestion: string
+          p_ai_grading_provenance: Json
+          p_apply_teacher_feedback_draft: boolean
+          p_attempt_count: number
+          p_feedback: string
+          p_graded_by: string
+          p_item_id: string
+          p_item_status: string
+          p_lease_token: string
+          p_mark_graded: boolean
+          p_now: string
+          p_score_completion: number
+          p_score_thinking: number
+          p_score_workflow: number
+          p_skip_reason: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       finalize_cold_archived_classroom_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -10427,6 +10454,71 @@ export type Database = {
           p_viewed_at: string
         }
         Returns: Json
+      }
+      patch_assignment_ai_grading_item_with_lease_v1: {
+        Args: { p_item_id: string; p_lease_token: string; p_patch: Json }
+        Returns: {
+          assignment_doc_id: string | null
+          assignment_doc_updated_at: string | null
+          assignment_id: string
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          next_retry_at: string | null
+          queue_position: number
+          run_id: string
+          skip_reason: string | null
+          started_at: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_run_items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      patch_assignment_ai_grading_run_with_lease_v1: {
+        Args: { p_lease_token: string; p_patch: Json; p_run_id: string }
+        Returns: {
+          assignment_id: string
+          completed_at: string | null
+          completed_count: number
+          created_at: string
+          error_samples_json: Json
+          failed_count: number
+          gradable_count: number
+          gradex_last_polled_at: string | null
+          gradex_run_id: string | null
+          gradex_status: string | null
+          gradex_submitted_at: string | null
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          model: string | null
+          processed_count: number
+          requested_count: number
+          requested_student_ids_json: Json
+          selection_hash: string
+          skipped_empty_count: number
+          skipped_missing_count: number
+          started_at: string | null
+          status: string
+          triggered_by: string
+          updated_at: string
+          worker_contract_version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       pause_managed_storage_enforcement: { Args: never; Returns: boolean }
       prepare_assignment_artifact_for_member_v1: {
