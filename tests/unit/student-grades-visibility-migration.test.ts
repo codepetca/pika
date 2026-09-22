@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/201_student_grades_visibility.sql'),
+  resolve(process.cwd(), 'supabase/migrations/202_student_grades_visibility.sql'),
   'utf8',
 )
 
@@ -16,8 +16,8 @@ describe('student Grades visibility migration', () => {
   })
 
   it('keeps the archive restore adapter current', () => {
-    expect(migration).toContain('rename to normalize_classroom_archive_restore_row_pre_v201')
-    expect(migration).toContain('p_row := public.normalize_classroom_archive_restore_row_pre_v201(')
+    expect(migration).toContain('rename to normalize_classroom_archive_restore_row_pre_v202')
+    expect(migration).toContain('p_row := public.normalize_classroom_archive_restore_row_pre_v202(')
     expect(migration).toContain("'{feature_visibility,student_grades}'")
     expect(migration).toContain('grant execute on function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)')
     expect(migration).not.toContain('create or replace function public.normalize_classroom_archive_restore_row')

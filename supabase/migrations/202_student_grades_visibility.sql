@@ -50,9 +50,9 @@ comment on column public.classrooms.feature_visibility is
 -- Cold archives can contain the pre-201 visibility object. Extend the current
 -- adapter chain so every later compatibility layer remains active.
 alter function public.normalize_classroom_archive_restore_row(uuid, text, jsonb)
-  rename to normalize_classroom_archive_restore_row_pre_v201;
+  rename to normalize_classroom_archive_restore_row_pre_v202;
 
-revoke all on function public.normalize_classroom_archive_restore_row_pre_v201(uuid, text, jsonb)
+revoke all on function public.normalize_classroom_archive_restore_row_pre_v202(uuid, text, jsonb)
   from public, anon, authenticated;
 
 create function public.normalize_classroom_archive_restore_row(
@@ -66,7 +66,7 @@ stable
 set search_path = ''
 as $$
 begin
-  p_row := public.normalize_classroom_archive_restore_row_pre_v201(
+  p_row := public.normalize_classroom_archive_restore_row_pre_v202(
     p_operation_id,
     p_table_name,
     p_row
