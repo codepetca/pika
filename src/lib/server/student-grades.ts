@@ -7,10 +7,6 @@ import { getServiceRoleClient } from '@/lib/supabase'
 const PAGE_SIZE = 1000
 const CHUNK_SIZE = 50
 
-function round2(value: number): number {
-  return Math.round(value * 100) / 100
-}
-
 function itemKey(type: 'assignment' | 'test', id: string): string {
   return `${type}:${id}`
 }
@@ -83,9 +79,9 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
       id: assignment.id,
       kind: 'Classwork',
       title: assignment.title,
-      earned: round2(earned),
-      possible: round2(possible),
-      percent: round2((earned / possible) * 100),
+      earned,
+      possible,
+      percent: (earned / possible) * 100,
       included: assignment.include_in_final !== false && Boolean(category && category.percentage > 0),
       href: `/classrooms/${classroomId}?tab=assignments&assignmentId=${assignment.id}`,
       categoryId: category?.id ?? null,
@@ -156,9 +152,9 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
       id: test.id,
       kind: 'Test',
       title: test.title,
-      earned: round2(earned),
-      possible: round2(possible),
-      percent: round2((earned / possible) * 100),
+      earned,
+      possible,
+      percent: (earned / possible) * 100,
       included: test.include_in_final !== false && Boolean(category && category.percentage > 0),
       href: `/classrooms/${classroomId}?tab=tests&testId=${test.id}`,
       categoryId: category?.id ?? null,
@@ -191,9 +187,9 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
       id: item.id,
       kind: 'Gradebook item',
       title: item.title,
-      earned: round2(earned),
-      possible: round2(possible),
-      percent: round2((earned / possible) * 100),
+      earned,
+      possible,
+      percent: (earned / possible) * 100,
       included: item.include_in_final !== false && Boolean(category && category.percentage > 0),
       href: null,
       categoryId: category?.id ?? null,

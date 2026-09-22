@@ -1,5 +1,9 @@
 import { calculateCategorizedFinalPercent } from '@/lib/gradebook'
 
+function round2(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
 export type StudentGradeKind = 'Classwork' | 'Test' | 'Gradebook item'
 
 export interface StudentGradeItem {
@@ -46,7 +50,12 @@ export function buildStudentGradesResponse(input: {
       || a.title.localeCompare(b.title)
       || a.id.localeCompare(b.id)
     ))
-    .map(({ categoryId: _categoryId, weight: _weight, returnedAt: _returnedAt, ...item }) => item)
+    .map(({ categoryId: _categoryId, weight: _weight, returnedAt: _returnedAt, ...item }) => ({
+      ...item,
+      earned: round2(item.earned),
+      possible: round2(item.possible),
+      percent: round2(item.percent),
+    }))
 
   return { currentPercent, items }
 }

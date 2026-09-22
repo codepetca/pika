@@ -108,7 +108,7 @@ export function StudentGradesPattern() {
         <div>
           <h4 className="font-semibold text-text-default">Standalone marks in Classwork</h4>
           <p className="mt-1 text-sm text-text-muted">
-            The current student integration shows explicitly returned standalone marks in Classwork. The aggregate Grades view above remains a prototype.
+            Returned standalone marks appear in both Classwork and the live aggregate Grades view above.
           </p>
         </div>
         <StudentReturnedMarksList items={[

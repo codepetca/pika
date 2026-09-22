@@ -58,4 +58,15 @@ describe('student Grades projection', () => {
     expect(result.items[0]).not.toHaveProperty('weight')
     expect(result.items[0]).not.toHaveProperty('categoryId')
   })
+
+  it('calculates from raw fractional scores while rounding only the student response', () => {
+    const rawEarned = 10 / 30
+    const result = buildStudentGradesResponse({
+      categories: [{ id: 'term', percentage: 100 }],
+      items: [item({ earned: rawEarned, possible: 10, percent: (rawEarned / 10) * 100 })],
+    })
+
+    expect(result.currentPercent).toBe(3.33)
+    expect(result.items[0]).toMatchObject({ earned: 0.33, possible: 10, percent: 3.33 })
+  })
 })

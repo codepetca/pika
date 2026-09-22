@@ -60,6 +60,9 @@ describe('Pattern Lab student Grades visibility concept', () => {
 
   it('renders the production standalone list with deterministic zero and excluded marks', () => {
     render(<StudentGradesPattern />)
+    expect(
+      screen.getByText('Returned standalone marks appear in both Classwork and the live aggregate Grades view above.'),
+    ).toBeInTheDocument()
     const preview = within(screen.getByTestId('standalone-returned-marks-preview'))
     expect(preview.getByText('Attendance – Term 1')).toBeInTheDocument()
     expect(preview.getByText('0 / 10')).toBeInTheDocument()

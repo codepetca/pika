@@ -82,7 +82,7 @@ existing student Classwork summary and the live aggregate Grades projection.
 Pattern Lab renders the production
 `StudentReturnedMarksList` owner with deterministic counted, zero, and excluded
 fixtures, without API reads. This remains experimental composition evidence;
-it does not promote the future aggregate surface into the stable canon.
+the production aggregate surface remains governed by the stable product contract.
 
 The list reuses `Card` and the returned-row score treatment. Its primary signal
 is each item's score and percentage. The feature introduces no links to fake
