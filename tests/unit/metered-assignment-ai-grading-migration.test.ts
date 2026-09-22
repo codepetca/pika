@@ -28,7 +28,7 @@ describe('metered Assignment AI grading migration', () => {
       'fail_assignment_ai_grading_item_and_release_usage_with_lease_v1',
     )
     expect(migration).toContain(
-      'finalize_skipped_assignment_ai_grading_item_and_release_v1',
+      'skip_assignment_ai_grading_item_and_release_usage_v1',
     )
     expect(migration).toContain(
       'fail_assignment_ai_grading_run_and_release_usage_with_lease_v1',

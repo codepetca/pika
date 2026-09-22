@@ -10148,27 +10148,6 @@ export type Database = {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
-      finalize_skipped_assignment_ai_grading_item_and_release_v1: {
-        Args: {
-          p_ai_feedback_model: string
-          p_ai_feedback_suggestion: string
-          p_ai_grading_provenance: Json
-          p_apply_teacher_feedback_draft: boolean
-          p_attempt_count: number
-          p_feedback: string
-          p_graded_by: string
-          p_item_id: string
-          p_lease_token: string
-          p_mark_graded: boolean
-          p_now: string
-          p_score_completion: number
-          p_score_thinking: number
-          p_score_workflow: number
-          p_skip_reason: string
-          p_teacher_id: string
-        }
-        Returns: Json
-      }
       finalize_student_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -11549,6 +11528,39 @@ export type Database = {
           p_source_course_blueprint_id: string
         }
         Returns: boolean
+      }
+      skip_assignment_ai_grading_item_and_release_usage_v1: {
+        Args: {
+          p_attempt_count: number
+          p_item_id: string
+          p_lease_token: string
+          p_skip_reason: string
+        }
+        Returns: {
+          assignment_doc_id: string | null
+          assignment_doc_updated_at: string | null
+          assignment_id: string
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          id: string
+          last_error_code: string | null
+          last_error_message: string | null
+          next_retry_at: string | null
+          queue_position: number
+          run_id: string
+          skip_reason: string | null
+          started_at: string | null
+          status: string
+          student_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "assignment_ai_grading_run_items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       stage_attendance_roster_snapshot_v1: {
         Args: {

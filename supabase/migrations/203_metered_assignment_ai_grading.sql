@@ -316,7 +316,8 @@ $function$;
 create function private.lock_metered_assignment_ai_grading_item_v1(
   p_item_id uuid,
   p_lease_token uuid,
-  p_require_pending boolean default true
+  p_require_pending boolean,
+  p_require_exact_document boolean
 )
 returns table (
   run_id uuid,
@@ -419,16 +420,18 @@ begin
   end if;
 
   if v_item.status in ('queued', 'processing') then
-    if v_item.assignment_doc_id is null or v_item.assignment_doc_updated_at is null then
-      raise exception using errcode = '40001', message = 'metered_assignment_source_changed';
-    end if;
     select doc.* into v_doc
     from public.assignment_docs doc
-    where doc.id = v_item.assignment_doc_id
-      and doc.assignment_id = v_item.assignment_id
+    where doc.assignment_id = v_item.assignment_id
       and doc.student_id = v_item.student_id
     for update;
-    if not found or v_doc.updated_at is distinct from v_item.assignment_doc_updated_at then
+    if p_require_exact_document and (
+      not found
+      or v_item.assignment_doc_id is null
+      or v_item.assignment_doc_updated_at is null
+      or v_doc.id is distinct from v_item.assignment_doc_id
+      or v_doc.updated_at is distinct from v_item.assignment_doc_updated_at
+    ) then
       raise exception using errcode = '40001', message = 'metered_assignment_source_changed';
     end if;
     if not exists (
@@ -451,7 +454,7 @@ begin
 end;
 $function$;
 
-revoke all on function private.lock_metered_assignment_ai_grading_item_v1(uuid, uuid, boolean)
+revoke all on function private.lock_metered_assignment_ai_grading_item_v1(uuid, uuid, boolean, boolean)
   from public, anon, authenticated, service_role;
 
 create function public.create_metered_assignment_ai_grading_run_v1(
@@ -600,7 +603,7 @@ declare
   v_locked record;
 begin
   select * into v_locked
-  from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, true);
+  from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, true, true);
 
   return public.reserve_feature_usage_v1(
     p_operation_id => p_item_id,
@@ -648,7 +651,7 @@ begin
   end if;
 
   select * into v_locked
-  from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, false);
+  from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, false, true);
   if v_locked.triggered_by is distinct from p_teacher_id then
     raise exception using errcode = '42501', message = 'metered_assignment_teacher_mismatch';
   end if;
@@ -690,43 +693,30 @@ begin
 end;
 $function$;
 
-create function public.finalize_skipped_assignment_ai_grading_item_and_release_v1(
+create function public.skip_assignment_ai_grading_item_and_release_usage_v1(
   p_item_id uuid,
   p_lease_token uuid,
-  p_teacher_id uuid,
-  p_score_completion integer,
-  p_score_thinking integer,
-  p_score_workflow integer,
-  p_feedback text,
-  p_apply_teacher_feedback_draft boolean,
-  p_mark_graded boolean,
-  p_ai_feedback_suggestion text,
-  p_ai_feedback_model text,
-  p_ai_grading_provenance jsonb,
-  p_graded_by text,
   p_attempt_count integer,
-  p_skip_reason text,
-  p_now timestamptz
+  p_skip_reason text
 )
-returns jsonb
+returns public.assignment_ai_grading_run_items
 language plpgsql
 security definer
 set search_path = ''
 as $function$
 declare
   v_locked record;
-  v_result jsonb;
+  v_item public.assignment_ai_grading_run_items%rowtype;
   v_reservation public.feature_usage_reservations%rowtype;
 begin
-  if p_skip_reason is null or p_skip_reason not in ('missing_doc', 'empty_doc') then
+  if p_attempt_count is null or p_attempt_count < 0
+    or p_skip_reason is null or p_skip_reason not in ('missing_doc', 'empty_doc')
+  then
     raise exception using errcode = '22023', message = 'metered_assignment_skip_state_invalid';
   end if;
 
   select * into v_locked
-  from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, false);
-  if v_locked.triggered_by is distinct from p_teacher_id then
-    raise exception using errcode = '42501', message = 'metered_assignment_teacher_mismatch';
-  end if;
+  from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, true, false);
 
   select reservation.* into v_reservation
   from public.feature_usage_reservations reservation
@@ -740,26 +730,6 @@ begin
     raise exception using errcode = '42501', message = 'feature_usage_reservation_binding_mismatch';
   end if;
 
-  v_result := public.finalize_assignment_ai_grading_item_with_provenance_lease_v1(
-    p_item_id,
-    p_lease_token,
-    p_teacher_id,
-    p_score_completion,
-    p_score_thinking,
-    p_score_workflow,
-    p_feedback,
-    p_apply_teacher_feedback_draft,
-    p_mark_graded,
-    p_ai_feedback_suggestion,
-    p_ai_feedback_model,
-    p_ai_grading_provenance,
-    p_graded_by,
-    p_attempt_count,
-    'skipped',
-    p_skip_reason,
-    p_now
-  );
-
   perform public.release_feature_usage_v1(
     p_item_id,
     v_locked.triggered_by,
@@ -767,7 +737,20 @@ begin
     1,
     'stale'
   );
-  return v_result;
+
+  update public.assignment_ai_grading_run_items item
+  set status = 'skipped',
+      skip_reason = p_skip_reason,
+      attempt_count = greatest(item.attempt_count, p_attempt_count),
+      next_retry_at = null,
+      last_error_code = null,
+      last_error_message = null,
+      started_at = coalesce(item.started_at, clock_timestamp()),
+      completed_at = clock_timestamp()
+  where item.id = p_item_id
+  returning item.* into v_item;
+
+  return v_item;
 end;
 $function$;
 
@@ -796,7 +779,7 @@ begin
   end if;
 
   select * into v_locked
-  from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, true);
+  from private.lock_metered_assignment_ai_grading_item_v1(p_item_id, p_lease_token, true, true);
 
   perform public.release_feature_usage_v1(
     p_item_id,
@@ -966,9 +949,8 @@ revoke all on function public.finalize_assignment_ai_grading_item_and_settle_usa
   uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
   jsonb, text, integer, text, text, timestamptz
 ) from public, anon, authenticated, service_role;
-revoke all on function public.finalize_skipped_assignment_ai_grading_item_and_release_v1(
-  uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
-  jsonb, text, integer, text, timestamptz
+revoke all on function public.skip_assignment_ai_grading_item_and_release_usage_v1(
+  uuid, uuid, integer, text
 ) from public, anon, authenticated, service_role;
 revoke all on function public.fail_assignment_ai_grading_item_and_release_usage_with_lease_v1(
   uuid, uuid, integer, text, text, text
@@ -986,9 +968,8 @@ grant execute on function public.finalize_assignment_ai_grading_item_and_settle_
   uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
   jsonb, text, integer, text, text, timestamptz
 ) to service_role;
-grant execute on function public.finalize_skipped_assignment_ai_grading_item_and_release_v1(
-  uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
-  jsonb, text, integer, text, timestamptz
+grant execute on function public.skip_assignment_ai_grading_item_and_release_usage_v1(
+  uuid, uuid, integer, text
 ) to service_role;
 grant execute on function public.fail_assignment_ai_grading_item_and_release_usage_with_lease_v1(
   uuid, uuid, integer, text, text, text
@@ -1006,9 +987,8 @@ comment on function public.finalize_assignment_ai_grading_item_and_settle_usage_
   uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
   jsonb, text, integer, text, text, timestamptz
 ) is 'Atomically saves one Assignment AI grade and settles its exact one-unit reservation.';
-comment on function public.finalize_skipped_assignment_ai_grading_item_and_release_v1(
-  uuid, uuid, uuid, integer, integer, integer, text, boolean, boolean, text, text,
-  jsonb, text, integer, text, timestamptz
-) is 'Atomically saves one newly missing or empty Assignment result and releases its reserved unit.';
+comment on function public.skip_assignment_ai_grading_item_and_release_usage_v1(
+  uuid, uuid, integer, text
+) is 'Atomically marks one newly missing or empty Assignment item skipped and releases its reserved unit.';
 
 commit;

@@ -33,9 +33,9 @@ insert into public.classroom_enrollments (classroom_id, student_id) values
 insert into public.assignments (id, classroom_id, title, due_at, created_by, gradebook_weight) values
   ('e2030000-0000-4000-8000-000000000011', 'e2030000-0000-4000-8000-000000000010', 'Metered assignment', now() + interval '1 day', 'e2030000-0000-4000-8000-000000000001', 1);
 insert into public.assignment_docs (id, assignment_id, student_id, content, is_submitted, submitted_at) values
-  ('e2030000-0000-4000-8000-000000000012', 'e2030000-0000-4000-8000-000000000011', 'e2030000-0000-4000-8000-000000000002', '{"type":"doc","content":[{"type":"paragraph"}]}', true, now()),
-  ('e2030000-0000-4000-8000-000000000013', 'e2030000-0000-4000-8000-000000000011', 'e2030000-0000-4000-8000-000000000003', '{"type":"doc","content":[{"type":"paragraph"}]}', true, now()),
-  ('e2030000-0000-4000-8000-000000000014', 'e2030000-0000-4000-8000-000000000011', 'e2030000-0000-4000-8000-000000000004', '{"type":"doc","content":[{"type":"paragraph"}]}', true, now());
+  ('e2030000-0000-4000-8000-000000000012', 'e2030000-0000-4000-8000-000000000011', 'e2030000-0000-4000-8000-000000000002', '{"type":"doc","content":[{"type":"paragraph"}]}', false, null),
+  ('e2030000-0000-4000-8000-000000000013', 'e2030000-0000-4000-8000-000000000011', 'e2030000-0000-4000-8000-000000000003', '{"type":"doc","content":[{"type":"paragraph"}]}', false, null),
+  ('e2030000-0000-4000-8000-000000000014', 'e2030000-0000-4000-8000-000000000011', 'e2030000-0000-4000-8000-000000000004', '{"type":"doc","content":[{"type":"paragraph"}]}', false, null);
 insert into public.effective_feature_entitlements (
   subject_user_id, feature_key, source, enabled, starts_at, quota_limit, revision
 ) values (
@@ -52,11 +52,14 @@ declare
   v_doc_2 constant uuid := 'e2030000-0000-4000-8000-000000000013';
   v_doc_3 constant uuid := 'e2030000-0000-4000-8000-000000000014';
   v_lease constant uuid := 'e2030000-0000-4000-8000-000000000020';
+  v_expired_lease constant uuid := 'e2030000-0000-4000-8000-000000000021';
   v_run public.assignment_ai_grading_runs%rowtype;
+  v_expired_run public.assignment_ai_grading_runs%rowtype;
   v_legacy_run public.assignment_ai_grading_runs%rowtype;
   v_item_1 public.assignment_ai_grading_run_items%rowtype;
   v_item_2 public.assignment_ai_grading_run_items%rowtype;
   v_item_3 public.assignment_ai_grading_run_items%rowtype;
+  v_expired_item public.assignment_ai_grading_run_items%rowtype;
   v_rows jsonb;
   v_result jsonb;
   v_count integer;
@@ -66,11 +69,11 @@ begin
   if has_function_privilege('authenticated', 'public.create_metered_assignment_ai_grading_run_v1(uuid,uuid,text,uuid[],text,integer,integer,integer,jsonb,timestamp with time zone)', 'execute')
     or has_function_privilege('authenticated', 'public.reserve_assignment_ai_grading_item_usage_with_lease_v1(uuid,uuid)', 'execute')
     or has_function_privilege('authenticated', 'public.finalize_assignment_ai_grading_item_and_settle_usage_v1(uuid,uuid,uuid,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,integer,text,text,timestamp with time zone)', 'execute')
-    or has_function_privilege('authenticated', 'public.finalize_skipped_assignment_ai_grading_item_and_release_v1(uuid,uuid,uuid,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,integer,text,timestamp with time zone)', 'execute')
+    or has_function_privilege('authenticated', 'public.skip_assignment_ai_grading_item_and_release_usage_v1(uuid,uuid,integer,text)', 'execute')
     or has_function_privilege('authenticated', 'public.fail_assignment_ai_grading_item_and_release_usage_with_lease_v1(uuid,uuid,integer,text,text,text)', 'execute')
     or has_function_privilege('authenticated', 'public.fail_assignment_ai_grading_run_and_release_usage_with_lease_v1(uuid,uuid,text,text,text)', 'execute')
     or not has_function_privilege('service_role', 'public.create_metered_assignment_ai_grading_run_v1(uuid,uuid,text,uuid[],text,integer,integer,integer,jsonb,timestamp with time zone)', 'execute')
-    or not has_function_privilege('service_role', 'public.finalize_skipped_assignment_ai_grading_item_and_release_v1(uuid,uuid,uuid,integer,integer,integer,text,boolean,boolean,text,text,jsonb,text,integer,text,timestamp with time zone)', 'execute')
+    or not has_function_privilege('service_role', 'public.skip_assignment_ai_grading_item_and_release_usage_v1(uuid,uuid,integer,text)', 'execute')
   then
     raise exception 'Unexpected metered Assignment AI grading privileges';
   end if;
@@ -237,6 +240,11 @@ begin
     raise exception 'Assignment item replay created duplicate reservations';
   end if;
 
+  update public.assignment_docs
+  set content = '{"type":"doc","content":[]}'::jsonb,
+      updated_at = clock_timestamp()
+  where id = v_doc_2;
+
   set local role service_role;
   begin
     perform public.finalize_assignment_ai_grading_item_and_settle_usage_v1(
@@ -249,11 +257,8 @@ begin
   exception when invalid_parameter_value then
     null;
   end;
-  perform public.finalize_skipped_assignment_ai_grading_item_and_release_v1(
-    v_item_2.id, v_lease, v_teacher,
-    0, 0, 0, 'no gradable work', true, true,
-    null, null, null, 'teacher',
-    1, 'empty_doc', clock_timestamp()
+  perform public.skip_assignment_ai_grading_item_and_release_usage_v1(
+    v_item_2.id, v_lease, 1, 'empty_doc'
   );
   reset role;
 
@@ -263,15 +268,71 @@ begin
     raise exception 'Skipped Assignment item did not release its reserved unit';
   end if;
 
+  delete from public.assignment_docs where id = v_doc_3;
+
+  set local role service_role;
+  perform public.skip_assignment_ai_grading_item_and_release_usage_v1(
+    v_item_3.id, v_lease, 1, 'missing_doc'
+  );
+  reset role;
+
+  set local role service_role;
+  perform public.patch_assignment_ai_grading_run_with_lease_v1(
+    v_run.id,
+    v_lease,
+    jsonb_build_object(
+      'status', 'completed',
+      'processed_count', 3,
+      'completed_count', 1,
+      'skipped_empty_count', 1,
+      'skipped_missing_count', 1,
+      'failed_count', 0,
+      'completed_at', clock_timestamp(),
+      'lease_token', null,
+      'lease_expires_at', null
+    )
+  );
+  reset role;
+
+  select status into v_status
+  from public.feature_usage_reservations where operation_id = v_item_3.id;
+  if v_status <> 'released' then
+    raise exception 'Missing Assignment item did not release its reserved unit';
+  end if;
+
+  select jsonb_build_array(jsonb_build_object(
+    'student_id', d.student_id,
+    'assignment_doc_id', d.id,
+    'assignment_doc_updated_at', d.updated_at,
+    'assignment_doc_revision_provided', true,
+    'queue_position', 0,
+    'status', 'queued',
+    'attempt_count', 0
+  ))
+  into v_rows
+  from public.assignment_docs d where d.id = v_doc_1;
+
+  set local role service_role;
+  v_expired_run := public.create_metered_assignment_ai_grading_run_v1(
+    v_assignment, v_teacher, 'test-model',
+    array['e2030000-0000-4000-8000-000000000002'::uuid],
+    repeat('g', 64), 1, 0, 0, v_rows, clock_timestamp()
+  );
+  perform public.claim_assignment_ai_grading_run(v_expired_run.id, v_expired_lease, 120);
+  reset role;
+
+  select item.* into v_expired_item
+  from public.assignment_ai_grading_run_items item
+  where item.run_id = v_expired_run.id;
   update public.feature_usage_reservations
   set reserved_at = clock_timestamp() - interval '2 days',
       expires_at = clock_timestamp() - interval '1 day'
-  where operation_id = v_item_3.id;
+  where operation_id = v_expired_item.id;
 
   set local role service_role;
   begin
     perform public.finalize_assignment_ai_grading_item_and_settle_usage_v1(
-      v_item_3.id, v_lease, v_teacher,
+      v_expired_item.id, v_expired_lease, v_teacher,
       3, 3, 3, 'must roll back', true, true,
       'must roll back', 'test-model', null, 'teacher',
       1, 'completed', null, clock_timestamp()
@@ -283,35 +344,25 @@ begin
   reset role;
 
   select item.status into v_status
-  from public.assignment_ai_grading_run_items item where item.id = v_item_3.id;
+  from public.assignment_ai_grading_run_items item where item.id = v_expired_item.id;
   if v_status <> 'queued' then
     raise exception 'Failed settlement did not roll back Assignment finalization';
   end if;
 
   set local role service_role;
-  perform public.fail_assignment_ai_grading_item_and_release_usage_with_lease_v1(
-    v_item_3.id, v_lease, 1, 'reservation_expired', 'Reservation expired', 'expired'
-  );
-  perform public.patch_assignment_ai_grading_run_with_lease_v1(
-    v_run.id,
-    v_lease,
-    jsonb_build_object(
-      'status', 'completed_with_errors',
-      'processed_count', 3,
-      'completed_count', 1,
-      'skipped_empty_count', 1,
-      'failed_count', 1,
-      'completed_at', clock_timestamp(),
-      'lease_token', null,
-      'lease_expires_at', null
-    )
+  perform public.fail_assignment_ai_grading_run_and_release_usage_with_lease_v1(
+    v_expired_run.id,
+    v_expired_lease,
+    'reservation_expired',
+    'Reservation expired',
+    'expired'
   );
   reset role;
 
   select status into v_status
-  from public.feature_usage_reservations where operation_id = v_item_3.id;
+  from public.feature_usage_reservations where operation_id = v_expired_item.id;
   if v_status <> 'released' then
-    raise exception 'Terminal Assignment failure did not release its unit';
+    raise exception 'Fatal Assignment run failure did not release its pending unit';
   end if;
 
   update public.effective_feature_entitlements
@@ -370,7 +421,7 @@ begin
   select count(*) into v_count
   from public.feature_usage_reservations reservation
   where reservation.subject_user_id = v_teacher;
-  if v_count <> 3 then
+  if v_count <> 4 then
     raise exception 'Legacy Assignment path unexpectedly created usage reservations';
   end if;
 end;
