@@ -212,6 +212,7 @@ describe('getActiveAssignmentAiGradingRunSummary strict evidence', () => {
 function buildTickHarness(opts: {
   skipReason: 'missing_doc' | 'empty_doc' | null
   model?: string
+  workerContractVersion?: number
   assignmentDoc: {
     id: string
     student_id: string
@@ -246,6 +247,7 @@ function buildTickHarness(opts: {
     skipped_empty_count: 0,
     failed_count: 0,
     error_samples_json: [],
+    worker_contract_version: opts.workerContractVersion ?? 0,
     lease_token: null,
     lease_expires_at: null,
     started_at: null,
@@ -276,11 +278,25 @@ function buildTickHarness(opts: {
     },
   ]
 
-  mockSupabaseClient.rpc.mockImplementation(async (fn: string) => {
+  mockSupabaseClient.rpc.mockImplementation(async (fn: string, args: Record<string, any>) => {
     if (fn === 'claim_assignment_ai_grading_run') {
+      run.lease_token = args.p_lease_token
+      run.lease_expires_at = '2099-04-21T12:01:00.000Z'
       return { data: true, error: null }
     }
-    if (fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic') {
+    if (fn === 'patch_assignment_ai_grading_run_with_lease_v1') {
+      Object.assign(run, args.p_patch)
+      return { data: { ...run }, error: null }
+    }
+    if (fn === 'patch_assignment_ai_grading_item_with_lease_v1') {
+      const item = items.find((candidate) => candidate.id === args.p_item_id)
+      if (item) Object.assign(item, args.p_patch)
+      return { data: item ? { ...item } : null, error: null }
+    }
+    if (
+      fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic'
+      || fn === 'finalize_assignment_ai_grading_item_with_provenance_lease_v1'
+    ) {
       return { data: null, error: opts.upsertError }
     }
     throw new Error(`Unexpected rpc: ${fn}`)
@@ -744,6 +760,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
 
   it('marks a missing-doc item failed when saving the Missing grade fails', async () => {
     const harness = buildTickHarness({
+      workerContractVersion: 1,
       skipReason: 'missing_doc',
       assignmentDoc: null,
       upsertError: { message: 'upsert failed' },
@@ -767,6 +784,10 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       last_error_code: 'save_missing_grade_failed',
       last_error_message: 'Failed to finalize AI assignment grade',
     }))
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledWith(
+      'finalize_assignment_ai_grading_item_with_provenance_lease_v1',
+      expect.objectContaining({ p_lease_token: expect.any(String) }),
+    )
   })
 
   it('fails a legacy queued item closed when its source revision is unavailable', async () => {
@@ -841,6 +862,8 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       assignment: expect.objectContaining({ id: 'assignment-1' }),
       run: expect.objectContaining({ id: 'run-1', model: 'gradex:pika-assignment-v1' }),
       items: harness.items,
+      leaseToken: expect.any(String),
+      leaseFencingEnabled: false,
     })
   })
 
