@@ -266,6 +266,11 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   No route uses the ledger yet, and no price, allowance, billing period or grant is inferred.
   Joining Classrooms and completing assigned student work remain free and unmetered. See
   [the metered usage contract](metered-feature-usage-reservations.md).
+- Migration 202 adds the first AI-grading integration prerequisite without activating
+  metering: Assignment grading workers now bind every run/item mutation and grade
+  finalization to their exact current, unexpired lease. A superseded worker can no longer
+  overwrite a newer worker after takeover. Reservation admission and atomic grade/usage
+  settlement remain separate default-off follow-up work.
 - Migration 166 authors the first database-resolved effective-entitlement snapshot and an
   atomic `classrooms.create` active-count guard. Missing snapshots preserve legacy behavior;
   no account is seeded or cut over. Ordinary inserts, Blueprint instantiation, reactivation

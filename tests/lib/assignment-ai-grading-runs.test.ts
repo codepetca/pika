@@ -276,11 +276,22 @@ function buildTickHarness(opts: {
     },
   ]
 
-  mockSupabaseClient.rpc.mockImplementation(async (fn: string) => {
+  mockSupabaseClient.rpc.mockImplementation(async (fn: string, args: Record<string, any>) => {
     if (fn === 'claim_assignment_ai_grading_run') {
+      run.lease_token = args.p_lease_token
+      run.lease_expires_at = '2099-04-21T12:01:00.000Z'
       return { data: true, error: null }
     }
-    if (fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic') {
+    if (fn === 'patch_assignment_ai_grading_run_with_lease_v1') {
+      Object.assign(run, args.p_patch)
+      return { data: { ...run }, error: null }
+    }
+    if (fn === 'patch_assignment_ai_grading_item_with_lease_v1') {
+      const item = items.find((candidate) => candidate.id === args.p_item_id)
+      if (item) Object.assign(item, args.p_patch)
+      return { data: item ? { ...item } : null, error: null }
+    }
+    if (fn === 'finalize_assignment_ai_grading_item_with_provenance_lease_v1') {
       return { data: null, error: opts.upsertError }
     }
     throw new Error(`Unexpected rpc: ${fn}`)
@@ -841,6 +852,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       assignment: expect.objectContaining({ id: 'assignment-1' }),
       run: expect.objectContaining({ id: 'run-1', model: 'gradex:pika-assignment-v1' }),
       items: harness.items,
+      leaseToken: expect.any(String),
     })
   })
 
@@ -885,7 +897,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       await tickAssignmentAiGradingRun({ assignmentId: 'assignment-1', runId: 'run-1' })
 
       const call = mockSupabaseClient.rpc.mock.calls.find(
-        ([fn]) => fn === 'finalize_assignment_ai_grading_item_with_provenance_atomic',
+        ([fn]) => fn === 'finalize_assignment_ai_grading_item_with_provenance_lease_v1',
       )
       const payload = call?.[1] as Record<string, unknown>
       // presentation 4 + on time 2 - late 2 + sittings 2 + authenticity 0

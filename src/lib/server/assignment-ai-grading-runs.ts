@@ -20,6 +20,11 @@ import { limitedMarkdownToPlainText } from '@/lib/limited-markdown'
 import type { AiSanitizationContext } from '@/lib/ai-sanitization'
 import { loadClassroomAiSanitizationContext } from '@/lib/server/ai-sanitization'
 import {
+  AssignmentAiGradingLeaseLostError,
+  patchAssignmentAiGradingItemWithLease,
+  patchAssignmentAiGradingRunWithLease,
+} from '@/lib/server/assignment-ai-grading-lease'
+import {
   finalizeAssignmentAiGradingItemAtomic,
   saveAssignmentAiGradeAtomic,
 } from '@/lib/server/assignment-grades'
@@ -34,6 +39,7 @@ import {
   submitOrPollGradexAssignmentRun,
 } from '@/lib/server/gradex-assignment-grading'
 import { getServiceRoleClient } from '@/lib/supabase'
+import type { Json } from '@/types/database.generated'
 import { parseContentField } from '@/lib/tiptap-content'
 import type {
   Assignment,
@@ -79,7 +85,7 @@ export const ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE = 4
 export const ASSIGNMENT_AI_GRADING_ITEM_CONCURRENCY = 2
 export const ASSIGNMENT_AI_GRADING_REQUEST_TIMEOUT_MS = 25_000
 export const ASSIGNMENT_AI_GRADING_MAX_ATTEMPTS = 3
-export const ASSIGNMENT_AI_GRADING_LEASE_SECONDS = 60
+export const ASSIGNMENT_AI_GRADING_LEASE_SECONDS = 120
 
 type ServiceRoleSupabase = ReturnType<typeof getServiceRoleClient>
 
@@ -108,6 +114,7 @@ type GradeAssignmentDocWithAiOptions = {
   runItem?: {
     id: string
     attemptCount: number
+    leaseToken: string
   }
   telemetry?: {
     operation?: string
@@ -445,6 +452,7 @@ export async function gradeAssignmentDocWithAi({
       await finalizeAssignmentAiGradingItemAtomic({
         supabase,
         itemId: runItem.id,
+        leaseToken: runItem.leaseToken,
         teacherId: gradedBy ?? assignment.created_by,
         grade: {
           scoreCompletion: 0,
@@ -510,6 +518,7 @@ export async function gradeAssignmentDocWithAi({
     await finalizeAssignmentAiGradingItemAtomic({
       supabase,
       itemId: runItem.id,
+      leaseToken: runItem.leaseToken,
       teacherId: gradedBy ?? assignment.created_by,
       grade: {
         scoreCompletion: result.score_completion,
@@ -556,6 +565,7 @@ export async function gradeAssignmentDocWithAi({
 async function refreshAssignmentAiGradingRun(
   supabase: ServiceRoleSupabase,
   runId: string,
+  leaseToken: string,
   options?: { clearLease?: boolean },
 ): Promise<AssignmentAiGradingRunSummary> {
   const run = await fetchAssignmentAiGradingRunRow(supabase, runId)
@@ -623,19 +633,12 @@ async function refreshAssignmentAiGradingRun(
     lease_expires_at: options?.clearLease ? null : run.lease_expires_at,
   }
 
-  const { data, error } = await supabase
-    .from('assignment_ai_grading_runs')
-    .update(updates)
-    .eq('id', runId)
-    .select('*')
-    .single()
-
-  if (error || !data) {
-    if (isAssignmentAiGradingSchemaError(error)) {
-      throw new Error('Assignment AI grading run tables are unavailable. Apply migration 054.')
-    }
-    throw new Error('Failed to refresh assignment AI grading run summary')
-  }
+  const data = await patchAssignmentAiGradingRunWithLease({
+    supabase,
+    runId,
+    leaseToken,
+    patch: updates,
+  })
 
   return toAssignmentAiGradingRunSummary(data as AssignmentAiGradingRun, { items })
 }
@@ -643,10 +646,11 @@ async function refreshAssignmentAiGradingRun(
 async function claimAssignmentAiGradingRun(
   supabase: ServiceRoleSupabase,
   runId: string,
-): Promise<boolean> {
+): Promise<string | null> {
+  const leaseToken = randomUUID()
   const { data, error } = await supabase.rpc('claim_assignment_ai_grading_run', {
     p_run_id: runId,
-    p_lease_token: randomUUID(),
+    p_lease_token: leaseToken,
     p_lease_seconds: ASSIGNMENT_AI_GRADING_LEASE_SECONDS,
   })
 
@@ -658,10 +662,10 @@ async function claimAssignmentAiGradingRun(
   }
 
   if (Array.isArray(data)) {
-    return data.length > 0
+    return data.length > 0 ? leaseToken : null
   }
 
-  return !!data
+  return data ? leaseToken : null
 }
 
 async function loadAssignmentForRun(
@@ -694,17 +698,15 @@ function getNextRetryAt(
 async function updateRunItem(
   supabase: ServiceRoleSupabase,
   itemId: string,
+  leaseToken: string,
   payload: Record<string, unknown>,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('assignment_ai_grading_run_items')
-    .update(payload)
-    .eq('id', itemId)
-    .in('status', ['queued', 'processing'])
-
-  if (error) {
-    throw new Error('Failed to update assignment AI grading run item')
-  }
+  await patchAssignmentAiGradingItemWithLease({
+    supabase,
+    itemId,
+    leaseToken,
+    patch: payload as Json,
+  })
 }
 
 async function processAssignmentAiRunItem(opts: {
@@ -712,9 +714,10 @@ async function processAssignmentAiRunItem(opts: {
   assignment: Assignment
   run: AssignmentAiGradingRun
   item: AssignmentAiGradingRunItem
+  leaseToken: string
   sanitizationContext?: AiSanitizationContext | null
 }): Promise<void> {
-  const { supabase, assignment, run, item, sanitizationContext } = opts
+  const { supabase, assignment, run, item, leaseToken, sanitizationContext } = opts
   const attemptCount = item.attempt_count + 1
   const now = new Date().toISOString()
 
@@ -723,6 +726,7 @@ async function processAssignmentAiRunItem(opts: {
       await finalizeAssignmentAiGradingItemAtomic({
         supabase,
         itemId: item.id,
+        leaseToken,
         teacherId: run.triggered_by,
         grade: {
           scoreCompletion: 0,
@@ -739,7 +743,7 @@ async function processAssignmentAiRunItem(opts: {
         now,
       })
     } catch (error) {
-      await updateRunItem(supabase, item.id, {
+      await updateRunItem(supabase, item.id, leaseToken, {
         status: 'failed',
         skip_reason: null,
         attempt_count: attemptCount,
@@ -760,7 +764,7 @@ async function processAssignmentAiRunItem(opts: {
     return
   }
 
-  await updateRunItem(supabase, item.id, {
+  await updateRunItem(supabase, item.id, leaseToken, {
     status: 'processing',
     started_at: item.started_at ?? now,
     next_retry_at: null,
@@ -773,7 +777,7 @@ async function processAssignmentAiRunItem(opts: {
     .maybeSingle()
 
   if (assignmentDocError) {
-    await updateRunItem(supabase, item.id, {
+    await updateRunItem(supabase, item.id, leaseToken, {
       status: 'failed',
       attempt_count: attemptCount,
       last_error_code: 'load_doc_failed',
@@ -820,6 +824,7 @@ async function processAssignmentAiRunItem(opts: {
       runItem: {
         id: item.id,
         attemptCount,
+        leaseToken,
       },
     })
   } catch (error) {
@@ -829,7 +834,7 @@ async function processAssignmentAiRunItem(opts: {
       isRetryableAssignmentAiGradingError(error) &&
       attemptCount < ASSIGNMENT_AI_GRADING_MAX_ATTEMPTS
     ) {
-      await updateRunItem(supabase, item.id, {
+      await updateRunItem(supabase, item.id, leaseToken, {
         status: 'queued',
         attempt_count: attemptCount,
         last_error_code: error.kind,
@@ -839,7 +844,7 @@ async function processAssignmentAiRunItem(opts: {
       return
     }
 
-    await updateRunItem(supabase, item.id, {
+    await updateRunItem(supabase, item.id, leaseToken, {
       status: 'failed',
       attempt_count: attemptCount,
       last_error_code:
@@ -1072,8 +1077,8 @@ export async function tickAssignmentAiGradingRun(opts: {
     return { run: toAssignmentAiGradingRunSummary(run, { items }), claimed: false }
   }
 
-  const claimed = await claimAssignmentAiGradingRun(supabase, run.id)
-  if (!claimed) {
+  const leaseToken = await claimAssignmentAiGradingRun(supabase, run.id)
+  if (!leaseToken) {
     const latest = await fetchAssignmentAiGradingRunRow(supabase, run.id)
     if (!latest) {
       throw new Error('Assignment AI grading run not found after lease claim')
@@ -1094,7 +1099,7 @@ export async function tickAssignmentAiGradingRun(opts: {
     for (const item of allItems) {
       const isPending = item.status === 'queued' || item.status === 'processing'
       if (isPending && item.assignment_doc_id && !item.assignment_doc_updated_at) {
-        await updateRunItem(supabase, item.id, {
+        await updateRunItem(supabase, item.id, leaseToken, {
           status: 'failed',
           attempt_count: item.attempt_count + 1,
           last_error_code: 'source_revision_unavailable',
@@ -1112,10 +1117,11 @@ export async function tickAssignmentAiGradingRun(opts: {
         assignment,
         run: claimedRun,
         items: sourceReadyItems,
+        leaseToken,
       })
 
       return {
-        run: await refreshAssignmentAiGradingRun(supabase, claimedRun.id, { clearLease: true }),
+        run: await refreshAssignmentAiGradingRun(supabase, claimedRun.id, leaseToken, { clearLease: true }),
         claimed: true,
       }
     }
@@ -1141,6 +1147,7 @@ export async function tickAssignmentAiGradingRun(opts: {
             assignment,
             run: claimedRun,
             item,
+            leaseToken,
             sanitizationContext,
           })
         },
@@ -1148,28 +1155,52 @@ export async function tickAssignmentAiGradingRun(opts: {
     }
 
     return {
-      run: await refreshAssignmentAiGradingRun(supabase, claimedRun.id, { clearLease: true }),
+      run: await refreshAssignmentAiGradingRun(supabase, claimedRun.id, leaseToken, { clearLease: true }),
       claimed: true,
     }
   } catch (error) {
-    const { data: failedRun } = await supabase
-      .from('assignment_ai_grading_runs')
-      .update({
-        status: 'failed',
-        lease_token: null,
-        lease_expires_at: null,
-        completed_at: new Date().toISOString(),
-        error_samples_json: [
-          {
-            student_id: null,
-            code: 'run_failed',
-            message: error instanceof Error ? error.message : 'Assignment AI grading run failed',
-          },
-        ],
+    if (error instanceof AssignmentAiGradingLeaseLostError) {
+      const latest = await fetchAssignmentAiGradingRunRow(supabase, run.id)
+      if (!latest) throw error
+      const items = await fetchAssignmentAiGradingRunItems(supabase, run.id)
+      return {
+        run: toAssignmentAiGradingRunSummary(latest, { items }),
+        claimed: false,
+      }
+    }
+
+    let failedRun: AssignmentAiGradingRun | null = null
+    try {
+      failedRun = await patchAssignmentAiGradingRunWithLease({
+        supabase,
+        runId: run.id,
+        leaseToken,
+        patch: {
+          status: 'failed',
+          lease_token: null,
+          lease_expires_at: null,
+          completed_at: new Date().toISOString(),
+          error_samples_json: [
+            {
+              student_id: null,
+              code: 'run_failed',
+              message: error instanceof Error ? error.message : 'Assignment AI grading run failed',
+            },
+          ],
+        },
       })
-      .eq('id', run.id)
-      .select('*')
-      .single()
+    } catch (patchError) {
+      if (patchError instanceof AssignmentAiGradingLeaseLostError) {
+        const latest = await fetchAssignmentAiGradingRunRow(supabase, run.id)
+        if (!latest) throw patchError
+        const items = await fetchAssignmentAiGradingRunItems(supabase, run.id)
+        return {
+          run: toAssignmentAiGradingRunSummary(latest, { items }),
+          claimed: false,
+        }
+      }
+      throw patchError
+    }
 
     if (failedRun) {
       const items = await fetchAssignmentAiGradingRunItems(supabase, run.id)

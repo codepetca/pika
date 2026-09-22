@@ -418,6 +418,17 @@ type FunctionOverrides = {
       p_skip_reason: string | null
     }>
   >
+  finalize_assignment_ai_grading_item_with_provenance_lease_v1: FunctionContract<
+    'finalize_assignment_ai_grading_item_with_provenance_lease_v1',
+    Json,
+    Replace<GeneratedFunctions['finalize_assignment_ai_grading_item_with_provenance_lease_v1']['Args'], {
+      p_ai_feedback_model: string | null
+      p_ai_feedback_suggestion: string | null
+      p_ai_grading_provenance: GradingProvenance | null
+      p_graded_by: string | null
+      p_skip_reason: string | null
+    }>
+  >
   finalize_test_ai_grading_item_atomic: FunctionContract<
     'finalize_test_ai_grading_item_atomic',
     Json,

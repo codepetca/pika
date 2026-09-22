@@ -1,4 +1,5 @@
 import { ApiError, apiErrors } from '@/lib/api-handler'
+import { AssignmentAiGradingLeaseLostError } from '@/lib/server/assignment-ai-grading-lease'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { ParsedAssignmentGradePayload } from '@/lib/validations/assignment-grading'
@@ -49,6 +50,9 @@ function throwAssignmentGradeRpcError(error: { code?: string; message: string },
     throw new ApiError(403, error.message)
   }
   if (error.code === '40001') {
+    if (error.message.includes('Assignment AI grading lease was lost')) {
+      throw new AssignmentAiGradingLeaseLostError()
+    }
     throw apiErrors.conflict('Assignment grade changed; reload and retry')
   }
   if (error.code === '22023') {
@@ -260,6 +264,7 @@ export async function saveAssignmentAiGradeAtomic(opts: {
 export async function finalizeAssignmentAiGradingItemAtomic(opts: {
   supabase: SupabaseClient
   itemId: string
+  leaseToken: string
   teacherId: string
   grade: Omit<AssignmentAiGradeInput, 'studentId' | 'expectedDocUpdatedAt'>
   attemptCount: number
@@ -267,8 +272,9 @@ export async function finalizeAssignmentAiGradingItemAtomic(opts: {
   skipReason?: 'missing_doc' | 'empty_doc' | null
   now?: string
 }) {
-  const { data, error } = await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_atomic', {
+  const { data, error } = await opts.supabase.rpc('finalize_assignment_ai_grading_item_with_provenance_lease_v1', {
     p_item_id: opts.itemId,
+    p_lease_token: opts.leaseToken,
     p_teacher_id: opts.teacherId,
     p_score_completion: opts.grade.scoreCompletion,
     p_score_thinking: opts.grade.scoreThinking,
