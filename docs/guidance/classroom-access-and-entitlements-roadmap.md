@@ -259,6 +259,13 @@ actual integration findings; this roadmap is not a delivery-date commitment.
   transactional, idempotent reservation/settlement design prevents concurrent overspend.
   Mutations also need transaction-time ownership/archive/resource checks to avoid races
   between the read-only resolver and the write.
+- Migration 201 adds that dormant reservation foundation for the shared `grading.ai`
+  entitlement bucket. Assignment AI grading, Test AI grading and repository review have
+  distinct operation kinds for reporting, while reserve/settle/release serialize against one
+  effective-entitlement revision and reject idempotency conflicts or concurrent overspend.
+  No route uses the ledger yet, and no price, allowance, billing period or grant is inferred.
+  Joining Classrooms and completing assigned student work remain free and unmetered. See
+  [the metered usage contract](metered-feature-usage-reservations.md).
 - Migration 166 authors the first database-resolved effective-entitlement snapshot and an
   atomic `classrooms.create` active-count guard. Missing snapshots preserve legacy behavior;
   no account is seeded or cut over. Ordinary inserts, Blueprint instantiation, reactivation

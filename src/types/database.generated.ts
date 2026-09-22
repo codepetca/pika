@@ -5391,6 +5391,74 @@ export type Database = {
           },
         ]
       }
+      feature_usage_reservations: {
+        Row: {
+          created_at: string
+          entitlement_revision: number
+          expires_at: string
+          feature_key: string
+          id: string
+          operation_id: string
+          operation_kind: string
+          release_reason: string | null
+          released_at: string | null
+          request_fingerprint: string
+          reserved_at: string
+          settled_at: string | null
+          status: string
+          subject_user_id: string
+          units: number
+          updated_at: string
+          usage_ref: string
+        }
+        Insert: {
+          created_at?: string
+          entitlement_revision: number
+          expires_at: string
+          feature_key: string
+          id?: string
+          operation_id: string
+          operation_kind: string
+          release_reason?: string | null
+          released_at?: string | null
+          request_fingerprint: string
+          reserved_at: string
+          settled_at?: string | null
+          status: string
+          subject_user_id: string
+          units: number
+          updated_at?: string
+          usage_ref: string
+        }
+        Update: {
+          created_at?: string
+          entitlement_revision?: number
+          expires_at?: string
+          feature_key?: string
+          id?: string
+          operation_id?: string
+          operation_kind?: string
+          release_reason?: string | null
+          released_at?: string | null
+          request_fingerprint?: string
+          reserved_at?: string
+          settled_at?: string | null
+          status?: string
+          subject_user_id?: string
+          units?: number
+          updated_at?: string
+          usage_ref?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_usage_reservations_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gradebook_categories: {
         Row: {
           classroom_id: string
@@ -10547,6 +10615,16 @@ export type Database = {
         Args: { p_lease_token: string; p_teacher_id: string }
         Returns: boolean
       }
+      release_feature_usage_v1: {
+        Args: {
+          p_expected_units: number
+          p_feature_key: string
+          p_operation_id: string
+          p_release_reason: string
+          p_subject_user_id: string
+        }
+        Returns: Json
+      }
       release_removed_student_cleanup_job: {
         Args: {
           p_completed: boolean
@@ -10672,6 +10750,18 @@ export type Database = {
       requeue_pal_event_outbox: {
         Args: { p_outbox_id: string }
         Returns: boolean
+      }
+      reserve_feature_usage_v1: {
+        Args: {
+          p_feature_key: string
+          p_operation_id: string
+          p_operation_kind: string
+          p_subject_user_id: string
+          p_ttl_seconds?: number
+          p_units: number
+          p_usage_ref: string
+        }
+        Returns: Json
       }
       reserve_student_provider_cleanup: {
         Args: {
@@ -11175,6 +11265,15 @@ export type Database = {
           p_status: string
         }
         Returns: boolean
+      }
+      settle_feature_usage_v1: {
+        Args: {
+          p_expected_units: number
+          p_feature_key: string
+          p_operation_id: string
+          p_subject_user_id: string
+        }
+        Returns: Json
       }
       settle_managed_storage_blueprint_copy_owner: {
         Args: {
