@@ -78,6 +78,7 @@ describe('DeepSeek structured-output request shape', () => {
       outputText: '{"ok":true}',
       tokenUsage: { inputTokens: 12, outputTokens: 3, totalTokens: 15 },
       requestCount: 1,
+      reasoningEffortUsed: 'medium',
     })
 
     const [url, init] = fetchImpl.mock.calls[0]

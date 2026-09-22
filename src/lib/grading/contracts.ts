@@ -52,6 +52,8 @@ export const gradingProvenanceSchema = z.object({
   rubricVersion: z.string().min(1).max(120),
   providerRequestCount: z.number().int().nonnegative().max(10),
   tokenUsage: gradingTokenUsageSchema,
+  /** Below the requested effort when the provider had to think less to fit its budget. */
+  reasoningEffortUsed: z.enum(['minimal', 'low', 'medium', 'high']).optional(),
 }).strict()
 
 export const testGradingProvenanceSchema = z.object({
@@ -69,6 +71,8 @@ export const testGradingProvenanceSchema = z.object({
   batchSize: z.number().int().positive().max(20),
   providerRequestCount: z.number().int().positive().max(10),
   tokenUsage: gradingTokenUsageSchema,
+  /** Below the requested effort when the provider had to think less to fit its budget. */
+  reasoningEffortUsed: z.enum(['minimal', 'low', 'medium', 'high']).optional(),
 }).strict()
 
 export const gradingCriterionResultSchema = z.object({
@@ -100,6 +104,7 @@ export const gradingResultSchema = z.object({
   rubricVersion: z.string().min(1),
   tokenUsage: gradingTokenUsageSchema,
   providerRequestCount: z.number().int().positive(),
+  reasoningEffortUsed: z.enum(['minimal', 'low', 'medium', 'high']).optional(),
 })
 
 export type GradingRubric = z.infer<typeof gradingRubricSchema>
@@ -119,5 +124,6 @@ export function toGradingProvenance(result: GradingResult): GradingProvenance {
     rubricVersion: result.rubricVersion,
     providerRequestCount: result.providerRequestCount,
     tokenUsage: result.tokenUsage,
+    reasoningEffortUsed: result.reasoningEffortUsed,
   })
 }

@@ -63,6 +63,7 @@ export function createDeepSeekChatProvider(opts: {
         tokenUsage = addTokenUsage(tokenUsage, readTokenUsage(payload))
       }
 
+      let reasoningEffortUsed = request.reasoningEffort
       const reducedEffort = DEEPSEEK_EFFORT_DOWNGRADE[request.reasoningEffort]
       if (isMaxOutputIncomplete(payload) && reducedEffort) {
         requestCount += 1
@@ -74,6 +75,7 @@ export function createDeepSeekChatProvider(opts: {
           reducedEffort,
         )
         tokenUsage = addTokenUsage(tokenUsage, readTokenUsage(payload))
+        reasoningEffortUsed = reducedEffort
       }
 
       if (isMaxOutputIncomplete(payload)) {
@@ -93,7 +95,7 @@ export function createDeepSeekChatProvider(opts: {
         })
       }
 
-      return { outputText, tokenUsage, requestCount }
+      return { outputText, tokenUsage, requestCount, reasoningEffortUsed }
     },
   }
 }
