@@ -313,3 +313,19 @@ against `docs/guidance/ai-grading-egress.md` but not settled with the owner.
 Process note: this session worked in the hub checkout rather than a feature worktree, and
 opened its first two PRs ready instead of draft, which PR Gate correctly rejected. Both
 violate `.ai/START-HERE.md`. Risk profile: async-grading.
+## 2026-09-22 — Assignment AI grading lease-fencing prerequisite
+
+- Owner `codex/meter-ai-grading`, based on merged metered-reservation PR1318. Migration202 adds a versioned worker contract plus service-only run/item patch and provenance-finalization boundaries. Existing and rolling-deploy runs remain legacy version0; future metered runs opt into version1, requiring the exact current, unexpired lease across DeepSeek and Gradex work while legacy finalizers/direct service-role updates are rejected.
+- Under standing local-migration authorization, migration202 is applied locally. Generated types match local history001–202; the real takeover harness proves expired/stale run and item patches, stale finalization, legacy finalization and direct service-role DML cannot bypass a version1 replacement lease. This slice does not create version1 runs, call the usage ledger or activate metering; production remains001–180.
+
+## 2026-09-22 — Accept required Assignment links without GitHub identity
+
+- Standard link requirements now send only their URL instead of an irrelevant blank GitHub login; repository-link requirements retain the existing GitHub fields.
+- The Assignment artifact request boundary normalizes a blank optional GitHub login to absent for compatibility with older clients. Component and API regressions cover both paths; the focused gate passes 60 files/664 tests plus architecture, UI/design policy, TypeScript and lint. Risk profile: none.
+- Pattern Lab visual verification covers the student attachment checklist on desktop/mobile in light/dark; the existing layout and states are unchanged. Teacher is n/a because no teacher surface or data contract changed.
+- Composite-widget checklist reviewed: no roles, keyboard behavior, focus handling or semantic state changed; remaining manual follow-up: none. Model recommendation: GPT-5 — bounded submission validation fix.
+## 2026-09-22 — Dormant Assignment AI usage accounting
+
+- Owner `codex/meter-assignment-ai-usage`, based on merged lease-fencing PR1323. Migration203 adds a service-only Assignment admission/finalization boundary: a version1 run reserves one shared `grading.ai` unit per queued student item, skipped missing/empty items reserve zero, successful grade/provenance finalization settles atomically, and terminal item/run failure releases atomically. Retry admission is idempotent and every operation revalidates the exact current lease and Assignment/Classroom/student/document binding.
+- Migration203 also hardens shared quota accounting to refresh time after blocking locks and count reserved/settled usage across entitlement revisions, preventing metadata revisions from minting capacity. Expired Assignment operations fail closed and require a fresh run/item after terminal release.
+- Under standing local-migration authorization, migration203 is applied locally. Generated types match local history001–203; warning-level DB lint is clean and the real database harness proves per-item reservation, replay safety, archive and malformed-count rejection, zero-cost skipped completion, atomic settlement rollback, terminal release, cross-revision quota enforcement, failed-admission rollback and the unchanged unmetered version0 path. No application route calls the new boundary, no grant or billing state changed, and production remains001–180.

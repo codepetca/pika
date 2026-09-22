@@ -418,6 +418,7 @@ export interface AssignmentAiGradingRun {
   skipped_empty_count: number
   failed_count: number
   error_samples_json: AssignmentAiGradingRunErrorSample[]
+  worker_contract_version: number
   lease_token: string | null
   lease_expires_at: string | null
   started_at: string | null
