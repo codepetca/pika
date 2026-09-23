@@ -137,12 +137,17 @@ describe('PageMockups', () => {
     await user.click(mockups.getByRole('tab', { name: 'Gradebook' }))
     await user.click(mockups.getByRole('button', { name: 'Show weights' }))
     const weight = mockups.getByRole('spinbutton', { name: 'Category weight for Ecosystems' })
-    for (const invalid of ['0', '-3', '1000', '2.5', '']) {
+    fireEvent.change(weight, { target: { value: '0' } })
+    expect(weight).toHaveAttribute('aria-invalid', 'false')
+    expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('0%')
+    fireEvent.blur(weight)
+    expect(weight).toHaveValue(0)
+    for (const invalid of ['-3', '1000', '2.5', '']) {
       fireEvent.change(weight, { target: { value: invalid } })
       expect(weight).toHaveAttribute('aria-invalid', 'true')
-      expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('5.42%')
+      expect(mockups.getByLabelText('Course weight for Ecosystems')).toHaveTextContent('0%')
       fireEvent.blur(weight)
-      expect(weight).toHaveValue(10)
+      expect(weight).toHaveValue(0)
     }
   })
 

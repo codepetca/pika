@@ -430,6 +430,34 @@ describe('TeacherGradebookTab', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('saves and reloads a zero assessment weight', async () => {
+    let persistedWeight = 10
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/gradebook' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as { gradebook_weight: number }
+        persistedWeight = body.gradebook_weight
+        return Promise.resolve({ ok: true, json: async () => ({ assessment: { gradebook_weight: persistedWeight } }) })
+      }
+      if (url === `/api/teacher/gradebook?classroom_id=${classroom.id}`) {
+        const response = gradebookResponse()
+        response.assessment_columns = response.assessment_columns.map((column) => (
+          column.assessment_id === 'assignment-1' ? { ...column, weight: persistedWeight } : column
+        ))
+        return Promise.resolve({ ok: true, json: async () => response })
+      }
+      throw new Error(`Unhandled fetch: ${init?.method ?? 'GET'} ${url}`)
+    })
+
+    await renderWeightEditor()
+    const input = await screen.findByRole('spinbutton', { name: 'Category weight for Essay' })
+    fireEvent.change(input, { target: { value: '0' } })
+    fireEvent.blur(input)
+    await waitFor(() => expect(persistedWeight).toBe(0))
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Category weight for Essay' })).toHaveValue(0))
+    expect(screen.queryByText('Assessment weight must be an integer 0-999')).not.toBeInTheDocument()
+  })
+
   it('refreshes the matrix after each concurrently saved assessment weight', async () => {
     let gradebookReads = 0
     let a1Weight = 10

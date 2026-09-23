@@ -29,7 +29,7 @@ export function normalizeGradebookPreferences(value: unknown): GradebookDisplayP
 }
 
 export function isValidGradebookWeight(value: number): boolean {
-  return Number.isInteger(value) && value >= 1 && value <= 999
+  return Number.isInteger(value) && value >= 0 && value <= 999
 }
 
 export function editedAssessmentCourseWeight(

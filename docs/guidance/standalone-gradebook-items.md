@@ -9,7 +9,7 @@ attendance columns are involved.
 ## Mark and calculation contract
 
 - Each item has a title, positive points possible, category, relative category
-  weight (1–999), and final-grade inclusion flag.
+  weight (0–999), and final-grade inclusion flag.
 - Items start with blank marks. Blank marks do not contribute to a student's
   running grade; an explicitly recorded zero does.
 - Category percentages and relative weights use the existing Gradebook
