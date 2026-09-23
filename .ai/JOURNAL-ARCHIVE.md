@@ -32442,6 +32442,7 @@ Verification: tsc, lint, `check:architecture` (961 modules) clean; 7083/7084 tes
 
 NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and compare anchored vs baseline spread against the teacher's own marks. Proceed to stage 2 (migration 176, anchor caching, read-only teacher panel — specified in `docs/plans/assignment-grading-anchors.md`) only if spread widens without inverting that ranking. Type regeneration without Docker images is documented in that plan and was verified against all 175 migrations.
 
+<!-- pika-session-log-archive-batch:030035976a0e2d08282c815f313c53666e1f149ce2531cc34dd7c4f1c7b6a70f -->
 <!-- pika-session-log-archive-batch:73fde722cb89c512635952e4bf3e7a51acdfeaef88e1065fa8ff108fcae2c184 -->
 ## 2026-09-16 — Student past-log date wrapping
 - Keep the StudentPastLogs date label on one line with whitespace-nowrap; reuse existing date column and Button, following stable classroom date language and Pattern Lab controls. No new pattern or composite behavior; teacher n/a.
@@ -32494,8 +32495,40 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Removed the Daily attendance count-bubble chevron while preserving button names, `aria-pressed`, tooltips, and the active focus ring. Updated the production control, Pattern Lab mockup, and component/UI regression coverage.
 - Verification: focused checks pass 20 files/285 tests plus architecture, UI/design policy, TypeScript, and lint; targeted suites pass 116 tests. Playwright teacher desktop/mobile, student guardrail, light/dark, loaded roster Join-sort, and Daily attendance captures were inspected. Composite checklist reviewed: yes; keyboard behavior unchanged and covered; semantic state covered by tests; remaining manual follow-up: none.
 
+<!-- pika-session-log-archive-batch:32cf6f1c3eaf1442acc13df0458b75816abbfad48b86723cb3d2f3ff9cb19914 -->
 <!-- pika-session-log-archive-batch:22a16a589aa36edce64470af288166d509aecfca13d352eb54a35415312d9179 -->
 ## 2026-09-18 — Hourly removed-student cleanup watchdog
 
 - Owner `codex/hourly-student-purge-watchdog`. User requested reducing the conditional Supabase recovery watchdog from every five minutes to hourly; the immediate removal-triggered callback remains unchanged.
 - Migration180 uses `cron.alter_job` on the exact named watchdog and a source regression rejects direct `cron.job` updates, unscheduling, or command replacement. Worker comments and rollout guidance now describe hourly recovery while preserving immediate callbacks and 240-second retry readiness. Targeted18 tests and focused checks (14 files/115 tests plus architecture, TypeScript, and lint) pass. No migration has been applied; production remains001–178 and requires exact approval for pending179 plus180 before rollout.
+
+## 2026-09-18 — Classroom creation entitlement cutover foundation
+
+- Owner `codex/access-entitlement-cutover`, based on `origin/main@c0b3d898`. Migration181 installs dormant Free provisioning, leaves existing and pre-activation accounts compatible, and exposes service-only readiness/one-way activation that refuses incomplete account coverage. Activation atomically starts strict enforcement and audited default-Free provisioning for future accounts.
+- The signup trigger, classroom assertion and activation share a transaction-held settings-row lock, closing signup/activation and legacy-creation/activation races. Existing direct, ordinary retry, Blueprint, restore and transfer enforcement continues through the migration166/167 database assertion; Access remains one active classroom and existing over-limit classrooms are preserved.
+- Disposable migration replay, warning-level database lint, generated-type comparison, rollback-only entitlement harness and activation-before-signup concurrency proof pass. Focused checks pass 95 tests plus architecture, TypeScript and lint. Migration181 has not been applied to shared local or production; no account was classified, granted Access or cut over. The runbook requires separate exact authorization for schema application and later production classification/activation.
+- Initial Sol/Terra review found that immediate post-migration Free provisioning violated the dormant Release-A boundary and that the new assertion reversed the established creation lock order. Remediation gates provisioning on successful strict activation, restores subject-before-settings locking, proves both signup/activation lock winners, adds ownership-transfer/reactivation quota coverage, and skips the destructive activation race on persistent local databases with unrelated accounts. Exact-head re-review follows.
+
+<!-- pika-session-log-archive-batch:b6a86bee87ddac7def2899a715cd35cfaa6e9045587e911850c5ddb669ecbe77 -->
+## 2026-09-19 — Calibrated assignment grading rules and screenshot fix
+
+- Branch `claude/beautiful-mayer-4jk2lf`. Calibrated AI assignment grading against real submissions from two courses (PPZ3C A1, GLD2O A1/A4/A6) with the teacher, one submission at a time. The approved rule set and the de-identified snapshots stay private and gitignored (`*.grading-snapshot.json`, `*.grader-calibration.json`).
+- Fixed two production bugs found during calibration. Since #1158 privatized submission storage, uploaded images carry an app-relative src, so URL-based artifact extraction dropped every screenshot: grading had been blind to them. Images now appear as `[Image attached]` where the student placed them, so captions can be matched, and attachments are credited as completion evidence. Separately, an email or phone number written with no separating space bypassed redaction; both patterns now end on a non-letter/non-digit boundary. Six GLD2O resumes were affected.
+- Grade composition changed. The grader now scores Completion, Thinking and Presentation (0–4) by explicit deductions, and `assignment-workflow-process.ts` derives the rest of Workflow from save history (lateness scale, sittings, authenticity). Feedback lists every missed requirement even at full marks, with reminders for pasted or unsubmitted work; work under ten words with no attachments scores 0/0/0 with no provider call. Prompt/profile/policy/rubric versions bumped; output budget raised to 2400/4800 because reasoning tokens truncated the longer feedback.
+- Removed the per-assignment score anchor feature (profiles, generation, flag, eval script, plan doc): the general deduction rules replaced it.
+- Verification: 7,085 tests including 13 new process-scoring cases, plus typecheck, lint, architecture. Re-graded five calibration submissions through the shipped path; scores matched the calibrated results within a point.
+
+<!-- pika-session-log-archive-batch:a91bd3083e1a81f5918fbead0e449c649605b5de29a08cbdc46ac61d59c58aab -->
+## 2026-09-19 — Supabase classroom RPC receiver fix
+
+- Owner `codex/fix-classroom-rpc-binding`. Bound `SupabaseClient.rpc` to its client before invoking the atomic classroom-creation RPC; the prior detached call failed before PostgREST could return the expected entitlement denial. Added a receiver-sensitive regression test. Local Access-at-limit behavior now returns the safe “Archive an active classroom before creating another.” response; focused checks pass 30 files/263 tests plus architecture, TypeScript and lint. No policy, schema, UI, migration, or production change.
+
+<!-- pika-session-log-archive-batch:df975bc6e5510d501da0165229e97f95b7a1acd3600aa70ec33a8e9d1a58248b -->
+## 2026-09-19 — Dormant contextual classroom home backend
+
+- Owner `codex/contextual-classroom-access`. Added an authenticated, exact-user-cohort `GET /api/classrooms/home` contract that returns separate active `owned` and `joined` summaries without consulting global role. Service-role reads are subject-bound; returned evidence is validated and sanitized, ownership wins over historical self-enrollment, and either-source failure returns no partial home. The current `/classrooms` page has no consumer and the gate defaults off. Targeted 53 tests and TypeScript pass; an aggregate-only real local Supabase canary returned one owned, zero joined, with owner precedence true. Initial security review required exact enrollment `classroom_id` binding and rejection of null source payloads; remediation adds both with regressions and the real canary remains green. No UI, migration, signup, production configuration or rollout change.
+
+## 2026-09-19 — Dormant contextual classroom page routing
+
+- Owner `codex/contextual-classroom-page-routing`. Added an independent, off-by-default exact user/classroom pair gate for classroom SSR routing. Admitted ownership selects the existing teacher experience and active membership selects the existing student experience while the real session role remains unchanged for session validation; contextual owner switching is limited to the current admitted classroom. Invalid enabled configuration and malformed relationship evidence fail closed, unmatched pairs retain the legacy branch, and the API pilot gate is not reused.
+- Targeted relationship/page/client coverage passes 70 tests plus TypeScript and lint. The existing local owner/member fixture passed the teacher/student desktop/mobile light/dark browser matrix; inspected light and dark captures showed the current shell without overflow. No database mutation, migration, new visual pattern, home consumer, downstream-domain widening or production activation.

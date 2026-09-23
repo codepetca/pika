@@ -549,6 +549,7 @@ function StudentTodayWorkspace({
       primary={
         <StudentTodayTab
           classroom={classroom}
+          studentId={studentId}
           layout="pane"
           mobilePlan={planSidebar}
           onLessonPlanLoad={onLessonPlanLoad}
