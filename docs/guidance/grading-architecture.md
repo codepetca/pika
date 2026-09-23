@@ -29,10 +29,10 @@ master switch requiring the Assignment usage RPCs from migrations 203–204.
 Admission also requires the authenticated teacher's exact account ID in the
 comma-separated `ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS` cohort. A
 missing or malformed cohort fails closed to legacy unmetered behavior, so the
-master switch alone cannot expose every teacher. With either gate unmatched,
-single-student DeepSeek grading stays synchronous and newly created durable runs
-remain version 0. With both gates matched, that teacher's Assignment AI grading
-uses durable version-1 admission, including single-student and Gradex requests.
+master switch alone cannot expose every teacher. Every Assignment AI request
+uses the durable coordinator: with either gate unmatched, newly created runs
+remain unmetered version 0; with both gates matched, that teacher's runs use
+metered version-1 admission, including single-student and Gradex requests.
 Missing accounting contracts fail closed with a generic unavailable response;
 quota exhaustion returns `429` and `AI grading limit reached`.
 

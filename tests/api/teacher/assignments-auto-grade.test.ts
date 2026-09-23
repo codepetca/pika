@@ -1,19 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { NextRequest } from 'next/server'
 import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 afterEach(() => vi.restoreAllMocks())
-import { NextRequest } from 'next/server'
 
-const {
-  createOrResumeAssignmentAiGradingRun,
-  getActiveAssignmentAiGradingRunSummary,
-  gradeAssignmentDocWithAi,
-  markAssignmentDocMissingGrade,
-} = vi.hoisted(() => ({
+const { createOrResumeAssignmentAiGradingRun } = vi.hoisted(() => ({
   createOrResumeAssignmentAiGradingRun: vi.fn(),
-  getActiveAssignmentAiGradingRunSummary: vi.fn(),
-  gradeAssignmentDocWithAi: vi.fn(),
-  markAssignmentDocMissingGrade: vi.fn(),
 }))
 
 const { assertTeacherCanMutateAssignment } = vi.hoisted(() => ({
@@ -34,9 +26,6 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/server/assignment-ai-grading-runs', () => ({
   createOrResumeAssignmentAiGradingRun,
-  getActiveAssignmentAiGradingRunSummary,
-  gradeAssignmentDocWithAi,
-  markAssignmentDocMissingGrade,
 }))
 
 vi.mock('@/lib/server/repo-review', () => ({
@@ -46,6 +35,9 @@ vi.mock('@/lib/server/repo-review', () => ({
 import { POST } from '@/app/api/teacher/assignments/[id]/auto-grade/route'
 import { throwAssignmentAiUsageError } from '@/lib/server/assignment-ai-grading-usage'
 
+const assignmentId = 'a0000000-0000-4000-8000-000000000001'
+const studentId = 'b0000000-0000-4000-8000-000000000001'
+const otherStudentId = 'b0000000-0000-4000-8000-000000000002'
 const mockSupabaseClient = { from: vi.fn() }
 
 function buildEnrollmentTable(opts?: { enrolledIds?: string[]; error?: unknown }) {
@@ -62,25 +54,43 @@ function buildEnrollmentTable(opts?: { enrolledIds?: string[]; error?: unknown }
   }
 }
 
-function mockAutoGradeTables(opts: {
-  enrolledIds: string[]
-  assignmentDocsTable?: unknown
-  enrollmentError?: unknown
-}) {
+function mockEnrollment(opts: { enrolledIds: string[]; error?: unknown }) {
   ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
     if (table === 'classroom_enrollments') {
-      return buildEnrollmentTable({
-        enrolledIds: opts.enrolledIds,
-        error: opts.enrollmentError,
-      })
+      return buildEnrollmentTable({ enrolledIds: opts.enrolledIds, error: opts.error })
     }
-
-    if (table === 'assignment_docs' && opts.assignmentDocsTable) {
-      return opts.assignmentDocsTable
-    }
-
     throw new Error(`Unexpected table: ${table}`)
   })
+}
+
+function requestFor(studentIds: string[]) {
+  return new NextRequest(`http://localhost:3000/api/teacher/assignments/${assignmentId}/auto-grade`, {
+    method: 'POST',
+    body: JSON.stringify({ student_ids: studentIds }),
+  })
+}
+
+function runSummary(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'run-1',
+    assignment_id: assignmentId,
+    status: 'queued',
+    model: 'gpt-5-nano',
+    requested_count: 1,
+    gradable_count: 1,
+    processed_count: 0,
+    completed_count: 0,
+    skipped_missing_count: 0,
+    skipped_empty_count: 0,
+    failed_count: 0,
+    pending_count: 1,
+    next_retry_at: null,
+    error_samples: [],
+    started_at: null,
+    completed_at: null,
+    created_at: '2026-04-20T12:00:00.000Z',
+    ...overrides,
+  }
 }
 
 describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
@@ -90,335 +100,89 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     delete process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED
     delete process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS
     assertTeacherCanMutateAssignment.mockResolvedValue({
-      id: 'a0000000-0000-4000-8000-000000000001',
+      id: assignmentId,
       classroom_id: 'classroom-1',
       title: 'Portfolio Site',
-      instructions_markdown: 'Build and submit your portfolio site.',
-      rich_instructions: null,
-      description: 'Build and submit your portfolio site.',
-      due_at: '2099-05-01T12:00:00.000Z',
-      position: 0,
-      is_draft: false,
-      released_at: null,
-      track_authenticity: true,
       created_by: 'teacher-1',
-      created_at: '2026-01-01T00:00:00.000Z',
-      updated_at: '2026-01-01T00:00:00.000Z',
       classrooms: { teacher_id: 'teacher-1' },
     })
-    gradeAssignmentDocWithAi.mockResolvedValue(undefined)
-    markAssignmentDocMissingGrade.mockResolvedValue(undefined)
-    getActiveAssignmentAiGradingRunSummary.mockResolvedValue(null)
     createOrResumeAssignmentAiGradingRun.mockResolvedValue({
       kind: 'created',
-      run: {
-        id: 'run-1',
-        assignment_id: 'a0000000-0000-4000-8000-000000000001',
-        status: 'queued',
-        model: 'gpt-5-nano',
-        requested_count: 2,
-        gradable_count: 2,
-        processed_count: 0,
-        completed_count: 0,
-        skipped_missing_count: 0,
-        skipped_empty_count: 0,
-        failed_count: 0,
-        pending_count: 2,
-        next_retry_at: null,
-        error_samples: [],
-        started_at: null,
-        completed_at: null,
-        created_at: '2026-04-20T12:00:00.000Z',
-      },
+      run: runSummary(),
     })
   })
 
-  it.each([false, true])('uses durable admission for a metered single student (Gradex %s)', async (gradex) => {
-    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
-    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = 'teacher-1'
-    if (gradex) process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
-    mockAutoGradeTables({ enrolledIds: ['b0000000-0000-4000-8000-000000000001'] })
-    const response = await POST(new NextRequest('http://localhost/auto-grade', {
-      method: 'POST', body: JSON.stringify({ student_ids: ['b0000000-0000-4000-8000-000000000001'] }),
-    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
+  it.each([
+    ['default gates', undefined, undefined],
+    ['metered teacher', 'true', 'teacher-1'],
+    ['unlisted teacher', 'true', 'teacher-2'],
+  ])('always uses durable admission for a single student with %s', async (_label, master, cohort) => {
+    if (master) process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = master
+    if (cohort) process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = cohort
+    mockEnrollment({ enrolledIds: [studentId] })
+
+    const response = await POST(requestFor([studentId]), {
+      params: Promise.resolve({ id: assignmentId }),
+    })
+
     expect(response.status).toBe(202)
-    expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledOnce()
-    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
-    expect(markAssignmentDocMissingGrade).not.toHaveBeenCalled()
+    await expect(response.json()).resolves.toEqual({
+      mode: 'background',
+      run: expect.objectContaining({ id: 'run-1', status: 'queued' }),
+    })
+    expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledWith({
+      assignmentId,
+      teacherId: 'teacher-1',
+      studentIds: [studentId],
+    })
   })
 
   it.each([
     ['PGRST202', 'missing RPC private detail', 503, 'AI grading is temporarily unavailable'],
     ['23514', 'feature_usage_quota_exhausted', 429, 'AI grading limit reached'],
   ])('returns a content-free metering error for %s', async (code, message, status, expected) => {
-    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
-    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = 'teacher-1'
-    mockAutoGradeTables({ enrolledIds: ['b0000000-0000-4000-8000-000000000001'] })
-    createOrResumeAssignmentAiGradingRun.mockImplementationOnce(() => throwAssignmentAiUsageError({ code: String(code), message: String(message) }))
-    const response = await POST(new NextRequest('http://localhost/auto-grade', {
-      method: 'POST', body: JSON.stringify({ student_ids: ['b0000000-0000-4000-8000-000000000001'] }),
-    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    expect(response.status).toBe(status)
-    expect(await response.json()).toEqual({ error: expected })
-    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
-  })
+    mockEnrollment({ enrolledIds: [studentId] })
+    createOrResumeAssignmentAiGradingRun.mockImplementationOnce(() =>
+      throwAssignmentAiUsageError({ code: String(code), message: String(message) }),
+    )
 
-  it('keeps an unlisted teacher on the legacy single-student path', async () => {
-    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
-    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = 'teacher-2'
-    mockAutoGradeTables({
-      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
-      assignmentDocsTable: {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-            })),
-          })),
-        })),
-      },
+    const response = await POST(requestFor([studentId]), {
+      params: Promise.resolve({ id: assignmentId }),
     })
 
-    const response = await POST(new NextRequest('http://localhost/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({ student_ids: ['b0000000-0000-4000-8000-000000000001'] }),
-    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-
-    expect(response.status).toBe(200)
-    expect(createOrResumeAssignmentAiGradingRun).not.toHaveBeenCalled()
-    expect(markAssignmentDocMissingGrade).toHaveBeenCalledOnce()
+    expect(response.status).toBe(status)
+    await expect(response.json()).resolves.toEqual({ error: expected })
   })
 
   it.each([
-    ['same selection', 'resumed', 202],
-    ['different selection', 'conflict', 409],
-  ] as const)(
-    'keeps a persisted run durable after the teacher leaves the cohort (%s)',
-    async (_scenario, kind, expectedStatus) => {
-      process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
-      process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = 'teacher-2'
-      const activeRun = {
-        id: 'run-1',
-        assignment_id: 'a0000000-0000-4000-8000-000000000001',
-        status: 'queued',
-        model: 'gpt-5-nano',
-        requested_count: 1,
-        gradable_count: 1,
-        processed_count: 0,
-        completed_count: 0,
-        skipped_missing_count: 0,
-        skipped_empty_count: 0,
-        failed_count: 0,
-        pending_count: 1,
-        next_retry_at: null,
-        error_samples: [],
-        started_at: null,
-        completed_at: null,
-        created_at: '2026-04-20T12:00:00.000Z',
-      }
-      getActiveAssignmentAiGradingRunSummary.mockResolvedValueOnce(activeRun)
-      createOrResumeAssignmentAiGradingRun.mockResolvedValueOnce({ kind, run: activeRun })
-      mockAutoGradeTables({
-        enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
-      })
+    ['matching selection', 'resumed', 202],
+    ['conflicting selection', 'conflict', 409],
+  ] as const)('keeps persisted work durable after gate rollback for a %s', async (_label, kind, status) => {
+    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
+    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = 'teacher-2'
+    createOrResumeAssignmentAiGradingRun.mockResolvedValueOnce({ kind, run: runSummary() })
+    mockEnrollment({ enrolledIds: [studentId] })
 
-      const response = await POST(new NextRequest('http://localhost/auto-grade', {
-        method: 'POST',
-        body: JSON.stringify({
-          student_ids: ['b0000000-0000-4000-8000-000000000001'],
-        }),
-      }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-
-      expect(response.status).toBe(expectedStatus)
-      expect(getActiveAssignmentAiGradingRunSummary).toHaveBeenCalledWith(
-        'a0000000-0000-4000-8000-000000000001',
-        { supabase: mockSupabaseClient },
-      )
-      expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledOnce()
-      expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
-      expect(markAssignmentDocMissingGrade).not.toHaveBeenCalled()
-    },
-  )
-
-  it('grades a single legacy stringified assignment doc synchronously', async () => {
-    mockAutoGradeTables({
-      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
-      assignmentDocsTable: {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'doc-1',
-                  student_id: 'b0000000-0000-4000-8000-000000000001',
-                  content: JSON.stringify({
-                    type: 'doc',
-                    content: [
-                      {
-                        type: 'paragraph',
-                        content: [
-                          {
-                            type: 'text',
-                            text: 'My portfolio is attached here.',
-                          },
-                        ],
-                      },
-                    ],
-                  }),
-                  feedback: 'Earlier feedback',
-                  authenticity_score: 42,
-                },
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      },
+    const response = await POST(requestFor([studentId]), {
+      params: Promise.resolve({ id: assignmentId }),
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['b0000000-0000-4000-8000-000000000001'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data).toEqual({
-      graded_count: 1,
-      skipped_count: 0,
-      errors: undefined,
-    })
-    expect(gradeAssignmentDocWithAi).toHaveBeenCalledTimes(1)
-    expect(gradeAssignmentDocWithAi).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assignment: expect.objectContaining({ id: 'a0000000-0000-4000-8000-000000000001', title: 'Portfolio Site' }),
-        assignmentDoc: expect.objectContaining({
-          id: 'doc-1',
-          student_id: 'b0000000-0000-4000-8000-000000000001',
-          feedback: 'Earlier feedback',
-        }),
-        gradedBy: 'teacher-1',
-        telemetry: expect.objectContaining({
-          operation: 'single_grade',
-          studentId: 'b0000000-0000-4000-8000-000000000001',
-        }),
-      }),
-    )
+    expect(response.status).toBe(status)
+    expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledOnce()
   })
 
-  it.each(['enrollment', 'document'] as const)('keeps assignment %s lookup errors private and does not start grading', async (failure) => {
+  it('keeps enrollment lookup errors private and does not start grading', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const studentId = 'b0000000-0000-4000-8000-000000000001'
-    mockAutoGradeTables({
-      enrolledIds: [studentId],
-      enrollmentError: failure === 'enrollment' ? privateDiagnosticError : null,
-      assignmentDocsTable: {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: privateDiagnosticError }),
-            })),
-          })),
-        })),
-      },
+    mockEnrollment({ enrolledIds: [studentId], error: privateDiagnosticError })
+
+    const response = await POST(requestFor([studentId]), {
+      params: Promise.resolve({ id: assignmentId }),
     })
-    const response = await POST(new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST', body: JSON.stringify({ student_ids: [studentId] }),
-    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
+
     expect(response.status).toBe(500)
-    await expect(response.json()).resolves.toEqual({ error: failure === 'enrollment'
-      ? 'Failed to validate student enrollment' : 'Failed to fetch student docs' })
-    expectContentFreeDiagnostic(consoleError.mock.calls, `grading.assignment_${failure}`)
-    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
-    expect(markAssignmentDocMissingGrade).not.toHaveBeenCalled()
+    await expect(response.json()).resolves.toEqual({ error: 'Failed to validate student enrollment' })
+    expectContentFreeDiagnostic(consoleError.mock.calls, 'grading.assignment_enrollment')
     expect(createOrResumeAssignmentAiGradingRun).not.toHaveBeenCalled()
-  })
-
-  it('uses a background run for a single student when Gradex assignment grading is enabled', async () => {
-    process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
-    mockAutoGradeTables({
-      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['b0000000-0000-4000-8000-000000000001'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(202)
-    expect(data).toEqual({
-      mode: 'background',
-      run: expect.objectContaining({
-        id: 'run-1',
-        status: 'queued',
-      }),
-    })
-    expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledWith({
-      assignmentId: 'a0000000-0000-4000-8000-000000000001',
-      teacherId: 'teacher-1',
-      studentIds: ['b0000000-0000-4000-8000-000000000001'],
-    })
-    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
-  })
-
-  it('marks legacy stringified empty docs as missing without calling the grader', async () => {
-    mockAutoGradeTables({
-      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
-      assignmentDocsTable: {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'doc-1',
-                  student_id: 'b0000000-0000-4000-8000-000000000001',
-                  content: JSON.stringify({ type: 'doc', content: [] }),
-                  feedback: null,
-                  authenticity_score: 42,
-                  updated_at: '2026-04-21T12:00:00.000Z',
-                },
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      },
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['b0000000-0000-4000-8000-000000000001'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data).toEqual({
-      graded_count: 1,
-      skipped_count: 0,
-      errors: undefined,
-    })
-    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
-    expect(markAssignmentDocMissingGrade).toHaveBeenCalledWith({
-      supabase: mockSupabaseClient,
-      assignmentId: 'a0000000-0000-4000-8000-000000000001',
-      studentId: 'b0000000-0000-4000-8000-000000000001',
-      teacherId: 'teacher-1',
-      gradedBy: 'teacher-1',
-      expectedDocUpdatedAt: '2026-04-21T12:00:00.000Z',
-    })
   })
 
   it('chunks enrollment validation filters for more than 50 selected students', async () => {
@@ -427,7 +191,6 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
       (_, index) => `b0000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
     )
     const inCalls: string[][] = []
-
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'classroom_enrollments') {
         return {
@@ -436,7 +199,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
               in: vi.fn((_column: string, values: string[]) => {
                 inCalls.push(values)
                 return Promise.resolve({
-                  data: values.map((student_id) => ({ student_id })),
+                  data: values.map((enrolledStudentId) => ({ student_id: enrolledStudentId })),
                   error: null,
                 })
               }),
@@ -444,193 +207,71 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
           })),
         }
       }
-
       throw new Error(`Unexpected table: ${table}`)
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: studentIds,
-      }),
+    const response = await POST(requestFor(studentIds), {
+      params: Promise.resolve({ id: assignmentId }),
     })
 
-    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    const data = await response.json()
-
     expect(response.status).toBe(202)
-    expect(data.mode).toBe('background')
     expect(inCalls).toHaveLength(2)
     expect(inCalls[0]).toHaveLength(50)
     expect(inCalls[1]).toEqual(['b0000000-0000-4000-8000-000000000051'])
   })
 
-  it('creates a missing grade when no assignment doc exists', async () => {
-    mockAutoGradeTables({
-      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
-      assignmentDocsTable: {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              maybeSingle: vi.fn().mockResolvedValue({
-                data: null,
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      },
+  it('starts a resumable run for multiple students', async () => {
+    mockEnrollment({ enrolledIds: [studentId, otherStudentId] })
+    createOrResumeAssignmentAiGradingRun.mockResolvedValueOnce({
+      kind: 'created',
+      run: runSummary({ requested_count: 2, gradable_count: 2, pending_count: 2 }),
     })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['b0000000-0000-4000-8000-000000000001'],
-      }),
+    const response = await POST(requestFor([studentId, otherStudentId]), {
+      params: Promise.resolve({ id: assignmentId }),
     })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data).toEqual({
-      graded_count: 1,
-      skipped_count: 0,
-      errors: undefined,
-    })
-    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
-    expect(markAssignmentDocMissingGrade).toHaveBeenCalledWith({
-      supabase: mockSupabaseClient,
-      assignmentId: 'a0000000-0000-4000-8000-000000000001',
-      studentId: 'b0000000-0000-4000-8000-000000000001',
-      teacherId: 'teacher-1',
-      gradedBy: 'teacher-1',
-      expectedDocUpdatedAt: null,
-    })
-  })
-
-  it('starts a resumable batch run for multi-student requests', async () => {
-    mockAutoGradeTables({
-      enrolledIds: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    const data = await response.json()
 
     expect(response.status).toBe(202)
-    expect(data).toEqual({
-      mode: 'background',
-      run: expect.objectContaining({
-        id: 'run-1',
-        assignment_id: 'a0000000-0000-4000-8000-000000000001',
-        requested_count: 2,
-      }),
-    })
     expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledWith({
-      assignmentId: 'a0000000-0000-4000-8000-000000000001',
+      assignmentId,
       teacherId: 'teacher-1',
-      studentIds: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
+      studentIds: [studentId, otherStudentId],
     })
   })
 
-  it('rejects single-student auto-grade for a non-enrolled student id', async () => {
-    mockAutoGradeTables({
-      enrolledIds: [],
-    })
+  it.each([
+    ['single', [studentId]],
+    ['batch', [studentId, otherStudentId]],
+  ])('rejects a %s request when any student is not enrolled', async (_label, requestedStudentIds) => {
+    mockEnrollment({ enrolledIds: [] })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['b0000000-0000-4000-8000-000000000404'],
-      }),
+    const response = await POST(requestFor(requestedStudentIds), {
+      params: Promise.resolve({ id: assignmentId }),
     })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    const data = await response.json()
 
     expect(response.status).toBe(400)
-    expect(data).toEqual({
-      error: 'Student is not enrolled in this classroom',
-    })
-    expect(markAssignmentDocMissingGrade).not.toHaveBeenCalled()
-    expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
-  })
-
-  it('rejects batch auto-grade when any requested student is not enrolled', async () => {
-    mockAutoGradeTables({
-      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
-    })
-
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000404'],
-      }),
-    })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data).toEqual({
+    await expect(response.json()).resolves.toEqual({
       error: 'Student is not enrolled in this classroom',
     })
     expect(createOrResumeAssignmentAiGradingRun).not.toHaveBeenCalled()
-    expect(markAssignmentDocMissingGrade).not.toHaveBeenCalled()
   })
 
   it('returns the active run when another selection is already in progress', async () => {
     createOrResumeAssignmentAiGradingRun.mockResolvedValueOnce({
       kind: 'conflict',
-      run: {
-        id: 'run-2',
-        assignment_id: 'a0000000-0000-4000-8000-000000000001',
-        status: 'running',
-        model: 'gpt-5-nano',
-        requested_count: 3,
-        gradable_count: 3,
-        processed_count: 1,
-        completed_count: 1,
-        skipped_missing_count: 0,
-        skipped_empty_count: 0,
-        failed_count: 0,
-        pending_count: 2,
-        next_retry_at: null,
-        error_samples: [],
-        started_at: '2026-04-20T12:00:00.000Z',
-        completed_at: null,
-        created_at: '2026-04-20T12:00:00.000Z',
-      },
+      run: runSummary({ id: 'run-2', status: 'running' }),
     })
-    mockAutoGradeTables({
-      enrolledIds: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
-    })
+    mockEnrollment({ enrolledIds: [studentId, otherStudentId] })
 
-    const request = new NextRequest('http://localhost:3000/api/teacher/assignments/a0000000-0000-4000-8000-000000000001/auto-grade', {
-      method: 'POST',
-      body: JSON.stringify({
-        student_ids: ['b0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000002'],
-      }),
+    const response = await POST(requestFor([studentId, otherStudentId]), {
+      params: Promise.resolve({ id: assignmentId }),
     })
-
-    const response = await POST(request, { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
-    const data = await response.json()
 
     expect(response.status).toBe(409)
-    expect(data).toEqual({
+    await expect(response.json()).resolves.toEqual({
       error: 'Another assignment AI grading run is already active',
       mode: 'background',
-      run: expect.objectContaining({
-        id: 'run-2',
-        status: 'running',
-      }),
+      run: expect.objectContaining({ id: 'run-2', status: 'running' }),
     })
   })
 })
