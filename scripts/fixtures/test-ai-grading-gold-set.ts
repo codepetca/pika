@@ -83,7 +83,7 @@ const calibratedSongClass = {
   testTitle: 'Calibration — Implementing a Class',
   questionText:
     'Implement the `Song` class.\n- Write the class signature.\n- Create a private `String` property for the title.\n- Create a private `int` property for the length in seconds.\n- Implement a constructor with two parameters that sets both.\n- Implement a getter for the title.\n- Implement a setter for the length that only updates when the new value is greater than 0.\n- Implement `isLong()` returning true when the song is at least 300 seconds.\n- Implement `toString()` returning `"title (seconds s)"`.',
-  maxPoints: 9,
+  maxPoints: 8,
   responseMonospace: true,
   answerKey:
     '- Defines a valid `Song` class.\n- Declares private fields for title and length.\n- Constructor stores both values.\n- Getter for the title.\n- Setter for length that only accepts positive values.\n- `isLong()` returns whether the song is at least 300 seconds.\n- `toString()` in the required format.\n- Code is readable and logically organized.',
@@ -370,9 +370,9 @@ export const TEST_AI_GRADING_GOLD_SET: TestAiGradingGoldFixture[] = [
     provenance: 'calibrated',
     responseText:
       'public class Song\n{\n\tprivate String title;\n\tprivate int seconds;\n\n\tpublic Song(String theTitle, int theSeconds)\n\t{\n\t\ttitle = theTitle;\n\t\tseconds = theSeconds;\n\t}\n\tpublic String getTitle()\n\t{\n\t\treturn title;\n\t}\n\tpublic String setTitle(String text)\n\t{\n\t\ttitle = text;\n\t}\n\tpublic int setSeconds(int s)\n\t{\n\t\tif(s > 0)\n\t\t{\n\t\t\tseconds = s;\n\t\t}\n\t\treturn seconds;\n\t}\n\tpublic boolean isLong()\n\t{\n\t\tif(seconds >= 300)\n\t\t{\n\t\t\treturn true;\n\t\t}\n\t\treturn false;\n\t}\n\tpublic String toString()\n\t{\n\t\treturn title + " (" + seconds + " s)"\n\t}\n}',
-    acceptedScoreRange: { min: 7, max: 9 },
+    acceptedScoreRange: { min: 7, max: 8 },
     rationale:
-      'Every required feature is present and the formatting is clean. Two compile errors — an unrequested setter declared String with no return, and a missing semicolon in toString. Handwritten on paper without a compiler, so transcription slips do not gut the score. Teacher adjudicated the equivalent real response at 8 of 9 against a recorded mark of 2.',
+      'All eight criteria are satisfied and the formatting is clean. Two compile errors — an unrequested setter declared String with no return, and a missing semicolon in toString. Handwritten on paper without a compiler, so transcription slips do not gut the score. Teacher adjudicated the equivalent real response at 8 of 9 against a recorded mark of 2; scaled here to one mark per criterion.',
   },
   {
     id: 'calibrated-itemized-partial-credit',
@@ -391,10 +391,10 @@ export const TEST_AI_GRADING_GOLD_SET: TestAiGradingGoldFixture[] = [
     ...calibratedLibrary,
     provenance: 'calibrated',
     responseText:
-      'public void run() {\n\tLibrary fiction = new Library("fiction", 2);\n\tLibary science = new Library("science");\n\tBook b1 = new Book("Dune", 412);\n\tBook b2 = new Book("Holes", 233);\n\tBook b3 = new Book("Hatchet", 195);\n\n\tfiction.add(b1);\n\tif(fiction.add(b1) == true)\n\t{\n\t\tSystem.out.println("true");\n\t}\n\telse{\n\t\tSystem.out.println("false");\n\t}\n\n\tfiction.add(b2);\n\tif(fiction.add(b2) == true)\n\t{\n\t\tSystem.out.println("true");\n\t}\n\telse{\n\t\tSystem.out.println("false");\n\t}\n\n\tfiction.add(b3);\n\tif(fiction.add(b3) == true)\n\t{\n\t\tSystem.out.println("true");\n\t}\n\telse{\n\t\tSystem.out.println("false");\n\t}\n\n\tSystem.out.println(fiction.getName());\n\tSystem.out.println(fiction.printTitlesOverPages(200));\n\n\tfor(int i = 0; i < 10; i++)\n\t{\n\t\tBook r = new Book("random", Randomizer.nextInt(80,400));\n\t\tfiction.add(r)\n\t\tif(fiction.add(r) == true)\n\t\t{\n\t\t\tSystem.out.println("true");\n\t\t}\n\t\telse{\n\t\t\tSystem.out.println("false")\n\t\t}\n\t}\n}',
+      'public void run() {\n\tLibrary fiction = new Library("fiction", 2);\n\tBook b1 = new Book("Dune", 412);\n\tBook b2 = new Book("Holes", 233);\n\tBook b3 = new Book("Hatchet", 195);\n\n\tfiction.add(b1);\n\tif(fiction.add(b1) == true)\n\t{\n\t\tSystem.out.println("true");\n\t}\n\telse{\n\t\tSystem.out.println("false");\n\t}\n\n\tfiction.add(b2);\n\tif(fiction.add(b2) == true)\n\t{\n\t\tSystem.out.println("true");\n\t}\n\telse{\n\t\tSystem.out.println("false");\n\t}\n\n\tfiction.add(b3);\n\tif(fiction.add(b3) == true)\n\t{\n\t\tSystem.out.println("true");\n\t}\n\telse{\n\t\tSystem.out.println("false");\n\t}\n\n\tSystem.out.println(fiction.getName());\n\tSystem.out.println(fiction.printTitlesOverPages(200));\n\n\tfor(int i = 0; i < 10; i++)\n\t{\n\t\tBook r = new Book("random", Randomizer.nextInt(80,400));\n\t\tfiction.add(r)\n\t\tif(fiction.add(r) == true)\n\t\t{\n\t\t\tSystem.out.println("true");\n\t\t}\n\t\telse{\n\t\t\tSystem.out.println("false")\n\t\t}\n\t}\n}',
     acceptedScoreRange: { min: 6, max: 8 },
     rationale:
-      'Six criteria are cleanly met. Two fail outright: `science` is never usable (typed `Libary`) and the random books are added to `fiction` instead. Two are partial — add is called twice per book, and a void print is wrapped in println. Six met sets the floor; the failures cost one mark each and are not charged twice. Teacher adjudicated the equivalent real response at 6-8 against a recorded 10 of 10 and a grader score of 4.',
+      'Six criteria are cleanly met. Two fail outright: the second library is never created at all, and the random books are added to `fiction` instead. Both are structural omissions, not spelling — a misspelled identifier would be forgiven by the transcription rule and must not be what this fixture tests. Two criteria are partial: add is called twice per book, and a void print is wrapped in println. Six met sets the floor; the failures cost one mark each and are not charged twice. Teacher adjudicated the equivalent real response at 6-8 against a recorded 10 of 10 and a grader score of 4.',
   },
   {
     id: 'calibrated-rubric-floor-seven-met',
@@ -424,10 +424,10 @@ export const TEST_AI_GRADING_GOLD_SET: TestAiGradingGoldFixture[] = [
     ...calibratedVehicleInheritance,
     provenance: 'calibrated',
     responseText:
-      'public class Vehicle\n{\n\tprivate static int numberOfVehicles = 0;\n\tprivate double price;\n\n\tpublic Vehicle(double p)\n\t{\n\t\tprice = p;\n\t\tnumberOfVehicles++;\n\t}\n\n\tpublic double tax(double price)\n\t{\n\t\treturn price * 0.1;\n\t}\n}\n\npublic class Vehicle extends Truck\n{\n\tprivate int capacity;\n\n\tpublic Vehicle(int cap)\n\t{\n\t\tsuper(price);\n\t\tcapacity = cap;\n\t}\n\n\tpublic double tax(double price)\n\t{\n\t\treturn price * 0.13;\n\t}\n}',
+      'public class Vehicle\n{\n\tprivate int numberOfVehicles = 0;\n\tprivate double price;\n\n\tpublic Vehicle(double p)\n\t{\n\t\tprice = p;\n\t}\n\n\tpublic double tax()\n\t{\n\t\treturn 10;\n\t}\n}\n\npublic class Truck\n{\n\tprivate double price;\n\tprivate int capacity;\n\n\tpublic Truck(double p, int cap)\n\t{\n\t\tprice = p;\n\t\tcapacity = cap;\n\t}\n\n\tpublic double tax()\n\t{\n\t\treturn 13;\n\t}\n}',
     acceptedScoreRange: { min: 3, max: 6 },
     rationale:
-      'The guard fixture. Inheritance runs the wrong way — the subclass is declared `Vehicle extends Truck` and reuses the superclass name — and the class variable is private where the key requires public. These are conceptual failures, not transcription, and the score must stay low. If a future leniency rule lifts this fixture out of range, that rule has become a blanket softener rather than a correction.',
+      'The guard fixture, and the only one that expects a LOW score. Every defect here is structural and none can be read as a spelling slip, which matters because the transcription rule forgives those: the counter is an instance field rather than a class variable and is never incremented, `tax` returns a flat 10 and 13 instead of percentages of the price, and `Truck` does not extend `Vehicle` at all — it duplicates the price field, so there is no superclass constructor call and no override. Roughly half the criteria are met and the score must stay low. If a future leniency rule lifts this fixture out of range, that rule has become a blanket softener rather than a correction; every other fixture pushes against harshness and none of them could catch that.',
   },
 ]
 
