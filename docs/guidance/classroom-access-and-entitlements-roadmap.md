@@ -49,11 +49,10 @@ join policy. Closed enrollment and roster-only restrictions remain meaningful.
 - Manual/school-sponsored grants can fit the same capability contract later. Defer school
   sales, organization administration, co-teachers, and a general billing framework.
 
-### Approved initial creation tiers
+### Account-plan classroom limits
 
-The historical Access pilot below describes the original entitlement cutover,
-not the target subscription tiers. Migration 206 introduces a dormant
-account-level plan assignment that atomically derives `classrooms.create`:
+Migration 206 introduces a dormant account-level plan assignment that
+atomically derives `classrooms.create`:
 
 | Account plan | Active owned classrooms | Other agreed direction |
 | --- | ---: | --- |
@@ -73,17 +72,24 @@ further creation/restore is blocked while the account is at or over its new limi
 Cancellation, grace periods, trial eligibility, payments, AI quantities and
 over-limit owner experience still require separate product decisions.
 
+#### Superseded Access-pilot policy
+
+The table below records the original entitlement cutover. It is not the target
+subscription policy above.
+
 | Tier/state | Join classrooms | Create active classrooms | Initial provisioning |
 | --- | --- | --- | --- |
 | Free | Yes | No | Default future public baseline |
 | Access | Yes | Up to 1 | Manual grant during initial development |
 | Trial | Yes | Defined by its grant | Separate, time-limited overlay; at most one trial period per account when implemented |
-| Plus / Pro | Yes | Not yet decided | Deferred until the offerings and prices are distinct |
+| Plus / Pro | Yes | Not offered in this pilot | Deferred beyond the initial Access grant |
 
 The one-trial-per-account ledger, billing synchronization, upgrade purchase flow and
-Plus/Pro limits are not part of the initial Access enforcement slice. An archived classroom
-does not consume Access capacity. Downgrade or expiry never deletes, archives, or changes
-ownership of existing classrooms; it blocks new active-classroom consumption.
+Plus/Pro limits were not part of the original Access enforcement slice. Their
+approved classroom limits are now defined above; AI allowances and pricing
+remain undecided. An archived classroom did not consume Access capacity.
+Downgrade or expiry never deletes, archives, or changes ownership of existing
+classrooms; it blocks new active-classroom consumption.
 
 ## Four separate decisions
 
