@@ -105,6 +105,42 @@ describe('student grades server projection', () => {
     expect(JSON.stringify(result)).not.toContain('categoryId')
   })
 
+  it('labels returned zero-weight work as not counted across all assessment kinds', async () => {
+    mocks.loadPagedRows
+      .mockResolvedValueOnce({ rows: [{ id: 'term', name: 'Term', percentage: 100 }], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+      .mockResolvedValueOnce({ rows: [
+        {
+          assignment_id: 'included', score_completion: 8, score_thinking: 8, score_workflow: 8,
+          returned_at: '2026-09-20T12:00:00Z',
+          assignments: { id: 'included', title: 'Included', points_possible: 10, include_in_final: true, gradebook_weight: 10, gradebook_category_id: 'term', is_draft: false },
+        },
+        {
+          assignment_id: 'zero-assignment', score_completion: 0, score_thinking: 0, score_workflow: 0,
+          returned_at: '2026-09-20T12:00:00Z',
+          assignments: { id: 'zero-assignment', title: 'Zero assignment', points_possible: 10, include_in_final: true, gradebook_weight: 0, gradebook_category_id: 'term', is_draft: false },
+        },
+      ], error: null })
+      .mockResolvedValueOnce({ rows: [{
+        test_id: 'zero-test', returned_at: '2026-09-20T12:00:00Z',
+        tests: { id: 'zero-test', title: 'Zero test', status: 'published', include_in_final: true, gradebook_weight: 0, gradebook_category_id: 'term' },
+      }], error: null })
+      .mockResolvedValueOnce({ rows: [{
+        item_id: 'zero-item', earned: 0, returned_at: '2026-09-20T12:00:00Z',
+        gradebook_items: { id: 'zero-item', title: 'Zero item', points_possible: 10, include_in_final: true, gradebook_weight: 0, gradebook_category_id: 'term' },
+      }], error: null })
+    mocks.loadChunkedRows
+      .mockResolvedValueOnce({ rows: [{ id: 'q1', test_id: 'zero-test', points: 10 }], error: null })
+      .mockResolvedValueOnce({ rows: [{ test_id: 'zero-test', question_id: 'q1', score: 0 }], error: null })
+
+    const result = await getStudentGrades(studentId, classroomId)
+    expect(result.currentPercent).toBe(80)
+    expect(result.items.find((item) => item.id === 'included')?.included).toBe(true)
+    for (const id of ['zero-assignment', 'zero-test', 'zero-item']) {
+      expect(result.items.find((item) => item.id === id)?.included).toBe(false)
+    }
+  })
+
   it('uses returned assessment overrides when underlying scores are incomplete', async () => {
     mocks.loadPagedRows
       .mockResolvedValueOnce({ rows: [

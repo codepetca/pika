@@ -1,7 +1,8 @@
 -- A zero assessment weight excludes that assessment from final-grade calculations.
--- Preserve category inheritance for omitted assignment/test weights with NULL defaults.
-alter table public.assignments alter column gradebook_weight drop default;
-alter table public.tests alter column gradebook_weight drop default;
+-- A -1 default keeps inserts optional in generated types. The before-insert
+-- trigger replaces it with the category default; explicit zero is preserved.
+alter table public.assignments alter column gradebook_weight set default -1;
+alter table public.tests alter column gradebook_weight set default -1;
 
 alter table public.assignments
   drop constraint if exists assignments_gradebook_weight_check,
@@ -55,7 +56,7 @@ begin
     limit 1;
   end if;
 
-  if tg_op = 'INSERT' and new.gradebook_weight is null then
+  if tg_op = 'INSERT' and new.gradebook_weight = -1 then
     select coalesce(categories.default_assessment_weight, 10)
     into new.gradebook_weight
     from public.gradebook_categories as categories
