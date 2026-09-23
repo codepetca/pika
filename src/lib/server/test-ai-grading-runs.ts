@@ -45,7 +45,11 @@ const TEST_AI_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 export const TEST_AI_GRADING_RUN_CHUNK_SIZE = 8
 export const TEST_AI_GRADING_QUESTION_CONCURRENCY = 2
 export const TEST_AI_GRADING_MICROBATCH_SIZE = 4
-export const TEST_AI_GRADING_REQUEST_TIMEOUT_MS = 25_000
+// Raised from 25s to match the single-grade timeout proven in #1321. That change lifted
+// the module default in ai-test-grading.ts, but this constant is passed explicitly at
+// every call site here and silently overrode it, so bulk grading kept running at 25s.
+// Batch calls size their own timeout from the batch length and treat this as a floor.
+export const TEST_AI_GRADING_REQUEST_TIMEOUT_MS = 60_000
 export const TEST_AI_GRADING_MAX_ATTEMPTS = 3
 export const TEST_AI_GRADING_LEASE_SECONDS = 120
 

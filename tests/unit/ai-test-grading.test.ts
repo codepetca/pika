@@ -438,8 +438,9 @@ describe('suggestTestOpenResponseGrade', () => {
 
     expect(suggestions).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_tokens).toBe(6000)
-    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_tokens).toBe(8000)
+    // One response in the batch: 1,000 base + 4,000 per response, doubled on the retry.
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).max_tokens).toBe(5000)
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body ?? '{}')).max_tokens).toBe(10000)
     expect(suggestions[0].provenance).toMatchObject({
       operation: 'batch',
       batchSize: 1,

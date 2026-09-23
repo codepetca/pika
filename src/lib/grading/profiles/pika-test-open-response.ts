@@ -127,11 +127,34 @@ export const PIKA_TEST_SINGLE_GRADE_OUTPUT: StructuredOutputSpec = {
   fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
-export const PIKA_TEST_BATCH_GRADE_OUTPUT: StructuredOutputSpec = {
-  schemaName: 'test_batch_grade',
-  jsonSchema: batchGradeJsonSchema,
-  initialMaxOutputTokens: TEST_INITIAL_MAX_OUTPUT_TOKENS,
-  fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
+// A batch call returns a score and feedback for every response in it and reasons about
+// each one, so a fixed ceiling cannot serve a variable-size payload. Measured on ten-point
+// questions: a batch of three spent 5,835 output tokens and a batch of one spent 487.
+// Production grades four at a time (`TEST_AI_GRADING_MICROBATCH_SIZE`), which lands near
+// the old flat 8,000 and is why batch grading was failing outright.
+//
+// The provider accepts a max_tokens well above 8,000 — 30,000 was verified — so the
+// ceiling here is a safety clamp, not a model limit.
+const TEST_BATCH_BASE_OUTPUT_TOKENS = 1_000
+const TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS = 4_000
+const TEST_BATCH_MAX_OUTPUT_TOKENS = 24_000
+
+/** Largest batch this budget can serve before the clamp starves each response. */
+export const PIKA_TEST_MAX_BATCH_RESPONSES = Math.floor(
+  (TEST_BATCH_MAX_OUTPUT_TOKENS - TEST_BATCH_BASE_OUTPUT_TOKENS) /
+    TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS,
+)
+
+export function pikaTestBatchGradeOutput(responseCount: number): StructuredOutputSpec {
+  const wanted =
+    TEST_BATCH_BASE_OUTPUT_TOKENS + TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS * Math.max(responseCount, 1)
+  const initial = Math.min(wanted, TEST_BATCH_MAX_OUTPUT_TOKENS)
+  return {
+    schemaName: 'test_batch_grade',
+    jsonSchema: batchGradeJsonSchema,
+    initialMaxOutputTokens: initial,
+    fallbackMaxOutputTokens: Math.min(initial * 2, TEST_BATCH_MAX_OUTPUT_TOKENS),
+  }
 }
 
 export function getPikaTestPromptVersion(profile: 'manual' | 'bulk'): string {
