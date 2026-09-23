@@ -32534,6 +32534,7 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Targeted relationship/page/client coverage passes 70 tests plus TypeScript and lint. The existing local owner/member fixture passed the teacher/student desktop/mobile light/dark browser matrix; inspected light and dark captures showed the current shell without overflow. No database mutation, migration, new visual pattern, home consumer, downstream-domain widening or production activation.
 
 <!-- pika-session-log-archive-batch:54606b42f67190f808ad07b4700cc1f9c03974149a9e6722d663e85baec0b5fc -->
+<!-- pika-session-log-archive-batch:e677f02fa71062f10dc1e8d95b87d1da2e1f83d1de326755bed7da392ef0f541 -->
 ## 2026-09-19 — Dormant contextual announcement reads
 
 - Owner `codex/contextual-classroom-api-navigation`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member announcement list endpoints. A student-valued owner receives the owner projection; a teacher-valued active member receives only published member-visible announcements. Contextual arrays and every announcement/classroom binding fail closed on malformed or substituted evidence.
