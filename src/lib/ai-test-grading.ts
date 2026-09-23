@@ -42,7 +42,10 @@ import {
   resolvePikaTestPromptGuideline,
 } from '@/lib/grading/profiles/pika-test-open-response'
 import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
-import { GradingProviderError } from '@/lib/grading/providers/types'
+import {
+  GradingProviderError,
+  type StructuredOutputRequest,
+} from '@/lib/grading/providers/types'
 
 const DEFAULT_MODEL = 'deepseek-flash'
 const MAX_REFERENCE_ANSWERS = 3
@@ -128,6 +131,8 @@ export interface TestOpenResponseSuggestion {
   grading_basis: TestAiGradingBasis
   reference_answers: string[]
   provenance: TestGradingProvenance
+  // Populated on the single-grade path so calibration tooling can price a run.
+  usage?: OpenAIResponseUsage
 }
 
 export interface TestOpenResponseReferences {
@@ -211,6 +216,9 @@ async function callProviderForJson(opts: {
   output: StructuredOutputSpec
   parseOutput(outputText: string): unknown
   requestTimeoutMs?: number
+  // Calibration tooling varies this to measure what reasoning effort buys.
+  // Production leaves it unset and gets TEST_AI_REASONING_EFFORT.
+  reasoningEffort?: StructuredOutputRequest['reasoningEffort']
 }): Promise<{
   parsed: any
   usage: OpenAIResponseUsage
@@ -223,7 +231,7 @@ async function callProviderForJson(opts: {
         version: PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION,
         model: opts.model,
         requestTimeoutMs: opts.requestTimeoutMs ?? TEST_AI_REQUEST_TIMEOUT_MS,
-        reasoningEffort: TEST_AI_REASONING_EFFORT,
+        reasoningEffort: opts.reasoningEffort ?? TEST_AI_REASONING_EFFORT,
       },
       prompt: {
         systemPrompt: opts.systemPrompt,
@@ -777,6 +785,7 @@ export async function suggestTestOpenResponseGradeWithContext(
   responseText: string,
   telemetryContext?: TestOpenResponseTelemetryContext,
   requestTimeoutMs?: number,
+  reasoningEffort?: StructuredOutputRequest['reasoningEffort'],
 ): Promise<TestOpenResponseSuggestion> {
   const apiKey = getDeepSeekKey()
   if (!apiKey) {
@@ -793,6 +802,7 @@ export async function suggestTestOpenResponseGradeWithContext(
     output: PIKA_TEST_SINGLE_GRADE_OUTPUT,
     parseOutput: parsePikaTestSingleGradeOutput,
     requestTimeoutMs,
+    reasoningEffort,
   })
 
   if (telemetryContext) {
@@ -829,6 +839,7 @@ export async function suggestTestOpenResponseGradeWithContext(
       operation: 'single',
       batchSize: 1,
     }),
+    usage,
   }
 }
 
@@ -952,6 +963,7 @@ export async function suggestTestOpenResponseGrade(input: {
   telemetryContext?: TestOpenResponseTelemetryContext
   requestTimeoutMs?: number
   sanitizationContext?: AiSanitizationContext | null
+  reasoningEffort?: StructuredOutputRequest['reasoningEffort']
 }): Promise<TestOpenResponseSuggestion> {
   const prepared = await prepareTestOpenResponseGradingContext(input)
   return suggestTestOpenResponseGradeWithContext(
@@ -959,6 +971,7 @@ export async function suggestTestOpenResponseGrade(input: {
     input.responseText,
     input.telemetryContext,
     input.requestTimeoutMs,
+    input.reasoningEffort,
   )
 }
 
