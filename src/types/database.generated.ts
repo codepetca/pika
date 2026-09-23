@@ -9,6 +9,83 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      account_plan_audit: {
+        Row: {
+          actor_ref: string
+          created_at: string
+          entitlement_revision: number
+          id: string
+          new_classroom_limit: number
+          new_plan_key: string
+          operation_id: string
+          plan_revision: number
+          previous_plan_key: string | null
+          reason_code: string
+          request_fingerprint: string
+          subject_user_id: string
+        }
+        Insert: {
+          actor_ref: string
+          created_at?: string
+          entitlement_revision: number
+          id?: string
+          new_classroom_limit: number
+          new_plan_key: string
+          operation_id: string
+          plan_revision: number
+          previous_plan_key?: string | null
+          reason_code: string
+          request_fingerprint: string
+          subject_user_id: string
+        }
+        Update: {
+          actor_ref?: string
+          created_at?: string
+          entitlement_revision?: number
+          id?: string
+          new_classroom_limit?: number
+          new_plan_key?: string
+          operation_id?: string
+          plan_revision?: number
+          previous_plan_key?: string | null
+          reason_code?: string
+          request_fingerprint?: string
+          subject_user_id?: string
+        }
+        Relationships: []
+      }
+      account_plans: {
+        Row: {
+          created_at: string
+          plan_key: string
+          revision: number
+          subject_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          plan_key: string
+          revision: number
+          subject_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          plan_key?: string
+          revision?: number
+          subject_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_plans_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcement_reads: {
         Row: {
           announcement_id: string
@@ -11540,6 +11617,17 @@ export type Database = {
           p_expected_object_count: number
           p_operation_id: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      set_account_plan_v1: {
+        Args: {
+          p_actor_ref: string
+          p_expected_revision?: number
+          p_operation_id: string
+          p_plan_key: string
+          p_reason_code: string
+          p_subject_user_id: string
         }
         Returns: Json
       }

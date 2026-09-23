@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Dormant contextual lesson-plan reads
-
-- Owner `codex/contextual-classroom-next-domain`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member lesson-plan list endpoints. A student-valued owner receives the owner calendar projection; a teacher-valued active member keeps the classroom visibility window. Contextual plan arrays, every plan/classroom binding and the member visibility record fail closed on malformed or substituted service-role evidence.
-- Lesson-plan date, bulk and copy writes remain on their legacy guards pending transaction-time owner/archive binding. No page/home consumer, UI, migration, production configuration or cohort activation changed. Targeted route/access coverage passes 48 tests; focused checks and independent review follow.
-- Initial Sol security review found that PostgreSQL-compatible non-ISO date aliases could evade the member visibility ceiling's lexical clamp. Batch1 strictly validates real canonical `YYYY-MM-DD` bounds only for contextual members, rejects aliases before lesson-plan data reads and adds bypass plus canonical-clamp regressions; legacy request behavior remains unchanged. Targeted and focused verification plus targeted re-review follow.
-
 ## 2026-09-19 — Dormant contextual material reads
 
 - Owner `codex/contextual-classroom-material-reads`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member material list endpoints. A student-valued owner receives the owner projection including drafts; a teacher-valued active member retains published-only filtering. Contextual arrays and every material/classroom binding fail closed on malformed or substituted service-role evidence, including after the existing missing-position fallback.
@@ -351,3 +345,9 @@ async-grading.
 ## 2026-09-23 — Future classroom retention roadmap
 
 - Owner `codex/classroom-retention-roadmap`; risk profile none. Documented a proposed, plan-independent archived-classroom retention sequence and advance notices in the lifecycle roadmap, with a pointer from the product roadmap. It remains future work; no email, timer, automatic cold transition, deletion worker, database migration, or rollout gate was enabled.
+
+## 2026-09-23 — Dormant account plan foundation
+
+- Owner `codex/account-plan-foundation`. Migration206 adds service-only, revisioned account plans and an audited writer that derives the `classrooms.create` snapshot from Free0, Basic2, Plus5 or Pro10 in one transaction. No caller-supplied quota, existing-account backfill, strict-cutover activation, billing, AI allowance, production configuration or UI change is included. Future signups acquire Free only after the existing strict cutover is activated.
+- With exact authorization, migration206 SHA256 `bc29eefb4b074c4bbad5f43f9755edb5b80c0f91ff157e009784c742d35bd4b8` applied to the local Pika database only; local history is001–206, production remains001–205. The rollback-only contract passes plan mapping, post-cutover Free signup, operation replay/conflict, stale revisions, browser-role isolation and existing-class preservation on downgrade. Generated types match the local schema. The focused gate passes94 tests plus architecture, TypeScript and lint. Local advisors report no new account-plan warnings; hosted application and production data remain unchanged.
+- Rebased onto `f6716e39` after the retention-roadmap merge. The only conflict was an archive-batch marker for identical session-history content; retained main's marker. Migration 206 stayed sequential and unchanged. Fresh local checks and exact-head review/CI are required before this PR is ready again.
