@@ -14,6 +14,17 @@ describe('GradebookItemEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add other assessment' }))
     expect(save).toHaveBeenCalledWith({ title: 'Attendance – Term 1', points_possible: 20, gradebook_category_id: null, gradebook_weight: 10, include_in_final: true })
   })
+  it('accepts zero but rejects a blank weight', () => {
+    const save = vi.fn()
+    render(<GradebookItemEditor isOpen item={null} categories={[]} onClose={vi.fn()} onSave={save} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Assessment title' }), { target: { value: 'Practice' } })
+    const weight = screen.getByRole('spinbutton', { name: 'Category weight' })
+    fireEvent.change(weight, { target: { value: '' } })
+    expect(screen.getByRole('button', { name: 'Add other assessment' })).toBeDisabled()
+    fireEvent.change(weight, { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add other assessment' }))
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ gradebook_weight: 0 }))
+  })
   it('proposes the selected category weight and requires saved details before returning marks', () => {
     const categories = [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 25, is_default: false, position: 0 }]
     render(<GradebookItemEditor isOpen item={item} categories={categories} onClose={vi.fn()} onSave={vi.fn()} onReturnMarks={vi.fn()} />)

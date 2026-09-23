@@ -87,7 +87,8 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
       earned,
       possible,
       percent: (earned / possible) * 100,
-      included: assignment.include_in_final !== false && Boolean(category && category.percentage > 0),
+      included: assignment.include_in_final !== false && Number(assignment.gradebook_weight) > 0
+        && Boolean(category && category.percentage > 0),
       href: `/classrooms/${classroomId}?tab=assignments&assignmentId=${assignment.id}`,
       categoryId: category?.id ?? null,
       weight: Number(assignment.gradebook_weight),
@@ -165,7 +166,8 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
       earned,
       possible,
       percent: (earned / possible) * 100,
-      included: test.include_in_final !== false && Boolean(category && category.percentage > 0),
+      included: test.include_in_final !== false && Number(test.gradebook_weight) > 0
+        && Boolean(category && category.percentage > 0),
       href: `/classrooms/${classroomId}?tab=tests&testId=${test.id}`,
       categoryId: category?.id ?? null,
       weight: Number(test.gradebook_weight),
@@ -200,7 +202,8 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
       earned,
       possible,
       percent: (earned / possible) * 100,
-      included: item.include_in_final !== false && Boolean(category && category.percentage > 0),
+      included: item.include_in_final !== false && Number(item.gradebook_weight) > 0
+        && Boolean(category && category.percentage > 0),
       href: null,
       categoryId: category?.id ?? null,
       weight: Number(item.gradebook_weight),

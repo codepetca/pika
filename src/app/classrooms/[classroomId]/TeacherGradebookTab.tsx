@@ -32,7 +32,7 @@ type GradebookScoreEditTarget =
   | { kind: 'assessment'; student: GradebookStudentSummary; column: GradebookAssessmentColumn }
   | { kind: 'final'; student: GradebookStudentSummary }
 const PREFERENCES_KEY = 'teacher-gradebook:display:v1'
-const ASSESSMENT_WEIGHT_MIN = 1
+const ASSESSMENT_WEIGHT_MIN = 0
 const ASSESSMENT_WEIGHT_DEFAULT = 10
 const ASSESSMENT_WEIGHT_MAX = 999
 const GRADEBOOK_COLUMN_LIMITS = {
@@ -260,7 +260,7 @@ export function TeacherGradebookTab({
 
       const columnsWithWeights = (data.assessment_columns || []).map((column) => ({
         ...column,
-        weight: Number(column.weight || ASSESSMENT_WEIGHT_DEFAULT),
+        weight: Number(column.weight ?? ASSESSMENT_WEIGHT_DEFAULT),
       }))
       setAssessmentColumns(columnsWithWeights)
       setCategories(data.categories || [])
@@ -422,6 +422,7 @@ export function TeacherGradebookTab({
     const nextWeight = Number(rawValue)
 
     if (
+      rawValue.trim() === '' ||
       !Number.isInteger(nextWeight) ||
       nextWeight < ASSESSMENT_WEIGHT_MIN ||
       nextWeight > ASSESSMENT_WEIGHT_MAX
