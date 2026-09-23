@@ -85,6 +85,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     vi.clearAllMocks()
     delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
     delete process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED
+    delete process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS
     assertTeacherCanMutateAssignment.mockResolvedValue({
       id: 'a0000000-0000-4000-8000-000000000001',
       classroom_id: 'classroom-1',
@@ -130,6 +131,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
 
   it.each([false, true])('uses durable admission for a metered single student (Gradex %s)', async (gradex) => {
     process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
+    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = 'teacher-1'
     if (gradex) process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED = 'true'
     mockAutoGradeTables({ enrolledIds: ['b0000000-0000-4000-8000-000000000001'] })
     const response = await POST(new NextRequest('http://localhost/auto-grade', {
@@ -146,6 +148,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     ['23514', 'feature_usage_quota_exhausted', 429, 'AI grading limit reached'],
   ])('returns a content-free metering error for %s', async (code, message, status, expected) => {
     process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
+    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = 'teacher-1'
     mockAutoGradeTables({ enrolledIds: ['b0000000-0000-4000-8000-000000000001'] })
     createOrResumeAssignmentAiGradingRun.mockImplementationOnce(() => throwAssignmentAiUsageError({ code: String(code), message: String(message) }))
     const response = await POST(new NextRequest('http://localhost/auto-grade', {
@@ -154,6 +157,32 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     expect(response.status).toBe(status)
     expect(await response.json()).toEqual({ error: expected })
     expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
+  })
+
+  it('keeps an unlisted teacher on the legacy single-student path', async () => {
+    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
+    process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = 'teacher-2'
+    mockAutoGradeTables({
+      enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
+      assignmentDocsTable: {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+          })),
+        })),
+      },
+    })
+
+    const response = await POST(new NextRequest('http://localhost/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['b0000000-0000-4000-8000-000000000001'] }),
+    }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
+
+    expect(response.status).toBe(200)
+    expect(createOrResumeAssignmentAiGradingRun).not.toHaveBeenCalled()
+    expect(markAssignmentDocMissingGrade).toHaveBeenCalledOnce()
   })
 
   it('grades a single legacy stringified assignment doc synchronously', async () => {

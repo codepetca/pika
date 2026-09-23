@@ -25,10 +25,14 @@ guides before changing schema or deploying a grading contract.
 ### Assignment usage admission (default off)
 
 `ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED` is a server-only, exact-`true`
-opt-in requiring the Assignment usage RPCs from migrations 203–204. With it unset or
-false, single-student DeepSeek grading stays synchronous and newly created
-durable runs remain version 0. With it enabled, all Assignment AI grading uses
-durable version-1 admission, including single-student and Gradex requests.
+master switch requiring the Assignment usage RPCs from migrations 203–204.
+Admission also requires the authenticated teacher's exact account ID in the
+comma-separated `ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS` cohort. A
+missing or malformed cohort fails closed to legacy unmetered behavior, so the
+master switch alone cannot expose every teacher. With either gate unmatched,
+single-student DeepSeek grading stays synchronous and newly created durable runs
+remain version 0. With both gates matched, that teacher's Assignment AI grading
+uses durable version-1 admission, including single-student and Gradex requests.
 Missing accounting contracts fail closed with a generic unavailable response;
 quota exhaustion returns `429` and `AI grading limit reached`.
 

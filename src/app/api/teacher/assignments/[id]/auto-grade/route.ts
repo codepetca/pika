@@ -12,7 +12,7 @@ import {
   markAssignmentDocMissingGrade,
 } from '@/lib/server/assignment-ai-grading-runs'
 import { isGradexAssignmentGradingEnabled } from '@/lib/server/gradex-assignment-grading'
-import { isAssignmentAiGradingUsageMeteringEnabled } from '@/lib/server/assignment-ai-grading-usage'
+import { isAssignmentAiGradingUsageMeteringEnabledForTeacher } from '@/lib/server/assignment-ai-grading-usage'
 import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
 import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
 import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
@@ -51,7 +51,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
 
   const shouldUseBackgroundRun =
     normalizedStudentIds.length > 1 || isGradexAssignmentGradingEnabled()
-    || isAssignmentAiGradingUsageMeteringEnabled()
+    || isAssignmentAiGradingUsageMeteringEnabledForTeacher(user.id)
 
   if (shouldUseBackgroundRun) {
     const runResult = await createOrResumeAssignmentAiGradingRun({

@@ -98,5 +98,7 @@ For each separately reviewed paid operation:
 5. Preserve the reservation across retryable process failure so resumable work
    cannot bypass or double-consume quota.
 
-Repository-analysis and AI-grading routes remain legacy and unmetered until that
-integration is complete. Production remains at migrations 001–180.
+Repository-analysis and Test AI-grading routes remain legacy and unmetered.
+Assignment AI metering is integrated behind its server-only master switch and
+exact-teacher cohort; migrations 201–204 are deployed, but the application gate
+remains off until a separately approved canary has an explicit allowance.
