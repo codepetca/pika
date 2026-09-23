@@ -32496,6 +32496,7 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Verification: focused checks pass 20 files/285 tests plus architecture, UI/design policy, TypeScript, and lint; targeted suites pass 116 tests. Playwright teacher desktop/mobile, student guardrail, light/dark, loaded roster Join-sort, and Daily attendance captures were inspected. Composite checklist reviewed: yes; keyboard behavior unchanged and covered; semantic state covered by tests; remaining manual follow-up: none.
 
 <!-- pika-session-log-archive-batch:32cf6f1c3eaf1442acc13df0458b75816abbfad48b86723cb3d2f3ff9cb19914 -->
+<!-- pika-session-log-archive-batch:22a16a589aa36edce64470af288166d509aecfca13d352eb54a35415312d9179 -->
 ## 2026-09-18 — Hourly removed-student cleanup watchdog
 
 - Owner `codex/hourly-student-purge-watchdog`. User requested reducing the conditional Supabase recovery watchdog from every five minutes to hourly; the immediate removal-triggered callback remains unchanged.
@@ -32516,3 +32517,8 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Grade composition changed. The grader now scores Completion, Thinking and Presentation (0–4) by explicit deductions, and `assignment-workflow-process.ts` derives the rest of Workflow from save history (lateness scale, sittings, authenticity). Feedback lists every missed requirement even at full marks, with reminders for pasted or unsubmitted work; work under ten words with no attachments scores 0/0/0 with no provider call. Prompt/profile/policy/rubric versions bumped; output budget raised to 2400/4800 because reasoning tokens truncated the longer feedback.
 - Removed the per-assignment score anchor feature (profiles, generation, flag, eval script, plan doc): the general deduction rules replaced it.
 - Verification: 7,085 tests including 13 new process-scoring cases, plus typecheck, lint, architecture. Re-graded five calibration submissions through the shipped path; scores matched the calibrated results within a point.
+
+<!-- pika-session-log-archive-batch:a91bd3083e1a81f5918fbead0e449c649605b5de29a08cbdc46ac61d59c58aab -->
+## 2026-09-19 — Supabase classroom RPC receiver fix
+
+- Owner `codex/fix-classroom-rpc-binding`. Bound `SupabaseClient.rpc` to its client before invoking the atomic classroom-creation RPC; the prior detached call failed before PostgREST could return the expected entitlement denial. Added a receiver-sensitive regression test. Local Access-at-limit behavior now returns the safe “Archive an active classroom before creating another.” response; focused checks pass 30 files/263 tests plus architecture, TypeScript and lint. No policy, schema, UI, migration, or production change.

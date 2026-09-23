@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Supabase classroom RPC receiver fix
-
-- Owner `codex/fix-classroom-rpc-binding`. Bound `SupabaseClient.rpc` to its client before invoking the atomic classroom-creation RPC; the prior detached call failed before PostgREST could return the expected entitlement denial. Added a receiver-sensitive regression test. Local Access-at-limit behavior now returns the safe “Archive an active classroom before creating another.” response; focused checks pass 30 files/263 tests plus architecture, TypeScript and lint. No policy, schema, UI, migration, or production change.
-
 ## 2026-09-19 — Dormant contextual classroom home backend
 
 - Owner `codex/contextual-classroom-access`. Added an authenticated, exact-user-cohort `GET /api/classrooms/home` contract that returns separate active `owned` and `joined` summaries without consulting global role. Service-role reads are subject-bound; returned evidence is validated and sanitized, ownership wins over historical self-enrollment, and either-source failure returns no partial home. The current `/classrooms` page has no consumer and the gate defaults off. Targeted 53 tests and TypeScript pass; an aggregate-only real local Supabase canary returned one owned, zero joined, with owner precedence true. Initial security review required exact enrollment `classroom_id` binding and rejection of null source payloads; remediation adds both with regressions and the real canary remains green. No UI, migration, signup, production configuration or rollout change.
@@ -308,3 +304,50 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 
 - User authorized additional review. An exact-head integration review of 14d6f387 found no blocker, with 112 targeted tests passing. Ready CI run35803112343 passed Test & Build, browser, database and PR Gate on that head. The squash merge was rejected solely because main advanced during CI and the branch-up-to-date rule applies; no admin override was used.
 - Main's two new commits affect only test-grading calibration and rubric scoring, with no Daily Log path overlap. They merged into the feature branch without a textual conflict. Fresh integration review and exact-head CI are required before the merge retry; no persistent database migration was applied.
+- Exact-head 722c9e9e targeted re-review found no blocker (142 tests), and CI run35804835394 passed all lanes. During that run main advanced again via a session-log-only PR. The strict up-to-date gate requires another branch sync; the archive batch-marker conflict retains both markers and unique history, with duplicate rolling-log entries omitted. No Daily Log source changed.
+
+## 2026-09-22 — Test grading calibrated against adjudicated work
+
+Continuation of the earlier entry today; that one stopped before the second rule and the
+harness landed. Shipped after it: PR1321 (request timeout 25s to 60s), PR1324 (retry at
+reduced reasoning effort instead of failing when both token budgets truncate, plus
+`reasoningEffortUsed` in assignment and test provenance), PR1330 (score itemized rubrics as
+a checklist) and PR1331 (the calibration harness itself).
+
+PR1330 came from adjudicating real responses with the teacher. On a ten-criterion key worth
+ten marks, submissions satisfying six and seven criteria scored four; the teacher set both
+at 6-8 and 7-8. Failures were being charged more than once. Measured on a fixed benchmark —
+all 48 ten-point responses, five with verified targets — both adjudicated cases moved from
+4 into band (8 and 7), cell harshness fell from 36/48 to 21/44, and weak submissions held
+their low scores rather than floating up, which was the specific failure mode worth checking.
+Generalisation was then measured by re-running the same 80 responses from the earlier seed-7
+run: overall agreement 42 to 47, mean absolute disagreement 0.145 to 0.132, with the 10-point
+cell improving on a different draw than the rule was derived from.
+
+I dismissed this finding once before. A sweep of a second ten-point question graded
+accurately and read as a refutation, but those submissions failed on concepts rather than
+transcription and had fewer satisfied criteria, so the effect had little room to show. Two
+non-comparable questions treated as if one disproved the other; it cost several rounds and
+only resurfaced once PR1319 removed the masking noise.
+
+Reasoning effort was tested and ruled out as the cause of 10-point harshness: low and medium
+are harsh at an identical 36/48, and medium is marginally less harsh and more accurate for
+1.5x the tokens. Keep medium; stop looking there.
+
+OPEN, and the reason to keep the benchmark. The 9-point cell drifted more lenient under
+PR1330 (+0.239 to +0.248). This was predicted before the run — a floor rule raises scores by
+construction and that cell was already the most lenient — and it is NOT resolved. It cannot
+be resolved by another run: that cell is scored against the marks with the strongest evidence
+of being wrong, including the response recorded 2/9 which the teacher adjudicated at 8/9. It
+needs a human to adjudicate a handful of 9-point cases. Also open: peak output reached 16,386
+tokens after PR1330, so the 60s timeout binds again on the heaviest responses; four of 48 and
+one of 80 responses failed on timeout or invalid output in the last two runs.
+
+The benchmark is repeatable: `pnpm calibrate:test-grading --max-points 10 --all` over the 48
+ten-point responses, with verified targets for student-21 (6-8), student-16 (7-8), student-20
+(~10), student-12 (8-9) and student-06 (9). De-identified snapshots for both archived
+classrooms sit gitignored in the repo root.
+
+Process: this session again worked in the hub checkout rather than a feature worktree, and
+pushed twice to ready PRs, which PR Gate correctly rejected both times. Risk profile:
+async-grading.
