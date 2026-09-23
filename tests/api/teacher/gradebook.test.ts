@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { NextRequest } from 'next/server'
 import { GET, PATCH, PUT } from '@/app/api/teacher/gradebook/route'
+import { buildStudentGradesResponse } from '@/lib/student-grades'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -707,6 +708,33 @@ describe('GET /api/teacher/gradebook', () => {
       category_id: termId,
       exact_course_weight: null,
     })
+  })
+
+  it('keeps teacher and student aggregate grades aligned for fractional rubric scores', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
+      assignments: [{
+        id: 'a1', title: 'Fractional rubric', due_at: null, position: 0, is_draft: false,
+        points_possible: 10, include_in_final: true, gradebook_weight: 10, gradebook_category_id: 'term',
+      }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 1, score_thinking: 0, score_workflow: 0 }],
+    })
+
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const body = await response.json()
+    const rawEarned = 10 / 30
+    const studentProjection = buildStudentGradesResponse({
+      categories: [{ id: 'term', percentage: 100 }],
+      items: [{
+        id: 'a1', kind: 'Classwork', title: 'Fractional rubric', earned: rawEarned, possible: 10,
+        percent: (rawEarned / 10) * 100, included: true, href: null, categoryId: 'term', weight: 10,
+        returnedAt: null,
+      }],
+    })
+
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 0.33, percent: 3.33 })
+    expect(body.students[0].final_percent).toBe(3.33)
+    expect(body.students[0].final_percent).toBe(studentProjection.currentPercent)
   })
 
   it('does not fall back to legacy grades when scored assessments have no category', async () => {

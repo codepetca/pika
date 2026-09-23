@@ -179,6 +179,80 @@ describe('TeacherGradebookTab', () => {
     return screen.getByRole('menu')
   }
 
+  it('keeps student Grades off by default and persists the teacher visibility switch', async () => {
+    const onClassroomUpdated = vi.fn()
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        return {
+          ok: true,
+          json: async () => ({ classroom: { ...classroom, feature_visibility: body.featureVisibility } }),
+        }
+      }
+      return { ok: true, json: async () => gradebookResponse() }
+    })
+
+    render(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={classroom} onClassroomUpdated={onClassroomUpdated} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+
+    const toggle = screen.getByRole('switch', { name: 'Student grades visibility' })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    fireEvent.focus(toggle)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Show grades to students')
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `/api/teacher/classrooms/${classroom.id}`,
+      expect.objectContaining({ method: 'PATCH' }),
+    ))
+    const patchCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toMatchObject({
+      featureVisibility: { student_grades: true },
+    })
+    await waitFor(() => expect(onClassroomUpdated).toHaveBeenCalled())
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('shows the requested visibility immediately and rolls back a failed save', async () => {
+    let resolvePatch: ((response: { ok: boolean; json: () => Promise<{ error: string }> }) => void) | undefined
+    fetchMock.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        return await new Promise((resolve) => { resolvePatch = resolve })
+      }
+      return { ok: true, json: async () => gradebookResponse() }
+    })
+
+    render(
+      <AppMessageProvider>
+        <TooltipProvider>
+          <TeacherGradebookTab classroom={classroom} />
+        </TooltipProvider>
+      </AppMessageProvider>,
+    )
+
+    const toggle = screen.getByRole('switch', { name: 'Student grades visibility' })
+    await waitFor(() => expect(toggle).not.toBeDisabled())
+    fireEvent.click(toggle)
+
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'))
+    expect(resolvePatch).toBeTypeOf('function')
+    expect(toggle).toBeDisabled()
+    expect(toggle.firstElementChild).toHaveClass('bg-success-solid')
+
+    await act(async () => {
+      resolvePatch?.({ ok: false, json: async () => ({ error: 'Visibility save failed' }) })
+    })
+
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'))
+    expect(toggle).not.toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Visibility save failed')
+  })
+
   async function renderWeightEditor() {
     const view = renderGradebook('grades')
     await screen.findByText('Ada')
