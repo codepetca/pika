@@ -32493,3 +32493,9 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Owner `codex/roster-join-sort`. Roster sorting by Joined now uses ascending last name, first name, and roster ID tie-breakers inside each joined/unjoined group; toggling direction changes only the group priority.
 - Removed the Daily attendance count-bubble chevron while preserving button names, `aria-pressed`, tooltips, and the active focus ring. Updated the production control, Pattern Lab mockup, and component/UI regression coverage.
 - Verification: focused checks pass 20 files/285 tests plus architecture, UI/design policy, TypeScript, and lint; targeted suites pass 116 tests. Playwright teacher desktop/mobile, student guardrail, light/dark, loaded roster Join-sort, and Daily attendance captures were inspected. Composite checklist reviewed: yes; keyboard behavior unchanged and covered; semantic state covered by tests; remaining manual follow-up: none.
+
+<!-- pika-session-log-archive-batch:22a16a589aa36edce64470af288166d509aecfca13d352eb54a35415312d9179 -->
+## 2026-09-18 — Hourly removed-student cleanup watchdog
+
+- Owner `codex/hourly-student-purge-watchdog`. User requested reducing the conditional Supabase recovery watchdog from every five minutes to hourly; the immediate removal-triggered callback remains unchanged.
+- Migration180 uses `cron.alter_job` on the exact named watchdog and a source regression rejects direct `cron.job` updates, unscheduling, or command replacement. Worker comments and rollout guidance now describe hourly recovery while preserving immediate callbacks and 240-second retry readiness. Targeted18 tests and focused checks (14 files/115 tests plus architecture, TypeScript, and lint) pass. No migration has been applied; production remains001–178 and requires exact approval for pending179 plus180 before rollout.
