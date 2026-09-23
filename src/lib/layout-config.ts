@@ -43,6 +43,7 @@ export type RouteKey =
   | 'attendance'
   | 'roster'
   | 'gradebook'
+  | 'grades-student'
   | 'today'
   | 'assignments-student'
   | 'assignments-teacher-list'
@@ -109,6 +110,10 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
   gradebook: {
     rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: '50%' },
     mainContent: { maxWidth: 'full' },
+  },
+  'grades-student': {
+    rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 320 },
+    mainContent: { maxWidth: 'standard' },
   },
   today: {
     rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 360 },
@@ -229,6 +234,7 @@ export function getRouteKeyFromTab(
   if (tab === 'attendance') return 'daily'
   if (tab === 'roster') return 'roster'
   if (tab === 'gradebook') return 'gradebook'
+  if (tab === 'grades' && role === 'student') return 'grades-student'
   if (tab === 'today') return 'today'
   if (tab === 'achievements' && role === 'student') return 'achievements-student'
 

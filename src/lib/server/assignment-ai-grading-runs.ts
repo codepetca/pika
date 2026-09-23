@@ -45,7 +45,7 @@ import {
   failAssignmentAiGradingItemUsage,
   failAssignmentAiGradingRunUsage,
   getAssignmentAiUsageFailureReason,
-  isAssignmentAiGradingUsageMeteringEnabled,
+  isAssignmentAiGradingUsageMeteringEnabledForTeacher,
   reserveAssignmentAiGradingItemUsage,
   skipAssignmentAiGradingItemUsage,
   throwAssignmentAiUsageError,
@@ -938,7 +938,7 @@ export async function createOrResumeAssignmentAiGradingRun(opts: {
   const supabase = getServiceRoleClient()
   const normalizedStudentIds = normalizeStudentIds(opts.studentIds)
   const selectionHash = buildSelectionHash(normalizedStudentIds)
-  const metered = isAssignmentAiGradingUsageMeteringEnabled()
+  const metered = isAssignmentAiGradingUsageMeteringEnabledForTeacher(opts.teacherId)
   if (metered) {
     await assertAssignmentAiGradingUsageContract(supabase)
   }

@@ -13,23 +13,24 @@ vi.mock('@/lib/server/classrooms', () => ({ assertStudentCanAccessClassroom: asy
 vi.mock('@/lib/server/pal-outbox', () => ({ attemptImmediatePalEventDelivery: mocks.deliver }))
 
 const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'My daily reflection' }] }] }
+const previousContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Earlier reflection' }] }] }
 const saved = { id: 'entry-1', version: 2, text: 'My daily reflection', rich_content: content }
 
 function setup(existing: boolean) {
-  const write = { select: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue({ data: saved, error: null }), eq: vi.fn().mockReturnThis() }
+  const write = { select: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue({ data: saved, error: null }), maybeSingle: vi.fn().mockResolvedValue({ data: saved, error: null }), eq: vi.fn().mockReturnThis() }
   const insert = vi.fn(() => write)
   const update = vi.fn(() => write)
   mocks.from.mockImplementation((table: string) => ({
     select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), insert, update,
     single: vi.fn().mockResolvedValue({ data: table === 'class_days' ? { is_class_day: true }
-      : existing ? { ...saved, version: 1, minutes_reported: 20, mood: '🙂' } : null, error: null }),
+      : existing ? { ...saved, version: 1, text: 'Earlier reflection', rich_content: previousContent, minutes_reported: 20, mood: '🙂' } : null, error: null }),
   }))
   mocks.rpc.mockResolvedValue({ data: { ok: true, created: !existing, entry: saved }, error: null })
   return { insert, update, write }
 }
 function request(method: 'POST' | 'PATCH', version = 1) {
   return new NextRequest('http://localhost/api/student/entries', { method, body: JSON.stringify({
-    classroom_id: 'classroom-1', date: '2026-09-16', version, rich_content: content,
+    classroom_id: 'classroom-1', date: '2026-09-16', entry_id: method === 'PATCH' ? 'entry-1' : undefined, version, rich_content: content,
   }) })
 }
 const cases = [ ['POST', false], ['POST', true], ['PATCH', false], ['PATCH', true] ] as const

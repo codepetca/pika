@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback, type ReactNode } from 'react'
+import { format, parseISO } from 'date-fns'
 import { Button, PageState, SaveStatus } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor } from '@/components/editor'
@@ -28,9 +29,16 @@ import {
   SESSION_EXPIRED_MESSAGE,
 } from '@/lib/client-auth'
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
-import { countCharacters, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
+import { countCharacters, extractPlainText, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
 import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
+import {
+  listDailyLogDrafts,
+  readDailyLogDraft,
+  removeDailyLogDraft,
+  writeDailyLogDraft,
+  type DailyLogDraft,
+} from '@/lib/daily-log-drafts'
 import { useTorontoToday } from '@/hooks/use-toronto-today'
 import type { Classroom, Entry, JsonPatchOperation, LessonPlan, TiptapContent } from '@/types'
 
@@ -64,6 +72,7 @@ const DAILY_LOG_TITLE = 'Daily Log'
 
 interface StudentTodayTabProps {
   classroom: Classroom
+  studentId: string
   layout?: 'page' | 'pane'
   mobilePlan?: ReactNode
   onLessonPlanLoad?: (plan: LessonPlan | null, classroomId: string) => void
@@ -74,6 +83,7 @@ interface StudentTodayTabProps {
 
 export function StudentTodayTab({
   classroom,
+  studentId,
   layout = 'page',
   mobilePlan,
   onLessonPlanLoad,
@@ -113,13 +123,25 @@ export function StudentTodayTab({
   const [historyEntries, setHistoryEntries] = useState<Entry[]>([])
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [saveError, setSaveError] = useState('')
+  const [draftStorageUnavailable, setDraftStorageUnavailable] = useState(false)
+  const [restoredDraftVersion, setRestoredDraftVersion] = useState(0)
   const [conflictEntry, setConflictEntry] = useState<Entry | null>(null)
+  const [olderDrafts, setOlderDrafts] = useState<DailyLogDraft[]>([])
+  const [olderDraftError, setOlderDraftError] = useState<Record<string, string>>({})
+  const [olderConflicts, setOlderConflicts] = useState<Record<string, Entry>>({})
+  const [olderDraftSavingDate, setOlderDraftSavingDate] = useState<string | null>(null)
 
   // Refs for autosave
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSavedContentRef = useRef('')
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveAttemptAtRef = useRef(0)
+  const saveQueuesByDateRef = useRef(new Map<string, Promise<void>>())
+  const queuedContentByDateRef = useRef(new Map<string, string>())
+  const saveInFlightDatesRef = useRef(new Set<string>())
+  const initialSaveRequestedRef = useRef(false)
+  const olderDraftAttemptsRef = useRef(new Set<string>())
+  const rolloverDraftRef = useRef<DailyLogDraft | null>(null)
   const pendingContentRef = useRef<TiptapContent | null>(null)
   const restoredDraftAutosaveRef = useRef<TiptapContent | null>(null)
   const currentContentRef = useRef<TiptapContent>(EMPTY_DOC)
@@ -139,6 +161,7 @@ export function StudentTodayTab({
       loadRequestIdRef.current = requestId
       const requestedClassroomId = classroom.id
       const todayDate = currentTorontoDate
+      setOlderDrafts(listDailyLogDrafts(studentId, requestedClassroomId, todayDate))
       const hasCurrentSnapshot = (
         entriesSnapshotClassroomIdRef.current === requestedClassroomId &&
         entriesSnapshotDateRef.current === todayDate
@@ -162,8 +185,10 @@ export function StudentTodayTab({
         lastSavedContentRef.current = JSON.stringify(EMPTY_DOC)
         entryIdRef.current = null
         entryVersionRef.current = 1
+        initialSaveRequestedRef.current = false
         setSaveStatus('saved')
         setSaveError('')
+        if (rolloverDraftRef.current?.date !== todayDate) setDraftStorageUnavailable(false)
         setConflictEntry(null)
       }
       try {
@@ -221,35 +246,54 @@ export function StudentTodayTab({
           if (!isCurrentLoad()) return
 
           const loadedContent = resolveEntryContent(todayEntry)
-          const draftContent = safeSessionGetJson<TiptapContent>(
-            getDailyLogDraftKey(requestedClassroomId, todayDate)
-          )
+          const durableDraft = readDailyLogDraft(studentId, requestedClassroomId, todayDate)
+          const rolloverDraft = rolloverDraftRef.current
+          const matchingRolloverDraft = rolloverDraft?.studentId === studentId &&
+            rolloverDraft.classroomId === requestedClassroomId && rolloverDraft.date === todayDate
+            ? rolloverDraft
+            : null
+          const recoverableDraft = matchingRolloverDraft ?? durableDraft
+          const draftContent = recoverableDraft?.content
           if (
             draftContent &&
-            !isEmpty(draftContent) &&
+            (todayEntry || !isEmpty(draftContent)) &&
             JSON.stringify(draftContent) !== JSON.stringify(loadedContent)
           ) {
             setContent(draftContent)
             currentContentRef.current = draftContent
             pendingContentRef.current = draftContent
             restoredDraftAutosaveRef.current = draftContent
+            setRestoredDraftVersion(version => version + 1)
             hasLocalEditSinceLoadRef.current = true
             setSaveStatus('unsaved')
+            if (recoverableDraft && todayEntry && (
+              recoverableDraft.entryId !== todayEntry.id || recoverableDraft.version !== (todayEntry.version ?? 1)
+            )) {
+              restoredDraftAutosaveRef.current = null
+              setConflictEntry(todayEntry)
+              setSaveError('This log changed elsewhere. Review before replacing the newer version.')
+            }
           }
 
-          if (!draftContent || isEmpty(draftContent) || JSON.stringify(draftContent) === JSON.stringify(loadedContent)) {
+          if (!draftContent || (!todayEntry && isEmpty(draftContent)) || JSON.stringify(draftContent) === JSON.stringify(loadedContent)) {
             setContent(loadedContent)
             currentContentRef.current = loadedContent
             pendingContentRef.current = null
             hasLocalEditSinceLoadRef.current = false
             setSaveStatus('saved')
+            if (durableDraft) removeDailyLogDraft(studentId, requestedClassroomId, todayDate)
           }
 
           lastSavedContentRef.current = JSON.stringify(loadedContent)
-          setSaveError('')
-          setConflictEntry(null)
+          if (!recoverableDraft || !todayEntry || (
+            recoverableDraft.entryId === todayEntry.id && recoverableDraft.version === (todayEntry.version ?? 1)
+          )) {
+            setSaveError('')
+            setConflictEntry(null)
+          }
           entryIdRef.current = todayEntry?.id ?? null
           entryVersionRef.current = todayEntry?.version ?? 1
+          initialSaveRequestedRef.current = Boolean(todayEntry && !isEmpty(loadedContent))
         }
 
         if (Array.isArray(cached)) {
@@ -261,7 +305,7 @@ export function StudentTodayTab({
           entriesSnapshotClassroomIdRef.current = requestedClassroomId
           entriesSnapshotDateRef.current = todayDate
           setEntriesSnapshotClassroomId(requestedClassroomId)
-          setLoading(false)
+          setLoading(Boolean(restoredDraftAutosaveRef.current))
         }
 
         const entriesPromise = fetchStudentEntriesForClassroom(requestedClassroomId)
@@ -272,6 +316,13 @@ export function StudentTodayTab({
             entriesSnapshotDateRef.current = todayDate
             setEntriesSnapshotClassroomId(requestedClassroomId)
             if (hasLocalEditSinceLoadRef.current) {
+              const todayEntry = relevantEntries.find((e: Entry) => e.date === todayDate) || null
+              if ((rolloverDraftRef.current?.studentId === studentId &&
+                rolloverDraftRef.current.classroomId === requestedClassroomId &&
+                rolloverDraftRef.current.date === todayDate) ||
+                readDailyLogDraft(studentId, requestedClassroomId, todayDate)) {
+                applyEntryState(todayEntry)
+              }
               setHistoryEntries(prev => {
                 if (!isCurrentLoad()) return prev
                 const currentTodayEntry = prev.find((e: Entry) => e.date === todayDate) || null
@@ -312,7 +363,7 @@ export function StudentTodayTab({
         clearTimeout(throttledSaveTimeoutRef.current)
       }
     }
-  }, [classDays, classroom.id, currentTorontoDate, entriesRequestVersion, historyLimit, lessonPlanRequestVersion, onLessonPlanError, onLessonPlanLoad, onLessonPlanLoading, pastHistoryLimit])
+  }, [classDays, classroom.id, currentTorontoDate, entriesRequestVersion, historyLimit, lessonPlanRequestVersion, onLessonPlanError, onLessonPlanLoad, onLessonPlanLoading, pastHistoryLimit, studentId])
 
   const retryEntries = useCallback(() => {
     invalidateStudentEntriesForClassroom(classroom.id)
@@ -339,49 +390,83 @@ export function StudentTodayTab({
 
   const saveContent = useCallback(async (
     newContent: TiptapContent,
+    entryDate: string,
     options?: { forceFull?: boolean }
   ) => {
     const actualTorontoDate = getTodayInToronto()
     if (actualTorontoDate !== todayRef.current) {
       setCurrentTorontoDate(actualTorontoDate)
-      return
     }
-    const entryDate = todayRef.current
     if (!entryDate) return
+    const isActiveEntry = () => (
+      currentClassroomIdRef.current === classroom.id && todayRef.current === entryDate
+    )
+    const activeAtStart = isActiveEntry()
+    const storedDraft = readDailyLogDraft(studentId, classroom.id, entryDate)
+    const entryId = activeAtStart ? entryIdRef.current : storedDraft?.entryId ?? null
+    const entryVersion = activeAtStart ? entryVersionRef.current : storedDraft?.version ?? 1
+    const savedContent = activeAtStart ? lastSavedContentRef.current : ''
 
     // Don't create a new DB record for empty content (e.g. TipTap mount normalization)
     const newContentStr = JSON.stringify(newContent)
     const draftKey = getDailyLogDraftKey(classroom.id, entryDate)
 
-    if (!entryIdRef.current && isEmpty(newContent)) {
-      lastSavedContentRef.current = newContentStr
+    if (!entryId && isEmpty(newContent)) {
+      if (!activeAtStart) {
+        try {
+          invalidateStudentEntriesForClassroom(classroom.id)
+          const entries = await fetchStudentEntriesForClassroom(classroom.id)
+          const existingOnDate = entries.find(entry => entry.date === entryDate)
+          if (existingOnDate) {
+            if (storedDraft) writeDailyLogDraft({
+              ...storedDraft,
+              entryId: existingOnDate.id,
+              version: existingOnDate.version ?? 1,
+            })
+            await saveContent(newContent, entryDate, { forceFull: true })
+            return
+          }
+        } catch (error) {
+          setOlderDraftError(prev => ({ ...prev, [entryDate]: 'Could not check the saved log. Retry when connected.' }))
+          return
+        }
+      }
+      if (activeAtStart) lastSavedContentRef.current = newContentStr
       safeSessionRemove(draftKey)
-      setSaveStatus('saved')
+      removeDailyLogDraft(studentId, classroom.id, entryDate)
+      if (activeAtStart) setSaveStatus('saved')
       return
     }
 
-    if (!options?.forceFull && newContentStr === lastSavedContentRef.current) {
+    if (!options?.forceFull && newContentStr === savedContent) {
       safeSessionRemove(draftKey)
-      setSaveStatus('saved')
+      removeDailyLogDraft(studentId, classroom.id, entryDate)
+      if (activeAtStart) setSaveStatus('saved')
       return
     }
 
     if (countCharacters(newContent) > MAX_CHARS) {
-      setSaveError(`Entry exceeds ${MAX_CHARS} character limit`)
-      setSaveStatus('unsaved')
+      if (activeAtStart) {
+        setSaveError(`Entry exceeds ${MAX_CHARS} character limit`)
+        setSaveStatus('unsaved')
+      }
+      if (!activeAtStart) setOlderDraftError(prev => ({ ...prev, [entryDate]: `Entry exceeds ${MAX_CHARS} character limit` }))
       return
     }
 
-    setSaveStatus('saving')
-    setSaveError('')
+    if (activeAtStart) {
+      setSaveStatus('saving')
+      setSaveError('')
+    }
+    else setOlderDraftSavingDate(entryDate)
     safeSessionSetJson(draftKey, newContent)
     lastSaveAttemptAtRef.current = Date.now()
 
-    const baseContent = parseSavedContent(lastSavedContentRef.current)
+    const baseContent = parseSavedContent(savedContent)
     const patch = createJsonPatch(baseContent, newContent)
     const shouldSendPatch =
       !options?.forceFull &&
-      entryIdRef.current &&
+      entryId &&
       patch.length > 0 &&
       !shouldStoreSnapshot(patch, newContent)
 
@@ -395,8 +480,8 @@ export function StudentTodayTab({
     } = {
       classroom_id: classroom.id,
       date: entryDate,
-      entry_id: entryIdRef.current ?? undefined,
-      version: entryVersionRef.current,
+      entry_id: entryId ?? undefined,
+      version: entryVersion,
     }
 
     if (shouldSendPatch) {
@@ -415,8 +500,11 @@ export function StudentTodayTab({
       const data = await response.json()
 
       if (response.status === 401) {
-        setSaveStatus('unsaved')
-        setSaveError(SESSION_EXPIRED_MESSAGE)
+        if (isActiveEntry()) {
+          setSaveStatus('unsaved')
+          setSaveError(SESSION_EXPIRED_MESSAGE)
+        }
+        else setOlderDraftError(prev => ({ ...prev, [entryDate]: SESSION_EXPIRED_MESSAGE }))
         redirectToLoginForReauth()
         return
       }
@@ -424,7 +512,8 @@ export function StudentTodayTab({
       if (response.status === 409) {
         const serverEntry = data.entry as Entry | undefined
         if (serverEntry) {
-          setConflictEntry(serverEntry)
+          if (isActiveEntry()) setConflictEntry(serverEntry)
+          else setOlderConflicts(prev => ({ ...prev, [entryDate]: serverEntry }))
           if (serverEntry.date) {
             updateHistoryEntries(serverEntry)
           } else {
@@ -444,20 +533,21 @@ export function StudentTodayTab({
           )
         }
         invalidateStudentEntriesForClassroom(classroom.id)
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current)
+        if (isActiveEntry()) {
+          if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+          if (throttledSaveTimeoutRef.current) {
+            clearTimeout(throttledSaveTimeoutRef.current)
+            throttledSaveTimeoutRef.current = null
+          }
+          setSaveStatus('unsaved')
+          setSaveError(data.error || 'Entry updated elsewhere')
         }
-        if (throttledSaveTimeoutRef.current) {
-          clearTimeout(throttledSaveTimeoutRef.current)
-          throttledSaveTimeoutRef.current = null
-        }
-        setSaveStatus('unsaved')
-        setSaveError(data.error || 'Entry updated elsewhere')
+        else setOlderDraftError(prev => ({ ...prev, [entryDate]: 'A saved log already exists for this date. Your draft is still on this device.' }))
         return
       }
 
       if (response.status === 404 && shouldSendPatch) {
-        await saveContent(newContent, { forceFull: true })
+        await saveContent(newContent, entryDate, { forceFull: true })
         return
       }
 
@@ -468,33 +558,144 @@ export function StudentTodayTab({
       notifyImmediatePalDelivery(data.pal_delivery, classroom.id)
 
       const savedEntry = data.entry as Entry
-      const savedContentStillCurrent = JSON.stringify(currentContentRef.current) === newContentStr
+      const savedContentStillCurrent = isActiveEntry() && JSON.stringify(currentContentRef.current) === newContentStr
       const savedEntryContent = resolveEntryContent(savedEntry)
 
-      entryIdRef.current = savedEntry.id
-      entryVersionRef.current = savedEntry.version ?? entryVersionRef.current
+      if (isActiveEntry()) {
+        entryIdRef.current = savedEntry.id
+        entryVersionRef.current = savedEntry.version ?? entryVersionRef.current
+      }
 
       invalidateStudentEntriesForClassroom(classroom.id)
-      updateHistoryEntries(savedEntry)
-      lastSavedContentRef.current = JSON.stringify(savedEntryContent)
+      if (currentClassroomIdRef.current === classroom.id) updateHistoryEntries(savedEntry)
+      if (isActiveEntry()) lastSavedContentRef.current = JSON.stringify(savedEntryContent)
+      const latestDraft = readDailyLogDraft(studentId, classroom.id, entryDate)
+      if (latestDraft && JSON.stringify(latestDraft.content) === newContentStr) {
+        removeDailyLogDraft(studentId, classroom.id, entryDate)
+      } else if (latestDraft) {
+        writeDailyLogDraft({
+          ...latestDraft,
+          entryId: savedEntry.id,
+          version: savedEntry.version ?? entryVersion,
+        })
+      }
       if (savedContentStillCurrent) {
+        if (rolloverDraftRef.current?.studentId === studentId && rolloverDraftRef.current.classroomId === classroom.id && rolloverDraftRef.current.date === entryDate) {
+          rolloverDraftRef.current = null
+        }
         safeSessionRemove(draftKey)
         pendingContentRef.current = null
         restoredDraftAutosaveRef.current = null
         hasLocalEditSinceLoadRef.current = false
         setSaveStatus('saved')
         setSaveError('')
+        setDraftStorageUnavailable(false)
         setConflictEntry(null)
         notifications?.markTodayComplete()
-      } else {
+      } else if (isActiveEntry()) {
         setSaveStatus('unsaved')
       }
+      if (currentClassroomIdRef.current === classroom.id) {
+        setOlderDrafts(listDailyLogDrafts(studentId, classroom.id, getTodayInToronto()))
+      }
+      setOlderDraftError(prev => {
+        const next = { ...prev }
+        delete next[entryDate]
+        return next
+      })
+      setOlderConflicts(prev => {
+        const next = { ...prev }
+        delete next[entryDate]
+        return next
+      })
     } catch (err: any) {
       console.error('Error saving:', err)
-      setSaveStatus('unsaved')
-      setSaveError(err.message || 'Failed to save')
+      if (isActiveEntry()) {
+        setSaveStatus('unsaved')
+        setSaveError(err.message || 'Failed to save')
+        if (!entryId) initialSaveRequestedRef.current = false
+      }
+      else setOlderDraftError(prev => ({ ...prev, [entryDate]: err.message || 'Failed to save' }))
+    } finally {
+      setOlderDraftSavingDate(current => current === entryDate ? null : current)
     }
-  }, [MAX_CHARS, classroom.id, historyLimit, updateHistoryEntries, notifications])
+  }, [MAX_CHARS, classroom.id, historyLimit, updateHistoryEntries, notifications, studentId])
+
+  const enqueueSave = useCallback((entryDate: string) => {
+    const saveKey = `${studentId}:${classroom.id}:${entryDate}`
+    const isCurrentEditor = () => currentClassroomIdRef.current === classroom.id && entryDate === todayRef.current
+    const requestedContent = isCurrentEditor()
+      ? pendingContentRef.current
+      : readDailyLogDraft(studentId, classroom.id, entryDate)?.content
+    if (!requestedContent) return
+    const requestedContentStr = JSON.stringify(requestedContent)
+    if (queuedContentByDateRef.current.get(saveKey) === requestedContentStr) return
+    queuedContentByDateRef.current.set(saveKey, requestedContentStr)
+    const previousSave = saveQueuesByDateRef.current.get(saveKey) ?? Promise.resolve()
+    const nextSave = previousSave.catch(() => undefined).then(async () => {
+      const latest = isCurrentEditor()
+        ? pendingContentRef.current
+        : readDailyLogDraft(studentId, classroom.id, entryDate)?.content
+      if (!latest) {
+        if (queuedContentByDateRef.current.get(saveKey) === requestedContentStr) {
+          queuedContentByDateRef.current.delete(saveKey)
+        }
+        return
+      }
+      saveInFlightDatesRef.current.add(saveKey)
+      try {
+        await saveContent(latest, entryDate)
+      } finally {
+        saveInFlightDatesRef.current.delete(saveKey)
+        if (queuedContentByDateRef.current.get(saveKey) === requestedContentStr) {
+          queuedContentByDateRef.current.delete(saveKey)
+        }
+      }
+    })
+    saveQueuesByDateRef.current.set(saveKey, nextSave.catch(() => undefined))
+  }, [classroom.id, saveContent, studentId])
+
+  useEffect(() => {
+    if (loading) return
+    for (const draft of olderDrafts) {
+      const attempt = `${draft.studentId}:${draft.classroomId}:${draft.date}:${draft.updatedAt}`
+      if (olderDraftAttemptsRef.current.has(attempt)) continue
+      olderDraftAttemptsRef.current.add(attempt)
+      enqueueSave(draft.date)
+    }
+  }, [enqueueSave, loading, olderDrafts])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'hidden' || !pendingContentRef.current || !todayRef.current) return
+      enqueueSave(todayRef.current)
+    }
+    const handlePageHide = () => {
+      const latest = pendingContentRef.current
+      const date = todayRef.current
+      if (!latest || !date || (!entryIdRef.current && isEmpty(latest))) return
+      const body = JSON.stringify({
+        classroom_id: classroom.id,
+        date,
+        entry_id: entryIdRef.current ?? undefined,
+        version: entryVersionRef.current,
+        rich_content: latest,
+      })
+      if (new TextEncoder().encode(body).byteLength > 60_000) return
+      void fetch('/api/student/entries', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: true,
+      }).catch(() => undefined)
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pagehide', handlePageHide)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pagehide', handlePageHide)
+    }
+  }, [classroom.id, enqueueSave])
 
   const scheduleSave = useCallback((
     newContent: TiptapContent,
@@ -513,7 +714,7 @@ export function StudentTodayTab({
     const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
 
     if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
-      void saveContent(newContent)
+      enqueueSave(todayRef.current)
       return
     }
 
@@ -522,10 +723,10 @@ export function StudentTodayTab({
       throttledSaveTimeoutRef.current = null
       const latest = pendingContentRef.current
       if (latest) {
-        void saveContent(latest)
+        enqueueSave(todayRef.current)
       }
     }, waitMs)
-  }, [AUTOSAVE_MIN_INTERVAL_MS, conflictEntry, saveContent])
+  }, [AUTOSAVE_MIN_INTERVAL_MS, conflictEntry, enqueueSave])
 
   useEffect(() => {
     if (loading || conflictEntry) return
@@ -535,9 +736,35 @@ export function StudentTodayTab({
 
     restoredDraftAutosaveRef.current = null
     scheduleSave(restoredDraft, { force: true })
-  }, [conflictEntry, loading, scheduleSave])
+  }, [conflictEntry, loading, restoredDraftVersion, scheduleSave])
 
   function handleContentChange(newContent: TiptapContent) {
+    const actualTorontoDate = getTodayInToronto()
+    if (actualTorontoDate !== todayRef.current) {
+      const previousText = extractPlainText(currentContentRef.current)
+      const nextText = extractPlainText(newContent)
+      let prefix = 0
+      while (prefix < previousText.length && prefix < nextText.length && previousText[prefix] === nextText[prefix]) prefix += 1
+      let suffix = 0
+      while (suffix < previousText.length - prefix && suffix < nextText.length - prefix && previousText[previousText.length - 1 - suffix] === nextText[nextText.length - 1 - suffix]) suffix += 1
+      const newlyTypedText = nextText.slice(prefix, nextText.length - suffix)
+      if (newlyTypedText.trim()) {
+        const newDayContent = plainTextToTiptapContent(newlyTypedText)
+        const rolloverDraft: DailyLogDraft = {
+          studentId,
+          classroomId: classroom.id,
+          date: actualTorontoDate,
+          content: newDayContent,
+          entryId: null,
+          version: 1,
+          updatedAt: new Date().toISOString(),
+        }
+        rolloverDraftRef.current = rolloverDraft
+        setDraftStorageUnavailable(!writeDailyLogDraft(rolloverDraft))
+      }
+      setCurrentTorontoDate(actualTorontoDate)
+      return
+    }
     setContent(newContent)
     currentContentRef.current = newContent
 
@@ -546,7 +773,9 @@ export function StudentTodayTab({
       ? getDailyLogDraftKey(classroom.id, todayRef.current)
       : null
 
-    if (newContentStr === lastSavedContentRef.current || (!entryIdRef.current && isEmpty(newContent))) {
+    const saveKey = `${studentId}:${classroom.id}:${todayRef.current}`
+    const hasOutstandingSave = saveInFlightDatesRef.current.has(saveKey) || queuedContentByDateRef.current.has(saveKey)
+    if ((newContentStr === lastSavedContentRef.current && !hasOutstandingSave) || (!entryIdRef.current && isEmpty(newContent) && !hasOutstandingSave)) {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
         saveTimeoutRef.current = null
@@ -558,6 +787,12 @@ export function StudentTodayTab({
       lastSavedContentRef.current = newContentStr
       if (draftKey) {
         safeSessionRemove(draftKey)
+        removeDailyLogDraft(studentId, classroom.id, todayRef.current)
+      }
+      if (rolloverDraftRef.current?.studentId === studentId &&
+        rolloverDraftRef.current.classroomId === classroom.id &&
+        rolloverDraftRef.current.date === todayRef.current) {
+        rolloverDraftRef.current = null
       }
       pendingContentRef.current = null
       hasLocalEditSinceLoadRef.current = false
@@ -570,7 +805,22 @@ export function StudentTodayTab({
     setSaveStatus('unsaved')
     pendingContentRef.current = newContent
     if (draftKey) {
-      safeSessionSetJson(draftKey, newContent)
+      const draft: DailyLogDraft = {
+        studentId,
+        classroomId: classroom.id,
+        date: todayRef.current,
+        content: newContent,
+        entryId: entryIdRef.current,
+        version: entryVersionRef.current,
+        updatedAt: new Date().toISOString(),
+      }
+      const draftStored = writeDailyLogDraft(draft)
+      if (rolloverDraftRef.current?.studentId === studentId &&
+        rolloverDraftRef.current.classroomId === classroom.id &&
+        rolloverDraftRef.current.date === todayRef.current) {
+        rolloverDraftRef.current = draftStored ? null : draft
+      }
+      setDraftStorageUnavailable(!draftStored)
     }
 
     if (!conflictEntry) {
@@ -586,6 +836,12 @@ export function StudentTodayTab({
       clearTimeout(saveTimeoutRef.current)
     }
 
+    if (!initialSaveRequestedRef.current && !isEmpty(newContent)) {
+      initialSaveRequestedRef.current = true
+      scheduleSave(newContent, { force: true })
+      return
+    }
+
     saveTimeoutRef.current = setTimeout(() => {
       scheduleSave(newContent)
     }, AUTOSAVE_DEBOUNCE_MS)
@@ -594,18 +850,34 @@ export function StudentTodayTab({
   function flushAutosave() {
     if (conflictEntry) return
     if (saveStatus === 'unsaved' && pendingContentRef.current) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+      }
       scheduleSave(pendingContentRef.current, { force: true })
     }
   }
 
   const resolveConflict = useCallback(() => {
     if (!conflictEntry) return
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
+    saveTimeoutRef.current = null
+    throttledSaveTimeoutRef.current = null
+    pendingContentRef.current = null
+    restoredDraftAutosaveRef.current = null
+    if (rolloverDraftRef.current?.studentId === studentId &&
+      rolloverDraftRef.current.classroomId === classroom.id &&
+      rolloverDraftRef.current.date === todayRef.current) {
+      rolloverDraftRef.current = null
+    }
     const serverContent = resolveEntryContent(conflictEntry)
     setContent(serverContent)
     currentContentRef.current = serverContent
     lastSavedContentRef.current = JSON.stringify(serverContent)
     if (todayRef.current) {
       safeSessionRemove(getDailyLogDraftKey(classroom.id, todayRef.current))
+      removeDailyLogDraft(studentId, classroom.id, todayRef.current)
     }
     hasLocalEditSinceLoadRef.current = false
     entryIdRef.current = conflictEntry.id
@@ -613,16 +885,46 @@ export function StudentTodayTab({
     setSaveStatus('saved')
     setSaveError('')
     setConflictEntry(null)
-  }, [classroom.id, conflictEntry])
+  }, [classroom.id, conflictEntry, studentId])
 
   const retryAfterConflict = useCallback(() => {
     if (!conflictEntry) return
     entryIdRef.current = conflictEntry.id
     entryVersionRef.current = conflictEntry.version ?? entryVersionRef.current
+    const draft = readDailyLogDraft(studentId, classroom.id, todayRef.current)
+    if (draft) writeDailyLogDraft({ ...draft, entryId: conflictEntry.id, version: conflictEntry.version ?? draft.version })
     setConflictEntry(null)
     const latest = pendingContentRef.current ?? content
-    void saveContent(latest, { forceFull: true })
-  }, [conflictEntry, content, saveContent])
+    const date = todayRef.current
+    const saveKey = `${studentId}:${classroom.id}:${date}`
+    const previousSave = saveQueuesByDateRef.current.get(saveKey) ?? Promise.resolve()
+    const retry = previousSave.catch(() => undefined).then(() => saveContent(latest, date, { forceFull: true }))
+    saveQueuesByDateRef.current.set(saveKey, retry.catch(() => undefined))
+  }, [conflictEntry, content, saveContent, studentId, classroom.id])
+
+  function acceptSavedOlderLog(date: string) {
+    removeDailyLogDraft(studentId, classroom.id, date)
+    safeSessionRemove(getDailyLogDraftKey(classroom.id, date))
+    setOlderDrafts(listDailyLogDrafts(studentId, classroom.id, getTodayInToronto()))
+    setOlderConflicts(prev => {
+      const next = { ...prev }
+      delete next[date]
+      return next
+    })
+  }
+
+  function replaceSavedOlderLog(date: string) {
+    const draft = readDailyLogDraft(studentId, classroom.id, date)
+    const serverEntry = olderConflicts[date]
+    if (!draft || !serverEntry) return
+    writeDailyLogDraft({ ...draft, entryId: serverEntry.id, version: serverEntry.version ?? draft.version })
+    setOlderConflicts(prev => {
+      const next = { ...prev }
+      delete next[date]
+      return next
+    })
+    enqueueSave(date)
+  }
 
   const isClassDay = today ? isClassDayOnDate(classDays, today) : true
   const hasCurrentEntriesSnapshot = entriesSnapshotClassroomId === classroom.id
@@ -713,6 +1015,42 @@ export function StudentTodayTab({
           </Button>
         </div>
       )}
+      {olderDrafts.map(draft => (
+        <div key={draft.date} role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning bg-warning-bg px-4 py-3">
+          <div>
+            <p className="text-sm font-medium text-text-default">
+              Unsent Daily Log from {format(parseISO(draft.date), 'EEE MMM d')}
+            </p>
+            <p className="text-sm text-text-muted">
+              {olderDraftError[draft.date] || (olderDraftSavingDate === draft.date
+                ? 'Saving it under its original date…'
+                : 'It is saved on this device and will be sent under its original date.')}
+            </p>
+            {olderConflicts[draft.date] && (
+              <div className="mt-2 space-y-1 text-sm text-text-default">
+                <p><span className="font-medium">Device draft:</span> {extractPlainText(draft.content)}</p>
+                <p><span className="font-medium">Saved log:</span> {olderConflicts[draft.date].text || '(empty)'}</p>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {olderConflicts[draft.date] ? (
+              <>
+                <Button type="button" size="sm" variant="secondary" onClick={() => acceptSavedOlderLog(draft.date)}>
+                  Use saved log
+                </Button>
+                <Button type="button" size="sm" onClick={() => replaceSavedOlderLog(draft.date)}>
+                  Replace saved log
+                </Button>
+              </>
+            ) : (
+              <Button type="button" size="sm" variant="secondary" disabled={olderDraftSavingDate === draft.date} onClick={() => enqueueSave(draft.date)}>
+                {olderDraftSavingDate === draft.date ? 'Saving…' : 'Retry save'}
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
       <div className="bg-surface rounded-lg border border-border p-6">
         {!isClassDay ? (
           <div className="bg-page border border-border rounded-lg p-4 text-center">
@@ -750,7 +1088,17 @@ export function StudentTodayTab({
                     </Button>
                   </div>
                 )}
+                {!conflictEntry && saveStatus === 'unsaved' && (
+                  <Button type="button" size="sm" variant="secondary" onClick={() => scheduleSave(currentContentRef.current, { force: true })}>
+                    Retry save
+                  </Button>
+                )}
               </div>
+            )}
+            {draftStorageUnavailable && saveStatus !== 'saved' && (
+              <p role="alert" className="text-sm text-danger">
+                This draft could not be kept on this device. Keep this page open until it says Saved.
+              </p>
             )}
           </div>
         )}

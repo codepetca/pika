@@ -3,10 +3,24 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('ClassroomPageClient titlebar navigation', () => {
+  it('scopes student Daily Log recovery to the signed-in student', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
+    expect(source).toMatch(/<StudentTodayWorkspace[\s\S]*?studentId=\{user\.id\}/)
+    expect(source).toMatch(/<StudentTodayTab[\s\S]*?studentId=\{studentId\}/)
+  })
+
   it('passes Gradebook activation so its retained table refreshes after Classwork edits', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
     expect(source).toMatch(/<TeacherGradebookTab\s+classroom=\{classroom\}\s+isActive=\{activeTab === 'gradebook'\}/)
     // The request/refresh transition is exercised in TeacherGradebookTab.test.tsx.
+  })
+
+  it('mounts the student Grades owner only for the available Grades tab and propagates teacher visibility updates', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
+
+    expect(source).toContain('{mountedTabs.grades && (')
+    expect(source).toContain("<StudentGradesTab classroom={classroom} isActive={activeTab === 'grades'} />")
+    expect(source).toMatch(/<TeacherGradebookTab[\s\S]*?onClassroomUpdated=\{onClassroomUpdated\}/)
   })
 
   it('keeps Home navigation without wiring classroom switching into AppShell', () => {

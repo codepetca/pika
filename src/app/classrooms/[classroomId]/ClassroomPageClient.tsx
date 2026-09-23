@@ -20,6 +20,7 @@ import { TeacherAnnouncementsTab } from './TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { StudentTestsTab } from './StudentTestsTab'
+import { StudentGradesTab } from './StudentGradesTab'
 import { StudentPalAmbientSurfaces } from '@/integrations/pal'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
 import { StudentCalendarDateContent } from '@/components/StudentCalendarDateContent'
@@ -548,6 +549,7 @@ function StudentTodayWorkspace({
       primary={
         <StudentTodayTab
           classroom={classroom}
+          studentId={studentId}
           layout="pane"
           mobilePlan={planSidebar}
           onLessonPlanLoad={onLessonPlanLoad}
@@ -1531,6 +1533,18 @@ function ClassroomPageContent({
           )
         }
       }
+
+      if (tab === 'grades' && !isTeacher) {
+        prefetchJSON(
+          `student-grades:${classroom.id}`,
+          async () => {
+            const response = await fetch(`/api/student/classrooms/${classroom.id}/grades`)
+            if (!response.ok) throw new Error('Prefetch failed')
+            return response.json()
+          },
+          30_000,
+        )
+      }
     }
 
     runPrefetch()
@@ -1885,6 +1899,7 @@ function ClassroomPageContent({
                       <TeacherGradebookTab
                         classroom={classroom}
                         isActive={activeTab === 'gradebook'}
+                        onClassroomUpdated={onClassroomUpdated}
                         sectionParam={gradebookSectionParam}
                         onSectionChange={(section) =>
                           navigateInClassroom((params) => {
@@ -2047,6 +2062,11 @@ function ClassroomPageContent({
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
                       <StudentTestsTab classroom={classroom} isActive={activeTab === 'tests'} />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.grades && (
+                    <TabContentTransition isActive={activeTab === 'grades'}>
+                      <StudentGradesTab classroom={classroom} isActive={activeTab === 'grades'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.calendar && (

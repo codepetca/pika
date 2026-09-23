@@ -9,7 +9,7 @@ import {
 } from '@/lib/classroom-feature-visibility'
 
 describe('classroom feature visibility', () => {
-  it('defaults every optional feature on for existing and partially migrated classrooms', () => {
+  it('defaults existing features on while keeping student Grades hidden', () => {
     expect(normalizeClassroomFeatureVisibility(null)).toEqual(
       DEFAULT_CLASSROOM_FEATURE_VISIBILITY,
     )
@@ -102,6 +102,19 @@ describe('classroom feature visibility', () => {
 
     expect(isClassroomFeatureEffectivelyEnabled(noGradeSources, 'gradebook', true)).toBe(false)
     expect(isClassroomFeatureEffectivelyEnabled(classworkOnly, 'gradebook', true)).toBe(true)
+  })
+
+  it('shows student Grades only after the teacher enables it and a grade source remains visible', () => {
+    const enabled = normalizeClassroomFeatureVisibility({ student_grades: true })
+    const noSources = normalizeClassroomFeatureVisibility({
+      student_grades: true,
+      classwork: false,
+      tests: false,
+    })
+
+    expect(getAvailableClassroomTabs('student', enabled, true)).toContain('grades')
+    expect(getAvailableClassroomTabs('teacher', enabled, true)).not.toContain('grades')
+    expect(getAvailableClassroomTabs('student', noSources, true)).not.toContain('grades')
   })
 
   it('requires Pal and the classroom preference for Achievements', () => {

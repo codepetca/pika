@@ -18,8 +18,30 @@ export function getAssignmentAiUsageFailureReason(error: unknown): AssignmentAiU
   return error instanceof AssignmentAiUsageError ? error.releaseReason : 'internal_failure'
 }
 
-export function isAssignmentAiGradingUsageMeteringEnabled(): boolean {
-  return process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED === 'true'
+const assignmentAiUsageMeteringTeacherIdSchema = z.string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9_-]+$/)
+
+function getAssignmentAiUsageMeteringTeacherIds(): Set<string> | null {
+  const raw = process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS
+  if (!raw) return null
+
+  const teacherIds = raw.split(',')
+  if (teacherIds.length > 100) return null
+
+  const parsed = z.array(assignmentAiUsageMeteringTeacherIdSchema).safeParse(teacherIds)
+  return parsed.success ? new Set(parsed.data) : null
+}
+
+export function isAssignmentAiGradingUsageMeteringEnabledForTeacher(teacherId: string): boolean {
+  if (process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED !== 'true') return false
+
+  const parsedTeacherId = assignmentAiUsageMeteringTeacherIdSchema.safeParse(teacherId)
+  if (!parsedTeacherId.success) return false
+
+  return getAssignmentAiUsageMeteringTeacherIds()?.has(parsedTeacherId.data) === true
 }
 
 // Never return database messages, entitlement revisions, or reservation metadata.

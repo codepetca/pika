@@ -198,12 +198,12 @@ for (const role of ['teacher', 'student'] as const) {
     const example = page.getByTestId('student-grades-pattern')
     await example.scrollIntoViewIfNeeded()
 
-    const visibility = example.getByRole('switch', { name: 'Show grades to students' })
+    const visibility = example.getByRole('switch', { name: 'Student grades visibility' })
     const target = (await visibility.boundingBox())!
     expect(target.width).toBeGreaterThanOrEqual(44)
     expect(target.height).toBeGreaterThanOrEqual(44)
     await expect(visibility).toHaveAttribute('aria-checked', 'false')
-    await expect(example.getByTestId('student-grades-visible-preview')).toHaveCount(0)
+    await expect(example.getByTestId('student-grades-view')).toHaveCount(0)
     await expect(example.getByText('Grades is hidden from student navigation.')).toBeVisible()
     await expect(example.getByText('Returned feedback remains available in Classwork and Tests.')).toBeVisible()
     const standalone = example.getByTestId('standalone-returned-marks-preview')
@@ -222,11 +222,11 @@ for (const role of ['teacher', 'student'] as const) {
     await page.keyboard.press('Space')
     await expect(visibility).toHaveAttribute('aria-checked', 'true')
     await expect(
-      example.getByTestId('student-grades-visible-preview').getByText('Current grade', { exact: true })
+      example.getByTestId('student-grades-view').getByText('Current grade', { exact: true })
     ).toBeVisible()
     await expect(example.getByText('84%')).toBeVisible()
     await expect(
-      example.getByTestId('student-grades-visible-preview').getByText('Not counted')
+      example.getByTestId('student-grades-view').getByText('Not counted')
     ).toBeVisible()
     const feedbackLinks = example.getByRole('link')
     await expect(feedbackLinks).toHaveCount(3)

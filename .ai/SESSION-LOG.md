@@ -11,90 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-16 — Student past-log date wrapping
-- Keep the StudentPastLogs date label on one line with whitespace-nowrap; reuse existing date column and Button, following stable classroom date language and Pattern Lab controls. No new pattern or composite behavior; teacher n/a.
-- Playwright rendered the production component with deterministic September 14/11 fixtures at 1440, 390, and 320px in light/dark, collapsed/expanded and missing-entry states. Date text occupied one line in all 12 captures (/tmp/pika-date-*.png); temporary fixture removed.
-
-## 2026-09-16 — Automatic cleanup production eligibility guard
-
-- Broad production activation was paused before enabling gates: production has 173 active memberships, 61 attendance mappings, and zero immutable provider-generation captures because provider cleanup remains disabled. Migration176 would have queued those legacy removals and quarantined them during reservation.
-- Branch `codex/automatic-cleanup-eligibility-guard` adds forward-only migration178. Its trigger queues only an exact post-activation generation with immutable Pal/attendance evidence plus matching participant, roster, and teacher-principal mappings; historical or partial memberships remain removable but are skipped by automation.
-- Initial high-risk review found queue enrollment was not serialized with a concurrent operator gate change. Batch1 takes the settings update lock before eligibility and insertion, adds a disposable two-session proof for both lock winners, distinguishes true pre-cutoff history from partial provider evidence, and updates rollout guidance. The concurrency proof and focused checks pass (99 tests plus architecture, UI/design policy, TypeScript and lint). Migration178 remains unapplied locally and in production pending exact target-specific authorization and CI replay; every production cleanup gate remains off.
-
-## 2026-09-17 — Grading moved to DeepSeek; score anchors staged
-
-Branch `claude/beautiful-mayer-4jk2lf`, remote-container session. Replaced the OpenAI Responses grading provider with DeepSeek `deepseek-flash` across assignment, test and repository-review paths; `openai-responses.ts` is deleted and log summaries/developer feedback/curriculum import stay on OpenAI. DeepSeek guarantees only syntactic JSON, so the provider requests `json_object`, appends the profile schema to the system prompt, and relies on the engine's existing per-field validation. Reasoning effort raised `minimal`→`medium` on all three paths, assignment output budget 220/420→800/1600, and all four grading policy versions bumped to v2. Config is now `DEEPSEEK_API_KEY`/`DEEPSEEK_GRADING_MODEL`. Open item: DeepSeek exposes no `store: false` equivalent, so grading retention is account-level only; recorded in the egress audit, unconfirmed with the owner.
-
-Stage 1 of per-assignment score anchors landed disabled behind `ASSIGNMENT_GRADING_ANCHORS_ENABLED`. `pika-assignment-anchors` generates four fixed-band descriptors per criterion; `pika-assignment-anchored` is a sibling grading profile sharing rubric, output schema and normalization, so provenance records which prompt ran with no schema change and no migration. No caller passes anchors yet, so live grading is unchanged. `pnpm eval:assignment-anchors <class-code> <title>` reads an assignment through `buildAssignmentGradingRequest` and A/Bs anchored against unanchored; `--show` prints the sanitized payload without calling the provider. Added `.claude/settings.json` denying reads of `.env*`.
-
-Verification: tsc, lint, `check:architecture` (961 modules) clean; 7083/7084 tests. The one failure, `ai-startup-docs > keeps verify-env fast by default`, is pre-existing (container runs Node 22, repo requires 24) and reproduces on a stashed clean tree.
-
-NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and compare anchored vs baseline spread against the teacher's own marks. Proceed to stage 2 (migration 176, anchor caching, read-only teacher panel — specified in `docs/plans/assignment-grading-anchors.md`) only if spread widens without inverting that ranking. Type regeneration without Docker images is documented in that plan and was verified against all 175 migrations.
-
-## 2026-09-17 — Calendar due-chip prefix
-- Reused LessonDayCell's expanded due-label wording in compact cells: `Due: <assignment title>`; added compact coverage to the existing chip test.
-- Reference: existing expanded calendar chip and Pattern Lab calendar owner. Risk: none. Both roles, desktop/mobile, light/dark default chips captured using a temporary fixture of the production LessonCalendar (output/playwright); narrow cells retain ellipsis. No new design pattern or composite interaction.
-- First focused run hit two unrelated 5-second test timeouts while the preview compiled; rerunning without the preview server.
-
-## 2026-09-17 — Removed-student cleanup reliability follow-up
-
-- Owner `codex/student-purge-reliability`, based on `origin/main@f8d0e514`. Production investigation found Zoe's post-activation removal was silently skipped because her exact Pal generation and active attendance mapping existed but the immutable attendance-generation row did not.
-- Migration179 repairs that exact evidence at removal time only when the retained enrollment timestamp is post-cutoff, the Pal generation/scope match, and the active classroom/student participant mapping is exact. Eligible incomplete mappings become durable quarantined jobs instead of invisible skips; pre-cutoff memberships remain excluded.
-- Local finalization now invalidates target-tainted daily summary/feedback derivative caches while preserving classmate source rows, ignores aggregate-only attendance override receipts, and permits exact ledger-authorized deletion of immutable submit history. Full migration replay plus queue, local academic cleanup, and failure-concurrency rollback harnesses pass in a disposable database; focused checks pass 10 files/91 tests plus architecture, TypeScript and lint. Migration179 remains source-only pending exact local approval and reviewed PR/canary rollout.
-- PR1278 initial Sol/Terra review found one blocker: unconstrained legacy attendance receipt JSON could have been mistaken for aggregate-only data. Batch1 adds fail-closed canonical shape/fingerprint/count/occurrence validation plus hostile extra-key, nested-reference, wrong-type and bad-fingerprint fixtures; it also documents admission quarantine visibility. Disposable replay/harnesses pass; targeted re-review and stable-head checks follow.
-- Sol targeted review found a late-insert race after receipt validation. Batch2 enforces canonical aggregate receipts at the INSERT boundary and takes the classroom operation advisory lock, so a finalizer lock winner rejects the concurrent write and an insert winner can commit only non-student aggregate data. A disposable two-session proof covers the lock race and post-lock payload rejection; full replay, all three cleanup harnesses and focused checks pass.
-- Extended batch3 corrects superseded Phase3 ledger and rollout packets to the current001–178 baseline and migration179-only pending state, including the updated derivative-cache and aggregate-receipt policy. Sixth Terra review pending.
-- Sixth review found one remaining Phase3/Phase4 prose contradiction. The final docs correction scopes the old no-worker language to superseded Phase3 and explicitly recognizes the deployed Phase4 queue, worker, and five-minute conditional watchdog; seventh review follows.
-- Seventh review cleared the stable source. Preflight then disproved the assumed local178 state: local was001–177 and the dry run named only178/179. With exact renewed approval, one local push applied178 (`ffb1c571aa287d5c858baf91af637aab714539efd5b39be1f91bb8bd1a12e9b4`) and179 (`9b89a92111e6485d7704372c8da413e1645f2cd58c0d452cb354033dbd96bfa8`). Postflight ledger001–179, required functions/receipt trigger present, all cleanup gates false, queue empty, storage compatibility, and warning-level DB lint clean. Production remains001–178; no production migration, synthetic fixture, provider request, gate change, or purge occurred. Eighth review follows the corrected rollout record.
-- Eighth review cleared the local179/production178 rollout record. Ready CI run35260054853 then exposed two source-contract mismatches, not a database failure: CURRENT had dropped the established attendance-release wording, and one unit test still expected partial removals to be skipped rather than durably quarantined under179. The PR returned to draft; authorized final batch6 restores the continuity wording and aligns the assertion with the exercised quarantine fixture. The eight-launch review hard cap is exhausted, so no ninth AI review is permitted; fresh checks/CI and human stable-SHA review remain.
-
-## 2026-09-17 — Integrated attendance optimistic updates
-
-- Owner `codex/optimistic-integrated-attendance`. Production's integrated teacher attendance controller now projects manual present/late/absent marks immediately, preserves the projection through stale confirmation polls, and restores the derived automatic state immediately on undo. Failed requests restore the full previous record.
-- Shared the automatic attendance derivation between the server view and client reset projection to prevent drift. Added controller, component, and experience-matrix regression coverage, including delayed confirmations and rollback.
-- Verification: focused checks pass 16 files/221 tests plus architecture, UI/design policy, TypeScript and lint; targeted suites pass 73 tests; Playwright teacher/student desktop/mobile light/dark passes 8 cases and screenshots were inspected. No schema, API contract, dependency, or new design-pattern change.
-- Initial Terra/high review found that a second student's confirmation poll could replace an earlier unresolved optimistic projection. Batch1 reapplies every unresolved mark overlay to all incoming views and adds a two-student regression; targeted re-review and refreshed focused checks follow.
-- Targeted review found the same overlay was not registered until foreground polling expired, leaving in-flight marks vulnerable to concurrent timing-dialog refreshes. Batch2 registers marks before the request, removes them only on confirmation/rollback, and covers stale refresh plus two simultaneously unresolved marks during background revalidation.
-
-## 2026-09-18 — Deterministic roster Join sorting and attendance header cleanup
-
-- Owner `codex/roster-join-sort`. Roster sorting by Joined now uses ascending last name, first name, and roster ID tie-breakers inside each joined/unjoined group; toggling direction changes only the group priority.
-- Removed the Daily attendance count-bubble chevron while preserving button names, `aria-pressed`, tooltips, and the active focus ring. Updated the production control, Pattern Lab mockup, and component/UI regression coverage.
-- Verification: focused checks pass 20 files/285 tests plus architecture, UI/design policy, TypeScript, and lint; targeted suites pass 116 tests. Playwright teacher desktop/mobile, student guardrail, light/dark, loaded roster Join-sort, and Daily attendance captures were inspected. Composite checklist reviewed: yes; keyboard behavior unchanged and covered; semantic state covered by tests; remaining manual follow-up: none.
-
-## 2026-09-18 — Hourly removed-student cleanup watchdog
-
-- Owner `codex/hourly-student-purge-watchdog`. User requested reducing the conditional Supabase recovery watchdog from every five minutes to hourly; the immediate removal-triggered callback remains unchanged.
-- Migration180 uses `cron.alter_job` on the exact named watchdog and a source regression rejects direct `cron.job` updates, unscheduling, or command replacement. Worker comments and rollout guidance now describe hourly recovery while preserving immediate callbacks and 240-second retry readiness. Targeted18 tests and focused checks (14 files/115 tests plus architecture, TypeScript, and lint) pass. No migration has been applied; production remains001–178 and requires exact approval for pending179 plus180 before rollout.
-
-## 2026-09-18 — Classroom creation entitlement cutover foundation
-
-- Owner `codex/access-entitlement-cutover`, based on `origin/main@c0b3d898`. Migration181 installs dormant Free provisioning, leaves existing and pre-activation accounts compatible, and exposes service-only readiness/one-way activation that refuses incomplete account coverage. Activation atomically starts strict enforcement and audited default-Free provisioning for future accounts.
-- The signup trigger, classroom assertion and activation share a transaction-held settings-row lock, closing signup/activation and legacy-creation/activation races. Existing direct, ordinary retry, Blueprint, restore and transfer enforcement continues through the migration166/167 database assertion; Access remains one active classroom and existing over-limit classrooms are preserved.
-- Disposable migration replay, warning-level database lint, generated-type comparison, rollback-only entitlement harness and activation-before-signup concurrency proof pass. Focused checks pass 95 tests plus architecture, TypeScript and lint. Migration181 has not been applied to shared local or production; no account was classified, granted Access or cut over. The runbook requires separate exact authorization for schema application and later production classification/activation.
-- Initial Sol/Terra review found that immediate post-migration Free provisioning violated the dormant Release-A boundary and that the new assertion reversed the established creation lock order. Remediation gates provisioning on successful strict activation, restores subject-before-settings locking, proves both signup/activation lock winners, adds ownership-transfer/reactivation quota coverage, and skips the destructive activation race on persistent local databases with unrelated accounts. Exact-head re-review follows.
-
-## 2026-09-19 — Calibrated assignment grading rules and screenshot fix
-
-- Branch `claude/beautiful-mayer-4jk2lf`. Calibrated AI assignment grading against real submissions from two courses (PPZ3C A1, GLD2O A1/A4/A6) with the teacher, one submission at a time. The approved rule set and the de-identified snapshots stay private and gitignored (`*.grading-snapshot.json`, `*.grader-calibration.json`).
-- Fixed two production bugs found during calibration. Since #1158 privatized submission storage, uploaded images carry an app-relative src, so URL-based artifact extraction dropped every screenshot: grading had been blind to them. Images now appear as `[Image attached]` where the student placed them, so captions can be matched, and attachments are credited as completion evidence. Separately, an email or phone number written with no separating space bypassed redaction; both patterns now end on a non-letter/non-digit boundary. Six GLD2O resumes were affected.
-- Grade composition changed. The grader now scores Completion, Thinking and Presentation (0–4) by explicit deductions, and `assignment-workflow-process.ts` derives the rest of Workflow from save history (lateness scale, sittings, authenticity). Feedback lists every missed requirement even at full marks, with reminders for pasted or unsubmitted work; work under ten words with no attachments scores 0/0/0 with no provider call. Prompt/profile/policy/rubric versions bumped; output budget raised to 2400/4800 because reasoning tokens truncated the longer feedback.
-- Removed the per-assignment score anchor feature (profiles, generation, flag, eval script, plan doc): the general deduction rules replaced it.
-- Verification: 7,085 tests including 13 new process-scoring cases, plus typecheck, lint, architecture. Re-graded five calibration submissions through the shipped path; scores matched the calibrated results within a point.
-
-## 2026-09-19 — Supabase classroom RPC receiver fix
-
-- Owner `codex/fix-classroom-rpc-binding`. Bound `SupabaseClient.rpc` to its client before invoking the atomic classroom-creation RPC; the prior detached call failed before PostgREST could return the expected entitlement denial. Added a receiver-sensitive regression test. Local Access-at-limit behavior now returns the safe “Archive an active classroom before creating another.” response; focused checks pass 30 files/263 tests plus architecture, TypeScript and lint. No policy, schema, UI, migration, or production change.
-
-## 2026-09-19 — Dormant contextual classroom home backend
-
-- Owner `codex/contextual-classroom-access`. Added an authenticated, exact-user-cohort `GET /api/classrooms/home` contract that returns separate active `owned` and `joined` summaries without consulting global role. Service-role reads are subject-bound; returned evidence is validated and sanitized, ownership wins over historical self-enrollment, and either-source failure returns no partial home. The current `/classrooms` page has no consumer and the gate defaults off. Targeted 53 tests and TypeScript pass; an aggregate-only real local Supabase canary returned one owned, zero joined, with owner precedence true. Initial security review required exact enrollment `classroom_id` binding and rejection of null source payloads; remediation adds both with regressions and the real canary remains green. No UI, migration, signup, production configuration or rollout change.
-
-## 2026-09-19 — Dormant contextual classroom page routing
-
-- Owner `codex/contextual-classroom-page-routing`. Added an independent, off-by-default exact user/classroom pair gate for classroom SSR routing. Admitted ownership selects the existing teacher experience and active membership selects the existing student experience while the real session role remains unchanged for session validation; contextual owner switching is limited to the current admitted classroom. Invalid enabled configuration and malformed relationship evidence fail closed, unmatched pairs retain the legacy branch, and the API pilot gate is not reused.
-- Targeted relationship/page/client coverage passes 70 tests plus TypeScript and lint. The existing local owner/member fixture passed the teacher/student desktop/mobile light/dark browser matrix; inspected light and dark captures showed the current shell without overflow. No database mutation, migration, new visual pattern, home consumer, downstream-domain widening or production activation.
-
 ## 2026-09-19 — Dormant contextual announcement reads
 
 - Owner `codex/contextual-classroom-api-navigation`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member announcement list endpoints. A student-valued owner receives the owner projection; a teacher-valued active member receives only published member-visible announcements. Contextual arrays and every announcement/classroom binding fail closed on malformed or substituted evidence.
@@ -313,6 +229,7 @@ against `docs/guidance/ai-grading-egress.md` but not settled with the owner.
 Process note: this session worked in the hub checkout rather than a feature worktree, and
 opened its first two PRs ready instead of draft, which PR Gate correctly rejected. Both
 violate `.ai/START-HERE.md`. Risk profile: async-grading.
+
 ## 2026-09-22 — Assignment AI grading lease-fencing prerequisite
 
 - Owner `codex/meter-ai-grading`, based on merged metered-reservation PR1318. Migration202 adds a versioned worker contract plus service-only run/item patch and provenance-finalization boundaries. Existing and rolling-deploy runs remain legacy version0; future metered runs opt into version1, requiring the exact current, unexpired lease across DeepSeek and Gradex work while legacy finalizers/direct service-role updates are rejected.
@@ -338,3 +255,101 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 - `pnpm check:focused -- --base origin/main` passed 442 tests/31 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit is clean. Browser evidence uses the seeded local classroom and simulated AI responses (no provider work): teacher desktop/mobile, light/dark, default/loading/completion/quota/unavailable; student shared-route regression. Captures are local under `output/playwright/assignment-ai-metering/`.
 - Independent DB review confirmed the expiry cleanup edge. Forward migration204 (201/203 unchanged), authorized/applied locally, preserves already-expired Assignment release evidence during terminal cleanup, renews only live lease-fenced reservations for 24 hours, and adds `internal_failure` cleanup classification. Real DB expiry/renewal/conflict/privilege cases, warning lint and generated-type check pass; dedicated concurrent expiry-vs-renewal stress remains a follow-up to the deterministic serialized harness. Model recommendation: GPT-6 — durable provider lifecycle and transactional accounting boundaries. Epic remains open and rollout disabled.
 - Draft-review remediation keeps migration204 default-off while adding an exact service-only capability sentinel, complete per-item source fingerprints (Assignment, document, structured artifacts and workflow history), Assignment-only `internal_failure`, and lease-fenced durable Gradex run/item correlation. Admission and settlement now reject artifact deletion/replacement races; Gradex polling admits and fetches only live local items, survives pseudonym-salt rotation, and waits for all sibling terminal persistence before surfacing a failure. Validation used a disposable full migration replay because the earlier M204 shape was already applied to the normal local database; no local data was reset.
+
+## 2026-09-22 — Daily Log attendance-save reliability
+
+- Student Today now sends the first nonblank Daily Log immediately, retains per-student/classroom/Toronto-date device drafts, retries an unsent prior-day draft under its original date, and offers an explicit conflict choice when a saved log already exists. No separate check-in action was added; later edits retain throttled autosave, and page exit makes a best-effort save without treating it as confirmed.
+- Client saves are serialized; the PATCH route accepts duplicate content idempotently, rejects a missing or stale entry identity, and uses version-conditional updates to prevent stale overwrites. Log-derived attendance remains tied to the entry's class date; QR attendance is unchanged. No migration or production database change.
+- Focused checks pass 244 tests/16 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit passes. Student recovery reviewed on desktop/mobile light/dark and teacher Daily on desktop/mobile dark. Composite-widget checklist reviewed: existing buttons retain keyboard behavior, status and conflicts have textual labels, and component tests assert accessible status/actions; no manual follow-up identified. PR review pending.
+- Independent review remediation: remove unscoped legacy session draft restore, clear pending saves after Reload latest, preserve blank edits to an existing log, keep old-day recovery from delaying today's save, and carry first post-midnight typing into a new-date draft rather than dropping it. Empty old-day drafts with no known entry are skipped; attendance itself already requires nonblank text. Focused checks now pass 249 tests/16 files plus the same policy/type/lint gates. Targeted re-review pending.
+- Targeted review found a same-date classroom-switch queue collision and a lost-response/blank-clear recovery gap. Second batch binds queued saves to student/classroom/date and rereads that exact draft after switching, while blank older drafts first reconcile against server state before clearing or discarding. Regression tests cover both; focused checks pass 251 tests/16 files plus architecture, UI/design policy, TypeScript and lint. Final integration review pending.
+- Final integration review found no blocker but identified storage-unavailable loss on stale-tab date rollover. Third batch retains the new-date keystroke in scoped memory when device storage rejects it, keeps the warning visible, and schedules a server save after the new-date load even if loading state was batched. Storage-failure regression added; focused checks pass 252 tests/16 files plus all policy/type/lint gates. Exact-head re-review and CI pending.
+- User-approved fourth review batch addresses the remaining P1: later edits now supersede or clear the rollover-only memory draft, so a load cannot prefer first-typed A over newer durable AB. A deferred-first-save/reload regression covers the exact sequence. Focused checks pass 253 tests/16 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit passes. Current student Today and teacher Daily Playwright captures loaded and inspected at mobile/desktop; prior light/dark recovery-state captures remain valid because no visual treatment changed. Exact-head targeted review and CI pending.
+- Cumulative review found a storage-failure rollover conflict gap: an in-memory draft could auto-save over a new-day log from another device. Fifth batch treats in-memory and durable drafts equally for conflict detection and waits for the fresh entry read before auto-saving a cached restore. A blocked-storage/existing-log regression confirms visible conflict and no PATCH. Focused checks pass 254 tests/16 files plus policy/type/lint gates; pre-commit audit passes. Final exact-head review and CI pending.
+
+## 2026-09-22 — Production student Grades
+
+- Owner `codex/student-grades-production`, based on merged Classroom Grades patterns. Added a default-off `student_grades` classroom preference, a teacher Gradebook visibility switch, and a student Classroom Grades tab backed by a private no-store server projection.
+- The student projection includes only fully graded, returned work from currently visible Classwork/Test sources, honors per-assessment overrides, keeps excluded or non-contributing returned items visible as `Not counted`, and calculates the current grade with the teacher Gradebook category/assessment-weight rules. Final-grade overrides remain teacher-only.
+- Migration202 is authored with default-off backfill, shape enforcement, and the latest cold-archive restore adapters, but was not applied to any database. Focused full verification passes 160 files/1,816 tests plus architecture, UI/design policy, TypeScript and lint; Pika audit passes. Playwright verified teacher/student desktop/mobile in light/dark, default-off/visible states, and the local classroom was restored to off. Composite checklist reviewed: native switch and links have keyboard coverage, checked/active state is semantic, and no manual follow-up remains. Independent PR review follows.
+- PR1320 security review found migration202 would have replaced the top-level archive normalizer and bypassed the wrappers added by migrations147/150/164. Remediation batch1 now renames and delegates to the current adapter before adding only `student_grades`, preserves service-role-only execution, and ratchets the chain in a focused migration test; the full 161-file/1,823-test gate remains green.
+- Cumulative review cleared the archive correction but found fractional scores were rounded before aggregate calculation, causing teacher/student current-grade drift. Remediation batch2 preserves raw earned/possible values through `calculateCategorizedFinalPercent`, rounds only the public response fields, adds a fractional rubric regression, and removes stale prototype copy.
+- Final integration review found the teacher aggregate still consumed rounded assignment display cells. Remediation batch3 now carries raw rubric-earned values into both legacy and categorized teacher calculations while retaining rounded display fields, with an API regression asserting teacher/student parity at 3.33%.
+- User-authorized extended review found returned assessment overrides were omitted from student Grades when underlying rubric/responses were incomplete. Remediation batch4 now evaluates assignment/test overrides before base-score completeness, preserves omission for incomplete work without overrides, and covers zero assignment and response-free closed-test overrides.
+- Teacher Gradebook visibility refinement moves the control from a standalone settings card into the existing action bar immediately before More actions. The slightly enlarged settings-style switch is neutral and icon-free when hidden; when shown, its track is solid green and its right thumb contains the Lucide Users icon. The optimistic checked treatment now remains visible while the background save disables the switch, with failure rollback covered. Concise “Show grades to students” / “Hide grades from students” tooltips remain, and save errors stay in the Gradebook feedback area. Targeted component and Pattern Lab tests, TypeScript, UI/design policy checks, and desktop/mobile light/dark visual verification pass; the student Grades surface is unchanged.
+
+## 2026-09-22 — Persistent students icon in Gradebook visibility switch
+
+- The teacher Gradebook switch now shows a neutral Users icon at the right end of its track while off; when on, the icon moves with the thumb and the track remains green. The shared switch gained an optional off-state icon without changing switches that omit it. The full focused gate passes 166 files/1,904 tests plus architecture, TypeScript, lint and UI/design policy; Pika audit passes. Playwright confirms off/on at teacher desktop/mobile in light/dark, the live teacher off state, and the unchanged student Grades view at desktop/mobile. Risk profile: none. Model recommendation: GPT-6 — narrow shared-control styling change with role and state verification.
+
+## 2026-09-22 — Student Grades merge preparation
+
+- PR1320 was rebased onto current main after an AI-log archive conflict was resolved without dropping either existing archived entry. Main now owns migrations202–204, so the unapplied student Grades migration was resequenced to205 and its private archive-adapter name and regression updated. The first exact-head CI replay applied205 in its ephemeral database, then found the generated types lacked the new private adapter; the checked-in types were synchronized to CI's exact generated diff. The user requested merge; final CI and merge gates follow. No migration was applied to a persistent environment.
+- The next exact-head CI passed build and database contracts but exposed two stale Pattern Lab selectors after production-component reuse and four outdated icon-catalog screenshots following the new student Grades navigation item. Browser tests now target the production switch name and `student-grades-view`; Linux screenshots come from the failed CI artifacts and Mac screenshots were regenerated locally. Targeted teacher/student desktop/mobile light/dark browser checks pass (12/12), as do the full focused gate (166 files/1,905 tests), TypeScript, lint, architecture, and UI/design policy. The normal local dev server was restored at port3001. PR1320 remains draft pending a fresh exact-head CI and merge.
+
+## 2026-09-22 — Daily Log PR main synchronization
+
+- PR1329 was brought up to date with main after its exact-head CI passed. The sole textual conflict was in the AI archive; both batch markers and all distinct history were retained. Classroom page and test changes merged automatically without altering the Daily Log implementation. Combined-tree focused checks pass 166 files/1,922 tests plus architecture, UI/design policy, TypeScript and lint. PR remains draft for the updated-head gate; no merge to main was performed.
+
+## 2026-09-22 — Daily Log PR final review and up-to-date gate
+
+- User authorized additional review. An exact-head integration review of 14d6f387 found no blocker, with 112 targeted tests passing. Ready CI run35803112343 passed Test & Build, browser, database and PR Gate on that head. The squash merge was rejected solely because main advanced during CI and the branch-up-to-date rule applies; no admin override was used.
+- Main's two new commits affect only test-grading calibration and rubric scoring, with no Daily Log path overlap. They merged into the feature branch without a textual conflict. Fresh integration review and exact-head CI are required before the merge retry; no persistent database migration was applied.
+- Exact-head 722c9e9e targeted re-review found no blocker (142 tests), and CI run35804835394 passed all lanes. During that run main advanced again via a session-log-only PR. The strict up-to-date gate requires another branch sync; the archive batch-marker conflict retains both markers and unique history, with duplicate rolling-log entries omitted. No Daily Log source changed.
+
+## 2026-09-22 — Test grading calibrated against adjudicated work
+
+Continuation of the earlier entry today; that one stopped before the second rule and the
+harness landed. Shipped after it: PR1321 (request timeout 25s to 60s), PR1324 (retry at
+reduced reasoning effort instead of failing when both token budgets truncate, plus
+`reasoningEffortUsed` in assignment and test provenance), PR1330 (score itemized rubrics as
+a checklist) and PR1331 (the calibration harness itself).
+
+PR1330 came from adjudicating real responses with the teacher. On a ten-criterion key worth
+ten marks, submissions satisfying six and seven criteria scored four; the teacher set both
+at 6-8 and 7-8. Failures were being charged more than once. Measured on a fixed benchmark —
+all 48 ten-point responses, five with verified targets — both adjudicated cases moved from
+4 into band (8 and 7), cell harshness fell from 36/48 to 21/44, and weak submissions held
+their low scores rather than floating up, which was the specific failure mode worth checking.
+Generalisation was then measured by re-running the same 80 responses from the earlier seed-7
+run: overall agreement 42 to 47, mean absolute disagreement 0.145 to 0.132, with the 10-point
+cell improving on a different draw than the rule was derived from.
+
+I dismissed this finding once before. A sweep of a second ten-point question graded
+accurately and read as a refutation, but those submissions failed on concepts rather than
+transcription and had fewer satisfied criteria, so the effect had little room to show. Two
+non-comparable questions treated as if one disproved the other; it cost several rounds and
+only resurfaced once PR1319 removed the masking noise.
+
+Reasoning effort was tested and ruled out as the cause of 10-point harshness: low and medium
+are harsh at an identical 36/48, and medium is marginally less harsh and more accurate for
+1.5x the tokens. Keep medium; stop looking there.
+
+OPEN, and the reason to keep the benchmark. The 9-point cell drifted more lenient under
+PR1330 (+0.239 to +0.248). This was predicted before the run — a floor rule raises scores by
+construction and that cell was already the most lenient — and it is NOT resolved. It cannot
+be resolved by another run: that cell is scored against the marks with the strongest evidence
+of being wrong, including the response recorded 2/9 which the teacher adjudicated at 8/9. It
+needs a human to adjudicate a handful of 9-point cases. Also open: peak output reached 16,386
+tokens after PR1330, so the 60s timeout binds again on the heaviest responses; four of 48 and
+one of 80 responses failed on timeout or invalid output in the last two runs.
+
+The benchmark is repeatable: `pnpm calibrate:test-grading --max-points 10 --all` over the 48
+ten-point responses, with verified targets for student-21 (6-8), student-16 (7-8), student-20
+(~10), student-12 (8-9) and student-06 (9). De-identified snapshots for both archived
+classrooms sit gitignored in the repo root.
+
+Process: this session again worked in the hub checkout rather than a feature worktree, and
+pushed twice to ready PRs, which PR Gate correctly rejected both times. Risk profile:
+async-grading.
+
+## 2026-09-22 — Assignment AI metering canary gate
+
+- Owner `codex/assignment-ai-metering-canary`; risk profiles async-grading and runtime-platform. Production and local ledgers were verified at migrations001–205. The production classroom-creation cutover remains disabled with181 accounts unclassified, Assignment metering has zero reservations, service-only privileges are intact, and migration205 has no malformed student Grades settings.
+- Assignment AI metering now requires both the exact-`true` server master switch and the authenticated teacher's exact account ID in a bounded comma-separated cohort. Every Assignment request uses the existing durable coordinator: missing, malformed, oversized or unmatched cohorts create unmetered version0 runs, while exact matches create metered version1 runs. Persisted version1 runs remain resumable independently of later gate changes. No flag, cohort, entitlement, quota or active production rollout changed.
+- Targeted Assignment usage/run/API coverage passes91 tests plus TypeScript. The focused gate passes309 tests across24 files plus architecture, UI/design policy, TypeScript and lint; Pika audit is clean. Model recommendation: GPT-6 — financial-usage admission and resumable async grading rollout boundary.
+- Independent security and architecture review found that a single-student retry could leave the durable path after a teacher was removed from the cohort, bypassing an active version1 reservation. A standalone active-run check still had a creation race, so remediation removes the split entirely: all Assignment AI requests now enter the atomic durable coordinator, where matching work resumes and conflicting work remains blocked. The metered Gradex smoke also requires its stable teacher ID in the cohort and verifies a version1 run with exactly one settled `grading.ai` reservation.
+
+## 2026-09-22 — Daily Log PR final merge window
+
+- PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.

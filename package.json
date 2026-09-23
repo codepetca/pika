@@ -50,6 +50,7 @@
     "dev-feedback": "node scripts/dev-feedback.mjs",
     "export:assignment-grading-snapshot": "node --env-file=.env.local --import tsx scripts/export-assignment-grading-snapshot.ts",
     "calibrate:assignment-grading": "node --env-file=.env.local --import tsx scripts/calibrate-assignment-grading.ts",
+    "calibrate:test-grading": "node --env-file=.env.local --import tsx scripts/calibrate-test-grading.ts",
     "eval:grading-reviews": "tsx scripts/summarize-grading-reviews.ts",
     "eval:test-ai-grading-gold-set": "node --env-file=.env.local --import tsx scripts/eval-test-ai-grading-gold-set.ts",
     "smoke:gradex": "tsx scripts/gradex-smoke.ts",

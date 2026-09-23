@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   assertAssignmentAiGradingUsageContract,
-  isAssignmentAiGradingUsageMeteringEnabled,
+  isAssignmentAiGradingUsageMeteringEnabledForTeacher,
   getAssignmentAiUsageFailureReason,
   reserveAssignmentAiGradingItemUsage,
   throwAssignmentAiUsageError,
@@ -32,13 +32,31 @@ describe('Assignment AI usage boundary', () => {
       .rejects.toMatchObject({ statusCode: 503, message: 'AI grading is temporarily unavailable' })
   })
 
-  it.each([undefined, '', 'false', 'TRUE', ' true ', '1'])('is disabled for %s', (value) => {
+  it.each([undefined, '', 'false', 'TRUE', ' true ', '1'])('is disabled for master value %s', (value) => {
     vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', value)
-    expect(isAssignmentAiGradingUsageMeteringEnabled()).toBe(false)
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS', 'teacher-1')
+    expect(isAssignmentAiGradingUsageMeteringEnabledForTeacher('teacher-1')).toBe(false)
   })
-  it('requires exact true', () => {
+  it('requires an exact teacher match as well as exact true', () => {
     vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'true')
-    expect(isAssignmentAiGradingUsageMeteringEnabled()).toBe(true)
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS', 'teacher-1, teacher-2')
+    expect(isAssignmentAiGradingUsageMeteringEnabledForTeacher('teacher-1')).toBe(true)
+    expect(isAssignmentAiGradingUsageMeteringEnabledForTeacher('teacher-3')).toBe(false)
+  })
+  it.each([undefined, '', 'teacher-1,,teacher-2', 'teacher 1', ',teacher-1'])
+    ('fails closed for malformed or missing teacher cohort %s', (value) => {
+      vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'true')
+      vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS', value)
+      expect(isAssignmentAiGradingUsageMeteringEnabledForTeacher('teacher-1')).toBe(false)
+    })
+  it('trims and deduplicates the exact teacher cohort', () => {
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'true')
+    vi.stubEnv(
+      'ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS',
+      ' teacher-1 ,teacher-2,teacher-1 ',
+    )
+    expect(isAssignmentAiGradingUsageMeteringEnabledForTeacher('teacher-1')).toBe(true)
+    expect(isAssignmentAiGradingUsageMeteringEnabledForTeacher('teacher-2')).toBe(true)
   })
   it.each([
     { code: 'PGRST202', message: 'private schema content' },
