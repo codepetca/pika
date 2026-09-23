@@ -25,10 +25,14 @@ guides before changing schema or deploying a grading contract.
 ### Assignment usage admission (default off)
 
 `ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED` is a server-only, exact-`true`
-opt-in requiring the Assignment usage RPCs from migrations 203–204. With it unset or
-false, single-student DeepSeek grading stays synchronous and newly created
-durable runs remain version 0. With it enabled, all Assignment AI grading uses
-durable version-1 admission, including single-student and Gradex requests.
+master switch requiring the Assignment usage RPCs from migrations 203–204.
+Admission also requires the authenticated teacher's exact account ID in the
+comma-separated `ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS` cohort. A
+missing or malformed cohort fails closed to legacy unmetered behavior, so the
+master switch alone cannot expose every teacher. Every Assignment AI request
+uses the durable coordinator: with either gate unmatched, newly created runs
+remain unmetered version 0; with both gates matched, that teacher's runs use
+metered version-1 admission, including single-student and Gradex requests.
 Missing accounting contracts fail closed with a generic unavailable response;
 quota exhaustion returns `429` and `AI grading limit reached`.
 
@@ -44,9 +48,17 @@ The persisted worker contract version owns the rest of a run's lifecycle even
 if the flag is disabled later. Version-1 workers revalidate per-item reservations
 before provider work, settle successful grades atomically, release skipped or
 terminally failed work, and retain reservations for retryable errors. Matching
-active version-1 selections resume; enabling the flag does not convert active
-version-0 runs. Joining and student work remain unmetered. This integration adds
+active version-1 selections resume even after the teacher leaves the cohort or
+the master switch is disabled; conflicting selections remain blocked. Enabling
+the flag does not convert active version-0 runs. Joining and student work remain
+unmetered. This integration adds
 no plan, entitlement, pricing, or quota-detail UI and does not enable rollout.
+
+When the Gradex assignment smoke runs with the metering master switch enabled,
+its stable seeded teacher ID must also be present in
+`ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS`. The smoke reports that ID
+when configuration is incomplete, requires a version-1 run, and verifies that
+the successful item settles exactly one `grading.ai` reservation.
 
 Migration 204 renews a still-live reservation to a bounded 24-hour window at
 lease-fenced provider admission. Expired reservations never resume or settle;

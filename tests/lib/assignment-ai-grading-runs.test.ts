@@ -474,6 +474,7 @@ describe('metered Assignment run lifecycle', () => {
     vi.clearAllMocks()
     mockLoadClassroomAiSanitizationContext.mockResolvedValue({ students: [], initialsMap: {} })
     vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'false')
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS', 'teacher-1')
   })
   const doc = { id: 'doc-1', student_id: 'student-1',
     content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'I completed every part of the work and explained my answer in detail.' }] }] },
@@ -610,6 +611,7 @@ describe('metered Assignment run lifecycle', () => {
   })
   it.each([0, 1])('conflicts with v0 and resumes matching v1 (%s)', async (version) => {
     vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'true')
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS', 'teacher-1')
     buildTickHarness({ workerContractVersion: version, skipReason: null, assignmentDoc: doc, upsertError: null })
     const result = await createOrResumeAssignmentAiGradingRun({ assignmentId: 'assignment-1', teacherId: 'teacher-1', studentIds: ['student-1'] })
     expect(result.kind).toBe(version === 1 ? 'resumed' : 'conflict')
@@ -618,6 +620,7 @@ describe('metered Assignment run lifecycle', () => {
   })
   it.each([1, 2])('creates %s students through metered admission only', async (count) => {
     vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'true')
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS', 'teacher-1')
     const ids = Array.from({ length: count }, (_, i) => `student-${i + 1}`)
     mockSupabaseClient.from.mockImplementation((table) => {
       if (table === 'assignment_ai_grading_runs') return buildRunsTable()
@@ -648,6 +651,7 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
     mockSubmitOrPollGradexAssignmentRun.mockResolvedValue(undefined)
     delete process.env.GRADEX_ASSIGNMENT_GRADING_ENABLED
     delete process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED
+    delete process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS
     mockLoadClassroomAiSanitizationContext.mockResolvedValue({
       students: [],
       initialsMap: {},
