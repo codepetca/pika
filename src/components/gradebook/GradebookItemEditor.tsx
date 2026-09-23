@@ -49,7 +49,7 @@ export function GradebookItemEditor({
   const points = Number(possible)
   const pointsValid = possible.trim() !== '' && Number.isFinite(points) && points >= 0.1 && points <= 999999.9
     && Math.abs(points * 10 - Math.round(points * 10)) < 0.000001
-  const weightValid = isValidGradebookWeight(Number(weight))
+  const weightValid = weight.trim() !== '' && isValidGradebookWeight(Number(weight))
   const valid = title.trim().length > 0 && title.trim().length <= 200 && pointsValid && weightValid
   const dirty = item && (
     title.trim() !== item.title || points !== item.possible
@@ -108,9 +108,9 @@ export function GradebookItemEditor({
               ]}
             />
           </FormField>
-          <FormField label="Category weight" error={weightValid ? undefined : 'Enter a whole number from 1 to 999.'}>
+          <FormField label="Category weight" error={weightValid ? undefined : 'Enter a whole number from 0 to 999.'}>
             <Input
-              type="number" min={1} max={999} step={1}
+              type="number" min={0} max={999} step={1}
               value={weight} className={GRADEBOOK_NUMBER_INPUT_CLASS}
               onChange={(event) => setWeight(event.target.value)}
             />

@@ -184,7 +184,7 @@ function blankAssessmentCell(
 
 function normalizeAssessmentWeight(value: unknown): number {
   const weight = Number(value ?? ASSESSMENT_WEIGHT_DEFAULT)
-  return Number.isFinite(weight) && weight > 0 ? Math.round(weight) : ASSESSMENT_WEIGHT_DEFAULT
+  return Number.isFinite(weight) && weight >= 0 ? Math.round(weight) : ASSESSMENT_WEIGHT_DEFAULT
 }
 
 function assessmentTableName(assessmentType: GradebookAssessmentType): 'assignments' | 'tests' {
