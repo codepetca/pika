@@ -341,7 +341,7 @@ describe('suggestTestOpenResponseGrade', () => {
       gradingRequestId: expect.any(String),
       provider: 'deepseek',
       model: 'deepseek-flash',
-      policyVersion: 'pika-test-open-response-policy-v5',
+      policyVersion: 'pika-test-open-response-policy-v6',
       promptVersion: 'pika-test-open-response-manual-prompt-v4',
       gradingProfileVersion: 'pika-test-open-response-v1',
       rubricVersion: 'pika-test-open-response-rubric-v1',

@@ -45,11 +45,13 @@ const TEST_AI_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 export const TEST_AI_GRADING_RUN_CHUNK_SIZE = 8
 export const TEST_AI_GRADING_QUESTION_CONCURRENCY = 2
 export const TEST_AI_GRADING_MICROBATCH_SIZE = 4
-// Raised from 25s to match the single-grade timeout proven in #1321. That change lifted
-// the module default in ai-test-grading.ts, but this constant is passed explicitly at
-// every call site here and silently overrode it, so bulk grading kept running at 25s.
-// Batch calls size their own timeout from the batch length and treat this as a floor.
-export const TEST_AI_GRADING_REQUEST_TIMEOUT_MS = 60_000
+// Deliberately NOT raised. The tick route that calls this is `maxDuration = 60`, the run
+// lease is 120s, and the provider applies this timeout PER attempt across up to three
+// attempts — so even 25s can budget 75s inside a 60s function. Raising it makes the
+// function die before the failure is recorded, leaving the item `processing` with no
+// attempt counted and the run retrying forever. Batch needs a larger execution envelope,
+// not a larger constant.
+export const TEST_AI_GRADING_REQUEST_TIMEOUT_MS = 25_000
 export const TEST_AI_GRADING_MAX_ATTEMPTS = 3
 export const TEST_AI_GRADING_LEASE_SECONDS = 120
 

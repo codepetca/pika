@@ -9,7 +9,7 @@ import {
 
 export const PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION = 'pika-test-open-response-v1'
 export const PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION = 'pika-test-open-response-rubric-v1'
-export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v5'
+export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v6'
 export const PIKA_TEST_OPEN_RESPONSE_MANUAL_PROMPT_VERSION =
   'pika-test-open-response-manual-prompt-v4'
 export const PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION =
@@ -148,12 +148,16 @@ export const PIKA_TEST_MAX_BATCH_RESPONSES = Math.floor(
 export function pikaTestBatchGradeOutput(responseCount: number): StructuredOutputSpec {
   const wanted =
     TEST_BATCH_BASE_OUTPUT_TOKENS + TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS * Math.max(responseCount, 1)
-  const initial = Math.min(wanted, TEST_BATCH_MAX_OUTPUT_TOKENS)
+  // The fallback must stay strictly above the initial budget. Clamping both to the ceiling
+  // would make the provider re-send the identical max_tokens after a truncation and fail
+  // again at full cost — re-arming the exact bug this sizing exists to prevent.
+  const fallback = Math.min(wanted * 2, TEST_BATCH_MAX_OUTPUT_TOKENS)
+  const initial = Math.min(wanted, Math.floor(fallback / 2))
   return {
     schemaName: 'test_batch_grade',
     jsonSchema: batchGradeJsonSchema,
     initialMaxOutputTokens: initial,
-    fallbackMaxOutputTokens: Math.min(initial * 2, TEST_BATCH_MAX_OUTPUT_TOKENS),
+    fallbackMaxOutputTokens: fallback,
   }
 }
 

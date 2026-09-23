@@ -34,8 +34,12 @@ describe('Pika test open-response profile', () => {
     const one = pikaTestBatchGradeOutput(1)
     const four = pikaTestBatchGradeOutput(4)
     expect(four.initialMaxOutputTokens).toBeGreaterThan(one.initialMaxOutputTokens)
-    expect(four.initialMaxOutputTokens).toBeGreaterThanOrEqual(16000)
-    expect(four.fallbackMaxOutputTokens).toBeGreaterThanOrEqual(four.initialMaxOutputTokens)
+    expect(four.initialMaxOutputTokens).toBeGreaterThanOrEqual(12000)
+    // Strictly greater: an equal fallback makes the truncation retry re-send the same
+    // max_tokens and fail identically at full cost.
+    expect(four.fallbackMaxOutputTokens).toBeGreaterThan(four.initialMaxOutputTokens)
+    const huge = pikaTestBatchGradeOutput(500)
+    expect(huge.fallbackMaxOutputTokens).toBeGreaterThan(huge.initialMaxOutputTokens)
   })
 
   it('clamps the batch budget and reports what that ceiling can serve', () => {

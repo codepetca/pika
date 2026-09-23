@@ -34,6 +34,7 @@ import {
   parsePikaTestReferenceOutput,
   parsePikaTestSingleGradeOutput,
   pikaTestBatchGradeOutput,
+  PIKA_TEST_MAX_BATCH_RESPONSES,
   PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION,
   PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION,
   PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION,
@@ -56,22 +57,6 @@ const TEST_AI_REASONING_EFFORT = 'medium'
 // and completed only at 60s.
 const TEST_AI_REQUEST_TIMEOUT_MS = 60_000
 
-// A batch call generates a score and feedback for every response in it, so it runs far
-// longer than a single grade and cannot share its timeout. Measured: a batch of three
-// spent 5,835 output tokens against a single grade's median of ~3,300. The caller's
-// timeout is treated as a floor rather than a ceiling — a batch that needs four minutes
-// must not be starved by a constant written for one-response work.
-const TEST_BATCH_BASE_TIMEOUT_MS = 60_000
-const TEST_BATCH_PER_RESPONSE_TIMEOUT_MS = 45_000
-const TEST_BATCH_MAX_TIMEOUT_MS = 240_000
-
-function batchRequestTimeoutMs(responseCount: number, callerTimeoutMs?: number): number {
-  const scaled = Math.min(
-    TEST_BATCH_BASE_TIMEOUT_MS + TEST_BATCH_PER_RESPONSE_TIMEOUT_MS * Math.max(responseCount, 1),
-    TEST_BATCH_MAX_TIMEOUT_MS,
-  )
-  return Math.max(scaled, callerTimeoutMs ?? 0)
-}
 
 export type TestOpenResponsePromptProfile = 'manual' | 'bulk'
 type ReferenceAnswerSource = 'teacher_key' | 'provided' | 'generated'
@@ -887,6 +872,16 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
       responseText: response.responseText,
     })),
   )
+  // Documented ceilings that nothing enforces are how the previous starvation happened.
+  // Past this size the budget clamp gives each response less room, not more.
+  if (responses.length > PIKA_TEST_MAX_BATCH_RESPONSES) {
+    throw new TestAiGradingError({
+      kind: 'config',
+      message: `Batch of ${responses.length} exceeds the ${PIKA_TEST_MAX_BATCH_RESPONSES} responses this output budget can serve`,
+      retryable: false,
+    })
+  }
+
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
   const { parsed, usage, execution } = await callProviderForJson({
     apiKey,
@@ -895,7 +890,7 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     userPrompt,
     output: pikaTestBatchGradeOutput(responses.length),
     parseOutput: parsePikaTestBatchGradeOutput,
-    requestTimeoutMs: batchRequestTimeoutMs(responses.length, requestTimeoutMs),
+    requestTimeoutMs,
   })
 
   if (telemetryContext) {
