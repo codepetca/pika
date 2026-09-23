@@ -59,7 +59,7 @@ may read it or execute the three `SECURITY DEFINER` functions; every function
 uses an empty search path and schema-qualified relations. Provider and GitHub
 calls must happen outside these short transactions.
 
-## Future route integration
+## Assignment route integration
 
 Migration 202 adds the Assignment worker prerequisite as a versioned contract. Existing
 and rolling-deploy runs remain version 0 and retain legacy behavior. Future metered runs can
@@ -82,12 +82,17 @@ revision. The stale-source terminal path intentionally locks the same current
 lease/resource/enrollment binding without requiring the obsolete document
 revision, then changes only the run item to skipped while releasing its unit.
 
+The Assignment route now sends every single- and multi-student request through
+the atomic durable coordinator. Unmatched rollout gates create unmetered
+version-0 runs; the exact teacher cohort plus master switch selects the
+version-1 RPC. This avoids a check-then-grade race in which direct provider work
+could bypass a concurrently created metered run.
+
 The Assignment reservation TTL is 24 hours. If it expires, finalization fails
 closed and the operation is terminally released; a caller must create a fresh
 run/item rather than resurrect the released operation. Migration 203 changes no
-route, creates no entitlement and activates no enforcement. The existing
-version-0 run creator remains unmetered until separately gated application code
-selects the version-1 RPC.
+entitlement and activates no enforcement. The version-0 run creator remains
+unmetered; gated application code selects the version-1 RPC.
 
 For each separately reviewed paid operation:
 
@@ -98,5 +103,7 @@ For each separately reviewed paid operation:
 5. Preserve the reservation across retryable process failure so resumable work
    cannot bypass or double-consume quota.
 
-Repository-analysis and AI-grading routes remain legacy and unmetered until that
-integration is complete. Production remains at migrations 001–180.
+Repository-analysis and Test AI-grading routes remain legacy and unmetered.
+Assignment AI metering is integrated behind its server-only master switch and
+exact-teacher cohort; migrations 201–204 are deployed, but the application gate
+remains off until a separately approved canary has an explicit allowance.

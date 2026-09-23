@@ -32522,3 +32522,13 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 ## 2026-09-19 — Supabase classroom RPC receiver fix
 
 - Owner `codex/fix-classroom-rpc-binding`. Bound `SupabaseClient.rpc` to its client before invoking the atomic classroom-creation RPC; the prior detached call failed before PostgREST could return the expected entitlement denial. Added a receiver-sensitive regression test. Local Access-at-limit behavior now returns the safe “Archive an active classroom before creating another.” response; focused checks pass 30 files/263 tests plus architecture, TypeScript and lint. No policy, schema, UI, migration, or production change.
+
+<!-- pika-session-log-archive-batch:df975bc6e5510d501da0165229e97f95b7a1acd3600aa70ec33a8e9d1a58248b -->
+## 2026-09-19 — Dormant contextual classroom home backend
+
+- Owner `codex/contextual-classroom-access`. Added an authenticated, exact-user-cohort `GET /api/classrooms/home` contract that returns separate active `owned` and `joined` summaries without consulting global role. Service-role reads are subject-bound; returned evidence is validated and sanitized, ownership wins over historical self-enrollment, and either-source failure returns no partial home. The current `/classrooms` page has no consumer and the gate defaults off. Targeted 53 tests and TypeScript pass; an aggregate-only real local Supabase canary returned one owned, zero joined, with owner precedence true. Initial security review required exact enrollment `classroom_id` binding and rejection of null source payloads; remediation adds both with regressions and the real canary remains green. No UI, migration, signup, production configuration or rollout change.
+
+## 2026-09-19 — Dormant contextual classroom page routing
+
+- Owner `codex/contextual-classroom-page-routing`. Added an independent, off-by-default exact user/classroom pair gate for classroom SSR routing. Admitted ownership selects the existing teacher experience and active membership selects the existing student experience while the real session role remains unchanged for session validation; contextual owner switching is limited to the current admitted classroom. Invalid enabled configuration and malformed relationship evidence fail closed, unmatched pairs retain the legacy branch, and the API pilot gate is not reused.
+- Targeted relationship/page/client coverage passes 70 tests plus TypeScript and lint. The existing local owner/member fixture passed the teacher/student desktop/mobile light/dark browser matrix; inspected light and dark captures showed the current shell without overflow. No database mutation, migration, new visual pattern, home consumer, downstream-domain widening or production activation.

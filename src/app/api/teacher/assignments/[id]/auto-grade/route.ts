@@ -1,19 +1,9 @@
 import { logServerError } from '@/lib/server/diagnostics'
 import { NextResponse } from 'next/server'
-import { hasGradableAssignmentSubmission } from '@/lib/ai-grading'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
-import { parseContentField } from '@/lib/tiptap-content'
-import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
-import {
-  createOrResumeAssignmentAiGradingRun,
-  gradeAssignmentDocWithAi,
-  markAssignmentDocMissingGrade,
-} from '@/lib/server/assignment-ai-grading-runs'
-import { isGradexAssignmentGradingEnabled } from '@/lib/server/gradex-assignment-grading'
-import { isAssignmentAiGradingUsageMeteringEnabled } from '@/lib/server/assignment-ai-grading-usage'
-import { loadAssignmentSubmissionArtifactsForDoc } from '@/lib/server/assignment-submission-artifacts'
+import { createOrResumeAssignmentAiGradingRun } from '@/lib/server/assignment-ai-grading-runs'
 import { validateClassroomStudentIds } from '@/lib/server/classroom-enrollment-validation'
 import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
 import {
@@ -24,7 +14,7 @@ import {
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// POST /api/teacher/assignments/[id]/auto-grade - AI grade selected students
+// POST /api/teacher/assignments/[id]/auto-grade - Preflight Assignment AI grading and create/resume a durable run
 export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (request, context) => {
   const user = await requireRole('teacher')
   const id = assignmentIdSchema.parse((await context.params).id)
@@ -49,110 +39,28 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
     return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 400 })
   }
 
-  const shouldUseBackgroundRun =
-    normalizedStudentIds.length > 1 || isGradexAssignmentGradingEnabled()
-    || isAssignmentAiGradingUsageMeteringEnabled()
+  const runResult = await createOrResumeAssignmentAiGradingRun({
+    assignmentId: id,
+    teacherId: user.id,
+    studentIds: normalizedStudentIds,
+  })
 
-  if (shouldUseBackgroundRun) {
-    const runResult = await createOrResumeAssignmentAiGradingRun({
-      assignmentId: id,
-      teacherId: user.id,
-      studentIds: normalizedStudentIds,
-    })
-
-    if (runResult.kind === 'conflict') {
-      return NextResponse.json(
-        {
-          error: 'Another assignment AI grading run is already active',
-          mode: 'background',
-          run: runResult.run,
-        },
-        { status: 409 },
-      )
-    }
-
+  if (runResult.kind === 'conflict') {
     return NextResponse.json(
       {
+        error: 'Another assignment AI grading run is already active',
         mode: 'background',
         run: runResult.run,
       },
-      { status: 202 },
+      { status: 409 },
     )
   }
 
-  const studentId = normalizedStudentIds[0]
-  const { data: doc, error: docError } = await supabase
-    .from('assignment_docs')
-    .select('id, student_id, content, feedback, authenticity_score, updated_at, is_submitted, submitted_at')
-    .eq('assignment_id', id)
-    .eq('student_id', studentId)
-    .maybeSingle()
-
-  if (docError) {
-    logServerError('grading.assignment_document', docError)
-    return NextResponse.json({ error: 'Failed to fetch student docs' }, { status: 500 })
-  }
-
-  if (!doc) {
-    await markAssignmentDocMissingGrade({
-      supabase,
-      assignmentId: id,
-      studentId,
-      teacherId: user.id,
-      gradedBy: user.id,
-      expectedDocUpdatedAt: null,
-    })
-    return NextResponse.json({
-      graded_count: 1,
-      skipped_count: 0,
-      errors: undefined,
-    })
-  }
-
-  const studentWork = parseContentField(doc.content)
-  const submissionArtifacts = submissionArtifactsToAssignmentArtifacts(
-    await loadAssignmentSubmissionArtifactsForDoc(supabase, doc.id)
+  return NextResponse.json(
+    {
+      mode: 'background',
+      run: runResult.run,
+    },
+    { status: 202 },
   )
-  if (!hasGradableAssignmentSubmission(studentWork, submissionArtifacts)) {
-    await markAssignmentDocMissingGrade({
-      supabase,
-      assignmentId: id,
-      studentId,
-      teacherId: user.id,
-      gradedBy: user.id,
-      expectedDocUpdatedAt: doc.updated_at,
-    })
-    return NextResponse.json({
-      graded_count: 1,
-      skipped_count: 0,
-      errors: undefined,
-    })
-  }
-
-  try {
-    await gradeAssignmentDocWithAi({
-      supabase,
-      assignment,
-      assignmentDoc: doc,
-      gradedBy: user.id,
-      telemetry: {
-        operation: 'single_grade',
-        requestedStrategy: 'single',
-        resolvedStrategy: 'single',
-        studentId,
-      },
-    })
-  } catch (gradingError) {
-    return NextResponse.json({
-      graded_count: 0,
-      skipped_count: 1,
-      errors: [gradingError instanceof Error ? `${studentId}: ${gradingError.message}` : `${studentId}: Auto-grade failed`],
-    })
-  }
-
-  return NextResponse.json({
-    graded_count: 1,
-    skipped_count: 0,
-    errors: undefined,
-  })
 })

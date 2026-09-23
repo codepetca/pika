@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Dormant contextual classroom home backend
-
-- Owner `codex/contextual-classroom-access`. Added an authenticated, exact-user-cohort `GET /api/classrooms/home` contract that returns separate active `owned` and `joined` summaries without consulting global role. Service-role reads are subject-bound; returned evidence is validated and sanitized, ownership wins over historical self-enrollment, and either-source failure returns no partial home. The current `/classrooms` page has no consumer and the gate defaults off. Targeted 53 tests and TypeScript pass; an aggregate-only real local Supabase canary returned one owned, zero joined, with owner precedence true. Initial security review required exact enrollment `classroom_id` binding and rejection of null source payloads; remediation adds both with regressions and the real canary remains green. No UI, migration, signup, production configuration or rollout change.
-
-## 2026-09-19 — Dormant contextual classroom page routing
-
-- Owner `codex/contextual-classroom-page-routing`. Added an independent, off-by-default exact user/classroom pair gate for classroom SSR routing. Admitted ownership selects the existing teacher experience and active membership selects the existing student experience while the real session role remains unchanged for session validation; contextual owner switching is limited to the current admitted classroom. Invalid enabled configuration and malformed relationship evidence fail closed, unmatched pairs retain the legacy branch, and the API pilot gate is not reused.
-- Targeted relationship/page/client coverage passes 70 tests plus TypeScript and lint. The existing local owner/member fixture passed the teacher/student desktop/mobile light/dark browser matrix; inspected light and dark captures showed the current shell without overflow. No database mutation, migration, new visual pattern, home consumer, downstream-domain widening or production activation.
-
 ## 2026-09-19 — Dormant contextual announcement reads
 
 - Owner `codex/contextual-classroom-api-navigation`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member announcement list endpoints. A student-valued owner receives the owner projection; a teacher-valued active member receives only published member-visible announcements. Contextual arrays and every announcement/classroom binding fail closed on malformed or substituted evidence.
@@ -351,3 +342,14 @@ classrooms sit gitignored in the repo root.
 Process: this session again worked in the hub checkout rather than a feature worktree, and
 pushed twice to ready PRs, which PR Gate correctly rejected both times. Risk profile:
 async-grading.
+
+## 2026-09-22 — Assignment AI metering canary gate
+
+- Owner `codex/assignment-ai-metering-canary`; risk profiles async-grading and runtime-platform. Production and local ledgers were verified at migrations001–205. The production classroom-creation cutover remains disabled with181 accounts unclassified, Assignment metering has zero reservations, service-only privileges are intact, and migration205 has no malformed student Grades settings.
+- Assignment AI metering now requires both the exact-`true` server master switch and the authenticated teacher's exact account ID in a bounded comma-separated cohort. Every Assignment request uses the existing durable coordinator: missing, malformed, oversized or unmatched cohorts create unmetered version0 runs, while exact matches create metered version1 runs. Persisted version1 runs remain resumable independently of later gate changes. No flag, cohort, entitlement, quota or active production rollout changed.
+- Targeted Assignment usage/run/API coverage passes91 tests plus TypeScript. The focused gate passes309 tests across24 files plus architecture, UI/design policy, TypeScript and lint; Pika audit is clean. Model recommendation: GPT-6 — financial-usage admission and resumable async grading rollout boundary.
+- Independent security and architecture review found that a single-student retry could leave the durable path after a teacher was removed from the cohort, bypassing an active version1 reservation. A standalone active-run check still had a creation race, so remediation removes the split entirely: all Assignment AI requests now enter the atomic durable coordinator, where matching work resumes and conflicting work remains blocked. The metered Gradex smoke also requires its stable teacher ID in the cohort and verifies a version1 run with exactly one settled `grading.ai` reservation.
+
+## 2026-09-22 — Daily Log PR final merge window
+
+- PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.
