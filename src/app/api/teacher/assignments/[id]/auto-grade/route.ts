@@ -8,6 +8,7 @@ import { parseContentField } from '@/lib/tiptap-content'
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
 import {
   createOrResumeAssignmentAiGradingRun,
+  getActiveAssignmentAiGradingRunSummary,
   gradeAssignmentDocWithAi,
   markAssignmentDocMissingGrade,
 } from '@/lib/server/assignment-ai-grading-runs'
@@ -49,9 +50,13 @@ export const POST = withErrorHandler('PostTeacherAssignmentAutoGrade', async (re
     return NextResponse.json({ error: 'Student is not enrolled in this classroom' }, { status: 400 })
   }
 
+  const gradexEnabled = isGradexAssignmentGradingEnabled()
+  const usageMeteringEnabled = isAssignmentAiGradingUsageMeteringEnabledForTeacher(user.id)
+  const activeRun = normalizedStudentIds.length === 1 && !gradexEnabled && !usageMeteringEnabled
+    ? await getActiveAssignmentAiGradingRunSummary(id, { supabase })
+    : null
   const shouldUseBackgroundRun =
-    normalizedStudentIds.length > 1 || isGradexAssignmentGradingEnabled()
-    || isAssignmentAiGradingUsageMeteringEnabledForTeacher(user.id)
+    normalizedStudentIds.length > 1 || gradexEnabled || usageMeteringEnabled || Boolean(activeRun)
 
   if (shouldUseBackgroundRun) {
     const runResult = await createOrResumeAssignmentAiGradingRun({

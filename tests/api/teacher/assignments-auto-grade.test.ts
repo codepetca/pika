@@ -6,10 +6,12 @@ import { NextRequest } from 'next/server'
 
 const {
   createOrResumeAssignmentAiGradingRun,
+  getActiveAssignmentAiGradingRunSummary,
   gradeAssignmentDocWithAi,
   markAssignmentDocMissingGrade,
 } = vi.hoisted(() => ({
   createOrResumeAssignmentAiGradingRun: vi.fn(),
+  getActiveAssignmentAiGradingRunSummary: vi.fn(),
   gradeAssignmentDocWithAi: vi.fn(),
   markAssignmentDocMissingGrade: vi.fn(),
 }))
@@ -32,6 +34,7 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/server/assignment-ai-grading-runs', () => ({
   createOrResumeAssignmentAiGradingRun,
+  getActiveAssignmentAiGradingRunSummary,
   gradeAssignmentDocWithAi,
   markAssignmentDocMissingGrade,
 }))
@@ -105,6 +108,7 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     })
     gradeAssignmentDocWithAi.mockResolvedValue(undefined)
     markAssignmentDocMissingGrade.mockResolvedValue(undefined)
+    getActiveAssignmentAiGradingRunSummary.mockResolvedValue(null)
     createOrResumeAssignmentAiGradingRun.mockResolvedValue({
       kind: 'created',
       run: {
@@ -184,6 +188,57 @@ describe('POST /api/teacher/assignments/[id]/auto-grade', () => {
     expect(createOrResumeAssignmentAiGradingRun).not.toHaveBeenCalled()
     expect(markAssignmentDocMissingGrade).toHaveBeenCalledOnce()
   })
+
+  it.each([
+    ['same selection', 'resumed', 202],
+    ['different selection', 'conflict', 409],
+  ] as const)(
+    'keeps a persisted run durable after the teacher leaves the cohort (%s)',
+    async (_scenario, kind, expectedStatus) => {
+      process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED = 'true'
+      process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS = 'teacher-2'
+      const activeRun = {
+        id: 'run-1',
+        assignment_id: 'a0000000-0000-4000-8000-000000000001',
+        status: 'queued',
+        model: 'gpt-5-nano',
+        requested_count: 1,
+        gradable_count: 1,
+        processed_count: 0,
+        completed_count: 0,
+        skipped_missing_count: 0,
+        skipped_empty_count: 0,
+        failed_count: 0,
+        pending_count: 1,
+        next_retry_at: null,
+        error_samples: [],
+        started_at: null,
+        completed_at: null,
+        created_at: '2026-04-20T12:00:00.000Z',
+      }
+      getActiveAssignmentAiGradingRunSummary.mockResolvedValueOnce(activeRun)
+      createOrResumeAssignmentAiGradingRun.mockResolvedValueOnce({ kind, run: activeRun })
+      mockAutoGradeTables({
+        enrolledIds: ['b0000000-0000-4000-8000-000000000001'],
+      })
+
+      const response = await POST(new NextRequest('http://localhost/auto-grade', {
+        method: 'POST',
+        body: JSON.stringify({
+          student_ids: ['b0000000-0000-4000-8000-000000000001'],
+        }),
+      }), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
+
+      expect(response.status).toBe(expectedStatus)
+      expect(getActiveAssignmentAiGradingRunSummary).toHaveBeenCalledWith(
+        'a0000000-0000-4000-8000-000000000001',
+        { supabase: mockSupabaseClient },
+      )
+      expect(createOrResumeAssignmentAiGradingRun).toHaveBeenCalledOnce()
+      expect(gradeAssignmentDocWithAi).not.toHaveBeenCalled()
+      expect(markAssignmentDocMissingGrade).not.toHaveBeenCalled()
+    },
+  )
 
   it('grades a single legacy stringified assignment doc synchronously', async () => {
     mockAutoGradeTables({

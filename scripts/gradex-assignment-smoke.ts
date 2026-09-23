@@ -27,8 +27,16 @@ async function main() {
     getAssignmentAiGradingRunSummary,
     tickAssignmentAiGradingRun,
   } = await import('../src/lib/server/assignment-ai-grading-runs')
+  const { isAssignmentAiGradingUsageMeteringEnabledForTeacher } =
+    await import('../src/lib/server/assignment-ai-grading-usage')
 
   const seed = await seedGradexAssignmentSmoke(supabase)
+  const meteringRequested = process.env.ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED === 'true'
+  if (meteringRequested && !isAssignmentAiGradingUsageMeteringEnabledForTeacher(seed.teacherId)) {
+    throw new Error(
+      `Assignment AI usage metering is enabled, but the stable smoke teacher ID ${seed.teacherId} is not in ASSIGNMENT_AI_GRADING_USAGE_METERING_TEACHER_IDS.`,
+    )
+  }
   console.log(JSON.stringify({
     event: 'seeded',
     classroom_id: seed.classroomId,
@@ -48,6 +56,13 @@ async function main() {
     kind: created.kind,
     run: created.run,
   }, null, 2))
+
+  if (meteringRequested) {
+    const createdRun = await loadGradexRunMetadata(supabase, created.run.id)
+    if (createdRun.worker_contract_version !== 1) {
+      throw new Error('Metered Gradex smoke did not create a version-1 worker run.')
+    }
+  }
 
   const pollAttempts = parsePositiveInt(process.env.GRADEX_ASSIGNMENT_SMOKE_POLL_ATTEMPTS, 30)
   const pollIntervalMs = parsePositiveInt(process.env.GRADEX_ASSIGNMENT_SMOKE_POLL_INTERVAL_MS, 1500)
@@ -81,12 +96,16 @@ async function main() {
 
   const finalRun = await loadGradexRunMetadata(supabase, summary.id)
   const finalDoc = await loadAssignmentDocGrade(supabase, seed.assignmentDocId)
+  const meteringEvidence = meteringRequested
+    ? await loadMeteringEvidence(supabase, summary.id, seed.teacherId)
+    : null
 
   console.log(JSON.stringify({
     event: 'final',
     run: summary,
     gradex: finalRun,
     grade: finalDoc,
+    metering: meteringEvidence,
   }, null, 2))
 
   if (!TERMINAL_STATUSES.has(summary.status)) {
@@ -100,6 +119,9 @@ async function main() {
   }
   if (!isValidGrade(finalDoc)) {
     throw new Error('Assignment doc did not receive complete Gradex scores and feedback.')
+  }
+  if (meteringRequested && meteringEvidence?.settledReservations !== 1) {
+    throw new Error('Metered Gradex smoke did not settle its exact usage reservation.')
   }
 }
 
@@ -287,7 +309,7 @@ async function maybeTickGradexRun(supabase: SupabaseClient, pikaRunId: string) {
 async function loadGradexRunMetadata(supabase: SupabaseClient, runId: string) {
   const { data, error } = await supabase
     .from('assignment_ai_grading_runs')
-    .select('id, status, gradex_run_id, gradex_status, gradex_submitted_at, gradex_last_polled_at')
+    .select('id, status, worker_contract_version, gradex_run_id, gradex_status, gradex_submitted_at, gradex_last_polled_at')
     .eq('id', runId)
     .single()
   if (error || !data) {
@@ -296,10 +318,51 @@ async function loadGradexRunMetadata(supabase: SupabaseClient, runId: string) {
   return data as {
     id: string
     status: string
+    worker_contract_version: number
     gradex_run_id: string | null
     gradex_status: string | null
     gradex_submitted_at: string | null
     gradex_last_polled_at: string | null
+  }
+}
+
+async function loadMeteringEvidence(
+  supabase: SupabaseClient,
+  runId: string,
+  teacherId: string,
+) {
+  const { data: items, error: itemsError } = await supabase
+    .from('assignment_ai_grading_run_items')
+    .select('id')
+    .eq('run_id', runId)
+  if (itemsError || !items || items.length !== 1) {
+    throw new Error(`Load metered Gradex run item failed: ${formatSupabaseError(itemsError)}`)
+  }
+
+  const itemId = items[0].id
+  const { data: reservations, error: reservationsError } = await supabase
+    .from('feature_usage_reservations')
+    .select('operation_id, subject_user_id, feature_key, operation_kind, units, status')
+    .eq('operation_id', itemId)
+  if (reservationsError || !reservations || reservations.length !== 1) {
+    throw new Error(`Load metered Gradex reservation failed: ${formatSupabaseError(reservationsError)}`)
+  }
+
+  const reservation = reservations[0]
+  if (
+    reservation.operation_id !== itemId
+    || reservation.subject_user_id !== teacherId
+    || reservation.feature_key !== 'grading.ai'
+    || reservation.operation_kind !== 'assignment_ai_grading'
+    || reservation.units !== 1
+    || reservation.status !== 'settled'
+  ) {
+    throw new Error('Metered Gradex smoke reservation evidence was invalid.')
+  }
+
+  return {
+    workerContractVersion: 1,
+    settledReservations: 1,
   }
 }
 
