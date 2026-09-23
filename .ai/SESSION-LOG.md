@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Calibrated assignment grading rules and screenshot fix
-
-- Branch `claude/beautiful-mayer-4jk2lf`. Calibrated AI assignment grading against real submissions from two courses (PPZ3C A1, GLD2O A1/A4/A6) with the teacher, one submission at a time. The approved rule set and the de-identified snapshots stay private and gitignored (`*.grading-snapshot.json`, `*.grader-calibration.json`).
-- Fixed two production bugs found during calibration. Since #1158 privatized submission storage, uploaded images carry an app-relative src, so URL-based artifact extraction dropped every screenshot: grading had been blind to them. Images now appear as `[Image attached]` where the student placed them, so captions can be matched, and attachments are credited as completion evidence. Separately, an email or phone number written with no separating space bypassed redaction; both patterns now end on a non-letter/non-digit boundary. Six GLD2O resumes were affected.
-- Grade composition changed. The grader now scores Completion, Thinking and Presentation (0–4) by explicit deductions, and `assignment-workflow-process.ts` derives the rest of Workflow from save history (lateness scale, sittings, authenticity). Feedback lists every missed requirement even at full marks, with reminders for pasted or unsubmitted work; work under ten words with no attachments scores 0/0/0 with no provider call. Prompt/profile/policy/rubric versions bumped; output budget raised to 2400/4800 because reasoning tokens truncated the longer feedback.
-- Removed the per-assignment score anchor feature (profiles, generation, flag, eval script, plan doc): the general deduction rules replaced it.
-- Verification: 7,085 tests including 13 new process-scoring cases, plus typecheck, lint, architecture. Re-graded five calibration submissions through the shipped path; scores matched the calibrated results within a point.
-
 ## 2026-09-19 — Supabase classroom RPC receiver fix
 
 - Owner `codex/fix-classroom-rpc-binding`. Bound `SupabaseClient.rpc` to its client before invoking the atomic classroom-creation RPC; the prior detached call failed before PostgREST could return the expected entitlement denial. Added a receiver-sensitive regression test. Local Access-at-limit behavior now returns the safe “Archive an active classroom before creating another.” response; focused checks pass 30 files/263 tests plus architecture, TypeScript and lint. No policy, schema, UI, migration, or production change.
@@ -311,3 +303,8 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 ## 2026-09-22 — Daily Log PR main synchronization
 
 - PR1329 was brought up to date with main after its exact-head CI passed. The sole textual conflict was in the AI archive; both batch markers and all distinct history were retained. Classroom page and test changes merged automatically without altering the Daily Log implementation. Combined-tree focused checks pass 166 files/1,922 tests plus architecture, UI/design policy, TypeScript and lint. PR remains draft for the updated-head gate; no merge to main was performed.
+
+## 2026-09-22 — Daily Log PR final review and up-to-date gate
+
+- User authorized additional review. An exact-head integration review of 14d6f387 found no blocker, with 112 targeted tests passing. Ready CI run35803112343 passed Test & Build, browser, database and PR Gate on that head. The squash merge was rejected solely because main advanced during CI and the branch-up-to-date rule applies; no admin override was used.
+- Main's two new commits affect only test-grading calibration and rubric scoring, with no Daily Log path overlap. They merged into the feature branch without a textual conflict. Fresh integration review and exact-head CI are required before the merge retry; no persistent database migration was applied.
