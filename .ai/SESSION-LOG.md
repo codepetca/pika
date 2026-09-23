@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Dormant contextual announcement reads
-
-- Owner `codex/contextual-classroom-api-navigation`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member announcement list endpoints. A student-valued owner receives the owner projection; a teacher-valued active member receives only published member-visible announcements. Contextual arrays and every announcement/classroom binding fail closed on malformed or substituted evidence.
-- Teacher announcement mutations and member read receipts remain on their legacy guards because their writes still need transaction-time owner/archive or enrollment binding. No page/home consumer, UI, migration, production configuration or cohort activation changed. Targeted 50 tests and the focused gate (14 files/141 tests plus architecture, UI/design policy, TypeScript and lint) pass.
-- Initial compatibility review found that both GET handlers resolved route parameters before authentication and an enabled-gate wrong-role malformed identifier returned 400 instead of the legacy role-first 403. Batch1 defers parameter resolution until after authentication, preserves the 403 before any relationship/data query, and adds route-level regressions for both owner and member endpoints. The refreshed focused gate passes 145 tests plus architecture, UI/design policy, TypeScript and lint; targeted and final integration re-review follow.
-
 ## 2026-09-19 — Dormant contextual lesson-plan reads
 
 - Owner `codex/contextual-classroom-next-domain`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member lesson-plan list endpoints. A student-valued owner receives the owner calendar projection; a teacher-valued active member keeps the classroom visibility window. Contextual plan arrays, every plan/classroom binding and the member visibility record fail closed on malformed or substituted service-role evidence.
@@ -353,3 +347,7 @@ async-grading.
 ## 2026-09-22 — Daily Log PR final merge window
 
 - PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.
+
+## 2026-09-23 — Future classroom retention roadmap
+
+- Owner `codex/classroom-retention-roadmap`; risk profile none. Documented a proposed, plan-independent archived-classroom retention sequence and advance notices in the lifecycle roadmap, with a pointer from the product roadmap. It remains future work; no email, timer, automatic cold transition, deletion worker, database migration, or rollout gate was enabled.
