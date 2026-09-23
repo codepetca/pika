@@ -4,6 +4,7 @@ import { ChevronDown, Dumbbell, MoreVertical, Plus, RotateCcw, Settings } from '
 import { Button, FormField, IconButton, Select, Tooltip } from '@/ui'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
 import { TeacherWorkSurfaceActionCluster, TeacherWorkSurfaceIconMenuButton, TeacherWorkSurfaceMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { TeacherGradebookVisibilityControl } from '@/components/gradebook/TeacherGradebookVisibilityControl'
 import type { ScoreDisplayMode } from '@/lib/gradebook-display'
 
 import type { GradebookDisplayPreferences } from '@/lib/gradebook-editor'
@@ -39,7 +40,7 @@ export function GradebookScoreDisplayToggle({
   )
 }
 
-export function GradebookToolbar({ preferences, onChange, selectedCount, isReadOnly, classAverage = '—', classMedian = '—', mobileStudentOptions = [], mobileStudentId = '', onMobileStudentChange = () => {}, hasManualChanges = false, undoingManualChanges = false, onUndoManualChanges, onEditCategories, onAddItem, itemsAvailable = true, onCopyEmails, onCopySecondaryEmails, onExport }: {
+export function GradebookToolbar({ preferences, onChange, selectedCount, isReadOnly, classAverage = '—', classMedian = '—', mobileStudentOptions = [], mobileStudentId = '', onMobileStudentChange = () => {}, hasManualChanges = false, undoingManualChanges = false, onUndoManualChanges, onEditCategories, onAddItem, itemsAvailable = true, onCopyEmails, onCopySecondaryEmails, onExport, studentGradesVisible, onStudentGradesVisibilityChange, savingStudentGradesVisibility = false }: {
   preferences: GradebookDisplayPreferences
   onChange: (changes: Partial<GradebookDisplayPreferences>) => void
   selectedCount: number
@@ -58,6 +59,9 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
   onCopyEmails: () => void
   onCopySecondaryEmails?: () => void
   onExport: () => void
+  studentGradesVisible: boolean
+  onStudentGradesVisibilityChange: (visible: boolean) => void
+  savingStudentGradesVisibility?: boolean
 }) {
   return <TeacherWorkSurfaceContextBar ariaLabel="Gradebook controls" primaryClassName="max-w-44 sm:max-w-none" className="grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" contextClassName="col-span-2 lg:col-span-1"
     context={<>
@@ -95,7 +99,14 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
         <span className="hidden lg:inline-flex"><IconButton icon={Dumbbell} label="Show weights" variant={preferences.showWeights ? 'subtle' : 'ghost'} aria-pressed={preferences.showWeights} onClick={() => onChange({ showWeights: !preferences.showWeights })} /></span>
       </div>
     </TeacherWorkSurfaceActionCluster>}
-    actions={<TeacherWorkSurfaceIconMenuButton ariaLabel="Gradebook more actions" tooltip="More actions" icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />} menuPlacement="down" menuAlign="end" items={[
+    actions={<>
+      <TeacherGradebookVisibilityControl
+        gradesVisible={studentGradesVisible}
+        onChange={onStudentGradesVisibilityChange}
+        disabled={isReadOnly}
+        saving={savingStudentGradesVisibility}
+      />
+      <TeacherWorkSurfaceIconMenuButton ariaLabel="Gradebook more actions" tooltip="More actions" icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />} menuPlacement="down" menuAlign="end" items={[
       { id: 'edit-categories', label: 'Edit categories', icon: <Settings className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly, onSelect: onEditCategories },
       { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || !itemsAvailable || !onAddItem, onSelect: () => onAddItem?.() },
       { id: 'name-order', dividerBefore: true, label: preferences.lastNameFirst ? 'Show first name in column 1' : 'Show last name in column 1', onSelect: () => onChange({ lastNameFirst: !preferences.lastNameFirst }) },
@@ -103,6 +114,7 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
       { id: 'sticky-columns', label: 'Keep key columns visible', checked: preferences.keepKeyColumnsVisible, onSelect: () => onChange({ keepKeyColumnsVisible: !preferences.keepKeyColumnsVisible }) },
       ...(hasManualChanges ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || undoingManualChanges || !onUndoManualChanges, dividerBefore: true, onSelect: () => onUndoManualChanges?.() }] : []),
       { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: onExport },
-     ]} />}
+     ]} />
+    </>}
   />
 }

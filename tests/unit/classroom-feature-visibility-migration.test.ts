@@ -1,12 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { CLASSROOM_FEATURE_KEYS } from '@/lib/classroom-feature-visibility'
 
 const migration = readFileSync(
   join(process.cwd(), 'supabase/migrations/128_classroom_feature_visibility.sql'),
   'utf8',
 )
+const initialFeatureKeys = [
+  'attendance',
+  'classwork',
+  'tests',
+  'gradebook',
+  'calendar',
+  'syllabus',
+  'announcements',
+  'achievements',
+] as const
 
 describe('classroom feature visibility migration', () => {
   it('adds a non-null default-on JSON object without modifying classroom content', () => {
@@ -14,7 +23,7 @@ describe('classroom feature visibility migration', () => {
     expect(migration).toContain('classrooms_feature_visibility_shape_check')
     expect(migration).not.toMatch(/\b(delete|truncate|drop)\b/i)
 
-    for (const key of CLASSROOM_FEATURE_KEYS) {
+    for (const key of initialFeatureKeys) {
       expect(migration).toContain(`"${key}": true`)
       expect(migration).toContain(`feature_visibility -> '${key}'`)
     }

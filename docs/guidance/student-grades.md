@@ -11,7 +11,7 @@ place to see the grades that have been returned to them. The student surface
 answers two questions only:
 
 1. What is my current grade based on returned work?
-2. Which returned assignments and tests make up that grade?
+2. Which returned assignments, tests, and standalone Gradebook items make up that grade?
 
 ## Teacher control
 
@@ -38,10 +38,11 @@ The student tab is named **Grades**. It contains only:
 
 - **Current grade**
 - the supporting label **Based on returned work**
-- a list of returned assignments and tests
+- a list of returned assignments, tests, and standalone Gradebook items
 - each item's score and percentage
 - **Not counted** on a returned item excluded from the grade
-- a link from each item to its existing Classwork or Test feedback
+- a link from each assignment or test to its existing feedback; standalone
+  Gradebook items remain non-link rows because they have no separate work page
 
 The list does not duplicate rubric feedback, response review, or submission
 history. Those remain with the original work.
@@ -82,17 +83,17 @@ Attendance as separate trusted sources without expanding this V1 surface.
 
 ## Design status
 
-The product contract is approved. The paired teacher/student composition is
-currently experimental and is rendered with deterministic fixtures in Pattern
-Lab. See
+The product contract is approved and implemented in the teacher Gradebook and
+student Classroom. The Pattern Lab comparison remains as deterministic review
+evidence and reuses the production visibility control and student grade view.
+See
 [`docs/guidance/ui/experimental/student-grades-visibility.md`](./ui/experimental/student-grades-visibility.md).
 
 ## Current standalone-item integration
 
-The aggregate Grades surface above is still a prototype. Standalone Gradebook
-items use an explicit **Return marks** action and a returned-only section inside
-the existing student Classwork summary. A future live Grades surface must
-include these records in its returned-only list and calculation. This does not
+Standalone Gradebook items use an explicit **Return marks** action and appear in
+both the aggregate Grades surface and the returned-only section inside the
+existing student Classwork summary. This does not
 add attendance automation to Grades: an Attendance item is manually scored like
 any other standalone item. See
 [standalone Gradebook items](./standalone-gradebook-items.md) for the implemented

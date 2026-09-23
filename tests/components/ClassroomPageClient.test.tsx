@@ -9,6 +9,14 @@ describe('ClassroomPageClient titlebar navigation', () => {
     // The request/refresh transition is exercised in TeacherGradebookTab.test.tsx.
   })
 
+  it('mounts the student Grades owner only for the available Grades tab and propagates teacher visibility updates', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
+
+    expect(source).toContain('{mountedTabs.grades && (')
+    expect(source).toContain("<StudentGradesTab classroom={classroom} isActive={activeTab === 'grades'} />")
+    expect(source).toMatch(/<TeacherGradebookTab[\s\S]*?onClassroomUpdated=\{onClassroomUpdated\}/)
+  })
+
   it('keeps Home navigation without wiring classroom switching into AppShell', () => {
     const source = readFileSync(
       resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'),
