@@ -40,12 +40,6 @@ export const gradingTokenUsageSchema = z.object({
   inputTokens: z.number().int().nonnegative().nullable(),
   outputTokens: z.number().int().nonnegative().nullable(),
   totalTokens: z.number().int().nonnegative().nullable(),
-  // Optional so records written before these were captured still parse. They must be
-  // declared: this schema strips unknown keys, so undeclared fields would be dropped
-  // silently on their way into stored provenance.
-  cachedInputTokens: z.number().int().nonnegative().optional(),
-  uncachedInputTokens: z.number().int().nonnegative().optional(),
-  reasoningTokens: z.number().int().nonnegative().optional(),
 })
 
 // The stored provenance schemas must match the database exactly. Migrations 101-104 add
@@ -114,7 +108,13 @@ export const gradingResultSchema = z.object({
 })
 
 export type GradingRubric = z.infer<typeof gradingRubricSchema>
-export type GradingTokenUsage = z.infer<typeof gradingTokenUsageSchema>
+// Providers may also report cost detail. It is measured in memory only: the stored schema
+// above strips it, because the database accepts exactly those three keys.
+export type GradingTokenUsage = z.infer<typeof gradingTokenUsageSchema> & {
+  cachedInputTokens?: number
+  uncachedInputTokens?: number
+  reasoningTokens?: number
+}
 export type GradingProvenance = z.infer<typeof gradingProvenanceSchema>
 export type TestGradingProvenance = z.infer<typeof testGradingProvenanceSchema>
 export type GradingResult = z.infer<typeof gradingResultSchema>
