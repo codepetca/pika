@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Dormant contextual learner assignment save
-
-- Owner `codex/contextual-assignment-save`, based on merged assignment-open route PR1295. Migration184 adds a service-only transaction that rechecks live assignment/classroom state and exact enrollment under membership-removal fences before delegating revision, idempotency, history and metric behavior to the established atomic save.
-- Added an independent off-by-default exact user/assignment PATCH gate. A matched teacher- or student-valued active member saves only their own document; bounded preflight and RPC evidence are strictly rebound to the authenticated actor and assignment. Disabled and unmatched requests retain the legacy student-only route, and missing schema never falls back after admission.
-- With exact local authorization, migration184 SHA256 `5a761230159d7ad1b795426eac2b290d58e75da508124bb389e4a90a080edc5d` applied locally. Rollback-only behavior and multi-connection removal/archive/draft/save/duplicate-save contracts pass, generated types match local history001–184, and the GET/PATCH gates remain off. Submission, unsubmit, history/restore and artifact mutations remain legacy, so no cohort may be activated.
-- Initial security review found that migration184 could hold classroom/member fences while an existing submit, unsubmit, restore or legacy save held its document fence, making ordinary overlap deadlock or surface raw contention. Batch1 adds migration185's fixed submission→editor-save→classroom/member ordering, maps guarded assignment/classroom contention to safe 409 retry responses, and expands real two-connection coverage to both save/submit and contextual/legacy-save orderings, unsubmit-first, and save-first draft/archive retries. With exact local authorization, migration185 SHA256 `833b009433c95d288bccb241b6a360234186b6b5ae143be717950e67a3febd88` applied locally; all 12 race cases pass and randomized fixtures are removed.
-
 ## 2026-09-20 — Dormant contextual learner assignment submit/unsubmit
 
 - Owner `codex/contextual-assignment-submit`, based on merged assignment-save PR1297. Migration186 adds service-only submit and unsubmit transactions that recheck live assignment/classroom state and exact enrollment under the established submission→editor→classroom/member lock order before delegating to the legacy atomic operations.
@@ -343,3 +336,9 @@ async-grading.
 
 - Owner `codex/test-authoring-guidance`; documentation-only, risk profile `none`. Added a general assessment-authoring guide and routed it from AI instructions, the docs index, and the markdown schema. Covers prompt/rubric/sample alignment, observable credit, diagrams, difficulty, preservation of existing tests, and content readiness versus measured AI grading consistency.
 - Course-specific coding and Karel preferences belong in the companion ICS3U guide. This change does not modify assessment content, grading behavior, publication state, or production data.
+
+## 2026-09-24 — Student test question scrolling
+
+- Owner `codex/student-test-scroll`; risk `exam-mode` (layout only). Bound the existing student question section to its split pane height so long tests scroll to the final questions and Submit. No assessment, attempt, or focus-tracking changes.
+- Reuse ExamDocumentWorkspace/WorkspaceSplitPane; extend StudentTestsTab with the same bounded scroller used by TeacherTestPreviewPage. Student desktop/mobile light/dark wheel-scroll and reference/answer retention checked; teacher n/a (student-only change), no new pattern or promotion. Existing divider keyboard resizing checked.
+- Validation: 43 component tests, four mocked browser matrix checks, focused checks (186 tests, architecture, UI/design policies, types, lint). Local screenshots under `test-results/experience-matrix-student--3e2c4--final-questions-and-submit-*`; fixture avoids live student attempts. Production deployment remains separate.
