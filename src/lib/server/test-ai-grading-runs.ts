@@ -1087,6 +1087,8 @@ async function processQuestionBatch(opts: {
         // Preparation may generate references remotely. The batch's attempt is already
         // durable, so interruption here is bounded just like interruption during grading.
         // Reuse the same attempt for grading; later batches reuse this prepared context.
+        // Persistence and lease renewal can consume the admission window themselves.
+        if (!canStartProviderCall(tickStartedAt)) return
         prepared = await prepareContext()
       }
       // A generated reference may consume enough time that grading must resume next tick.
@@ -1100,6 +1102,7 @@ async function processQuestionBatch(opts: {
           leaseToken,
           leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
         })
+        if (!canStartProviderCall(tickStartedAt)) return
         const suggestion = await suggestTestOpenResponseGradeWithContext(
           prepared,
           only.responseText,
@@ -1135,6 +1138,7 @@ async function processQuestionBatch(opts: {
         leaseToken,
         leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
       })
+      if (!canStartProviderCall(tickStartedAt)) return
       const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
         prepared,
         activeBatchRequests.map((entry) => ({

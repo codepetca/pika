@@ -637,6 +637,38 @@ describe('tickTestAiGradingRun', () => {
     clock.mockRestore()
   })
 
+  it.each([
+    { phase: 'attempt persistence', delayedRpc: 'set_test_ai_grading_item_state_atomic', occurrence: 1, batchSize: 2, preparationCalls: 0 },
+    { phase: 'preparation lease renewal', delayedRpc: 'renew_test_ai_grading_run_lease', occurrence: 1, batchSize: 2, preparationCalls: 0 },
+    { phase: 'single grading lease renewal', delayedRpc: 'renew_test_ai_grading_run_lease', occurrence: 2, batchSize: 1, preparationCalls: 1 },
+    { phase: 'batch grading lease renewal', delayedRpc: 'renew_test_ai_grading_run_lease', occurrence: 2, batchSize: 2, preparationCalls: 1 },
+  ])('defers provider work after slow $phase', async ({ delayedRpc, occurrence, batchSize, preparationCalls }) => {
+    const { items } = buildTickHarness({
+      responseRows: [
+        { id: 'response-1', response_text: 'Answer one' },
+        { id: 'response-2', response_text: 'Answer two' },
+      ],
+    })
+    items.splice(batchSize)
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(0)
+    const originalRpc = mockSupabaseClient.rpc.getMockImplementation()!
+    let matchingCalls = 0
+    mockSupabaseClient.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+      const result = await originalRpc(fn, args)
+      if (fn === delayedRpc && ++matchingCalls === occurrence) clock.mockReturnValue(100_000)
+      return result
+    })
+    try {
+      await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+      expect(items.every((item) => item.status === 'processing' && item.attempt_count === 1)).toBe(true)
+      expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledTimes(preparationCalls)
+      expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+      expect(suggestTestOpenResponseGradesBatchWithContext).not.toHaveBeenCalled()
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
   it('preserves the attempt cap when an exhausted item loses its question', async () => {
     const { items } = buildTickHarness({
       responseRows: [{ id: 'response-1', response_text: 'Answer one' }], missingQuestion: true,
