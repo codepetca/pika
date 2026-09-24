@@ -50,13 +50,16 @@ export async function resolveTestDocumentUploadContentTypes(
     if (object) {
       if (doc.managed_object_id && doc.managed_object_id !== object.id) return doc
       const contentType = object.content_type?.trim().toLowerCase()
-      return contentType && isAllowedTestDocumentType(contentType)
-        ? { ...doc, upload_content_type: contentType }
-        : doc
-    }
-    if (doc.managed_object_id) return doc
+      if (contentType) {
+        return isAllowedTestDocumentType(contentType)
+          ? { ...doc, upload_content_type: contentType }
+          : doc
+      }
+      // Legacy managed objects may have no registered MIME. Delivery already
+      // checks Storage metadata for these, so use the same source here.
+    } else if (doc.managed_object_id) return doc
 
-    // Pre-managed uploads can still be served from a public compatibility bucket.
+    // Also cover pre-managed uploads served from the public compatibility bucket.
     let contentType: string | null
     try {
       contentType = await getPrivateStorageContentType({
