@@ -2678,3 +2678,89 @@ test.describe('public Course Guide experience matrix', () => {
     await captureCourseGuideState(page, testInfo, 'public-not-found')
   })
 })
+
+
+test('student long test scroll reaches final questions and submit', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  // Simulate a maximized window for this local, fully mocked exam fixture.
+  await page.addInitScript(() => {
+    Object.defineProperty(window.screen, 'availWidth', { configurable: true, get: () => window.innerWidth })
+    Object.defineProperty(window.screen, 'availHeight', { configurable: true, get: () => window.innerHeight })
+    Object.defineProperty(Element.prototype, 'requestFullscreen', { configurable: true, value: () => Promise.resolve() })
+  })
+  const testId = '30000000-0000-4000-8000-000000000023'
+  const assessment = {
+    id: testId, classroom_id: '30000000-0000-4000-8000-000000000021',
+    title: 'Long Karel test', status: 'active', student_status: 'not_started',
+    show_results: false, effective_access: 'open',
+    documents: [{ id: 'reference', title: 'Karel reference', source: 'text', content: 'move()\nturn_left()' }],
+  }
+  const questions = Array.from({ length: 5 }, (_, index) => ({
+    id: `scroll-question-${index + 1}`, test_id: testId, position: index,
+    question_text: index < 2
+      ? `Coding question ${index + 1}\n\n${'Karel must complete the task for every valid world. Explain and implement your reusable helper. '.repeat(15)}`
+      : `Multiple choice question ${index + 1}`,
+    question_type: index < 2 ? 'open_response' : 'multiple_choice',
+    options: index < 2 ? [] : [`First answer for Q${index + 1}`, 'Second answer', 'Third answer'],
+    points: 1, response_max_chars: 5000, response_monospace: index < 2,
+  }))
+  const focusSummary = {
+    away_count: 0, away_total_seconds: 0, route_exit_attempts: 0,
+    window_unmaximize_attempts: 0, last_away_started_at: null, last_away_ended_at: null,
+  }
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    let body: unknown
+    if (path === '/api/student/tests') body = { tests: [assessment] }
+    else if (path === `/api/student/tests/${testId}`) {
+      body = { test: assessment, questions, student_responses: {}, focus_summary: focusSummary }
+    } else if (path.endsWith('/start')) body = { started: true }
+    else if (path.endsWith('/session-status')) body = { can_continue: true, student_status: 'not_started' }
+    else if (path.endsWith('/focus-events')) body = { success: true, focus_summary: focusSummary }
+    else if (path.includes('/draft')) body = { draft: null }
+    else if (path.includes('notifications')) {
+      body = { hasTodayEntry: true, unviewedAssignmentsCount: 0, activeTestsCount: 1, unreadAnnouncementsCount: 0 }
+    } else {
+      await route.abort()
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/e2e-fixtures/student-test-list')
+  await page.getByRole('button', { name: /Long Karel test/ }).click()
+  await page.getByRole('button', { name: 'Start the Test', exact: true }).click()
+  await page.getByRole('button', { name: 'Start test', exact: true }).click()
+
+  const pane = page.getByTestId('student-test-detail-pane')
+  const firstAnswer = page.getByLabel('Response for question 1', { exact: true })
+  const answer = 'def solve():\n    move()'
+  await firstAnswer.fill(answer)
+  const { viewport } = getExperienceMetadata(testInfo)
+  if (viewport === 'desktop') {
+    await expect.poll(() => pane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  }
+  const bounds = await pane.boundingBox()
+  expect(bounds).not.toBeNull()
+  // Wheel scrolling must reach the bottom without locator auto-scrolling hiding a layout bug.
+  await page.mouse.move(bounds!.x + bounds!.width - 30, Math.min(bounds!.y + 100, 600))
+  await page.mouse.wheel(0, 10_000)
+  const submit = page.getByRole('button', { name: 'Submit', exact: true })
+  await expect(submit).toBeInViewport()
+  await expect(page.getByText('Multiple choice question 5', { exact: true })).toBeInViewport()
+  await page.getByRole('radio', { name: 'First answer for Q5', exact: true }).check()
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('student-test-scroll-bottom.png'), animations: 'disabled' })
+
+  await page.mouse.wheel(0, -10_000)
+  if (viewport === 'desktop') await expect(firstAnswer).toBeInViewport()
+  await expect(firstAnswer).toHaveValue(answer)
+  await page.getByRole('button', { name: 'Karel reference', exact: true }).click()
+  await expect(firstAnswer).toHaveValue(answer)
+  if (viewport === 'desktop') {
+    const divider = page.getByRole('separator', { name: 'Resize documents and questions panes' })
+    await divider.focus()
+    await divider.press('ArrowLeft')
+    await expect(divider).toHaveAttribute('aria-valuenow', '45')
+  }
+  await page.screenshot({ path: testInfo.outputPath('student-test-scroll-reference.png'), animations: 'disabled' })
+})
