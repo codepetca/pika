@@ -7,7 +7,10 @@ describe('gradebook editor helpers', () => {
     expect(normalizeGradebookPreferences(null)).toEqual(DEFAULT_GRADEBOOK_PREFERENCES)
     expect(normalizeGradebookPreferences({ scoreDisplayMode: 'html', summaryKind: 2, showWeights: 'yes', lastNameFirst: true })).toEqual({ ...DEFAULT_GRADEBOOK_PREFERENCES, lastNameFirst: true })
   })
-  it.each([0, -1, 1.5, 1000, NaN, Infinity])('rejects invalid item weight %s', (weight) => {
+  it.each([0, 1, 999])('accepts item weight %s', (weight) => {
+    expect(isValidGradebookWeight(weight)).toBe(true)
+  })
+  it.each([-1, 1.5, 1000, NaN, Infinity])('rejects invalid item weight %s', (weight) => {
     expect(isValidGradebookWeight(weight)).toBe(false)
   })
   it('quotes CSV text and neutralizes spreadsheet formulas', () => {

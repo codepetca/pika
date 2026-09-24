@@ -21,7 +21,7 @@ export async function getStudentReturnedGradebookItems(
     // Identity and release filtering happen here, never in the browser.
     const { data, error } = await supabase
       .from('gradebook_item_scores')
-      .select('earned, gradebook_items!inner(id, classroom_id, title, points_possible, include_in_final, gradebook_categories(name, percentage))')
+      .select('earned, gradebook_items!inner(id, classroom_id, title, points_possible, include_in_final, gradebook_weight, gradebook_categories(name, percentage))')
       .eq('classroom_id', classroomId)
       .eq('student_id', studentId)
       .eq('gradebook_items.classroom_id', classroomId)
@@ -46,7 +46,8 @@ export async function getStudentReturnedGradebookItems(
         possible: item.points_possible,
         percent: Math.round((score.earned / item.points_possible) * 10_000) / 100,
         categoryName: item.gradebook_categories?.name ?? null,
-        included: item.include_in_final && (item.gradebook_categories?.percentage ?? 0) > 0,
+        included: item.include_in_final && item.gradebook_weight > 0
+          && (item.gradebook_categories?.percentage ?? 0) > 0,
       }
     }))
     if ((data?.length ?? 0) < pageSize) return items

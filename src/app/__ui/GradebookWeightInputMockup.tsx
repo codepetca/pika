@@ -23,12 +23,12 @@ export function GradebookWeightInputMockup({
       <Input
         className={cn('px-1 text-center text-sm tabular-nums', GRADEBOOK_NUMBER_INPUT_CLASS)}
         type="number"
-        min={1}
+        min={0}
         max={999}
         step={1}
         value={value}
         aria-invalid={!valid}
-        title="Enter a whole number from 1 to 999"
+        title="Enter a whole number from 0 to 999"
         onChange={(event) => {
           const nextValue = event.target.value
           setDraft(nextValue)

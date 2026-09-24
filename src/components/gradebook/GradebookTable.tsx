@@ -154,8 +154,8 @@ export function GradebookTable({
                   const valid = value.trim() !== '' && isValidGradebookWeight(Number(value))
                   return <DataTableCell key={key} align="center" className="bg-surface-2 !px-1">
                     <FormField label={`Category weight for ${column.title}`} hideLabel collapseHiddenLabel>
-                      <Input type="number" min={1} max={999} step={1} value={value} aria-invalid={!valid} disabled={isReadOnly || savingKeys.has(key)}
-                        className={cn('px-1 text-center text-sm tabular-nums', GRADEBOOK_NUMBER_INPUT_CLASS)} title="Enter a whole number from 1 to 999"
+                      <Input type="number" min={0} max={999} step={1} value={value} aria-invalid={!valid} disabled={isReadOnly || savingKeys.has(key)}
+                        className={cn('px-1 text-center text-sm tabular-nums', GRADEBOOK_NUMBER_INPUT_CLASS)} title="Enter a whole number from 0 to 999"
                         onChange={(event) => onWeightDraftChange(column, event.target.value)}
                         onBlur={() => onWeightCommit(column)}
                         onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} />

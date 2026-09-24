@@ -119,4 +119,22 @@ describe('categorized gradebook final percent', () => {
       categoryAssessmentWeights: [1, 3],
     })).toBe(16.25)
   })
+
+  it('excludes zero-weight work and leaves an all-zero category ungraded', () => {
+    const result = calculateCategorizedFinalPercent({
+      categories: [{ id: 'term', percentage: 100 }],
+      items: [
+        { categoryId: 'term', earned: 0, possible: 100, weight: 0 },
+        { categoryId: 'term', earned: 80, possible: 100, weight: 10 },
+      ],
+    })
+    expect(result.finalPercent).toBe(80)
+    expect(calculateAssessmentCourseWeight({
+      categoryPercentage: 100, assessmentWeight: 0, categoryAssessmentWeights: [0, 10],
+    })).toBe(0)
+    expect(calculateCategorizedFinalPercent({
+      categories: [{ id: 'term', percentage: 100 }],
+      items: [{ categoryId: 'term', earned: 0, possible: 100, weight: 0 }],
+    })).toEqual({ categoryPercents: { term: null }, finalPercent: null })
+  })
 })

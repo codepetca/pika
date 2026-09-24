@@ -141,7 +141,7 @@ const blueprintAssignmentSchema = z.object({
     'default_due_time must use HH:mm in 24-hour time'
   ),
   points_possible: z.number().nonnegative().nullable(),
-  gradebook_weight: z.number().int().min(1).max(999).optional(),
+  gradebook_weight: z.number().int().min(0).max(999).optional(),
   include_in_final: z.boolean(),
   is_draft: z.boolean(),
   track_authenticity: z.boolean().optional().default(false),
@@ -174,7 +174,7 @@ const blueprintAssessmentSchema = z.object({
   content: testDraftContentBoundarySchema,
   documents: testDocumentsBoundarySchema,
   points_possible: z.number().positive().nullable().optional(),
-  gradebook_weight: z.number().int().min(1).max(999).optional(),
+  gradebook_weight: z.number().int().min(0).max(999).optional(),
   include_in_final: z.boolean().optional(),
   position: z.number().int().nonnegative(),
 })
