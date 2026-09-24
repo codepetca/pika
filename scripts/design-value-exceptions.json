@@ -763,8 +763,8 @@
         },
         {
           "kind": "raw-z-index",
-          "count": 7,
-          "fingerprint": "29ea700c0adba061",
+          "count": 6,
+          "fingerprint": "9e98a891f5a40b7a",
           "reason": "special-layer"
         }
       ]
