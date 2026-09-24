@@ -5,6 +5,11 @@ authorize local, staging or production application, account classification, stri
 activation, app deployment or neutral onboarding. Follow
 [`schema-rollout-checklist.md`](schema-rollout-checklist.md) for each environment.
 
+This records the original **Access** pilot. Migration 206 added a separate
+Free/Basic/Plus/Pro plan model; use the [account-plan rollout runbook](account-plan-rollout.md)
+for future plan classification. In particular, the Access/Free mapping below
+must not be used to batch-classify current classroom owners into plans.
+
 ## Resulting policy
 
 - Free is the default for accounts created after the controlled cutover is activated:
