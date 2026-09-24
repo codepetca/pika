@@ -957,15 +957,7 @@ async function processQuestionBatch(opts: {
   tickStartedAt: number
 }): Promise<void> {
   const { supabase, run, leaseToken, testTitle, question, items, responsesById, sanitizationContext, tickStartedAt } = opts
-  // Preparing may itself call the provider to generate reference answers, so it is held to
-  // the same deadline as grading. Untouched items are picked up by the next tick.
-  if (!canStartProviderCall(tickStartedAt)) return
   const model = run.model ?? getTestOpenResponseGradingModel()
-  await renewTestAiGradingRunLease({
-    runId: run.id,
-    leaseToken,
-    leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
-  })
   const cacheResolution = resolveReusableTestOpenResponseReferenceAnswers({
     testTitle,
     questionText: String(question.question_text || ''),
@@ -977,9 +969,9 @@ async function processQuestionBatch(opts: {
     cacheModel: typeof question.ai_reference_cache_model === 'string' ? question.ai_reference_cache_model : null,
   })
 
-  let prepared
-  try {
-    prepared = await prepareTestOpenResponseGradingContext({
+  let prepared: Awaited<ReturnType<typeof prepareTestOpenResponseGradingContext>> | undefined
+  const prepareContext = async () => {
+    const context = await prepareTestOpenResponseGradingContext({
       testTitle,
       questionText: String(question.question_text || ''),
       maxPoints: Number(question.points ?? 0),
@@ -1000,15 +992,15 @@ async function processQuestionBatch(opts: {
     })
 
     if (
-      prepared.grading_basis === 'generated_reference' &&
-      prepared.reference_answers_source === 'generated'
+      context.grading_basis === 'generated_reference' &&
+      context.reference_answers_source === 'generated'
     ) {
       const { error: cacheUpdateError } = await supabase
         .from('test_questions')
         .update({
           ai_reference_cache_key: cacheResolution.expectedCacheKey,
-          ai_reference_cache_answers: prepared.reference_answers,
-          ai_reference_cache_model: prepared.model,
+          ai_reference_cache_answers: context.reference_answers,
+          ai_reference_cache_model: context.model,
           ai_reference_cache_generated_at: new Date().toISOString(),
         })
         .eq('id', question.id)
@@ -1019,31 +1011,7 @@ async function processQuestionBatch(opts: {
         logServerError('grading.test_run_reference_cache', cacheUpdateError)
       }
     }
-  } catch (error) {
-    await mapWithConcurrency(items, TEST_AI_GRADING_MICROBATCH_SIZE, async (item) => {
-      // The same limit as the grading loop below: an item already out of attempts is failed
-      // as interrupted, never charged an attempt beyond the maximum.
-      if (item.attempt_count >= TEST_AI_GRADING_MAX_ATTEMPTS) {
-        await failOrRetryItem({
-          item,
-          leaseToken,
-          attemptCount: item.attempt_count,
-          error: new TestAiGradingAttemptsExhaustedError(),
-        })
-        return
-      }
-      const attemptCount = item.attempt_count + 1
-      await updateRunItem(item.id, leaseToken, {
-        status: 'processing',
-        attempt_count: attemptCount,
-        started_at: item.started_at ?? new Date().toISOString(),
-        next_retry_at: null,
-        completed_at: null,
-        question_grading_snapshot: buildTestQuestionGradingSnapshot({ testTitle, question }),
-      })
-      await failOrRetryItem({ item, leaseToken, attemptCount, error })
-    })
-    return
+    return context
   }
 
   for (let start = 0; start < items.length; start += TEST_AI_GRADING_MICROBATCH_SIZE) {
@@ -1110,6 +1078,21 @@ async function processQuestionBatch(opts: {
     }
 
     try {
+      if (!prepared) {
+        await renewTestAiGradingRunLease({
+          runId: run.id,
+          leaseToken,
+          leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
+        })
+        // Preparation may generate references remotely. The batch's attempt is already
+        // durable, so interruption here is bounded just like interruption during grading.
+        // Reuse the same attempt for grading; later batches reuse this prepared context.
+        prepared = await prepareContext()
+      }
+      // A generated reference may consume enough time that grading must resume next tick.
+      // Its cache and the started attempt are durable; no additional provider call starts.
+      if (!canStartProviderCall(tickStartedAt)) return
+
       if (activeBatchRequests.length === 1) {
         const only = activeBatchRequests[0]
         await renewTestAiGradingRunLease({
@@ -1310,8 +1293,10 @@ export async function tickTestAiGradingRun(opts: {
                 failOrRetryItem({
                   item,
                   leaseToken,
-                  attemptCount: item.attempt_count + 1,
-                  error: new Error('Question is no longer available for grading'),
+                  attemptCount: Math.min(item.attempt_count + 1, TEST_AI_GRADING_MAX_ATTEMPTS),
+                  error: item.attempt_count >= TEST_AI_GRADING_MAX_ATTEMPTS
+                    ? new TestAiGradingAttemptsExhaustedError()
+                    : new Error('Question is no longer available for grading'),
                 }),
               ),
             )
