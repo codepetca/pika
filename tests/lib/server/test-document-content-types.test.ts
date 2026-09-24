@@ -4,6 +4,7 @@ import { isPdfTestDocument } from '@/lib/test-documents'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 function storageClient(objects: Array<Record<string, unknown>>, error: unknown = null) {
+  const info = vi.fn().mockResolvedValue({ data: { contentType: 'application/pdf' }, error: null })
   const query = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
@@ -14,10 +15,11 @@ function storageClient(objects: Array<Record<string, unknown>>, error: unknown =
     client: {
       from: vi.fn().mockReturnValue(query),
       storage: { from: vi.fn().mockReturnValue({
-        info: vi.fn().mockResolvedValue({ data: { contentType: 'application/pdf' }, error: null }),
+        info,
       }) },
     } as unknown as ReturnType<typeof getServiceRoleClient>,
     query,
+    info,
   }
 }
 
@@ -62,5 +64,15 @@ describe('resolveTestDocumentUploadContentTypes', () => {
     }], 'classroom-1', client)
 
     expect(resolved.map(isPdfTestDocument)).toEqual([true])
+  })
+
+  it('checks storage metadata for a registered legacy object without MIME', async () => {
+    const { client, info } = storageClient([
+      { id: 'object-pdf', storage_path: 'classroom/pdf.txt', content_type: null },
+    ])
+    const resolved = await resolveTestDocumentUploadContentTypes([documents[0]], 'classroom-1', client)
+
+    expect(resolved.map(isPdfTestDocument)).toEqual([true])
+    expect(info).toHaveBeenCalledWith('classroom/pdf.txt')
   })
 })
