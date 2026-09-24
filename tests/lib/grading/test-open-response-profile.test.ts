@@ -4,7 +4,8 @@ import {
   getPikaTestPromptVersion,
   parsePikaTestBatchGradeOutput,
   parsePikaTestSingleGradeOutput,
-  PIKA_TEST_BATCH_GRADE_OUTPUT,
+  pikaTestBatchGradeOutput,
+  PIKA_TEST_MAX_BATCH_RESPONSES,
   PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION,
   PIKA_TEST_OPEN_RESPONSE_MANUAL_PROMPT_VERSION,
   PIKA_TEST_SINGLE_GRADE_OUTPUT,
@@ -20,15 +21,36 @@ describe('Pika test open-response profile', () => {
     )
   })
 
-  it('budgets single and batch output for reasoning, not answer length', () => {
+  it('budgets a single grade for reasoning, not answer length', () => {
     expect(PIKA_TEST_SINGLE_GRADE_OUTPUT).toMatchObject({
       initialMaxOutputTokens: 6000,
       fallbackMaxOutputTokens: 8000,
     })
-    expect(PIKA_TEST_BATCH_GRADE_OUTPUT).toMatchObject({
-      initialMaxOutputTokens: 6000,
-      fallbackMaxOutputTokens: 8000,
-    })
+  })
+
+  it('grows the batch budget with the number of responses in the call', () => {
+    // A flat budget is what broke batch grading: four responses share one reply, and a
+    // measured batch of three already spent 5,835 output tokens.
+    const one = pikaTestBatchGradeOutput(1)
+    const four = pikaTestBatchGradeOutput(4)
+    expect(four.initialMaxOutputTokens).toBeGreaterThan(one.initialMaxOutputTokens)
+    // Production's batch of four gets its full estimate on the first attempt: 1,000 base plus
+    // 4,000 per response, not a halved budget that forces an avoidable retry.
+    expect(four.initialMaxOutputTokens).toBe(17000)
+    // Strictly greater: an equal fallback makes the truncation retry re-send the same
+    // max_tokens and fail identically at full cost.
+    expect(four.fallbackMaxOutputTokens).toBeGreaterThan(four.initialMaxOutputTokens)
+    const huge = pikaTestBatchGradeOutput(500)
+    expect(huge.fallbackMaxOutputTokens).toBeGreaterThan(huge.initialMaxOutputTokens)
+  })
+
+  it('clamps the batch budget and reports what that ceiling can serve', () => {
+    const huge = pikaTestBatchGradeOutput(500)
+    expect(huge.initialMaxOutputTokens).toBeLessThanOrEqual(24000)
+    expect(huge.fallbackMaxOutputTokens).toBeLessThanOrEqual(24000)
+    // Production chunks at TEST_AI_GRADING_MICROBATCH_SIZE = 4, so the clamp must serve
+    // at least that or bulk grading silently starves again.
+    expect(PIKA_TEST_MAX_BATCH_RESPONSES).toBeGreaterThanOrEqual(4)
   })
 
   it('parses strict single and batch results', () => {

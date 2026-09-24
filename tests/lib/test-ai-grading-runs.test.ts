@@ -43,7 +43,12 @@ vi.mock('@/lib/ai-test-grading', () => ({
   suggestTestOpenResponseGradesBatchWithContext,
 }))
 
-import { tickTestAiGradingRun } from '@/lib/server/test-ai-grading-runs'
+import {
+  TEST_AI_GRADING_LEASE_SECONDS,
+  TEST_AI_GRADING_MAX_ATTEMPTS,
+  TEST_AI_GRADING_TICK_BUDGET_MS,
+  tickTestAiGradingRun,
+} from '@/lib/server/test-ai-grading-runs'
 
 const gradingProvenance = {
   schemaVersion: 'test-grading-provenance-v1' as const,
@@ -123,6 +128,7 @@ function buildTickHarness(opts: {
   loseLeaseOnFinalize?: boolean
   changeQuestionBeforeFinalize?: boolean
   questionAnswerKey?: string
+  missingQuestion?: boolean
   referenceCacheError?: unknown
 }) {
   const run = {
@@ -386,7 +392,7 @@ function buildTickHarness(opts: {
                 value === 'test-1' &&
                 innerField === 'question_type' &&
                 innerValue === 'open_response'
-                  ? [{ ...question }]
+                  ? (opts.missingQuestion ? [] : [{ ...question }])
                   : [],
               error: null,
             })),
@@ -432,7 +438,7 @@ describe('tickTestAiGradingRun', () => {
       cacheHit: true,
       referenceAnswers: ['Use a hash map.'],
     })
-    prepareTestOpenResponseGradingContext.mockResolvedValue(buildPreparedContext())
+    prepareTestOpenResponseGradingContext.mockReset().mockResolvedValue(buildPreparedContext())
   })
 
   it('keeps already-completed items completed when a later sibling save fails', async () => {
@@ -502,7 +508,7 @@ describe('tickTestAiGradingRun', () => {
       expect.objectContaining({
         p_run_id: 'run-1',
         p_lease_token: expect.any(String),
-        p_lease_seconds: 120,
+        p_lease_seconds: TEST_AI_GRADING_LEASE_SECONDS,
       }),
     )
   })
@@ -533,6 +539,210 @@ describe('tickTestAiGradingRun', () => {
     expect(result.run.completed_count).toBe(2)
     expect(items.map((item) => item.status)).toEqual(['completed', 'completed'])
     expectContentFreeDiagnostic(consoleError.mock.calls, 'grading.test_run_reference_cache')
+  })
+
+  it('records the attempt before calling the provider, so an interrupted call still counts', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+    })
+    let attemptRecordedAtCall: number | undefined
+    suggestTestOpenResponseGradeWithContext.mockImplementation(async () => {
+      attemptRecordedAtCall = items[0].attempt_count
+      return {
+        score: 5,
+        feedback: 'Correct.',
+        model: 'gpt-5-nano',
+        grading_basis: 'teacher_key',
+        reference_answers: ['Use a hash map.'],
+        provenance: gradingProvenance,
+      }
+    })
+
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    // Held only in memory, this was 0 while the call ran: a worker killed mid-call lost the
+    // attempt and the item could be retried forever.
+    expect(attemptRecordedAtCall).toBe(1)
+  })
+
+  it('bounds interrupted uncached reference generation before provider work', async () => {
+    const { items, run } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+      questionAnswerKey: '',
+    })
+    items.splice(1)
+    resolveReusableTestOpenResponseReferenceAnswers.mockReturnValue({
+      expectedCacheKey: 'cache-key', cacheHit: false, referenceAnswers: null,
+    })
+    const recordedAttempts: number[] = []
+    prepareTestOpenResponseGradingContext.mockImplementation(async () => {
+      recordedAttempts.push(items[0].attempt_count)
+      // Losing the worker lease prevents every post-call write, as with a killed worker.
+      run.lease_token = 'replacement-worker'
+      throw new Error('Reference call interrupted')
+    })
+
+    for (let attempt = 1; attempt <= TEST_AI_GRADING_MAX_ATTEMPTS; attempt++) {
+      await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+      expect(items[0].attempt_count).toBe(attempt)
+    }
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    expect(recordedAttempts).toEqual([1, 2, 3])
+    expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledTimes(3)
+    expect(items[0]).toEqual(expect.objectContaining({ status: 'failed', attempt_count: 3 }))
+    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+  })
+
+  it('counts preparation and grading in the same tick as one item attempt', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+      questionAnswerKey: '',
+    })
+    items.splice(1)
+    resolveReusableTestOpenResponseReferenceAnswers.mockReturnValue({
+      expectedCacheKey: 'cache-key', cacheHit: false, referenceAnswers: null,
+    })
+    let recordedAtPreparation: number | undefined
+    prepareTestOpenResponseGradingContext.mockImplementation(async () => {
+      recordedAtPreparation = items[0].attempt_count
+      return { ...buildPreparedContext(), grading_basis: 'generated_reference', reference_answers_source: 'generated' }
+    })
+    suggestTestOpenResponseGradeWithContext.mockResolvedValue({
+      score: 5, feedback: 'Correct.', model: 'gpt-5-nano',
+      grading_basis: 'generated_reference', reference_answers: ['Use a hash map.'], provenance: gradingProvenance,
+    })
+
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    expect(recordedAtPreparation).toBe(1)
+    expect(items[0]).toEqual(expect.objectContaining({ status: 'completed', attempt_count: 1 }))
+  })
+
+  it('defers grading when reference preparation consumes the remaining start budget', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+      questionAnswerKey: '',
+    })
+    items.splice(1)
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(0)
+    prepareTestOpenResponseGradingContext.mockImplementation(async () => {
+      clock.mockReturnValue(100_000)
+      return { ...buildPreparedContext(), grading_basis: 'generated_reference', reference_answers_source: 'generated' }
+    })
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    expect(items[0]).toEqual(expect.objectContaining({ status: 'processing', attempt_count: 1 }))
+    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+    clock.mockRestore()
+  })
+
+  it.each([
+    { phase: 'attempt persistence', delayedRpc: 'set_test_ai_grading_item_state_atomic', occurrence: 1, batchSize: 2, preparationCalls: 0 },
+    { phase: 'preparation lease renewal', delayedRpc: 'renew_test_ai_grading_run_lease', occurrence: 1, batchSize: 2, preparationCalls: 0 },
+    { phase: 'single grading lease renewal', delayedRpc: 'renew_test_ai_grading_run_lease', occurrence: 2, batchSize: 1, preparationCalls: 1 },
+    { phase: 'batch grading lease renewal', delayedRpc: 'renew_test_ai_grading_run_lease', occurrence: 2, batchSize: 2, preparationCalls: 1 },
+  ])('defers provider work after slow $phase', async ({ delayedRpc, occurrence, batchSize, preparationCalls }) => {
+    const { items } = buildTickHarness({
+      responseRows: [
+        { id: 'response-1', response_text: 'Answer one' },
+        { id: 'response-2', response_text: 'Answer two' },
+      ],
+    })
+    items.splice(batchSize)
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(0)
+    const originalRpc = mockSupabaseClient.rpc.getMockImplementation()!
+    let matchingCalls = 0
+    mockSupabaseClient.rpc.mockImplementation(async (fn: string, args: Record<string, unknown>) => {
+      const result = await originalRpc(fn, args)
+      if (fn === delayedRpc && ++matchingCalls === occurrence) clock.mockReturnValue(100_000)
+      return result
+    })
+    try {
+      await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+      expect(items.every((item) => item.status === 'processing' && item.attempt_count === 1)).toBe(true)
+      expect(prepareTestOpenResponseGradingContext).toHaveBeenCalledTimes(preparationCalls)
+      expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+      expect(suggestTestOpenResponseGradesBatchWithContext).not.toHaveBeenCalled()
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
+  it('preserves the attempt cap when an exhausted item loses its question', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }], missingQuestion: true,
+    })
+    items.splice(1)
+    Object.assign(items[0], { status: 'processing', attempt_count: TEST_AI_GRADING_MAX_ATTEMPTS })
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+    expect(items[0]).toEqual(expect.objectContaining({ status: 'failed', attempt_count: 3, last_error_code: 'timeout' }))
+    expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+  })
+
+  it('fails an item whose every attempt was interrupted, without calling the provider again', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+    })
+    // Still due, yet out of attempts: only reachable when each attempt was cut off mid-call.
+    Object.assign(items[0], { status: 'processing', attempt_count: TEST_AI_GRADING_MAX_ATTEMPTS })
+
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+    expect(suggestTestOpenResponseGradesBatchWithContext).not.toHaveBeenCalled()
+    expect(items[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      attempt_count: TEST_AI_GRADING_MAX_ATTEMPTS,
+      last_error_code: 'timeout',
+      last_error_message: 'AI grading was interrupted repeatedly before it could finish this response. Try again.',
+    }))
+  })
+
+  it('never prepares references for exhausted items', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+    })
+    items.splice(1)
+    Object.assign(items[0], { status: 'processing', attempt_count: TEST_AI_GRADING_MAX_ATTEMPTS })
+    prepareTestOpenResponseGradingContext.mockRejectedValueOnce(new Error('Reference generation failed'))
+
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+    expect(items[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      attempt_count: TEST_AI_GRADING_MAX_ATTEMPTS,
+      last_error_code: 'timeout',
+    }))
+  })
+
+  it('starts no provider work it could not finish and save before the tick deadline', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [
+        { id: 'response-1', response_text: 'Answer one' },
+        { id: 'response-2', response_text: 'Answer two' },
+      ],
+    })
+    // The tick reads the clock once, synchronously, on entry; every later reading is past
+    // the point where a worst-case call could still finish.
+    const clock = vi.spyOn(performance, 'now')
+      .mockReturnValueOnce(0)
+      .mockReturnValue(TEST_AI_GRADING_TICK_BUDGET_MS)
+    try {
+      const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+      expect(result.claimed).toBe(true)
+      expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+      expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+      expect(suggestTestOpenResponseGradesBatchWithContext).not.toHaveBeenCalled()
+      // Nothing was written, so the next tick picks these up exactly as they were.
+      for (const item of items) {
+        expect(item).toEqual(expect.objectContaining({ status: 'queued', attempt_count: 0 }))
+      }
+    } finally {
+      clock.mockRestore()
+    }
   })
 
   it('fails a single active item cleanly when finalization fails', async () => {
