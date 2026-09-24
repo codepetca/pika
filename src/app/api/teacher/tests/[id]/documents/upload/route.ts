@@ -11,6 +11,7 @@ import {
   reserveManagedStorageUpload,
   verifyManagedStorageUpload,
 } from '@/lib/server/managed-storage'
+import { validateStoredTestDocumentImage } from '@/lib/server/test-document-image-validation'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
@@ -41,6 +42,16 @@ function safeExtension(filename: string): string {
   return ext.replace(/[^a-z0-9]/g, '') || 'pdf'
 }
 
+function storageExtension(contentType: string, filename: string): string {
+  if (contentType === 'image/png') return 'png'
+  if (contentType === 'image/jpeg') return 'jpeg'
+  return safeExtension(filename)
+}
+
+function isTestDocumentImageType(contentType: string): contentType is 'image/png' | 'image/jpeg' {
+  return contentType === 'image/png' || contentType === 'image/jpeg'
+}
+
 export const POST = withErrorHandler('ReserveTeacherTestDocument', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
@@ -51,7 +62,7 @@ export const POST = withErrorHandler('ReserveTeacherTestDocument', async (reques
   const input = testDocumentReservationSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
   const objectId = crypto.randomUUID()
-  const storagePath = `classrooms/${access.test.classroom_id}/tests/${testId}/documents/${input.document_id}/${objectId}.${safeExtension(input.file_name)}`
+  const storagePath = `classrooms/${access.test.classroom_id}/tests/${testId}/documents/${input.document_id}/${objectId}.${storageExtension(input.content_type, input.file_name)}`
   const reservation = await reserveManagedStorageUpload({
     supabase,
     objectId,
@@ -122,6 +133,13 @@ export const PATCH = withErrorHandler('FinalizeTeacherTestDocument', async (requ
       expectedByteSize: object.byte_size,
       expectedContentType: object.content_type,
     })
+    if (isTestDocumentImageType(object.content_type)) {
+      await validateStoredTestDocumentImage({
+        supabase,
+        path: object.storage_path,
+        contentType: object.content_type,
+      })
+    }
     await verifyManagedStorageUpload({ supabase, objectId: object.id })
   } catch (finalizeError) {
     await queueManagedStorageCleanupBestEffort({

@@ -20,6 +20,7 @@ vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabas
 const documentId = '10000000-0000-4000-8000-000000000001'
 const objectId = '20000000-0000-4000-8000-000000000001'
 const createSignedUploadUrl = vi.fn()
+const createSignedUrl = vi.fn()
 const info = vi.fn()
 let managedObject: Record<string, unknown>
 
@@ -49,7 +50,7 @@ const mockSupabase = {
     return query
   }),
   storage: {
-    from: vi.fn(() => ({ createSignedUploadUrl, info })),
+    from: vi.fn(() => ({ createSignedUploadUrl, createSignedUrl, info })),
   },
 }
 
@@ -87,6 +88,12 @@ describe('/api/teacher/tests/[id]/documents/upload direct storage flow', () => {
       },
       error: null,
     })
+    createSignedUrl.mockResolvedValue({
+      data: {
+        signedUrl: 'https://project.supabase.co/storage/v1/object/sign/test-documents/diagram.png?token=short-lived',
+      },
+      error: null,
+    })
     info.mockResolvedValue({
       data: { size: 8, contentType: 'application/pdf' },
       error: null,
@@ -99,6 +106,12 @@ describe('/api/teacher/tests/[id]/documents/upload direct storage flow', () => {
       document_id: documentId,
       file_name: 'bad.exe',
       content_type: 'application/x-msdownload',
+      byte_size: 8,
+    }), context)).status).toBe(400)
+    expect((await POST(request('POST', {
+      document_id: documentId,
+      file_name: 'diagram.svg',
+      content_type: 'image/svg+xml',
       byte_size: 8,
     }), context)).status).toBe(400)
   })
@@ -122,6 +135,19 @@ describe('/api/teacher/tests/[id]/documents/upload direct storage flow', () => {
     expect(createSignedUploadUrl).toHaveBeenCalledWith(data.storage_path, { upsert: false })
   })
 
+  it('canonicalizes accepted JPEG upload paths from MIME metadata', async () => {
+    const response = await POST(request('POST', {
+      document_id: documentId,
+      file_name: 'diagram.jpg',
+      content_type: 'image/jpeg',
+      byte_size: 8,
+    }), context)
+    const data = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(data.storage_path).toMatch(/\.jpeg$/)
+  })
+
   it('finalizes an exact uploaded file after size and MIME verification', async () => {
     const response = await PATCH(request('PATCH', {
       document_id: documentId,
@@ -136,6 +162,54 @@ describe('/api/teacher/tests/[id]/documents/upload direct storage flow', () => {
       storage_bucket: 'test-documents',
       managed_object_id: objectId,
     }))
+  })
+
+  it('checks a PNG signature and dimensions with a bounded signed Storage read before verification', async () => {
+    managedObject = {
+      ...managedObject,
+      storage_path: `classrooms/classroom-1/tests/test-1/documents/${documentId}/${objectId}.png`,
+      content_type: 'image/png',
+    }
+    info.mockResolvedValue({ data: { size: 8, contentType: 'image/png' }, error: null })
+    const pngHeader = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52,
+      0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0, 0x90, 0x77, 0x53, 0xde,
+    ])
+    const fetchMock = vi.fn(async () => new Response(pngHeader, { status: 206 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await PATCH(request('PATCH', {
+      document_id: documentId,
+      managed_object_id: objectId,
+    }), context)
+
+    expect(response.status).toBe(200)
+    expect(createSignedUrl).toHaveBeenCalledWith(managedObject.storage_path, 60)
+    expect(fetchMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      headers: { Range: 'bytes=0-65535' },
+    }))
+  })
+
+  it('queues cleanup when image bytes do not match the reserved PNG MIME type', async () => {
+    managedObject = {
+      ...managedObject,
+      storage_path: `classrooms/classroom-1/tests/test-1/documents/${documentId}/${objectId}.png`,
+      content_type: 'image/png',
+    }
+    info.mockResolvedValue({ data: { size: 8, contentType: 'image/png' }, error: null })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('not an image')))
+
+    const response = await PATCH(request('PATCH', {
+      document_id: documentId,
+      managed_object_id: objectId,
+    }), context)
+
+    expect(response.status).toBe(400)
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      'queue_managed_storage_cleanup',
+      expect.objectContaining({ p_object_id: objectId, p_error_code: 'test_document_verification_failed' }),
+    )
   })
 
   it('queues an owned abandoned reservation', async () => {

@@ -10,7 +10,7 @@ import {
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { fetchJSON } from '@/lib/request-cache'
-import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
+import { getTestDocumentImageType, isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import type { TestAssessmentQuestion, TestDocument } from '@/types'
 
@@ -98,6 +98,7 @@ export function TeacherTestPreviewPage({
             ? `/api/teacher/tests/${testId}/documents/${doc.id}/file`
             : undefined,
       content: doc.content,
+      imageType: getTestDocumentImageType(doc),
     }))
     if (teacherManagedDocs.length > 0) return teacherManagedDocs
     return extractAllowedDocLinks(questions)

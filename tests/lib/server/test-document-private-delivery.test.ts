@@ -77,8 +77,8 @@ const doc = {
 describe('private uploaded Test document delivery', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('requires the exact managed Test reference and returns private headers', async () => {
-    const { client, createSignedUrl } = createSupabase()
+  it.each(['application/pdf', 'image/png', 'image/jpeg'])('requires the exact managed Test reference and returns private headers for %s', async (contentType) => {
+    const { client, createSignedUrl } = createSupabase({ managed_object_id: OBJECT_ID }, contentType)
     vi.mocked(getServiceRoleClient).mockReturnValue(client as any)
 
     const response = await buildUploadedTestDocumentResponse({
@@ -107,8 +107,8 @@ describe('private uploaded Test document delivery', () => {
     expect(createSignedUrl).toHaveBeenCalled()
   })
 
-  it('fails closed when the object is not referenced by the authorized Test', async () => {
-    const { client, createSignedUrl } = createSupabase(null)
+  it.each(['application/pdf', 'image/png', 'image/jpeg'])('fails closed when %s is not referenced by the authorized Test', async (contentType) => {
+    const { client, createSignedUrl } = createSupabase(null, contentType)
     vi.mocked(getServiceRoleClient).mockReturnValue(client as any)
 
     const response = await buildUploadedTestDocumentResponse({

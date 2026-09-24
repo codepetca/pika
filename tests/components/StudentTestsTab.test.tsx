@@ -1,3 +1,4 @@
+import { TooltipProvider } from '@/ui'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
@@ -1250,6 +1251,7 @@ describe('StudentTestsTab exam mode', () => {
 
   it('opens docs at 50/50 with a resizer and restores 30/70 on back', async () => {
     mockFullscreenSuccess()
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
 
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('/api/student/tests?classroom_id=')) {
@@ -1280,6 +1282,7 @@ describe('StudentTestsTab exam mode', () => {
               status: 'active',
               show_results: false,
               documents: [
+                { id: 'doc-3', title: 'Start world', source: 'upload', storage_bucket: 'test-documents', storage_path: 'classrooms/classroom-1/tests/test-1/start.png' },
                 {
                   id: 'doc-1',
                   title: 'Node.js API',
@@ -1347,7 +1350,7 @@ describe('StudentTestsTab exam mode', () => {
       throw new Error(`Unexpected fetch call: ${url}`)
     })
 
-    const { container } = render(<StudentTestsTab classroom={classroom} />)
+    const { container } = render(<StudentTestsTab classroom={classroom} />, { wrapper: TooltipProvider })
 
     await waitFor(() => {
       expect(screen.getByText('Midterm Test')).toBeInTheDocument()
@@ -1427,6 +1430,10 @@ describe('StudentTestsTab exam mode', () => {
     })
     expect(container.querySelector('iframe[title="Teacher reference PDF"]')?.getAttribute('src'))
       .toBe('/api/student/tests/test-1/documents/doc-2/file')
+    fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start world' }))
+    expect(screen.getByAltText('Start world')).toHaveAttribute('src', '/api/student/tests/test-1/documents/doc-3/file')
+    expect(container.querySelector('iframe[src="/api/student/tests/test-1/documents/doc-3/file"]')).toBeNull()
   })
 
   it('renders the submit actions after the last question in an active test', async () => {

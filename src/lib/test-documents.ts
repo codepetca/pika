@@ -9,12 +9,14 @@ export const TEST_DOCUMENT_ALLOWED_TYPES = [
   'application/json',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/png',
+  'image/jpeg',
 ] as const
 
 export const TEST_DOCUMENT_MAX_SIZE = 25 * 1024 * 1024
 export const TEST_DOCUMENT_MAX_SIZE_MB = 25
 export const TEST_DOCUMENT_ACCEPT =
-  '.pdf,.txt,.md,.csv,.json,.doc,.docx,application/pdf,text/plain,text/markdown,text/csv,application/json,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  '.pdf,.txt,.md,.csv,.json,.doc,.docx,.png,.jpg,.jpeg,application/pdf,text/plain,text/markdown,text/csv,application/json,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/png,image/jpeg'
 export const MAX_TEST_DOCUMENTS = 20
 export const MAX_TEST_DOCUMENT_TEXT_LENGTH = 20000
 export const LINK_DOCUMENT_AUTO_SYNC_MAX_AGE_MS = 24 * 60 * 60 * 1000
@@ -278,6 +280,19 @@ export function getTestDocumentStoragePath(doc: TestDocument): string | null {
   return parsePublicStoragePath(doc.url, 'test-documents')
 }
 
+/**
+ * Presentation hint for canonical managed upload paths. This does not grant
+ * access; the teacher and student file routes retain that responsibility.
+ */
+export function getTestDocumentImageType(doc: TestDocument): 'image/png' | 'image/jpeg' | null {
+  if (doc.source !== 'upload' || doc.storage_bucket !== 'test-documents') return null
+  const storagePath = getTestDocumentStoragePath(doc)
+  if (!storagePath) return null
+  if (storagePath.endsWith('.png')) return 'image/png'
+  if (storagePath.endsWith('.jpeg')) return 'image/jpeg'
+  return null
+}
+
 export function isAllowedTestDocumentType(mimeType: string): boolean {
   return TEST_DOCUMENT_ALLOWED_TYPES.includes(mimeType as (typeof TEST_DOCUMENT_ALLOWED_TYPES)[number])
 }
@@ -288,7 +303,7 @@ export function isWithinTestDocumentSizeLimit(size: number): boolean {
 
 export function getTestDocumentValidationError(file: File): string | null {
   if (!isAllowedTestDocumentType(file.type)) {
-    return 'Invalid file type. Allowed: PDF, TXT, MD, CSV, JSON, DOC, DOCX'
+    return 'Invalid file type. Allowed: PDF, TXT, MD, CSV, JSON, DOC, DOCX, PNG, JPEG'
   }
   if (!isWithinTestDocumentSizeLimit(file.size)) {
     return `File too large. Maximum size is ${TEST_DOCUMENT_MAX_SIZE_MB}MB`
