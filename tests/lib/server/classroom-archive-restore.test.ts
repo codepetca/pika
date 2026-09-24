@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getTestDocumentImageType } from '@/lib/test-documents'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
 import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
@@ -30,7 +31,7 @@ function emptyResources() {
   )
 }
 
-function buildFixtureBundle() {
+function buildFixtureBundle(testContentType = 'application/pdf', testPath = 'teacher/test/source.pdf') {
   return buildClassroomArchiveBundle({
     version: 1,
     archiveId: ARCHIVE_ID,
@@ -82,7 +83,7 @@ function buildFixtureBundle() {
             title: 'Source PDF',
             source: 'upload',
             storage_bucket: 'test-documents',
-            storage_path: 'teacher/test/source.pdf',
+            storage_path: testPath,
           },
           {
             id: '41000000-0000-4000-8000-000000000002',
@@ -180,8 +181,8 @@ function buildFixtureBundle() {
       },
       {
         bucket: 'test-documents',
-        sourcePath: 'teacher/test/source.pdf',
-        contentType: 'application/pdf',
+        sourcePath: testPath,
+        contentType: testContentType,
         bytes: Buffer.from('pdf'),
       },
     ],
@@ -222,6 +223,23 @@ const currentActors = [
 ]
 
 describe('classroom archive restore planning', () => {
+  it.each(['image/png', 'image/jpeg', 'application/pdf'])('preserves Test image rendering through a verified archive round trip for %s', (contentType) => {
+    const bundle = buildFixtureBundle(contentType, 'teacher/test/misleading.png')
+    const verified = verifyClassroomArchiveBundle(bundle.archive)
+    if (!verified.ok) throw new Error(verified.error)
+    const plan = buildClassroomArchiveV2RestorePlan({
+      verified, artifactChecksumVerified: true, operationId: OPERATION_ID,
+      currentActors, supabaseUrl: 'https://project.supabase.co',
+    })
+    const document = (plan.resources.tests[0].documents as any[]).find((doc) => doc.source === 'upload')
+    const object = plan.storageObjects.find((item) => item.sourcePath === 'teacher/test/misleading.png')!
+    expect(object.contentType).toBe(contentType)
+    expect(document.storage_path).toBe(object.restorePath)
+    expect(document.managed_object_id).toBe(object.managedObjectId)
+    expect(getTestDocumentImageType(document)).toBe(contentType === 'application/pdf' ? null : contentType)
+    if (contentType.startsWith('image/')) expect(object.restorePath).toContain('/images/')
+  })
+
   it('excludes retired Quiz tables from the current classroom graph', () => {
     const resourceNames = CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)
 
