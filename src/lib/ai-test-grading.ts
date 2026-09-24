@@ -33,7 +33,8 @@ import {
   parsePikaTestBatchGradeOutput,
   parsePikaTestReferenceOutput,
   parsePikaTestSingleGradeOutput,
-  PIKA_TEST_BATCH_GRADE_OUTPUT,
+  pikaTestBatchGradeOutput,
+  PIKA_TEST_MAX_BATCH_RESPONSES,
   PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION,
   PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION,
   PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION,
@@ -55,6 +56,7 @@ const TEST_AI_REASONING_EFFORT = 'medium'
 // does not fit in 25s. An 80-response calibration run failed repeatedly around response 41
 // and completed only at 60s.
 const TEST_AI_REQUEST_TIMEOUT_MS = 60_000
+
 
 export type TestOpenResponsePromptProfile = 'manual' | 'bulk'
 type ReferenceAnswerSource = 'teacher_key' | 'provided' | 'generated'
@@ -853,6 +855,17 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     throw new Error('DEEPSEEK_API_KEY is not configured')
   }
   if (responses.length === 0) return []
+  // Documented ceilings that nothing enforces are how the previous starvation happened.
+  // Past this size the budget clamp gives each response less room, not more. Checked before
+  // any prompt is built, and reported as a malformed request: `config` would tell teachers
+  // AI grading is not configured, which is not the cause.
+  if (responses.length > PIKA_TEST_MAX_BATCH_RESPONSES) {
+    throw new TestAiGradingError({
+      kind: 'bad_response',
+      message: `Batch of ${responses.length} exceeds the ${PIKA_TEST_MAX_BATCH_RESPONSES} responses this output budget can serve`,
+      retryable: false,
+    })
+  }
 
   const providerRequests = createProviderRefMap(
     responses.map((response) => ({
@@ -876,7 +889,7 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     model: prepared.model,
     systemPrompt,
     userPrompt,
-    output: PIKA_TEST_BATCH_GRADE_OUTPUT,
+    output: pikaTestBatchGradeOutput(responses.length),
     parseOutput: parsePikaTestBatchGradeOutput,
     requestTimeoutMs,
   })

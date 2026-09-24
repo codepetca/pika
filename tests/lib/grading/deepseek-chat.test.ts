@@ -1,6 +1,9 @@
 import { inspect } from 'node:util'
 import { describe, expect, it, vi } from 'vitest'
-import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
+import {
+  createDeepSeekChatProvider,
+  DEEPSEEK_MAX_PROVIDER_ATTEMPTS,
+} from '@/lib/grading/providers/deepseek-chat'
 import type { StructuredOutputRequest } from '@/lib/grading/providers/types'
 
 const privateMarker = 'PRIVATE synthetic@example.invalid code-123456 student-work'
@@ -143,13 +146,75 @@ describe('DeepSeek structured-output request shape', () => {
     const result = await createDeepSeekChatProvider({ apiKey: 'synthetic-key', fetchImpl })
       .generate({ ...request, reasoningEffort: 'medium' })
 
-    expect(result.requestCount).toBe(3)
+    // The bulk grading deadline is sized from this ceiling; if the ladder grows, it must too.
+    expect(result.requestCount).toBe(DEEPSEEK_MAX_PROVIDER_ATTEMPTS)
     expect(result.outputText).toBe('{"ok":true}')
     // medium maps to the provider's 'high' tier; the final attempt drops to 'low'.
     expect(JSON.parse(String(fetchImpl.mock.calls[1][1].body)).reasoning_effort).toBe('high')
     expect(JSON.parse(String(fetchImpl.mock.calls[2][1].body)).reasoning_effort).toBe('low')
     expect(JSON.parse(String(fetchImpl.mock.calls[2][1].body)).max_tokens)
       .toBe(request.fallbackMaxOutputTokens)
+  })
+
+  it('records cached, uncached and reasoning tokens when the provider reports them', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({
+      choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }],
+      usage: {
+        prompt_tokens: 1027,
+        completion_tokens: 93,
+        total_tokens: 1120,
+        prompt_cache_hit_tokens: 893,
+        prompt_cache_miss_tokens: 134,
+        completion_tokens_details: { reasoning_tokens: 87 },
+      },
+    }))
+
+    const result = await createDeepSeekChatProvider({ apiKey: 'synthetic-key', fetchImpl }).generate(request)
+
+    expect(result.tokenUsage).toEqual({
+      inputTokens: 1027,
+      outputTokens: 93,
+      totalTokens: 1120,
+      cachedInputTokens: 893,
+      uncachedInputTokens: 134,
+      reasoningTokens: 87,
+    })
+  })
+
+  it('sums cost fields across a retry only when every attempt reported them', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{ message: { content: '{"partial"' }, finish_reason: 'length' }],
+        usage: {
+          prompt_tokens: 100,
+          completion_tokens: 100,
+          total_tokens: 200,
+          prompt_cache_hit_tokens: 0,
+          prompt_cache_miss_tokens: 100,
+          completion_tokens_details: { reasoning_tokens: 90 },
+        },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }],
+        usage: {
+          prompt_tokens: 100,
+          completion_tokens: 40,
+          total_tokens: 140,
+          prompt_cache_hit_tokens: 90,
+          prompt_cache_miss_tokens: 10,
+        },
+      }))
+
+    const result = await createDeepSeekChatProvider({ apiKey: 'synthetic-key', fetchImpl }).generate(request)
+
+    // Reasoning was reported by one attempt only, so no total is claimed for it.
+    expect(result.tokenUsage).toEqual({
+      inputTokens: 200,
+      outputTokens: 140,
+      totalTokens: 340,
+      cachedInputTokens: 90,
+      uncachedInputTokens: 110,
+    })
   })
 
   it('fails without retrying further when the fallback reply is still truncated', async () => {

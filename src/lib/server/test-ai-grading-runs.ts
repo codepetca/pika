@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { logServerError } from '@/lib/server/diagnostics'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
+import { DEEPSEEK_MAX_PROVIDER_ATTEMPTS } from '@/lib/grading/providers/deepseek-chat'
 import {
   getTestOpenResponseGradingModel,
   isRetryableTestAiGradingError,
@@ -45,9 +46,23 @@ const TEST_AI_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 export const TEST_AI_GRADING_RUN_CHUNK_SIZE = 8
 export const TEST_AI_GRADING_QUESTION_CONCURRENCY = 2
 export const TEST_AI_GRADING_MICROBATCH_SIZE = 4
-export const TEST_AI_GRADING_REQUEST_TIMEOUT_MS = 25_000
+// These five values are one budget and must move together. A tick runs inside the route's
+// `maxDuration` (300s). One provider call can take the request timeout on EACH of the
+// adapter's attempts, so its worst case is timeout x DEEPSEEK_MAX_PROVIDER_ATTEMPTS, plus
+// time to persist the result. A tick never starts a call that could not finish and save
+// inside TEST_AI_GRADING_TICK_BUDGET_MS; the lease outlasts the longest call, since it is
+// only renewed around calls, never during them.
+//
+// 60s per attempt fits a heavy 10-point answer (measured p90 32s) and a batch of four
+// (~41s at median throughput). The old 25s cut off a third of heavy single attempts.
+export const TEST_AI_GRADING_REQUEST_TIMEOUT_MS = 60_000
 export const TEST_AI_GRADING_MAX_ATTEMPTS = 3
-export const TEST_AI_GRADING_LEASE_SECONDS = 120
+const TEST_AI_GRADING_PERSIST_MARGIN_MS = 15_000
+const TEST_AI_GRADING_CALL_RESERVE_MS =
+  TEST_AI_GRADING_REQUEST_TIMEOUT_MS * DEEPSEEK_MAX_PROVIDER_ATTEMPTS + TEST_AI_GRADING_PERSIST_MARGIN_MS
+// Below the route's 300s maxDuration, leaving room to refresh the run and respond.
+export const TEST_AI_GRADING_TICK_BUDGET_MS = 270_000
+export const TEST_AI_GRADING_LEASE_SECONDS = 240
 
 type ServiceRoleSupabase = ReturnType<typeof getServiceRoleClient>
 
@@ -624,6 +639,26 @@ function toTeacherAutoGradeErrorMessage(error: unknown): string {
   return message
 }
 
+// Used in place of a provider call when every allowed attempt was started and none recorded
+// an outcome — each was cut off by the worker's time limit mid-call. Another attempt would
+// repeat the interruption. `kind` doubles as the stored error code.
+class TestAiGradingAttemptsExhaustedError extends Error {
+  readonly kind = 'timeout'
+  constructor() {
+    super('AI grading was interrupted repeatedly before it could finish this response. Try again.')
+    this.name = 'TestAiGradingAttemptsExhaustedError'
+  }
+}
+
+// Measured with performance.now(): monotonic, and independent of the wall-clock time the
+// lease logic uses.
+function canStartProviderCall(tickStartedAt: number): boolean {
+  return (
+    performance.now() - tickStartedAt + TEST_AI_GRADING_CALL_RESERVE_MS
+    <= TEST_AI_GRADING_TICK_BUDGET_MS
+  )
+}
+
 function isBatchOmittedResponseError(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith('AI batch grade suggestion omitted response')
 }
@@ -919,14 +954,10 @@ async function processQuestionBatch(opts: {
   items: TestAiGradingRunItem[]
   responsesById: Map<string, { id: string; response_text: string | null }>
   sanitizationContext?: AiSanitizationContext | null
+  tickStartedAt: number
 }): Promise<void> {
-  const { supabase, run, leaseToken, testTitle, question, items, responsesById, sanitizationContext } = opts
+  const { supabase, run, leaseToken, testTitle, question, items, responsesById, sanitizationContext, tickStartedAt } = opts
   const model = run.model ?? getTestOpenResponseGradingModel()
-  await renewTestAiGradingRunLease({
-    runId: run.id,
-    leaseToken,
-    leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
-  })
   const cacheResolution = resolveReusableTestOpenResponseReferenceAnswers({
     testTitle,
     questionText: String(question.question_text || ''),
@@ -938,9 +969,9 @@ async function processQuestionBatch(opts: {
     cacheModel: typeof question.ai_reference_cache_model === 'string' ? question.ai_reference_cache_model : null,
   })
 
-  let prepared
-  try {
-    prepared = await prepareTestOpenResponseGradingContext({
+  let prepared: Awaited<ReturnType<typeof prepareTestOpenResponseGradingContext>> | undefined
+  const prepareContext = async () => {
+    const context = await prepareTestOpenResponseGradingContext({
       testTitle,
       questionText: String(question.question_text || ''),
       maxPoints: Number(question.points ?? 0),
@@ -961,15 +992,15 @@ async function processQuestionBatch(opts: {
     })
 
     if (
-      prepared.grading_basis === 'generated_reference' &&
-      prepared.reference_answers_source === 'generated'
+      context.grading_basis === 'generated_reference' &&
+      context.reference_answers_source === 'generated'
     ) {
       const { error: cacheUpdateError } = await supabase
         .from('test_questions')
         .update({
           ai_reference_cache_key: cacheResolution.expectedCacheKey,
-          ai_reference_cache_answers: prepared.reference_answers,
-          ai_reference_cache_model: prepared.model,
+          ai_reference_cache_answers: context.reference_answers,
+          ai_reference_cache_model: context.model,
           ai_reference_cache_generated_at: new Date().toISOString(),
         })
         .eq('id', question.id)
@@ -980,31 +1011,40 @@ async function processQuestionBatch(opts: {
         logServerError('grading.test_run_reference_cache', cacheUpdateError)
       }
     }
-  } catch (error) {
-    await mapWithConcurrency(items, TEST_AI_GRADING_MICROBATCH_SIZE, async (item) => {
-      const attemptCount = item.attempt_count + 1
-      await updateRunItem(item.id, leaseToken, {
-        status: 'processing',
-        started_at: item.started_at ?? new Date().toISOString(),
-        next_retry_at: null,
-        completed_at: null,
-        question_grading_snapshot: buildTestQuestionGradingSnapshot({ testTitle, question }),
-      })
-      await failOrRetryItem({ item, leaseToken, attemptCount, error })
-    })
-    return
+    return context
   }
 
   for (let start = 0; start < items.length; start += TEST_AI_GRADING_MICROBATCH_SIZE) {
-    const batchItems = items.slice(start, start + TEST_AI_GRADING_MICROBATCH_SIZE)
+    // Checked before anything is written, so items this tick cannot finish stay exactly as
+    // they were for the next tick.
+    if (!canStartProviderCall(tickStartedAt)) return
+
+    const candidates = items.slice(start, start + TEST_AI_GRADING_MICROBATCH_SIZE)
+    // An item only reaches the attempt limit while still due if each attempt was interrupted
+    // before recording an outcome; a normal failure on the last attempt marks it failed.
+    for (const item of candidates) {
+      if (item.attempt_count < TEST_AI_GRADING_MAX_ATTEMPTS) continue
+      await failOrRetryItem({
+        item,
+        leaseToken,
+        attemptCount: item.attempt_count,
+        error: new TestAiGradingAttemptsExhaustedError(),
+      })
+    }
+    const batchItems = candidates.filter((item) => item.attempt_count < TEST_AI_GRADING_MAX_ATTEMPTS)
+    if (batchItems.length === 0) continue
+
     const attempts = new Map<string, number>()
     const now = new Date().toISOString()
 
     for (const item of batchItems) {
       const attemptCount = item.attempt_count + 1
       attempts.set(item.id, attemptCount)
+      // Persisted before the provider call. Held only in memory, an attempt interrupted
+      // mid-call was never counted, so the item could be retried forever.
       await updateRunItem(item.id, leaseToken, {
         status: 'processing',
+        attempt_count: attemptCount,
         started_at: item.started_at ?? now,
         next_retry_at: null,
         completed_at: null,
@@ -1038,6 +1078,23 @@ async function processQuestionBatch(opts: {
     }
 
     try {
+      if (!prepared) {
+        await renewTestAiGradingRunLease({
+          runId: run.id,
+          leaseToken,
+          leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
+        })
+        // Preparation may generate references remotely. The batch's attempt is already
+        // durable, so interruption here is bounded just like interruption during grading.
+        // Reuse the same attempt for grading; later batches reuse this prepared context.
+        // Persistence and lease renewal can consume the admission window themselves.
+        if (!canStartProviderCall(tickStartedAt)) return
+        prepared = await prepareContext()
+      }
+      // A generated reference may consume enough time that grading must resume next tick.
+      // Its cache and the started attempt are durable; no additional provider call starts.
+      if (!canStartProviderCall(tickStartedAt)) return
+
       if (activeBatchRequests.length === 1) {
         const only = activeBatchRequests[0]
         await renewTestAiGradingRunLease({
@@ -1045,6 +1102,7 @@ async function processQuestionBatch(opts: {
           leaseToken,
           leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
         })
+        if (!canStartProviderCall(tickStartedAt)) return
         const suggestion = await suggestTestOpenResponseGradeWithContext(
           prepared,
           only.responseText,
@@ -1080,6 +1138,7 @@ async function processQuestionBatch(opts: {
         leaseToken,
         leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
       })
+      if (!canStartProviderCall(tickStartedAt)) return
       const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
         prepared,
         activeBatchRequests.map((entry) => ({
@@ -1153,6 +1212,7 @@ export async function tickTestAiGradingRun(opts: {
   testId: string
   runId: string
 }): Promise<TickTestAiGradingRunResult> {
+  const tickStartedAt = performance.now()
   const supabase = getServiceRoleClient()
   const run = await fetchTestAiGradingRunRow(supabase, opts.runId)
   if (!run || run.test_id !== opts.testId) {
@@ -1237,8 +1297,10 @@ export async function tickTestAiGradingRun(opts: {
                 failOrRetryItem({
                   item,
                   leaseToken,
-                  attemptCount: item.attempt_count + 1,
-                  error: new Error('Question is no longer available for grading'),
+                  attemptCount: Math.min(item.attempt_count + 1, TEST_AI_GRADING_MAX_ATTEMPTS),
+                  error: item.attempt_count >= TEST_AI_GRADING_MAX_ATTEMPTS
+                    ? new TestAiGradingAttemptsExhaustedError()
+                    : new Error('Question is no longer available for grading'),
                 }),
               ),
             )
@@ -1254,6 +1316,7 @@ export async function tickTestAiGradingRun(opts: {
             items: group.items,
             responsesById,
             sanitizationContext,
+            tickStartedAt,
           })
         },
       )

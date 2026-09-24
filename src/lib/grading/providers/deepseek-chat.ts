@@ -29,6 +29,14 @@ const DEEPSEEK_EFFORT_DOWNGRADE: Partial<
   medium: 'low',
 }
 
+/**
+ * The most HTTP attempts one `generate` call can make: the initial budget, the fallback
+ * budget after a truncation, then the fallback at reduced effort. Callers that must finish
+ * inside a fixed lifetime size their deadline from this, so it has to match the ladder in
+ * `generate` below.
+ */
+export const DEEPSEEK_MAX_PROVIDER_ATTEMPTS = 3
+
 function isTimeoutError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const name = (error as { name?: unknown }).name
@@ -200,19 +208,39 @@ function isMaxOutputIncomplete(payload: unknown): boolean {
 
 function readTokenUsage(payload: unknown): GradingTokenUsage {
   const usage = (payload as { usage?: Record<string, unknown> })?.usage ?? {}
-  return {
+  const result: GradingTokenUsage = {
     inputTokens: finiteInteger(usage.prompt_tokens),
     outputTokens: finiteInteger(usage.completion_tokens),
     totalTokens: finiteInteger(usage.total_tokens),
   }
+  // DeepSeek caches matching prompt prefixes and bills cache hits at a lower rate, and it
+  // reports reasoning separately from the answer. Without these the true cost of a grade
+  // cannot be measured. Recorded only when the provider sends them, so the shape is
+  // unchanged wherever it does not.
+  const details = usage.completion_tokens_details as Record<string, unknown> | undefined
+  const cached = finiteInteger(usage.prompt_cache_hit_tokens)
+  const uncached = finiteInteger(usage.prompt_cache_miss_tokens)
+  const reasoning = finiteInteger(details?.reasoning_tokens)
+  if (cached !== null) result.cachedInputTokens = cached
+  if (uncached !== null) result.uncachedInputTokens = uncached
+  if (reasoning !== null) result.reasoningTokens = reasoning
+  return result
 }
 
 function addTokenUsage(left: GradingTokenUsage, right: GradingTokenUsage): GradingTokenUsage {
-  return {
+  const result: GradingTokenUsage = {
     inputTokens: addNullable(left.inputTokens, right.inputTokens),
     outputTokens: addNullable(left.outputTokens, right.outputTokens),
     totalTokens: addNullable(left.totalTokens, right.totalTokens),
   }
+  // Summed only when both attempts reported the field; a partial sum would read as a
+  // complete measurement.
+  for (const key of ['cachedInputTokens', 'uncachedInputTokens', 'reasoningTokens'] as const) {
+    const a = left[key]
+    const b = right[key]
+    if (a !== undefined && b !== undefined) result[key] = a + b
+  }
+  return result
 }
 
 function finiteInteger(value: unknown): number | null {

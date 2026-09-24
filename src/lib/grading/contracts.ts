@@ -108,7 +108,13 @@ export const gradingResultSchema = z.object({
 })
 
 export type GradingRubric = z.infer<typeof gradingRubricSchema>
-export type GradingTokenUsage = z.infer<typeof gradingTokenUsageSchema>
+// Providers may also report cost detail. It is measured in memory only: the stored schema
+// above strips it, because the database accepts exactly those three keys.
+export type GradingTokenUsage = z.infer<typeof gradingTokenUsageSchema> & {
+  cachedInputTokens?: number
+  uncachedInputTokens?: number
+  reasoningTokens?: number
+}
 export type GradingProvenance = z.infer<typeof gradingProvenanceSchema>
 export type TestGradingProvenance = z.infer<typeof testGradingProvenanceSchema>
 export type GradingResult = z.infer<typeof gradingResultSchema>

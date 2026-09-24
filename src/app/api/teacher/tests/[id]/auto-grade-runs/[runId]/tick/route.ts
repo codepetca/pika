@@ -6,7 +6,9 @@ import { tickTestAiGradingRun } from '@/lib/server/test-ai-grading-runs'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-export const maxDuration = 60
+// Sized with TEST_AI_GRADING_TICK_BUDGET_MS: one heavy answer plus a retry can take about a
+// minute, which the old 60s could not fit. Ticks stop starting calls long before this.
+export const maxDuration = 300
 
 export const POST = withErrorHandler('PostTeacherTestAutoGradeRunTick', async (request, context) => {
   const user = await requireRole('teacher')
