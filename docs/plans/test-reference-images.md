@@ -14,8 +14,8 @@ Teachers attach PNG or JPG/JPEG through Reference Documents → Upload. Students
 ## Implementation
 
 - Extend the existing MIME rules and picker; preserve the 25MB file limit and 20-document limit.
-- Canonicalize uploaded image paths to `.png` or `.jpeg` based on accepted MIME. The display helper uses that suffix only as a presentation hint; existing server authorization and managed-object bindings remain authoritative.
-- Before upload finalization, read at most 64KiB with a 5s timeout and validate format headers and declared dimensions (10,000px maximum side, 40MP total). This is structural validation, not a full decoder: later corruption produces a viewer error. Failed finalization queues the existing managed cleanup.
+- Place uploaded images in a server-created `/images/` path segment with `.png` or `.jpeg` suffix based on accepted MIME. The display helper requires both namespace and suffix as a presentation hint; existing server authorization and managed-object bindings remain authoritative.
+- Before upload finalization, read at most 64KiB with a 5s timeout and validate format headers and declared dimensions (10,000px maximum side, 40MP total). This is structural validation, not a full decoder: later corruption produces a viewer error. Failed image finalization or cancellation retains the reservation for existing expiry cleanup, avoiding races with successful verification. Reservations expire after one hour; cleanup is manually operated, so deletion is not promised within that hour. Verified finalization retries return without rereading Storage.
 - Reuse private uploads, exact test references and teacher/student file endpoints. No new attachment table, public bucket, persisted presentation metadata or dependency.
 - Migration 208 `allow_test_document_png_jpeg` extends the bucket MIME allowlist while retaining other entries, privacy and size. Local history 001–207 matches; dry-run lists only 208. Application pending exact user permission.
 - Add the image branch to ExamDocumentWorkspace. Existing links/PDFs/text keep their rendering paths. Images use an ordinary image element through the authenticated file endpoint.
@@ -61,10 +61,11 @@ Composite checklist reviewed: yes. Keep separator keyboard values and Back focus
 ## Verification ledger
 
 - Startup/environment passed with frozen-lockfile dependencies.
-- Final focused gate: 896 tests across 70 files passed, plus architecture, UI/design policy, TypeScript and lint (`pnpm check:focused -- --base origin/main`; log `/tmp/pika-image-stable-gate.log`). Pika pre-commit audit passed.
+- Final focused gate: 903 tests across 70 files passed, plus architecture, UI/design policy, TypeScript and lint (`pnpm check:focused -- --base origin/main`; log `/tmp/pika-image-remediation-gate.log`). Pika pre-commit audit passed.
 - Browser matrix: teacher/student × desktop/mobile × light/dark, 8 cases; screenshots inspected by coordinator. Mocked API/storage covers upload metadata, save/reload, fit/zoom, retry, retained answers and no spurious focus requests. Tests assert decoded image content before capture. Local Storage smoke remains pending.
-- Capture provenance: 2026-09-24, local dev server port 3014, baseline `37af5a17` plus this branch's uncommitted implementation diff; synthetic Karel raster only. Routes `/e2e-fixtures/student-test-list` and `/e2e-fixtures/test-reference-images`. Artifacts under `test-results/experience-matrix-keeps-a--683b2-oming-a-PNG-reference-image-*/student-test-image-*.png` and `test-results/experience-matrix-uploads--4beaa--and-retries-a-failed-image-*/teacher-test-image-*.png`.
+- Capture provenance: 2026-09-24, local dev server port 3014, baseline `37af5a17` plus this branch's implementation and remediation diff; synthetic Karel raster only. Routes `/e2e-fixtures/student-test-list` and `/e2e-fixtures/test-reference-images`. Artifacts under `test-results/experience-matrix-keeps-a--683b2-oming-a-PNG-reference-image-*/student-test-image-*.png` and `test-results/experience-matrix-uploads--4beaa--and-retries-a-failed-image-*/teacher-test-image-*.png`.
 - UI fixes verified from real browser evidence: cached-image load before hydration and mobile document pane collapse. New image viewer adds no animations; existing workspace transitions retain reduced-motion overrides.
+- Initial independent Sol/Terra review found ambiguous filename-based rendering and a duplicate-finalization/cancellation cleanup race. One correction batch adds a server-owned image path namespace and preserves expiring reservations after image failures. Targeted regressions failed before correction; follow-up verification and review are recorded on the PR.
 - Migration 208 local dry run: only 208 pending; no application performed.
 
 ## Evidence

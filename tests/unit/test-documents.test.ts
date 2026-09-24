@@ -199,11 +199,11 @@ describe('test-documents', () => {
   it('derives raster rendering hints only from canonical managed upload paths', () => {
     expect(getTestDocumentImageType({
       id: 'png-doc', title: 'Diagram', source: 'upload',
-      storage_bucket: 'test-documents', storage_path: 'classrooms/a/tests/b/documents/c/object.png',
+      storage_bucket: 'test-documents', storage_path: 'classrooms/a/tests/b/documents/c/images/object.png',
     })).toBe('image/png')
     expect(getTestDocumentImageType({
       id: 'jpeg-doc', title: 'Photo', source: 'upload',
-      storage_bucket: 'test-documents', storage_path: 'classrooms/a/tests/b/documents/c/object.jpeg',
+      storage_bucket: 'test-documents', storage_path: 'classrooms/a/tests/b/documents/c/images/object.jpeg',
     })).toBe('image/jpeg')
     expect(getTestDocumentImageType({
       id: 'unmanaged-doc', title: 'Image', source: 'upload',
@@ -212,6 +212,13 @@ describe('test-documents', () => {
     expect(getTestDocumentImageType({
       id: 'svg-doc', title: 'Diagram', source: 'upload',
       storage_bucket: 'test-documents', storage_path: 'classrooms/a/tests/b/documents/c/object.svg',
+    })).toBeNull()
+  })
+
+  it.each(['png', 'jpeg'])('keeps legacy uploads with a misleading .%s suffix out of the image viewer', (extension) => {
+    expect(getTestDocumentImageType({
+      id: 'legacy-pdf', title: 'PDF named as an image', source: 'upload',
+      storage_bucket: 'test-documents', storage_path: `classrooms/a/tests/b/documents/c/object.${extension}`,
     })).toBeNull()
   })
 

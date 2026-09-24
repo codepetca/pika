@@ -287,7 +287,9 @@ export function getTestDocumentStoragePath(doc: TestDocument): string | null {
 export function getTestDocumentImageType(doc: TestDocument): 'image/png' | 'image/jpeg' | null {
   if (doc.source !== 'upload' || doc.storage_bucket !== 'test-documents') return null
   const storagePath = getTestDocumentStoragePath(doc)
-  if (!storagePath) return null
+  // Only the server's image namespace is a discriminator: old non-image uploads
+  // may have a misleading user-supplied filename suffix.
+  if (!storagePath || !/^classrooms\/[^/]+\/tests\/[^/]+\/documents\/[^/]+\/images\/[^/]+$/.test(storagePath)) return null
   if (storagePath.endsWith('.png')) return 'image/png'
   if (storagePath.endsWith('.jpeg')) return 'image/jpeg'
   return null

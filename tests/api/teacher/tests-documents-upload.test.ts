@@ -145,7 +145,7 @@ describe('/api/teacher/tests/[id]/documents/upload direct storage flow', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.storage_path).toMatch(/\.jpeg$/)
+    expect(data.storage_path).toBe(`classrooms/classroom-1/tests/test-1/documents/${documentId}/images/${objectId}.jpeg`)
   })
 
   it('finalizes an exact uploaded file after size and MIME verification', async () => {
@@ -167,7 +167,7 @@ describe('/api/teacher/tests/[id]/documents/upload direct storage flow', () => {
   it('checks a PNG signature and dimensions with a bounded signed Storage read before verification', async () => {
     managedObject = {
       ...managedObject,
-      storage_path: `classrooms/classroom-1/tests/test-1/documents/${documentId}/${objectId}.png`,
+      storage_path: `classrooms/classroom-1/tests/test-1/documents/${documentId}/images/${objectId}.png`,
       content_type: 'image/png',
     }
     info.mockResolvedValue({ data: { size: 8, contentType: 'image/png' }, error: null })
@@ -191,10 +191,10 @@ describe('/api/teacher/tests/[id]/documents/upload direct storage flow', () => {
     }))
   })
 
-  it('queues cleanup when image bytes do not match the reserved PNG MIME type', async () => {
+  it('leaves invalid image bytes reserved for expiry without risking concurrent verification', async () => {
     managedObject = {
       ...managedObject,
-      storage_path: `classrooms/classroom-1/tests/test-1/documents/${documentId}/${objectId}.png`,
+      storage_path: `classrooms/classroom-1/tests/test-1/documents/${documentId}/images/${objectId}.png`,
       content_type: 'image/png',
     }
     info.mockResolvedValue({ data: { size: 8, contentType: 'image/png' }, error: null })
@@ -206,10 +206,48 @@ describe('/api/teacher/tests/[id]/documents/upload direct storage flow', () => {
     }), context)
 
     expect(response.status).toBe(400)
-    expect(mockSupabase.rpc).toHaveBeenCalledWith(
-      'queue_managed_storage_cleanup',
-      expect.objectContaining({ p_object_id: objectId, p_error_code: 'test_document_verification_failed' }),
-    )
+    expect(mockSupabase.rpc).not.toHaveBeenCalledWith('queue_managed_storage_cleanup', expect.anything())
+  })
+
+  it('returns verified images idempotently without a second storage read', async () => {
+    managedObject = { ...managedObject, status: 'verified', content_type: 'image/png' }
+    const response = await PATCH(request('PATCH', { document_id: documentId, managed_object_id: objectId }), context)
+    expect(response.status).toBe(200)
+    expect(info).not.toHaveBeenCalled()
+    expect(createSignedUrl).not.toHaveBeenCalled()
+  })
+
+  it('cannot queue a concurrently verified image when another finalization fails', async () => {
+    managedObject = { ...managedObject, content_type: 'image/png' }
+    info.mockResolvedValue({ data: { size: 8, contentType: 'image/png' }, error: null })
+    // This request already read reserved; another finalization verifies before its read fails.
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      managedObject = { ...managedObject, status: 'verified' }
+      throw new Error('image read timeout')
+    }))
+    const response = await PATCH(request('PATCH', { document_id: documentId, managed_object_id: objectId }), context)
+    expect(response.status).toBe(400)
+    expect(managedObject.status).toBe('verified')
+    expect(mockSupabase.rpc).not.toHaveBeenCalledWith('queue_managed_storage_cleanup', expect.anything())
+  })
+
+  it('leaves a cancelled image for expiry even when its reserved snapshot becomes stale', async () => {
+    managedObject = { ...managedObject, content_type: 'image/png' }
+    mockSupabase.from.mockImplementationOnce(() => {
+      const reservedSnapshot = { ...managedObject }
+      const query: any = {
+        select: vi.fn(() => query), eq: vi.fn(() => query),
+        maybeSingle: vi.fn(async () => {
+          managedObject = { ...managedObject, status: 'verified' }
+          return { data: reservedSnapshot, error: null }
+        }),
+      }
+      return query
+    })
+    const response = await DELETE(request('DELETE', { managed_object_id: objectId }), context)
+    expect(response.status).toBe(204)
+    expect(managedObject.status).toBe('verified')
+    expect(mockSupabase.rpc).not.toHaveBeenCalledWith('queue_managed_storage_cleanup', expect.anything())
   })
 
   it('queues an owned abandoned reservation', async () => {

@@ -1282,7 +1282,7 @@ describe('StudentTestsTab exam mode', () => {
               status: 'active',
               show_results: false,
               documents: [
-                { id: 'doc-3', title: 'Start world', source: 'upload', storage_bucket: 'test-documents', storage_path: 'classrooms/classroom-1/tests/test-1/start.png' },
+                { id: 'doc-3', title: 'Start world', source: 'upload', storage_bucket: 'test-documents', storage_path: 'classrooms/classroom-1/tests/test-1/documents/doc-3/images/start.png' },
                 {
                   id: 'doc-1',
                   title: 'Node.js API',
@@ -1297,7 +1297,7 @@ describe('StudentTestsTab exam mode', () => {
                   title: 'Teacher reference PDF',
                   source: 'upload',
                   storage_bucket: 'test-documents',
-                  storage_path: 'classrooms/classroom-1/tests/test-1/private.pdf',
+                  storage_path: 'classrooms/classroom-1/tests/test-1/documents/doc-2/pdf-named-as-image.png',
                   managed_object_id: '10000000-0000-4000-8000-000000000001',
                 },
               ],

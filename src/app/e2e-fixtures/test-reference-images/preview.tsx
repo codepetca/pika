@@ -13,7 +13,7 @@ const STARTER_DOCUMENTS: TestDocument[] = [{
   title: 'Karel grid PNG',
   source: 'upload',
   storage_bucket: 'test-documents',
-  storage_path: `classrooms/${CLASSROOM_ID}/tests/${TEST_ID}/documents/30000000-0000-4000-8000-000000000033/karel-grid.png`,
+  storage_path: `classrooms/${CLASSROOM_ID}/tests/${TEST_ID}/documents/30000000-0000-4000-8000-000000000033/images/karel-grid.png`,
 }]
 
 /**

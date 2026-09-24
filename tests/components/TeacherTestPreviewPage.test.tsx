@@ -499,7 +499,7 @@ describe('TeacherTestPreviewPage', () => {
     })
   })
 
-  it.each(['pdf', 'png', 'jpeg'])('opens uploaded %s documents through the authenticated teacher route', async (extension) => {
+  it.each([{ extension: 'pdf', image: false }, { extension: 'png', image: true }, { extension: 'jpeg', image: true }, { extension: 'png', image: false }, { extension: 'jpeg', image: false }])('opens uploaded $extension (image=$image) through the authenticated teacher route', async ({ extension, image }) => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
     vi.mocked(fetch).mockResolvedValue(
       previewResponse({
@@ -509,7 +509,7 @@ describe('TeacherTestPreviewPage', () => {
             title: 'Teacher reference PDF',
             source: 'upload',
             storage_bucket: 'test-documents',
-            storage_path: `classroom-1/tests/test-1/doc-upload/reference.${extension}`,
+            storage_path: `classrooms/classroom-1/tests/test-1/documents/doc-upload/${image ? 'images/' : ''}reference.${extension}`,
           },
         ],
       }) as Awaited<ReturnType<typeof fetch>>,
@@ -528,7 +528,7 @@ describe('TeacherTestPreviewPage', () => {
       name: 'Teacher reference PDF',
     }))
 
-    expect(extension === 'pdf' ? screen.getByTitle('Teacher reference PDF') : screen.getByAltText('Teacher reference PDF')).toHaveAttribute(
+    expect(image ? screen.getByAltText('Teacher reference PDF') : screen.getByTitle('Teacher reference PDF')).toHaveAttribute(
       'src',
       '/api/teacher/tests/test-1/documents/doc-upload/file',
     )

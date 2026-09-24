@@ -18,7 +18,7 @@ const PUBLIC_ACTUAL_COURSE_SLUG = 'e2e-test-course-guide'
 const IMAGE_REFERENCE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000031'
 const IMAGE_REFERENCE_TEST_ID = '30000000-0000-4000-8000-000000000032'
 const IMAGE_REFERENCE_PNG_ID = '30000000-0000-4000-8000-000000000033'
-const IMAGE_REFERENCE_PNG_PATH = `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/karel-grid.png`
+const IMAGE_REFERENCE_PNG_PATH = `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/images/karel-grid.png`
 
 const rolloverBlueprint = {
   id: BLUEPRINT_ID,
@@ -2217,7 +2217,7 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
 
   const documents = [
     { id: IMAGE_REFERENCE_PNG_ID, title: 'Karel grid PNG', source: 'upload', storage_bucket: 'test-documents', storage_path: IMAGE_REFERENCE_PNG_PATH },
-    { id: '30000000-0000-4000-8000-000000000034', title: 'Karel grid JPEG', source: 'upload', storage_bucket: 'test-documents', storage_path: `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/30000000-0000-4000-8000-000000000034/karel-grid.jpeg` },
+    { id: '30000000-0000-4000-8000-000000000034', title: 'Karel grid JPEG', source: 'upload', storage_bucket: 'test-documents', storage_path: `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/30000000-0000-4000-8000-000000000034/images/karel-grid.jpeg` },
   ]
   const assessment = {
     id: IMAGE_REFERENCE_TEST_ID, classroom_id: IMAGE_REFERENCE_CLASSROOM_ID, title: 'Karel image references',
@@ -2325,7 +2325,7 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
     if (request.method() === 'POST') {
       const payload = request.postDataJSON() as { document_id: string; content_type: string }
       const extension = payload.content_type === 'image/png' ? 'png' : 'jpeg'
-      const path = `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${payload.document_id}/image-${nextDocumentNumber}.${extension}`
+      const path = `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${payload.document_id}/images/image-${nextDocumentNumber}.${extension}`
       nextDocumentNumber += 1
       reservationPaths.set(payload.document_id, path)
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ bucket: 'test-documents', storage_path: path, upload_url: `/mock-storage/${payload.document_id}`, managed_object_id: payload.document_id }) })
