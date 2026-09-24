@@ -30,16 +30,25 @@
  *   pnpm calibrate:test-grading --effort low,medium
  *   pnpm calibrate:test-grading --allocation proportional
  *   pnpm calibrate:test-grading --all --profiles both
+ *   pnpm calibrate:test-grading --all --max-points 10 --batch-size 1,2,4 --order-seed 1,2 --profile bulk --dry-run
  *   pnpm calibrate:test-grading a.grading-snapshot.json b.grading-snapshot.json
+ *
+ * Comparison options, private verified targets and reference-rate pricing:
+ * docs/guidance/test-grading-comparison.md
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs'
 import { basename } from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { z } from 'zod'
 import {
   suggestTestOpenResponseGrade,
   type TestOpenResponsePromptProfile,
 } from '@/lib/ai-test-grading'
 import type { StructuredOutputRequest } from '@/lib/grading/providers/types'
+import {
+  answerId, assertPrivateOutput, buildComparisonPlan, eligibleComparisonCandidates, pricingSchema, runComparison, summarizeComparison,
+  summarizeOrderSensitivity, validateTargets, type ComparisonResult,
+} from './lib/test-grading-comparison'
 
 type EffortLevel = StructuredOutputRequest['reasoningEffort']
 const EFFORT_LEVELS: EffortLevel[] = ['minimal', 'low', 'medium', 'high']
@@ -497,9 +506,16 @@ async function main(): Promise<void> {
   const allocationArg = flag('--allocation') ?? 'balanced'
   const effortArg = flag('--effort')
   const maxPointsArg = flag('--max-points')
+  const comparisonFlags = ['--batch-size', '--order-seed', '--profile', '--verified-targets', '--pricing']
+  const comparison = comparisonFlags.some((name) => argv.includes(name))
   const valueFlags = new Set([
     '--sample', '--seed', '--profiles', '--out', '--allocation', '--effort', '--max-points',
+    ...comparisonFlags,
   ])
+  for (const [index, arg] of argv.entries()) {
+    if (arg.startsWith('--') && !valueFlags.has(arg) && !['--all', '--dry-run'].includes(arg)) throw new Error(`Unknown option: ${arg}`)
+    if (valueFlags.has(arg) && (argv[index + 1] == null || argv[index + 1].startsWith('--'))) throw new Error(`Missing value for ${arg}`)
+  }
   const snapshotPaths = argv.filter((arg, index) => {
     if (arg.startsWith('--')) return false
     const previous = argv[index - 1]
@@ -507,7 +523,7 @@ async function main(): Promise<void> {
   })
   const paths = snapshotPaths.length > 0 ? snapshotPaths : DEFAULT_SNAPSHOTS
 
-  if (!Number.isFinite(sampleSize) || sampleSize < 1) {
+  if (!Number.isInteger(sampleSize) || sampleSize < 1) {
     console.error('--sample must be a positive number.')
     process.exitCode = 1
     return
@@ -551,7 +567,11 @@ async function main(): Promise<void> {
     return
   }
 
-  const allCandidates = loadCandidates(paths)
+  const loadedCandidates = loadCandidates(paths)
+  // Match production eligibility before sampling, so blanks cannot consume sample slots
+  // or change a real answer's batch membership. Exact snapshot identity stays unchanged.
+  const allCandidates = comparison ? eligibleComparisonCandidates(loadedCandidates) : loadedCandidates
+  const excludedUnanswered = loadedCandidates.length - allCandidates.length
   // Narrowing to one point scale lets a question-shaped hypothesis be tested against that
   // whole population rather than the handful a balanced sample would reach.
   const candidates = maxPointsFilter == null
@@ -573,6 +593,7 @@ async function main(): Promise<void> {
   }
 
   const profiles: TestOpenResponsePromptProfile[] = bothProfiles ? ['bulk', 'manual'] : ['bulk']
+  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) throw new Error('--seed must be an unsigned 32-bit integer')
   const random = mulberry32(seed)
   const sample = useAll
     ? stratify(candidates, candidates.length, random, allocation)
@@ -581,6 +602,48 @@ async function main(): Promise<void> {
   console.log(
     `Loaded ${candidates.length} teacher-scored responses from ${paths.length} snapshot${paths.length > 1 ? 's' : ''}; sampling ${sample.length} (seed ${seed}).`,
   )
+  if (comparison) {
+    if (argv.includes('--profiles') || argv.includes('--effort')) throw new Error('Comparison uses one --profile and the production-default effort; omit --profiles and --effort')
+    const profile = flag('--profile') ?? 'bulk'
+    if (profile !== 'manual' && profile !== 'bulk') throw new Error('--profile must be manual or bulk')
+    const numberList = (value: string) => {
+      if (value.split(',').some((part) => !part.trim())) throw new Error('Comparison lists cannot have empty entries')
+      return value.split(',').map(Number)
+    }
+    const batchSizes = numberList(flag('--batch-size') ?? '1,2,4')
+    const orderSeeds = numberList(flag('--order-seed') ?? '1')
+    const targetPath = flag('--verified-targets')
+    const pricingPath = flag('--pricing')
+    assertPrivateOutput(outPath, [...paths, ...[targetPath, pricingPath].filter((path): path is string => path != null)])
+    const targets = targetPath ? validateTargets(JSON.parse(readFileSync(targetPath, 'utf8')), allCandidates) : new Map()
+    const pricing = pricingPath ? pricingSchema.parse(JSON.parse(readFileSync(pricingPath, 'utf8'))) : undefined
+    const plans = buildComparisonPlan(sample, batchSizes, orderSeeds)
+    console.table(plans.map((plan) => ({ batchSize: plan.batchSize, orderSeed: plan.orderSeed, answers: sample.length,
+      singleCalls: plan.chunks.filter((chunk) => chunk.length === 1).length, batchCalls: plan.chunks.filter((chunk) => chunk.length > 1).length })))
+    process.stdout.write(`One fixed ${profile} profile; production-default effort. ${sample.filter((row) => targets.has(answerId(row))).length}/${targets.size} verified targets sampled. ${plans.reduce((sum, plan) => sum + plan.chunks.length, 0)} grading operations; references prepared once per exact question; HTTP retries may add calls.\n`)
+    if (dryRun) { process.stdout.write('--dry-run: no provider calls made, no file written.\n'); return }
+    if (!process.env.DEEPSEEK_API_KEY?.trim()) throw new Error('DEEPSEEK_API_KEY is not configured')
+    const startedAt = new Date().toISOString()
+    const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+    const sourceDirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim().length > 0
+    let lastReported = 0
+    const checkpoint = (result: ComparisonResult) => {
+      const temporary = `${outPath}.${process.pid}.tmp.grading-analysis.json`
+      writeFileSync(temporary, JSON.stringify({ schemaVersion: 'test-grading-comparison-v1', startedAt,
+        updatedAt: new Date().toISOString(), sourceCommit, sourceDirty, snapshots: paths, sampleSeed: seed, allocation, excludedUnanswered,
+        note: 'Verified target intervals are adjudications; recorded marks are second opinions. Costs use supplied reference rates, not billed charges. Shared preparation spend is separate. Per-answer cost is allocated equally within its call; latency is the whole call. Missing usage remains unknown. Sequential execution and cache state can affect comparisons.',
+        ...result, summary: summarizeComparison(result), orderSensitivity: summarizeOrderSensitivity(result) }, null, 2) + '\n', { flag: 'wx', mode: 0o600 })
+      renameSync(temporary, outPath)
+      const operations = result.preparation.length + result.scenarios.reduce((sum, scenario) => sum + scenario.operations.length, 0)
+      if (operations >= lastReported + 5 || result.complete) { process.stdout.write(`Completed ${operations} comparison operations${result.complete ? ' (finished)' : ''}.\n`); lastReported = operations }
+    }
+    const result = await runComparison(sample, { profile, batchSizes, orderSeeds, targets, pricing, checkpoint })
+    console.table(summarizeComparison(result))
+    console.table(summarizeOrderSensitivity(result))
+    process.stdout.write(`Private comparison saved to ${outPath}\n`)
+    if (result.scenarios.some((scenario) => scenario.rows.some((row) => row.failure))) process.exitCode = 1
+    return
+  }
   describePlan(sample, candidates, profiles, efforts, allocation)
 
   if (dryRun) {
