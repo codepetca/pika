@@ -32,6 +32,7 @@ export const questionKey = (row: ComparisonCandidate) => hash([
   row.questionType ?? null,
 ])
 export const answerId = (row: ComparisonCandidate) => hash([questionKey(row), row.studentLabel, row.responseText])
+export const eligibleComparisonCandidates = (rows: ComparisonCandidate[]) => rows.filter((row) => row.responseText.trim().length > 0)
 
 function randomFor(seed: number) {
   let a = seed >>> 0
@@ -53,6 +54,7 @@ function groupsOf(rows: ComparisonCandidate[]) {
 }
 
 export function buildComparisonPlan(rows: ComparisonCandidate[], batchSizes: number[], orderSeeds: number[]) {
+  rows = eligibleComparisonCandidates(rows)
   if (!rows.length || new Set(rows.map(answerId)).size !== rows.length) throw new Error('Empty or duplicate comparison answers')
   if (!batchSizes.length || batchSizes.some((size) => ![1, 2, 4].includes(size) || size > PIKA_TEST_MAX_BATCH_RESPONSES)) {
     throw new Error('--batch-size must contain only 1, 2 or 4, within the production ceiling')
@@ -87,6 +89,7 @@ export function buildComparisonPlan(rows: ComparisonCandidate[], batchSizes: num
 const targetSchema = z.object({ answerId: z.string().regex(/^[a-f0-9]{64}$/), minimum: z.number().finite().nonnegative(), maximum: z.number().finite().nonnegative() })
 export type VerifiedTarget = z.infer<typeof targetSchema>
 export function validateTargets(document: unknown, population: ComparisonCandidate[]) {
+  population = eligibleComparisonCandidates(population)
   const parsed = z.object({ schemaVersion: z.literal(1), source: z.string().min(1), targets: z.array(targetSchema).min(1) }).parse(document)
   const result = new Map<string, VerifiedTarget>()
   for (const target of parsed.targets) {
@@ -229,6 +232,7 @@ export async function runComparison(rows: ComparisonCandidate[], opts: {
   pricing?: ComparisonPricing
   checkpoint?: (result: ComparisonResult) => void
 }): Promise<ComparisonResult> {
+  rows = eligibleComparisonCandidates(rows)
   const plans = buildComparisonPlan(rows, opts.batchSizes, opts.orderSeeds)
   const result: ComparisonResult = {
     complete: false, profile: opts.profile, effort: 'production-default', pricing: opts.pricing ?? null,
@@ -271,10 +275,10 @@ export async function runComparison(rows: ComparisonCandidate[], opts: {
       }
       const { value, ...measurement } = await measureOperation(async () => {
         if (chunk.length === 1) {
-          const suggestion = await suggestTestOpenResponseGradeWithContext(context, chunk[0].responseText)
+          const suggestion = await suggestTestOpenResponseGradeWithContext(context, chunk[0].responseText.trim())
           return [{ ...suggestion, responseId: answerId(chunk[0]) }]
         }
-        return suggestTestOpenResponseGradesBatchWithContext(context, chunk.map((row) => ({ responseId: answerId(row), responseText: row.responseText })))
+        return suggestTestOpenResponseGradesBatchWithContext(context, chunk.map((row) => ({ responseId: answerId(row), responseText: row.responseText.trim() })))
       }, opts.pricing)
       const operation: Operation = { ...measurement, id: operationId++, kind: chunk.length === 1 ? 'single' : 'batch', answerIds: chunk.map(answerId) }
       scenario.operations.push(operation)

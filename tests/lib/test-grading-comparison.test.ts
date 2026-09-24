@@ -148,4 +148,24 @@ describe('test grading comparison', () => {
     expect(batch).not.toHaveBeenCalled()
     expect(JSON.stringify(result)).not.toContain('private reference error')
   })
+
+  it('excludes unanswered work from planning and target matching, and trims graded text like production', async () => {
+    const blank = candidate('blank', { responseText: ' \n\t ', teacherScore: 0 })
+    const answered = candidate('answered', { responseText: '  Repeats work.\n' })
+    prepare.mockResolvedValue({ reference_answers: ['reference'] })
+    single.mockResolvedValue({ score: 4, feedback: 'Synthetic feedback', provenance: {} })
+    const plans = buildComparisonPlan([blank, answered], [2], [1])
+    expect(plans[0].chunks).toEqual([[answered]])
+    expect(() => validateTargets({ schemaVersion: 1, source: 'Synthetic', targets: [
+      { answerId: answerId(blank), minimum: 0, maximum: 0 },
+    ] }, [blank, answered])).toThrow(/match/i)
+    const result = await runComparison([blank, answered], {
+      profile: 'bulk', batchSizes: [2], orderSeeds: [1], targets: new Map(),
+    })
+    expect(result.answers).toHaveLength(1)
+    expect(result.scenarios[0].rows).toHaveLength(1)
+    expect(single).toHaveBeenCalledTimes(1)
+    expect(single.mock.calls[0][1]).toBe('Repeats work.')
+    expect(batch).not.toHaveBeenCalled()
+  })
 })

@@ -35,6 +35,9 @@ solution and coding metadata. A singleton tail uses the single-answer adapter,
 matching production. The ceiling comes from `PIKA_TEST_MAX_BATCH_RESPONSES`; no
 20-response tool limit remains. References are prepared once per exact question
 and reused across scenarios, with preparation cost recorded separately.
+Whitespace-only responses are excluded before sampling and target matching, and
+graded text is trimmed like production. `excludedUnanswered` records the excluded
+count. Input hashes still bind to the exact original snapshot text.
 
 ## Private targets
 

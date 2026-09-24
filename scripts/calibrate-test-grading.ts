@@ -46,7 +46,7 @@ import {
 } from '@/lib/ai-test-grading'
 import type { StructuredOutputRequest } from '@/lib/grading/providers/types'
 import {
-  answerId, assertPrivateOutput, buildComparisonPlan, pricingSchema, runComparison, summarizeComparison,
+  answerId, assertPrivateOutput, buildComparisonPlan, eligibleComparisonCandidates, pricingSchema, runComparison, summarizeComparison,
   summarizeOrderSensitivity, validateTargets, type ComparisonResult,
 } from './lib/test-grading-comparison'
 
@@ -567,7 +567,11 @@ async function main(): Promise<void> {
     return
   }
 
-  const allCandidates = loadCandidates(paths)
+  const loadedCandidates = loadCandidates(paths)
+  // Match production eligibility before sampling, so blanks cannot consume sample slots
+  // or change a real answer's batch membership. Exact snapshot identity stays unchanged.
+  const allCandidates = comparison ? eligibleComparisonCandidates(loadedCandidates) : loadedCandidates
+  const excludedUnanswered = loadedCandidates.length - allCandidates.length
   // Narrowing to one point scale lets a question-shaped hypothesis be tested against that
   // whole population rather than the handful a balanced sample would reach.
   const candidates = maxPointsFilter == null
@@ -626,7 +630,7 @@ async function main(): Promise<void> {
     const checkpoint = (result: ComparisonResult) => {
       const temporary = `${outPath}.${process.pid}.tmp.grading-analysis.json`
       writeFileSync(temporary, JSON.stringify({ schemaVersion: 'test-grading-comparison-v1', startedAt,
-        updatedAt: new Date().toISOString(), sourceCommit, sourceDirty, snapshots: paths, sampleSeed: seed, allocation,
+        updatedAt: new Date().toISOString(), sourceCommit, sourceDirty, snapshots: paths, sampleSeed: seed, allocation, excludedUnanswered,
         note: 'Verified target intervals are adjudications; recorded marks are second opinions. Costs use supplied reference rates, not billed charges. Shared preparation spend is separate. Per-answer cost is allocated equally within its call; latency is the whole call. Missing usage remains unknown. Sequential execution and cache state can affect comparisons.',
         ...result, summary: summarizeComparison(result), orderSensitivity: summarizeOrderSensitivity(result) }, null, 2) + '\n', { flag: 'wx', mode: 0o600 })
       renameSync(temporary, outPath)
