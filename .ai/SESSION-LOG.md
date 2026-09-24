@@ -11,40 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Dormant contextual lesson-plan reads
-
-- Owner `codex/contextual-classroom-next-domain`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member lesson-plan list endpoints. A student-valued owner receives the owner calendar projection; a teacher-valued active member keeps the classroom visibility window. Contextual plan arrays, every plan/classroom binding and the member visibility record fail closed on malformed or substituted service-role evidence.
-- Lesson-plan date, bulk and copy writes remain on their legacy guards pending transaction-time owner/archive binding. No page/home consumer, UI, migration, production configuration or cohort activation changed. Targeted route/access coverage passes 48 tests; focused checks and independent review follow.
-- Initial Sol security review found that PostgreSQL-compatible non-ISO date aliases could evade the member visibility ceiling's lexical clamp. Batch1 strictly validates real canonical `YYYY-MM-DD` bounds only for contextual members, rejects aliases before lesson-plan data reads and adds bypass plus canonical-clamp regressions; legacy request behavior remains unchanged. Targeted and focused verification plus targeted re-review follow.
-
-## 2026-09-19 — Dormant contextual material reads
-
-- Owner `codex/contextual-classroom-material-reads`. Added an independent, off-by-default exact user/classroom pair gate to the owner and member material list endpoints. A student-valued owner receives the owner projection including drafts; a teacher-valued active member retains published-only filtering. Contextual arrays and every material/classroom binding fail closed on malformed or substituted service-role evidence, including after the existing missing-position fallback.
-- Material create/edit/delete operations remain on their legacy guards pending transaction-time owner/archive and resource binding. The missing-table empty-list compatibility response is preserved. No page/home consumer, UI, migration, production configuration or cohort activation changed. Initial targeted access/route/legacy coverage passes 42 tests; focused checks and independent review follow.
-- Initial security and compatibility reviews found that same-class draft evidence could pass the generic contextual row validator despite the member query predicate. Batch1 adds member-specific `is_draft: false` validation after both primary and missing-position fallback reads, with same-class draft regressions while preserving owner draft visibility. Refreshed verification and targeted re-review follow.
-
-## 2026-09-19 — Dormant contextual assignment reads
-
-- Owner `codex/contextual-classroom-assignment-reads`, based on merged material-read PR1290. Added an independent, off-by-default exact user/classroom pair gate to the owner and member assignment list endpoints. A student-valued owner retains drafts, roster-scoped statistics and submission requirements; a teacher-valued active member retains live-only assignments and their own sanitized assignment document.
-- Contextual assignment, roster, statistics-document, requirement and member-document evidence is validated against the authenticated subject and authorized classroom/resources. Assignment item routes, mutations, submissions, artifacts and grading remain legacy. No UI, migration, production configuration or cohort activation changed. Initial targeted route/access/legacy coverage passes 54 tests plus TypeScript; focused checks and independent review follow.
-- Initial security/compatibility review found two fail-closed gaps: member release/return policy fields were not shape-validated before visibility/sanitization, and shared stats/requirement loaders normalized unexpected null evidence to empty arrays. Batch1 requires valid release, return and feedback-return timestamps; adds strict opt-in raw-array handling while preserving legacy normalization and the intentional missing-schema fallback; and covers null/malformed evidence. Refreshed verification and targeted re-review follow.
-
-## 2026-09-19 — Dormant contextual assignment aggregate detail
-
-- Owner `codex/contextual-assignment-detail-reads`, based on merged assignment-list PR1291. Added an independent, off-by-default exact user/assignment gate to `GET /api/teacher/assignments/[id]`. A student-valued classroom owner retains the existing aggregate assignment, roster and submission summary, including archived-classroom reads.
-- Contextual mode binds the admitted assignment to its classroom and validates roster/users, optional profiles, assignment documents, requirements, artifacts, history and active grading-run evidence before returning anything. Strict loader mode rejects unexpected null evidence while legacy behavior is unchanged.
-- The learner assignment-document GET remains legacy because it can create a document, refresh viewed state and emit Pal events; individual student-work reads and every assignment mutation remain out of scope. No UI, migration, schema, production configuration or cohort activation changed. Initial targeted access/route/legacy coverage passes 40 tests plus TypeScript; focused verification and independent review follow.
-- Initial compatibility review found the independent gate absent from `.env.example`. Batch1 adds explicit disabled/empty defaults and scoped operational comments; exact-head verification and re-review follow.
-- The same review found active grading-run schema/null evidence still normalized to “no run.” Batch2 adds strict contextual active-run and run-item evidence loading through the already-authorized service client while preserving legacy missing-schema fallbacks, with null and missing-schema regressions.
-- Final compatibility review found uppercase admitted UUIDs could mismatch lowercase grading evidence. Batch3 canonicalizes the contextual assignment ID once for every downstream detail query and adds an uppercase active-run regression; the legacy identifier path remains unchanged.
-
-## 2026-09-19 — Dormant contextual individual assignment work read
-
-- Owner `codex/contextual-assignment-student-work-read`, based on merged aggregate-detail PR1292. Extended the same off-by-default exact user/assignment gate to `GET /api/teacher/assignments/[id]/students/[studentId]`. A student-valued classroom owner may read one enrolled student's existing work, including an archived classroom, without changing the account's legacy role.
-- Contextual mode canonicalizes the student identifier after assignment-pair admission, proves the exact classroom enrollment, and validates profile, document, feedback, requirement, artifact, repository-target and completed repository-review bindings. Optional single-row evidence uses bounded arrays so unavailable or duplicate service-role results cannot be normalized to absence; the already-authorized client is reused by supporting loaders. The learner document route and every assignment mutation remain legacy.
-- No UI, migration, schema, dependency, production configuration or cohort activation changed. Initial targeted contextual/legacy/helper coverage passes 48 tests plus TypeScript; focused verification and independent review follow.
-- Initial security and compatibility review found that the repository-review result was bound to the requested assignment/student but its joined run was validated only by completed status. Batch1 selects the nested run ID and assignment, proves `result.run_id` and assignment match that run, and adds helper plus route regressions for substituted cross-assignment run evidence; refreshed checks and exact-head re-review follow.
-
 ## 2026-09-19 — Dormant transactional learner assignment open
 
 - Owner `codex/contextual-assignment-doc-open`, based on merged individual-work PR1293. Migration182 adds a service-only transaction that rechecks live assignment/classroom state and exact enrollment under the membership-removal fences before creating or refreshing one learner assignment document. It preserves first-view/returned-feedback acknowledgment and constrains the optional legacy Pal event to the assignment-view contract.
@@ -357,6 +323,7 @@ async-grading.
 ## 2026-09-23 — Production promotion of account plan foundation
 
 - Owner `codex/promote-account-plan-206`; risk profile runtime-platform. Promoting only the reviewed 206 foundation commit to production after verifying the production migration and dormant state. Other current main commits are out of scope. Production remains unclassified and strict classroom-creation enforcement remains off.
+
 ## 2026-09-23 — Future classroom retention roadmap
 
 - Owner `codex/classroom-retention-roadmap`; risk profile none. Documented a proposed, plan-independent archived-classroom retention sequence and advance notices in the lifecycle roadmap, with a pointer from the product roadmap. It remains future work; no email, timer, automatic cold transition, deletion worker, database migration, or rollout gate was enabled.
@@ -371,3 +338,7 @@ async-grading.
 
 - Migration 207 was applied to local and Pika production under exact target-specific authorization. Both migration histories show 001–207; read-only production checks confirmed all five 0–999 constraints, the insert defaults, and updated database functions.
 - Production PR #1343 cherry-picks only the reviewed Gradebook change from main PR #1339. Generated types match the migrated local schema; focused checks pass 751 tests plus architecture, UI/design policy, TypeScript, and lint. The production PR remains draft pending exact-head review and CI.
+
+## 2026-09-24 — Grading hotfix production handoff
+
+- Resumed PR #1344 in its existing worktree and merged production #1343 without conflicts, preserving both histories. Promotion contains the provenance save fix, checklist precedence, and retention-policy documentation; no new migration or UI change. Focused checks and independent review precede ready status and the production merge.
