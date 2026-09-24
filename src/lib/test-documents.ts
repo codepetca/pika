@@ -25,6 +25,13 @@ export const LINK_DOCUMENT_SNAPSHOT_SUPPORTED_TYPES = [
   'text/markdown',
 ] as const
 
+export function isPdfTestDocument(doc: TestDocument): boolean {
+  if (doc.source === 'upload') {
+    return /\.pdf$/i.test(doc.storage_path || '')
+  }
+  return doc.source === 'link' && doc.snapshot_content_type === 'application/pdf'
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }

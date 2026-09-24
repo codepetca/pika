@@ -530,6 +530,7 @@ describe('TeacherTestPreviewPage', () => {
       'src',
       '/api/teacher/tests/test-1/documents/doc-upload/file',
     )
+    expect(screen.getByTitle('Teacher reference PDF')).not.toHaveAttribute('sandbox')
   })
 
   it('refreshes an open same-id document and closes it when the document is removed', async () => {
