@@ -34,7 +34,7 @@ Do not tail `.ai/JOURNAL-ARCHIVE.md` by default. Use `.ai/SESSION-LOG.md` only f
 | Course blueprint package import/export | [Blueprint packages](./guidance/course-blueprint-packages.md) |
 | Feature-specific behavior | `docs/guidance/*.md` or the closest focused spec |
 
-Read startup and routed docs before editing source.
+Read startup and routed docs before inspecting or editing source.
 
 ## Repo Invariants
 
