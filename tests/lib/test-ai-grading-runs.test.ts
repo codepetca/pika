@@ -43,7 +43,12 @@ vi.mock('@/lib/ai-test-grading', () => ({
   suggestTestOpenResponseGradesBatchWithContext,
 }))
 
-import { tickTestAiGradingRun } from '@/lib/server/test-ai-grading-runs'
+import {
+  TEST_AI_GRADING_LEASE_SECONDS,
+  TEST_AI_GRADING_MAX_ATTEMPTS,
+  TEST_AI_GRADING_TICK_BUDGET_MS,
+  tickTestAiGradingRun,
+} from '@/lib/server/test-ai-grading-runs'
 
 const gradingProvenance = {
   schemaVersion: 'test-grading-provenance-v1' as const,
@@ -502,7 +507,7 @@ describe('tickTestAiGradingRun', () => {
       expect.objectContaining({
         p_run_id: 'run-1',
         p_lease_token: expect.any(String),
-        p_lease_seconds: 120,
+        p_lease_seconds: TEST_AI_GRADING_LEASE_SECONDS,
       }),
     )
   })
@@ -533,6 +538,77 @@ describe('tickTestAiGradingRun', () => {
     expect(result.run.completed_count).toBe(2)
     expect(items.map((item) => item.status)).toEqual(['completed', 'completed'])
     expectContentFreeDiagnostic(consoleError.mock.calls, 'grading.test_run_reference_cache')
+  })
+
+  it('records the attempt before calling the provider, so an interrupted call still counts', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+    })
+    let attemptRecordedAtCall: number | undefined
+    suggestTestOpenResponseGradeWithContext.mockImplementation(async () => {
+      attemptRecordedAtCall = items[0].attempt_count
+      return {
+        score: 5,
+        feedback: 'Correct.',
+        model: 'gpt-5-nano',
+        grading_basis: 'teacher_key',
+        reference_answers: ['Use a hash map.'],
+        provenance: gradingProvenance,
+      }
+    })
+
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    // Held only in memory, this was 0 while the call ran: a worker killed mid-call lost the
+    // attempt and the item could be retried forever.
+    expect(attemptRecordedAtCall).toBe(1)
+  })
+
+  it('fails an item whose every attempt was interrupted, without calling the provider again', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+    })
+    // Still due, yet out of attempts: only reachable when each attempt was cut off mid-call.
+    Object.assign(items[0], { status: 'processing', attempt_count: TEST_AI_GRADING_MAX_ATTEMPTS })
+
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+    expect(suggestTestOpenResponseGradesBatchWithContext).not.toHaveBeenCalled()
+    expect(items[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      attempt_count: TEST_AI_GRADING_MAX_ATTEMPTS,
+      last_error_code: 'timeout',
+      last_error_message: 'AI grading was interrupted repeatedly before it could finish this response. Try again.',
+    }))
+  })
+
+  it('starts no provider work it could not finish and save before the tick deadline', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [
+        { id: 'response-1', response_text: 'Answer one' },
+        { id: 'response-2', response_text: 'Answer two' },
+      ],
+    })
+    // The tick reads the clock once, synchronously, on entry; every later reading is past
+    // the point where a worst-case call could still finish.
+    const clock = vi.spyOn(performance, 'now')
+      .mockReturnValueOnce(0)
+      .mockReturnValue(TEST_AI_GRADING_TICK_BUDGET_MS)
+    try {
+      const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+      expect(result.claimed).toBe(true)
+      expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+      expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+      expect(suggestTestOpenResponseGradesBatchWithContext).not.toHaveBeenCalled()
+      // Nothing was written, so the next tick picks these up exactly as they were.
+      for (const item of items) {
+        expect(item).toEqual(expect.objectContaining({ status: 'queued', attempt_count: 0 }))
+      }
+    } finally {
+      clock.mockRestore()
+    }
   })
 
   it('fails a single active item cleanly when finalization fails', async () => {

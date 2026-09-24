@@ -40,6 +40,12 @@ export const gradingTokenUsageSchema = z.object({
   inputTokens: z.number().int().nonnegative().nullable(),
   outputTokens: z.number().int().nonnegative().nullable(),
   totalTokens: z.number().int().nonnegative().nullable(),
+  // Optional so records written before these were captured still parse. They must be
+  // declared: this schema strips unknown keys, so undeclared fields would be dropped
+  // silently on their way into stored provenance.
+  cachedInputTokens: z.number().int().nonnegative().optional(),
+  uncachedInputTokens: z.number().int().nonnegative().optional(),
+  reasoningTokens: z.number().int().nonnegative().optional(),
 })
 
 // The stored provenance schemas must match the database exactly. Migrations 101-104 add
