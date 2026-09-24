@@ -31,9 +31,10 @@ join policy. Closed enrollment and roster-only restrictions remain meaningful.
 - Start teacher-first: Free accounts can join and complete assigned work without buying a
   plan, but cannot create a classroom. Classroom capabilities are funded by the owner,
   not by each student's plan.
-- Use **Access** as the initial classroom-creation capability: one active owned classroom
-  and unlimited joining. Grant Access manually during initial development. Plus/Pro are
-  later product labels, not authorization roles; add them only with distinct offerings.
+- The original **Access** capability (one active owned classroom) was an initial
+  rollout grant, not the eventual subscription model. The approved account-plan
+  direction is Free, Basic, Plus and Pro; no account is a permanent teacher or
+  student based on its plan.
 - Charge for demonstrated teacher value: advanced workflows and higher allowances for
   expensive features such as AI grading. Set actual prices, included features and quotas
   after measuring usage and delivery costs; none are hardcoded by this foundation.
@@ -48,19 +49,47 @@ join policy. Closed enrollment and roster-only restrictions remain meaningful.
 - Manual/school-sponsored grants can fit the same capability contract later. Defer school
   sales, organization administration, co-teachers, and a general billing framework.
 
-### Approved initial creation tiers
+### Account-plan classroom limits
+
+Migration 206 introduces a dormant account-level plan assignment that
+atomically derives `classrooms.create`:
+
+| Account plan | Active owned classrooms | Other agreed direction |
+| --- | ---: | --- |
+| Free | 0 | May join classrooms |
+| Basic | 2 | Core teaching tools; no included AI grading |
+| Plus | 5 | Smaller monthly AI grading allowance, amount TBD |
+| Pro | 10 | Larger monthly AI grading allowance, amount TBD |
+
+Applying migration 206 alone does not classify existing accounts, change their
+effective grants, activate strict enforcement, charge anyone, or enable AI
+metering. Plan assignment is service-only and derives the classroom limit; the
+operator does not enter a per-user classroom quota. A separate, reviewed rollout
+must reconcile existing accounts (including current owner classes), replace the
+Access pilot assignments, and verify snapshots before any UI or billing change.
+Existing classrooms are not archived or deleted when a lower plan is assigned;
+further creation/restore is blocked while the account is at or over its new limit.
+Cancellation, grace periods, trial eligibility, payments, AI quantities and
+over-limit owner experience still require separate product decisions.
+
+#### Superseded Access-pilot policy
+
+The table below records the original entitlement cutover. It is not the target
+subscription policy above.
 
 | Tier/state | Join classrooms | Create active classrooms | Initial provisioning |
 | --- | --- | --- | --- |
 | Free | Yes | No | Default future public baseline |
 | Access | Yes | Up to 1 | Manual grant during initial development |
 | Trial | Yes | Defined by its grant | Separate, time-limited overlay; at most one trial period per account when implemented |
-| Plus / Pro | Yes | Not yet decided | Deferred until the offerings and prices are distinct |
+| Plus / Pro | Yes | Not offered in this pilot | Deferred beyond the initial Access grant |
 
 The one-trial-per-account ledger, billing synchronization, upgrade purchase flow and
-Plus/Pro limits are not part of the initial Access enforcement slice. An archived classroom
-does not consume Access capacity. Downgrade or expiry never deletes, archives, or changes
-ownership of existing classrooms; it blocks new active-classroom consumption.
+Plus/Pro limits were not part of the original Access enforcement slice. Their
+approved classroom limits are now defined above; AI allowances and pricing
+remain undecided. An archived classroom did not consume Access capacity.
+Downgrade or expiry never deletes, archives, or changes ownership of existing
+classrooms; it blocks new active-classroom consumption.
 
 ## Four separate decisions
 
