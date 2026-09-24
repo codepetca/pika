@@ -69,7 +69,6 @@ describe('gradeStudentWork prompt rules', () => {
         outputTokens: 40,
         totalTokens: 160,
       },
-      reasoningEffortUsed: 'medium',
     })
 
     const gradingRequest = fetchMock.mock.calls[0]?.[1]
