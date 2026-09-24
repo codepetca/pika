@@ -1,6 +1,7 @@
-import { startTransition, Suspense } from 'react'
+import { startTransition, Suspense, useState } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { DialogPanel } from '@/ui'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 
@@ -154,6 +155,55 @@ describe('TeacherTestPreviewPage', () => {
     } else {
       delete (window as Window & { screen?: Window['screen'] }).screen
     }
+  })
+
+  it('keeps maximize and close usable while the preview request is pending', async () => {
+    fullscreenElement = null
+    const pending = deferred<ReturnType<typeof previewResponse>>()
+    vi.mocked(fetch).mockReturnValue(pending.promise as ReturnType<typeof fetch>)
+    const onClose = vi.fn()
+
+    render(<TeacherTestPreviewPage classroomId="classroom-1" testId="test-1" embedded onClose={onClose} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Maximize Window' }))
+    await waitFor(() => expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce())
+    expect(screen.getByRole('status')).toHaveTextContent('Loading preview')
+    fireEvent.click(screen.getByRole('button', { name: 'Close Preview' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('owns focus above an open editor and restores the editor on close', async () => {
+    fullscreenElement = null
+    vi.mocked(fetch).mockResolvedValue(previewResponse({}) as Awaited<ReturnType<typeof fetch>>)
+    const editorClosed = vi.fn()
+    function EditorWithPreview() {
+      const [previewOpen, setPreviewOpen] = useState(false)
+      return <>
+        <DialogPanel isOpen onClose={editorClosed} ariaLabelledBy="editor-title">
+          <h2 id="editor-title">Edit test</h2>
+          <button onClick={() => setPreviewOpen(true)}>Preview test</button>
+        </DialogPanel>
+        {previewOpen && <TeacherTestPreviewPage classroomId="classroom-1" testId="test-1" embedded onClose={() => setPreviewOpen(false)} />}
+      </>
+    }
+    render(<EditorWithPreview />)
+    const opener = screen.getByRole('button', { name: 'Preview test' })
+    opener.focus()
+    fireEvent.click(opener)
+
+    const maximize = await screen.findByRole('button', { name: 'Maximize Window' })
+    expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+    fireEvent.click(maximize)
+    await waitFor(() => expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce())
+    fireEvent.click(screen.getByRole('button', { name: 'Close Preview' }))
+    expect(screen.getByRole('dialog', { name: 'Edit test' })).toBeInTheDocument()
+    expect(opener).toHaveFocus()
+    expect(editorClosed).not.toHaveBeenCalled()
+    fireEvent.click(opener)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: 'Teacher test preview' })).not.toBeInTheDocument()
+    expect(editorClosed).not.toHaveBeenCalled()
+    expect(opener).toHaveFocus()
   })
 
   it('does not let an older test request repaint a newly selected preview', async () => {

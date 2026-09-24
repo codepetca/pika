@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Dormant contextual individual assignment work read
-
-- Owner `codex/contextual-assignment-student-work-read`, based on merged aggregate-detail PR1292. Extended the same off-by-default exact user/assignment gate to `GET /api/teacher/assignments/[id]/students/[studentId]`. A student-valued classroom owner may read one enrolled student's existing work, including an archived classroom, without changing the account's legacy role.
-- Contextual mode canonicalizes the student identifier after assignment-pair admission, proves the exact classroom enrollment, and validates profile, document, feedback, requirement, artifact, repository-target and completed repository-review bindings. Optional single-row evidence uses bounded arrays so unavailable or duplicate service-role results cannot be normalized to absence; the already-authorized client is reused by supporting loaders. The learner document route and every assignment mutation remain legacy.
-- No UI, migration, schema, dependency, production configuration or cohort activation changed. Initial targeted contextual/legacy/helper coverage passes 48 tests plus TypeScript; focused verification and independent review follow.
-- Initial security and compatibility review found that the repository-review result was bound to the requested assignment/student but its joined run was validated only by completed status. Batch1 selects the nested run ID and assignment, proves `result.run_id` and assignment match that run, and adds helper plus route regressions for substituted cross-assignment run evidence; refreshed checks and exact-head re-review follow.
-
-## 2026-09-19 — Dormant transactional learner assignment open
-
-- Owner `codex/contextual-assignment-doc-open`, based on merged individual-work PR1293. Migration182 adds a service-only transaction that rechecks live assignment/classroom state and exact enrollment under the membership-removal fences before creating or refreshing one learner assignment document. It preserves first-view/returned-feedback acknowledgment and constrains the optional legacy Pal event to the assignment-view contract.
-- No route, feature flag, UI, production database or cohort activation uses the function in this slice. The strict server adapter validates actor/assignment/document evidence; rollback-only behavior and multi-connection harnesses cover removal-first, archive-first, draft-first, open-first and duplicate-open ordering.
-- With exact local authorization, migration182 SHA256 `181d8124527349599b8d772eeb213ac0e3d12eb48f557ebe4838ab9c17cd3a74` applied after one corrected retry authorization. Local history001–182, behavior/concurrency contracts, generated types, warning-level database lint, 117 focused tests, architecture, UI/design policy, TypeScript, lint and Pika audit pass. Independent high-risk review follows.
-- Initial compatibility review was clean. Initial security review found membership-scoped Pal routing still depended on the account's legacy student role, so a teacher-valued exact member could create the document without emitting its first-view fact. Batch1 adds migration183 to make Pal identity relationship-based while preserving all removal/archive/purge/generation fences, with teacher- and student-valued exact-member plus retry-dedup coverage. With exact authorization, migration183 SHA256 `d2153b9e3cbf94c991abbaf177ba6d16e5fa9d2147ad4c1a03d0b57c861664ea` applied locally; local history001–183 and the assignment-open, membership identity and classroom Pal contracts pass.
-
 ## 2026-09-19 — Dormant contextual learner assignment-open route
 
 - Owner `codex/contextual-assignment-route`, based on merged transactional-open PR1294. Added an independent, off-by-default exact user/assignment gate to `GET /api/assignment-docs/[id]`. A matched teacher- or student-valued active member opens only their own document through migration182; the transaction remains the membership/visibility authority and a foreign `student_id` teacher projection is rejected.
@@ -347,3 +333,14 @@ async-grading.
 
 - Resumed PR #1340 after the Claude handoff. Initial Sol/Terra review found uncached reference generation ran before durable attempt accounting and missing-question recovery could exceed the attempt cap. One correction batch places preparation inside the counted microbatch attempt, checks the deadline again afterward, and caps missing-question recovery. Four new regressions fail before the correction and pass after it; runner suite passes 20 tests. No migration or grading-strategy change. Focused verification, targeted re-review, and owner merge approval remain required.
 - Owner approved a final bounded review, merge on green PR Gate, and production promotion. Final review found database writes or lease renewals could consume the admission window after its check; recheck immediately before reference preparation and single/batch provider calls. Four additional regressions failed before this correction and pass afterward; runner suite now passes 24 tests. Final focused verification and independent confirmation remain required before ready.
+
+## 2026-09-24 — Practice test local server
+
+- Started Docker and Pika on port 3000 from `codex/practice-test-local`, based on main at `94bf3d37`, using the local-dev launcher and existing local Supabase data.
+- Environment verification passed; Next.js reported Ready. Server retained for the user's practice test work.
+
+## 2026-09-24 — Responsive teacher test preview
+
+- Fixed embedded preview inheriting the editor's inactive background. Reused ModalLayer for top-layer focus, inertness, scroll locking, and return to the still-mounted editor; reused PageState so maximize/close survive pending reads. Student test-taking and fullscreen requirement unchanged.
+- UI brief: teacher preview; reference DESIGN overlay contract and Pattern Lab dialog; reuse ModalLayer/PageState, extend preview composition. Teacher desktop/mobile (1440/390), light/dark, loading/ready/maximize/close/focus; student n/a (teacher-only component). Primary signal remains maximize action/Preview Mode; no new pattern or promotion. Composite keyboard/semantics checklist covered. Risk: workspace-state, exam-mode (teacher preview only). Model recommendation: current Codex for implementation; GPT-5.6 Terra high for one standard-risk independent review.
+- Two new regressions failed before and passed after; 11 preview tests and focused gate (159 tests, architecture, UI/design policy, types, lint) pass. Playwright delayed-read/maximize/close/focus matrix passes; screenshots inspected at /tmp/pika-preview-visual; reproducible runner /tmp/pika-preview-verify.cjs. Existing async test-id/request guards retained. Pattern Lab shared modal reference inspected. No shared-component extraction needed.
