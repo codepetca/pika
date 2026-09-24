@@ -67,6 +67,9 @@ metering. Plan assignment is service-only and derives the classroom limit; the
 operator does not enter a per-user classroom quota. A separate, reviewed rollout
 must reconcile existing accounts (including current owner classes), replace the
 Access pilot assignments, and verify snapshots before any UI or billing change.
+The [account-plan rollout runbook](account-plan-rollout.md) defines the
+read-only inventory, separately approved account batches and later strict
+activation without using the old Access/Free mapping as a plan default.
 Existing classrooms are not archived or deleted when a lower plan is assigned;
 further creation/restore is blocked while the account is at or over its new limit.
 Cancellation, grace periods, trial eligibility, payments, AI quantities and

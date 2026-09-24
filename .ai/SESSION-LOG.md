@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-20 — Dormant contextual learner assignment submit/unsubmit
-
-- Owner `codex/contextual-assignment-submit`, based on merged assignment-save PR1297. Migration186 adds service-only submit and unsubmit transactions that recheck live assignment/classroom state and exact enrollment under the established submission→editor→classroom/member lock order before delegating to the legacy atomic operations.
-- Added one independent off-by-default exact user/assignment gate shared by the submit and unsubmit routes. Matched teacher- or student-valued active members mutate only their own document; strict adapter and preflight evidence binding fail closed without legacy fallback. Disabled and unmatched requests retain the legacy student-only path.
-- With exact local-only authorization, migration186 SHA256 `a06d0915a0df1930ef35e3acf459e271f93d6a7d579d52b23afe48cb5047959f` applied after local history001–185. Warning-level schema lint, generated-type parity, rollback-only behavior checks and all 18 removal/save/submit/unsubmit concurrency contracts pass; randomized fixtures are removed. Production remains001–180 and every contextual assignment gate remains off. History/restore and artifact mutations still block cohort activation.
-- PR1298 initial Sol/Terra review found attachment-race errors collapsed to503, service-role preflight evidence returned before membership authorization, and a post-transaction authenticity write outside the member boundary. Remediation batch1 preserves both attachment outcomes, moves all contextual preflight evidence into migration187's service-only locked transaction, and removes the contextual authenticity write. Under the user's standing local-migration authorization, migration187 SHA256 `5f84d7f11c37807b525dda31e8015906accdcc1a93490322d023c4aa7c3d636d` applied locally; local history001–187, removed-member denial, type parity, lint, both rollback harnesses and all18 concurrency cases pass. Targeted re-review follows; production/gates remain unchanged.
-
 ## 2026-09-20 — Dormant contextual assignment history/restore
 
 - Owner `codex/contextual-assignment-history`, based on merged submit/unsubmit PR1298. Migration188 adds service-only role-neutral owner/member history reads and exact member restore. Both boundaries take submission/editor fences before classroom/member locks; restore independently rechecks live visibility, current enrollment, document revision and exact history ownership before delegating to the established atomic save.
@@ -342,3 +335,9 @@ async-grading.
 - Owner `codex/student-test-scroll`; risk `exam-mode` (layout only). Bound the existing student question section to its split pane height so long tests scroll to the final questions and Submit. No assessment, attempt, or focus-tracking changes.
 - Reuse ExamDocumentWorkspace/WorkspaceSplitPane; extend StudentTestsTab with the same bounded scroller used by TeacherTestPreviewPage. Student desktop/mobile light/dark wheel-scroll and reference/answer retention checked; teacher n/a (student-only change), no new pattern or promotion. Existing divider keyboard resizing checked.
 - Validation: 43 component tests, four mocked browser matrix checks, focused checks (186 tests, architecture, UI/design policies, types, lint). Local screenshots under `test-results/experience-matrix-student--3e2c4--final-questions-and-submit-*`; fixture avoids live student attempts. Production deployment remains separate.
+
+## 2026-09-24 — Account-plan rollout runbook
+
+- Owner `codex/account-plan-rollout-runbook`; documentation-only, risk profile `none`. Added a plan-specific operator sequence for read-only account inventory, explicit owner decisions, audited per-account assignments, and a separately approved strict cutover. Marked the earlier Access-pilot cutover as historical for plan classification.
+- No account, entitlement, migration, database switch, app behavior, or production data changed. Live account inventory remains unverified while hosted access is unavailable. Model recommendation: GPT-6 Sol — bounded rollout documentation tied to existing migration contracts.
+- Independent documentation review found that audited-missing grants fail closed even before strict activation and that ownership-transfer canaries were omitted. The runbook now calls out both conditions and their stop/repair behavior; targeted re-review and final CI remain pending.
