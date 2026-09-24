@@ -499,7 +499,7 @@ describe('TeacherTestPreviewPage', () => {
     })
   })
 
-  it.each([{ extension: 'pdf', image: false }, { extension: 'png', image: true }, { extension: 'jpeg', image: true }, { extension: 'png', image: false }, { extension: 'jpeg', image: false }])('opens uploaded $extension (image=$image) through the authenticated teacher route', async ({ extension, image }) => {
+  it.each([{ extension: 'png', image: true, copied: true }, { extension: 'jpeg', image: true, copied: true }, { extension: 'pdf', image: false }, { extension: 'png', image: true }, { extension: 'jpeg', image: true }, { extension: 'png', image: false }, { extension: 'jpeg', image: false }])('opens uploaded $extension (image=$image) through the authenticated teacher route', async ({ extension, image, copied = false }) => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
     vi.mocked(fetch).mockResolvedValue(
       previewResponse({
@@ -509,7 +509,7 @@ describe('TeacherTestPreviewPage', () => {
             title: 'Teacher reference PDF',
             source: 'upload',
             storage_bucket: 'test-documents',
-            storage_path: `classrooms/classroom-1/tests/test-1/documents/doc-upload/${image ? 'images/' : ''}reference.${extension}`,
+            storage_path: copied ? `managed-copies/operation/images/reference.${extension}` : `classrooms/classroom-1/tests/test-1/documents/doc-upload/${image ? 'images/' : ''}reference.${extension}`,
           },
         ],
       }) as Awaited<ReturnType<typeof fetch>>,

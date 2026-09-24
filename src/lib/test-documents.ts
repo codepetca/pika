@@ -289,7 +289,7 @@ export function getTestDocumentImageType(doc: TestDocument): 'image/png' | 'imag
   const storagePath = getTestDocumentStoragePath(doc)
   // Only the server's image namespace is a discriminator: old non-image uploads
   // may have a misleading user-supplied filename suffix.
-  if (!storagePath || !/^classrooms\/[^/]+\/tests\/[^/]+\/documents\/[^/]+\/images\/[^/]+$/.test(storagePath)) return null
+  if (!storagePath || !/^(?:classrooms\/[^/]+\/tests\/[^/]+\/documents\/[^/]+|managed-copies\/[^/]+)\/images\/[^/]+$/.test(storagePath)) return null
   if (storagePath.endsWith('.png')) return 'image/png'
   if (storagePath.endsWith('.jpeg')) return 'image/jpeg'
   return null

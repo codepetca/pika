@@ -222,6 +222,12 @@ describe('test-documents', () => {
     })).toBeNull()
   })
 
+  it.each(['png', 'jpeg'])('recognizes managed-copy images without trusting legacy .%s suffixes', (extension) => {
+    const base = { id: 'copy', title: 'World', source: 'upload' as const, storage_bucket: 'test-documents' as const }
+    expect(getTestDocumentImageType({ ...base, storage_path: `managed-copies/op/images/object.${extension}` })).toBe(`image/${extension}`)
+    expect(getTestDocumentImageType({ ...base, storage_path: `managed-copies/op/object.${extension}` })).toBeNull()
+  })
+
   it('formats compact relative sync ages', () => {
     const now = Date.parse('2026-04-02T12:00:00.000Z')
 
