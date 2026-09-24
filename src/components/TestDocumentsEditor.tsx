@@ -355,6 +355,7 @@ export function TestDocumentsEditor({
           title: String(title).trim().slice(0, 120),
           storage_bucket: 'test-documents' as const,
           storage_path: String(uploadData.storage_path || ''),
+          upload_content_type: file.type,
           ...(uploadData.managed_object_id
             ? { managed_object_id: String(uploadData.managed_object_id) }
             : {}),

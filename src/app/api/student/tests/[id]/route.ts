@@ -10,7 +10,7 @@ import {
   isMissingTestAttemptReturnColumnsError,
 } from '@/lib/server/tests'
 import { normalizeTestResponses, type TestResponses } from '@/lib/test-attempts'
-import { normalizeTestDocuments } from '@/lib/test-documents'
+import { resolveTestDocumentUploadContentTypes } from '@/lib/server/test-document-content-types'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
 
@@ -179,7 +179,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     assessment_type: 'test' as const,
     status: test.status,
     show_results: test.show_results,
-    documents: normalizeTestDocuments(test.documents),
+    documents: await resolveTestDocumentUploadContentTypes(test.documents, test.classroom_id, supabase),
     position: test.position,
     student_status: studentStatus,
     returned_at: attempt?.returned_at || null,

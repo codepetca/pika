@@ -3,6 +3,7 @@ import {
   formatCompactRelativeAge,
   getTestDocumentValidationError,
   isLinkDocumentSnapshotStale,
+  isPdfTestDocument,
   normalizeTestDocuments,
   preserveCurrentTestDocumentSnapshots,
   sanitizeSnapshotHtml,
@@ -11,6 +12,31 @@ import {
 } from '@/lib/test-documents'
 
 describe('test-documents', () => {
+  it('identifies managed PDFs while keeping other references sandboxed', () => {
+    expect(isPdfTestDocument({
+      id: 'upload', title: 'PDF', source: 'upload', storage_path: 'documents/reference.txt',
+      upload_content_type: 'application/pdf',
+    })).toBe(true)
+    expect(isPdfTestDocument({
+      id: 'misnamed', title: 'Text', source: 'upload', storage_path: 'documents/reference.pdf',
+      upload_content_type: 'text/plain',
+    })).toBe(false)
+    expect(isPdfTestDocument({
+      id: 'legacy', title: 'Unknown', source: 'upload', storage_path: 'documents/reference.pdf',
+    })).toBe(false)
+    expect(isPdfTestDocument({
+      id: 'snapshot', title: 'PDF', source: 'link', url: 'https://example.com/reference',
+      snapshot_content_type: 'application/pdf',
+    })).toBe(true)
+    expect(isPdfTestDocument({
+      id: 'html', title: 'HTML', source: 'link', url: 'https://example.com/reference',
+      snapshot_content_type: 'text/html',
+    })).toBe(false)
+    expect(isPdfTestDocument({
+      id: 'unsynced', title: 'Unknown', source: 'link', url: 'https://example.com/reference.pdf',
+    })).toBe(false)
+  })
+
   it('normalizes valid documents and drops invalid entries', () => {
     const result = normalizeTestDocuments([
       {

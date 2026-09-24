@@ -26,6 +26,13 @@ const DOCUMENTS: ExamDocumentItem[] = [
     url: '/formula/reference',
   },
   {
+    id: 'pdf-doc',
+    title: 'PDF reference',
+    source: 'upload',
+    url: '/api/reference.pdf',
+    isPdf: true,
+  },
+  {
     id: 'unavailable-doc',
     title: 'Unavailable reference',
     source: 'link',
@@ -67,6 +74,8 @@ describe('ExamDocumentWorkspace', () => {
     expect(screen.getByTitle('API reference')).toHaveAttribute('tabindex', '-1')
     expect(screen.getByTitle('API reference')).toHaveAttribute('aria-hidden', 'true')
     expect(screen.getByTitle('Formula reference')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByTitle('API reference')).toHaveAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms')
+    expect(screen.queryByTitle('PDF reference')).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Test documents' }).parentElement)
       .toHaveClass('flex-1')
     expect(screen.getByRole('region', { name: 'Test questions' }).parentElement)
@@ -87,6 +96,14 @@ describe('ExamDocumentWorkspace', () => {
     fireEvent.click(backButton)
     await waitFor(() => expect(documentButton).toHaveFocus())
     expect(screen.getByRole('heading', { name: 'Documents' })).toBeInTheDocument()
+  })
+
+  it('mounts an unsandboxed PDF only while its document is open', () => {
+    render(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'PDF reference' }))
+    expect(screen.getByTitle('PDF reference')).not.toHaveAttribute('sandbox')
+    fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
+    expect(screen.queryByTitle('PDF reference')).not.toBeInTheDocument()
   })
 
   it('clamps pointer and keyboard resizing between 30 and 50 percent', () => {
