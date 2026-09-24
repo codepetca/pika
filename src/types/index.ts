@@ -897,6 +897,7 @@ export interface TestDocument {
   storage_bucket?: 'test-documents'
   storage_path?: string
   managed_object_id?: string
+  upload_content_type?: string
   content?: string
   snapshot_path?: string
   snapshot_managed_object_id?: string

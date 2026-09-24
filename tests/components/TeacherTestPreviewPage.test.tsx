@@ -508,7 +508,16 @@ describe('TeacherTestPreviewPage', () => {
             title: 'Teacher reference PDF',
             source: 'upload',
             storage_bucket: 'test-documents',
-            storage_path: 'classroom-1/tests/test-1/doc-upload/reference.pdf',
+            storage_path: 'classroom-1/tests/test-1/doc-upload/reference.txt',
+            upload_content_type: 'application/pdf',
+          },
+          {
+            id: 'doc-text',
+            title: 'Teacher text reference',
+            source: 'upload',
+            storage_bucket: 'test-documents',
+            storage_path: 'classroom-1/tests/test-1/doc-text/reference.pdf',
+            upload_content_type: 'text/plain',
           },
         ],
       }) as Awaited<ReturnType<typeof fetch>>,
@@ -531,6 +540,10 @@ describe('TeacherTestPreviewPage', () => {
       '/api/teacher/tests/test-1/documents/doc-upload/file',
     )
     expect(screen.getByTitle('Teacher reference PDF')).not.toHaveAttribute('sandbox')
+    expect(screen.getByTitle('Teacher text reference')).toHaveAttribute(
+      'sandbox',
+      'allow-same-origin allow-scripts allow-forms',
+    )
   })
 
   it('refreshes an open same-id document and closes it when the document is removed', async () => {

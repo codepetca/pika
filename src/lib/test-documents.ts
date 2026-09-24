@@ -27,7 +27,7 @@ export const LINK_DOCUMENT_SNAPSHOT_SUPPORTED_TYPES = [
 
 export function isPdfTestDocument(doc: TestDocument): boolean {
   if (doc.source === 'upload') {
-    return /\.pdf$/i.test(doc.storage_path || '')
+    return doc.upload_content_type === 'application/pdf'
   }
   return doc.source === 'link' && doc.snapshot_content_type === 'application/pdf'
 }
@@ -70,6 +70,9 @@ export function normalizeTestDocuments(value: unknown): TestDocument[] {
     const managedObjectId = typeof raw.managed_object_id === 'string'
       ? raw.managed_object_id.trim()
       : ''
+    const uploadContentType = typeof raw.upload_content_type === 'string'
+      ? raw.upload_content_type.trim().toLowerCase()
+      : ''
     const content = typeof raw.content === 'string' ? raw.content : ''
     const snapshotPath = typeof raw.snapshot_path === 'string' ? raw.snapshot_path.trim() : ''
     const snapshotManagedObjectId = typeof raw.snapshot_managed_object_id === 'string'
@@ -106,6 +109,9 @@ export function normalizeTestDocuments(value: unknown): TestDocument[] {
         storage_bucket: storageBucket || 'test-documents',
         storage_path: storagePath,
         ...(managedObjectId ? { managed_object_id: managedObjectId } : {}),
+        ...(isAllowedTestDocumentType(uploadContentType)
+          ? { upload_content_type: uploadContentType }
+          : {}),
       })
       continue
     }
