@@ -1555,7 +1555,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                     data-testid="student-test-detail-pane"
                     className={`rounded-xl border border-border bg-surface p-3 sm:p-4 ${
                       showCurrentTestInfoPanel
-                        ? 'min-h-0 overflow-y-auto scrollbar-hover'
+                        ? 'h-full min-h-0 overflow-y-auto scrollbar-hover'
                         : 'lg:h-full'
                     } ${
                       showNotMaximizedWarning ? 'border-warning bg-warning-bg/20' : ''
