@@ -60,6 +60,9 @@ Phase 0 adds dormant contracts only; neutral onboarding and paid-plan enforcemen
 ## Future Features
 
 - Production-ready email delivery
+- Plan-independent archived-classroom retention: advance notices, verified cold storage,
+  and a separately gated eventual deletion policy. This is proposed future work, not
+  enabled behavior; see the [classroom lifecycle roadmap](../guidance/classroom-lifecycle-archives.md#future-archived-classroom-retention-proposal-not-enabled).
 - Late status display and richer attendance analytics
 - Regional holiday configuration
 - Notifications (missed entries, due dates)

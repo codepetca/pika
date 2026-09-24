@@ -9,11 +9,11 @@ import {
 
 export const PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION = 'pika-test-open-response-v1'
 export const PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION = 'pika-test-open-response-rubric-v1'
-export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v4'
+export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v5'
 export const PIKA_TEST_OPEN_RESPONSE_MANUAL_PROMPT_VERSION =
-  'pika-test-open-response-manual-prompt-v3'
+  'pika-test-open-response-manual-prompt-v4'
 export const PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION =
-  'pika-test-open-response-bulk-prompt-v3'
+  'pika-test-open-response-bulk-prompt-v4'
 
 // Calibrated against 8 adjudicated responses from two archived classrooms. The grader
 // forgave one or two transcription slips but began deducting as they accumulated, costing
@@ -24,13 +24,19 @@ export const PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION =
 const TRANSCRIPTION_TOLERANCE_GUIDANCE = `- Transcription errors never reduce the score. A missing semicolon or parenthesis, a comma typed as a period, an unclosed quote, or a misspelled identifier is a handwriting artifact, not an error in the work. Deduct only for mistakes that change the program's logic, structure, or output.
 - Apply this no matter how many transcription errors appear. Five slips in otherwise correct code is still correct code; never let them accumulate into a deduction.`
 
+// The precedence clause below is not redundant. `GRADE_11CS_JAVA_CODEHS_PROMPT_GUIDELINE`
+// tells the grader to "score in the middle range" for partly-correct logic, which on a
+// ten-criterion question lands near 5 no matter how many criteria were met. The bulk
+// guideline carries no such bands, which is why only the manual profile broke the floor.
+//
 // Second calibration finding, from the same archived responses once the transcription
 // noise above stopped masking it. On a ten-bullet key worth ten marks, submissions that
 // cleanly satisfied six and seven bullets scored four — the teacher adjudicated both at
 // 6-8 and 7-8. Failures were being charged more than once: stacked beyond the bullets
 // that actually failed, or counted again under a second bullet describing the same defect.
 const RUBRIC_BULLET_FLOOR_GUIDANCE = `- When the answer key is a list of criteria, score it as a checklist. Each criterion the response satisfies is worth its share of the marks, and the score never falls below the number of criteria clearly met.
-- Deduct once per criterion that genuinely fails, and no more. Never let one defect reduce the score under two criteria, and never add further penalty for the number of things wrong — a response missing three criteria loses three marks, not more.`
+- Deduct once per criterion that genuinely fails, and no more. Never let one defect reduce the score under two criteria, and never add further penalty for the number of things wrong — a response missing three criteria loses three marks, not more.
+- The checklist overrides any instruction to place a score in an upper, middle or low range. Those bands are for judging work that has no criteria list; where a list exists, count it instead of estimating a band.`
 export const PIKA_TEST_REFERENCE_PROFILE_VERSION = 'pika-test-reference-v1'
 export const PIKA_TEST_REFERENCE_PROMPT_VERSION = 'pika-test-reference-prompt-v1'
 

@@ -269,7 +269,6 @@ function buildTestGradingProvenance(input: {
     batchSize: input.batchSize,
     providerRequestCount: input.execution.providerRequestCount,
     tokenUsage: input.execution.tokenUsage,
-    reasoningEffortUsed: input.execution.reasoningEffortUsed,
   })
 }
 
