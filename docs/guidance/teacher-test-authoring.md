@@ -67,8 +67,10 @@ through a different sequence. If the sequence matters, assess it explicitly.
 Populate `Answer Key` for open responses and `Sample Solution` where useful.
 For multiple choice, verify that exactly one option is correct and that the
 1-based `Correct Option` matches it. Keep grading notes and solutions out of
-student-facing reference documents; use the dedicated authoring fields and check
-the intended disclosure behavior in student preview.
+student-facing reference documents. Use the dedicated authoring fields, but do
+not assume they remain teacher-only: for coding responses, `Sample Solution` is
+shown to students on the results page when results become available. Student
+preview checks the prompt and references, not post-release results disclosure.
 
 ## Calibrate difficulty and workload
 
