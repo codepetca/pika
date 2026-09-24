@@ -1,9 +1,9 @@
 # PNG/JPEG test references
 
 Date: 2026-09-24
-Status: draft PR #1355; second correction batch awaits complete checks and independent review. Local Storage smoke awaits migration permission. Review time budget reached; explicit continuation required.
+Status: PR #1355 implementation and local verification complete. Targeted review is clear; final cumulative review and ready CI follow.
 Owner: current coordinator task; branch `codex/test-reference-images`, baseline `37af5a17`.
-User decision: PNG/JPEG only; SVG deferred. Implementation and normal PR workflow authorized. Local migration permission requested separately; production changes and merge require their own authority.
+User decision: PNG/JPEG only; SVG deferred. Implementation and normal PR workflow authorized. User approved exact migration208 on local Supabase and review continuation; production changes and merge require their own authority.
 Risk profiles: `exam-mode`, `workspace-state`.
 Model recommendation: GPT-5.6 Terra high for bounded implementation and browser coverage; coordinator integrates and verifies.
 
@@ -18,7 +18,7 @@ Teachers attach PNG or JPG/JPEG through Reference Documents → Upload. Students
 - Before upload finalization, read at most 64KiB with a 5s timeout and validate format headers and declared dimensions (10,000px maximum side, 40MP total). This is structural validation, not a full decoder: later corruption produces a viewer error. Failed image finalization or cancellation retains the reservation for existing expiry cleanup, avoiding races with successful verification. Reservations expire after one hour; cleanup is manually operated, so deletion is not promised within that hour. Verified finalization retries return without rereading Storage.
 - Preserve the image namespace across managed classroom ↔ course-blueprint copies using resolved source MIME; copied PNG/JPEG references retain the image viewer. Portable exported course-blueprint files remain a separate links/text-only feature.
 - Reuse private uploads, exact test references and teacher/student file endpoints. No new attachment table, public bucket, persisted presentation metadata or dependency.
-- Migration 208 `allow_test_document_png_jpeg` extends the bucket MIME allowlist while retaining other entries, privacy and size. Local history 001–207 matches; dry-run lists only 208. Application pending exact user permission.
+- Migration 208 `allow_test_document_png_jpeg` extends the bucket MIME allowlist while retaining other entries, privacy and size. Approved local migration applied successfully; history001–208 matches, generated types match, bucket stays private with its25MB limit.
 - Add the image branch to ExamDocumentWorkspace. Existing links/PDFs/text keep their rendering paths. Images use an ordinary image element through the authenticated file endpoint.
 - Fit initially without enlarging beyond native dimensions. Zoom ranges from 1× to 4× of fit in 25% increments. Retry calls the authorized endpoint again for fresh delivery. Controls preserve keyboard interaction and exam activity signals; question forms remain mounted.
 - Preserve a white canvas behind transparent diagrams in both themes with a semantic token.
@@ -62,14 +62,15 @@ Composite checklist reviewed: yes. Keep separator keyboard values and Back focus
 ## Verification ledger
 
 - Startup/environment passed with frozen-lockfile dependencies.
-- Prior correction commit `d7ecd65f` focused gate: 903 tests across 70 files passed, plus architecture, UI/design policy, TypeScript and lint (`pnpm check:focused -- --base origin/main`; log `/tmp/pika-image-remediation-gate.log`). Pika pre-commit audit passed.
-- Browser matrix: teacher/student × desktop/mobile × light/dark, 8 cases; screenshots inspected by coordinator. Mocked API/storage covers upload metadata, save/reload, fit/zoom, retry, retained answers and no spurious focus requests. Tests assert decoded image content before capture. Local Storage smoke remains pending.
+- Resumed final implementation `e05267b9` focused gate: 910 tests across 70 files passed, plus architecture, UI/design policy, TypeScript and lint (`pnpm check:focused -- --base origin/main`; log `/tmp/pika-image-resumed-gate.log`). Pika pre-commit audit passed.
+- Browser matrix: teacher/student × desktop/mobile × light/dark, 8 cases; screenshots inspected by coordinator. Mocked API/storage covers upload metadata, save/reload, fit/zoom, retry, retained answers and no spurious focus requests. Tests assert decoded image content before capture. Real local Storage smoke also passed: PNG/JPEG reservation, upload, finalize and idempotent retry; saved/reloaded references; authenticated teacher and enrolled-student delivery; anonymous denial. Temporary local test removed through normal API. Log `/tmp/pika-image-storage-smoke.log`.
 - Capture provenance: 2026-09-24, local dev server port 3014, baseline `37af5a17` plus this branch's implementation and remediation diff; synthetic Karel raster only. Routes `/e2e-fixtures/student-test-list` and `/e2e-fixtures/test-reference-images`. Artifacts under `test-results/experience-matrix-keeps-a--683b2-oming-a-PNG-reference-image-*/student-test-image-*.png` and `test-results/experience-matrix-uploads--4beaa--and-retries-a-failed-image-*/teacher-test-image-*.png`.
 - UI fixes verified from real browser evidence: cached-image load before hydration and mobile document pane collapse. New image viewer adds no animations; existing workspace transitions retain reduced-motion overrides.
 - Initial independent Sol/Terra review found ambiguous filename-based rendering and a duplicate-finalization/cancellation cleanup race. One correction batch adds a server-owned image path namespace and preserves expiring reservations after image failures. Targeted regressions failed before correction; follow-up verification and review are recorded on the PR.
-- Targeted review caught loss of the image namespace during managed blueprint copies. A second batch preserves it from authoritative source MIME and adds PNG/JPEG/PDF round-trip and copied-viewer regressions; six regression failures reproduced before the fix, all 53 affected tests then passed. Its full focused check stalled and failed with timeouts/worker errors (23 failed, 866 passed, 4 errors; log `/tmp/pika-image-copy-gate.log`). No claim of a green final tree. Audit passed.
-- Review checkpoint: 3 reviewer launches, 1 initial wave plus 1 targeted wave, 2 correction batches. Elapsed session exceeded the 45-minute skill cap while the broad check stalled. No further review launched. Remaining: rerun/diagnose full checks for second batch, targeted managed-copy review, final cumulative review, approved local migration/Storage smoke and ready CI.
-- Migration 208 local dry run: only 208 pending; no application performed.
+- Targeted review caught loss of the image namespace during managed blueprint copies. A second batch preserves it from authoritative source MIME and adds PNG/JPEG/PDF round-trip and copied-viewer regressions; six regression failures reproduced before the fix, all 53 affected tests then passed. Its first full check stalled with timeouts; after approved continuation, the unchanged implementation passed all910tests and policies/types/lint. Audit passed.
+- Review continuation: user approved resuming after the elapsed-time checkpoint. Targeted launch4 confirmed the managed-copy correction and previous concurrency fixes; final cumulative review follows. Two correction batches, no additional implementation changes during resumed verification.
+- Migration208 applied once to local Supabase after exact approved dry run. All208 history entries match; generated types match. Bucket MIME additions verified; public=false and file_size_limit=26214400 preserved. No hosted migration, merge or deployment performed.
+
 
 ## Evidence
 
