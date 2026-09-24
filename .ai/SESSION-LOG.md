@@ -18,6 +18,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Live Supabase connector returned USER_NOT_LOGGED_IN; production plan assignments, migration206 and strict setting remain unverified. No code, migrations, grants, plan changes, PR, merge or deployment performed. Next: owner review of phase sequence, session policy and first authorization slice.
 
 ## 2026-09-25 — Fictional platform-admin prototype
+## 2026-09-20 — Dormant contextual assignment history/restore
 
 - User requested admin prototype screens. Added a development-only Pattern Lab route with fixed fictional inventory, account detail, activity and plan-preview screens. Confirm action remains disabled; no live account API or admin authority was added. Design brief and reuse decisions are recorded in `docs/guidance/platform-administration.md`.
 - Browser-verified desktop/mobile and light/dark list/detail/preview/activity. Mobile inventory changed from horizontal table to cards with visible View actions; no page overflow or console errors. Focused checks pass (11 files, 93 tests, architecture, UI/design policy, TypeScript, lint).
@@ -610,7 +611,9 @@ async-grading.
 - Owner `codex/student-test-scroll`; risk `exam-mode` (layout only). Bound the existing student question section to its split pane height so long tests scroll to the final questions and Submit. No assessment, attempt, or focus-tracking changes.
 - Reuse ExamDocumentWorkspace/WorkspaceSplitPane; extend StudentTestsTab with the same bounded scroller used by TeacherTestPreviewPage. Student desktop/mobile light/dark wheel-scroll and reference/answer retention checked; teacher n/a (student-only change), no new pattern or promotion. Existing divider keyboard resizing checked.
 - Validation: 43 component tests, four mocked browser matrix checks, focused checks (186 tests, architecture, UI/design policies, types, lint). Local screenshots under `test-results/experience-matrix-student--3e2c4--final-questions-and-submit-*`; fixture avoids live student attempts. Production deployment remains separate.
+
 ## 2026-09-24 — Chrome PDF test reference fix
 
 - Owner `codex/fix-test-pdf-embed`; risk profile `exam-mode`. Chrome blocks managed PDFs in the shared sandboxed test-document iframe with its exact "This page has been blocked by Chrome" error. Keep the sandbox for other references; open managed PDF uploads and PDF link snapshots without the iframe sandbox, mounting the PDF viewer only while selected. Both teacher preview and student tests use the shared workspace. Model recommendation: GPT-6 Sol — browser behavior and document isolation boundary.
 - Focused gate passed 848 tests plus architecture, UI/design policy, TypeScript, and lint. A temporary local Playwright fixture reproduced the blocked sandboxed PDF and showed the corrected PDF rendering in the split pane at desktop and mobile sizes, including an HTTP redirect like the private file route. Fixture files were removed. Independent review and PR Gate remain.
+- Initial Sol/Terra review found filename-based PDF detection could both miss a real PDF and omit the sandbox for a non-PDF named `.pdf`. One remediation batch uses registered managed-storage MIME in both test-detail APIs (and Storage metadata for pre-managed uploads), strips unverified JSON metadata, and identifies PDFs only from `application/pdf`. New uploads retain their verified MIME. Teacher/student rendering and server helper regressions cover mismatched names and MIME, with fail-closed behavior on metadata errors. Targeted security re-review follows.
