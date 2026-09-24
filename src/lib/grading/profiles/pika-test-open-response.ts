@@ -139,9 +139,12 @@ const TEST_BATCH_BASE_OUTPUT_TOKENS = 1_000
 const TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS = 4_000
 const TEST_BATCH_MAX_OUTPUT_TOKENS = 24_000
 
-/** Largest batch this budget can serve before the clamp starves each response. */
+/**
+ * Largest batch whose first attempt still gets its full per-response estimate while leaving
+ * the retry room to be strictly larger. Beyond this the budget clamp trims every response.
+ */
 export const PIKA_TEST_MAX_BATCH_RESPONSES = Math.floor(
-  (TEST_BATCH_MAX_OUTPUT_TOKENS - TEST_BATCH_BASE_OUTPUT_TOKENS) /
+  (TEST_BATCH_MAX_OUTPUT_TOKENS - TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS - TEST_BATCH_BASE_OUTPUT_TOKENS) /
     TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS,
 )
 
@@ -152,7 +155,9 @@ export function pikaTestBatchGradeOutput(responseCount: number): StructuredOutpu
   // would make the provider re-send the identical max_tokens after a truncation and fail
   // again at full cost — re-arming the exact bug this sizing exists to prevent.
   const fallback = Math.min(wanted * 2, TEST_BATCH_MAX_OUTPUT_TOKENS)
-  const initial = Math.min(wanted, Math.floor(fallback / 2))
+  // The first attempt gets its full estimate; it is trimmed only when the estimate is close
+  // enough to the ceiling that the retry would have no room left to be larger.
+  const initial = Math.min(wanted, fallback - TEST_BATCH_PER_RESPONSE_OUTPUT_TOKENS)
   return {
     schemaName: 'test_batch_grade',
     jsonSchema: batchGradeJsonSchema,

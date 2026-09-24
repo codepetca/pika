@@ -34,7 +34,9 @@ describe('Pika test open-response profile', () => {
     const one = pikaTestBatchGradeOutput(1)
     const four = pikaTestBatchGradeOutput(4)
     expect(four.initialMaxOutputTokens).toBeGreaterThan(one.initialMaxOutputTokens)
-    expect(four.initialMaxOutputTokens).toBeGreaterThanOrEqual(12000)
+    // Production's batch of four gets its full estimate on the first attempt: 1,000 base plus
+    // 4,000 per response, not a halved budget that forces an avoidable retry.
+    expect(four.initialMaxOutputTokens).toBe(17000)
     // Strictly greater: an equal fallback makes the truncation retry re-send the same
     // max_tokens and fail identically at full cost.
     expect(four.fallbackMaxOutputTokens).toBeGreaterThan(four.initialMaxOutputTokens)

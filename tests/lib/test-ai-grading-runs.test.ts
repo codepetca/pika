@@ -583,6 +583,22 @@ describe('tickTestAiGradingRun', () => {
     }))
   })
 
+  it('never charges an attempt beyond the limit when preparation fails', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+    })
+    Object.assign(items[0], { status: 'processing', attempt_count: TEST_AI_GRADING_MAX_ATTEMPTS })
+    prepareTestOpenResponseGradingContext.mockRejectedValueOnce(new Error('Reference generation failed'))
+
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+
+    expect(items[0]).toEqual(expect.objectContaining({
+      status: 'failed',
+      attempt_count: TEST_AI_GRADING_MAX_ATTEMPTS,
+      last_error_code: 'timeout',
+    }))
+  })
+
   it('starts no provider work it could not finish and save before the tick deadline', async () => {
     const { items } = buildTickHarness({
       responseRows: [

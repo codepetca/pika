@@ -855,6 +855,17 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     throw new Error('DEEPSEEK_API_KEY is not configured')
   }
   if (responses.length === 0) return []
+  // Documented ceilings that nothing enforces are how the previous starvation happened.
+  // Past this size the budget clamp gives each response less room, not more. Checked before
+  // any prompt is built, and reported as a malformed request: `config` would tell teachers
+  // AI grading is not configured, which is not the cause.
+  if (responses.length > PIKA_TEST_MAX_BATCH_RESPONSES) {
+    throw new TestAiGradingError({
+      kind: 'bad_response',
+      message: `Batch of ${responses.length} exceeds the ${PIKA_TEST_MAX_BATCH_RESPONSES} responses this output budget can serve`,
+      retryable: false,
+    })
+  }
 
   const providerRequests = createProviderRefMap(
     responses.map((response) => ({
@@ -872,16 +883,6 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
       responseText: response.responseText,
     })),
   )
-  // Documented ceilings that nothing enforces are how the previous starvation happened.
-  // Past this size the budget clamp gives each response less room, not more.
-  if (responses.length > PIKA_TEST_MAX_BATCH_RESPONSES) {
-    throw new TestAiGradingError({
-      kind: 'config',
-      message: `Batch of ${responses.length} exceeds the ${PIKA_TEST_MAX_BATCH_RESPONSES} responses this output budget can serve`,
-      retryable: false,
-    })
-  }
-
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
   const { parsed, usage, execution } = await callProviderForJson({
     apiKey,

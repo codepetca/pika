@@ -1021,6 +1021,17 @@ async function processQuestionBatch(opts: {
     }
   } catch (error) {
     await mapWithConcurrency(items, TEST_AI_GRADING_MICROBATCH_SIZE, async (item) => {
+      // The same limit as the grading loop below: an item already out of attempts is failed
+      // as interrupted, never charged an attempt beyond the maximum.
+      if (item.attempt_count >= TEST_AI_GRADING_MAX_ATTEMPTS) {
+        await failOrRetryItem({
+          item,
+          leaseToken,
+          attemptCount: item.attempt_count,
+          error: new TestAiGradingAttemptsExhaustedError(),
+        })
+        return
+      }
       const attemptCount = item.attempt_count + 1
       await updateRunItem(item.id, leaseToken, {
         status: 'processing',
