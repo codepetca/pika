@@ -46,9 +46,11 @@ classroom-creation limit, subject to the still-live role and join-policy gates.
    never in the repository or a public PR.
 3. Mark accounts requiring an explicit owner decision: any active classroom
    owner, any current Access or other manual grant, any existing plan, and any
-   plan/grant mismatch. Do not infer a paid plan from `users.role`, an email
-   domain, or ownership count alone. Do not silently turn an old Access grant
-   into Free or assume all existing owners fit within one classroom.
+   plan/grant mismatch. Flag an audited account whose current creation grant is
+   missing for immediate repair: it is already fail-closed, even before strict
+   activation. Do not infer a paid plan from `users.role`, an email domain, or
+   ownership count alone. Do not silently turn an old Access grant into Free
+   or assume all existing owners fit within one classroom.
 4. Produce a reviewed, account-by-account mapping to Free/Basic/Plus/Pro.
    Record the intended creation limit and whether current active count is
    above it. Resolve the owner experience for over-limit accounts **before**
@@ -84,8 +86,10 @@ Classification is already effective for the accounts it touches while broad
 strict enforcement remains off. Preserve normal login, classroom read/edit,
 join, submission, grading, and attendance canaries during each batch. Test
 creation and restore at/below/above the limit with synthetic accounts when
-possible, including Blueprint creation and idempotent retry. Do not change a
-real teaching classroom merely to exercise a canary.
+possible, including Blueprint creation, idempotent retry, and ownership transfer
+to a recipient below, at, and above capacity. Require at/over-limit recipient
+transfers to fail and stop on any bypass. Do not change a real teaching
+classroom merely to exercise a canary.
 
 ## Release 3 — separately approved strict cutover
 
@@ -108,8 +112,11 @@ Stop on target drift, missing migration, changed account totals, unreviewed
 owner mapping, unexpected Access/plan grant, plan-grant mismatch, failed audit
 read-back, loss of existing classroom access, or a route that bypasses the
 database creation assertion. Before strict activation, stop classification
-and correct individual accounts through the setter; unclassified accounts
-remain on the legacy compatibility path. After activation, repair individual
-snapshots through the audited setter. A systemic reversal requires a reviewed
-forward change; do not directly edit the private switch or delete plan/grant
-records. Never archive or delete classrooms as an automatic remediation.
+and correct individual accounts through the setter. Only never-managed
+accounts with no current creation grant **and no creation-grant audit history**
+remain on the legacy compatibility path; an audited account with a missing
+grant is already denied creation and needs immediate audited repair. After
+activation, repair individual snapshots through the audited setter. A systemic
+reversal requires a reviewed forward change; do not directly edit the private
+switch or delete plan/grant records. Never archive or delete classrooms as an
+automatic remediation.

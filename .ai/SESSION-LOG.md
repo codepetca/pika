@@ -340,3 +340,4 @@ async-grading.
 
 - Owner `codex/account-plan-rollout-runbook`; documentation-only, risk profile `none`. Added a plan-specific operator sequence for read-only account inventory, explicit owner decisions, audited per-account assignments, and a separately approved strict cutover. Marked the earlier Access-pilot cutover as historical for plan classification.
 - No account, entitlement, migration, database switch, app behavior, or production data changed. Live account inventory remains unverified while hosted access is unavailable. Model recommendation: GPT-6 Sol — bounded rollout documentation tied to existing migration contracts.
+- Independent documentation review found that audited-missing grants fail closed even before strict activation and that ownership-transfer canaries were omitted. The runbook now calls out both conditions and their stop/repair behavior; targeted re-review and final CI remain pending.
