@@ -5,7 +5,7 @@ const details = {
   title: z.string().trim().min(1).max(200),
   points_possible: z.number().min(0.1).max(999999.9).multipleOf(0.1),
   gradebook_category_id: z.uuid().nullable(),
-  gradebook_weight: z.number().int().min(1).max(999),
+  gradebook_weight: z.number().int().min(0).max(999),
   include_in_final: z.boolean(),
 }
 export const gradebookItemMutationSchema = z.discriminatedUnion('action', [

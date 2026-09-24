@@ -13,7 +13,7 @@ const classroomId = '11111111-1111-4111-8111-111111111111'
 const studentId = '22222222-2222-4222-8222-222222222222'
 const item = {
   id: 'item-1', classroom_id: classroomId, title: 'Attendance – Term 1',
-  points_possible: 10, include_in_final: true,
+  points_possible: 10, include_in_final: true, gradebook_weight: 10,
   gradebook_categories: { name: 'Term Work', percentage: 100 },
 }
 const returnedScore = {
@@ -79,6 +79,7 @@ describe('student returned standalone marks', () => {
     const query = queryRows([
       returnedScore,
       { ...returnedScore, earned: 8, gradebook_items: { ...item, id: 'item-2', include_in_final: false } },
+      { ...returnedScore, earned: 5, gradebook_items: { ...item, id: 'item-3', gradebook_weight: 0 } },
       { ...returnedScore, earned: 7, returned_at: null },
       { ...returnedScore, earned: null },
       { ...returnedScore, student_id: 'another-student' },
@@ -90,8 +91,10 @@ describe('student returned standalone marks', () => {
     expect(await response.json()).toEqual({ items: [
       { id: 'item-1', title: item.title, earned: 0, possible: 10, percent: 0, categoryName: 'Term Work', included: true },
       { id: 'item-2', title: item.title, earned: 8, possible: 10, percent: 80, categoryName: 'Term Work', included: false },
+      { id: 'item-3', title: item.title, earned: 5, possible: 10, percent: 50, categoryName: 'Term Work', included: false },
     ] })
     expect(query.select.mock.calls[0][0]).not.toContain('*')
+    expect(query.select.mock.calls[0][0]).toContain('gradebook_weight')
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')
   })
 

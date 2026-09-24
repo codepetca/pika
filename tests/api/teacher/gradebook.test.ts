@@ -1399,7 +1399,7 @@ describe('PATCH /api/teacher/gradebook', () => {
       assessment_type: 'test',
       assessment_id: 't1',
       gradebook_weight: 1000,
-    }), 'gradebook_weight must be an integer 1-999'],
+    }), 'gradebook_weight must be an integer 0-999'],
     [JSON.stringify({
       classroom_id: 'c1',
       assessment_type: false,
@@ -1423,19 +1423,19 @@ describe('PATCH /api/teacher/gradebook', () => {
       assessment_type: 'test',
       assessment_id: 't1',
       gradebook_weight: true,
-    }), 'gradebook_weight must be an integer 1-999'],
+    }), 'gradebook_weight must be an integer 0-999'],
     [JSON.stringify({
       classroom_id: 'c1',
       assessment_type: 'test',
       assessment_id: 't1',
-      gradebook_weight: 0,
-    }), 'gradebook_weight must be an integer 1-999'],
+      gradebook_weight: -1,
+    }), 'gradebook_weight must be an integer 0-999'],
     [JSON.stringify({
       classroom_id: 'c1',
       assessment_type: 'test',
       assessment_id: 't1',
       gradebook_weight: { value: 10 },
-    }), 'gradebook_weight must be an integer 1-999'],
+    }), 'gradebook_weight must be an integer 0-999'],
   ])('returns 400 for invalid update input %#', async (body, message) => {
     const request = new NextRequest('http://localhost:3000/api/teacher/gradebook', {
       method: 'PATCH',
@@ -1494,7 +1494,7 @@ describe('PATCH /api/teacher/gradebook', () => {
       eq: vi.fn().mockReturnThis(),
       select: vi.fn(() => ({
         maybeSingle: vi.fn().mockResolvedValue({
-          data: { id: 'a1', gradebook_weight: 20 },
+          data: { id: 'a1', gradebook_weight: 0 },
           error: null,
         }),
       })),
@@ -1528,7 +1528,7 @@ describe('PATCH /api/teacher/gradebook', () => {
         classroom_id: 'c1',
         assessment_type: 'assignment',
         assessment_id: 'a1',
-        gradebook_weight: '20',
+        gradebook_weight: '0',
         assignments_weight: 50,
       }),
     })
@@ -1537,11 +1537,11 @@ describe('PATCH /api/teacher/gradebook', () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
-    expect(update).toHaveBeenCalledWith({ gradebook_weight: 20 })
+    expect(update).toHaveBeenCalledWith({ gradebook_weight: 0 })
     expect(body.assessment).toEqual({
       assessment_id: 'a1',
       assessment_type: 'assignment',
-      weight: 20,
+      weight: 0,
     })
   })
 

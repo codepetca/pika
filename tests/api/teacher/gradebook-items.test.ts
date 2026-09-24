@@ -19,6 +19,10 @@ describe('standalone Gradebook mutations', () => {
     expect((await POST(request(create))).status).toBe(200)
     expect(rpc).toHaveBeenCalledWith('mutate_gradebook_item', expect.objectContaining({ p_teacher_id: '10000000-0000-4000-8000-000000000009', p_action: 'create', p_classroom_id: classroom_id, p_item_id: item_id, p_title: create.title }))
   })
+  it('accepts a zero item weight', async () => {
+    expect((await POST(request({ ...create, gradebook_weight: 0 }))).status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('mutate_gradebook_item', expect.objectContaining({ p_gradebook_weight: 0 }))
+  })
   it('preserves zero and uses null exclusively for clearing original scores', async () => {
     for (const earned of [0, null]) {
       expect((await PUT(request({ classroom_id, item_id, student_id, earned }))).status).toBe(200)

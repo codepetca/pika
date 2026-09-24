@@ -165,6 +165,22 @@ describe('Gradebook surface owners', () => {
     expect(onAssessmentOpen).toHaveBeenCalledWith(column)
   })
 
+  it('keeps a zero weight valid in the assessment row', () => {
+    const onWeightDraftChange = vi.fn()
+    const onWeightCommit = vi.fn()
+    const column = {
+      assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay',
+      possible: 10, weight: 0, include_in_final: true, category_name: 'Term',
+    }
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ columns: [column], showWeights: true, onWeightDraftChange, onWeightCommit })} /></TooltipProvider>)
+    const weight = screen.getByRole('spinbutton', { name: 'Category weight for Essay' })
+    expect(weight).toHaveValue(0)
+    expect(weight).toHaveAttribute('min', '0')
+    expect(weight).toHaveAttribute('aria-invalid', 'false')
+    fireEvent.blur(weight)
+    expect(onWeightCommit).toHaveBeenCalledWith(column)
+  })
+
   it('shows Undo all overrides only in More actions while overrides exist', () => {
     const onUndoManualChanges = vi.fn()
     render(<TooltipProvider><GradebookToolbar preferences={DEFAULT_GRADEBOOK_PREFERENCES} onChange={vi.fn()} selectedCount={0} isReadOnly={false} hasManualChanges onUndoManualChanges={onUndoManualChanges} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} studentGradesVisible={false} onStudentGradesVisibilityChange={vi.fn()} /></TooltipProvider>)

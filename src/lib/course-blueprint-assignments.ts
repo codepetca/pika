@@ -184,7 +184,7 @@ export function markdownToCourseBlueprintAssignments(
     }
     if (
       current.gradebook_weight != null &&
-      (!Number.isInteger(current.gradebook_weight) || current.gradebook_weight < 1 || current.gradebook_weight > 999)
+      (!Number.isInteger(current.gradebook_weight) || current.gradebook_weight < 0 || current.gradebook_weight > 999)
     ) {
       errors.push(`Assignment "${title}" has invalid Gradebook Weight`)
       current = null

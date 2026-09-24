@@ -86,17 +86,23 @@ describe('gradebookPatchSchema', () => {
     })
   })
 
+  it('accepts zero assessment weight', () => {
+    expect(gradebookPatchSchema.parse({
+      classroom_id: 'classroom-1', assessment_type: 'test', assessment_id: 'test-1', gradebook_weight: 0,
+    })).toMatchObject({ kind: 'assessment_weight', gradebookWeight: 0 })
+  })
+
   it.each([
     [{ assessment_type: 'quiz', assessment_id: 'a1', gradebook_weight: 10 }, 'assessment_type must be assignment or test'],
     [{ assessment_type: 'test', assessment_id: ' ', gradebook_weight: 10 }, 'assessment_id is required'],
-    [{ assessment_type: 'test', assessment_id: 't1' }, 'gradebook_weight must be an integer 1-999'],
-    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: 1.5 }, 'gradebook_weight must be an integer 1-999'],
-    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: 0 }, 'gradebook_weight must be an integer 1-999'],
-    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: 1000 }, 'gradebook_weight must be an integer 1-999'],
+    [{ assessment_type: 'test', assessment_id: 't1' }, 'gradebook_weight must be an integer 0-999'],
+    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: 1.5 }, 'gradebook_weight must be an integer 0-999'],
+    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: -1 }, 'gradebook_weight must be an integer 0-999'],
+    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: 1000 }, 'gradebook_weight must be an integer 0-999'],
     [{ assessment_type: 'test', assessment_id: ['t1'], gradebook_weight: 10 }, 'assessment_id is required'],
-    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: true }, 'gradebook_weight must be an integer 1-999'],
-    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: [10] }, 'gradebook_weight must be an integer 1-999'],
-    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: '1e2' }, 'gradebook_weight must be an integer 1-999'],
+    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: true }, 'gradebook_weight must be an integer 0-999'],
+    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: [10] }, 'gradebook_weight must be an integer 0-999'],
+    [{ assessment_type: 'test', assessment_id: 't1', gradebook_weight: '1e2' }, 'gradebook_weight must be an integer 0-999'],
   ])('rejects invalid assessment payload %#', (fields, message) => {
     const result = gradebookPatchSchema.safeParse({ classroom_id: 'classroom-1', ...fields })
     expect(result.success).toBe(false)
