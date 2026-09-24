@@ -837,7 +837,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
                   disabled={creating || releasing || saving || !currentAssignment}
                   className="w-full shadow-sm"
                   toggleAriaLabel="Choose assignment action"
-                  menuPlacement="down"
+                  menuPlacement="up"
                   primaryButtonProps={{
                     className: 'flex-1 justify-center font-semibold',
                   }}

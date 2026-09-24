@@ -125,6 +125,22 @@ describe('UiGallery history preview fixture', () => {
     expect(addRequirement).toHaveFocus()
   })
 
+  it('keeps the assignment dialog open and restores focus after dismissing its Post menu', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><AssignmentEditSplitPattern /></TooltipProvider></ThemeProvider>)
+    await user.click(screen.getByRole('button', { name: 'Open assignment edit prototype' }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit Assignment' })
+    const trigger = within(dialog).getByRole('button', { name: 'Choose assignment action' })
+    await user.click(trigger)
+    expect(screen.getByRole('menuitem', { name: 'Schedule' })).toHaveFocus()
+    await user.keyboard('{End}')
+    expect(screen.getByRole('menuitem', { name: 'Revert to draft' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(dialog).toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+  })
+
   it('centers the Daily date when relative context is hidden', async () => {
     const user = userEvent.setup()
     render(<ThemeProvider><TooltipProvider><TeacherPatterns /></TooltipProvider></ThemeProvider>)

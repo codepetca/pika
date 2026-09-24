@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Dormant contextual assignment reads
-
-- Owner `codex/contextual-classroom-assignment-reads`, based on merged material-read PR1290. Added an independent, off-by-default exact user/classroom pair gate to the owner and member assignment list endpoints. A student-valued owner retains drafts, roster-scoped statistics and submission requirements; a teacher-valued active member retains live-only assignments and their own sanitized assignment document.
-- Contextual assignment, roster, statistics-document, requirement and member-document evidence is validated against the authenticated subject and authorized classroom/resources. Assignment item routes, mutations, submissions, artifacts and grading remain legacy. No UI, migration, production configuration or cohort activation changed. Initial targeted route/access/legacy coverage passes 54 tests plus TypeScript; focused checks and independent review follow.
-- Initial security/compatibility review found two fail-closed gaps: member release/return policy fields were not shape-validated before visibility/sanitization, and shared stats/requirement loaders normalized unexpected null evidence to empty arrays. Batch1 requires valid release, return and feedback-return timestamps; adds strict opt-in raw-array handling while preserving legacy normalization and the intentional missing-schema fallback; and covers null/malformed evidence. Refreshed verification and targeted re-review follow.
-
 ## 2026-09-19 — Dormant contextual assignment aggregate detail
 
 - Owner `codex/contextual-assignment-detail-reads`, based on merged assignment-list PR1291. Added an independent, off-by-default exact user/assignment gate to `GET /api/teacher/assignments/[id]`. A student-valued classroom owner retains the existing aggregate assignment, roster and submission summary, including archived-classroom reads.
@@ -351,3 +345,9 @@ async-grading.
 - Owner `codex/gradebook-zero-assessment-weight`; risk profile none. Gradebook assessment weights now accept 0–999 across teacher controls, APIs, blueprints, and stored constraints. Zero is preserved on reload and excluded from final-grade math; all-zero categories remain ungraded. Migration207 is prepared but not applied to any database.
 - Focused checks passed 733 tests plus architecture, UI/design policy, TypeScript, and lint. Pattern Lab teacher Gradebook verified at desktop light/dark and mobile; a zero entry displayed 0% course weight. Local type check is blocked because migration207 has not been applied to the shared local database; final database replay remains a CI gate. Model recommendation: GPT-6 Sol — multi-layer gradebook contract and migration change.
 - Independent review found two follow-ups: dropping assignment/test defaults would change generated Insert types, and returned zero-weight work would still appear counted in student views. The remediation uses a -1 insert-only default sentinel that the existing before-insert trigger resolves to the category default, and labels zero-weight assignment, test, and standalone marks as not counted. Route and server regressions cover those projections; final checks and targeted re-review follow.
+
+## 2026-09-24 — Assignment Post menu opens upward
+
+- Set the assignment modal Post split menu and matching split-layout Pattern Lab reference to the existing upward placement. Reuse: shared SplitButton; risk profile: none. No new pattern or refactor needed.
+- Verified teacher desktop 1440×900 and mobile 390×844, light/dark, open menu and keyboard End/Escape. Student n/a: teacher authoring only. Screenshots: /tmp/pika-dropup-{desktop,mobile}-{light,dark}.png; reproducible capture: /tmp/pika-dropup-verify.cjs.
+- Focused checks passed: 262 tests, architecture, UI/design policy, TypeScript, lint. Branch/task: codex/assignment-post-dropup / assignment-post-dropup. PR review follows.

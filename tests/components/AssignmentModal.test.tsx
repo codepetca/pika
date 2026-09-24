@@ -380,6 +380,10 @@ describe('AssignmentModal', () => {
       expect(screen.queryByRole('menuitem', { name: 'Post' })).not.toBeInTheDocument()
       expect(screen.getByRole('menuitem', { name: 'Schedule' })).toBeInTheDocument()
       expect(screen.getByRole('menuitem', { name: 'Draft' })).toBeInTheDocument()
+      fireEvent.keyDown(window, { key: 'Escape' })
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Choose assignment action' })).toHaveFocus()
+      expect(screen.getByRole('heading', { name: 'Edit Draft' })).toBeInTheDocument()
     })
 
     it('does not show release or scheduling controls for live assignments', () => {
