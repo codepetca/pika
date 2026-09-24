@@ -26,6 +26,7 @@ After startup, load only task-specific docs:
 | Legacy quiz/tests contract cleanup | [Cleanup](./guidance/legacy-quiz-contract-cleanup.md), [Schema](./guidance/schema-rollout-checklist.md) |
 | Large TSX/shared shell refactors | [Refactor checklist](./guidance/component-refactor-checklist.md) |
 | TDD, coverage, or test design | [Tests](./core/tests.md) |
+| Creating or revising classroom assessments (not software tests) | [Authoring](./guidance/teacher-test-authoring.md), [Markdown schema](./guidance/teacher-tests-markdown-schema.md), then the course repository's guidance |
 | Grading behavior, profiles, providers, provenance, or evals | [Architecture](./guidance/grading-architecture.md), [Egress](./guidance/ai-grading-egress.md), [Evals](./guidance/teacher-grading-evals.md) |
 | Student Grades visibility, disclosure, or calculation | [Student Grades](./guidance/student-grades.md) |
 | Setup, runtime, or deployment questions | [Project context](./core/project-context.md) |

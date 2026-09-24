@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-19 — Dormant contextual learner assignment-open route
-
-- Owner `codex/contextual-assignment-route`, based on merged transactional-open PR1294. Added an independent, off-by-default exact user/assignment gate to `GET /api/assignment-docs/[id]`. A matched teacher- or student-valued active member opens only their own document through migration182; the transaction remains the membership/visibility authority and a foreign `student_id` teacher projection is rejected.
-- Contextual mode binds RPC assignment/document evidence plus feedback, requirements, artifacts and optional GitHub identity before returning, sanitizes the member document and preserves immediate Pal delivery after a transaction-created document. Disabled and unmatched requests retain the legacy route. Autosave, submission and artifact mutations remain legacy, so no cohort may be activated yet. No UI, migration, production configuration or database state changed in this slice.
-- Initial security review found strict requirement/artifact loaders still normalized missing-schema errors to empty evidence, and downstream evidence failure could skip immediate Pal delivery after the transaction committed creation. Batch1 makes missing schema fail closed only in strict mode while preserving legacy compatibility, and moves immediate delivery directly after the successful create result with global- and classroom-Pal failure-path regressions. Targeted re-review follows.
-
 ## 2026-09-19 — Dormant contextual learner assignment save
 
 - Owner `codex/contextual-assignment-save`, based on merged assignment-open route PR1295. Migration184 adds a service-only transaction that rechecks live assignment/classroom state and exact enrollment under membership-removal fences before delegating revision, idempotency, history and metric behavior to the established atomic save.
@@ -344,3 +338,8 @@ async-grading.
 - Fixed embedded preview inheriting the editor's inactive background. Reused ModalLayer for top-layer focus, inertness, scroll locking, and return to the still-mounted editor; reused PageState so maximize/close survive pending reads. Student test-taking and fullscreen requirement unchanged.
 - UI brief: teacher preview; reference DESIGN overlay contract and Pattern Lab dialog; reuse ModalLayer/PageState, extend preview composition. Teacher desktop/mobile (1440/390), light/dark, loading/ready/maximize/close/focus; student n/a (teacher-only component). Primary signal remains maximize action/Preview Mode; no new pattern or promotion. Composite keyboard/semantics checklist covered. Risk: workspace-state, exam-mode (teacher preview only). Model recommendation: current Codex for implementation; GPT-5.6 Terra high for one standard-risk independent review.
 - Two new regressions failed before and passed after; 11 preview tests and focused gate (159 tests, architecture, UI/design policy, types, lint) pass. Playwright delayed-read/maximize/close/focus matrix passes; screenshots inspected at /tmp/pika-preview-visual; reproducible runner /tmp/pika-preview-verify.cjs. Existing async test-id/request guards retained. Pattern Lab shared modal reference inspected. No shared-component extraction needed.
+
+## 2026-09-24 — Reusable classroom test-authoring guidance
+
+- Owner `codex/test-authoring-guidance`; documentation-only, risk profile `none`. Added a general assessment-authoring guide and routed it from AI instructions, the docs index, and the markdown schema. Covers prompt/rubric/sample alignment, observable credit, diagrams, difficulty, preservation of existing tests, and content readiness versus measured AI grading consistency.
+- Course-specific coding and Karel preferences belong in the companion ICS3U guide. This change does not modify assessment content, grading behavior, publication state, or production data.
