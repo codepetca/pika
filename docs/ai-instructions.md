@@ -1,7 +1,6 @@
 # AI Instructions for Pika
 
-Routing after `.ai/START-HERE.md`.
-Worktrees, cleanup and shared `.env.local`: [Dev workflow](./dev-workflow.md).
+After `.ai/START-HERE.md`, use this router. Worktrees and env: [Workflow](./dev-workflow.md).
 
 ## Default Startup Context
 
@@ -14,8 +13,6 @@ Do not tail `.ai/JOURNAL-ARCHIVE.md` by default. Use `.ai/SESSION-LOG.md` only f
 
 ## Load Only The Docs You Need
 
-After startup, load only task-specific docs:
-
 | Task | Read next |
 |---|---|
 | Any non-trivial code change | [Architecture](./core/architecture.md) |
@@ -26,7 +23,7 @@ After startup, load only task-specific docs:
 | Legacy quiz/tests contract cleanup | [Cleanup](./guidance/legacy-quiz-contract-cleanup.md), [Schema](./guidance/schema-rollout-checklist.md) |
 | Large TSX/shared shell refactors | [Refactor checklist](./guidance/component-refactor-checklist.md) |
 | TDD, coverage, or test design | [Tests](./core/tests.md) |
-| Creating or revising classroom assessments (not software tests) | [Authoring](./guidance/teacher-test-authoring.md), [Markdown schema](./guidance/teacher-tests-markdown-schema.md), then the course repository's guidance |
+| Classroom assessment authoring | [Guide](./guidance/teacher-test-authoring.md) |
 | Grading behavior, profiles, providers, provenance, or evals | [Architecture](./guidance/grading-architecture.md), [Egress](./guidance/ai-grading-egress.md), [Evals](./guidance/teacher-grading-evals.md) |
 | Student Grades visibility, disclosure, or calculation | [Student Grades](./guidance/student-grades.md) |
 | Setup, runtime, or deployment questions | [Project context](./core/project-context.md) |
@@ -37,7 +34,7 @@ After startup, load only task-specific docs:
 | Course blueprint package import/export | [Blueprint packages](./guidance/course-blueprint-packages.md) |
 | Feature-specific behavior | `docs/guidance/*.md` or the closest focused spec |
 
-Inspect or edit source only after startup and routed docs.
+Read startup and routed docs before editing source.
 
 ## Repo Invariants
 
@@ -69,5 +66,5 @@ Use `.codex/prompts/` for session start, issue work, TDD, UI verify, audit, API-
 6. `docs/core/project-context.md`
 7. `docs/core/roadmap.md`
 8. `docs/core/decision-log.md`
-9. `.ai/SESSION-LOG.md` on demand for recent handoff context
-10. `.ai/JOURNAL-ARCHIVE.md` only for historical investigation
+9. `.ai/SESSION-LOG.md` for recent handoffs
+10. `.ai/JOURNAL-ARCHIVE.md` for history
