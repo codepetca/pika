@@ -1,12 +1,17 @@
+import type { ReactElement } from 'react'
+import { TooltipProvider } from '@/ui'
 import { useState } from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render as rtlRender, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ExamDocumentWorkspace,
   type ExamDocumentItem,
 } from '@/components/ExamDocumentWorkspace'
 
+function render(ui: ReactElement) { return rtlRender(ui, { wrapper: TooltipProvider }) }
+
 const DOCUMENTS: ExamDocumentItem[] = [
+  { id: 'start-world', title: 'Start world', source: 'upload', imageType: 'image/png', url: '/api/start/file' },
   {
     id: 'text-doc',
     title: 'Unit 1 Docs',
@@ -55,6 +60,27 @@ function Harness({ onDocumentInteraction = vi.fn() }: { onDocumentInteraction?: 
 }
 
 describe('ExamDocumentWorkspace', () => {
+  beforeEach(() => { vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }) })
+
+  it('renders uploaded images outside frames and preserves the answer through image navigation', () => {
+    const onDocumentInteraction = vi.fn()
+    render(<Harness onDocumentInteraction={onDocumentInteraction} />)
+    const answer = screen.getByRole('textbox', { name: 'Answer' })
+    fireEvent.change(answer, { target: { value: 'Unsaved Karel answer' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Start world' }))
+    const image = screen.getByAltText('Start world')
+    expect(image.tagName).toBe('IMG')
+    expect(document.querySelector('iframe[src="/api/start/file"]')).toBeNull()
+    Object.defineProperties(image, { naturalWidth: { value: 800 }, naturalHeight: { value: 600 } })
+    fireEvent.load(image)
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    fireEvent.focus(screen.getByRole('button', { name: 'Fit image' }))
+    expect(onDocumentInteraction).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
+    expect(answer).toHaveValue('Unsaved Karel answer')
+    expect(screen.queryByAltText('Start world')).not.toBeInTheDocument()
+  })
+
   it('keeps the list at 30/70 and preloads iframe documents before one is opened', () => {
     render(<Harness />)
 

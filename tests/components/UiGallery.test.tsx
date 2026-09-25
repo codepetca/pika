@@ -78,6 +78,7 @@ describe('UiGallery history preview fixture', () => {
     await waitFor(() => expect(opener).toHaveFocus())
   })
   beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
       json: async () => ({ classrooms: [] }),

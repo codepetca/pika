@@ -15,6 +15,7 @@ import {
 } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
+import { TestImageDocumentViewer } from '@/components/TestImageDocumentViewer'
 import { WorkspaceSplitPane } from '@/components/WorkspaceSplitPane'
 import { Button, cn } from '@/ui'
 
@@ -24,6 +25,7 @@ export interface ExamDocumentItem {
   source: 'link' | 'upload' | 'text'
   url?: string
   content?: string
+  imageType?: 'image/png' | 'image/jpeg' | null
 }
 
 interface ExamDocumentWorkspaceProps {
@@ -91,7 +93,7 @@ export function ExamDocumentWorkspace({
     : DOCUMENTS_LIST_WIDTH_PERCENT
   const questionsWidth = 100 - documentsWidth
   const iframeDocuments = useMemo(
-    () => documents.filter((document) => document.source !== 'text' && Boolean(document.url)),
+    () => documents.filter((document) => document.source !== 'text' && !document.imageType && Boolean(document.url)),
     [documents],
   )
 
@@ -235,10 +237,15 @@ export function ExamDocumentWorkspace({
           <section
             aria-label="Test documents"
             data-testid={documentsPaneTestId}
-            className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-surface"
+            className={cn(
+              'relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-surface',
+              activeDocument?.imageType && 'min-h-96 lg:min-h-0',
+            )}
             onPointerDown={onDocumentInteraction}
             onPointerMove={onDocumentInteraction}
             onWheel={onDocumentInteraction}
+            onFocusCapture={onDocumentInteraction}
+            onKeyDown={onDocumentInteraction}
           >
             <div
               className={cn(
@@ -355,11 +362,17 @@ export function ExamDocumentWorkspace({
                   </div>
                 ) : null}
 
+                {activeDocument?.imageType && activeDocument.url ? (
+                  <div className="absolute inset-0">
+                    <TestImageDocumentViewer key={`${resetKey}:${activeDocument.id}`} title={activeDocument.title} url={activeDocument.url} />
+                  </div>
+                ) : null}
+
                 <div
-                  aria-hidden={activeDocument?.source === 'text'}
+                  aria-hidden={activeDocument?.source === 'text' || Boolean(activeDocument?.imageType && activeDocument.url)}
                   className={cn(
                     'absolute inset-0 overflow-hidden bg-white',
-                    activeDocument?.source === 'text' && 'pointer-events-none opacity-0',
+                    (activeDocument?.source === 'text' || Boolean(activeDocument?.imageType && activeDocument.url)) && 'pointer-events-none opacity-0',
                   )}
                 >
                   {iframeDocuments.map((document) => {

@@ -3368,7 +3368,7 @@ Prompt:
       })
     })
 
-    it('opens upload modal from Add Document dropdown PDF option', async () => {
+    it('opens the Upload tab from Add Document', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       fetchMock
         .mockResolvedValueOnce({
@@ -3411,7 +3411,7 @@ Prompt:
 
       fireEvent.click(screen.getByRole('tab', { name: 'Documents' }))
       fireEvent.click(screen.getByRole('button', { name: 'Add Document' }))
-      fireEvent.click(screen.getByRole('tab', { name: 'PDF' }))
+      fireEvent.click(screen.getByRole('tab', { name: 'Upload' }))
 
       expect(screen.getByRole('heading', { name: 'Add Document' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Choose file' })).toBeInTheDocument()

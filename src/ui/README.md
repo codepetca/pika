@@ -366,6 +366,7 @@ const buttonVariants = cva('...', {
 | `bg-page` | gray-50 | gray-950 | App background |
 | `bg-surface` | white | gray-900 | Cards, panels |
 | `bg-surface-2` | gray-50 | gray-800 | Nested surfaces |
+| `bg-reference-image-canvas` | white | white | Paper background behind transparent test reference images |
 | `border-border` | gray-200 | gray-700 | Default borders |
 | `border-border-strong` | gray-300 | gray-600 | Emphasized borders |
 | `text-text-default` | gray-900 | gray-100 | Primary text |

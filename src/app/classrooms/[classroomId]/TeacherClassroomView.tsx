@@ -2662,19 +2662,26 @@ export function TeacherClassroomView({
         ariaLabel={selection.mode === 'survey' ? 'Survey actions' : 'Assignment actions'}
         className={selection.mode === 'assignment' ? 'py-2 sm:py-1' : undefined}
         context={selection.mode === 'assignment' ? (
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 max-w-full items-center gap-2">
             {selectedAssignmentSummary ? (
-              <span
-                className="block max-w-full truncate font-medium text-text-default sm:max-w-32 xl:max-w-64"
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label={`Edit ${selectedAssignmentSummary.title}`}
                 title={selectedAssignmentSummary.title}
+                disabled={isReadOnly}
+                aria-disabled={!canEditAssignment || undefined}
+                onClick={() => openSelectedAssignmentEditor()}
+                className="h-11 min-h-11 min-w-11 max-w-full flex-1 justify-start px-2 text-left font-medium text-text-default aria-disabled:cursor-not-allowed aria-disabled:opacity-50 sm:flex-none sm:max-w-32 xl:max-w-64"
               >
-                {selectedAssignmentSummary.title}
-              </span>
+                <span className="min-w-0 truncate">{selectedAssignmentSummary.title}</span>
+              </Button>
             ) : null}
             {workspaceStatus}
           </div>
         ) : null}
-        contextClassName={selection.mode === 'assignment' ? 'col-span-3 row-start-1 sm:col-span-1 sm:col-start-1 sm:row-start-1' : undefined}
+        contextClassName={selection.mode === 'assignment' ? 'col-span-3 row-start-1 max-w-full overflow-visible sm:col-span-1 sm:col-start-1 sm:row-start-1' : undefined}
         primary={selection.mode === 'survey' ? selectedSurveyControls : assignmentWorkspaceControls}
         primaryClassName={selection.mode === 'assignment' ? 'col-start-2 row-start-2 sm:row-start-1' : undefined}
         actions={selection.mode === 'assignment' ? assignmentWorkspaceUtilities : null}

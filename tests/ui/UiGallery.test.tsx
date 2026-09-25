@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -25,6 +25,8 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  beforeEach(() => { vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }) })
+  afterEach(() => { vi.unstubAllGlobals() })
   it('demonstrates explicitly activated formatted help', async () => {
     renderGallery()
     const help = screen.getByRole('button', { name: 'Formatting help' })

@@ -249,15 +249,20 @@ export function deriveClassroomArchiveProductionCanaryRestoredStoragePath(args: 
   sha256: string
   sourcePath: string
   contentType: string | null
+  bucket?: string
 }): string {
   const objectIdentity = sha256(
     `${z.string().min(1).parse(args.sourcePath)}\0${args.contentType ?? '<null>'}`,
   )
+  const imageExtension = args.bucket === 'test-documents'
+    ? args.contentType === 'image/png' ? '.png' : args.contentType === 'image/jpeg' ? '.jpeg' : null
+    : null
   return [
     'restores',
     uuidSchema.parse(args.classroomId),
     uuidSchema.parse(args.operationId),
-    `${objectIdentity}-${sha256Schema.parse(args.sha256)}`,
+    ...(imageExtension ? ['images'] : []),
+    `${objectIdentity}-${sha256Schema.parse(args.sha256)}${imageExtension || ''}`,
   ].join('/')
 }
 
@@ -468,6 +473,7 @@ export function createClassroomArchiveProductionCanaryArchiveProjection(args: {
       sha256: object.sha256,
       sourcePath: object.source_path,
       contentType: object.content_type,
+      bucket: object.bucket,
     }),
   }))
   return {
