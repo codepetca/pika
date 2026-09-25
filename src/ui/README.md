@@ -243,6 +243,8 @@ base controls and shell styling follow the `@/ui` contracts.
   natural widths and avoid resize controls.
 - Use `useTableSelection` with `TableSelectionHeaderCell` and `TableSelectionCell` when selected
   rows feed a real batch action. The shared header checkbox exposes the native indeterminate state.
+  When a disabled checkbox needs a reason, pass `disabledTooltip`; the shared control provides a
+  focusable help target while keeping the checkbox disabled.
   Do not add checkboxes to read-only previews or tables where row selection only opens an inspector.
 - Keep domain behavior in feature code. The shared table layer owns structure, sorting controls,
   resizing, selection controls, and keyboard navigation; it is intentionally not a universal

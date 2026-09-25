@@ -1,11 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { TeacherPatterns } from '@/app/__ui/TeacherPatterns'
+import { TooltipProvider } from '@/ui'
+
+function renderPatterns() {
+  return render(<TooltipProvider><TeacherPatterns /></TooltipProvider>)
+}
 
 describe('Pattern Lab teacher-family examples', () => {
   it('uses a fixed reference date and the shared date-description contract', () => {
     const storage = vi.spyOn(Storage.prototype, 'setItem')
-    render(<TeacherPatterns />)
+    renderPatterns()
 
     expect(screen.getByRole('heading', { name: 'Daily date context (page-specific)' })).toBeInTheDocument()
     expect(screen.getByText(/Relative-date text is Daily-only/)).toBeInTheDocument()
@@ -24,7 +29,7 @@ describe('Pattern Lab teacher-family examples', () => {
   })
 
   it('keeps the Lab display toggle temporary and removes hidden descriptions', () => {
-    render(<TeacherPatterns />)
+    renderPatterns()
     const toggle = screen.getByRole('button', { name: 'Relative date' })
     const date = screen.getByRole('button', { name: 'Go to reference today' })
     expect(toggle).toHaveAttribute('aria-pressed', 'true')
@@ -40,7 +45,7 @@ describe('Pattern Lab teacher-family examples', () => {
   })
 
   it('keeps both attached panels mounted and delegates keyboard selection to the mode bar', () => {
-    render(<TeacherPatterns />)
+    renderPatterns()
     const overview = screen.getByRole('tab', { name: 'Overview' })
     const details = screen.getByRole('tab', { name: 'Work details' })
     for (const tab of [overview, details]) {
@@ -52,5 +57,11 @@ describe('Pattern Lab teacher-family examples', () => {
     expect(screen.getByRole('tabpanel', { name: 'Work details' })).toHaveTextContent('same selected work item')
     expect(screen.queryByRole('tabpanel', { name: 'Overview' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
+  })
+
+  it('shows the disabled selection guidance using the shared checkbox', () => {
+    renderPatterns()
+    expect(screen.getByRole('checkbox', { name: 'Select example student' })).toBeDisabled()
+    expect(screen.getByRole('note', { name: 'Publish the test first to select students.' })).toBeInTheDocument()
   })
 })

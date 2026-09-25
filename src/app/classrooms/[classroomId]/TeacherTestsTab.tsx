@@ -591,6 +591,8 @@ export function TeacherTestsTab({
     }
   }, [selectedTest, selectedTestDraftSummary])
   const isDraftSelectedTest = selectedTestWorkspace?.status === 'draft'
+  const draftSelectionTooltip = 'Publish the test first to select students.'
+  const draftStudentActionsTooltip = 'Publish the test first to use student actions.'
 
   const sortedGradingStudents = useMemo(
     () =>
@@ -2118,6 +2120,7 @@ export function TeacherTestsTab({
                   onChange={toggleBatchSelectAll}
                   ariaLabel="Select all students"
                   disabled={isDraftSelectedTest}
+                  disabledTooltip={draftSelectionTooltip}
                 />
                 <SortableHeaderCell
                   label="First"
@@ -2324,6 +2327,7 @@ export function TeacherTestsTab({
                       onChange={() => toggleBatchSelect(student.student_id)}
                       ariaLabel={`Select ${student.name || 'student'}`}
                       disabled={isDraftSelectedTest}
+                      disabledTooltip={draftSelectionTooltip}
                       className="py-2"
                     />
                     <DataTableCell className="min-w-0 max-w-0 px-2 py-2 sm:px-3 lg:max-w-none">
@@ -2574,27 +2578,36 @@ export function TeacherTestsTab({
             onClick={() => handleAllAccessAction('closed')}
           />
         </TeacherWorkSurfaceActionCluster>
-        <TeacherWorkSurfaceMenuButton
-          label={(
-            <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <span>{batchSelectedCount > 0 ? `${batchSelectedCount} selected` : 'Student actions'}</span>
-              <ChevronDown className="h-4 w-4" aria-hidden="true" />
-            </span>
-          )}
-          items={selectedStudentUtilityActions}
-          disabled={batchSelectedCount === 0 || areStudentActionsUnavailable}
-          variant="secondary"
-          size="sm"
-          className="w-36"
-          menuPlacement="down"
-          menuAlign="center"
-          menuAriaLabel="Selected student actions"
-          buttonProps={{
-            'aria-label': batchSelectedCount > 0
-              ? `Student actions for ${batchSelectedCount} selected`
-              : 'Student actions (select students to enable)',
-          }}
-        />
+        <Tooltip content={draftStudentActionsTooltip} disabled={!isDraftSelectedTest}>
+          <span
+            role={isDraftSelectedTest ? 'note' : undefined}
+            aria-label={isDraftSelectedTest ? draftStudentActionsTooltip : undefined}
+            tabIndex={isDraftSelectedTest ? 0 : undefined}
+            className="inline-flex rounded-control focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+          >
+            <TeacherWorkSurfaceMenuButton
+              label={(
+                <span className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <span>{batchSelectedCount > 0 ? `${batchSelectedCount} selected` : 'Student actions'}</span>
+                  <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                </span>
+              )}
+              items={selectedStudentUtilityActions}
+              disabled={batchSelectedCount === 0 || areStudentActionsUnavailable}
+              variant="secondary"
+              size="sm"
+              className="w-36"
+              menuPlacement="down"
+              menuAlign="center"
+              menuAriaLabel="Selected student actions"
+              buttonProps={{
+                'aria-label': batchSelectedCount > 0
+                  ? `Student actions for ${batchSelectedCount} selected`
+                  : 'Student actions (select students to enable)',
+              }}
+            />
+          </span>
+        </Tooltip>
       </div>
     </div>
   ) : null

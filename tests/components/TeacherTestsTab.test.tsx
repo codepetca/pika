@@ -1099,6 +1099,14 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByRole('button', { name: 'Exit detected' })).not.toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Select all students' })).toBeDisabled()
     expect(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' })).toBeDisabled()
+    const selectionHelp = screen.getAllByRole('note', { name: 'Publish the test first to select students.' })
+    expect(selectionHelp).toHaveLength(2)
+    fireEvent.focus(selectionHelp[0])
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Publish the test first to select students.')
+    fireEvent.blur(selectionHelp[0])
+    const actionsHelp = screen.getByRole('note', { name: 'Publish the test first to use student actions.' })
+    fireEvent.focus(actionsHelp)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Publish the test first to use student actions.')
     expect(within(row).getByRole('button', { name: /Mark Alice Zephyr unsubmitted/ })).toBeDisabled()
     expect(within(row).getByRole('switch', { name: /Close access for Alice Zephyr/ })).toBeDisabled()
 
@@ -1406,6 +1414,7 @@ describe('TeacherTestsTab', () => {
     })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' }))
     expect(screen.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
+    expect(screen.queryByRole('note', { name: /Publish the test first/ })).not.toBeInTheDocument()
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 

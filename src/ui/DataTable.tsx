@@ -396,6 +396,7 @@ export interface TableSelectionCheckboxProps extends Omit<
   indeterminate?: boolean
   onChange: (checked: boolean) => void
   ariaLabel: string
+  disabledTooltip?: string
 }
 
 export function TableSelectionCheckbox({
@@ -403,6 +404,7 @@ export function TableSelectionCheckbox({
   indeterminate = false,
   onChange,
   ariaLabel,
+  disabledTooltip,
   className = '',
   onClick,
   ...props
@@ -413,7 +415,7 @@ export function TableSelectionCheckbox({
     if (inputRef.current) inputRef.current.indeterminate = indeterminate
   }, [indeterminate])
 
-  return (
+  const checkbox = (
     <input
       {...props}
       ref={inputRef}
@@ -432,6 +434,23 @@ export function TableSelectionCheckbox({
       ].filter(Boolean).join(' ')}
     />
   )
+
+  if (props.disabled && disabledTooltip) {
+    return (
+      <Tooltip content={disabledTooltip}>
+        <span
+          role="note"
+          aria-label={disabledTooltip}
+          tabIndex={0}
+          className="inline-flex rounded-control focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus"
+        >
+          {checkbox}
+        </span>
+      </Tooltip>
+    )
+  }
+
+  return checkbox
 }
 
 export function TableSelectionHeaderCell({
@@ -439,6 +458,7 @@ export function TableSelectionHeaderCell({
   indeterminate,
   onChange,
   ariaLabel,
+  disabledTooltip,
   disabled,
   density,
   className = '',
@@ -453,6 +473,7 @@ export function TableSelectionHeaderCell({
         indeterminate={indeterminate}
         onChange={onChange}
         ariaLabel={ariaLabel}
+        disabledTooltip={disabledTooltip}
         disabled={disabled}
       />
     </DataTableHeaderCell>
@@ -463,6 +484,7 @@ export function TableSelectionCell({
   checked,
   onChange,
   ariaLabel,
+  disabledTooltip,
   disabled,
   density,
   className = '',
@@ -476,6 +498,7 @@ export function TableSelectionCell({
         checked={checked}
         onChange={onChange}
         ariaLabel={ariaLabel}
+        disabledTooltip={disabledTooltip}
         disabled={disabled}
       />
     </DataTableCell>
