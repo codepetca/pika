@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-20 — Dormant contextual assignment history/restore
-
-- Owner `codex/contextual-assignment-history`, based on merged submit/unsubmit PR1298. Migration188 adds service-only role-neutral owner/member history reads and exact member restore. Both boundaries take submission/editor fences before classroom/member locks; restore independently rechecks live visibility, current enrollment, document revision and exact history ownership before delegating to the established atomic save.
-- Added one independent off-by-default exact user/assignment gate shared by history and restore. Matched owners can read one current enrollee's existing history; matched teacher- or student-valued members can read and restore only their own live-assignment history. Disabled and unmatched requests retain legacy auth/role behavior. Artifact mutations remain legacy, so every contextual assignment gate stays off.
-- Under standing local-migration authorization, migration188 SHA256 `4b08bfdcb80a8e655355ad16afe9e01bbedfd62de15bd24635ab8c663e170b9f` applied locally. Local history001–188, generated types, warning-level DB lint, rollback behavior, all22 save/submit/restore races,55 targeted tests,238 focused tests, architecture/UI/design/type/lint checks and Pika audit pass. Production remains001–180; no cohort, deployment or production migration changed.
-- PR1299 initial Terra compatibility review was clean. Sol security review found restore accepted caller content after checking only target ownership. Remediation migration189 (`ba7ffe7e44d39ccb3be6e7abef14e8805a3aa6de04ff3c07bbe49a6d2d99c2f7`) reconstructs the locked snapshot/patch chain in PostgreSQL, rejects mismatched content atomically, and derives restore snapshot/counts from the selected row. Under standing local authorization it is applied through local history001–189; clean DB lint,239 focused tests, the tamper rollback contract and all22 patch-target removal/save races pass. Production and gates remain unchanged; targeted and final reviews follow.
-- Sol targeted review signed off remediation head `ca4de8f8`; Terra final integration also signed off, with one non-blocking operability gap: the shared concurrency harness required188 but not189. Batch2 adds the exact migration189 preflight plus regression; all22 races,239 focused tests and audit pass. Final bounded re-review follows; production/gates remain unchanged.
-
 ## 2026-09-20 — Dormant contextual assignment artifacts
 
 - Owner `codex/contextual-assignment-artifacts`, based on merged history/restore PR1299. Migration190 adds service-only prepare, upsert and delete boundaries for one active member's exact assignment requirement/document/artifact. All mutations share submission→editor→classroom/member ordering, recheck live visibility and current enrollment, reject submitted documents, bind managed images to database-derived classroom/subject/document ownership, and save optional GitHub identity in the same actor-bound transaction.
@@ -347,3 +339,10 @@ async-grading.
 
 - Final cumulative review found archive restore lost image controls when rewriting attachment paths. Third correction preserves a test-image namespace from verified archive MIME;4 regressions failed before and35 affected tests passed after. All test-upload producers audited (direct upload, blueprint copy, archive restore); targeted closure and ready CI follow.
 - Restore canary independently calculated extensionless paths; updated its bucket-scoped PNG/JPEG projection and compared it against the actual verified restore plan. Two regressions fail before and24 canary tests pass after. Existing non-image and other-bucket paths remain unchanged.
+- Final targeted closure is clear at412b591b; full1024tests/77files and local Storage smoke passed. Synced unrelated main documentation after an archive-marker-only conflict; application source unchanged. Ready CI follows.
+
+## 2026-09-24 — Account-plan rollout runbook
+
+- Owner `codex/account-plan-rollout-runbook`; documentation-only, risk profile `none`. Added a plan-specific operator sequence for read-only account inventory, explicit owner decisions, audited per-account assignments, and a separately approved strict cutover. Marked the earlier Access-pilot cutover as historical for plan classification.
+- No account, entitlement, migration, database switch, app behavior, or production data changed. Live account inventory remains unverified while hosted access is unavailable. Model recommendation: GPT-6 Sol — bounded rollout documentation tied to existing migration contracts.
+- Independent documentation review found that audited-missing grants fail closed even before strict activation and that ownership-transfer canaries were omitted. The runbook now calls out both conditions and their stop/repair behavior; targeted re-review and final CI remain pending.

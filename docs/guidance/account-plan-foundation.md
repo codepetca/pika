@@ -3,6 +3,10 @@
 Status: dormant schema and service-only writer. This is not a billing launch or
 permission cutover.
 
+The [account-plan rollout runbook](account-plan-rollout.md) separates read-only
+inventory, approved account batches, and the later strict cutover. The older
+Access-pilot cutover is not a plan-classification runbook.
+
 `public.account_plans` stores one current account-level plan (`free`, `basic`,
 `plus`, `pro`), with a revision. `set_account_plan_v1` takes a unique operation
 ID, expected plan revision, actor reference and reason code. It derives the
