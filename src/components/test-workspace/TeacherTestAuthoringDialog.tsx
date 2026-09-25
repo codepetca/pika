@@ -19,7 +19,6 @@ interface TeacherTestAuthoringDialogProps {
   classroomId: string
   apiBasePath: string
   hasPendingMarkdownImport: boolean
-  publicationError?: string
   onClose: () => void
   discardPristineOnClose?: boolean
   onDiscardPristine?: (draftVersion: number, testUpdatedAt: string) => Promise<boolean>
@@ -27,7 +26,6 @@ interface TeacherTestAuthoringDialogProps {
   onTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void
   onPendingMarkdownImportChange: (pending: boolean) => void
   onRequestPreview: (preview: { testId: string; title: string }) => void
-  onRequestPublish: () => Promise<boolean>
 }
 
 export function TeacherTestAuthoringDialog({
@@ -37,7 +35,6 @@ export function TeacherTestAuthoringDialog({
   classroomId,
   apiBasePath,
   hasPendingMarkdownImport,
-  publicationError = '',
   onClose,
   discardPristineOnClose = false,
   onDiscardPristine,
@@ -45,12 +42,10 @@ export function TeacherTestAuthoringDialog({
   onTestUpdate,
   onPendingMarkdownImportChange,
   onRequestPreview,
-  onRequestPublish,
 }: TeacherTestAuthoringDialogProps) {
   const [authoringView, setAuthoringView] = useState<AuthoringView>('edit')
   const [titlePortalTarget, setTitlePortalTarget] = useState<HTMLDivElement | null>(null)
   const [isClosing, setIsClosing] = useState(false)
-  const [isPreparingPublish, setIsPreparingPublish] = useState(false)
   const draftFlushRef = useRef<(() => Promise<boolean>) | null>(null)
   const draftPristineCheckRef = useRef<(
     () => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }
@@ -85,17 +80,6 @@ export function TeacherTestAuthoringDialog({
       onClose()
     }
     setIsClosing(false)
-  }
-
-  const handlePublish = async () => {
-    if (isClosing || isPreparingPublish) return
-    setIsPreparingPublish(true)
-    const saved = await (draftFlushRef.current?.() ?? Promise.resolve(true))
-    if (saved && await onRequestPublish()) {
-      setAuthoringView('edit')
-      onClose()
-    }
-    setIsPreparingPublish(false)
   }
 
   return (
@@ -150,23 +134,6 @@ export function TeacherTestAuthoringDialog({
           }}
           disabled={hasPendingMarkdownImport || !test}
         />
-        {test?.status === 'draft' ? (
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              void handlePublish()
-            }}
-            disabled={
-              hasPendingMarkdownImport ||
-              (test.stats.questions_count || 0) < 1 ||
-              isClosing ||
-              isPreparingPublish
-            }
-          >
-            {isPreparingPublish ? 'Preparing...' : 'Publish'}
-          </Button>
-        ) : null}
         <Button
           type="button"
           variant="secondary"
@@ -174,19 +141,11 @@ export function TeacherTestAuthoringDialog({
           onClick={() => {
             void handleClose()
           }}
-          disabled={isClosing || isPreparingPublish}
+          disabled={isClosing}
         >
           {isClosing ? 'Saving...' : 'Close'}
         </Button>
       </div>
-      {publicationError ? (
-        <div
-          role="alert"
-          className="mx-4 mt-3 shrink-0 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
-        >
-          {publicationError}
-        </div>
-      ) : null}
       <div className="min-h-0 flex-1 overflow-hidden">
         {test ? (
           <TestDetailPanel

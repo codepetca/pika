@@ -1042,7 +1042,7 @@ describe('TeacherTestsTab', () => {
 
     await openEditModalFromSelectedTest()
     expect(screen.getByLabelText('Open All')).toBeDisabled()
-    expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Publish' })).toBeEnabled()
+    expect(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true })).toBeEnabled()
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
@@ -1053,7 +1053,7 @@ describe('TeacherTestsTab', () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText('Open All')).toBeDisabled()
-      expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Publish' })).toBeDisabled()
+      expect(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true })).toBeDisabled()
       expect(
         screen.getByText('Apply or undo markdown changes before previewing or changing the test status.')
       ).toBeInTheDocument()
@@ -1064,7 +1064,7 @@ describe('TeacherTestsTab', () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText('Open All')).toBeDisabled()
-      expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Publish' })).toBeEnabled()
+      expect(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true })).toBeEnabled()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
     })
 
@@ -1110,7 +1110,7 @@ describe('TeacherTestsTab', () => {
 
     await openEditModalFromSelectedTest()
     expect(screen.getByLabelText('Open All')).toBeDisabled()
-    expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Publish' })).toBeEnabled()
+    expect(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true })).toBeEnabled()
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
@@ -1120,7 +1120,7 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(onSelectTest).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Unit Test Draft' }))
       expect(screen.getByLabelText('Open All')).toBeDisabled()
-      expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Publish' })).toBeDisabled()
+      expect(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true })).toBeDisabled()
     })
 
     expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
@@ -1319,7 +1319,7 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByText('Unit Test')).not.toBeInTheDocument()
   })
 
-  it('publishes an unpublished test closed from the authoring dialog', async () => {
+  it('publishes an unpublished test closed from the student-table action bar and removes Publish', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -1343,7 +1343,6 @@ describe('TeacherTestsTab', () => {
           ],
         }),
       })
-      .mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ test: { id: 'test-1', status: 'closed' } }),
@@ -1351,12 +1350,13 @@ describe('TeacherTestsTab', () => {
 
     renderTab()
 
-    await openEditModalFromSelectedTest()
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Publish' }))
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+    fireEvent.click(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true }))
 
     expect(await screen.findByText('Publish test?')).toBeInTheDocument()
     expect(screen.getByText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Publish' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Publish test?' })).getByRole('button', { name: 'Publish' }))
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1', expect.objectContaining({ method: 'PATCH' }))
@@ -1375,6 +1375,7 @@ describe('TeacherTestsTab', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
       expect(screen.getByRole('button', { name: 'Close All' })).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
     })
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
@@ -1389,9 +1390,10 @@ describe('TeacherTestsTab', () => {
     }))
     renderTab()
 
-    await openEditModalFromSelectedTest('Untitled 2026-05-14 10:45:00')
+    fireEvent.click(await screen.findByText('Untitled 2026-05-14 10:45:00'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     fireEvent.click(
-      within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', {
+      within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', {
         name: 'Publish',
       }),
     )

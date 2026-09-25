@@ -1886,7 +1886,7 @@ export function TeacherTestsTab({
   }
 
   async function handleRequestSelectedTestPublish(): Promise<boolean> {
-    if (!selectedTest || !selectedTestWorkspace || isReadOnly || statusUpdating || checkingPublication) return false
+    if (!selectedTest || !selectedTestWorkspace || selectedTestWorkspace.status !== 'draft' || isReadOnly || statusUpdating || checkingPublication || hasPendingMarkdownImport) return false
 
     const publication = validateSelectedTestPublication(
       selectedTestWorkspace.title,
@@ -2533,8 +2533,18 @@ export function TeacherTestsTab({
   const selectedTestControls = selectedTestWorkspace ? (
     <div
       data-testid="test-workspace-actionbar-center"
-      className="flex min-w-0 items-center justify-center gap-2"
+      className="flex min-w-0 flex-col items-center justify-center gap-2 sm:flex-row"
     >
+      {selectedTestWorkspace.status === 'draft' ? (
+        <Button
+          size="sm"
+          onClick={() => { void handleRequestSelectedTestPublish() }}
+          loading={checkingPublication || statusUpdating}
+          disabled={isReadOnly || hasPendingMarkdownImport || (selectedTestWorkspace.stats.questions_count || 0) < 1}
+        >
+          Publish
+        </Button>
+      ) : null}
       <div role="toolbar" aria-label="Test grading actions" className="flex max-w-full items-center justify-center gap-2">
         <TeacherWorkSurfaceActionCluster className="gap-0 overflow-hidden p-0">
           <TeacherWorkSurfaceIconButton
@@ -2988,7 +2998,6 @@ export function TeacherTestsTab({
         classroomId={classroom.id}
         apiBasePath={apiBasePath}
         hasPendingMarkdownImport={hasPendingMarkdownImport}
-        publicationError={statusActionError}
         onClose={handleCloseTestEditor}
         discardPristineOnClose={newlyCreatedTestId === selectedTestWorkspace?.id}
         onDiscardPristine={handleDiscardPristineTest}
@@ -3002,7 +3011,6 @@ export function TeacherTestsTab({
         }}
         onPendingMarkdownImportChange={setHasPendingMarkdownImport}
         onRequestPreview={handleOpenSavedTestPreview}
-        onRequestPublish={handleRequestSelectedTestPublish}
       />
 
       <DialogPanel
