@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-20 — Dormant contextual Assignment creation
-
-- Owner `codex/contextual-assignment-creation`, based on merged owner-mutation PR1301. Migration192 adds one service-only actor-bound transaction that rechecks exact current Classroom ownership and archive state, allocates a mixed-classwork position, and inserts an Assignment plus initial requirements atomically.
-- Added an independent off-by-default exact user/Classroom gate to Assignment POST. Matched teacher- or student-valued owners use migration192; disabled and unmatched requests preserve the legacy teacher-only path, including authentication before request validation. Bulk/reorder, grading, return, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration192 applied after a clean dry run. Generated types match local history001–192; warning-level DB lint, rollback behavior and ownership-transfer/two-creation concurrency contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
-- Initial compatibility review found strict request validation changed dormant legacy teacher behavior and contextual creation could race legacy material/survey writers for a mixed-classwork position. Batch1 confines strict validation to exact-pair contextual requests, restores legacy parsing/messages, and records a tested hard activation blocker until every mixed-classwork writer shares the position fence.
-
-## 2026-09-20 — Shared contextual classwork creation fence
-
-- Owner `codex/contextual-classwork-position-fence`, based on merged Assignment creation PR1303. Migration193 moves Assignment, material and survey creation behind one private position allocator and the existing Classroom-operation fence. It rechecks exact current ownership and active state transactionally, and exposes service-only actor-bound material/survey creation RPCs while replacing the migration192 Assignment creator with the shared allocator.
-- Replaced the Assignment-only exact user/Classroom gate with one off-by-default classwork creation gate across all three POST routes. Exact teacher- or student-valued current owners use strict schemas and contextual transactions; disabled and unmatched requests preserve each legacy teacher-only path. The former mixed-writer activation blocker is resolved, but bulk/reorder, grading, return, survey reads/edits and the wider owner experience remain incomplete, so no cohort may be activated.
-- Under standing local-migration authorization, migration193 applied locally after a clean dry run. Generated types match local history001–193; warning-level DB lint, rollback behavior, and material→survey plus survey→Assignment multi-session races pass with distinct sequential positions. Production remains001–180 and all contextual gates remain off. Focused verification and independent review follow.
-- PR1304 initial security review signed off exact head `78692b4a`. Compatibility review found one non-blocking guide error claiming every classwork identity was allocated before locking; remediation batch1 now distinguishes Assignment pre-allocation from material/survey insert-time IDs. No functional, compatibility or CI-wiring blocker was found; targeted and final cumulative review follow.
-
 ## 2026-09-20 — Dormant contextual manual Assignment grading
 
 - Owner `codex/contextual-owner-next-slice`, based on merged classwork-creation PR1304. Migration194 adds a service-only manual-grading wrapper that takes the established grading fence, then the Classroom-operation fence, locks Assignment/Classroom parents, rechecks stable binding, exact current ownership and active lifecycle, and delegates to the existing atomic grade save in the same transaction.
@@ -342,7 +328,17 @@ async-grading.
 - Implementation complete: both title buttons reuse their existing editor handlers. Read-only buttons remain disabled; assignment loading uses guarded aria-disabled semantics so shared modal focus return survives the refresh. Long titles truncate within the context column without clipping focus.
 - Evidence: 130 component tests pass; Playwright covers both surfaces at desktop/mobile in light/dark (8 cases: default/hover/focus/open, keyboard/touch activation, Escape and focus return), plus 4 long-title cases. Screenshots/scripts/results: `output/playwright/title-edit/` (local, ignored). Student n/a because only teacher consumers changed. Composite accessibility checklist reviewed; keyboard and semantic-state checks covered; no manual follow-up. Next: focused checks, draft PR, one standard-risk independent review, and stable-SHA CI; no merge or production rollout authorized in this task.
 
+## 2026-09-24 — Test publication in the student-table action bar
+
+- Owner: `codex/test-publish-action-bar`. Moved draft-only Publish from the test editor into the selected test's student-table action bar; reused saved-draft validation and confirmation, and removed obsolete dialog publication props/state.
+- Verification: 225 focused tests plus architecture/UI/design/TypeScript/lint checks and Pika audit pass. Local Playwright fixtures cover teacher desktop/mobile, light/dark, draft focus, editor, confirmation, and published states; screenshots under `output/playwright/`. Compared with Pattern Lab teacher controls. Student UI is unchanged. No new shared component or experimental pattern.
+
 ## 2026-09-25 — Assessment title PR merge preparation
 
 - User authorized merging PR1358. Original reviewed head `4f99bcf7` passed Test & Build, Browser Experience Matrix and PR Gate. Main advanced via PR1355; rebase conflict was only a duplicate session-archive batch marker. Preserved main’s marker and both sessions; title implementation and its tests are unchanged.
 - PR returned to draft before rebasing. Next: focused checks and targeted rebase review, then stable-SHA CI and authorized squash merge to main.
+
+## 2026-09-25 — Publish tests from either teacher surface
+
+- Updated `codex/test-publish-action-bar` / PR1357 to retain Publish in the edit modal as well as the student-table action bar, per revised request. Restored the modal's save-before-publish flow and inline validation errors; both controls remain draft-only.
+- All226 focused tests, architecture/UI/design/type/lint checks and Pika audit pass. Playwright verified both publication entry points and both controls disappearing after publication across teacher desktop/mobile light/dark (eight flows). Student UI unchanged. Independent updated-SHA review follows.
