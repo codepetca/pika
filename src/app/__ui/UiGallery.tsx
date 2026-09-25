@@ -70,6 +70,7 @@ import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachme
 import { PageMockups } from './PageMockups'
 import { OwnedJoinedHomeMockup } from './OwnedJoinedHomeMockup'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
+import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 
 type Role = 'teacher' | 'student'
@@ -591,6 +592,7 @@ export function UiGallery({ role }: Props) {
             {role === 'teacher' && <AssignmentEditSplitPattern />}
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
+            <TestReferenceImagePattern />
             <StudentGradesPattern />
             <PatternSection
               id="student-tests"

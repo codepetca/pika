@@ -99,8 +99,11 @@ Label illustrative sizes or inputs as examples when the answer must generalize.
 Do not make a visual's particular dimensions an unstated requirement. Keep all
 essential constraints in text so the diagram is not the sole source of the task.
 
-An attached PDF is a supported option for a diagram reference sheet; link and
-text documents are also described in the markdown schema. Use a focused text
+An attached PDF is a supported option for a diagram reference sheet. PNG and
+JPG/JPEG images can also be uploaded through Reference Documents → Upload once
+the image storage migration is deployed; students can fit or zoom them in the
+reference pane. SVG is not supported. Link and text documents are also described
+in the markdown schema. Use a focused text
 reference for commands, formulas, or definitions when that is clearer. Verify
 current editor capabilities before claiming an inline image feature is available
 or unavailable. Creating a local PDF does not attach it to a test: upload it

@@ -8,6 +8,7 @@ import {
   TEST_DOCUMENT_ACCEPT,
   clearTestDocumentSnapshot,
   formatCompactRelativeAge,
+  getTestDocumentValidationError,
   normalizeTestDocuments,
   isValidHttpUrl,
 } from '@/lib/test-documents'
@@ -337,6 +338,11 @@ export function TestDocumentsEditor({
 
   async function handleUploadFile(file: File) {
     if (!isEditable || uploading || saving) return
+    const validationError = getTestDocumentValidationError(file)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
     setUploading(true)
     setError('')
     try {
@@ -397,6 +403,12 @@ export function TestDocumentsEditor({
     </div>
   )
 
+  const errorAlert = error ? (
+    <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+      {error}
+    </div>
+  ) : null
+
   return (
     <div className="space-y-4">
       {(headerTitle || addButtonPlacement === 'header') && (
@@ -413,11 +425,7 @@ export function TestDocumentsEditor({
         </div>
       )}
 
-      {error && (
-        <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-          {error}
-        </div>
-      )}
+      {!activeModal ? errorAlert : null}
       {localDocs.length > 0 && (
         <div className="space-y-2">
           {localDocs.map((doc) => (
@@ -520,7 +528,7 @@ export function TestDocumentsEditor({
             ariaLabel="Document type"
             items={[
               { value: 'link', label: 'Link' },
-              { value: 'upload', label: 'PDF' },
+              { value: 'upload', label: 'Upload' },
               { value: 'text', label: 'Text' },
             ]}
             value={activeAddTab}
@@ -613,6 +621,7 @@ export function TestDocumentsEditor({
           ) : null}
           </TabPanel>
         </div>
+        {errorAlert ? <div className="mt-4">{errorAlert}</div> : null}
         <div className="mt-4 flex justify-end gap-2">
           <Button
             type="button"
@@ -645,7 +654,7 @@ export function TestDocumentsEditor({
                 ? 'Add link document'
                 : activeAddTab === 'text'
                   ? 'Add text document'
-                  : 'Upload pdf document'
+                  : 'Upload document'
             }
           >
             {activeAddTab === 'link'
@@ -654,7 +663,7 @@ export function TestDocumentsEditor({
                 ? 'Add text'
                 : uploading
                   ? 'Uploading...'
-                  : 'Upload pdf'}
+                  : 'Upload'}
           </Button>
         </div>
       </DialogPanel>
@@ -704,6 +713,7 @@ export function TestDocumentsEditor({
             </>
           )}
         </div>
+        {errorAlert ? <div className="mt-4">{errorAlert}</div> : null}
         <div className="mt-4 flex justify-end gap-2">
           <Button
             type="button"

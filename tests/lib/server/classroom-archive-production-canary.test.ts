@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { buildClassroomArchiveV2RestorePlan } from '@/lib/server/classroom-archive-restore'
 import { CLASSROOM_RELATIONAL_RESOURCES } from '@/lib/contracts/classroom-data'
 import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
 import {
@@ -492,6 +493,29 @@ describe('production classroom archive canary contract', () => {
       storagePathKind: 'restored',
       supabaseUrl: `https://${PROJECT_REF}.supabase.co`,
     })).not.toEqual(expectedNormalized)
+  })
+
+  it.each(['image/png', 'image/jpeg', 'application/pdf'])('agrees with the actual restore plan for archived Test %s references', (contentType) => {
+    const resources = Object.fromEntries(CLASSROOM_ARCHIVE_V2_RESOURCES.map(({ table }) => [table, []])) as Record<string, Array<Record<string, unknown>>>
+    const sourcePath = 'teacher/test/misleading.png'
+    resources.classrooms = [{ id: CLASSROOM_ID, teacher_id: TEACHER_ID, title: 'Image recovery' }]
+    resources.tests = [{ id: RUN_ID, classroom_id: CLASSROOM_ID, created_by: TEACHER_ID, documents: [{ id: RUN_ID, title: 'World', source: 'upload', storage_bucket: 'test-documents', storage_path: sourcePath }] }]
+    const actors = [{ id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher' as const, profile: null }]
+    const bundle = buildClassroomArchiveBundle({
+      version: 2, archiveId: plan().operation_ids.export, classroomId: CLASSROOM_ID, teacherId: TEACHER_ID,
+      createdAt: '2026-09-24T12:00:00.000Z', source: { schemaMigration: '107_classroom_archive_v2_direct_source', appCommit: COMMIT },
+      retention: { mode: 'teacher_managed', delete_after: null }, resources, actors,
+      storageObjects: [{ bucket: 'test-documents', sourcePath, contentType, bytes: Buffer.from('verified archive bytes') }],
+    })
+    const verified = verifyClassroomArchiveBundle(bundle.archive)
+    if (!verified.ok) throw new Error(verified.error)
+    const restore = buildClassroomArchiveV2RestorePlan({ verified, artifactChecksumVerified: true, operationId: plan().operation_ids.restore, currentActors: actors.map(({ id, email, role }) => ({ id, email, role })), supabaseUrl: `https://${PROJECT_REF}.supabase.co` })
+    const projection = createClassroomArchiveProductionCanaryVerifiedArchiveProjection({
+      verified, sourceRevision: 7, restoreOperationId: plan().operation_ids.restore,
+      supabaseUrl: `https://${PROJECT_REF}.supabase.co`, plannedStorageMappings: restore.storageObjects,
+    })
+    expect(projection.restoredStorageMappings[0].restorePath).toBe(restore.storageObjects[0].restorePath)
+    expect(projection.restoredStorageMappings[0].restorePath.includes('/images/')).toBe(contentType !== 'application/pdf')
   })
 
   it('builds the runner archive projection from verified source rows', () => {
