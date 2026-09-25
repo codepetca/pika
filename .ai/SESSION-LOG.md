@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-20 — Dormant contextual manual Assignment grading
-
-- Owner `codex/contextual-owner-next-slice`, based on merged classwork-creation PR1304. Migration194 adds a service-only manual-grading wrapper that takes the established grading fence, then the Classroom-operation fence, locks Assignment/Classroom parents, rechecks stable binding, exact current ownership and active lifecycle, and delegates to the existing atomic grade save in the same transaction.
-- Added one independent off-by-default exact user/Assignment gate shared by the single-student and selected-students grade routes. Matched teacher- or student-valued current owners use migration194 with exact returned Assignment/student binding; disabled and unmatched requests preserve the legacy teacher-only path. Feedback return, AI grading/repository review, bulk/reorder, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration194 applied locally after a ledger/dry-run showing only194. Generated types and warning-level DB lint are clean; rollback behavior and archive-first/grade-first multi-connection contracts pass. Production remains001–180 and all contextual gates remain off. Focused verification and independent review follow.
-- PR1305 initial compatibility review signed off exact head `ba617df6`. Security review found a reverse-order deadlock with individual-student purge and an overbroad `55000` archive mapping. Remediation migration195 acquires each target learner's purge subject/pair fences nonblocking after Classroom admission, making a started purge return deterministic retry instead of deadlocking; the server now reserves403 for the exact archive sentinel and maps other lifecycle contention to409. A real purge-subject/grade race joins the archive races; targeted and final cumulative review follow.
-
 ## 2026-09-20 — Dormant contextual Assignment feedback return
 
 - Owner `codex/contextual-assignment-feedback-return`, based on merged manual-grading PR1305. Migration196 adds service-only actor-bound wrappers for one feedback-only return and one selected-student full return. Both take the established Assignment return fence, then the Classroom-operation and target learner purge fences, lock authorization parents, recheck stable binding, exact current ownership and active lifecycle, and delegate to the established atomic return operations in the same transaction.
@@ -342,3 +335,9 @@ async-grading.
 
 - Updated `codex/test-publish-action-bar` / PR1357 to retain Publish in the edit modal as well as the student-table action bar, per revised request. Restored the modal's save-before-publish flow and inline validation errors; both controls remain draft-only.
 - All226 focused tests, architecture/UI/design/type/lint checks and Pika audit pass. Playwright verified both publication entry points and both controls disappearing after publication across teacher desktop/mobile light/dark (eight flows). Student UI unchanged. Independent updated-SHA review follows.
+
+## 2026-09-25 — Disable student actions for unpublished tests
+
+- Owner: `codex/disable-draft-test-student-actions`. Draft test student tables now disable selection, batch grading/return/unsubmit/delete, access controls, and row unsubmit; row activation cannot open the grading inspector. Publish remains available from the action bar and editor. Publishing restores student selection and actions.
+- Reused the existing teacher test action bar, student table, and status controls; Pattern Lab teacher operational controls were the visual reference. No student-facing surface changed. Teacher desktop/mobile light/dark fixture verification passed for draft and published states; screenshots under ignored `output/playwright/`.
+- Component coverage includes stale submitted/open draft rows and confirms controls remain disabled; 77 direct component tests passed. Pika audit passed. Composite-widget accessibility checklist reviewed: keyboard behavior yes, semantic disabled state tested yes, manual follow-up none. Focused checks and PR review follow.

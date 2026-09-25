@@ -251,7 +251,7 @@ function Wrapper({ children }: { children: ReactNode }) {
 function makeTest(overrides: Partial<TestAssessmentWithStats> = {}): TestAssessmentWithStats {
   const base = createMockTest({
     assessment_type: 'test',
-    status: 'draft',
+    status: 'active',
     ...overrides,
   })
   return {
@@ -1081,6 +1081,30 @@ describe('TeacherTestsTab', () => {
     })
   })
 
+  it('disables student work actions and grading inspection until a draft test is published', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse({
+      testStatus: 'draft',
+      students: [makeGradingStudent({ effective_access: 'open', access_state: 'open' })],
+    }))
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    const row = await screen.findByTestId('test-grading-student-row-student-1')
+    expect(screen.getByRole('button', { name: 'Publish' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Open All' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Close All' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Select all students' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' })).toBeDisabled()
+    expect(within(row).getByRole('button', { name: /Mark Alice Zephyr unsubmitted/ })).toBeDisabled()
+    expect(within(row).getByRole('switch', { name: /Close access for Alice Zephyr/ })).toBeDisabled()
+
+    fireEvent.click(row)
+    expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringMatching(/auto-grade|return|unsubmit|bulk-delete|student-access/), expect.anything())
+  })
+
   it('delegates preview from the test edit modal', async () => {
     const onRequestTestPreview = vi.fn()
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })])
@@ -1377,6 +1401,8 @@ describe('TeacherTestsTab', () => {
       expect(screen.getByRole('button', { name: 'Close All' })).toBeDisabled()
       expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
     })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' }))
+    expect(screen.getByRole('button', { name: 'Student actions for 1 selected' })).toBeEnabled()
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 

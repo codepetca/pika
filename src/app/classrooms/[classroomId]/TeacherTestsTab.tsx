@@ -590,6 +590,7 @@ export function TeacherTestsTab({
       },
     }
   }, [selectedTest, selectedTestDraftSummary])
+  const isDraftSelectedTest = selectedTestWorkspace?.status === 'draft'
 
   const sortedGradingStudents = useMemo(
     () =>
@@ -833,12 +834,13 @@ export function TeacherTestsTab({
   }, [gradingStudentTableScrollRef])
 
   const handleGradingStudentSelect = useCallback((studentId: string) => {
+    if (isDraftSelectedTest) return
     clearUnreviewedExitForStudent(studentId)
     selectGradingStudent(studentId)
-  }, [clearUnreviewedExitForStudent, selectGradingStudent])
+  }, [clearUnreviewedExitForStudent, isDraftSelectedTest, selectGradingStudent])
 
   const handleExitAlertClick = useCallback(() => {
-    if (!exitAlertStudentId) return
+    if (!exitAlertStudentId || isDraftSelectedTest) return
     clearUnreviewedExitForStudent(exitAlertStudentId)
     selectGradingStudent(exitAlertStudentId)
     const scrollAfterSelect = () => {
@@ -849,7 +851,7 @@ export function TeacherTestsTab({
       return
     }
     scrollAfterSelect()
-  }, [clearUnreviewedExitForStudent, exitAlertStudentId, scrollToGradingStudent, selectGradingStudent])
+  }, [clearUnreviewedExitForStudent, exitAlertStudentId, isDraftSelectedTest, scrollToGradingStudent, selectGradingStudent])
 
   const dismissExitAlert = useCallback(() => {
     setExitAlertStudentId(null)
@@ -1988,10 +1990,10 @@ export function TeacherTestsTab({
     (selectedTestWorkspace?.status === 'draft'
       ? true
       : allStudentIds.length === 0 || allOpenAccessCount === allStudentIds.length)
-  const isCloseAllDisabled = areGlobalAccessActionsBusy || allOpenAccessCount === 0
+  const isCloseAllDisabled = areGlobalAccessActionsBusy || isDraftSelectedTest || allOpenAccessCount === 0
 
   function handleAllAccessAction(state: 'open' | 'closed') {
-    if (!selectedTestWorkspace) return
+    if (!selectedTestWorkspace || isDraftSelectedTest) return
 
     if (state === 'open') {
       if (selectedTestWorkspace.status === 'draft') return
@@ -2006,7 +2008,7 @@ export function TeacherTestsTab({
   }
 
   function handleStudentAccessToggle(student: TestGradingStudentRow, effectiveAccess: 'open' | 'closed') {
-    if (isReadOnly || isCombinedTestActionsBusy) return
+    if (isDraftSelectedTest || isReadOnly || isCombinedTestActionsBusy) return
     void handleBatchStudentAccess(effectiveAccess === 'open' ? 'closed' : 'open', {
       studentIds: [student.student_id],
       preserveSelection: true,
@@ -2112,6 +2114,7 @@ export function TeacherTestsTab({
                   indeterminate={batchSelectionIndeterminate}
                   onChange={toggleBatchSelectAll}
                   ariaLabel="Select all students"
+                  disabled={isDraftSelectedTest}
                 />
                 <SortableHeaderCell
                   label="First"
@@ -2266,9 +2269,9 @@ export function TeacherTestsTab({
                     : `Access ${accessLabel.toLowerCase()}, inherited from test status`
                 const studentLabel = student.name || student.email || 'student'
                 const canToggleAccess =
+                  !isDraftSelectedTest &&
                   !isReadOnly &&
-                  !isCombinedTestActionsBusy &&
-                  !(effectiveAccess === 'closed' && selectedTestWorkspace?.status === 'draft')
+                  !isCombinedTestActionsBusy
                 const accessActionLabel =
                   effectiveAccess === 'open'
                     ? `Close access for ${studentLabel}`
@@ -2280,7 +2283,7 @@ export function TeacherTestsTab({
                       ? 'Draft tests cannot be opened for students.'
                       : `Click to open access for ${studentLabel}.`
                 const canUnsubmitStudent =
-                  student.status === 'submitted' && !isReadOnly && !isCombinedTestActionsBusy
+                  student.status === 'submitted' && !isDraftSelectedTest && !isReadOnly && !isCombinedTestActionsBusy
                 const hasUnreviewedExit = unreviewedExitCounts[student.student_id] !== undefined
                 const exitsClassName = exitsCount > 0
                   ? 'inline-flex min-w-6 cursor-help items-center justify-center rounded-badge border border-warning bg-warning-bg px-2 py-0.5 text-xs font-semibold text-warning'
@@ -2296,7 +2299,7 @@ export function TeacherTestsTab({
                     data-testid={`test-grading-student-row-${student.student_id}`}
                     aria-selected={isSelected}
                     className={[
-                      'cursor-pointer transition-colors',
+                      isDraftSelectedTest ? 'cursor-default' : 'cursor-pointer transition-colors',
                       isSelected
                         ? 'border-l-2 border-l-primary bg-surface-selected shadow-sm'
                         : hasUnreviewedExit
@@ -2317,6 +2320,7 @@ export function TeacherTestsTab({
                       checked={batchSelectedIds.has(student.student_id)}
                       onChange={() => toggleBatchSelect(student.student_id)}
                       ariaLabel={`Select ${student.name || 'student'}`}
+                      disabled={isDraftSelectedTest}
                       className="py-2"
                     />
                     <DataTableCell className="min-w-0 max-w-0 px-2 py-2 sm:px-3 lg:max-w-none">
@@ -2489,19 +2493,20 @@ export function TeacherTestsTab({
       </span>
     ) : null
 
+  const areStudentActionsUnavailable = isDraftSelectedTest || isReadOnly || isCombinedTestActionsBusy
   const selectedStudentUtilityActions: Array<TeacherWorkSurfaceActionItem & { label: string }> = [
     {
       id: 'ai-grade-selected',
       label: 'AI Grade',
       icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
-      disabled: isCombinedTestActionsBusy,
+      disabled: areStudentActionsUnavailable,
       onSelect: () => setShowBatchGradeModal(true),
     },
     {
       id: 'unsubmit-selected',
       label: 'Unsubmit',
       icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />,
-      disabled: batchSelectedSubmittedCount === 0 || isCombinedTestActionsBusy,
+      disabled: batchSelectedSubmittedCount === 0 || areStudentActionsUnavailable,
       onSelect: () => {
         setPendingUnsubmitStudent(null)
         setShowUnsubmitConfirm(true)
@@ -2511,7 +2516,7 @@ export function TeacherTestsTab({
       id: 'return-selected',
       label: 'Return',
       icon: <Reply className="h-4 w-4" aria-hidden="true" />,
-      disabled: isCombinedTestActionsBusy,
+      disabled: areStudentActionsUnavailable,
       onSelect: () => {
         if (selectedOpenAccessCount > 0) {
           setGradingError('Close selected students before returning')
@@ -2525,7 +2530,7 @@ export function TeacherTestsTab({
       label: 'Delete Work',
       icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
       destructive: true,
-      disabled: isCombinedTestActionsBusy,
+      disabled: areStudentActionsUnavailable,
       onSelect: () => setPendingDeleteStudentAttemptIds(batchSelectedStudentIds),
     },
   ]
@@ -2574,7 +2579,7 @@ export function TeacherTestsTab({
             </span>
           )}
           items={selectedStudentUtilityActions}
-          disabled={batchSelectedCount === 0 || isCombinedTestActionsBusy}
+          disabled={batchSelectedCount === 0 || areStudentActionsUnavailable}
           variant="secondary"
           size="sm"
           className="w-36"
@@ -2811,7 +2816,7 @@ export function TeacherTestsTab({
     </div>
   )
 
-  const gradingInspector = selectedTest && selectedStudentId ? (
+  const gradingInspector = selectedTest && selectedStudentId && !isDraftSelectedTest ? (
     <TestStudentGradingPanel
       testId={selectedTest.id}
       selectedStudentId={selectedStudentId}
