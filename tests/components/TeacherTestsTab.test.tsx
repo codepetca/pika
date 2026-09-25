@@ -1086,6 +1086,7 @@ describe('TeacherTestsTab', () => {
     fetchMock.mockResolvedValueOnce(makeResultsResponse({
       testStatus: 'draft',
       students: [makeGradingStudent({ effective_access: 'open', access_state: 'open' })],
+      activeRun: { id: 'run-1', status: 'running' },
     }))
     renderTab()
 
@@ -1104,6 +1105,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(row)
     expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringMatching(/auto-grade|return|unsubmit|bulk-delete|student-access/), expect.anything())
+    expect(fetchMock.mock.calls.some(([url]: [string]) => url.includes('/auto-grade-runs/'))).toBe(false)
   })
 
   it('delegates preview from the test edit modal', async () => {

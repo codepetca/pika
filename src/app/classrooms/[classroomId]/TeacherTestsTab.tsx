@@ -1317,6 +1317,7 @@ export function TeacherTestsTab({
       selectedWorkspaceTab !== 'grading' ||
       !selectedTestId ||
       !activeTestAiRunId ||
+      isDraftSelectedTest ||
       !hasActiveTestAiRun
     ) {
       return
@@ -1388,6 +1389,7 @@ export function TeacherTestsTab({
     activeTestAiRunId,
     apiBasePath,
     hasActiveTestAiRun,
+    isDraftSelectedTest,
     selectedTestId,
     selectedWorkspaceTab,
     workspaceState,
