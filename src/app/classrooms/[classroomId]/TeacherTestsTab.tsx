@@ -2998,6 +2998,7 @@ export function TeacherTestsTab({
         classroomId={classroom.id}
         apiBasePath={apiBasePath}
         hasPendingMarkdownImport={hasPendingMarkdownImport}
+        publicationError={statusActionError}
         onClose={handleCloseTestEditor}
         discardPristineOnClose={newlyCreatedTestId === selectedTestWorkspace?.id}
         onDiscardPristine={handleDiscardPristineTest}
@@ -3011,6 +3012,7 @@ export function TeacherTestsTab({
         }}
         onPendingMarkdownImportChange={setHasPendingMarkdownImport}
         onRequestPreview={handleOpenSavedTestPreview}
+        onRequestPublish={handleRequestSelectedTestPublish}
       />
 
       <DialogPanel

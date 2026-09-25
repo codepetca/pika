@@ -50,6 +50,7 @@ const test = {
 function renderDialog({
   hasPendingMarkdownImport = false,
   onRequestPreview = vi.fn(),
+  onRequestPublish = vi.fn(async () => true),
   onClose = vi.fn(),
   testOverride = test,
   initialView = 'edit',
@@ -58,6 +59,7 @@ function renderDialog({
 }: {
   hasPendingMarkdownImport?: boolean
   onRequestPreview?: (preview: { testId: string; title: string }) => void
+  onRequestPublish?: () => Promise<boolean>
   onClose?: () => void
   testOverride?: TestAssessmentWithStats
   initialView?: 'edit' | 'markdown'
@@ -80,11 +82,12 @@ function renderDialog({
         onTestUpdate={vi.fn()}
         onPendingMarkdownImportChange={vi.fn()}
         onRequestPreview={onRequestPreview}
+        onRequestPublish={onRequestPublish}
       />
     </TooltipProvider>,
   )
 
-  return { onClose, onRequestPreview, onDiscardPristine }
+  return { onClose, onRequestPreview, onRequestPublish, onDiscardPristine }
 }
 
 describe('TeacherTestAuthoringDialog', () => {
@@ -134,11 +137,55 @@ describe('TeacherTestAuthoringDialog', () => {
     ).toBeDisabled()
   })
 
-  it.each(['draft', 'active', 'closed'] as const)('has no publish action for a %s test', (status) => {
-    renderDialog({ testOverride: { ...test, status } })
-    expect(within(screen.getByRole('dialog', { name: 'Edit test' })).queryByRole('button', {
+  it('publishes only from draft authoring after flushing the latest save', async () => {
+    draftFlush.mockClear()
+    const onRequestPublish = vi.fn(async () => true)
+    renderDialog({
+      onRequestPublish,
+      testOverride: { ...test, status: 'draft' },
+    })
+
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', {
       name: 'Publish',
-    })).not.toBeInTheDocument()
+    }))
+
+    await waitFor(() => expect(draftFlush).toHaveBeenCalledTimes(1))
+    expect(onRequestPublish).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not show publication controls after the test is published', () => {
+    renderDialog({ testOverride: { ...test, status: 'closed' } })
+
+    expect(
+      within(screen.getByRole('dialog', { name: 'Edit test' })).queryByRole('button', {
+        name: 'Publish',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows publication errors inside the authoring dialog', () => {
+    render(
+      <TooltipProvider>
+        <TeacherTestAuthoringDialog
+          isOpen
+          test={test}
+          classroomId="classroom-1"
+          apiBasePath="/api/teacher/tests"
+          hasPendingMarkdownImport={false}
+          publicationError="Add a title before publishing this Test"
+          onClose={vi.fn()}
+          onDraftSummaryChange={vi.fn()}
+          onTestUpdate={vi.fn()}
+          onPendingMarkdownImportChange={vi.fn()}
+          onRequestPreview={vi.fn()}
+          onRequestPublish={vi.fn(async () => false)}
+        />
+      </TooltipProvider>,
+    )
+
+    expect(
+      within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('alert'),
+    ).toHaveTextContent('Add a title before publishing this Test')
   })
 
   it('waits for the latest draft save before closing', async () => {

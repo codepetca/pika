@@ -1380,6 +1380,67 @@ describe('TeacherTestsTab', () => {
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
+  it('publishes an unpublished test closed from the authoring dialog', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'draft' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          test: { id: 'test-1', title: 'Unit Test' },
+          draft_version: 7,
+          questions: [
+            {
+              id: 'q1',
+              question_type: 'multiple_choice',
+              question_text: 'Ready to publish?',
+              options: ['Yes', 'No'],
+              correct_option: 0,
+              points: 1,
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({ testStatus: 'draft' }))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ test: { id: 'test-1', status: 'closed' } }),
+      })
+
+    renderTab()
+
+    await openEditModalFromSelectedTest()
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Publish' }))
+
+    expect(await screen.findByText('Publish test?')).toBeInTheDocument()
+    expect(screen.getByText('Publishing is permanent. Students will see this test, but it will stay closed until you open access.')).toBeInTheDocument()
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Publish test?' })).getByRole('button', { name: 'Publish' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1', expect.objectContaining({ method: 'PATCH' }))
+    })
+
+    const patchCall = fetchMock.mock.calls.find(
+      ([url, init]: [string, RequestInit | undefined]) =>
+        url === '/api/teacher/tests/test-1' && init?.method === 'PATCH'
+    )
+    expect(patchCall).toBeTruthy()
+    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({
+      status: 'closed',
+      draft_version: 7,
+    })
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Open All' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Close All' })).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'Publish' })).not.toBeInTheDocument()
+    })
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
   it('requires a real title before publishing a Test', async () => {
     mockTestsResponse([
       makeTest({ id: 'test-1', title: 'Untitled 2026-05-14 10:45:00', status: 'draft' }),
