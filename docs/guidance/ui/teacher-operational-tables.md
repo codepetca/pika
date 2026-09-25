@@ -45,6 +45,12 @@ Use one compact row directly above the table:
    the ghost treatment so they blend into the surrounding surface until hover
    or focus. Row-derived totals do not belong here.
 
+In selected Test and Assignment workspaces, the leading assessment title is an
+edit control: reuse the ghost `Button` to open the existing editor, with the
+same edit restrictions as the More actions menu. Keep its title truncation,
+44px target, and visible keyboard focus. This specific control does not change
+the quiet treatment of other leading information.
+
 The table begins immediately below this row. Avoid an empty spacer, a second
 summary row, or permanent top chrome. On narrow screens, preserve the centered
 scope/actions and condense edge information instead of wrapping another row.
