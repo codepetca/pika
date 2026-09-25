@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ChevronRight, ShieldCheck } from 'lucide-react'
 import {
   Button,
@@ -67,6 +67,8 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 }
 
 export function AdminPrototype() {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const hasMounted = useRef(false)
   const [screen, setScreen] = useState<Screen>('accounts')
   const [selectedId, setSelectedId] = useState(ACCOUNTS[0].id)
   const [query, setQuery] = useState('')
@@ -97,6 +99,14 @@ export function AdminPrototype() {
   const aboveLimit = account.activeClassrooms > proposedLimit
   const isSamePlan = account.plan === proposedPlan
 
+  useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true
+      return
+    }
+    headingRef.current?.focus()
+  }, [screen, selectedId])
+
   return (
     <main className="min-h-screen bg-page pb-16 text-text-default">
       <header className="border-b border-border bg-surface">
@@ -122,7 +132,7 @@ export function AdminPrototype() {
 
             {screen === 'accounts' ? <>
               <div className="flex flex-wrap items-end justify-between gap-3">
-                <PageHeading title="Accounts" description="Review plan and classroom creation capacity." />
+                <PageHeading title="Accounts" description="Review plan and classroom creation capacity." headingRef={headingRef} tabIndex={-1} />
                 <span className="text-sm text-text-muted">{filtered.length} of {ACCOUNTS.length} sample accounts</span>
               </div>
               <Card padding="md" className="space-y-4">
@@ -162,7 +172,7 @@ export function AdminPrototype() {
             {screen === 'account' ? <>
               <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setScreen('accounts')}><ArrowLeft size={16} className="mr-2" aria-hidden="true" />Back to accounts</Button>
               <div className="flex flex-wrap items-end justify-between gap-3">
-                <PageHeading title={account.email} description="Account plan and creation capacity" />
+                <PageHeading title={account.email} description="Account plan and creation capacity" headingRef={headingRef} tabIndex={-1} />
                 <Button type="button" onClick={openPreview}>Preview plan change</Button>
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
@@ -182,7 +192,7 @@ export function AdminPrototype() {
 
             {screen === 'preview' ? <>
               <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setScreen('account')}><ArrowLeft size={16} className="mr-2" aria-hidden="true" />Back to account</Button>
-              <PageHeading title="Preview plan change" description={account.email} />
+              <PageHeading title="Preview plan change" description={account.email} headingRef={headingRef} tabIndex={-1} />
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card><PageHeading level="h2" size="section" title="Proposed change" />
                   <div className="mt-4 max-w-sm"><FormField label="Proposed plan"><Select value={proposedPlan} onChange={(event) => setProposedPlan(event.target.value as Plan)} options={PLAN_OPTIONS} /></FormField></div>
@@ -201,7 +211,7 @@ export function AdminPrototype() {
             </> : null}
 
             {screen === 'activity' ? <>
-              <PageHeading title="Plan activity" description="A sample audit view for reviewing changes." />
+              <PageHeading title="Plan activity" description="A sample audit view for reviewing changes." headingRef={headingRef} tabIndex={-1} />
               <Card><div className="divide-y divide-border">{ACCOUNTS.filter((item) => item.plan).map((item) => <div key={item.id} className="py-4 first:pt-0 last:pb-0 sm:flex sm:items-start sm:justify-between sm:gap-4"><div><p className="text-sm font-medium">{item.email}</p><p className="mt-1 text-sm text-text-muted">Plan recorded: <PlanLabel plan={item.plan} /> · revision {item.revision}</p></div><p className="mt-1 text-sm text-text-muted sm:mt-0">{item.lastChange}</p></div>)}</div></Card>
             </> : null}
           </PageStack>

@@ -115,7 +115,8 @@ admin UI adoption. No change to stable UI guidance or Pattern Lab primitives.
 The prototype is implemented at `/pattern-lab/admin-prototype` with four fixed
 `example.invalid` accounts. It is gated by the same non-production,
 `ENABLE_UI_GALLERY` rule as Pattern Lab and its confirmation action is disabled.
-No account or plan API is called. The fixture bypass is local testing only.
+No account, authentication, or plan API is called. Anyone with access to an
+enabled non-production gallery can inspect the fictional prototype.
 
 Visual verification: Playwright captured list, detail, activity, and preview
 at 1440×900 and 390×844 in light and dark modes, including a downgrade warning
@@ -126,10 +127,10 @@ the prototype has no role-specific state. Captures are local under
 `output/playwright/admin-prototype-*.png` and are not production evidence.
 Composite-widget checklist reviewed: yes. Screen navigation uses ordinary
 buttons with `aria-current`, keyboard Tab/Enter behavior from native controls,
-and visible shared focus styles; the Select uses the canonical control. Tests
-cover labeled fields, selection, disabled confirmation and active navigation
-semantics. Manual follow-up: assess focus transfer if these in-page screens are
-promoted to a live route; this prototype does not create a tab widget.
+and visible shared focus styles; the Select uses the canonical control. Screen
+changes move focus to the destination heading. Tests cover labeled fields,
+selection, disabled confirmation, active navigation semantics, and focus
+transfer. This prototype does not create a tab widget.
 
 ## Inventory and mutation contract
 
