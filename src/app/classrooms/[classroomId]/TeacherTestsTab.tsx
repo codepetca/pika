@@ -2582,13 +2582,19 @@ export function TeacherTestsTab({
   ) : null
 
   const selectedTestContext = selectedTestWorkspace ? (
-    <div className="flex min-w-0 items-center gap-2">
-      <span
-        className="block max-w-full truncate font-medium text-text-default sm:max-w-32 xl:max-w-64"
+    <div className="flex min-w-0 max-w-full items-center gap-2">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        aria-label={`Edit ${getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}`}
         title={getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}
+        disabled={isReadOnly}
+        onClick={() => openSelectedTestEditor()}
+        className="h-11 min-h-11 min-w-11 max-w-full flex-1 justify-start px-2 text-left font-medium text-text-default sm:flex-none sm:max-w-32 xl:max-w-64"
       >
-        {getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}
-      </span>
+        <span className="min-w-0 truncate">{getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}</span>
+      </Button>
       {workspaceModeStatus}
     </div>
   ) : workspaceModeStatus
@@ -2655,7 +2661,7 @@ export function TeacherTestsTab({
       testId="test-grading-context-bar"
       className="py-2 sm:py-1"
       context={selectedTestContext}
-      contextClassName="col-span-3 row-start-1 sm:col-span-1 sm:col-start-1 sm:row-start-1"
+      contextClassName="col-span-3 row-start-1 max-w-full overflow-visible sm:col-span-1 sm:col-start-1 sm:row-start-1"
       primary={selectedTestControls}
       primaryClassName="col-start-2 row-start-2 sm:row-start-1"
       actions={selectedTestUtilities}

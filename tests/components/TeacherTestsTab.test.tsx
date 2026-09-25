@@ -743,6 +743,25 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByRole('button', { name: 'Drag to reorder Unit Test' })).not.toBeInTheDocument()
   })
 
+  it('disables the selected test title editor for archived classrooms', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    renderTab({
+      classroom: {
+        ...classroom,
+        archived_at: '2026-06-01T12:00:00Z',
+      },
+    })
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    const editTitle = screen.getByRole('button', { name: 'Edit Unit Test' })
+    expect(editTitle).toBeDisabled()
+    fireEvent.click(editTitle)
+    expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+  })
+
   it('opens a selected test in grading mode and edits in a modal', async () => {
     const onSelectTest = vi.fn()
 
@@ -891,6 +910,38 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'More actions' })).toHaveFocus()
+    })
+  })
+
+  it('opens visual editing from the selected test title after Markdown editing closes', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValue(makeResultsResponse())
+    renderTab()
+
+    fireEvent.click(await screen.findByText('Unit Test'))
+    expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
+    expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Code' }))
+      .toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+    })
+
+    const editTitle = screen.getByRole('button', { name: 'Edit Unit Test' })
+    expect(editTitle).toHaveAttribute('title', 'Unit Test')
+    fireEvent.click(editTitle)
+
+    expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
+    expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Code' }))
+      .toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
     })
   })
 

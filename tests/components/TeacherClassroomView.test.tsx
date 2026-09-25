@@ -1165,6 +1165,82 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'visual')
   })
 
+  it('opens visual editing from the selected assignment title after Markdown editing closes', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({ ok: true, json: async () =>
+        url.endsWith('/assignment-1') ? makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1') :
+        url.includes('class-days') ? { class_days: [] } :
+        url.includes('materials') ? { materials: [] } :
+        url.includes('surveys') ? { surveys: [] } :
+        { assignments: [makeAssignmentSummary('assignment-1', 'Assignment One')] }
+      })
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" />)
+    await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Assignment grading actions' })).toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'markdown')
+    fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    const editTitle = screen.getByRole('button', { name: 'Edit Assignment One' })
+    expect(editTitle).toHaveAttribute('title', 'Assignment One')
+    fireEvent.click(editTitle)
+
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'visual')
+    fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('disables the selected assignment title editor for archived classrooms', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      return Promise.resolve({ ok: true, json: async () =>
+        url.endsWith('/assignment-2') ? makeAssignmentDetails('assignment-2', 'Assignment Two', 'student-1') :
+        { class_days: [] }
+      })
+    })
+    render(
+      <TeacherClassroomView
+        classroom={{ ...classroom, archived_at: '2026-06-01T12:00:00Z' }}
+        selectedAssignmentId="assignment-2"
+      />,
+    )
+
+    const editTitle = await screen.findByRole('button', { name: 'Edit Assignment Two' })
+    await waitFor(() => expect(editTitle).toBeDisabled())
+    fireEvent.click(editTitle)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('keeps the selected assignment title editor disabled until its details load', async () => {
+    const assignmentDetails = createDeferred<{ ok: boolean; json: () => Promise<unknown> }>()
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/assignment-2')) return assignmentDetails.promise
+      return Promise.resolve({ ok: true, json: async () => ({ class_days: [] }) })
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-2" />)
+
+    const editTitle = await screen.findByRole('button', { name: 'Edit Assignment Two' })
+    expect(editTitle).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(editTitle)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await act(async () => {
+      assignmentDetails.resolve({
+        ok: true,
+        json: async () => makeAssignmentDetails('assignment-2', 'Assignment Two', 'student-1'),
+      })
+    })
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Assignment Two' })).not.toHaveAttribute('aria-disabled'))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Assignment Two' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment Two')
+  })
+
   it('uses the compact WYSIWYG preset for material content', async () => {
     render(
       <TeacherClassroomView
