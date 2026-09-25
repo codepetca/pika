@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-20 — Dormant contextual assignment artifacts
-
-- Owner `codex/contextual-assignment-artifacts`, based on merged history/restore PR1299. Migration190 adds service-only prepare, upsert and delete boundaries for one active member's exact assignment requirement/document/artifact. All mutations share submission→editor→classroom/member ordering, recheck live visibility and current enrollment, reject submitted documents, bind managed images to database-derived classroom/subject/document ownership, and save optional GitHub identity in the same actor-bound transaction.
-- Added one independent off-by-default exact user/assignment gate to link/repository attachment, image upload/attachment and artifact deletion. Matched teacher- or student-valued members use the contextual RPCs; disabled and unmatched requests retain the legacy student-only path. Post-upload authorization failure queues managed bytes for cleanup rather than attaching them.
-- Under standing local-migration authorization, migration190 applied locally after a clean dry run. Local history001–190, warning-level DB lint, generated types, rollback-only artifact behavior and all26 shared save/submit/restore/artifact concurrency cases pass; synthetic fixtures roll back or are removed. Production remains001–180 and every contextual assignment gate remains off. Focused verification and independent review follow.
-
-## 2026-09-20 — Dormant contextual Assignment owner mutations
-
-- Owner `codex/contextual-assignment-owner-mutations`, based on merged artifact PR1300. Migration191 adds service-only actor-bound edit, release, delete and pristine-draft-discard boundaries for an existing Assignment. The shared helper acquires assignment-submission then Classroom-operation fences, locks both authorization parents, and rechecks exact current owner, binding and archive state transactionally.
-- Added one independent off-by-default exact user/assignment gate across the four existing owner routes. Matched teacher- or student-valued owners use migration191; disabled and unmatched requests preserve the legacy teacher-only path. Creation, bulk/reorder, grading, return, UI and rollout activation remain out of scope.
-- Under standing local-migration authorization, migration191 applied locally after correcting a failed, rolled-back composite-row definition. Generated types match local history001–191. The rollback behavior contract and ownership-transfer/archive two-connection races pass; production remains001–180 and all contextual gates remain off. Focused verification and independent review follow.
-
 ## 2026-09-20 — Dormant contextual Assignment creation
 
 - Owner `codex/contextual-assignment-creation`, based on merged owner-mutation PR1301. Migration192 adds one service-only actor-bound transaction that rechecks exact current Classroom ownership and archive state, allocates a mixed-classwork position, and inserts an Assignment plus initial requirements atomically.
@@ -346,3 +334,15 @@ async-grading.
 - Owner `codex/account-plan-rollout-runbook`; documentation-only, risk profile `none`. Added a plan-specific operator sequence for read-only account inventory, explicit owner decisions, audited per-account assignments, and a separately approved strict cutover. Marked the earlier Access-pilot cutover as historical for plan classification.
 - No account, entitlement, migration, database switch, app behavior, or production data changed. Live account inventory remains unverified while hosted access is unavailable. Model recommendation: GPT-6 Sol — bounded rollout documentation tied to existing migration contracts.
 - Independent documentation review found that audited-missing grants fail closed even before strict activation and that ownership-transfer canaries were omitted. The runbook now calls out both conditions and their stop/repair behavior; targeted re-review and final CI remain pending.
+
+## 2026-09-24 — Teacher assessment title editing
+
+- Owner: `codex/assessment-title-edit`, coordinated in the existing task. Approved outcome: tapping the selected Test or Assignment action-bar title opens its existing editor. Implementation worker owns the two teacher views and their component tests; coordinator owns browser verification, guidance, and PR lifecycle.
+- UI brief: reuse the selected Test context-bar layout, Pattern Lab ghost Button, existing edit handlers/dialogs, and `TeacherWorkSurfaceContextBar`; no shared extraction. Teacher desktop/mobile, light/dark, default/hover/focus/disabled/modal-open and long titles. Student n/a (teacher-only consumers). Primary signal: subtle button hover and visible focus; no new icon or decorative chrome. No new composite widget; check keyboard activation and modal focus return. Risk profile `none`.
+- Implementation complete: both title buttons reuse their existing editor handlers. Read-only buttons remain disabled; assignment loading uses guarded aria-disabled semantics so shared modal focus return survives the refresh. Long titles truncate within the context column without clipping focus.
+- Evidence: 130 component tests pass; Playwright covers both surfaces at desktop/mobile in light/dark (8 cases: default/hover/focus/open, keyboard/touch activation, Escape and focus return), plus 4 long-title cases. Screenshots/scripts/results: `output/playwright/title-edit/` (local, ignored). Student n/a because only teacher consumers changed. Composite accessibility checklist reviewed; keyboard and semantic-state checks covered; no manual follow-up. Next: focused checks, draft PR, one standard-risk independent review, and stable-SHA CI; no merge or production rollout authorized in this task.
+
+## 2026-09-25 — Assessment title PR merge preparation
+
+- User authorized merging PR1358. Original reviewed head `4f99bcf7` passed Test & Build, Browser Experience Matrix and PR Gate. Main advanced via PR1355; rebase conflict was only a duplicate session-archive batch marker. Preserved main’s marker and both sessions; title implementation and its tests are unchanged.
+- PR returned to draft before rebasing. Next: focused checks and targeted rebase review, then stable-SHA CI and authorized squash merge to main.
