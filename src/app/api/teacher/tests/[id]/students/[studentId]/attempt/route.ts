@@ -31,6 +31,9 @@ export const DELETE = withErrorHandler('DeleteTeacherTestStudentAttempt', async 
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
+  if (access.test.status === 'draft') {
+    return NextResponse.json({ error: 'Cannot delete work for a draft test' }, { status: 400 })
+  }
 
   const supabase = getServiceRoleClient()
   const { data: enrollment, error: enrollmentError } = await supabase

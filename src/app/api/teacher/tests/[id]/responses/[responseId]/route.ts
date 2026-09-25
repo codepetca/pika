@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
 import { saveTestResponseGrade } from '@/lib/server/test-grades'
+import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { saveTestResponseGradeSchema } from '@/lib/validations/test-grading'
 
 export const dynamic = 'force-dynamic'
@@ -24,6 +25,14 @@ export const PATCH = withErrorHandler('GradeTeacherTestResponse', async (request
       { error: parsed.error.issues[0]?.message ?? 'Invalid grade payload' },
       { status: 400 },
     )
+  }
+
+  const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
+  }
+  if (access.test.status === 'draft') {
+    return NextResponse.json({ error: 'Cannot grade a draft test' }, { status: 400 })
   }
 
   const response = await saveTestResponseGrade({
