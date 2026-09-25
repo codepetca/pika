@@ -2051,7 +2051,8 @@ export function TeacherTestsTab({
             <button
               type="button"
               onClick={handleExitAlertClick}
-              className="inline-flex min-w-0 items-center gap-2 rounded-control px-2 py-1 text-sm font-semibold text-warning transition-colors hover:bg-surface/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning"
+              disabled={isDraftSelectedTest}
+              className="inline-flex min-w-0 items-center gap-2 rounded-control px-2 py-1 text-sm font-semibold text-warning transition-colors hover:bg-surface/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning disabled:cursor-default disabled:opacity-50"
             >
               <LogOut className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
               <span>Exit detected</span>

@@ -104,6 +104,13 @@ describe('POST /api/teacher/tests/[id]/students/attempts/bulk-delete', () => {
     expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
   })
 
+  it('does not delete work for a draft test', async () => {
+    vi.mocked(assertTeacherOwnsTest).mockResolvedValueOnce({ ok: true, test: { status: 'draft' } } as any)
+    const response = await POST(makeRequest({ student_ids: ['student-1'] }), params)
+    expect(response.status).toBe(400)
+    expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+  })
+
   it('deletes selected student test work through one atomic RPC', async () => {
     mockEnrollmentRows(['student-1', 'student-2'])
 

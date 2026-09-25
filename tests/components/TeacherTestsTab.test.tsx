@@ -1095,6 +1095,7 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByRole('button', { name: 'Open All' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Close All' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Student actions (select students to enable)' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Exit detected' })).not.toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Select all students' })).toBeDisabled()
     expect(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' })).toBeDisabled()
     expect(within(row).getByRole('button', { name: /Mark Alice Zephyr unsubmitted/ })).toBeDisabled()
