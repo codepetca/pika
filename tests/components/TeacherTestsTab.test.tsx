@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { useEffect, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_TEST_GRADING_ROW_UPDATED_EVENT } from '@/lib/events'
@@ -41,7 +40,9 @@ vi.mock('@/components/TestDetailPanel', () => ({
     onDraftSummaryChange,
     onTestUpdate,
     onDraftPristineCheckReady,
-    titlePortalTarget,
+    initialSplitView,
+    onRequestClose,
+    onRequestPublish,
     generatedTitleLabel,
   }: {
     test?: TestAssessmentWithStats
@@ -64,11 +65,14 @@ vi.mock('@/components/TestDetailPanel', () => ({
     onDraftPristineCheckReady?: (
       check: (() => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }) | null
     ) => void
-    titlePortalTarget?: HTMLElement | null
+    initialSplitView?: 'edit' | 'markdown'
+    onRequestClose?: () => void
+    onRequestPublish?: () => void
     generatedTitleLabel?: string
   }) => {
     if (!test) throw new Error('Mock TestDetailPanel requires test')
     const [pendingMarkdown, setPendingMarkdown] = useState(false)
+    const [markdownView, setMarkdownView] = useState(initialSplitView === 'markdown')
     const displayedTitle = /^Untitled(?:\s+\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}:\d{2})?)?$/.test(test.title)
       ? generatedTitleLabel || 'Untitled'
       : test.title
@@ -85,22 +89,21 @@ vi.mock('@/components/TestDetailPanel', () => ({
 
     return (
       <>
-        {titlePortalTarget
-          ? createPortal(
-              <button type="button" aria-label="Edit test title">
-                {displayedTitle}
-              </button>,
-              titlePortalTarget
-            )
-          : null}
         <div
           data-testid="mock-test-detail"
           data-question-layout={testQuestionLayout}
+          data-editor-view={markdownView ? 'markdown' : 'edit'}
           data-show-preview={String(showPreviewButton)}
           data-show-results={String(showResultsTab)}
         >
           Detail for {test.title}
-          {showPreviewButton ? (
+          {testQuestionLayout === 'split' ? <label>Title<input value={displayedTitle} readOnly /></label> : null}
+          {testQuestionLayout === 'split' ? (
+            <button type="button" aria-pressed={markdownView} onClick={() => setMarkdownView((current) => !current)}>
+              Markdown
+            </button>
+          ) : null}
+          {showPreviewButton || testQuestionLayout === 'split' ? (
             <button
               type="button"
               disabled={pendingMarkdown}
@@ -108,6 +111,14 @@ vi.mock('@/components/TestDetailPanel', () => ({
             >
               Preview
             </button>
+          ) : null}
+          {testQuestionLayout === 'split' ? (
+            <>
+              {test.status === 'draft' ? (
+                <button type="button" disabled={pendingMarkdown} onClick={onRequestPublish}>Publish</button>
+              ) : null}
+              <button type="button" onClick={onRequestClose}>Close</button>
+            </>
           ) : null}
           <button
             type="button"
@@ -774,19 +785,18 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByRole('button', { name: 'Grading' })).not.toBeInTheDocument()
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'split')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-preview', 'false')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-results', 'false')
     const dialog = screen.getByRole('dialog')
-    const codeToggle = within(dialog).getByRole('button', { name: 'Code' })
-    expect(codeToggle).toHaveAttribute('aria-pressed', 'false')
-    expect(within(dialog).queryByRole('button', { name: 'Markdown' })).not.toBeInTheDocument()
-    fireEvent.click(codeToggle)
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
-    expect(codeToggle).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(codeToggle)
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
-    expect(codeToggle).toHaveAttribute('aria-pressed', 'false')
+    const markdownToggle = within(dialog).getByRole('button', { name: 'Markdown' })
+    expect(markdownToggle).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(markdownToggle)
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-editor-view', 'markdown')
+    expect(markdownToggle).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(markdownToggle)
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-editor-view', 'edit')
+    expect(markdownToggle).toHaveAttribute('aria-pressed', 'false')
     expect(onSelectTest).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'test-1', title: 'Unit Test' })
     )
@@ -892,7 +902,7 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
     expect(screen.getByRole('dialog', { name: 'Edit test' })).toBeInTheDocument()
-    expect(within(screen.getByRole('dialog')).getByText('Edit test')).toBeVisible()
+    expect(screen.getByRole('dialog', { name: 'Edit test' })).toBeInTheDocument()
     expect(updateSearchParams).toHaveBeenCalledTimes(2)
     const params = new URLSearchParams('tab=tests&testId=test-1&testMode=grading&testStudentId=student-1')
     updateSearchParams.mock.calls[1][0](params)
@@ -900,8 +910,8 @@ describe('TeacherTestsTab', () => {
     expect(params.get('testMode')).toBe('authoring')
     expect(params.get('testStudentId')).toBeNull()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
-    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Code' })).toHaveAttribute(
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'split')
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Markdown' })).toHaveAttribute(
       'aria-pressed',
       'false'
     )
@@ -923,7 +933,7 @@ describe('TeacherTestsTab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
-    expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Code' }))
+    expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Markdown' }))
       .toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
@@ -935,8 +945,8 @@ describe('TeacherTestsTab', () => {
     expect(editTitle).toHaveAttribute('title', 'Unit Test')
     fireEvent.click(editTitle)
 
-    expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
-    expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Code' }))
+    expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'split')
+    expect(within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', { name: 'Markdown' }))
       .toHaveAttribute('aria-pressed', 'false')
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
@@ -959,7 +969,7 @@ describe('TeacherTestsTab', () => {
     expect(within(picker).getByRole('button', { name: 'Unit Test' })).toBeEnabled()
     fireEvent.click(within(picker).getByRole('button', { name: 'Second Test' }))
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Second Test')
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-editor-view', 'markdown')
     expect(screen.queryByRole('dialog', { name: 'Edit test in Markdown' })).not.toBeInTheDocument()
   })
 
@@ -971,8 +981,8 @@ describe('TeacherTestsTab', () => {
     await screen.findByText('Alice Zephyr')
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
-    expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
-    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Code' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-editor-view', 'markdown')
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('closes the edit modal when controlled params return from authoring to grading', async () => {
@@ -1045,7 +1055,7 @@ describe('TeacherTestsTab', () => {
     expect(within(screen.getByTestId('test-workspace-actionbar-center')).getByRole('button', { name: 'Publish', hidden: true })).toBeEnabled()
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Unit Test')
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'split')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-preview', 'false')
     expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-show-results', 'false')
 
@@ -1221,14 +1231,14 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByTestId('mock-test-detail')).toHaveTextContent('Detail for Untitled 2026-05-14 10:45:00')
     const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByRole('button', { name: 'Edit test title' })).toHaveTextContent('Untitled Test')
+    expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveValue('Untitled Test')
     expect(within(dialog).queryByRole('heading', { name: 'Test' })).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({ classroom_id: classroom.id }),
     }))
-    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
-    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Code' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'split')
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
@@ -2265,7 +2275,7 @@ describe('TeacherTestsTab', () => {
       updateSearchParams,
     })
 
-    expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'editor-only')
+    expect(await screen.findByTestId('mock-test-detail')).toHaveAttribute('data-question-layout', 'split')
     expect(screen.queryByText('Alice Zephyr')).not.toBeInTheDocument()
     expect(resultsFetchCalls(fetchMock)).toHaveLength(0)
     expect(updateSearchParams).not.toHaveBeenCalled()

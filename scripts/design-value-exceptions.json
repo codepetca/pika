@@ -770,18 +770,6 @@
       ]
     },
     {
-      "file": "src/components/test-workspace/TeacherTestAuthoringDialog.tsx",
-      "reviewBy": "phase-3-tests",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "090f0fcf6022696d",
-          "reason": "layout-geometry"
-        }
-      ]
-    },
-    {
       "file": "src/components/TestDetailPanel.tsx",
       "reviewBy": "phase-3-tests",
       "values": [

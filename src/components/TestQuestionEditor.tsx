@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronDown, ChevronRight, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
@@ -19,7 +19,7 @@ interface Props {
   onChange: (question: TestAssessmentQuestion, options?: { force?: boolean }) => void
   onDelete: (questionId: string) => void
   onDuplicate?: (questionId: string) => void
-  variant?: 'card' | 'detail' | 'accordion'
+  variant?: 'card' | 'detail' | 'accordion' | 'split'
   isExpanded?: boolean
   onToggleExpanded?: () => void
 }
@@ -33,6 +33,10 @@ type LocalQuestionState = {
   response_monospace: boolean
   answer_key: string
   sample_solution: string
+}
+
+export interface TestQuestionEditorHandle {
+  flush: () => boolean
 }
 
 function summarizeHeaderLine(questionText: string | null | undefined): string {
@@ -71,7 +75,7 @@ function toLocalState(question: TestAssessmentQuestion): LocalQuestionState {
   }
 }
 
-export function TestQuestionEditor({
+export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(function TestQuestionEditor({
   question,
   questionNumber,
   isEditable,
@@ -82,7 +86,7 @@ export function TestQuestionEditor({
   variant = 'card',
   isExpanded = true,
   onToggleExpanded,
-}: Props) {
+}: Props, ref) {
   const isStructureEditable = isEditable && !structureLocked
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: question.id,
@@ -97,6 +101,8 @@ export function TestQuestionEditor({
   const [state, setState] = useState<LocalQuestionState>(() => toLocalState(question))
   const [error, setError] = useState('')
   const [isAnswerSectionOpen, setIsAnswerSectionOpen] = useState(variant !== 'card')
+  const optionHandleRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const draggedOptionRef = useRef<number | null>(null)
   const codeToggleId = `question-${question.id}-code-toggle`
   const defaultPointsId = `question-${question.id}-points`
   const toggleLabel = `${isExpanded ? 'Collapse' : 'Expand'} question ${questionNumber}`
@@ -137,40 +143,42 @@ export function TestQuestionEditor({
     })
   }
 
-  function handleSave(options?: { force?: boolean }) {
-    if (!isEditable) return
+  function persistQuestion(current: LocalQuestionState, options?: { force?: boolean }): boolean {
+    if (!isEditable) return true
+
+    const state = current
 
     const questionText = state.question_text.trim()
     if (structureLocked) {
-      if (!questionText) { setError('Question text is required'); return }
+      if (!questionText) { setError('Question text is required'); return false }
       setError('')
-      onChange({ ...question, question_text: questionText }, options)
-      return
+      if (questionText !== question.question_text) onChange({ ...question, question_text: questionText }, options)
+      return true
     }
-    if (!questionText) {
+    if (!questionText && variant !== 'split') {
       setError('Question text is required')
-      return
+      return false
     }
 
     const points = Number(state.points)
     if (!Number.isFinite(points) || points <= 0) {
       setError('Points must be greater than 0')
-      return
+      return false
     }
 
     if (state.question_type === 'multiple_choice') {
       const nextOptions = state.options.map((option) => option.trim())
       if (nextOptions.length < 2) {
         setError('At least 2 options are required')
-        return
+        return false
       }
       if (nextOptions.length > MAX_TEST_OPTIONS) {
         setError(`Maximum ${MAX_TEST_OPTIONS} options allowed`)
-        return
+        return false
       }
       if (nextOptions.some((option) => !option)) {
         setError('Options cannot be empty')
-        return
+        return false
       }
       if (
         !Number.isInteger(state.correct_option) ||
@@ -178,10 +186,11 @@ export function TestQuestionEditor({
         state.correct_option >= nextOptions.length
       ) {
         setError('Select a correct option')
-        return
+        return false
       }
 
       setError('')
+      if (variant === 'split' && JSON.stringify(state) === JSON.stringify(toLocalState(question))) return true
       onChange(
         {
           ...question,
@@ -196,10 +205,11 @@ export function TestQuestionEditor({
         },
         { force: options?.force === true }
       )
-      return
+      return true
     }
 
     setError('')
+    if (variant === 'split' && JSON.stringify(state) === JSON.stringify(toLocalState(question))) return true
     onChange(
       {
         ...question,
@@ -214,7 +224,126 @@ export function TestQuestionEditor({
       },
       { force: options?.force === true }
     )
+    return true
   }
+
+  useImperativeHandle(ref, () => ({ flush: () => persistQuestion(state) }))
+
+  function handleSave(options?: { force?: boolean }) {
+    persistQuestion(state, options)
+  }
+
+  function updateAndSave(nextState: LocalQuestionState) {
+    setState(nextState)
+    persistQuestion(nextState)
+  }
+
+  function moveOption(from: number, to: number) {
+    if (!isStructureEditable || from === to || from < 0 || to < 0 || from >= state.options.length || to >= state.options.length) return
+    const options = [...state.options]
+    const [moved] = options.splice(from, 1)
+    options.splice(to, 0, moved)
+    const correctOption = state.correct_option === from
+      ? to
+      : from < state.correct_option && to >= state.correct_option
+        ? state.correct_option - 1
+        : from > state.correct_option && to <= state.correct_option
+          ? state.correct_option + 1
+          : state.correct_option
+    updateAndSave({ ...state, options, correct_option: correctOption })
+  }
+
+  const splitMultipleChoiceEditor = state.question_type === 'multiple_choice' ? (
+    <div className="space-y-2 rounded-md bg-surface-2 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer options</p>
+      {(isStructureEditable && state.options.length < MAX_TEST_OPTIONS
+        ? [...state.options, '']
+        : state.options).map((option, index) => {
+        const letter = String.fromCharCode(65 + index)
+        const isBlankRow = index === state.options.length
+        return (
+          <div key={index} className="flex items-center gap-2">
+            <Button
+              ref={(element) => { optionHandleRefs.current[index] = element }}
+              type="button"
+              variant="ghost"
+              size="sm"
+              draggable={isStructureEditable && !isBlankRow}
+              disabled={!isStructureEditable || isBlankRow}
+              aria-label={`Reorder option ${letter}; use Up and Down arrow keys`}
+              aria-keyshortcuts="ArrowUp ArrowDown"
+              onDragStart={() => { draggedOptionRef.current = index }}
+              onDragEnd={() => { draggedOptionRef.current = null }}
+              onKeyDown={(event) => {
+                const nextIndex = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : index
+                if (nextIndex === index || nextIndex < 0 || nextIndex >= state.options.length) return
+                event.preventDefault()
+                moveOption(index, nextIndex)
+                window.requestAnimationFrame(() => optionHandleRefs.current[nextIndex]?.focus())
+              }}
+              className="h-11 w-11 shrink-0 cursor-grab p-0 text-text-muted"
+            >
+              <GripVertical className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant={!isBlankRow && state.correct_option === index ? 'subtle' : 'surface'}
+              size="sm"
+              disabled={!isStructureEditable || isBlankRow}
+              aria-label={`Mark option ${letter} correct`}
+              aria-pressed={!isBlankRow && state.correct_option === index}
+              onClick={() => updateAndSave({ ...state, correct_option: index })}
+              className="h-11 w-11 shrink-0 p-0"
+            >
+              {letter}
+            </Button>
+            <div
+              className="min-w-0 flex-1"
+              onDragOver={(event) => { if (draggedOptionRef.current !== null) event.preventDefault() }}
+              onDrop={(event) => {
+                event.preventDefault()
+                if (draggedOptionRef.current !== null) moveOption(draggedOptionRef.current, index)
+                draggedOptionRef.current = null
+              }}
+            >
+              <Input
+                value={option}
+                disabled={!isStructureEditable}
+                aria-label={`Question ${questionNumber} option ${letter}`}
+                placeholder={`Option ${letter}`}
+                onChange={(event) => {
+                  if (isBlankRow) {
+                    if (event.target.value) setState({ ...state, options: [...state.options, event.target.value] })
+                  } else {
+                    updateOption(index, event.target.value)
+                  }
+                }}
+                onBlur={() => handleSave()}
+              />
+            </div>
+            {isStructureEditable && !isBlankRow && state.options.length > 2 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label={`Remove question ${questionNumber} option ${letter}`}
+                onClick={() => {
+                  const options = state.options.filter((_, optionIndex) => optionIndex !== index)
+                  const correctOption = state.correct_option === index
+                    ? 0
+                    : state.correct_option > index ? state.correct_option - 1 : state.correct_option
+                  updateAndSave({ ...state, options, correct_option: correctOption })
+                }}
+                className="h-11 w-11 shrink-0 p-0 text-text-muted hover:text-danger"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            ) : <span className="h-11 w-11 shrink-0" aria-hidden="true" />}
+          </div>
+        )
+      })}
+    </div>
+  ) : null
 
   const multipleChoiceEditor = state.question_type === 'multiple_choice' ? (
     <div
@@ -388,6 +517,42 @@ export function TestQuestionEditor({
         </div>
       </div>
     ) : null
+
+  if (variant === 'split') {
+    return (
+      <div className="flex min-h-0 flex-col gap-3">
+        {isEditable ? (
+          <MarkdownContentEditor
+            markdown={state.question_text}
+            onMarkdownChange={(questionText) => updateState({ question_text: questionText })}
+            onBlur={() => handleSave()}
+            aria-label={questionPromptLabel}
+            placeholder={questionPlaceholder}
+            toolbarPreset="compact"
+            className="shrink-0 overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-32"
+          />
+        ) : (
+          <div className="rounded-md border border-border bg-surface p-3">
+            <QuestionMarkdown content={state.question_text} />
+          </div>
+        )}
+        {state.question_type === 'multiple_choice' ? splitMultipleChoiceEditor : (
+          <div className="space-y-3">
+            <div className="rounded-md bg-surface-2 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Student response</p>
+              <p className="mt-2 rounded-md border border-dashed border-border-strong bg-surface p-3 text-sm text-text-muted">
+                {state.response_monospace
+                  ? 'Students write code in a monospace response field.'
+                  : 'Students write a paragraph response in a standard text field.'}
+              </p>
+            </div>
+            {openResponseEditor}
+          </div>
+        )}
+        {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
+      </div>
+    )
+  }
 
   if (variant === 'detail' && isEditable) {
     return (
@@ -707,4 +872,4 @@ export function TestQuestionEditor({
       {error ? <p className="mt-2 pl-7 text-sm text-danger">{error}</p> : null}
     </div>
   )
-}
+})
