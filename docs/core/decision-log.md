@@ -3,6 +3,17 @@
 This file captures **high-level, long-lived decisions** about Pika’s architecture and product behavior.
 It replaces older prompt/spec history artifacts (which are intentionally not kept in the repo).
 
+## Subscription automation and upgrade proration (2026-09-25)
+
+- Routine subscription tier assignment is automated; the admin prototype provides
+  read-only operational visibility. Paid upgrades within the same billing interval
+  charge the difference for the remaining paid period and keep the renewal date.
+  Higher-tier access follows verified successful payment.
+- The canonical [subscription policy](../guidance/subscription-policy.md) records
+  these requirements and future change rules. Provider selection, prices, grace,
+  refunds, downgrade timing, and AI allowance treatment remain open decisions.
+  This is product direction, not billing implementation or launch authorization.
+
 ## Authentication Model
 - Signup uses **email verification codes**, followed by **password creation**.
 - Login uses **email + password** (code-based login is not used for normal sign-in).

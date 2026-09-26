@@ -5,6 +5,10 @@ changes are assumed to be automated. The admin prototype is a fictional,
 development-only exploration of operational visibility, not a live control
 surface. The earlier manual plan-change proposal is superseded by this document.
 
+The [subscription policy](subscription-policy.md) owns automated tier assignment,
+upgrade proration, and the distinction between agreed rules and open billing
+decisions. This console observes those outcomes; it does not define billing policy.
+
 ## Purpose and boundary
 
 The console helps an authorized operator answer three questions: what state is

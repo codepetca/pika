@@ -3,6 +3,10 @@
 Status: dormant schema and service-only writer. This is not a billing launch or
 permission cutover.
 
+Future billing and automated tier changes must follow the
+[subscription policy](subscription-policy.md). Its agreed proration rules are
+product requirements, not behavior implemented by migration 206.
+
 The [account-plan rollout runbook](account-plan-rollout.md) separates read-only
 inventory, approved account batches, and the later strict cutover. The older
 Access-pilot cutover is not a plan-classification runbook.

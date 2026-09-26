@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-21 — Preserve assignment work around unfinished image uploads
-
-- Owner `codex/fix-assignment-viewer-upload-placeholder`, based on `origin/main@3424be87`. Read-only Tiptap surfaces now register a noninteractive `imageUpload` compatibility node, preventing an autosaved unfinished upload from invalidating and blanking the rest of a student's document.
-- The compatibility node renders a semantic note, “Image upload was not completed,” while preserving all surrounding work. Pattern Lab now carries the persisted-node case in both teacher and student history previews.
-- Regression coverage proves text before and after the placeholder remains visible, read-only editors expose no uploader or image paste/drop side effects, editable editors retain upload behavior, and a live editable editor rebuilds with the inert node when entering history preview. A separate renderability predicate lets teacher panels and modals show current or historical image/upload-only work without changing text counts or submission semantics; the compatibility node also supplies an explicit plain-text serialization. Targeted tests, TypeScript, lint, Pika audit and the focused full gate (161 files/2110 tests plus architecture and UI/design policy) pass. Playwright verified teacher/student desktop/mobile light mode and teacher desktop dark mode, including the exact read-only editor configuration with uploads enabled. Composite checklist reviewed: the read-only node is noninteractive, semantic state is covered by role-based testing, keyboard behavior is not applicable, and no manual follow-up remains. Risk profile: none. Model recommendation: GPT-5 — small compatibility fix with UI verification.
-
 ## 2026-09-21 — Hide unreturned grading status from students
 
 - Added a student-specific Assignment status projection that ignores internal `graded_at` state until work is returned. Student Classwork now retains its submission status before return and shows `Returned` only after the existing return boundary; teacher-facing `Graded` behavior is unchanged.
@@ -355,3 +349,8 @@ async-grading.
 - Focused check passed 28 files / 248 tests plus architecture, UI/design, TypeScript and lint. Pika audit passed. The shared drawer passed an Escape/focus-return browser check; composite-widget checklist has no remaining prototype follow-up.
 - Final independent integration review found the prototype theme button persisted a shared app preference. Removed the button so browsing this fixture cannot change the regular app's theme; light/dark verification uses isolated Playwright browser settings.
 - A regression test confirms prototype navigation leaves the shared theme preference unchanged and exposes no theme control. Final focused check passed 28 files / 249 tests plus architecture, UI/design, TypeScript, and lint; audit passed. Removed five duplicated historical archive entries introduced by the trim after rebasing, retaining their earlier copies and the unique subsequent entry.
+
+## 2026-09-25 — Subscription policy source of truth
+
+- Owner: `codex/platform-administration-design`, PR #1360. Added `docs/guidance/subscription-policy.md` for automated tier assignment, verified payment/account mapping, immediate same-interval upgrade proration, unchanged renewal dates, clear quotes, and existing-class protection. Linked it from the AI router, decision log, access roadmap, plan foundation, and operations proposal.
+- Explicitly separated agreed rules from proposed cancellation/grace/downgrade defaults and open provider, pricing, refund, grant-precedence, and AI-metering decisions. Billing is not implemented or activated by this documentation. Risk profile: none (documentation only). Model recommendation: GPT-6 Sol — bounded policy documentation.
