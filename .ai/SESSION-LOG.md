@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-22 — Daily Log PR final review and up-to-date gate
-
-- User authorized additional review. An exact-head integration review of 14d6f387 found no blocker, with 112 targeted tests passing. Ready CI run35803112343 passed Test & Build, browser, database and PR Gate on that head. The squash merge was rejected solely because main advanced during CI and the branch-up-to-date rule applies; no admin override was used.
-- Main's two new commits affect only test-grading calibration and rubric scoring, with no Daily Log path overlap. They merged into the feature branch without a textual conflict. Fresh integration review and exact-head CI are required before the merge retry; no persistent database migration was applied.
-- Exact-head 722c9e9e targeted re-review found no blocker (142 tests), and CI run35804835394 passed all lanes. During that run main advanced again via a session-log-only PR. The strict up-to-date gate requires another branch sync; the archive batch-marker conflict retains both markers and unique history, with duplicate rolling-log entries omitted. No Daily Log source changed.
-
 ## 2026-09-22 — Test grading calibrated against adjudicated work
 
 Continuation of the earlier entry today; that one stopped before the second rule and the
@@ -305,3 +299,12 @@ async-grading.
 - Documentation-only risk profile: none. No database, Stripe account, production
   runtime or existing subscription changed. Next implementation milestone is an
   isolated Stripe test checkout plus lifecycle/access verification.
+
+## 2026-09-26 — Rename launch plans to Basic, Pro and Max
+
+- Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,
+  launch limits, trial/AI labels and decision log while retaining prices/benefits.
+  Documented legacy `plus` → Pro and `pro` → Max to avoid accidental entitlement
+  reassignment. Historical runtime/schema keys remain unchanged.
+- Continued policy PR1367; documentation-only verification and independent review
+  cover the cumulative approved-policy change. No runtime or live billing change.

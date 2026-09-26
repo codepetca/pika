@@ -5,10 +5,14 @@ It replaces older prompt/spec history artifacts (which are intentionally not kep
 
 ## Ontario subscription launch policy (2026-09-26)
 
-- Owner approved USD monthly/annual prices: Basic 9/99, Plus 19/199, Pro 39/399;
+- Owner subsequently renamed Plus to Pro and the former Pro to Max, with all
+  prices and benefits retained. Legacy keys `plus`/`pro` map to new Pro/Max,
+  respectively; do not reinterpret existing purchases or mutate historical keys
+  based on the overlapping name. The trial follows the new five-classroom Pro.
+- Owner approved USD monthly/annual prices: Basic 9/99, Pro 19/199, Max 39/399;
   fixed CAD prices: 13/139, 27/279, 55/559. Ontario first; active-classroom caps
-  are 2/5/12. A 30-day Plus trial needs no card. AI quantities remain provisional
-  at 30 trial runs total, 300 Plus/month and 1,000 Pro/month pending cost evidence.
+  are 2/5/12. A 30-day Pro trial needs no card. AI quantities remain provisional
+  at 30 trial runs total, 300 Pro/month and 1,000 Max/month pending cost evidence.
 - Cancellation uses Stripe's exact paid-through timestamp; failed renewals have
   seven days' grace. Downgrades/interval changes occur at renewal. Teachers choose
   retained classrooms; absent a choice, keep most recently active and archive
@@ -19,7 +23,7 @@ It replaces older prompt/spec history artifacts (which are intentionally not kep
 - SUB-05/SUB-08/SUB-09–15 in the [policy](../guidance/subscription-policy.md)
   record notifications, first-purchase refunds, allowance accounting and at least
   60 days' notice for planned subscriber migrations. New terms do not silently
-  replace existing purchases. Runtime Pro remains 10 until reviewed implementation.
+  replace existing purchases. Legacy runtime `pro` (new Max) remains 10 until reviewed implementation.
 - Documentation only: no charge, runtime entitlement change, schema application,
   deployment or live enablement. Verify catalog/lifecycle/archive integration in
   Stripe test mode before any launch.

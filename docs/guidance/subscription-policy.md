@@ -231,8 +231,15 @@ tax collection before launch. Currency and tax must be clear before purchase.
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Free | 0 | 0 | 0 | 0 | 0 |
 | Basic | 2 | $9 | $99 | $13 | $139 |
-| Plus | 5 | $19 | $199 | $27 | $279 |
-| Pro | 12 | $39 | $399 | $55 | $559 |
+| Pro | 5 | $19 | $199 | $27 | $279 |
+| Max | 12 | $39 | $399 | $55 | $559 |
+
+The owner renamed Plus to **Pro** and the former Pro to **Max**. Prices,
+classroom limits, AI allowance candidates and trial benefits are unchanged by
+this rename. The 30-day trial uses the five-classroom Pro offering. Legacy
+runtime keys remain `plus` and `pro` until a reviewed implementation updates
+their mapping; never interpret legacy `pro` as the new five-classroom product
+or rewrite historical purchased terms solely because a display name changed.
 
 Annual plans charge the full annual amount upfront. Show that total clearly;
 do not advertise the previously proposed two-month discount, which these final
@@ -263,7 +270,7 @@ purchase-order billing. Sponsored/manual grant precedence remains deferred.
 
 ### SUB-11 — Trial, renewal failure and refunds
 
-- Offer one explicitly started **30-day Plus trial per teacher**, without a card
+- Offer one explicitly started **30-day Pro trial per teacher**, without a card
   or automatic charge. Include a provisional **30 AI student grading runs total**
   for the trial; do not reset it monthly. Free itself never expires.
 - Trial expiry follows SUB-05/SUB-12. No extra grace applies to trial expiry,
@@ -319,7 +326,7 @@ from a development task.
 
 ### SUB-14 — AI allowance policy (quantities provisional)
 
-Candidate included monthly quantities are **Plus 300** and **Pro 1,000** student
+Candidate included monthly quantities are **Pro 300** and **Max 1,000** student
 grading runs. Validate real delivery costs before promising or activating these
 quantities. Basic has no included AI allowance; the trial gets 30 total runs.
 
@@ -343,8 +350,9 @@ payments, automation exceptions and audited support/refund recovery. Do not
 build routine manual tier assignment as the purchase workflow.
 
 Preserve purchased terms and follow SUB-07/SUB-08 for all catalog changes and
-subscriber migrations. Historical fixtures and the current plan writer's Pro
-limit of 10 do not override the newly approved launch limit of 12. Updating the
+subscriber migrations. The legacy runtime key `plus` corresponds to the new
+Pro product; legacy `pro` corresponds to Max. The legacy `pro` classroom limit
+of 10 does not override Max's newly approved launch limit of 12. Updating the
 runtime requires a separately reviewed version-aware implementation; this policy
 edit must not rewrite an already-purchased offering or a historical migration.
 
@@ -400,7 +408,7 @@ The [Stripe foundation execution plan](stripe-billing-foundation.md) tracks the
 isolated test-mode implementation and its verification gates. It does not approve
 live billing. Commercial terms and lifecycle requirements are owned here.
 
-Also verify both fixed currency catalogs, the 12-classroom Pro offering, 30-day
+Also verify both fixed currency catalogs, the 12-classroom Max offering, 30-day
 trial boundaries, over-limit teacher selection and deterministic fallback,
 subscription archive protections, publish/attempt-start races at cutoff,
 missed schedules remaining unpublished after payment, and obsolete notification

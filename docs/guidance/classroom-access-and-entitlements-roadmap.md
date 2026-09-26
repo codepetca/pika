@@ -38,7 +38,7 @@ continues to own classroom limits, role separation, and phased rollout.
   not by each student's plan.
 - The original **Access** capability (one active owned classroom) was an initial
   rollout grant, not the eventual subscription model. The approved account-plan
-  direction is Free, Basic, Plus and Pro; no account is a permanent teacher or
+  direction is Free, Basic, Pro and Max; no account is a permanent teacher or
   student based on its plan.
 - Charge for demonstrated teacher value: advanced workflows and higher allowances for
   expensive features such as AI grading. Launch prices and core features are approved
@@ -60,7 +60,8 @@ continues to own classroom limits, role separation, and phased rollout.
 ### Account-plan classroom limits
 
 Approved launch limits are below. Migration 206 introduced the original fixed
-plan assignment; its current Pro limit is 10, not the new launch limit of 12.
+plan assignment; legacy `pro` (now marketed as Max) has a current limit of 10,
+not Max's new launch limit of 12. Legacy `plus` maps to the new Pro product.
 A future version-aware implementation must apply the new terms without rewriting
 historical migrations or existing purchases:
 
@@ -68,8 +69,8 @@ historical migrations or existing purchases:
 | --- | ---: | --- |
 | Free | 0 | May join classrooms |
 | Basic | 2 | Core teaching tools; no included AI grading |
-| Plus | 5 | Candidate 300 AI grading runs/month; validate costs |
-| Pro | 12 | Candidate 1,000 AI grading runs/month; validate costs |
+| Pro | 5 | Candidate 300 AI grading runs/month; validate costs |
+| Max | 12 | Candidate 1,000 AI grading runs/month; validate costs |
 
 Applying migration 206 alone does not classify existing accounts, change their
 effective grants, activate strict enforcement, charge anyone, or enable AI
@@ -86,7 +87,7 @@ keeps the teacher-selected classrooms, or those with most recent activity if no
 selection was made, and archives the rest at downgrade. This needs new integration
 that preserves existing assignments, started tests, grading and exports, and
 prevents subscription archiving from triggering deletion. See SUB-05/SUB-12.
-Pricing, 30-day Plus trials, grace and cancellation are now decided in the
+Pricing, 30-day Pro trials, grace and cancellation are now decided in the
 subscription policy; AI quantities remain provisional pending cost validation.
 
 #### Superseded Access-pilot policy
