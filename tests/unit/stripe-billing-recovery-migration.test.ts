@@ -49,6 +49,16 @@ describe('Stripe billing recovery guards migration', () => {
     expect(migration).toContain("grant execute on function public.billing_requeue_subscription_v1(jsonb) to service_role")
   })
 
+  it('serializes binding and webhook identity discovery before row locking', () => {
+    const bind = migration.split('create function public.billing_bind_customer_v1')[1].split('create function private.stripe_billing_retry_delay_v1')[0]
+    const record = migration.split('create function public.billing_record_event_v1')[1].split('create function public.billing_list_work_v1')[0]
+    for (const body of [bind, record]) {
+      expect(body).toContain("'stripe-binding:' || (p_request->>'stripe_account') || ':test:'")
+      expect(body.indexOf('pg_advisory_xact_lock')).toBeLessThan(body.indexOf('select * into v_binding'))
+    }
+    expect(bind).toContain("stripe_subscription_id=p_request->>'stripe_subscription_id' for update;")
+  })
+
   it('locks an accepted event binding before its inbox row and fences stale work', () => {
     expect(migration).toMatch(/stripe_customer_id = p_request->'payload'->>'customer_id'\s+for update;/)
     expect(migration).toContain('revision = revision + 1, updated_at = clock_timestamp()')

@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-22 — Student Grades merge preparation
-
-- PR1320 was rebased onto current main after an AI-log archive conflict was resolved without dropping either existing archived entry. Main now owns migrations202–204, so the unapplied student Grades migration was resequenced to205 and its private archive-adapter name and regression updated. The first exact-head CI replay applied205 in its ephemeral database, then found the generated types lacked the new private adapter; the checked-in types were synchronized to CI's exact generated diff. The user requested merge; final CI and merge gates follow. No migration was applied to a persistent environment.
-- The next exact-head CI passed build and database contracts but exposed two stale Pattern Lab selectors after production-component reuse and four outdated icon-catalog screenshots following the new student Grades navigation item. Browser tests now target the production switch name and `student-grades-view`; Linux screenshots come from the failed CI artifacts and Mac screenshots were regenerated locally. Targeted teacher/student desktop/mobile light/dark browser checks pass (12/12), as do the full focused gate (166 files/1,905 tests), TypeScript, lint, architecture, and UI/design policy. The normal local dev server was restored at port3001. PR1320 remains draft pending a fresh exact-head CI and merge.
-
 ## 2026-09-22 — Daily Log PR main synchronization
 
 - PR1329 was brought up to date with main after its exact-head CI passed. The sole textual conflict was in the AI archive; both batch markers and all distinct history were retained. Classroom page and test changes merged automatically without altering the Daily Log implementation. Combined-tree focused checks pass 166 files/1,922 tests plus architecture, UI/design policy, TypeScript and lint. PR remains draft for the updated-head gate; no merge to main was performed.
@@ -298,3 +293,8 @@ async-grading.
 
 - User explicitly approved combining unreleased209/210, erasing/resetting local and reseeding. Consolidated the reviewed final functions and table definitions into209; removed210 and its upgrade-only backfill. Verified local target/history; one `supabase db reset --local --no-seed` replayed001–209 successfully. Reseeded via local runtime credentials with shared hosted env excluded. Local fixtures: three users and one classroom; billing sandbox off and no billing inbox records. Reset restores migration defaults, including local creation/Free-provisioning gates; production is unchanged.
 - Generated types match the rebuilt schema. Billing recovery/payment, account-plan and classroom-creation rollback harnesses pass. Corrected SQL harness evaluation ordering by capturing the mutation result before inspecting persisted state. Focused checks pass342 tests plus TypeScript/lint/policy checks; final integration review and CI remain pending. Earlier209/reset authorization is consumed. No live Stripe payment rehearsal, production change or merge.
+
+## 2026-09-26 — Billing binding/webhook race correction
+
+- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
+- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.

@@ -68,13 +68,20 @@ rollback harnesses pass. The private billing sandbox gate remains off.
 Billing contracts cover preserved/new offering versions, repeated/conflicting
 events, lease expiry, missing revision fences, atomic rollback, exact purchased
 payment terms, bounded retry exhaustion, fair queue selection, early event
-adoption and audited recovery. Unit tests use simulated Stripe reads and real SDK
+adoption and audited recovery. The final bind/webhook race correction serializes
+both identity lookups with the same transaction lock and retains binding-before-
+inbox row locking. Its real concurrent regression runs only in CI's disposable
+database. The reseeded local database predates this last function-body correction;
+refreshing it requires new explicit local migration/reset authorization. Unit tests use simulated Stripe reads and real SDK
 signature verification; they do not establish a real Stripe payment result.
-Initial and targeted review findings were corrected. Final integration review
-and stable-head CI remain required before PR readiness.
+Final integration review identified this concurrency correction; the owner
+approved one additional correction and targeted review. That review and
+stable-head CI remain required before readiness.
 
 Application of the schema does not activate the private sandbox gate. Database
-tests enable it only inside a transaction that rolls back. A real test-mode
+rollback tests enable it only inside a transaction that rolls back. The CI-only
+concurrency test commits disposable fixtures and restores the disabled gate
+before CI destroys that database. A real test-mode
 rehearsal still needs credentials and an explicitly isolated local runtime.
 
 ## Operational prerequisites

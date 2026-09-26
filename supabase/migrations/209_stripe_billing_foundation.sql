@@ -287,7 +287,12 @@ begin
   if not found or v_version.stripe_account <> p_request->>'stripe_account' or v_version.stripe_price_id <> p_request->>'stripe_price_id' then
     raise exception using errcode='22023', message='stripe_billing_binding_offering_mismatch';
   end if;
-  select * into v_binding from public.stripe_billing_subscription_bindings where stripe_account=p_request->>'stripe_account' and provider_mode='test' and stripe_subscription_id=p_request->>'stripe_subscription_id';
+  -- Serialize identity creation with early webhook intake before either lookup.
+  perform pg_advisory_xact_lock(hashtextextended(
+    'stripe-binding:' || (p_request->>'stripe_account') || ':test:' || (p_request->>'stripe_subscription_id'),
+    20920260926
+  ));
+  select * into v_binding from public.stripe_billing_subscription_bindings where stripe_account=p_request->>'stripe_account' and provider_mode='test' and stripe_subscription_id=p_request->>'stripe_subscription_id' for update;
   if found then
     if v_binding.subject_user_id <> (p_request->>'subject_user_id')::uuid or v_binding.stripe_customer_id <> p_request->>'stripe_customer_id' or v_binding.offering_version_id <> v_version.id then
       raise exception using errcode='23505', message='stripe_billing_binding_conflict';
@@ -369,6 +374,15 @@ begin
     or jsonb_typeof(p_request->'payload') <> 'object'
   then
     raise exception using errcode = '22023', message = 'stripe_billing_event_request_invalid';
+  end if;
+
+  -- The same identity lock as binding prevents a receipt from missing a
+  -- concurrently created subscription and being stranded after its adoption scan.
+  if p_request->'payload'->>'subscription_id' is not null then
+    perform pg_advisory_xact_lock(hashtextextended(
+      'stripe-binding:' || (p_request->>'stripe_account') || ':test:' || (p_request->'payload'->>'subscription_id'),
+      20920260926
+    ));
   end if;
 
   select * into v_binding

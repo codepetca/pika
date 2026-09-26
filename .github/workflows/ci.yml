@@ -375,6 +375,9 @@ jobs:
       - name: Rehearse full classroom archive recovery on local Supabase
         run: pnpm verify:classroom-archive-recovery
 
+      - name: Verify concurrent Stripe subscription binding and webhook intake
+        run: bash scripts/check-stripe-billing-binding-race.sh
+
       - name: Stop ephemeral database
         if: always()
         run: supabase stop --no-backup
