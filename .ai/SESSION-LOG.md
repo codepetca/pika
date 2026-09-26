@@ -11,96 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-20 — Dormant contextual Assignment repository-target selection
-
-- Owner `codex/contextual-assignment-repo-target`, based on merged Assignment bulk PR1309. Migration200 adds a service-only owner-bound save/reset transaction for one enrolled learner's repository target under Assignment, Classroom-operation and learner-purge fences.
-- Added an independent off-by-default exact user/Assignment gate. Matched teacher- or student-valued current owners retain the existing read-only preflight before external GitHub validation, then recheck ownership, lifecycle and enrollment transactionally; disabled and unmatched requests preserve the legacy teacher-only path. Repository analysis, AI grading, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration200 is applied locally. Generated types match local history001–200; error-level DB lint, rollback behavior and purge/archive multi-connection contracts pass. Production remains001–180 and all twelve contextual Assignment gates remain off. Focused verification and independent review follow.
-
-## 2026-09-20 — Preserve grading comment focus during autosave
-
-- Owner `codex/grading-comment-focus-main`, based on `origin/main@cbb80e93`. The assignment grading comment textarea now remains enabled while its background grade autosave is in flight, so the browser keeps keyboard focus; comment sending and conflicting grade actions remain disabled until the save completes.
-- Added a regression that holds the grade request open and proves the editor remains enabled and focused while Send comment is disabled. Targeted 30 tests and the focused application-browser gate (14 files/225 tests plus architecture, UI/design policy, TypeScript and lint) pass.
-- Playwright verified the live teacher grading editor retains focus after autosave on desktop/mobile in light/dark themes; the student baseline is unaffected. Composite checklist reviewed: native textbox keyboard behavior and tested focus/disabled semantics pass, no manual follow-up. Risk profile: none. Model recommendation: GPT-6 — bounded focus-state bug with browser verification.
-
-## 2026-09-21 — Dormant metered paid-operation reservations
-
-- Product decision: AI grading and repository review are metered paid owner tools; joining a Classroom and completing assigned student work remain free. Prices, plan allowances, billing periods, trials and grace behavior are still deferred.
-- Migration201 adds a service-only `grading.ai` reservation ledger with assignment-grading, Test-grading and repository-review operation kinds. Reserve, settle and release are idempotent, bind one effective-entitlement revision, expire pending work, and serialize concurrent quota checks without holding locks across provider calls.
-- Under standing local-migration authorization, migration201 is applied locally. Generated types, error-level DB lint, rollback behavior and the concurrent quota race pass. No route uses the ledger, no grant or billing state changed, and production remains001–180.
-
-## 2026-09-21 — Preserve assignment work around unfinished image uploads
-
-- Owner `codex/fix-assignment-viewer-upload-placeholder`, based on `origin/main@3424be87`. Read-only Tiptap surfaces now register a noninteractive `imageUpload` compatibility node, preventing an autosaved unfinished upload from invalidating and blanking the rest of a student's document.
-- The compatibility node renders a semantic note, “Image upload was not completed,” while preserving all surrounding work. Pattern Lab now carries the persisted-node case in both teacher and student history previews.
-- Regression coverage proves text before and after the placeholder remains visible, read-only editors expose no uploader or image paste/drop side effects, editable editors retain upload behavior, and a live editable editor rebuilds with the inert node when entering history preview. A separate renderability predicate lets teacher panels and modals show current or historical image/upload-only work without changing text counts or submission semantics; the compatibility node also supplies an explicit plain-text serialization. Targeted tests, TypeScript, lint, Pika audit and the focused full gate (161 files/2110 tests plus architecture and UI/design policy) pass. Playwright verified teacher/student desktop/mobile light mode and teacher desktop dark mode, including the exact read-only editor configuration with uploads enabled. Composite checklist reviewed: the read-only node is noninteractive, semantic state is covered by role-based testing, keyboard behavior is not applicable, and no manual follow-up remains. Risk profile: none. Model recommendation: GPT-5 — small compatibility fix with UI verification.
-
-## 2026-09-21 — Hide unreturned grading status from students
-
-- Added a student-specific Assignment status projection that ignores internal `graded_at` state until work is returned. Student Classwork now retains its submission status before return and shows `Returned` only after the existing return boundary; teacher-facing `Graded` behavior is unchanged.
-- Added utility, API, and integration coverage. Focused checks pass with 76 files and 1,017 tests plus architecture, UI/design policy, TypeScript and lint. Visual verification covered the student Classwork summary at desktop/mobile in light/dark, including the exact unreturned-graded fixture; teacher reference captures showed no surface change.
-
-## 2026-09-21 — Prevent incomplete student image uploads
-
-- Owner `codex/prevent-incomplete-image-uploads`, based on merged PR1313. The Assignment editor now opens the native picker before changing content, keeps progress/failure state outside Tiptap JSON, and inserts only completed managed images. Canceling leaves the response unchanged; failures expose Retry/Remove; paste/drop use the same transient path.
-- Student submission is disabled and guarded imperatively while an image is uploading or awaiting recovery. Legacy saved `imageUpload` nodes remain readable through the inert compatibility note and can no longer be created by the toolbar/shortcut.
-- Focused gate passes 45 files/699 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verified default, uploading and failure recovery on student desktop/mobile in light/dark; teacher is n/a because this follow-up changes only editable student state. Composite checklist passed with a labeled native picker, polite live progress, alert recovery and keyboard-reachable actions. Risk profile: none. Model recommendation: GPT-5 — bounded editor state transition with autosave and submit coordination.
-- Initial independent review found two non-blocking recovery gaps: paste/drop could replace a visible failed upload without an explicit student choice, and a finalized image could be orphaned if the editor became read-only before insertion. Remediation batch 1 preserves the failed item until Retry/Remove and requests reference-safe managed-storage cleanup for finalized-but-uninserted images; focused regressions and API coverage pass.
-- Targeted review found a blocking commit-to-passive-effect race where read-only or document-identity changes could occur just before upload completion. Remediation batch 2 makes completion validate render-current editability and document identity synchronously, with layout-phase unmount invalidation and both transition regressions.
-
-## 2026-09-21 — Classroom Grades page patterns
-
-- Owner `codex/classroom-grades-patterns`, based on `origin/main@ed6e6ca1`. Pattern Lab now places a default-off “Show grades to students” switch at the top of the teacher Gradebook page pattern and adds a student Classroom Grades tab showing a returned-work-only 84% fixture with counted and excluded examples.
-- The paired Student Grades visibility pattern reuses the same teacher control and student card, while retaining the standalone returned-marks comparison. These development-only fixtures do not alter production navigation, persistence, authorization, or grade APIs.
-- Focused verification passes with 15 files and 147 tests plus architecture, UI/design policy, TypeScript and lint. Visual verification covered teacher and student desktop/mobile in light/dark, both teacher switch states, the enabled student Grades view, and zero horizontal page overflow. Risk profile: none.
-
-## 2026-09-22 — Test grading repaired and calibrated against archived work
-
-Goal was to improve AI grading of open-response test questions the way assignment grading
-was improved in `b0557ac3`. Reaching that goal required fixing three defects the DeepSeek
-migration left on the test path; the assignment path had been migrated thoroughly and the
-test path had not.
-
-Shipped: PR1316 raised test output budgets from 220/420 (and 600/900 batch) to 6000/8000.
-DeepSeek counts reasoning against `max_tokens` and effort had been raised to `medium`
-(provider tier `high`), so every open-response test grade truncated twice and threw —
-broken in production, reachable from the teacher AI-suggest route, not only from tooling.
-Values measured, not guessed: 12 real responses spent 71-4509 output tokens. PR1312 fixed
-the gold-set harness, which gated on `OPENAI_API_KEY` and ran bare `tsx` with no
-`--env-file`. PR1319 added transcription-tolerance guidance to both prompt profiles; policy
-to v3, both prompt versions to v2.
-
-PR1319 came from adjudicating real archived work with the teacher, not from inspection.
-Codex exported two archived classrooms (684 teacher-scored responses, all coding,
-de-identified via `sanitizeAiText`; retained as JSONB in
-`classroom_retired_assessment_records`, no timed purge). A new `pnpm calibrate:test-grading`
-samples balanced across classroom and point scale and ranks disagreements for human
-adjudication, explicitly treating recorded marks as a second opinion rather than ground
-truth — the teacher had stated their own marking may contain errors, and that proved
-correct in both directions. Eight cases adjudicated. Finding: the grader reads concepts
-accurately (it caught backwards inheritance and an integer-division bug) but over-penalised
-transcription, costing a submission that matched the sample solution 3 of 10 marks for a
-stray period and a missing parenthesis. The defect was inconsistent application of its own
-leniency rule, not harshness. Post-fix run on the same seed: target cell improved from
--0.254 to -0.185, agreement 1/13 to 4/13.
-
-Open and unresolved. The rule was validated on the same 80 responses it was derived from,
-so generalisation is untested; a different seed on unseen work is the honest check. Only
-1 of 13 nine-point cases was adjudicated, so that cell's apparent regression is read as a
-yardstick artifact rather than demonstrated. PR1321 (request timeout 25s to 60s) is
-deliberately draft until a full run is observed completing at the shipped value; the
-evidence so far came from a temporary local override, and the timeout only began biting
-because PR1316 let grading think longer. Branch `claude/test-grading-calibrator` holds the
-calibrator, token/effort tracking and provenance stamping, unpushed with no PR; it carries
-a production change (optional `reasoningEffort` override, production default unchanged) and
-wants real review. Assignment and repo-review paths still carry the same 25s timeout,
-untouched for lack of evidence. DeepSeek retention remains account-level only, confirmed
-against `docs/guidance/ai-grading-egress.md` but not settled with the owner.
-
-Process note: this session worked in the hub checkout rather than a feature worktree, and
-opened its first two PRs ready instead of draft, which PR Gate correctly rejected. Both
-violate `.ai/START-HERE.md`. Risk profile: async-grading.
-
 ## 2026-09-22 — Assignment AI grading lease-fencing prerequisite
 
 - Owner `codex/meter-ai-grading`, based on merged metered-reservation PR1318. Migration202 adds a versioned worker contract plus service-only run/item patch and provenance-finalization boundaries. Existing and rolling-deploy runs remain legacy version0; future metered runs opt into version1, requiring the exact current, unexpired lease across DeepSeek and Gradex work while legacy finalizers/direct service-role updates are rejected.
@@ -384,3 +294,20 @@ async-grading.
 
 - Owner: `codex/platform-administration-design`, PR #1360. Added `docs/guidance/subscription-policy.md` for automated tier assignment, verified payment/account mapping, immediate same-interval upgrade proration, unchanged renewal dates, clear quotes, and existing-class protection. Linked it from the AI router, decision log, access roadmap, plan foundation, and operations proposal.
 - Explicitly separated agreed rules from proposed cancellation/grace/downgrade defaults and open provider, pricing, refund, grant-precedence, and AI-metering decisions. Billing is not implemented or activated by this documentation. Risk profile: none (documentation only). Model recommendation: GPT-6 Sol — bounded policy documentation.
+
+## 2026-09-25 — Strict creation activation readiness
+
+- User delegated final production checks and activation if gates pass. Subagent refreshed 182 classified accounts (180 Free, 1 Plus, 1 Pro), zero plan/grant/dual-audit mismatches, reviewed live database functions/triggers, and prepared guarded activation privately. Strict creation and automatic Free signup remain OFF; no hosted writes occurred.
+- Parent verified production alias at app SHA `213b2787`, authenticated owner classroom/Daily attendance/Classwork/Gradebook read access, 69 focused tests, and local rollback-only plan database contracts. Production student join/submission and remaining synthetic/write-flow canaries need completion using a designated disposable classroom and student session; user clarification pending. Private evidence stays outside Git. Existing work and account assignments unchanged.
+
+## 2026-09-26 — Disposable tier activation fixtures
+
+- User authorized creating the production test classroom and Free student fixture. Created a clearly labeled disposable classroom through the authenticated owner UI and one isolated student record with an audited Free plan/zero creation limit. Private identities and execution records remain outside Git. No WorkOS identity, verified-email flag, or fabricated session was added.
+- Subagent production rollback canaries passed creation/replay, Free/at-capacity Blueprint denial, restore, transfer, and downgrade preservation; independent before/after counts and row hashes prove no synthetic data persisted. Strict creation/automatic Free signup remain OFF. Actual student sign-in/join/submission require a user-controlled test mailbox for WorkOS verification; requested without passwords. No billing/admin enablement, migration, deploy, or real-class edits.
+
+## 2026-09-26 — Strict creation and automatic Free signup activated
+
+- Owner `codex/platform-administration-design`, PR #1360. Under the user's scoped activation authorization, the subagent executed the reviewed guarded production activation RPC once at 11:54:17 UTC. Migrations 181/206 verified; strict creation and default-Free provisioning now ON. Readback: 183 accounts (181 Free, one Plus, one Pro), complete plan/grant/paired-audit parity, original nine classrooms' ownership/archive states preserved. Identity-level records and exact operation evidence remain private outside Git.
+- Normal user-controlled magic sign-in, Free student roster join, link/richtext submission, final grading and returned grade visibility passed in the disposable classroom. Teacher/student attendance views render expected non-class-day states; no fresh QR/check-in or attendance-write round trip claimed. After activation student returned work and teacher Gradebook remain accessible.
+- Postactivation rollback-only synthetic account probe passed atomic Free provisioning, disabled quota0 creation, paired system audits, and missing-grant denial. Independent before/after counts, full class hash, plans/grants/audits and settings prove no synthetic probe records persisted. No migration, app deploy, billing/admin enablement, role rewrite or real-class teaching edit. Test fixtures remain available; no destructive cleanup performed.
+- Updated current context, rollout status and administration proposal to distinguish active creation/default-Free behavior from unimplemented billing/admin. Synced latest main into the feature branch; resolved archive conflict by retaining existing unique history rather than reintroducing duplicated entries. Required documentation/prototype checks and stable-SHA review follow; no merge authorized.

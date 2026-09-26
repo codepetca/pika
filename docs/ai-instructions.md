@@ -9,7 +9,7 @@ After `.ai/START-HERE.md`, use this router. Worktrees and env: [Workflow](./dev-
 3. [Features](../.ai/features.json)
 4. [Routing](./ai-instructions.md)
 
-History: use `.ai/SESSION-LOG.md` for handoffs; trim after appending. Load the archive only for investigation.
+History: `.ai/SESSION-LOG.md` for handoffs; append and trim. Archive only for investigation.
 
 ## Load Only The Docs You Need
 
@@ -35,7 +35,7 @@ History: use `.ai/SESSION-LOG.md` for handoffs; trim after appending. Load the a
 | Course blueprint package import/export | [Blueprint packages](./guidance/course-blueprint-packages.md) |
 | Feature-specific behavior | `docs/guidance/*.md` or the closest focused spec |
 
-Read startup and routed docs before source work.
+Read startup and routed docs before edits.
 
 ## Repo Invariants
 

@@ -20,10 +20,11 @@ and exception volume is low, a dedicated admin product may not be needed.
 
 No live admin route, operator membership, or account inventory API currently
 exists. Migration 206 provides a service-only plan setter and audit foundation;
-it does not authorize a human UI. Production schema and account state reported
-in earlier planning remain unverified: the authenticated Supabase read attempt
-returned USER_NOT_LOGGED_IN, while .ai/CURRENT.md records production through
-205. A Git branch or prototype is not deployment evidence.
+it does not authorize a human UI. Production migrations 181 and 206, complete
+plan/grant/audit coverage, and the separately authorized strict cutover were
+verified on 2026-09-26; see the [rollout status](account-plan-rollout.md). Automatic
+Free provisioning and creation limits are active. Billing and this live console
+remain unimplemented. A Git branch or prototype is not deployment evidence.
 
 ## Proposed information architecture
 

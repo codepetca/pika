@@ -1,4 +1,4 @@
-# Account-plan rollout (not activated)
+# Account-plan rollout
 
 This is the operator sequence for moving from the original one-classroom
 **Access** pilot to the Free/Basic/Plus/Pro account plans introduced by
@@ -13,6 +13,27 @@ documents the Access pilot and its migration-181 mechanics. Do not use its
 "grant Access to existing owners, Free to everyone else" instruction as the
 plan-migration policy. An existing owner may need Basic, Plus, Pro, or a
 separately approved accommodation to preserve creation capacity.
+
+## Verified production status — 2026-09-26
+
+Production migrations 181 and 206 are present. The separately authorized strict
+cutover completed on 2026-09-26: classroom creation now fails closed for a
+missing grant, and future account inserts receive an audited Free plan and its
+disabled zero-capacity creation grant atomically. The verified cohort contains
+183 accounts (181 Free, one Plus, one Pro), including one disposable test student.
+Existing classroom ownership and archive state were preserved. A rollback-only
+new-account database probe confirmed automatic provisioning, paired system
+audits, Free creation denial and fail-closed missing-grant behavior; no probe
+records persisted. This probe tests the account-insert contract, not a full new
+WorkOS signup.
+
+Normal production student sign-in, join, submission, final grading and returned
+grade visibility passed in a disposable classroom. Teacher/student attendance
+views rendered their expected non-class-day state; no fresh QR check-in or
+attendance write round trip was performed. Private identity-level inventory and
+operation evidence remain outside Git. This runtime status does not authorize
+changes on another target or enable billing, live administration, contextual
+membership, neutral onboarding, or AI metering.
 
 ## Boundaries
 
