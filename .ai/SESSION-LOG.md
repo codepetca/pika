@@ -235,6 +235,20 @@ async-grading.
 - With exact authorization, migration206 SHA256 `bc29eefb4b074c4bbad5f43f9755edb5b80c0f91ff157e009784c742d35bd4b8` applied to the local Pika database only; local history is001–206, production remains001–205. The rollback-only contract passes plan mapping, post-cutover Free signup, operation replay/conflict, stale revisions, browser-role isolation and existing-class preservation on downgrade. Generated types match the local schema. The focused gate passes94 tests plus architecture, TypeScript and lint. Local advisors report no new account-plan warnings; hosted application and production data remain unchanged.
 - Rebased onto `f6716e39` after the retention-roadmap merge. The only conflict was an archive-batch marker for identical session-history content; retained main's marker. Migration 206 stayed sequential and unchanged. Fresh local checks and exact-head review/CI are required before this PR is ready again.
 
+## 2026-09-23 — Dormant account plan foundation
+
+- Owner `codex/account-plan-foundation`. Migration206 adds service-only, revisioned account plans and an audited writer that derives the `classrooms.create` snapshot from Free0, Basic2, Plus5 or Pro10 in one transaction. No caller-supplied quota, existing-account backfill, strict-cutover activation, billing, AI allowance, production configuration or UI change is included. Future signups acquire Free only after the existing strict cutover is activated.
+- With exact authorization, migration206 SHA256 `bc29eefb4b074c4bbad5f43f9755edb5b80c0f91ff157e009784c742d35bd4b8` applied to the local and production Pika databases; both histories are001–206. The rollback-only contract passes plan mapping, post-cutover Free signup, operation replay/conflict, stale revisions, browser-role isolation and existing-class preservation on downgrade. Generated types match the local schema. The focused gate passes94 tests plus architecture, TypeScript and lint. Local advisors report no new account-plan warnings. Production read-only checks found the new tables and setter, zero assigned plans, and strict enforcement off.
+- Rebased onto `f6716e39` after the retention-roadmap merge. The only conflict was an archive-batch marker for identical session-history content; retained main's marker. Migration 206 stayed sequential and unchanged. Fresh local checks and exact-head review/CI are required before this PR is ready again.
+
+## 2026-09-23 — Production promotion of account plan foundation
+
+- Owner `codex/promote-account-plan-206`; risk profile runtime-platform. Promoting only the reviewed 206 foundation commit to production after verifying the production migration and dormant state. Other current main commits are out of scope. Production remains unclassified and strict classroom-creation enforcement remains off.
+
+## 2026-09-23 — Future classroom retention roadmap
+
+- Owner `codex/classroom-retention-roadmap`; risk profile none. Documented a proposed, plan-independent archived-classroom retention sequence and advance notices in the lifecycle roadmap, with a pointer from the product roadmap. It remains future work; no email, timer, automatic cold transition, deletion worker, database migration, or rollout gate was enabled.
+
 ## 2026-09-23 — Gradebook zero assessment weight
 
 - Owner `codex/gradebook-zero-assessment-weight`; risk profile none. Gradebook assessment weights now accept 0–999 across teacher controls, APIs, blueprints, and stored constraints. Zero is preserved on reload and excluded from final-grade math; all-zero categories remain ungraded. Migration207 is prepared but not applied to any database.
@@ -246,6 +260,11 @@ async-grading.
 - Owner `claude/fix-bulk-grading-limits` (PR1340, draft); risk profile async-grading. #1324 added `reasoningEffortUsed` to stored AI grading provenance, but migrations 101–104 whitelist provenance keys exactly, so every AI grade save failed. PR1342 (merged to main as `e31dcfc5`) removes the key from storage and adds `tests/lib/grading/provenance-db-contract.test.ts`, which reads the whitelists from the migrations. Anything new in stored provenance now needs a migration first. Production still runs the broken code until draft PR1344 (`claude/promote-grading-hotfix`: #1336, #1338, #1342; excludes #1339) merges; it must first take production after Codex's PR1343 lands.
 - PR1340 makes "Grade all" for tests safe at any batch size without changing grades: attempts are recorded before each provider call, items whose attempts were all interrupted fail instead of restarting (previously an unbounded billed loop), no call starts unless it can finish and save inside a 270s tick budget, tick `maxDuration` 300s, request timeout 60s, lease 240s. Batch output budget grows with the call and caps batches at 4, which is production's size. The DeepSeek adapter captures cache and reasoning tokens in memory only; the stored schema strips them. Focused gate: 513 tests plus architecture, UI/design policy, TypeScript and lint; the contract test fails when a cost field is added to the stored schema.
 - Next: independent review of PR1340, then ready and merge on a green PR Gate with owner approval. Then PR 2, a comparison harness in `scripts/calibrate-test-grading.ts`: batch size 1, 2 or 4 chunked like production, a shuffled-order seed, manual or bulk profile, per-answer latency and cost, scored against the verified targets; align its `MAX_BATCH_SIZE` of 20 with the cap of 4. Independent calls are a hypothesis until that harness measures them. Teacher calibration decisions and de-identified snapshots stay outside the repo (public): snapshots gitignored in the hub root, adjudication notes in the owner's local handoff folder. Open and unowned: the sanitizer turns common-word names into initials, DeepSeek errors reach teachers untranslated, and the middleware logs 25s timeouts.
+
+## 2026-09-23 — Gradebook zero-weight production rollout
+
+- Migration 207 was applied to local and Pika production under exact target-specific authorization. Both migration histories show 001–207; read-only production checks confirmed all five 0–999 constraints, the insert defaults, and updated database functions.
+- Production PR #1343 cherry-picks only the reviewed Gradebook change from main PR #1339. Generated types match the migrated local schema; focused checks pass 751 tests plus architecture, UI/design policy, TypeScript, and lint. The production PR remains draft pending exact-head review and CI.
 
 ## 2026-09-24 — Bulk test grading independent review
 
@@ -293,6 +312,19 @@ async-grading.
 - No account, entitlement, migration, database switch, app behavior, or production data changed. Live account inventory remains unverified while hosted access is unavailable. Model recommendation: GPT-6 Sol — bounded rollout documentation tied to existing migration contracts.
 - Independent documentation review found that audited-missing grants fail closed even before strict activation and that ownership-transfer canaries were omitted. The runbook now calls out both conditions and their stop/repair behavior; targeted re-review and final CI remain pending.
 
+## 2026-09-24 — Grading hotfix production handoff
+
+- Resumed PR #1344 in its existing worktree and merged production #1343 without conflicts, preserving both histories. Promotion contains the provenance save fix, checklist precedence, and retention-policy documentation; no new migration or UI change. Focused checks and independent review precede ready status and the production merge.
+
+## 2026-09-24 — Bulk test grading production promotion
+
+- Promote reviewed main #1340 (94bf3d37) after green PR Gate and owner approval. Preserve production DB rollout status, append-only journal entries from both histories, and the reviewed main application/test tree while reconciling prior squash releases. No migrations or additional feature changes. Local DeepSeek bulk smoke saved five fixture responses via reference, single and batch paths; scores/feedback persisted after reload.
+
+## 2026-09-24 — Student test scrolling production promotion
+
+- User authorized merging `main` into `production`. Draft PR #1354 promotes reviewed scroll fix #1352 and the already published test-authoring clarification; no database migration or configuration change.
+- Production and main histories diverged after earlier release merges. The promotion preserves both session histories and the main archive marker; the only runtime change is the student question pane height constraint. The scrolling fix passed desktop/mobile light/dark browser checks, independent review, and PR Gate on main. Promotion review and CI follow before merging.
+
 ## 2026-09-24 — Teacher assessment title editing
 
 - Owner: `codex/assessment-title-edit`, coordinated in the existing task. Approved outcome: tapping the selected Test or Assignment action-bar title opens its existing editor. Implementation worker owns the two teacher views and their component tests; coordinator owns browser verification, guidance, and PR lifecycle.
@@ -304,6 +336,10 @@ async-grading.
 
 - Owner: `codex/test-publish-action-bar`. Moved draft-only Publish from the test editor into the selected test's student-table action bar; reused saved-draft validation and confirmation, and removed obsolete dialog publication props/state.
 - Verification: 225 focused tests plus architecture/UI/design/TypeScript/lint checks and Pika audit pass. Local Playwright fixtures cover teacher desktop/mobile, light/dark, draft focus, editor, confirmation, and published states; screenshots under `output/playwright/`. Compared with Pattern Lab teacher controls. Student UI is unchanged. No new shared component or experimental pattern.
+## 2026-09-25 — Test reference image production promotion
+
+- User authorized deploying merged PNG/JPEG test reference attachments from main PR #1355. Production migration 208 was applied and verified before the app promotion: the private test-documents bucket permits image/png and image/jpeg, retains its 25 MB limit, and migration history matches through 208.
+- Draft production PR #1359 batches the reviewed image feature, account-plan documentation, and title-editor PR #1358, which joined main during promotion preparation. The promotion merge preserves both branch histories; its only conflict was archive bookkeeping. The runtime source tree matches main commit 74648fd8. Cumulative promotion review and PR Gate precede merge.
 
 ## 2026-09-25 — Assessment title PR merge preparation
 
