@@ -360,3 +360,9 @@ mark writes, and matching returned-only student calculation. Production-owner
 modal/table screenshots verified desktop/mobile light/dark. Migration 209 and a
 rollback-only database contract are authored; application/types verification
 requires one-time permission for local migration 209. No database changes applied.
+
+Independent Sol/Terra review found and remediation fixed cold-archive defaults,
+returned Classwork item scaling, fractional precision, manual input rounding,
+and bounded cumulative scales. App-first activation and rollback gate documented.
+Database harness now covers normalized fractions, historical archive keys,
+repeated scale rejection and reset. Local application approval remains pending.

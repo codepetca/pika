@@ -302,6 +302,10 @@ export async function loadTeacherGradebook(opts: {
   const supabase = getServiceRoleClient()
 
   const maximumState = await loadGradebookMaximumState(classroomId)
+  const hasAdjustedMaximum = (type: 'assignment' | 'test', id: string) => {
+    const state = maximumState.states.get(`${type}:${id}`)
+    return Boolean(state && (state.maximum != null || state.score_scale !== 1))
+  }
 
   const categoryResult = await supabase
     .from('gradebook_categories')
@@ -811,8 +815,8 @@ export async function loadTeacherGradebook(opts: {
         : {
             assessment_id: testId,
             assessment_type: 'test',
-            earned: round2(earned),
-            possible: round2(possible),
+            earned: hasAdjustedMaximum('test', testId) ? earned : round2(earned),
+            possible: hasAdjustedMaximum('test', testId) ? possible : round2(possible),
             percent: round2((earned / possible) * 100),
             is_graded: true,
             ...(testCellStatus ? { status: testCellStatus } : {}),
@@ -859,6 +863,7 @@ export async function loadTeacherGradebook(opts: {
     const st = score?.score_thinking
     const sw = score?.score_workflow
     const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
+    const adjustedMaximum = hasAdjustedMaximum('assignment', assignment.id)
     const isGraded = sc != null && st != null && sw != null
     const status = getAssignmentGradebookStatus(assignment, score, isGraded)
     const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'assignment', assignment.id))
@@ -870,11 +875,11 @@ export async function loadTeacherGradebook(opts: {
           assessment_id: assignment.id,
           assessment_type: 'assignment',
           earned: manualOverride,
-          possible: round2(possible),
+          possible: adjustedMaximum ? possible : round2(possible),
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
           is_graded: possible > 0,
           is_manual_override: true,
-          calculated_earned: calculatedEarned == null ? null : round2(calculatedEarned),
+          calculated_earned: calculatedEarned == null ? null : adjustedMaximum ? calculatedEarned : round2(calculatedEarned),
           ...(status ? { status } : {}),
         },
       }
@@ -894,8 +899,8 @@ export async function loadTeacherGradebook(opts: {
       cell: {
         assessment_id: assignment.id,
         assessment_type: 'assignment',
-        earned: round2(earned),
-        possible: round2(possible),
+        earned: adjustedMaximum ? earned : round2(earned),
+        possible: adjustedMaximum ? possible : round2(possible),
         percent: round2((earned / possible) * 100),
         is_graded: true,
         ...(status ? { status } : {}),

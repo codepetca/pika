@@ -156,3 +156,22 @@ fixtures are labeled separately from persisted demo-data verification.
   Student calculation and disclosure are tested server-side; student layout is
   unchanged. Risk: workspace-state; independent review: high (grade arithmetic,
   persisted schema, authorization and serialized writes).
+
+### Maximum override rollout and rollback
+
+Deploy this application revision fully before applying migration 209. Until the
+RPC is present, reads use original marks and maximum editing is disabled. After
+activation, all mark writers must run this revision: previous deployments write
+effective marks directly and are unsafe against normalized marks when a scale
+is active. Do not roll back or route traffic to an older deployment while any
+maximum override/scale remains. Before rollback, restore every maximum through
+the new application and verify all maxima are null and scales are 1. This returns
+marks to original source coordinates; the old application can then read/write
+that coordinate system. Production activation and rollback remain human controlled.
+
+Migration 209 extends the existing cold-archive normalization chain with null
+maximums and scale 1 for historical rows, retaining current overrides on restore.
+Scale is bounded from 1e-12 to 1e12; out-of-range cumulative changes are rejected
+without changing saved state, and reset remains available. Fractional marks remain
+exact internally. The manual mark editor initializes to the displayed tenth;
+only an explicit Save creates that rounded manual mark.

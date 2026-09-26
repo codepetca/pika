@@ -423,6 +423,25 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.class_summary.assignments[0]).toMatchObject({ average_percent: percent })
   })
 
+  it.each([
+    { rubric: 1, manual: null, earned: 100 / 30 },
+    { rubric: 1, manual: 3.333333333333, earned: 3.333333333333 },
+  ])('keeps fractional maximum calculations aligned with final and student projection ($manual)', async ({ rubric, manual, earned }) => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'assignment', assessment_id: 'a1', maximum: 0.1, score_scale: 1 }], error: null })
+    mockSupabaseClient.from = buildMockFrom({
+      categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 10, position: 0, is_default: true }],
+      assignments: [{ id: 'a1', title: 'Fractional', due_at: null, position: 0, is_draft: false, points_possible: 100, include_in_final: true, gradebook_weight: 10, gradebook_category_id: 'term' }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: rubric, score_thinking: 0, score_workflow: 0 }],
+      scoreOverrides: manual == null ? [] : [{ student_id: 'student-1', assessment_type: 'assignment', assessment_id: 'a1', earned: manual }],
+    })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
+    const student = buildStudentGradesResponse({ categories: [{ id: 'term', percentage: 100 }], items: [{ id: 'a1', kind: 'Classwork', title: 'Fractional', earned, possible: 0.1, percent: earned / 0.1 * 100, included: true, href: null, categoryId: 'term', weight: 10, returnedAt: null }] })
+    expect(body.students[0].assessment_scores[0].earned).toBeCloseTo(earned, 10)
+    expect(body.students[0].assessment_scores[0].percent).toBe(3333.33)
+    expect(body.students[0].final_percent).toBe(student.currentPercent)
+    expect(student.currentPercent).toBe(3333.33)
+  })
+
   it('uses a manual mark in the student row, final, and class summary', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 1, is_draft: false, points_possible: 30, include_in_final: true }],

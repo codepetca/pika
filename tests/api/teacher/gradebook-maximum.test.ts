@@ -23,7 +23,7 @@ describe('Gradebook maximum API and rollout boundary', () => {
     expect((await PUT(request({ ...payload, mode: 'reset', maximum: null }))).status).toBe(200)
     expect((await PUT(request({ ...payload, teacher_id: 'other' }))).status).toBe(400)
   })
-  it.each([['42501',403],['55000',409],['40001',409],['P0002',404],['22023',400],['PGRST202',409]])('maps database boundary %s', async (code, status) => {
+  it.each([['42501',403],['55000',409],['40001',409],['P0002',404],['22023',400],['22003',400],['PGRST202',409]])('maps database boundary %s', async (code, status) => {
     rpc.mockResolvedValue({ data: null, error: { code } })
     expect((await PUT(request(payload))).status).toBe(status)
   })

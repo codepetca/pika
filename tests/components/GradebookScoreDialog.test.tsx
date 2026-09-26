@@ -15,6 +15,16 @@ describe('GradebookScoreDialog original marks', () => {
     expect(onSave).toHaveBeenCalledWith(50, 'preserve_percentages')
   })
 
+  it('opens fractional scaled marks as valid tenths and saves the explicit edited value', () => {
+    const onSave = vi.fn()
+    render(<GradebookScoreDialog isOpen student={null} target={{ kind: 'assessment', title: 'Essay', value: 16.6833, possible: 33.3, isOverride: true }} isSaving={false} onClose={vi.fn()} onSave={onSave} />)
+    expect(screen.getByRole('spinbutton', { name: 'Mark earned' })).toHaveValue(16.7)
+    expect(screen.getByRole('button', { name: 'Save mark' })).toBeEnabled()
+    expect(screen.queryByText('Enter zero or a positive number in increments of 0.1.')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Save mark' }))
+    expect(onSave).toHaveBeenCalledWith(16.7)
+  })
+
   it('clears an original zero without presenting an override undo action', () => {
     const onClear = vi.fn(), onUndo = vi.fn()
     render(<GradebookScoreDialog isOpen student={null} target={{ kind: 'item', title: 'Attendance', value: 0, possible: 20 }} isSaving={false} onClose={vi.fn()} onSave={vi.fn()} onClear={onClear} onUndo={onUndo} />)

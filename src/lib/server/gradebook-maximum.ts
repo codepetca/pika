@@ -21,6 +21,7 @@ function missing(error: { code?: string } | null) { return ['PGRST202', '42883']
 function assertResult(error: { code?: string } | null) {
   if (!error) return
   if (missing(error)) throw new ApiError(409, 'Maximum overrides require the database update')
+  if (error.code === '22003') throw new ApiError(400, 'This change exceeds the supported mark range. Restore the original maximum and try again')
   if (error.code === '42501') throw new ApiError(403, 'You cannot edit this classroom')
   if (error.code === '55000') throw new ApiError(409, 'This classroom is archived')
   if (error.code === '40001') throw new ApiError(409, 'This maximum changed. Refresh the Gradebook and try again')

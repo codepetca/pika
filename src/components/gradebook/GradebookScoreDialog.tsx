@@ -43,7 +43,8 @@ export function GradebookScoreDialog({
 
   useEffect(() => {
     if (!isOpen) return
-    setValue(target?.value == null ? '' : String(target.value))
+    // Manual inputs use tenths; fractional derived marks stay exact until Save.
+    setValue(target?.value == null ? '' : String(target.kind === 'maximum' ? target.value : Math.round(target.value * 10) / 10))
     setShowUndo(Boolean(target?.isOverride))
     setOverrideUndone(false)
     setMaximumMode('keep_marks')
@@ -54,7 +55,7 @@ export function GradebookScoreDialog({
   const earned = Number(value)
   const isTenth = Math.abs(earned * 10 - Math.round(earned * 10)) < 0.000001
   const isValid = value.trim() !== '' && Number.isFinite(earned) && (isMaximum ? earned > 0 : earned >= 0) && earned <= 999999.9 && isTenth
-  const undoValueText = target?.undoValue == null ? '' : String(target.undoValue)
+  const undoValueText = target?.undoValue == null ? '' : String(isMaximum ? target.undoValue : Math.round(target.undoValue * 10) / 10)
   const isRestoredValue = overrideUndone && value === undoValueText
   const possible = target?.kind !== 'final' && !isMaximum ? target?.possible : undefined
   const exceedsTotal = possible != null

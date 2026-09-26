@@ -36,7 +36,7 @@ declare
  teacher uuid := '20900000-0000-4000-8000-000000000001'; student uuid := '20900000-0000-4000-8000-000000000002';
  classroom uuid := '20900000-0000-4000-8000-000000000010'; assignment uuid := '20900000-0000-4000-8000-000000000020';
  item uuid := '20900000-0000-4000-8000-000000000030'; test_id uuid := '20900000-0000-4000-8000-000000000040';
- n numeric;
+ n numeric; r jsonb; original jsonb; table_name text; keys_before text[]; keys_after text[];
 begin
  perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,50,'preserve_percentages',100,1);
  select gradebook_score_scale into n from public.assignments where id=assignment;
@@ -56,6 +56,41 @@ begin
  update public.assignments set points_possible=3 where id=assignment;
  perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,1,'preserve_percentages',3,1);
  perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,2,'preserve_percentages',1,0.3333333333333333);
+ -- Repeated alternation must reject safely before the classroom becomes unreadable.
+ update public.assignments set points_possible=100,gradebook_maximum_override=null,gradebook_score_scale=1 where id=assignment;
+ perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,0.1,'keep_marks',100,1);
+ perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,999999.9,'preserve_percentages',0.1,1);
+ perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,0.1,'keep_marks',999999.9,9999999);
+ begin
+  perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,999999.9,'preserve_percentages',0.1,9999999);
+  raise exception 'Unbounded large scale accepted';
+ exception when numeric_value_out_of_range then null; end;
+ perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,null,'reset',0.1,9999999);
+ perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,999999.9,'keep_marks',100,1);
+ perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,0.1,'preserve_percentages',999999.9,1);
+ select gradebook_score_scale into n from public.assignments where id=assignment;
+ perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,999999.9,'keep_marks',0.1,n);
+ begin
+  perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,0.1,'preserve_percentages',999999.9,n);
+  raise exception 'Unbounded tiny scale accepted';
+ exception when numeric_value_out_of_range then null; end;
+ perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,null,'reset',999999.9,n);
+ -- Tenths entered against a repeating scale retain normalized internal precision.
+ perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,33.3,'preserve_percentages',100,1);
+ perform public.save_gradebook_effective_mark(teacher,classroom,'assignment',assignment,student,16.7);
+ select earned into n from public.gradebook_score_overrides where assessment_id=assignment and student_id=student;
+ if abs(n*0.333-16.7)>0.000000001 then raise exception 'Repeating-scale manual mark precision lost'; end if;
+ -- Every restore stage uses this chained normalizer before exact-column validation.
+ foreach table_name in array array['assignments','tests','gradebook_items'] loop
+  execute format('select to_jsonb(row) from public.%I row where classroom_id=$1 limit 1',table_name) into original using classroom;
+  r := public.normalize_classroom_archive_restore_row(null,table_name,original-'gradebook_maximum_override'-'gradebook_score_scale');
+  if r->'gradebook_maximum_override'<>'null'::jsonb or r->>'gradebook_score_scale'<>'1' then raise exception 'Historical archive defaults missing'; end if;
+  select array_agg(key order by key) into keys_before from jsonb_object_keys(original) key;
+  select array_agg(key order by key) into keys_after from jsonb_object_keys(r) key;
+  if keys_before is distinct from keys_after then raise exception 'Historical archive exact-column contract failed'; end if;
+  r := public.normalize_classroom_archive_restore_row(null,table_name,original);
+  if r is distinct from original then raise exception 'Current archive maximum state changed'; end if;
+ end loop;
  perform public.set_gradebook_maximum_override(teacher,classroom,'item',item,50,'preserve_percentages',100,1);
  perform public.save_gradebook_effective_mark(teacher,classroom,'item',item,student,0);
  select earned into n from public.gradebook_item_scores where item_id=item and student_id=student;

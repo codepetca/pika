@@ -20,6 +20,12 @@ describe('maximum override display and calculation', () => {
     expect(score).toMatchObject({ earned: 40, possible: 25, percent: 160 })
     expect(displayed).toMatchObject({ source_possible: 100, possible: 50, is_maximum_override: true })
   })
+  it('derives percent from exact earned values, preserving fractional source precision', () => {
+    const score = { ...cell(), earned: 100 / 30, percent: 3.33 }
+    applyMaximumToCell(score, { assessment_type: 'test', assessment_id: 't1', maximum: 0.1, score_scale: 1 })
+    expect(score.percent).toBe(3333.33)
+  })
+
   it('retains zeroes and missing marks', () => {
     const state = previewMaximumChange(column, 50, 'preserve_percentages')
     const zero = { ...cell(), earned: 0, percent: 0 }; applyMaximumToCell(zero, state)

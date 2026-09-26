@@ -647,6 +647,7 @@ export function TeacherGradebookTab({
       if (!response.ok) throw new Error(data.error || 'Could not save maximum')
       invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
       invalidateCachedJSONMatching(`student-grades:${classroomId}`)
+      invalidateCachedJSONMatching(`student-returned-marks:${classroomId}`)
       if (requestId !== maximumSequenceRef.current || currentClassroomIdRef.current !== classroomId) return false
       await loadGradebook({ preserveSnapshot: true })
       if (requestId !== maximumSequenceRef.current || currentClassroomIdRef.current !== classroomId) return false

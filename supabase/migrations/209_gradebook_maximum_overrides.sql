@@ -4,17 +4,17 @@ alter table public.assignments
   add column gradebook_maximum_override numeric,
   add column gradebook_score_scale numeric not null default 1,
   add constraint assignments_gradebook_maximum_valid check (gradebook_maximum_override is null or (gradebook_maximum_override between 0.1 and 999999.9 and gradebook_maximum_override = round(gradebook_maximum_override, 1))),
-  add constraint assignments_gradebook_scale_valid check (gradebook_score_scale > 0 and gradebook_score_scale < 'Infinity'::numeric);
+  add constraint assignments_gradebook_scale_valid check (gradebook_score_scale between 0.000000000001 and 1000000000000);
 alter table public.tests
   add column gradebook_maximum_override numeric,
   add column gradebook_score_scale numeric not null default 1,
   add constraint tests_gradebook_maximum_valid check (gradebook_maximum_override is null or (gradebook_maximum_override between 0.1 and 999999.9 and gradebook_maximum_override = round(gradebook_maximum_override, 1))),
-  add constraint tests_gradebook_scale_valid check (gradebook_score_scale > 0 and gradebook_score_scale < 'Infinity'::numeric);
+  add constraint tests_gradebook_scale_valid check (gradebook_score_scale between 0.000000000001 and 1000000000000);
 alter table public.gradebook_items
   add column gradebook_maximum_override numeric,
   add column gradebook_score_scale numeric not null default 1,
   add constraint gradebook_items_maximum_valid check (gradebook_maximum_override is null or (gradebook_maximum_override between 0.1 and 999999.9 and gradebook_maximum_override = round(gradebook_maximum_override, 1))),
-  add constraint gradebook_items_scale_valid check (gradebook_score_scale > 0 and gradebook_score_scale < 'Infinity'::numeric);
+  add constraint gradebook_items_scale_valid check (gradebook_score_scale between 0.000000000001 and 1000000000000);
 -- Normalize newly entered marks by the current scale without losing fractions.
 alter table public.gradebook_score_overrides alter column earned type numeric;
 alter table public.gradebook_item_scores alter column earned type numeric;
@@ -69,6 +69,9 @@ begin
   if v_current <= 0 then raise exception using errcode='22023', message='cannot_preserve_percentage_without_maximum'; end if;
   v_scale:=v_scale*p_maximum/v_current;
  end if;
+ if not (v_scale between 0.000000000001 and 1000000000000) then
+  raise exception using errcode='22003', message='maximum_scale_out_of_range';
+ end if;
  if p_assessment_type='assignment' then update public.assignments set gradebook_maximum_override=p_maximum,gradebook_score_scale=v_scale where id=p_assessment_id;
  elsif p_assessment_type='test' then update public.tests set gradebook_maximum_override=p_maximum,gradebook_score_scale=v_scale where id=p_assessment_id;
  else update public.gradebook_items set gradebook_maximum_override=p_maximum,gradebook_score_scale=v_scale where id=p_assessment_id; end if;
@@ -110,3 +113,21 @@ end;
 $$;
 revoke all on function public.save_gradebook_effective_mark(uuid,uuid,text,uuid,uuid,numeric) from public,anon,authenticated;
 grant execute on function public.save_gradebook_effective_mark(uuid,uuid,text,uuid,uuid,numeric) to service_role;
+
+-- Extend the existing restore compatibility chain for pre-209 cold archives.
+alter function public.normalize_classroom_archive_restore_row(uuid,text,jsonb)
+ rename to normalize_classroom_archive_restore_row_pre_v209;
+revoke all on function public.normalize_classroom_archive_restore_row_pre_v209(uuid,text,jsonb) from public,anon,authenticated;
+create function public.normalize_classroom_archive_restore_row(p_operation_id uuid,p_table_name text,p_row jsonb)
+returns jsonb language plpgsql stable set search_path = '' as $$
+begin
+ p_row := public.normalize_classroom_archive_restore_row_pre_v209(p_operation_id,p_table_name,p_row);
+ if p_table_name in ('assignments','tests','gradebook_items') then
+  if not (p_row ? 'gradebook_maximum_override') then p_row := p_row || jsonb_build_object('gradebook_maximum_override',null); end if;
+  if not (p_row ? 'gradebook_score_scale') then p_row := p_row || jsonb_build_object('gradebook_score_scale',1); end if;
+ end if;
+ return p_row;
+end;
+$$;
+revoke all on function public.normalize_classroom_archive_restore_row(uuid,text,jsonb) from public,anon,authenticated;
+grant execute on function public.normalize_classroom_archive_restore_row(uuid,text,jsonb) to service_role;

@@ -10,13 +10,11 @@ export interface GradebookMaximumState {
 }
 
 export function applyMaximumToCell(cell: GradebookAssessmentCell, state?: GradebookMaximumState): void {
-  if (!state) return
-  const sourcePossible = cell.possible
-  const sourcePercent = cell.percent
-  cell.possible = state.maximum ?? sourcePossible
+  if (!state || (state.maximum == null && state.score_scale === 1)) return
+  cell.possible = state.maximum ?? cell.possible
   if (cell.earned != null) cell.earned = cell.earned * state.score_scale
   if (cell.calculated_earned != null) cell.calculated_earned = cell.calculated_earned * state.score_scale
-  cell.percent = cell.is_graded && cell.earned != null && cell.possible > 0 ? round2(sourcePercent != null ? sourcePercent * state.score_scale * sourcePossible / cell.possible : cell.earned / cell.possible * 100) : null
+  cell.percent = cell.is_graded && cell.earned != null && cell.possible > 0 ? round2(cell.earned / cell.possible * 100) : null
 }
 
 export function applyMaximumToColumn(column: GradebookAssessmentColumn, state?: GradebookMaximumState) {
