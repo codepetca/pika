@@ -191,6 +191,25 @@ disabled. The updated194 billing-focused tests pass. Focused checks and full
 independent implementation review precede final PR CI. Keep the PR draft until
 all exit evidence passes. No real Stripe checkout or payment has been performed.
 
+Full implementation review identified a blocking first-purchase eligibility gap:
+legacy paid accounts could reserve a new checkout. Follow-up migration212
+restricts new reservations to Free/legacy accounts and rechecks the reserved
+plan revision before checkout provider work, binding and first-payment
+reconciliation. Drift becomes attention instead of overwriting an existing
+assignment; foundation bindings outside checkout keep their existing behavior.
+The application maps an ineligible first purchase to a safe409 response.
+Migration211 is applied and immutable;212 requires its own preapplication review
+and exact local authorization. Keep both billing gates off until212 is applied
+and its database regressions pass. Focused checks of the correction pass212
+tests plus TypeScript, lint and policy checks; the new SQL regressions are
+authored but not yet executed. A previously issued hosted session may still be
+paid after an operator changes a plan; access remains protected, while provider
+cancellation/refund handling is part of the separate lifecycle phase.
+
+A separate nonblocking launch follow-up remains: public active status should
+match effective entitlement state after operator overrides. Address that with
+the lifecycle/status integration before exposing the customer billing screen.
+
 First checkout slice keeps taxes, discounts, upgrades, trials and subscription
 restarts unavailable until their separate contracts are implemented. Catalog AI
 quantities remain provisional metadata and do not grant usage. The existing

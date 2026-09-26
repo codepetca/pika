@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/211_stripe_checkout.sql'), 'utf8')
 const foundation = readFileSync(resolve(process.cwd(), 'supabase/migrations/209_stripe_billing_foundation.sql'), 'utf8')
+const eligibility = readFileSync(resolve(process.cwd(), 'supabase/migrations/212_stripe_checkout_first_purchase.sql'), 'utf8')
 
 function functionDefinition(sql: string, name: string): string {
   const matches = [...sql.matchAll(new RegExp(
@@ -14,6 +15,30 @@ function functionDefinition(sql: string, name: string): string {
 }
 
 describe('Stripe checkout schema boundary', () => {
+  it('limits new purchases and provider resumption to an unchanged legacy Free plan', () => {
+    expect(eligibility).toContain('add column reserved_plan_revision bigint check (reserved_plan_revision > 0)')
+    for (const name of ['billing_reserve_checkout_v1','billing_claim_checkout_v1','billing_save_checkout_progress_v1','billing_finish_checkout_v1']) {
+      const body = functionDefinition(eligibility, name)
+      expect(body).toContain("v_plan.plan_key<>'free' or v_plan.management_source<>'legacy'")
+      expect(body).toContain("'account-plan-subject:'")
+      expect(body).toContain('v_plan.revision<>v_attempt.reserved_plan_revision')
+      expect(body).toContain("reason_code='checkout_account_plan_ineligible'")
+      expect(body).toContain('security definer')
+    }
+    expect(eligibility).toContain("errcode='55000',message='checkout_account_plan_ineligible'")
+    expect(eligibility).not.toMatch(/update public.account_plans|set_effective_feature_entitlement_v1|set sandbox_enabled/)
+  })
+  it('preserves binding-before-plan lock ordering and protects first paid synchronization without blocking renewals', () => {
+    const finish = functionDefinition(eligibility, 'billing_finish_checkout_v1')
+    expect(finish.indexOf("'stripe-binding:'")).toBeLessThan(finish.indexOf("'account-plan-subject:'"))
+    const claim = functionDefinition(eligibility, 'billing_claim_subscription_v1')
+    expect(claim.indexOf('select * into v_binding')).toBeLessThan(claim.indexOf("'account-plan-subject:'"))
+    expect(claim).toContain('and not exists(select 1 from public.stripe_billing_invoice_effects where subscription_id=v_binding.id)')
+    expect(claim).toContain("and a.status='bound' and a.reserved_plan_revision=v_plan.revision")
+    expect(claim).toContain("reconcile_state='attention'")
+    expect(claim).not.toMatch(/from public\.stripe_checkout_attempts[^;]*for update/)
+    expect(foundation).toContain("if v_plan.revision <> (p_request->>'expected_account_plan_revision')::bigint then")
+  })
   it.each(['billing_bind_customer_v1', 'billing_record_event_v1'])(
     'repairs %s with the exact final migration-209 definition while retaining its grants', name => {
       const original = functionDefinition(foundation, name)

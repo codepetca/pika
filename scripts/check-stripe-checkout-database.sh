@@ -12,8 +12,8 @@ if [[ "$(docker inspect "$checkout_container" --format '{{ index .Config.Labels 
   echo 'Refusing unexpected Stripe checkout database target.' >&2
   exit 2
 fi
-if [[ "$(docker exec "$checkout_container" psql -U postgres -d postgres -X -Atc "select count(*) from supabase_migrations.schema_migrations where version = '211'")" != '1' ]]; then
-  echo 'Migration 211 must already be applied locally; this harness never applies it.' >&2
+if [[ "$(docker exec "$checkout_container" psql -U postgres -d postgres -X -Atc "select count(*) from supabase_migrations.schema_migrations where version in ('211','212')")" != '2' ]]; then
+  echo 'Migrations 211 and 212 must already be applied locally; this harness never applies them.' >&2
   exit 2
 fi
 docker exec -i "$checkout_container" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \

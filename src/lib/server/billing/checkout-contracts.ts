@@ -83,6 +83,10 @@ export class CheckoutProviderContractError extends Error {
   constructor() { super('Checkout provider contract is invalid') }
 }
 
+export class CheckoutEligibilityError extends Error {
+  constructor() { super('Checkout is currently available only for Free accounts') }
+}
+
 export type PublicCheckout = {
   attemptId: string
   status: 'pending' | 'checkout_open' | 'payment_pending' | 'synchronizing' | 'active' | 'expired' | 'attention'

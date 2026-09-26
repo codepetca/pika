@@ -33134,3 +33134,10 @@ async-grading.
 - Final cumulative review found archive restore lost image controls when rewriting attachment paths. Third correction preserves a test-image namespace from verified archive MIME;4 regressions failed before and35 affected tests passed after. All test-upload producers audited (direct upload, blueprint copy, archive restore); targeted closure and ready CI follow.
 - Restore canary independently calculated extensionless paths; updated its bucket-scoped PNG/JPEG projection and compared it against the actual verified restore plan. Two regressions fail before and24 canary tests pass after. Existing non-image and other-bucket paths remain unchanged.
 - Final targeted closure is clear at412b591b; full1024tests/77files and local Storage smoke passed. Synced unrelated main documentation after an archive-marker-only conflict; application source unchanged. Ready CI follows.
+
+<!-- pika-session-log-archive-batch:d7a860003338544a4f6bd989ef632f0aed2d41b1a74e8a8167fe88bf953e276f -->
+## 2026-09-24 — Account-plan rollout runbook
+
+- Owner `codex/account-plan-rollout-runbook`; documentation-only, risk profile `none`. Added a plan-specific operator sequence for read-only account inventory, explicit owner decisions, audited per-account assignments, and a separately approved strict cutover. Marked the earlier Access-pilot cutover as historical for plan classification.
+- No account, entitlement, migration, database switch, app behavior, or production data changed. Live account inventory remains unverified while hosted access is unavailable. Model recommendation: GPT-6 Sol — bounded rollout documentation tied to existing migration contracts.
+- Independent documentation review found that audited-missing grants fail closed even before strict activation and that ownership-transfer canaries were omitted. The runbook now calls out both conditions and their stop/repair behavior; targeted re-review and final CI remain pending.

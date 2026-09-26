@@ -196,4 +196,114 @@ begin
   end if;
 end; $checkout$;
 
+-- Migration 212: first purchase is not an implicit transition from legacy paid
+-- terms, and eligibility must survive every asynchronous checkout boundary.
+do $first_purchase$
+declare
+  v_case text; v_user uuid; v_attempt uuid; v_request jsonb; v_offering jsonb;
+  v_claim jsonb; v_paid_claim jsonb; v_fence jsonb; v_result jsonb; v_revision bigint; v_binding uuid;
+  v_customer text; v_session text; v_subscription text;
+begin
+  foreach v_case in array array['basic','plus','pro','billing_free','replay','resume','save','finalize','post_bind','after_paid_claim'] loop
+    v_user := gen_random_uuid(); v_attempt := gen_random_uuid();
+    v_customer := 'cus_'||replace(v_user::text,'-','');
+    v_session := 'cs_test_'||replace(v_user::text,'-','');
+    v_subscription := 'sub_'||replace(v_user::text,'-','');
+    insert into public.users(id,email,role) values(v_user,v_user::text||'@example.invalid','teacher');
+    if not exists(select 1 from public.account_plans where subject_user_id=v_user) then
+      perform public.set_account_plan_v1(gen_random_uuid(),v_user,'free','test:checkout212','fixture_free',0);
+    end if;
+    select revision into v_revision from public.account_plans where subject_user_id=v_user;
+    if v_case in ('basic','plus','pro') then
+      perform public.set_account_plan_v1(gen_random_uuid(),v_user,v_case,'test:checkout212','fixture_paid',v_revision);
+    elsif v_case='billing_free' then
+      update public.account_plans set management_source='billing' where subject_user_id=v_user;
+    end if;
+    v_offering := public.billing_get_checkout_offering_v1(jsonb_build_object('stripe_account','acct_b210test',
+      'offering_version_id',(select id from public.stripe_billing_offering_versions where stripe_account='acct_b210test' and stripe_price_id='price_b210test')));
+    v_request := jsonb_build_object('attempt_id',v_attempt,'subject_user_id',v_user,'offering',v_offering,
+      'lookup_key',v_offering->>'catalog_key','success_url','http://localhost:3000/billing?checkout='||v_attempt||'&result=success',
+      'cancel_url','http://localhost:3000/billing?checkout='||v_attempt||'&result=cancel');
+    if v_case in ('basic','plus','pro','billing_free') then
+      begin
+        perform public.billing_reserve_checkout_v1(v_request);
+        raise exception 'Ineligible initial purchase accepted: %',v_case;
+      exception when object_not_in_prerequisite_state then
+        if sqlerrm<>'checkout_account_plan_ineligible' then raise; end if;
+      end;
+      if exists(select 1 from public.stripe_checkout_attempts where subject_user_id=v_user)
+        or exists(select 1 from public.stripe_billing_subscription_bindings where subject_user_id=v_user) then
+        raise exception 'Rejected account acquired purchase state: %',v_case;
+      end if;
+      continue;
+    end if;
+    v_result := public.billing_reserve_checkout_v1(v_request);
+    if v_result->>'status'<>'reserved' or not exists(select 1 from public.stripe_checkout_attempts
+      where id=v_attempt and reserved_plan_revision=v_revision) then raise exception 'Free eligibility not preserved'; end if;
+    if public.billing_reserve_checkout_v1(v_request)<>v_result then raise exception 'Eligible operation replay changed'; end if;
+    if v_case in ('save','finalize','post_bind','after_paid_claim') then
+      v_claim := public.billing_claim_checkout_v1(jsonb_build_object('attempt_id',v_attempt,'lease_seconds',120));
+      v_fence := jsonb_build_object('attempt_id',v_attempt,'lease_token',v_claim->>'lease_token','fencing_token',v_claim->'fencing_token');
+    end if;
+    if v_case in ('finalize','post_bind','after_paid_claim') then
+      perform public.billing_save_checkout_progress_v1(v_fence||jsonb_build_object('customer_id',v_customer));
+      perform public.billing_save_checkout_progress_v1(v_fence||jsonb_build_object('session_id',v_session,'checkout_url','https://checkout.stripe.com/c/pay/fixture'));
+    end if;
+    if v_case in ('post_bind','after_paid_claim') then
+      perform public.billing_finish_checkout_v1(v_fence||jsonb_build_object('outcome','bound','subscription_id',v_subscription));
+      select subscription_id into v_binding from public.stripe_checkout_attempts where id=v_attempt;
+      if v_binding is null then raise exception 'Eligible Free purchase failed to bind'; end if;
+    end if;
+    if v_case='after_paid_claim' then
+      v_paid_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+      if v_paid_claim->>'status'<>'claimed' then raise exception 'Eligible first payment claim rejected'; end if;
+    end if;
+    perform public.set_account_plan_v1(gen_random_uuid(),v_user,'basic','test:checkout212','plan_changed',v_revision);
+    if v_case='replay' then
+      if public.billing_reserve_checkout_v1(v_request)->>'status'<>'attention' then raise exception 'Ineligible replay accepted'; end if;
+    elsif v_case='resume' then
+      if public.billing_claim_checkout_v1(jsonb_build_object('attempt_id',v_attempt,'lease_seconds',120))->>'status'<>'terminal' then
+        raise exception 'Changed plan received provider work lease';
+      end if;
+    elsif v_case='save' then
+      if public.billing_save_checkout_progress_v1(v_fence||jsonb_build_object('customer_id',v_customer))->>'status'<>'lost_claim' then
+        raise exception 'Changed plan continued to checkout session creation';
+      end if;
+      if not exists(select 1 from public.stripe_checkout_attempts where id=v_attempt and stripe_customer_id=v_customer) then
+        raise exception 'Provider recovery identity was lost';
+      end if;
+    elsif v_case='finalize' then
+      perform public.billing_finish_checkout_v1(v_fence||jsonb_build_object('outcome','bound','subscription_id',v_subscription));
+    elsif v_case in ('post_bind','after_paid_claim') then
+      if v_case='after_paid_claim' then
+        v_result := public.billing_finish_subscription_v1(jsonb_build_object('subscription_id',v_binding,
+          'lease_token',v_paid_claim->>'lease_token','fencing_token',v_paid_claim->'fencing_token',
+          'expected_subscription_revision',v_paid_claim->'subscription_revision',
+          'expected_account_plan_revision',v_paid_claim->'expected_account_plan_revision',
+          'outcome','paid','event_inbox_id',null,'invoice_id','in_'||replace(v_user::text,'-',''),
+          'period_start',clock_timestamp(),'period_end',clock_timestamp()+interval '1 month','reason_code',null));
+        if v_result->>'status'<>'plan_conflict' then raise exception 'Concurrent plan change accepted by paid finish'; end if;
+        update public.stripe_billing_subscription_bindings set lease_expires_at=clock_timestamp()-interval '1 second' where id=v_binding;
+      end if;
+      if public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120))->>'status'<>'busy'
+        or not exists(select 1 from public.stripe_billing_subscription_bindings where id=v_binding and reconcile_state='attention') then
+        raise exception 'Changed plan received first-payment lease';
+      end if;
+    end if;
+    if v_case not in ('post_bind','after_paid_claim') and (not exists(select 1 from public.stripe_checkout_attempts
+      where id=v_attempt and status='attention' and reason_code='checkout_account_plan_ineligible')
+      or exists(select 1 from public.stripe_billing_subscription_bindings where subject_user_id=v_user)) then
+      raise exception 'Ineligible checkout not stopped before binding: %',v_case;
+    end if;
+    if not exists(select 1 from public.account_plans where subject_user_id=v_user and plan_key='basic'
+      and management_source='legacy' and revision=v_revision+1)
+      or not exists(select 1 from public.effective_feature_entitlements where subject_user_id=v_user
+        and feature_key='classrooms.create' and quota_limit=2)
+      or exists(select 1 from public.stripe_billing_invoice_effects e join public.stripe_billing_subscription_bindings b
+        on b.id=e.subscription_id where b.subject_user_id=v_user) then
+      raise exception 'Changed legacy plan/access was overwritten: %',v_case;
+    end if;
+  end loop;
+end; $first_purchase$;
+
 rollback;

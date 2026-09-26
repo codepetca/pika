@@ -1,5 +1,5 @@
 import type { Json } from '@/types/database.generated'
-import type { CheckoutStore } from '@/lib/server/billing/checkout-contracts'
+import { CheckoutEligibilityError, type CheckoutStore } from '@/lib/server/billing/checkout-contracts'
 
 type PurchaseRpcName =
   | 'billing_get_checkout_offering_v1' | 'billing_list_checkout_offerings_v1'
@@ -16,7 +16,14 @@ export function createBillingPurchaseStore(client: PurchaseRpcClient): CheckoutS
 } {
   async function call(name: PurchaseRpcName, request: Json) {
     const { data, error } = await client.rpc(name, { p_request: request })
-    if (error) throw new Error('Billing purchase database operation failed')
+    if (error) {
+      if (name === 'billing_reserve_checkout_v1' && typeof error === 'object'
+        && 'code' in error && error.code === '55000'
+        && 'message' in error && error.message === 'checkout_account_plan_ineligible') {
+        throw new CheckoutEligibilityError()
+      }
+      throw new Error('Billing purchase database operation failed')
+    }
     return data
   }
   return {

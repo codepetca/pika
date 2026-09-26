@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-24 — Account-plan rollout runbook
-
-- Owner `codex/account-plan-rollout-runbook`; documentation-only, risk profile `none`. Added a plan-specific operator sequence for read-only account inventory, explicit owner decisions, audited per-account assignments, and a separately approved strict cutover. Marked the earlier Access-pilot cutover as historical for plan classification.
-- No account, entitlement, migration, database switch, app behavior, or production data changed. Live account inventory remains unverified while hosted access is unavailable. Model recommendation: GPT-6 Sol — bounded rollout documentation tied to existing migration contracts.
-- Independent documentation review found that audited-missing grants fail closed even before strict activation and that ownership-transfer canaries were omitted. The runbook now calls out both conditions and their stop/repair behavior; targeted re-review and final CI remain pending.
-
 ## 2026-09-24 — Teacher assessment title editing
 
 - Owner: `codex/assessment-title-edit`, coordinated in the existing task. Approved outcome: tapping the selected Test or Assignment action-bar title opens its existing editor. Implementation worker owns the two teacher views and their component tests; coordinator owns browser verification, guidance, and PR lifecycle.
@@ -358,3 +352,21 @@ full coverage gate). Final focused checks and correction review precede new CI.
   and the disabled billing sandbox are preserved. Focused checks pass207 tests,
   TypeScript, lint and architecture/UI/design gates. Full financial/security and
   compatibility review follows before ready CI; no provider payment performed.
+
+## 2026-09-26 — Preserve legacy plans during first checkout
+
+- Full review of41c75110 found a P1: legacy paid accounts could reserve first
+  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
+  unchanged legacy Free eligibility at reservation, resumption, progress save,
+  binding and first-payment claim. Changed plans become attention; existing
+  paid-finish revision fencing handles the subsequent race. Applied209/211 are
+  unchanged. API returns a safe409 for initial ineligibility.
+- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
+  legacy paid rejection and plan-change races; they remain unrun until exact
+  local212 authorization. The harness refuses a database without212. Migration
+  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
+- Targeted correction/preapplication review follows as launch5/5, remediation
+  batch1. New212 and refreshed generated types/final integration review require
+  a further owner checkpoint. Previously issued provider sessions may still be
+  paid after an operator changes a plan; this patch prevents access overwrite,
+  and provider cancellation/refund handling remains a prelaunch lifecycle task.

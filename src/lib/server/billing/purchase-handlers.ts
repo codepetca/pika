@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
+import { CheckoutEligibilityError } from '@/lib/server/billing/checkout-contracts'
 
 const checkoutRequestSchema = z.object({
   offeringVersionId: z.string().uuid(),
@@ -91,10 +92,15 @@ export function createBillingPurchaseHandlers(deps: {
       }
       const input = checkoutRequestSchema.parse(body)
       const runtime = await deps.loadRuntime()
-      const result = publicCheckoutSchema.parse(await runtime.startCheckout({
-        ...input, subjectUserId: user.id,
-      }))
-      return json(result)
+      try {
+        const result = publicCheckoutSchema.parse(await runtime.startCheckout({
+          ...input, subjectUserId: user.id,
+        }))
+        return json(result)
+      } catch (error) {
+        if (error instanceof CheckoutEligibilityError) throw new ApiError(409, error.message)
+        throw error
+      }
     }),
     status: withErrorHandler('BillingCheckoutStatus', async (_request, context) => {
       configuration()

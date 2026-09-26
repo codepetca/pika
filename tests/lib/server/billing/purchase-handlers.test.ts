@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { describe, expect, it, vi } from 'vitest'
 import { createBillingPurchaseHandlers } from '@/lib/server/billing/purchase-handlers'
+import { CheckoutEligibilityError } from '@/lib/server/billing/checkout-contracts'
 
 const origin = 'http://localhost:3000'
 const userId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -29,6 +30,13 @@ function request(body: unknown = { offeringVersionId, operationId }, headers = {
   })
 }
 describe('authenticated purchase boundaries', () => {
+  it('returns a safe conflict when the account is not eligible for first purchase', async () => {
+    const env = setup()
+    env.runtime.startCheckout.mockRejectedValue(new CheckoutEligibilityError())
+    const response = await env.handlers.start(request(), context)
+    expect(response.status).toBe(409)
+    expect(await response.text()).toContain('Checkout is currently available only for Free accounts')
+  })
   it('keeps every endpoint inaccessible without constructing clients when disabled', async () => {
     const env = setup()
     env.configuration.mockReturnValue(null)
