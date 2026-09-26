@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-22 — Assignment AI grading lease-fencing prerequisite
-
-- Owner `codex/meter-ai-grading`, based on merged metered-reservation PR1318. Migration202 adds a versioned worker contract plus service-only run/item patch and provenance-finalization boundaries. Existing and rolling-deploy runs remain legacy version0; future metered runs opt into version1, requiring the exact current, unexpired lease across DeepSeek and Gradex work while legacy finalizers/direct service-role updates are rejected.
-- Under standing local-migration authorization, migration202 is applied locally. Generated types match local history001–202; the real takeover harness proves expired/stale run and item patches, stale finalization, legacy finalization and direct service-role DML cannot bypass a version1 replacement lease. This slice does not create version1 runs, call the usage ledger or activate metering; production remains001–180.
-
 ## 2026-09-22 — Accept required Assignment links without GitHub identity
 
 - Standard link requirements now send only their URL instead of an irrelevant blank GitHub login; repository-link requirements retain the existing GitHub fields.
@@ -353,3 +348,14 @@ Production maximum edits default off until GRADEBOOK_MAXIMUM_EDITS_ENABLED is
 true after full mark-writer deployment; reads/normalized writes/reset stay usable.
 731 focused tests and canonical type checks pass; independent integration review,
 production application and stable-head CI remain in progress.
+
+## 2026-09-26 — Restore maximum access during paused production changes
+
+Owner authorized reset-access remediation and one extra targeted Terra review
+after the five-launch checkpoint. Separate schema availability from maximum edit
+capability. Overridden columns remain accessible; paused dialog disables input,
+behavior selection, Save and form submission while retaining reset. Integration
+and failure-recovery tests pass; eight desktop/mobile, light/dark, regular/compact
+visual matrices verify keyboard restore and student isolation. Canonical database
+types and rollback-only maximum database harness pass. Production209/210 approval
+is still unconsumed; exact-head targeted review and CI precede application/merge.

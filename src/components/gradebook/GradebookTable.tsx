@@ -36,6 +36,7 @@ export interface GradebookTableProps {
   onWeightDraftChange: (column: GradebookAssessmentColumn, value: string) => void
   onWeightCommit: (column: GradebookAssessmentColumn) => void
   onMaxMarkOpen?: (column: GradebookAssessmentColumn) => void
+  maximumEditsEnabled?: boolean
   savingMaxMarkKeys?: Set<string>
   onAssessmentOpen: (column: GradebookAssessmentColumn) => void
   onScoreOpen?: (student: GradebookStudentSummary, column: GradebookAssessmentColumn) => void
@@ -65,7 +66,7 @@ export function GradebookTable({
   students, columns, displayMode, lastNameFirst, showStudentIds,
   showWeights, ultraCompact = false, keepKeyColumnsVisible: frozen, columnWidths, onColumnWidthChange,
   weightDrafts, savingKeys, isReadOnly, scoreEditingDisabled = isReadOnly, itemScoreEditingDisabled = isReadOnly, onWeightDraftChange, onWeightCommit,
-  onMaxMarkOpen, savingMaxMarkKeys = new Set(), onAssessmentOpen, onScoreOpen, onFinalScoreOpen, savingScoreKeys = new Set(), selectedIds, allSelected, someSelected, toggleSelect,
+  onMaxMarkOpen, maximumEditsEnabled = true, savingMaxMarkKeys = new Set(), onAssessmentOpen, onScoreOpen, onFinalScoreOpen, savingScoreKeys = new Set(), selectedIds, allSelected, someSelected, toggleSelect,
   toggleSelectAll, selectedStudentId, onStudentSelect, onStudentDeselect,
   sortColumn, sortDirection, onSort, scrollContainerRef, onScroll,
 }: GradebookTableProps) {
@@ -156,7 +157,7 @@ export function GradebookTable({
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="bg-surface-2 !px-1 text-xs tabular-nums">
                   <Button type="button" variant="ghost" size="xs"
-                    disabled={isReadOnly || !onMaxMarkOpen || savingMaxMarkKeys.has(getAssessmentColumnKey(column))}
+                    disabled={isReadOnly || !onMaxMarkOpen || (!maximumEditsEnabled && !column.is_maximum_override) || savingMaxMarkKeys.has(getAssessmentColumnKey(column))}
                     aria-label={`Maximum mark for ${column.title}${column.is_maximum_override ? ', overridden' : ''}`}
                     className="w-full min-w-0 gap-0.5 px-0 text-xs tabular-nums"
                     onClick={() => onMaxMarkOpen?.(column)}>

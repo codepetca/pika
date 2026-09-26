@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/ui'
 import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 import { applyMaximumToCell, applyMaximumToColumn, previewMaximumChange, type GradebookMaximumState, type MaximumChangeMode } from '@/lib/gradebook-maximum'
 import { calculateCategorizedFinalPercent } from '@/lib/gradebook'
@@ -36,6 +37,7 @@ const noop = () => {}
 export function GradebookCompactPattern() {
   const [preferences, setPreferences] = useState({ ...DEFAULT_GRADEBOOK_PREFERENCES, showWeights: true })
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({})
+  const [maximumEditsEnabled, setMaximumEditsEnabled] = useState(true)
   const [maximums, setMaximums] = useState<Record<string, GradebookMaximumState>>({})
   const [maximumTarget, setMaximumTarget] = useState<GradebookAssessmentColumn | null>(null)
   const displayedColumns = columns.map((column) => {
@@ -62,6 +64,7 @@ export function GradebookCompactPattern() {
     <GradebookToolbar preferences={preferences} onChange={(changes) => setPreferences((value) => ({ ...value, ...changes }))}
       selectedCount={0} isReadOnly={false} onEditCategories={noop} onCopyEmails={noop} onExport={noop}
       studentGradesVisible={false} onStudentGradesVisibilityChange={noop} />
+    <Button variant="secondary" aria-pressed={!maximumEditsEnabled} onClick={() => setMaximumEditsEnabled((enabled) => !enabled)}>Pause maximum changes (fixture)</Button>
     <div className="h-96">
       <GradebookTable students={displayedStudents} columns={displayedColumns} displayMode={preferences.scoreDisplayMode}
         ultraCompact={preferences.ultraCompact} lastNameFirst={preferences.lastNameFirst}
@@ -70,12 +73,12 @@ export function GradebookCompactPattern() {
         columnWidths={{ first_name: 96, last_name: 96, id: 80, final: 88 }} onColumnWidthChange={noop}
         weightDrafts={weightDrafts} savingKeys={new Set()} isReadOnly={false}
         onWeightDraftChange={(column, value) => setWeightDrafts((drafts) => ({ ...drafts, [`${column.assessment_type}:${column.assessment_id}`]: value }))}
-        onWeightCommit={noop} onAssessmentOpen={noop} onMaxMarkOpen={setMaximumTarget} onScoreOpen={noop} onFinalScoreOpen={noop}
+        onWeightCommit={noop} onAssessmentOpen={noop} maximumEditsEnabled={maximumEditsEnabled} onMaxMarkOpen={setMaximumTarget} onScoreOpen={noop} onFinalScoreOpen={noop}
         selectedIds={new Set()} allSelected={false} someSelected={false} toggleSelect={noop} toggleSelectAll={noop}
         selectedStudentId={null} onStudentSelect={noop} onStudentDeselect={noop}
         sortColumn="first_name" sortDirection="asc" onSort={noop} />
     </div>
-    <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null}
+    <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null} maximumChangesDisabled={!maximumEditsEnabled}
       target={maximumTarget ? { kind: 'maximum', title: maximumTarget.title, value: maximumTarget.possible,
         isOverride: maximumTarget.is_maximum_override, undoValue: maximumTarget.source_possible } : null}
       isSaving={false} onClose={() => setMaximumTarget(null)} onSave={saveMaximum}

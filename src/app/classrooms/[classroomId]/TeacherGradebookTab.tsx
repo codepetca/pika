@@ -28,7 +28,7 @@ import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-vis
 type GradebookSection = 'grades' | 'settings'
 type GradebookSortColumn = GradebookIdentityColumn
 interface Props { classroom: Classroom; isActive?: boolean; sectionParam?: string | null; onSectionChange?: (section: GradebookSection) => void; onClassroomUpdated?: (classroom: Classroom) => void }
-interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; items_available?: boolean; maximum_overrides_available?: boolean; students: GradebookStudentSummary[] }
+interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; items_available?: boolean; maximum_overrides_available?: boolean; maximum_edits_enabled?: boolean; students: GradebookStudentSummary[] }
 type GradebookScoreEditTarget =
   | { kind: 'assessment'; student: GradebookStudentSummary; column: GradebookAssessmentColumn }
   | { kind: 'final'; student: GradebookStudentSummary }
@@ -69,6 +69,7 @@ export function TeacherGradebookTab({
   const [categorySchemaAvailable, setCategorySchemaAvailable] = useState(true)
   const [scoreOverridesAvailable, setScoreOverridesAvailable] = useState(true)
   const [maximumAvailable, setMaximumAvailable] = useState(false)
+  const [maximumEditsEnabled, setMaximumEditsEnabled] = useState(false)
   const [maximumTarget, setMaximumTarget] = useState<GradebookAssessmentColumn | null>(null)
   const [maximumError, setMaximumError] = useState('')
   const [savingMaxMarkKeys, setSavingMaxMarkKeys] = useState<Set<string>>(new Set())
@@ -274,6 +275,7 @@ export function TeacherGradebookTab({
       setScoreOverridesAvailable(data.score_overrides_available !== false)
       setItemsAvailable(data.items_available === true)
       setMaximumAvailable(data.maximum_overrides_available === true)
+      setMaximumEditsEnabled(data.maximum_overrides_available === true && (data.maximum_edits_enabled ?? data.maximum_overrides_available) === true)
       setAssessmentWeightDrafts(() => {
         const next: Record<string, string> = {}
         for (const column of columnsWithWeights) {
@@ -629,7 +631,7 @@ export function TeacherGradebookTab({
   }
 
   async function saveMaximum(maximum: number | null, mode: MaximumChangeMode | 'reset' = 'keep_marks') {
-    if (!maximumTarget || isReadOnly || !maximumAvailable) return false
+    if (!maximumTarget || isReadOnly || !maximumAvailable || (mode !== 'reset' && !maximumEditsEnabled)) return false
     const target = maximumTarget
     const classroomId = classroom.id
     const key = getAssessmentColumnKey(target)
@@ -847,6 +849,7 @@ export function TeacherGradebookTab({
       onWeightDraftChange={handleAssessmentWeightDraftChange} onWeightCommit={handleAssessmentWeightCommit}
       itemScoreEditingDisabled={isReadOnly || !itemsAvailable}
       onAssessmentOpen={openAssessment}
+      maximumEditsEnabled={maximumEditsEnabled}
       onMaxMarkOpen={maximumAvailable ? (column) => { if (!isReadOnly) { setMaximumError(''); setMaximumTarget(column) } } : undefined}
       savingMaxMarkKeys={savingMaxMarkKeys}
       onScoreOpen={openScore}
@@ -1011,7 +1014,7 @@ export function TeacherGradebookTab({
         onDelete={() => mutateItem('delete')}
         onReturnMarks={() => mutateItem('return_marks')}
       />
-      <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null}
+      <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null} maximumChangesDisabled={!maximumEditsEnabled}
         target={maximumTarget ? { kind: 'maximum', title: maximumTarget.title,
           value: maximumTarget.possible, isOverride: maximumTarget.is_maximum_override,
           undoValue: maximumTarget.source_possible } : null}

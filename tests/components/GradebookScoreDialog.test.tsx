@@ -1,8 +1,26 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '@/ui'
 import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 
 describe('GradebookScoreDialog original marks', () => {
+  it('blocks submission while maximum changes are paused but allows restoring an override', async () => {
+    const onSave = vi.fn(), onUndo = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    render(<TooltipProvider><GradebookScoreDialog isOpen student={null} maximumChangesDisabled target={{ kind: 'maximum', title: 'Essay', value: 50, isOverride: true, undoValue: 100 }} isSaving={false} onClose={vi.fn()} onSave={onSave} onUndo={onUndo} /></TooltipProvider>)
+    expect(screen.getByRole('spinbutton', { name: 'Max mark' })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Existing marks' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save max mark' })).toBeDisabled()
+    fireEvent.submit(screen.getByRole('button', { name: 'Save max mark' }).closest('form')!)
+    expect(onSave).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo override' }))
+    await waitFor(() => expect(onUndo).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('button', { name: 'Undo override' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo override' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Undo override' })).not.toBeInTheDocument())
+    expect(screen.getByRole('spinbutton', { name: 'Max mark' })).toHaveValue(100)
+    expect(screen.getByRole('button', { name: 'Save max mark' })).toBeDisabled()
+  })
+
   it('offers maximum-change behavior and validates a positive maximum', () => {
     const onSave = vi.fn()
     render(<GradebookScoreDialog isOpen student={null} target={{ kind: 'maximum', title: 'Essay', value: 100 }} isSaving={false} onClose={vi.fn()} onSave={onSave} />)

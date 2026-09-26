@@ -13,6 +13,7 @@ export function GradebookScoreDialog({
   student,
   target,
   isSaving,
+  maximumChangesDisabled = false,
   error,
   onClose,
   onSave,
@@ -29,6 +30,7 @@ export function GradebookScoreDialog({
     isOverride?: boolean
     undoValue?: number | null
   } | null
+  maximumChangesDisabled?: boolean
   isSaving: boolean
   error?: string
   onClose: () => void
@@ -51,6 +53,7 @@ export function GradebookScoreDialog({
   }, [isOpen, target?.isOverride, target?.title, target?.value])
 
   const isMaximum = target?.kind === 'maximum'
+  const changesPaused = isMaximum && maximumChangesDisabled
   const fieldLabel = isMaximum ? 'Max mark' : target?.kind === 'final' ? 'Final mark' : 'Mark earned'
   const earned = Number(value)
   const isTenth = Math.abs(earned * 10 - Math.round(earned * 10)) < 0.000001
@@ -76,7 +79,7 @@ export function GradebookScoreDialog({
         className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault()
-          if (isValid && !isSaving && !isRestoredValue) {
+          if (isValid && !isSaving && !isRestoredValue && !changesPaused) {
             if (isMaximum) void onSave(earned, maximumMode)
             else void onSave(earned)
           }
@@ -93,7 +96,7 @@ export function GradebookScoreDialog({
                 inputMode="decimal"
                 aria-label={fieldLabel}
                 value={value}
-                disabled={isSaving}
+                disabled={isSaving || changesPaused}
                 aria-invalid={value.trim() !== '' && !isValid}
                 aria-describedby={exceedsTotal ? 'gradebook-mark-exceeds-total' : undefined}
                 className={cn('w-24 flex-none text-right tabular-nums', GRADEBOOK_NUMBER_INPUT_CLASS)}
@@ -128,16 +131,17 @@ export function GradebookScoreDialog({
           </div>
         </FormField>
         {isMaximum ? <FormField label="Existing marks">
-          <Select value={maximumMode} disabled={isSaving} options={[
+          <Select value={maximumMode} disabled={isSaving || changesPaused} options={[
             { value: 'keep_marks', label: 'Keep existing marks' },
             { value: 'preserve_percentages', label: 'Preserve percentages' },
           ]} onChange={(event) => setMaximumMode(event.target.value as MaximumChangeMode)} />
         </FormField> : null}
+        {changesPaused ? <p className="text-sm text-text-muted">Maximum changes are paused. You can restore the original maximum.</p> : null}
         {error ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{error}</div> : null}
         <div className="flex flex-wrap justify-end gap-2">
           {target?.kind === 'item' && target.value != null && onClear ? <Button type="button" variant="secondary" disabled={isSaving} className="mr-auto" onClick={() => { void onClear() }}>Clear mark</Button> : null}
           <Button type="button" variant="secondary" disabled={isSaving} onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={isSaving} disabled={!isValid || isRestoredValue}>{isMaximum ? 'Save max mark' : 'Save mark'}</Button>
+          <Button type="submit" loading={isSaving} disabled={!isValid || isRestoredValue || changesPaused}>{isMaximum ? 'Save max mark' : 'Save mark'}</Button>
         </div>
       </form>
     </ContentDialog>

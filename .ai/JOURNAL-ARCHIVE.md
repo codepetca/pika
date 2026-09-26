@@ -32922,3 +32922,9 @@ against `docs/guidance/ai-grading-egress.md` but not settled with the owner.
 Process note: this session worked in the hub checkout rather than a feature worktree, and
 opened its first two PRs ready instead of draft, which PR Gate correctly rejected. Both
 violate `.ai/START-HERE.md`. Risk profile: async-grading.
+
+<!-- pika-session-log-archive-batch:a8d026089596e105ea53df03b2e65527dae4d4b792c2a5c7da71bc2aa261fe27 -->
+## 2026-09-22 — Assignment AI grading lease-fencing prerequisite
+
+- Owner `codex/meter-ai-grading`, based on merged metered-reservation PR1318. Migration202 adds a versioned worker contract plus service-only run/item patch and provenance-finalization boundaries. Existing and rolling-deploy runs remain legacy version0; future metered runs opt into version1, requiring the exact current, unexpired lease across DeepSeek and Gradex work while legacy finalizers/direct service-role updates are rejected.
+- Under standing local-migration authorization, migration202 is applied locally. Generated types match local history001–202; the real takeover harness proves expired/stale run and item patches, stale finalization, legacy finalization and direct service-role DML cannot bypass a version1 replacement lease. This slice does not create version1 runs, call the usage ledger or activate metering; production remains001–180.

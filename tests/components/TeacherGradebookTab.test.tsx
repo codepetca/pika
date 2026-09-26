@@ -319,6 +319,34 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^Essay$/)
   })
 
+  it('restores an existing maximum while production changes are paused and blocks other columns', async () => {
+    const data = gradebookResponse()
+    let restored = false
+    fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') { restored = true; return { ok: true, json: async () => ({}) } }
+      return { ok: true, json: async () => ({ ...data, maximum_overrides_available: true, maximum_edits_enabled: false,
+        assessment_columns: data.assessment_columns.map((column, index) => ({ ...column, source_possible: 10,
+          possible: index === 0 && !restored ? 5 : 10, maximum_scale: index === 0 && !restored ? 0.5 : 1,
+          is_maximum_override: index === 0 && !restored })) }) }
+    })
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('button', { name: 'Show %' }))
+    expect(screen.getByRole('button', { name: 'Maximum mark for Test 1' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Maximum mark for Essay, overridden' }))
+    expect(screen.getByRole('spinbutton', { name: 'Max mark' })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Existing marks' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save max mark' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo override' }))
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Max mark' })).toHaveValue(10))
+    expect(screen.queryByRole('button', { name: 'Undo override' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Maximum mark for Essay' })).toBeDisabled()
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PUT')
+    expect(writes).toHaveLength(1)
+    expect(JSON.parse(writes[0][1].body)).toMatchObject({ maximum: null, mode: 'reset', expected_maximum: 5, expected_scale: 0.5 })
+  })
+
   it('saves a maximum with the chosen behavior and retains the dialog on failure', async () => {
     const data = gradebookResponse()
     const maximumData = { ...data, maximum_overrides_available: true, assessment_columns: data.assessment_columns.map((column) => ({ ...column, source_possible: 10, maximum_scale: 1 })) }

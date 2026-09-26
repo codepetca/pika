@@ -209,3 +209,17 @@ Production-first schema preparation: include the byte-identical reviewed billing
 migration209 in this PR and regenerate canonical types against001–210. The
 production edit gate permits schema application before the gradebook merge while
 keeping scale-changing writes disabled until the complete application rollout.
+
+## Paused maximum changes: restoration access
+
+Reference: approved teacher Gradebook table/dialog and `/pattern-lab#gradebook-compact`.
+Extend their existing capability contracts so schema availability remains separate
+from permission to make new maximum changes. Existing overrides can open a
+restoration-only dialog while production changes are paused. Restore keeps its
+existing action; input, behavior selection, and Save remain disabled.
+Verify teacher desktop/mobile, light/dark, normal/ultra compact, open/closed,
+keyboard submission, saving, restoration failure and successful restoration.
+Student layout is n/a: these are teacher-only controls; verify role isolation.
+The primary signal is explicit paused-change copy with an available restore action.
+Reuse shared dialog, buttons, input and select. No new component or visual pattern.
+Composite keyboard and focus verification is required.

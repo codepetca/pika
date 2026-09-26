@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { GradebookCompactPattern } from '@/app/__ui/GradebookCompactPattern'
 import { GradebookStudentPanel } from '@/components/gradebook/GradebookStudentPanel'
 import { GradebookTable, type GradebookTableProps } from '@/components/gradebook/GradebookTable'
 import { GradebookToolbar } from '@/components/gradebook/GradebookToolbar'
@@ -28,6 +29,21 @@ function makeTableProps(overrides: Partial<GradebookTableProps> = {}): Gradebook
 }
 
 describe('Gradebook surface owners', () => {
+  it('exposes restoration-only maximum controls in the paused GradebookCompactPattern fixture', async () => {
+    const user = userEvent.setup()
+    render(<TooltipProvider><GradebookCompactPattern /></TooltipProvider>)
+    await user.click(screen.getByRole('button', { name: 'Show %' }))
+    await user.click(screen.getByRole('button', { name: 'Maximum mark for Research assignment 1', exact: true }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Max mark' }), { target: { value: '50' } })
+    await user.click(screen.getByRole('button', { name: 'Save max mark' }))
+    await user.click(screen.getByRole('button', { name: 'Pause maximum changes (fixture)' }))
+    expect(screen.getByRole('button', { name: 'Maximum mark for Unit test 1', exact: true })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Maximum mark for Research assignment 1, overridden' }))
+    expect(screen.getByRole('button', { name: 'Save max mark' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Undo override' }))
+    expect(screen.getByRole('spinbutton', { name: 'Max mark' })).toHaveValue(100)
+  })
+
   it('toggles ultra-compact mode through a checked More actions item', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
