@@ -77,14 +77,15 @@ describe('testToMarkdown', () => {
   })
 
   it('round-trips Markdown headings and field-like lines in a text reference', () => {
-    const content = '## Field notes\n### Species count\n- Count native species\nTitle: Observations'
+    const content = '## Field notes\n### Document 2\n- Count native species\n\\### Document 3\nTitle: Observations'
+    const prompt = 'Which species did you observe?\n## Documents\n### Question 2'
     const markdown = testToMarkdown({
       title: 'Wetland study',
       show_results: false,
       questions: [{
         id: QUESTION_ID_1,
         question_type: 'multiple_choice',
-        question_text: 'Which species did you observe?',
+        question_text: prompt,
         options: ['Frog', 'Fox'],
         correct_option: 0,
         points: 1,
@@ -94,6 +95,7 @@ describe('testToMarkdown', () => {
 
     const parsed = markdownToTest(markdown)
     expect(parsed.errors).toEqual([])
+    expect(parsed.draftContent?.questions[0].question_text).toBe(prompt)
     expect(parsed.documents[0]).toMatchObject({ title: 'Field notes', content })
   })
 })

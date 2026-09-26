@@ -605,7 +605,7 @@ test.describe('teacher Pattern Lab', () => {
     await expect(references.locator('[draggable]').first().getByRole('button', { name: 'Edit Wetland field notes' })).toBeVisible()
     await addReference.click()
     await page.getByRole('menuitem', { name: 'PDF' }).click()
-    await expect(references.getByText('PDF uploads are placeholders in Pattern Lab and appear in Preview only after attachment in Pika.')).toBeVisible()
+    await expect(references.getByText('Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.')).toBeVisible()
     await expect(detailsPane.getByText('8 total · 22 points')).toBeVisible()
     const questionActions = actionbar.getByRole('button', { name: 'Question actions' })
     await questionActions.click()
@@ -784,6 +784,7 @@ test.describe('teacher Pattern Lab', () => {
     await studentPreview.getByRole('button', { name: 'Wetland field notes' }).click()
     await expect(studentPreview.getByRole('heading', { name: 'Field notes', exact: true })).toBeVisible()
     await expect(studentPreview.getByText('Count native species')).toBeVisible()
+    await expect(studentPreview.getByRole('button', { name: 'Link reference 2' })).toHaveCount(0)
     await expect(studentPreview.getByRole('button', { name: 'PDF reference 3' })).toHaveCount(0)
     await testInfo.attach('test-edit-full-preview-prototype', {
       body: await page.screenshot({ path: testInfo.outputPath('test-edit-full-preview-prototype.png'), animations: 'disabled' }),
@@ -852,11 +853,11 @@ test.describe('teacher Pattern Lab', () => {
     const editDialog = page.getByRole('dialog', { name: 'Edit document' })
     await expect(editDialog.getByRole('textbox', { name: 'Document title' })).toHaveValue('Wetland notes')
     await expect(editDialog.getByRole('textbox', { name: 'Document text' })).toContainText('Count native species')
-    await editDialog.getByRole('textbox', { name: 'Document text' }).fill('## Field notes\n- Count native species\n- Record water temperature')
+    await editDialog.getByRole('textbox', { name: 'Document text' }).fill('## Field notes\n### Document 2\n- Count native species\n- Record water temperature')
     await editDialog.getByRole('button', { name: 'Cancel' }).click()
     await editReference.click()
     await expect(editDialog.getByRole('textbox', { name: 'Document text' })).toContainText('Record water depth')
-    await editDialog.getByRole('textbox', { name: 'Document text' }).fill('## Field notes\n- Count native species\n- Record water temperature')
+    await editDialog.getByRole('textbox', { name: 'Document text' }).fill('## Field notes\n### Document 2\n- Count native species\n- Record water temperature')
     await editDialog.getByRole('button', { name: 'Save' }).click()
     await expect(editReference).toContainText('Record water temperature')
     await testInfo.attach('test-text-reference-list', {
@@ -874,12 +875,38 @@ test.describe('teacher Pattern Lab', () => {
     const preview = page.getByRole('region', { name: 'Teacher test preview' })
     await preview.getByRole('button', { name: 'Wetland notes' }).click()
     await expect(preview.getByRole('heading', { name: 'Field notes' })).toBeVisible()
+    await expect(preview.getByRole('heading', { name: 'Document 2' })).toBeVisible()
     await expect(preview.getByText('Record water temperature')).toBeVisible()
     await testInfo.attach('test-text-reference-preview', {
       body: await page.screenshot({ path: testInfo.outputPath('test-text-reference-preview.png'), animations: 'disabled' }),
       contentType: 'image/png',
     })
     expect(writes).toEqual([])
+  })
+
+  test('releases fullscreen after the Test preview maximize retry', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'pattern-lab-desktop-light', 'One fullscreen retry check is sufficient')
+    await page.addInitScript(() => {
+      const requestFullscreen = Element.prototype.requestFullscreen
+      let requests = 0
+      Element.prototype.requestFullscreen = function (options?: FullscreenOptions) {
+        requests += 1
+        if (requests === 1) return Promise.reject(new Error('First request blocked for the prototype test'))
+        return requestFullscreen.call(this, options)
+      }
+    })
+
+    await openPatternLab(page, testInfo, 'teacher')
+    await page.getByRole('button', { name: 'Open test edit prototype' }).click()
+    const previewButton = page.getByRole('dialog', { name: 'Edit Test' }).getByRole('button', { name: 'Preview', exact: true })
+    await previewButton.click()
+    const preview = page.getByRole('region', { name: 'Teacher test preview' })
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false)
+    await page.getByRole('button', { name: 'Maximize Window' }).click()
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(true)
+    await preview.getByRole('button', { name: 'Close Preview' }).click()
+    await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false)
+    await expect(previewButton).toBeFocused()
   })
 
   test('previews material with a pinned creation bar and explicit draft action', async ({ page }, testInfo) => {

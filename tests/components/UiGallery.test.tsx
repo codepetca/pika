@@ -137,6 +137,7 @@ describe('UiGallery history preview fixture', () => {
     const references = within(screen.getByRole('dialog', { name: 'Edit Test' })).getByRole('group', { name: 'Reference Docs' })
     await user.click(within(references).getByRole('button', { name: 'Add reference' }))
     await user.click(screen.getByRole('menuitem', { name: 'Link' }))
+    expect(within(references).getByText('Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.')).toBeVisible()
     const handle = within(references).getByRole('button', { name: /Reorder Wetland field notes/ })
     handle.focus()
     await user.keyboard('{ArrowDown}')

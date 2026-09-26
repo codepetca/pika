@@ -7,7 +7,7 @@ import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import type { ExamDocumentItem } from '@/components/ExamDocumentWorkspace'
 import { MarkdownContentEditor } from '@/components/editor'
 import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { markdownToTest } from '@/lib/test-markdown'
+import { escapeTestMarkdownBody, markdownToTest } from '@/lib/test-markdown'
 import { MAX_TEST_DOCUMENT_TEXT_LENGTH } from '@/lib/test-documents'
 import type { TestAssessmentQuestion, TestDocument } from '@/types'
 import {
@@ -121,7 +121,7 @@ export function TestEditSplitPattern() {
   const nextReferenceIdRef = useRef(1)
   const previewButtonRef = useRef<HTMLButtonElement>(null)
   const previewActiveRef = useRef(false)
-  const previewOwnsFullscreenRef = useRef(false)
+  const previewStartedFullscreenRef = useRef<Element | null>(null)
   const referenceHandleRefs = useRef<Array<HTMLButtonElement | null>>([])
   const optionHandleRefs = useRef<Array<HTMLButtonElement | null>>([])
 
@@ -164,7 +164,7 @@ export function TestEditSplitPattern() {
     setMarkdownError(null)
     setPreviewOpen(false)
     previewActiveRef.current = false
-    previewOwnsFullscreenRef.current = false
+    previewStartedFullscreenRef.current = null
     nextReferenceIdRef.current = 1
     setOpen(true)
   }
@@ -326,12 +326,11 @@ export function TestEditSplitPattern() {
 
   function openFullTestPreview() {
     previewActiveRef.current = true
+    previewStartedFullscreenRef.current = document.fullscreenElement
     const fullscreenElement = document.documentElement
     if (!document.fullscreenElement && typeof fullscreenElement.requestFullscreen === 'function') {
       void fullscreenElement.requestFullscreen().then(() => {
-        if (previewActiveRef.current) {
-          previewOwnsFullscreenRef.current = true
-        } else if (document.fullscreenElement) {
+        if (!previewActiveRef.current && !previewStartedFullscreenRef.current && document.fullscreenElement) {
           void document.exitFullscreen().catch(() => {})
         }
       }).catch(() => {
@@ -343,10 +342,10 @@ export function TestEditSplitPattern() {
 
   function closeFullTestPreview() {
     previewActiveRef.current = false
-    if (previewOwnsFullscreenRef.current && document.fullscreenElement) {
+    if (!previewStartedFullscreenRef.current && document.fullscreenElement) {
       void document.exitFullscreen().catch(() => {})
     }
-    previewOwnsFullscreenRef.current = false
+    previewStartedFullscreenRef.current = null
     setPreviewOpen(false)
     window.requestAnimationFrame(() => previewButtonRef.current?.focus())
   }
@@ -355,9 +354,9 @@ export function TestEditSplitPattern() {
     const lines = [`# Test`, `Title: ${title}`, `Show Results: ${results === 'after-return' ? 'true' : 'false'}`, '', '## Questions']
     questions.forEach((question, index) => {
       const openResponse = questionTypes[index] === 'open'
-      lines.push('', `### Question ${index + 1}`, `ID: ${prototypeUuid('question', index)}`, `Type: ${openResponse ? 'open_response' : 'multiple_choice'}`, `Points: ${points[index]}`, 'Prompt:', question)
+      lines.push('', `### Question ${index + 1}`, `ID: ${prototypeUuid('question', index)}`, `Type: ${openResponse ? 'open_response' : 'multiple_choice'}`, `Points: ${points[index]}`, 'Prompt:', escapeTestMarkdownBody(question))
       if (openResponse) {
-        lines.push(`Code: ${responseFormats[index] === 'code' ? 'true' : 'false'}`, 'Max Chars: 5000', 'Answer Key:', answerKeys[index] || '', 'Sample Solution:', sampleSolutions[index] || '')
+        lines.push(`Code: ${responseFormats[index] === 'code' ? 'true' : 'false'}`, 'Max Chars: 5000', 'Answer Key:', escapeTestMarkdownBody(answerKeys[index] || ''), 'Sample Solution:', escapeTestMarkdownBody(sampleSolutions[index] || ''))
       } else {
         lines.push('Options:', ...(optionsByQuestion[index] ?? []).filter((option) => option.trim()).map((option) => `- ${option}`), `Correct Option: ${(correctOptions[index] ?? 0) + 1}`)
       }
@@ -367,7 +366,7 @@ export function TestEditSplitPattern() {
       lines.push('', `### Document ${index + 1}`, `ID: ${prototypeUuid('document', index)}`, `Source: ${reference.type === 'pdf' ? 'upload' : reference.type}`, `Title: ${reference.label}`)
       if (reference.type === 'link') lines.push(`URL: https://example.com/reference-${index + 1}`)
       if (reference.type === 'pdf') lines.push('Managed Upload: private')
-      if (reference.type === 'text') lines.push('Content:', reference.content || '')
+      if (reference.type === 'text') lines.push('Content:', escapeTestMarkdownBody(reference.content || ''))
     })
     if (references.length === 0) lines.push('_None_')
     return lines.join('\n')
@@ -479,14 +478,13 @@ export function TestEditSplitPattern() {
       created_at: PROTOTYPE_DATE,
       updated_at: PROTOTYPE_DATE,
     })),
-    // PDF rows are pending-upload placeholders in Pattern Lab; no fake file is
-    // offered in the student-facing preview until a real upload exists.
-    documents: references.flatMap((reference, index): ExamDocumentItem[] => reference.type === 'pdf' ? [] : [{
+    // Link and PDF rows have no real target in Pattern Lab; only authored Text
+    // references are offered in the student-facing preview.
+    documents: references.flatMap((reference, index): ExamDocumentItem[] => reference.type !== 'text' ? [] : [{
       id: prototypeUuid('document', index),
       title: reference.label,
       source: reference.type,
-      url: reference.type === 'link' ? `https://example.com/reference-${index + 1}` : undefined,
-      content: reference.type === 'text' ? reference.content : undefined,
+      content: reference.content,
     }]),
   }), [answerKeys, correctOptions, optionsByQuestion, points, questionTypes, questions, references, responseFormats, sampleSolutions, title])
 
@@ -684,8 +682,8 @@ export function TestEditSplitPattern() {
                   ))}
                 </div>
               ) : null}
-              {references.some((reference) => reference.type === 'pdf') ? (
-                <p className="border-t border-border px-3 py-2 text-xs text-text-muted">PDF uploads are placeholders in Pattern Lab and appear in Preview only after attachment in Pika.</p>
+              {references.some((reference) => reference.type !== 'text') ? (
+                <p className="border-t border-border px-3 py-2 text-xs text-text-muted">Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.</p>
               ) : null}
             </div>
 
