@@ -28,6 +28,11 @@ join policy. Closed enrollment and roster-only restrictions remain meaningful.
 
 ### Monetization strategy
 
+The [subscription policy](subscription-policy.md) is canonical for automated
+tier assignment and prorated upgrades. It distinguishes agreed product rules
+from proposed lifecycle defaults and unresolved billing decisions. This roadmap
+continues to own classroom limits, role separation, and phased rollout.
+
 - Start teacher-first: Free accounts can join and complete assigned work without buying a
   plan, but cannot create a classroom. Classroom capabilities are funded by the owner,
   not by each student's plan.

@@ -21,6 +21,17 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('AppHeader home navigation', () => {
+  it('names a non-classroom sidebar trigger for its destination', () => {
+    const onOpenSidebar = vi.fn()
+    render(
+      <AppHeader onOpenSidebar={onOpenSidebar} sidebarTriggerLabel="Open admin navigation" />,
+      { wrapper: Wrapper },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open admin navigation' }))
+    expect(onOpenSidebar).toHaveBeenCalledOnce()
+  })
+
   it('announces a primary Pika logo selection to the current classrooms page', () => {
     const handleHomeSelected = vi.fn()
     window.addEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)

@@ -1,7 +1,16 @@
 # Account plan foundation (migration 206)
 
-Status: dormant schema and service-only writer. This is not a billing launch or
-permission cutover.
+Status: schema and service-only writer. The separately authorized production
+cutover is recorded in the [rollout status](account-plan-rollout.md); strict
+creation and automatic Free provisioning are active. Billing is not implemented.
+
+Future billing and automated tier changes must follow the
+[subscription policy](subscription-policy.md). Its agreed proration rules are
+product requirements, not behavior implemented by migration 206. SUB-07/SUB-08
+also require preserved offering versions and explicit subscriber transitions
+before paid launch. This fixed plan-key-to-limit writer has no offering-version
+input; extend the authorized resolver/writer before supporting versioned paid
+benefits. Do not use direct grant edits as a grandfathering mechanism.
 
 The [account-plan rollout runbook](account-plan-rollout.md) separates read-only
 inventory, approved account batches, and the later strict cutover. The older
