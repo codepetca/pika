@@ -161,6 +161,8 @@ The sidebar offers Overview, Accounts, Activity, and Plans; account detail and
 plan preview remain nested Accounts states. No new stable UI guidance or shared
 component is proposed. A future real admin route can justify a shared nav
 extraction once its authorization and URL contracts are approved.
+The prototype disables the shared sidebar-preference write, so collapsing its
+rail does not change the persisted classroom sidebar state.
 
 Visual verification passed against the classroom shell at 1440×900 and
 390×844. Playwright captures include expanded and collapsed desktop navigation,
@@ -173,7 +175,9 @@ fictional content without either session. Composite checklist reviewed: yes;
 keyboard navigation uses native section buttons, drawer Escape/focus behavior
 comes from `LeftSidebar`/`ModalLayer`, active section uses `aria-current`, and
 focused tests cover selection, drawer closure, heading focus, and disabled
-confirmation. No manual accessibility follow-up remains for this prototype.
+confirmation. A cookie-isolation test and Playwright browser check confirm
+prototype collapse leaves `pika_left_sidebar` unchanged. No manual
+accessibility follow-up remains for this prototype.
 
 ## Inventory and mutation contract
 

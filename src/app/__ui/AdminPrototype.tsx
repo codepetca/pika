@@ -127,7 +127,7 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 }
 
 export function AdminPrototype() {
-  return <ThreePanelProvider routeKey="roster" initialLeftExpanded><AdminPrototypeContent /></ThreePanelProvider>
+  return <ThreePanelProvider routeKey="roster" initialLeftExpanded persistLeftSidebar={false}><AdminPrototypeContent /></ThreePanelProvider>
 }
 
 function AdminPrototypeContent() {

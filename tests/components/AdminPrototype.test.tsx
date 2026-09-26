@@ -83,4 +83,17 @@ describe('admin prototype', () => {
       Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth })
     }
   })
+
+  it('does not change the classroom sidebar preference when the prototype rail collapses', async () => {
+    document.cookie = 'pika_left_sidebar=expanded; Path=/'
+    try {
+      const user = userEvent.setup()
+      renderPrototype()
+      await user.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+      expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument()
+      expect(document.cookie).toContain('pika_left_sidebar=expanded')
+    } finally {
+      document.cookie = 'pika_left_sidebar=; Path=/; Max-Age=0'
+    }
+  })
 })
