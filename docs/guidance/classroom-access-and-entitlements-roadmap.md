@@ -30,7 +30,7 @@ join policy. Closed enrollment and roster-only restrictions remain meaningful.
 
 The [subscription policy](subscription-policy.md) is canonical for automated
 tier assignment and prorated upgrades. It distinguishes agreed product rules
-from proposed lifecycle defaults and unresolved billing decisions. This roadmap
+from provisional AI quantities and remaining launch prerequisites. This roadmap
 continues to own classroom limits, role separation, and phased rollout.
 
 - Start teacher-first: Free accounts can join and complete assigned work without buying a
@@ -41,30 +41,35 @@ continues to own classroom limits, role separation, and phased rollout.
   direction is Free, Basic, Plus and Pro; no account is a permanent teacher or
   student based on its plan.
 - Charge for demonstrated teacher value: advanced workflows and higher allowances for
-  expensive features such as AI grading. Set actual prices, included features and quotas
-  after measuring usage and delivery costs; none are hardcoded by this foundation.
+  expensive features such as AI grading. Launch prices and core features are approved
+  in the subscription policy;
+  candidate AI quantities still require measured delivery-cost validation.
 - Model trial/active/expired/canceled/grace states separately from plan names. An
   "expired free plan" should normally mean an expired trial or promotional grant; a
   baseline Free tier need not expire. Cancellation need not imply immediate expiry.
 - Expiry must not change ownership, delete classwork, or make students purchase access.
   Preserve access to existing work and a workable submission path. Restrict paid/new
-  consumption rather than abruptly interrupting an active class. Exact grace periods,
-  downgrade behavior for over-limit classrooms, exports and retention need explicit
-  approval before enforcement; this is not a promise of indefinite free storage.
+  consumption rather than abruptly interrupting an active class. The approved
+  subscription policy now defines grace periods,
+  over-limit automatic archiving and existing-work protections; enforcement still
+  requires implementation and verification. This is not a promise of indefinite
+  free storage.
 - Manual/school-sponsored grants can fit the same capability contract later. Defer school
   sales, organization administration, co-teachers, and a general billing framework.
 
 ### Account-plan classroom limits
 
-Migration 206 introduces a dormant account-level plan assignment that
-atomically derives `classrooms.create`:
+Approved launch limits are below. Migration 206 introduced the original fixed
+plan assignment; its current Pro limit is 10, not the new launch limit of 12.
+A future version-aware implementation must apply the new terms without rewriting
+historical migrations or existing purchases:
 
 | Account plan | Active owned classrooms | Other agreed direction |
 | --- | ---: | --- |
 | Free | 0 | May join classrooms |
 | Basic | 2 | Core teaching tools; no included AI grading |
-| Plus | 5 | Smaller monthly AI grading allowance, amount TBD |
-| Pro | 10 | Larger monthly AI grading allowance, amount TBD |
+| Plus | 5 | Candidate 300 AI grading runs/month; validate costs |
+| Pro | 12 | Candidate 1,000 AI grading runs/month; validate costs |
 
 Applying migration 206 alone does not classify existing accounts, change their
 effective grants, activate strict enforcement, charge anyone, or enable AI
@@ -75,10 +80,14 @@ Access pilot assignments, and verify snapshots before any UI or billing change.
 The [account-plan rollout runbook](account-plan-rollout.md) defines the
 read-only inventory, separately approved account batches and later strict
 activation without using the old Access/Free mapping as a plan default.
-Existing classrooms are not archived or deleted when a lower plan is assigned;
-further creation/restore is blocked while the account is at or over its new limit.
-Cancellation, grace periods, trial eligibility, payments, AI quantities and
-over-limit owner experience still require separate product decisions.
+Current assignment code does not archive existing classrooms; it blocks further
+creation/restore at the lower limit. The newly approved launch policy instead
+keeps the teacher-selected classrooms, or those with most recent activity if no
+selection was made, and archives the rest at downgrade. This needs new integration
+that preserves existing assignments, started tests, grading and exports, and
+prevents subscription archiving from triggering deletion. See SUB-05/SUB-12.
+Pricing, 30-day Plus trials, grace and cancellation are now decided in the
+subscription policy; AI quantities remain provisional pending cost validation.
 
 #### Superseded Access-pilot policy
 
@@ -94,8 +103,10 @@ subscription policy above.
 
 The one-trial-per-account ledger, billing synchronization, upgrade purchase flow and
 Plus/Pro limits were not part of the original Access enforcement slice. Their
-approved classroom limits are now defined above; AI allowances and pricing
-remain undecided. An archived classroom did not consume Access capacity.
+approved launch limits are now defined above; pricing is in the subscription
+policy and AI quantities remain provisional. The following describes only the
+superseded pilot behavior, not the new downgrade policy. An archived classroom
+did not consume Access capacity.
 Downgrade or expiry never deletes, archives, or changes ownership of existing
 classrooms; it blocks new active-classroom consumption.
 
@@ -376,8 +387,9 @@ treat a migration status copied into this roadmap as authority.
 
 ## Decisions still required before monetization enforcement
 
-Pricing and measured unit costs; Plus/Pro feature matrices and creation limits; trial length
-and nonpayment/cancellation/grace behavior; the once-per-account trial eligibility ledger;
-over-limit downgrade handling and archive/export/retention promises; school/manual grant
-precedence and revocation; abuse limits and support override authority. Keep these out of
-hardcoded role checks and do not infer approval from the phase 0 implementation.
+Prices, launch classroom limits, trial length and lifecycle rules are approved
+in [subscription policy](subscription-policy.md). Remaining gates include measured
+AI unit costs, once-per-teacher trial enforcement, deterministic activity ranking,
+archive/completion/retention compatibility, tax configuration, refund entitlement
+and dispute contracts, abuse limits and support authority. School/manual grant
+precedence remains deferred. Product approval does not activate enforcement.
