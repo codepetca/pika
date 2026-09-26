@@ -11,6 +11,63 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-22 — Test grading calibrated against adjudicated work
+
+Continuation of the earlier entry today; that one stopped before the second rule and the
+harness landed. Shipped after it: PR1321 (request timeout 25s to 60s), PR1324 (retry at
+reduced reasoning effort instead of failing when both token budgets truncate, plus
+`reasoningEffortUsed` in assignment and test provenance), PR1330 (score itemized rubrics as
+a checklist) and PR1331 (the calibration harness itself).
+
+PR1330 came from adjudicating real responses with the teacher. On a ten-criterion key worth
+ten marks, submissions satisfying six and seven criteria scored four; the teacher set both
+at 6-8 and 7-8. Failures were being charged more than once. Measured on a fixed benchmark —
+all 48 ten-point responses, five with verified targets — both adjudicated cases moved from
+4 into band (8 and 7), cell harshness fell from 36/48 to 21/44, and weak submissions held
+their low scores rather than floating up, which was the specific failure mode worth checking.
+Generalisation was then measured by re-running the same 80 responses from the earlier seed-7
+run: overall agreement 42 to 47, mean absolute disagreement 0.145 to 0.132, with the 10-point
+cell improving on a different draw than the rule was derived from.
+
+I dismissed this finding once before. A sweep of a second ten-point question graded
+accurately and read as a refutation, but those submissions failed on concepts rather than
+transcription and had fewer satisfied criteria, so the effect had little room to show. Two
+non-comparable questions treated as if one disproved the other; it cost several rounds and
+only resurfaced once PR1319 removed the masking noise.
+
+Reasoning effort was tested and ruled out as the cause of 10-point harshness: low and medium
+are harsh at an identical 36/48, and medium is marginally less harsh and more accurate for
+1.5x the tokens. Keep medium; stop looking there.
+
+OPEN, and the reason to keep the benchmark. The 9-point cell drifted more lenient under
+PR1330 (+0.239 to +0.248). This was predicted before the run — a floor rule raises scores by
+construction and that cell was already the most lenient — and it is NOT resolved. It cannot
+be resolved by another run: that cell is scored against the marks with the strongest evidence
+of being wrong, including the response recorded 2/9 which the teacher adjudicated at 8/9. It
+needs a human to adjudicate a handful of 9-point cases. Also open: peak output reached 16,386
+tokens after PR1330, so the 60s timeout binds again on the heaviest responses; four of 48 and
+one of 80 responses failed on timeout or invalid output in the last two runs.
+
+The benchmark is repeatable: `pnpm calibrate:test-grading --max-points 10 --all` over the 48
+ten-point responses, with verified targets for student-21 (6-8), student-16 (7-8), student-20
+(~10), student-12 (8-9) and student-06 (9). De-identified snapshots for both archived
+classrooms sit gitignored in the repo root.
+
+Process: this session again worked in the hub checkout rather than a feature worktree, and
+pushed twice to ready PRs, which PR Gate correctly rejected both times. Risk profile:
+async-grading.
+
+## 2026-09-22 — Assignment AI metering canary gate
+
+- Owner `codex/assignment-ai-metering-canary`; risk profiles async-grading and runtime-platform. Production and local ledgers were verified at migrations001–205. The production classroom-creation cutover remains disabled with181 accounts unclassified, Assignment metering has zero reservations, service-only privileges are intact, and migration205 has no malformed student Grades settings.
+- Assignment AI metering now requires both the exact-`true` server master switch and the authenticated teacher's exact account ID in a bounded comma-separated cohort. Every Assignment request uses the existing durable coordinator: missing, malformed, oversized or unmatched cohorts create unmetered version0 runs, while exact matches create metered version1 runs. Persisted version1 runs remain resumable independently of later gate changes. No flag, cohort, entitlement, quota or active production rollout changed.
+- Targeted Assignment usage/run/API coverage passes91 tests plus TypeScript. The focused gate passes309 tests across24 files plus architecture, UI/design policy, TypeScript and lint; Pika audit is clean. Model recommendation: GPT-6 — financial-usage admission and resumable async grading rollout boundary.
+- Independent security and architecture review found that a single-student retry could leave the durable path after a teacher was removed from the cohort, bypassing an active version1 reservation. A standalone active-run check still had a creation race, so remediation removes the split entirely: all Assignment AI requests now enter the atomic durable coordinator, where matching work resumes and conflicting work remains blocked. The metered Gradex smoke also requires its stable teacher ID in the cohort and verifies a version1 run with exactly one settled `grading.ai` reservation.
+
+## 2026-09-22 — Daily Log PR final merge window
+
+- PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.
+
 ## 2026-09-23 — Future classroom retention roadmap
 
 - Owner `codex/classroom-retention-roadmap`; risk profile none. Documented a proposed, plan-independent archived-classroom retention sequence and advance notices in the lifecycle roadmap, with a pointer from the product roadmap. It remains future work; no email, timer, automatic cold transition, deletion worker, database migration, or rollout gate was enabled.
@@ -317,3 +374,51 @@ three reviewed helpers and scopes gallery role queries to their sections, with
 all existing assertions/timeouts preserved.24 targeted tests pass, including
 coverage instrumentation (partial-suite global coverage thresholds are not a
 full coverage gate). Final focused checks and correction review precede new CI.
+## 2026-09-26 — Stripe test-mode foundation prepared
+
+- Owner `codex/stripe-billing-foundation`, based on the unmerged admin/policy branch at `85138d24`; risk `runtime-platform`. Astra architecture review and two bounded Terra workers prepared immutable offering versions, trusted bindings, durable event intake, fenced payment synchronization and bounded reconciliation. Coordinator integrated local-only gates, provider decoding, transport adapters and handler boundaries.
+- Migration 209 and rollback-only contracts are prepared but unapplied. Local dry run includes only 209. Test fixtures establish neither real Stripe connectivity nor deployed billing. No live or hosted changes; no HTTP route/runtime activation yet.
+- Local unit/static checks pass; exact verification and remaining gates live in `docs/guidance/stripe-billing-foundation.md`. Awaiting explicit approval for `stripe@22.6.2` and one-time application of migration 209 to local. Next: SDK/runtime wiring, authorized local DB application, generated types and database proof, draft PR and independent fixed-SHA review.
+
+## 2026-09-26 — Approved local Stripe integration verification
+
+- Owner approved exact `stripe@22.6.2` and one-time local migration 209. Both completed; migration approval consumed. Generated database types match; Stripe and existing account-plan rollback harnesses pass, including forced partial failure rollback and lease takeover. Billing sandbox setting remains false. The older classroom harness correctly refuses the post-cutover local setting; CI runs it against fresh replay.
+- Added real SDK signature verification and local-only webhook/operator-worker routes, with pinned API version, bounded requests and shared database origin/redirect checks. New database harnesses are wired into CI. Credentials are absent, so no real Stripe payment rehearsal or live activation is claimed.
+- Proceeding with focused checks, draft publication and bounded independent fixed-SHA security/compatibility review. No merge or production authority implied.
+
+## 2026-09-26 — Stripe billing review remediation prepared
+
+- Draft PR #1366 is stacked on #1360. Initial fixed-SHA Sol/Terra review found financial-adjustment and retry-fairness blockers; architecture review found no separate blocker. Batched fixes verify immutable product/amount and exact unadjusted card payment, preserve signed event timestamps, and add migration210 for fair due selection, bounded transient retries, durable attention and audited operator requeue. Existing209 is unchanged and its local application permission is consumed.
+- Focused checks pass342 tests plus TypeScript, lint and architecture/UI/design policies; Pika audit passes. Migration210 remains unapplied pending exact local authorization, including clearing unrecoverable legacy provider-created timestamps. Its rollback database contracts and regenerated types remain pending; no real Stripe round trip, live enablement or merge is claimed. Targeted correction review follows before the application checkpoint.
+
+- Targeted Sol review found a missing nullable-schedule alteration, non-isolated retry fixtures, and early-event adoption compatibility. Batch2 fixes all three in unapplied210 and its harness, adding explicit claimed-state assertions and an early-event binding regression. No further schema application is authorized yet.
+
+## 2026-09-26 — Consolidated billing209 and rebuilt local database
+
+- User explicitly approved combining unreleased209/210, erasing/resetting local and reseeding. Consolidated the reviewed final functions and table definitions into209; removed210 and its upgrade-only backfill. Verified local target/history; one `supabase db reset --local --no-seed` replayed001–209 successfully. Reseeded via local runtime credentials with shared hosted env excluded. Local fixtures: three users and one classroom; billing sandbox off and no billing inbox records. Reset restores migration defaults, including local creation/Free-provisioning gates; production is unchanged.
+- Generated types match the rebuilt schema. Billing recovery/payment, account-plan and classroom-creation rollback harnesses pass. Corrected SQL harness evaluation ordering by capturing the mutation result before inspecting persisted state. Focused checks pass342 tests plus TypeScript/lint/policy checks; final integration review and CI remain pending. Earlier209/reset authorization is consumed. No live Stripe payment rehearsal, production change or merge.
+
+## 2026-09-26 — Billing binding/webhook race correction
+
+- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
+- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
+
+## 2026-09-26 — Approved subscription launch policy
+
+- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
+  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
+  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
+  Updated the access roadmap and durable decisions; distinguished approved
+  product terms from provisional AI costs and missing runtime implementation.
+- Documentation-only risk profile: none. No database, Stripe account, production
+  runtime or existing subscription changed. Next implementation milestone is an
+  isolated Stripe test checkout plus lifecycle/access verification.
+
+## 2026-09-26 — Rename launch plans to Basic, Pro and Max
+
+- Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,
+  launch limits, trial/AI labels and decision log while retaining prices/benefits.
+  Documented legacy `plus` → Pro and `pro` → Max to avoid accidental entitlement
+  reassignment. Historical runtime/schema keys remain unchanged.
+- Continued policy PR1367; documentation-only verification and independent review
+  cover the cumulative approved-policy change. No runtime or live billing change.

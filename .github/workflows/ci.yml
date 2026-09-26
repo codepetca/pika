@@ -133,6 +133,11 @@ jobs:
       - name: Verify classroom creation entitlements and active-limit concurrency
         run: bash scripts/check-classroom-creation-entitlements-database.sh
 
+      - name: Verify account plans and isolated Stripe billing contracts
+        run: |
+          bash scripts/check-account-plan-foundation-database.sh
+          bash scripts/check-stripe-billing-foundation-database.sh
+
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
 
@@ -372,6 +377,9 @@ jobs:
 
       - name: Rehearse full classroom archive recovery on local Supabase
         run: pnpm verify:classroom-archive-recovery
+
+      - name: Verify concurrent Stripe subscription binding and webhook intake
+        run: bash scripts/check-stripe-billing-binding-race.sh
 
       - name: Stop ephemeral database
         if: always()

@@ -2,15 +2,19 @@
 
 Status: schema and service-only writer. The separately authorized production
 cutover is recorded in the [rollout status](account-plan-rollout.md); strict
-creation and automatic Free provisioning are active. Billing is not implemented.
+creation and automatic Free provisioning are active. The separate
+[Stripe foundation](stripe-billing-foundation.md) adds a disabled, local-only
+test integration; live billing is not enabled.
 
 Future billing and automated tier changes must follow the
 [subscription policy](subscription-policy.md). Its agreed proration rules are
 product requirements, not behavior implemented by migration 206. SUB-07/SUB-08
 also require preserved offering versions and explicit subscriber transitions
 before paid launch. This fixed plan-key-to-limit writer has no offering-version
-input; extend the authorized resolver/writer before supporting versioned paid
-benefits. Do not use direct grant edits as a grandfathering mechanism.
+input. Migration 209 adds the separate fenced billing writer that resolves
+classroom limits from a stored offering version and prevents the legacy writer
+from overwriting a billing-managed assignment. Its sandbox gate is disabled by
+default. Do not use direct grant edits as a grandfathering mechanism.
 
 The [account-plan rollout runbook](account-plan-rollout.md) separates read-only
 inventory, approved account batches, and the later strict cutover. The older

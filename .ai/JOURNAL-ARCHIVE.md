@@ -32946,6 +32946,7 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 <!-- pika-session-log-archive-batch:06bc9d4d10520782c0990db6049f1257619704be4e8a2800bc4730c5af6208a1 -->
 
 
+<!-- pika-session-log-archive-batch:2c91fd0d40c6c6053caab9e0d714c38762262481c098a65a3f82b42c664d37f4 -->
 ## 2026-09-22 — Default-off Assignment metering application integration
 
 - Owner `codex/assignment-ai-metering-integration`; risk profiles async-grading and workspace-state. Exact-true server flag admits all Assignment requests through version1 while flag-off single DeepSeek and new version0 runs retain legacy behavior. Persisted version1 controls per-item DeepSeek/Gradex admission, atomic settlement, retry retention, skip release and terminal release after flag rollback; quota/unavailable responses remain content-free.
@@ -32954,6 +32955,7 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 - Independent DB review confirmed the expiry cleanup edge. Forward migration204 (201/203 unchanged), authorized/applied locally, preserves already-expired Assignment release evidence during terminal cleanup, renews only live lease-fenced reservations for 24 hours, and adds `internal_failure` cleanup classification. Real DB expiry/renewal/conflict/privilege cases, warning lint and generated-type check pass; dedicated concurrent expiry-vs-renewal stress remains a follow-up to the deterministic serialized harness. Model recommendation: GPT-6 — durable provider lifecycle and transactional accounting boundaries. Epic remains open and rollout disabled.
 - Draft-review remediation keeps migration204 default-off while adding an exact service-only capability sentinel, complete per-item source fingerprints (Assignment, document, structured artifacts and workflow history), Assignment-only `internal_failure`, and lease-fenced durable Gradex run/item correlation. Admission and settlement now reject artifact deletion/replacement races; Gradex polling admits and fetches only live local items, survives pseudonym-salt rotation, and waits for all sibling terminal persistence before surfacing a failure. Validation used a disposable full migration replay because the earlier M204 shape was already applied to the normal local database; no local data was reset.
 
+<!-- pika-session-log-archive-batch:5706f6dd4d05b3c9bf05f8a624863fccadcf5ea6262830f141107ebb3f807f7b -->
 ## 2026-09-22 — Daily Log attendance-save reliability
 
 - Student Today now sends the first nonblank Daily Log immediately, retains per-student/classroom/Toronto-date device drafts, retries an unsent prior-day draft under its original date, and offers an explicit conflict choice when a saved log already exists. No separate check-in action was added; later edits retain throttled autosave, and page exit makes a best-effort save without treating it as confirmed.
@@ -32965,6 +32967,7 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 - User-approved fourth review batch addresses the remaining P1: later edits now supersede or clear the rollover-only memory draft, so a load cannot prefer first-typed A over newer durable AB. A deferred-first-save/reload regression covers the exact sequence. Focused checks pass 253 tests/16 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit passes. Current student Today and teacher Daily Playwright captures loaded and inspected at mobile/desktop; prior light/dark recovery-state captures remain valid because no visual treatment changed. Exact-head targeted review and CI pending.
 - Cumulative review found a storage-failure rollover conflict gap: an in-memory draft could auto-save over a new-day log from another device. Fifth batch treats in-memory and durable drafts equally for conflict detection and waits for the fresh entry read before auto-saving a cached restore. A blocked-storage/existing-log regression confirms visible conflict and no PATCH. Focused checks pass 254 tests/16 files plus policy/type/lint gates; pre-commit audit passes. Final exact-head review and CI pending.
 
+<!-- pika-session-log-archive-batch:d9e58355353824ac6248140c98d9bfc589d89a95adbca07b17111c38f3a0fe98 -->
 ## 2026-09-22 — Production student Grades
 
 - Owner `codex/student-grades-production`, based on merged Classroom Grades patterns. Added a default-off `student_grades` classroom preference, a teacher Gradebook visibility switch, and a student Classroom Grades tab backed by a private no-store server projection.
@@ -32976,19 +32979,23 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 - User-authorized extended review found returned assessment overrides were omitted from student Grades when underlying rubric/responses were incomplete. Remediation batch4 now evaluates assignment/test overrides before base-score completeness, preserves omission for incomplete work without overrides, and covers zero assignment and response-free closed-test overrides.
 - Teacher Gradebook visibility refinement moves the control from a standalone settings card into the existing action bar immediately before More actions. The slightly enlarged settings-style switch is neutral and icon-free when hidden; when shown, its track is solid green and its right thumb contains the Lucide Users icon. The optimistic checked treatment now remains visible while the background save disables the switch, with failure rollback covered. Concise “Show grades to students” / “Hide grades from students” tooltips remain, and save errors stay in the Gradebook feedback area. Targeted component and Pattern Lab tests, TypeScript, UI/design policy checks, and desktop/mobile light/dark visual verification pass; the student Grades surface is unchanged.
 
+<!-- pika-session-log-archive-batch:82625e3ba66a83b563423372f0e9e6a5fd4b12f2b75779c0acbf5647a0d7b63d -->
 ## 2026-09-22 — Persistent students icon in Gradebook visibility switch
 
 - The teacher Gradebook switch now shows a neutral Users icon at the right end of its track while off; when on, the icon moves with the thumb and the track remains green. The shared switch gained an optional off-state icon without changing switches that omit it. The full focused gate passes 166 files/1,904 tests plus architecture, TypeScript, lint and UI/design policy; Pika audit passes. Playwright confirms off/on at teacher desktop/mobile in light/dark, the live teacher off state, and the unchanged student Grades view at desktop/mobile. Risk profile: none. Model recommendation: GPT-6 — narrow shared-control styling change with role and state verification.
 
+<!-- pika-session-log-archive-batch:f3016c5b4ced93fb554df8b93c7de8689e7c982b0b80f2bacd7af2a481c83a04 -->
 ## 2026-09-22 — Student Grades merge preparation
 
 - PR1320 was rebased onto current main after an AI-log archive conflict was resolved without dropping either existing archived entry. Main now owns migrations202–204, so the unapplied student Grades migration was resequenced to205 and its private archive-adapter name and regression updated. The first exact-head CI replay applied205 in its ephemeral database, then found the generated types lacked the new private adapter; the checked-in types were synchronized to CI's exact generated diff. The user requested merge; final CI and merge gates follow. No migration was applied to a persistent environment.
 - The next exact-head CI passed build and database contracts but exposed two stale Pattern Lab selectors after production-component reuse and four outdated icon-catalog screenshots following the new student Grades navigation item. Browser tests now target the production switch name and `student-grades-view`; Linux screenshots come from the failed CI artifacts and Mac screenshots were regenerated locally. Targeted teacher/student desktop/mobile light/dark browser checks pass (12/12), as do the full focused gate (166 files/1,905 tests), TypeScript, lint, architecture, and UI/design policy. The normal local dev server was restored at port3001. PR1320 remains draft pending a fresh exact-head CI and merge.
 
+<!-- pika-session-log-archive-batch:8f8e8a26a037000689a153e61df641975ef3156fdd2c63e9611296f7eddda88b -->
 ## 2026-09-22 — Daily Log PR main synchronization
 
 - PR1329 was brought up to date with main after its exact-head CI passed. The sole textual conflict was in the AI archive; both batch markers and all distinct history were retained. Classroom page and test changes merged automatically without altering the Daily Log implementation. Combined-tree focused checks pass 166 files/1,922 tests plus architecture, UI/design policy, TypeScript and lint. PR remains draft for the updated-head gate; no merge to main was performed.
 
+<!-- pika-session-log-archive-batch:19b1a1441c24c890636fadb03e47bf596f5be6fce66cfc98d400cf32e258663d -->
 ## 2026-09-22 — Daily Log PR final review and up-to-date gate
 
 - User authorized additional review. An exact-head integration review of 14d6f387 found no blocker, with 112 targeted tests passing. Ready CI run35803112343 passed Test & Build, browser, database and PR Gate on that head. The squash merge was rejected solely because main advanced during CI and the branch-up-to-date rule applies; no admin override was used.
