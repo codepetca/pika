@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-21 — Hide unreturned grading status from students
-
-- Added a student-specific Assignment status projection that ignores internal `graded_at` state until work is returned. Student Classwork now retains its submission status before return and shows `Returned` only after the existing return boundary; teacher-facing `Graded` behavior is unchanged.
-- Added utility, API, and integration coverage. Focused checks pass with 76 files and 1,017 tests plus architecture, UI/design policy, TypeScript and lint. Visual verification covered the student Classwork summary at desktop/mobile in light/dark, including the exact unreturned-graded fixture; teacher reference captures showed no surface change.
-
 ## 2026-09-21 — Prevent incomplete student image uploads
 
 - Owner `codex/prevent-incomplete-image-uploads`, based on merged PR1313. The Assignment editor now opens the native picker before changing content, keeps progress/failure state outside Tiptap JSON, and inserts only completed managed images. Canceling leaves the response unchanged; failures expose Retry/Remove; paste/drop use the same transient path.
@@ -382,3 +377,12 @@ stripe_billing_foundation (PR1366), which is absent from origin/main. Reserved
 apply/repair/remove any migration. Local DB/types verification is additionally
 blocked until this checkout includes the approved billing baseline. The earlier
 209 approval request is obsolete; gradebook application would require local210.
+
+## 2026-09-26 — Above-maximum Gradebook warning
+
+Added amber border/background and warning triangle for assessment, final and
+average marks above 100%; raw mode compares earned to maximum. Compact warning
+and override icons coexist without clipping. Exact 100% and 150/200 stay normal.
+Verified 16 Pattern Lab screenshots across density, raw/percent, viewport and
+theme plus student-role isolation; focused checks and independent display review
+recorded in PR1365. Existing migration210/type/harness gates keep PR draft.

@@ -25,8 +25,8 @@ const students: GradebookStudentSummary[] = ['Avery', 'Grace', 'Lucas'].map((nam
   tests_earned: null, tests_possible: null, tests_percent: null,
   assessment_scores: columns.map((column, i) => ({
     assessment_id: column.assessment_id, assessment_type: column.assessment_type,
-    earned: i === 0 ? 20.6 : 80.5 + index, possible: 100,
-    percent: i === 0 ? 20.6 : 80.5 + index, is_graded: true,
+    earned: i === 0 ? 20.6 : i === 1 ? 110.5 + index : 80.5 + index, possible: 100,
+    percent: i === 0 ? 20.6 : i === 1 ? 110.5 + index : 80.5 + index, is_graded: true,
     is_manual_override: i === 1,
   })),
 }))

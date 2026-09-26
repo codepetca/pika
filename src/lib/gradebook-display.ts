@@ -27,6 +27,26 @@ export function formatCompactPercent(value: number | null): string {
   return `${Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)}%`
 }
 
+export function isGradeAboveMaximum(percent: number | null | undefined): boolean {
+  return percent != null && Number.isFinite(percent) && percent - 100 > 1e-10
+}
+
+export function getAssessmentMaximumPercent(cell: GradebookAssessmentCell | null): number | null {
+  if (!cell?.is_graded) return null
+  if (cell.earned != null && Number.isFinite(cell.earned) && Number.isFinite(cell.possible) && cell.possible > 0) return cell.earned / cell.possible * 100
+  return getAssessmentCellPercent(cell)
+}
+
+export function isAssessmentAboveMaximum(cell: GradebookAssessmentCell | null): boolean {
+  return isGradeAboveMaximum(getAssessmentMaximumPercent(cell))
+}
+
+export function formatAboveMaximumDescription(percent: number | null): string {
+  if (!isGradeAboveMaximum(percent)) return 'Above maximum'
+  const precise = Number(percent!.toFixed(6))
+  return precise > 100 ? `Above maximum (${precise}%)` : 'Above maximum'
+}
+
 export function getGradePercentTextClass(percent: number | null | undefined): string {
   if (percent == null || !Number.isFinite(percent)) return 'text-text-muted'
   if (percent < 50) return 'text-danger'

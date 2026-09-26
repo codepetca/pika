@@ -182,3 +182,18 @@ a matching version number alone as application evidence: verify its name and RPC
 contract. Local application/type generation must wait until the checkout and
 shared database migration histories align; do not repair history or apply the
 unrelated billing migration as part of this feature.
+
+## Above-maximum grade signal
+
+- Surface/reference: teacher Gradebook table and production-owner compact specimen;
+  reuse the mark dialog's existing over-total warning semantics and warning tokens.
+- Extend score/final/average cells with a warning background, border, bold value
+  and Lucide TriangleAlert. Keep override icons, values and column widths intact.
+  Exact percentages/maximums remain in accessible labels and hover explanations.
+- Threshold is above 100%, or earned above possible; an earned mark of 150/200
+  stays ordinary. Grade calculations remain unchanged.
+- Teacher desktop/mobile, light/dark, regular/compact, raw/percent; normal, exact
+  maximum, over maximum, overridden, disabled/read-only, hover/focus and summaries.
+  Student: n/a; this table is teacher-only, with student specimen isolation checked.
+  Primary signal: warning icon + highlighted mark. Composite behavior is reused.
+  Risk: none (display treatment); independent review is a bounded display review.

@@ -58,6 +58,27 @@ describe('Gradebook surface owners', () => {
     expect(screen.getByLabelText('Course weight for Essay')).toHaveTextContent('20.6%')
   })
 
+  it.each([{ ultraCompact: false, displayMode: 'percent' as const }, { ultraCompact: true, displayMode: 'percent' as const }, { ultraCompact: false, displayMode: 'raw' as const }, { ultraCompact: true, displayMode: 'raw' as const }])('flags above-maximum marks and summaries in $displayMode compact=$ultraCompact', ({ ultraCompact, displayMode }) => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 50, weight: 10, include_in_final: true }
+    const scored = { ...student, final_percent: 110.5, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 50, earned: 55.25, percent: 110.5, is_graded: true, is_manual_override: true }] }
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scored], columns: [column], ultraCompact, displayMode, onScoreOpen: vi.fn(), onFinalScoreOpen: vi.fn() })} /></TooltipProvider>)
+    const mark = screen.getByRole('button', { name: /Edit Demo Student mark for Essay:.*overridden, above maximum/ })
+    expect(mark).toHaveAttribute('data-above-maximum', 'true')
+    expect(mark).toHaveAttribute('title', 'Above maximum (110.5%): 55.3/50')
+    expect(mark.querySelectorAll('svg')).toHaveLength(2)
+    expect(mark).toHaveClass('bg-warning-bg', 'border-warning')
+    expect(screen.getByRole('button', { name: /final mark: 110.5%.*above 100%/ })).toHaveAttribute('data-above-maximum', 'true')
+    expect(within(screen.getByRole('row', { name: 'Class average' })).getAllByRole('img', { name: 'Above maximum' })).toHaveLength(2)
+  })
+
+  it.each([100, 75])('does not flag a mark at %s percent even when earned exceeds 100', (percent) => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 200, weight: 10, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 200, earned: percent * 2, percent, is_graded: true }] }
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scored], columns: [column], displayMode: 'raw', isReadOnly: true })} /></TooltipProvider>)
+    expect(screen.getByRole('button', { name: /Edit Demo Student mark/ })).not.toHaveAttribute('data-above-maximum')
+    expect(screen.queryByRole('img', { name: 'Above maximum' })).not.toBeInTheDocument()
+  })
+
   it('hides the second name in either name order and keeps raw marks aligned with their assessment', () => {
     const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true }
     const scored = { ...student, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 100, earned: 20.6, percent: 20.6, is_graded: true }] }
