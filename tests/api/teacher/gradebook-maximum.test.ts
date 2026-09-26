@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { PUT } from '@/app/api/teacher/gradebook/maximums/route'
 import { loadGradebookMaximumState, saveEffectiveGradebookMark } from '@/lib/server/gradebook-maximum'
@@ -10,6 +10,21 @@ const payload = { classroom_id, assessment_id, assessment_type: 'test', maximum:
 const request = (body: unknown) => new NextRequest('http://localhost/api/teacher/gradebook/maximums', { method: 'PUT', body: JSON.stringify(body) })
 describe('Gradebook maximum API and rollout boundary', () => {
   beforeEach(() => rpc.mockReset().mockResolvedValue({ data: { saved: true }, error: null }))
+  afterEach(() => vi.unstubAllEnvs())
+  it('blocks new production maximum changes until explicitly activated while retaining reads, normalized writes and reset', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('GRADEBOOK_MAXIMUM_EDITS_ENABLED', '')
+    expect((await PUT(request(payload))).status).toBe(409)
+    expect(rpc).not.toHaveBeenCalled()
+    rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id, maximum: 50, score_scale: 0.5 }], error: null })
+    expect((await loadGradebookMaximumState(classroom_id)).states.get(`test:${assessment_id}`)?.score_scale).toBe(0.5)
+    rpc.mockResolvedValue({ data: { saved: true }, error: null })
+    await saveEffectiveGradebookMark('teacher', classroom_id, 'test', assessment_id, 'student', 40)
+    expect(rpc).toHaveBeenLastCalledWith('save_gradebook_effective_mark', expect.objectContaining({ p_earned: 40 }))
+    expect((await PUT(request({ ...payload, mode: 'reset', maximum: null }))).status).toBe(200)
+    vi.stubEnv('GRADEBOOK_MAXIMUM_EDITS_ENABLED', 'true')
+    expect((await PUT(request(payload))).status).toBe(200)
+  })
   it('passes the teacher identity, chosen behavior and stale-read fence to the atomic writer', async () => {
     expect((await PUT(request(payload))).status).toBe(200)
     expect(rpc).toHaveBeenCalledWith('set_gradebook_maximum_override', expect.objectContaining({ p_teacher_id: '10000000-0000-4000-8000-000000000009', p_maximum: 50, p_mode: 'preserve_percentages', p_expected_maximum: 100, p_expected_scale: 1 }))

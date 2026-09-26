@@ -1,6 +1,6 @@
 import { applyMaximumToCell, applyMaximumToColumn } from '@/lib/gradebook-maximum'
 import { getAssessmentColumnKey } from '@/lib/gradebook-display'
-import { loadGradebookMaximumState, saveEffectiveGradebookMark } from '@/lib/server/gradebook-maximum'
+import { isGradebookMaximumEditingEnabled, loadGradebookMaximumState, saveEffectiveGradebookMark } from '@/lib/server/gradebook-maximum'
 import { logServerError } from '@/lib/server/diagnostics'
 import type { Assignment, AssignmentDoc } from '@/types'
 import { calculateAssignmentStatus } from '@/lib/assignments'
@@ -1164,7 +1164,7 @@ export async function loadTeacherGradebook(opts: {
     categories,
     category_schema_available: categorySchemaAvailable,
     score_overrides_available: scoreOverridesAvailable,
-    maximum_overrides_available: maximumState.available,
+    maximum_overrides_available: maximumState.available && isGradebookMaximumEditingEnabled(),
     items_available: itemsAvailable,
     assessment_columns: assessmentColumns,
     students,

@@ -159,15 +159,15 @@ fixtures are labeled separately from persisted demo-data verification.
 
 ### Maximum override rollout and rollback
 
-Deploy this application revision fully before applying migration 210. Until the
-RPC is present, reads use original marks and maximum editing is disabled. After
-activation, all mark writers must run this revision: previous deployments write
-effective marks directly and are unsafe against normalized marks when a scale
-is active. Do not roll back or route traffic to an older deployment while any
-maximum override/scale remains. Before rollback, restore every maximum through
-the new application and verify all maxima are null and scales are 1. This returns
-marks to original source coordinates; the old application can then read/write
-that coordinate system. Production activation and rollback remain human controlled.
+The schema can be applied before application deployment: new maxima start null
+and scales start 1. In production, new maximum changes remain blocked until
+`GRADEBOOK_MAXIMUM_EDITS_ENABLED=true`; development/test remain enabled. Set
+that production flag only after every mark writer runs this application revision.
+Reads and normalized manual writes remain active regardless of the edit flag;
+reset stays available for recovery. Previous deployments write effective marks
+directly and are unsafe once a maximum/scale is active. Before reverting mark
+writers, restore every maximum and verify all maxima are null and scales are 1.
+Production activation and rollback remain human controlled.
 
 Migration 210 extends the existing cold-archive normalization chain with null
 maximums and scale 1 for historical rows, retaining current overrides on restore.
@@ -182,8 +182,8 @@ a matching version number alone as application evidence: verify its name and RPC
 contract. On 2026-09-26 the owner approved local210, applied once from an
 isolated billing-baseline checkout with the identical reviewed gradebook SQL.
 The dry run listed only210; database contracts and generated type checks pass
-there. No billing migration, reset or history repair ran. Integrating canonical
-types into this feature branch still awaits the merged billing209 baseline.
+there. No billing migration, reset or history repair ran. The owner subsequently approved production209+210 and a gradebook-first merge;
+the byte-identical209 schema and regenerated001–210 types are now included here.
 
 ## Above-maximum grade signal
 
@@ -204,3 +204,8 @@ User refinement: remove warning and refresh/override glyphs from the teacher
 mark table (including max mark status). The mark dialogs retain reset actions.
 Reuse table controls and warning tokens; extend presentation only. Verify the
 same density/mode/viewport/theme matrix and student-role isolation.
+
+Production-first schema preparation: include the byte-identical reviewed billing
+migration209 in this PR and regenerate canonical types against001–210. The
+production edit gate permits schema application before the gradebook merge while
+keeping scale-changing writes disabled until the complete application rollout.

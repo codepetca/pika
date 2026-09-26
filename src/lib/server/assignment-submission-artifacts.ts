@@ -26,6 +26,8 @@ const assignmentRowSchema = z.object({
   due_at: timestampSchema,
   gradebook_category_id: z.string().uuid().nullable(),
   gradebook_weight: z.number(),
+  gradebook_maximum_override: z.number().nullable().default(null),
+  gradebook_score_scale: z.number().default(1),
   id: z.string().min(1),
   include_in_final: z.boolean(),
   instructions_markdown: z.string().nullable(),

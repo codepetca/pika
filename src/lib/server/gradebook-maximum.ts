@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { maximumStateMap } from '@/lib/gradebook-maximum'
 import { getServiceRoleClient } from '@/lib/supabase'
+import type { Database } from '@/types/database'
 import type { GradebookMaximumPut } from '@/lib/validations/gradebook-maximum'
 
 const stateSchema = z.array(z.object({
@@ -9,13 +10,15 @@ const stateSchema = z.array(z.object({
   maximum: z.number().finite().positive().nullable(), score_scale: z.number().finite().positive(),
 }))
 
-// Rollout adapter: generated RPC types are regenerated after migration 210 is
-// explicitly approved/applied. This narrow signature prevents untyped payloads.
-type MaximumRpc = (name: 'read_gradebook_maximum_state' | 'set_gradebook_maximum_override' | 'save_gradebook_effective_mark', args: Record<string, string | number | null>) => PromiseLike<{ data: unknown; error: { code?: string } | null }>
-async function maximumRpc(name: Parameters<MaximumRpc>[0], args: Parameters<MaximumRpc>[1]) {
+type MaximumRpcName = 'read_gradebook_maximum_state' | 'set_gradebook_maximum_override' | 'save_gradebook_effective_mark'
+type MaximumRpcArgs = Database['public']['Functions'][MaximumRpcName]['Args']
+async function maximumRpc(name: MaximumRpcName, args: MaximumRpcArgs) {
   const client = getServiceRoleClient()
   if (typeof client.rpc !== 'function') return { data: null, error: { code: 'PGRST202' } }
-  return (await (client.rpc as unknown as MaximumRpc).call(client, name, args)) ?? { data: null, error: { code: 'PGRST202' } }
+  return (await client.rpc(name, args)) ?? { data: null, error: { code: 'PGRST202' } }
+}
+export function isGradebookMaximumEditingEnabled() {
+  return process.env.NODE_ENV !== 'production' || process.env.GRADEBOOK_MAXIMUM_EDITS_ENABLED === 'true'
 }
 function missing(error: { code?: string } | null) { return ['PGRST202', '42883'].includes(error?.code ?? '') }
 function assertResult(error: { code?: string } | null) {
@@ -40,6 +43,9 @@ export async function loadGradebookMaximumState(classroomId: string) {
   return { available: true, states: maximumStateMap(states.data) }
 }
 export async function saveGradebookMaximum(teacherId: string, command: GradebookMaximumPut) {
+  if (command.mode !== 'reset' && !isGradebookMaximumEditingEnabled()) {
+    throw new ApiError(409, 'Maximum edits are not enabled on this deployment')
+  }
   const { error } = await maximumRpc('set_gradebook_maximum_override', {
     p_teacher_id: teacherId, p_classroom_id: command.classroom_id,
     p_assessment_type: command.assessment_type, p_assessment_id: command.assessment_id,

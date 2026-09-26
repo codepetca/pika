@@ -11,53 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-22 — Test grading repaired and calibrated against archived work
-
-Goal was to improve AI grading of open-response test questions the way assignment grading
-was improved in `b0557ac3`. Reaching that goal required fixing three defects the DeepSeek
-migration left on the test path; the assignment path had been migrated thoroughly and the
-test path had not.
-
-Shipped: PR1316 raised test output budgets from 220/420 (and 600/900 batch) to 6000/8000.
-DeepSeek counts reasoning against `max_tokens` and effort had been raised to `medium`
-(provider tier `high`), so every open-response test grade truncated twice and threw —
-broken in production, reachable from the teacher AI-suggest route, not only from tooling.
-Values measured, not guessed: 12 real responses spent 71-4509 output tokens. PR1312 fixed
-the gold-set harness, which gated on `OPENAI_API_KEY` and ran bare `tsx` with no
-`--env-file`. PR1319 added transcription-tolerance guidance to both prompt profiles; policy
-to v3, both prompt versions to v2.
-
-PR1319 came from adjudicating real archived work with the teacher, not from inspection.
-Codex exported two archived classrooms (684 teacher-scored responses, all coding,
-de-identified via `sanitizeAiText`; retained as JSONB in
-`classroom_retired_assessment_records`, no timed purge). A new `pnpm calibrate:test-grading`
-samples balanced across classroom and point scale and ranks disagreements for human
-adjudication, explicitly treating recorded marks as a second opinion rather than ground
-truth — the teacher had stated their own marking may contain errors, and that proved
-correct in both directions. Eight cases adjudicated. Finding: the grader reads concepts
-accurately (it caught backwards inheritance and an integer-division bug) but over-penalised
-transcription, costing a submission that matched the sample solution 3 of 10 marks for a
-stray period and a missing parenthesis. The defect was inconsistent application of its own
-leniency rule, not harshness. Post-fix run on the same seed: target cell improved from
--0.254 to -0.185, agreement 1/13 to 4/13.
-
-Open and unresolved. The rule was validated on the same 80 responses it was derived from,
-so generalisation is untested; a different seed on unseen work is the honest check. Only
-1 of 13 nine-point cases was adjudicated, so that cell's apparent regression is read as a
-yardstick artifact rather than demonstrated. PR1321 (request timeout 25s to 60s) is
-deliberately draft until a full run is observed completing at the shipped value; the
-evidence so far came from a temporary local override, and the timeout only began biting
-because PR1316 let grading think longer. Branch `claude/test-grading-calibrator` holds the
-calibrator, token/effort tracking and provenance stamping, unpushed with no PR; it carries
-a production change (optional `reasoningEffort` override, production default unchanged) and
-wants real review. Assignment and repo-review paths still carry the same 25s timeout,
-untouched for lack of evidence. DeepSeek retention remains account-level only, confirmed
-against `docs/guidance/ai-grading-egress.md` but not settled with the owner.
-
-Process note: this session worked in the hub checkout rather than a feature worktree, and
-opened its first two PRs ready instead of draft, which PR Gate correctly rejected. Both
-violate `.ai/START-HERE.md`. Risk profile: async-grading.
-
 ## 2026-09-22 — Assignment AI grading lease-fencing prerequisite
 
 - Owner `codex/meter-ai-grading`, based on merged metered-reservation PR1318. Migration202 adds a versioned worker contract plus service-only run/item patch and provenance-finalization boundaries. Existing and rolling-deploy runs remain legacy version0; future metered runs opt into version1, requiring the exact current, unexpired lease across DeepSeek and Gradex work while legacy finalizers/direct service-role updates are rejected.
@@ -389,3 +342,14 @@ billing9b710884 baseline checkout with identical reviewed210; dry run listed onl
 with rollback after fixing its question insert to canonical position column.
 Isolated generated types verification recorded in PR1365; feature-branch type
 integration awaits billing209 merge. Application permission is consumed.
+
+## 2026-09-26 — Prepare production209/210 and gradebook merge
+
+Owner explicitly authorized production209+210 then gradebook merge. Import the
+unchanged reviewed billing209 schema and generated001–210 types so gradebook
+can merge before billing application code. Remove temporary RPC cast; refine
+nullable reset/clear arguments and preserve maxima in assignment atomic parser.
+Production maximum edits default off until GRADEBOOK_MAXIMUM_EDITS_ENABLED is
+true after full mark-writer deployment; reads/normalized writes/reset stay usable.
+731 focused tests and canonical type checks pass; independent integration review,
+production application and stable-head CI remain in progress.
