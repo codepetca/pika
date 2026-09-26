@@ -160,6 +160,21 @@ describe('student grades server projection', () => {
     }
   })
 
+  it.each([{ questions: [] }, { questions: [{ id: 'q1', test_id: 't1', points: 0 }] }])('returns manual marks on empty/zero-point Tests with a positive maximum (%j)', async ({ questions }) => {
+    mocks.rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id: 't1', maximum: 10, score_scale: 1 }], error: null })
+    mocks.loadPagedRows
+      .mockResolvedValueOnce({ rows: [{ id: 'term', name: 'Term', percentage: 100 }], error: null })
+      .mockResolvedValueOnce({ rows: [{ assessment_type: 'test', assessment_id: 't1', earned: 7 }], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+      .mockResolvedValueOnce({ rows: [{ test_id: 't1', returned_at: '2026-09-21T12:00:00Z', tests: { id: 't1', title: 'Test', status: 'closed', include_in_final: true, gradebook_weight: 1, gradebook_category_id: 'term' } }], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+    mocks.loadChunkedRows.mockResolvedValueOnce({ rows: questions, error: null }).mockResolvedValueOnce({ rows: [], error: null })
+    const result = await getStudentGrades(studentId, classroomId)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]).toMatchObject({ earned: 7, possible: 10, percent: 70 })
+    expect(result.currentPercent).toBe(70)
+  })
+
   it('uses returned assessment overrides when underlying scores are incomplete', async () => {
     mocks.loadPagedRows
       .mockResolvedValueOnce({ rows: [

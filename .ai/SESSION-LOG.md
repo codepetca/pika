@@ -366,3 +366,8 @@ returned Classwork item scaling, fractional precision, manual input rounding,
 and bounded cumulative scales. App-first activation and rollback gate documented.
 Database harness now covers normalized fractions, historical archive keys,
 repeated scale rejection and reset. Local application approval remains pending.
+
+Second targeted review found an effective-maximum gate for empty/zero-point Tests.
+Manual marks now count with a positive override in teacher cells, final/summary,
+and returned student projection. Empty and zero-point tests have regressions.
+Migration 209 still awaits local approval; PR1365 remains draft.

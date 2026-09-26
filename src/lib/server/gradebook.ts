@@ -864,20 +864,21 @@ export async function loadTeacherGradebook(opts: {
     const sw = score?.score_workflow
     const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
     const adjustedMaximum = hasAdjustedMaximum('assignment', assignment.id)
+    const effectivePossible = maximumState.states.get(`assignment:${assignment.id}`)?.maximum ?? possible
     const isGraded = sc != null && st != null && sw != null
     const status = getAssignmentGradebookStatus(assignment, score, isGraded)
     const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'assignment', assignment.id))
     if (manualOverride != null) {
       const calculatedEarned = isGraded ? ((Number(sc) + Number(st) + Number(sw)) / 30) * possible : null
       return {
-        rawEarned: possible > 0 ? manualOverride : null,
+        rawEarned: effectivePossible > 0 ? manualOverride : null,
         cell: {
           assessment_id: assignment.id,
           assessment_type: 'assignment',
           earned: manualOverride,
           possible: adjustedMaximum ? possible : round2(possible),
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
-          is_graded: possible > 0,
+          is_graded: effectivePossible > 0,
           is_manual_override: true,
           calculated_earned: calculatedEarned == null ? null : adjustedMaximum ? calculatedEarned : round2(calculatedEarned),
           ...(status ? { status } : {}),
@@ -1014,7 +1015,7 @@ export async function loadTeacherGradebook(opts: {
           ...baseCell,
           earned: manualOverride,
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
-          is_graded: possible > 0,
+          is_graded: (maximumState.states.get(`test:${test.id}`)?.maximum ?? possible) > 0,
           is_manual_override: true,
           calculated_earned: baseCell.earned,
         }

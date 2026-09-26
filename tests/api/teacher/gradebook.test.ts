@@ -525,6 +525,16 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.class_summary.average_final_percent).toBe(49.5)
   })
 
+  it.each([{ testQuestions: [] }, { testQuestions: [{ id: 'tq1', test_id: 't1', points: 0 }] }])('counts a manual mark when an empty/zero-point Test receives a positive maximum (%j)', async ({ testQuestions }) => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id: 't1', maximum: 10, score_scale: 1 }], error: null })
+    mockSupabaseClient.from = buildMockFrom({ tests: [{ id: 't1', title: 'Test', status: 'closed', include_in_final: true }], testQuestions, scoreOverrides: [{ student_id: 'student-1', assessment_type: 'test', assessment_id: 't1', earned: 7 }] })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))).json()
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 7, possible: 10, percent: 70, is_graded: true, is_manual_override: true })
+    expect(body.students[0].final_percent).toBe(70)
+    expect(body.selected_student.tests[0]).toMatchObject({ earned: 7, possible: 10, percent: 70 })
+    expect(body.class_summary.tests[0]).toMatchObject({ average_percent: 70 })
+  })
+
   it('includes fully scored tests in grade calculations and class summary', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       tests: [{ id: 't1', title: 'Unit Test', status: 'closed', include_in_final: true }],
