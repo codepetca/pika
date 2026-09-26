@@ -22,6 +22,7 @@ interface AppShellProps {
   }>
   currentClassroomId?: string
   onOpenSidebar?: () => void
+  sidebarTriggerLabel?: string
   onNavigateHome?: (href: string) => boolean
   mainClassName?: string
   constrainToViewport?: boolean
@@ -45,6 +46,7 @@ export function AppShell({
   classrooms,
   currentClassroomId,
   onOpenSidebar,
+  sidebarTriggerLabel,
   onNavigateHome,
   mainClassName,
   constrainToViewport = false,
@@ -62,6 +64,7 @@ export function AppShell({
           classrooms={classrooms}
           currentClassroomId={currentClassroomId}
           onOpenSidebar={onOpenSidebar}
+          sidebarTriggerLabel={sidebarTriggerLabel}
           onNavigateHome={onNavigateHome}
           examModeHeader={examModeHeader}
           pageTitle={pageTitle}

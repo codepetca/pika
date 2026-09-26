@@ -3,6 +3,40 @@
 This file captures **high-level, long-lived decisions** about Pika’s architecture and product behavior.
 It replaces older prompt/spec history artifacts (which are intentionally not kept in the repo).
 
+## Versioned paid offerings and subscriber transitions (2026-09-26)
+
+- Before paid launch, bind each subscription and effective paid assignment to
+  a preserved offering version, including price mapping and benefits. Publishing
+  new terms must not silently rewrite existing purchases or renewals.
+- Each future subscriber migration explicitly chooses grandfathering, a future
+  renewal transition, or optional migration. Preserve already-paid terms,
+  including annual terms, unless the subscriber chooses a confirmed change.
+  No lifetime pricing promise or universal migration approach is approved.
+- SUB-07/SUB-08 in the [subscription policy](../guidance/subscription-policy.md)
+  own the requirements. The fixed plan writer still needs version support;
+  this decision changes no existing account, charge or production behavior.
+
+## Stripe subscription provider (2026-09-26)
+
+- Owner selected Stripe for paid subscriptions. Follow SUB-06 and all existing
+  payment-verification, proration and reconciliation rules in the
+  [subscription policy](../guidance/subscription-policy.md).
+- This selects the provider without changing tier limits or deciding prices,
+  billing intervals, AI quantities, cancellation, downgrade or failed-payment
+  rules. Billing implementation and live charges remain future work.
+
+## Subscription automation and upgrade proration (2026-09-25)
+
+- Routine subscription tier assignment is automated; the admin prototype provides
+  read-only operational visibility. Paid upgrades within the same billing interval
+  charge the difference for the remaining paid period and keep the renewal date.
+  Higher-tier access follows verified successful payment.
+- The canonical [subscription policy](../guidance/subscription-policy.md) records
+  these requirements and future change rules. Prices, grace, refunds, downgrade
+  timing, and AI allowance treatment remain open decisions. Stripe was selected
+  on 2026-09-26 (see above).
+  This is product direction, not billing implementation or launch authorization.
+
 ## Authentication Model
 - Signup uses **email verification codes**, followed by **password creation**.
 - Login uses **email + password** (code-based login is not used for normal sign-in).
