@@ -1,8 +1,10 @@
 # Stripe billing foundation
 
-Status: isolated test-mode implementation on `codex/stripe-billing-foundation`;
-the consolidated migration 209 is applied locally after an owner-approved reset
-and reseed. Final integration review and CI remain pending.
+Status: isolated test-mode foundation merged in PR #1366 on 2026-09-26 after
+independent review and all required checks. Consolidated migration 209 was
+applied locally after an owner-approved reset and reseed; the existing local
+database predates the final binding/webhook race correction. Checkout is a
+separate, incomplete follow-up described in the coordinator plan below.
 The [subscription policy](subscription-policy.md) remains the product authority.
 
 ## Scope and boundaries
@@ -76,7 +78,8 @@ refreshing it requires new explicit local migration/reset authorization. Unit te
 signature verification; they do not establish a real Stripe payment result.
 Final integration review identified this concurrency correction; the owner
 approved one additional correction and targeted review. That review and
-stable-head CI remain required before readiness.
+stable-head CI passed before PR #1366 merged; this does not establish a real
+Stripe payment rehearsal or update the existing local database.
 
 Application of the schema does not activate the private sandbox gate. Database
 rollback tests enable it only inside a transaction that rolls back. The CI-only
@@ -129,3 +132,61 @@ Consolidated migration209 must precede activation of this application revision: 
 bindings now require the immutable product and amount supplied by its RPCs.
 Without its final schema, decoding fails closed and no paid access is granted. Keep both
 application and database sandbox gates disabled during this rollout.
+
+## Approved launch execution — coordinator plan (2026-09-26)
+
+The owner authorized merging the approved policy and orchestrating implementation
+through Stripe test-mode verification. Canonical terms are SUB-01–15 in the
+subscription policy, including the final Basic/Pro/Max names. This is not live
+billing or production deployment authorization. New migration application still
+requires the exact target-and-migration approval in the schema checklist.
+
+| Phase | Deliverable and exit evidence | State |
+| --- | --- | --- |
+| 0 | Land admin, Stripe foundation and policy dependency chain with required PR Gate on each final SHA | Complete: #1360, #1366 and #1367 merged |
+| 1 | Exact 12-variant USD/CAD catalog; authenticated, durable hosted checkout; idempotent creation/recovery; verified payment grants selected version | Implementation on `codex/stripe-checkout-trial` |
+| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | Pending phase 1 contracts |
+| 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | Pending lifecycle integration |
+| 4 | Billing UI, self-service portal, expiry/failure notifications and missed-schedule recovery; role/theme/viewport visual verification | Pending backend contracts |
+| 5 | Full provider test-mode lifecycle rehearsal, concurrency/retry evidence, AI cost validation and tax setup review | Test credentials absent; live launch remains separate |
+
+Current ownership: coordinator owns shared runtime/HTTP integration and PRs;
+Astra/high worker owns durable checkout/provider/schema implementation;
+Terra/high worker owns the pure launch catalog and catalog tests. No worker may
+apply schema changes, mutate Stripe, publish, merge or recursively delegate.
+Financial/schema review uses independent reviewers with the bounded HQ review
+budget (one initial wave, at most three targeted fix waves, at most five launches
+and 45 minutes; any extension needs explicit approval). The agent thread limit
+prevented fresh reviewer creation, so the existing independent architecture
+reviewer completed the migration preapplication review. Full implementation
+review remains pending integration verification.
+
+Phase 1 currently includes the exact public catalog, test-only price provisioning
+with existing trusted products, authenticated catalog/start/status endpoints,
+durable checkout reservation and provider recovery, and worker integration.
+Checkout completion binds the purchased version; only the existing verified
+payment reconciler may grant paid access. Both checkout and sandbox gates remain
+disabled by default. No checkout UI or provider configuration has been performed.
+
+Migration 211 passed independent preapplication review but remains unapplied.
+The existing shared local database contains an unrelated gradebook migration210;
+do not reset it or use its schema to generate this branch's types. The proposed
+verification target is a separate disposable `pika_billing_checkout` database
+with migrations001–209 and211, no seed. Explicit application approval is pending.
+The checkout database contract is wired into disposable CI but has not run yet.
+The 192 billing-focused tests pass; focused checks passed 293 tests and policy
+checks, then stopped at TypeScript because the unapplied migration's eight RPCs
+are absent from generated types. Proper generation and full verification remain
+required; do not hand-edit types or cast around this gap.
+
+First checkout slice keeps taxes, discounts, upgrades, trials and subscription
+restarts unavailable until their separate contracts are implemented. Catalog AI
+quantities remain provisional metadata and do not grant usage. The existing
+foundation's paid grant does not yet implement expiry; therefore partial checkout
+implementation must not be treated as launch-ready. Subscription archiving needs
+explicit completion and retention protections, not the ordinary archive action.
+
+External prerequisites: locally configured Stripe test credentials/account/signing
+secret, an isolated runtime, and reviewed authorization for exact schema changes.
+Never paste keys into task messages or commit them. Missing prerequisites prevent
+a real provider rehearsal, not the authorized code and fixture implementation.

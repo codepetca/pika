@@ -11,52 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-22 — Test grading calibrated against adjudicated work
-
-Continuation of the earlier entry today; that one stopped before the second rule and the
-harness landed. Shipped after it: PR1321 (request timeout 25s to 60s), PR1324 (retry at
-reduced reasoning effort instead of failing when both token budgets truncate, plus
-`reasoningEffortUsed` in assignment and test provenance), PR1330 (score itemized rubrics as
-a checklist) and PR1331 (the calibration harness itself).
-
-PR1330 came from adjudicating real responses with the teacher. On a ten-criterion key worth
-ten marks, submissions satisfying six and seven criteria scored four; the teacher set both
-at 6-8 and 7-8. Failures were being charged more than once. Measured on a fixed benchmark —
-all 48 ten-point responses, five with verified targets — both adjudicated cases moved from
-4 into band (8 and 7), cell harshness fell from 36/48 to 21/44, and weak submissions held
-their low scores rather than floating up, which was the specific failure mode worth checking.
-Generalisation was then measured by re-running the same 80 responses from the earlier seed-7
-run: overall agreement 42 to 47, mean absolute disagreement 0.145 to 0.132, with the 10-point
-cell improving on a different draw than the rule was derived from.
-
-I dismissed this finding once before. A sweep of a second ten-point question graded
-accurately and read as a refutation, but those submissions failed on concepts rather than
-transcription and had fewer satisfied criteria, so the effect had little room to show. Two
-non-comparable questions treated as if one disproved the other; it cost several rounds and
-only resurfaced once PR1319 removed the masking noise.
-
-Reasoning effort was tested and ruled out as the cause of 10-point harshness: low and medium
-are harsh at an identical 36/48, and medium is marginally less harsh and more accurate for
-1.5x the tokens. Keep medium; stop looking there.
-
-OPEN, and the reason to keep the benchmark. The 9-point cell drifted more lenient under
-PR1330 (+0.239 to +0.248). This was predicted before the run — a floor rule raises scores by
-construction and that cell was already the most lenient — and it is NOT resolved. It cannot
-be resolved by another run: that cell is scored against the marks with the strongest evidence
-of being wrong, including the response recorded 2/9 which the teacher adjudicated at 8/9. It
-needs a human to adjudicate a handful of 9-point cases. Also open: peak output reached 16,386
-tokens after PR1330, so the 60s timeout binds again on the heaviest responses; four of 48 and
-one of 80 responses failed on timeout or invalid output in the last two runs.
-
-The benchmark is repeatable: `pnpm calibrate:test-grading --max-points 10 --all` over the 48
-ten-point responses, with verified targets for student-21 (6-8), student-16 (7-8), student-20
-(~10), student-12 (8-9) and student-06 (9). De-identified snapshots for both archived
-classrooms sit gitignored in the repo root.
-
-Process: this session again worked in the hub checkout rather than a feature worktree, and
-pushed twice to ready PRs, which PR Gate correctly rejected both times. Risk profile:
-async-grading.
-
 ## 2026-09-22 — Assignment AI metering canary gate
 
 - Owner `codex/assignment-ai-metering-canary`; risk profiles async-grading and runtime-platform. Production and local ledgers were verified at migrations001–205. The production classroom-creation cutover remains disabled with181 accounts unclassified, Assignment metering has zero reservations, service-only privileges are intact, and migration205 has no malformed student Grades settings.
@@ -422,3 +376,28 @@ full coverage gate). Final focused checks and correction review precede new CI.
   reassignment. Historical runtime/schema keys remain unchanged.
 - Continued policy PR1367; documentation-only verification and independent review
   cover the cumulative approved-policy change. No runtime or live billing change.
+
+## 2026-09-26 — Land policy and prepare durable test checkout
+
+- Owner authorized merging the policy and orchestrating implementation. Merged
+  admin1360, foundation1366 and policy1367 into main after their final required
+  PR Gate passed. Descendant rebases preserved complete reviewed trees.
+- Coordinator owns `codex/stripe-checkout-trial`. Workers completed the immutable
+  12-variant Basic/Pro/Max USD/CAD catalog, test-price provisioning, durable
+  checkout/service/provider/schema contracts. Coordinator added authenticated
+  catalog/start/status routes, bounded worker integration and disabled-by-default
+  checkout configuration. Browser redirects cannot grant access.
+- Independent preapplication review found no blockers in migration211, checksum
+  `567b4dfe360266c1b70899e34b70a7ec388a5fdc99494162dbf524207e3c61e9`.
+  It remains unapplied. Shared local has unrelated gradebook210; do not reset it.
+  Await explicit approval for disposable local `pika_billing_checkout`, applying
+  001–209 plus211 without seed. Prior209 reset authorization was consumed.
+- Billing-focused tests192/18 files pass; focused checks passed293 tests and
+  architecture/UI/design policy checks, then stopped at TypeScript because eight
+  new RPCs await proper generated types. Changed-file ESLint, Pika audit and22 CI
+  workflow tests pass. SQL harness is wired into CI but unexecuted locally.
+- Keep the checkout PR draft until SQL tests, generated types, full focused checks
+  and independent implementation review complete. Stripe test credentials remain
+  absent; no provider objects/payments or live billing were created. Trial,
+  lifecycle/access enforcement, billing UI and provider rehearsal remain pending
+  under the durable coordinator plan in `docs/guidance/stripe-billing-foundation.md`.

@@ -33002,6 +33002,7 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 - Main's two new commits affect only test-grading calibration and rubric scoring, with no Daily Log path overlap. They merged into the feature branch without a textual conflict. Fresh integration review and exact-head CI are required before the merge retry; no persistent database migration was applied.
 - Exact-head 722c9e9e targeted re-review found no blocker (142 tests), and CI run35804835394 passed all lanes. During that run main advanced again via a session-log-only PR. The strict up-to-date gate requires another branch sync; the archive batch-marker conflict retains both markers and unique history, with duplicate rolling-log entries omitted. No Daily Log source changed.
 
+<!-- pika-session-log-archive-batch:cb53a6eed0487d57d16d6adfcd5585bd856dc6865eb7a39bb53f771d4778501d -->
 ## 2026-09-22 — Test grading calibrated against adjudicated work
 
 Continuation of the earlier entry today; that one stopped before the second rule and the
