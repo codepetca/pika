@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-21 — Prevent incomplete student image uploads
-
-- Owner `codex/prevent-incomplete-image-uploads`, based on merged PR1313. The Assignment editor now opens the native picker before changing content, keeps progress/failure state outside Tiptap JSON, and inserts only completed managed images. Canceling leaves the response unchanged; failures expose Retry/Remove; paste/drop use the same transient path.
-- Student submission is disabled and guarded imperatively while an image is uploading or awaiting recovery. Legacy saved `imageUpload` nodes remain readable through the inert compatibility note and can no longer be created by the toolbar/shortcut.
-- Focused gate passes 45 files/699 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verified default, uploading and failure recovery on student desktop/mobile in light/dark; teacher is n/a because this follow-up changes only editable student state. Composite checklist passed with a labeled native picker, polite live progress, alert recovery and keyboard-reachable actions. Risk profile: none. Model recommendation: GPT-5 — bounded editor state transition with autosave and submit coordination.
-- Initial independent review found two non-blocking recovery gaps: paste/drop could replace a visible failed upload without an explicit student choice, and a finalized image could be orphaned if the editor became read-only before insertion. Remediation batch 1 preserves the failed item until Retry/Remove and requests reference-safe managed-storage cleanup for finalized-but-uninserted images; focused regressions and API coverage pass.
-- Targeted review found a blocking commit-to-passive-effect race where read-only or document-identity changes could occur just before upload completion. Remediation batch 2 makes completion validate render-current editability and document identity synchronously, with layout-phase unmount invalidation and both transition regressions.
-
 ## 2026-09-21 — Classroom Grades page patterns
 
 - Owner `codex/classroom-grades-patterns`, based on `origin/main@ed6e6ca1`. Pattern Lab now places a default-off “Show grades to students” switch at the top of the teacher Gradebook page pattern and adds a student Classroom Grades tab showing a returned-work-only 84% fixture with counted and excluded examples.
@@ -386,3 +378,11 @@ and override icons coexist without clipping. Exact 100% and 150/200 stay normal.
 Verified 16 Pattern Lab screenshots across density, raw/percent, viewport and
 theme plus student-role isolation; focused checks and independent display review
 recorded in PR1365. Existing migration210/type/harness gates keep PR draft.
+
+## 2026-09-26 — Simplify Gradebook mark cells
+
+Removed warning and refresh/override status icons from assessment, final, max
+and average cells per user refinement. Amber above-maximum highlight and
+accessible/hover explanation remain; dialog reset actions remain functional.
+Raw preview retains earned-only values and Max mark before Weight. Sixteen
+layout/theme/viewport/mode screenshots plus student-role isolation passed.

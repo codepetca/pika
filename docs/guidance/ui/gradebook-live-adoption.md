@@ -188,12 +188,17 @@ unrelated billing migration as part of this feature.
 - Surface/reference: teacher Gradebook table and production-owner compact specimen;
   reuse the mark dialog's existing over-total warning semantics and warning tokens.
 - Extend score/final/average cells with a warning background, border, bold value
-  and Lucide TriangleAlert. Keep override icons, values and column widths intact.
+  without status icons. Keep values and column widths intact.
   Exact percentages/maximums remain in accessible labels and hover explanations.
 - Threshold is above 100%, or earned above possible; an earned mark of 150/200
   stays ordinary. Grade calculations remain unchanged.
 - Teacher desktop/mobile, light/dark, regular/compact, raw/percent; normal, exact
   maximum, over maximum, overridden, disabled/read-only, hover/focus and summaries.
   Student: n/a; this table is teacher-only, with student specimen isolation checked.
-  Primary signal: warning icon + highlighted mark. Composite behavior is reused.
+  Primary signal: highlighted mark; warning text remains in hover/accessibility labels. Composite behavior is reused.
   Risk: none (display treatment); independent review is a bounded display review.
+
+User refinement: remove warning and refresh/override glyphs from the teacher
+mark table (including max mark status). The mark dialogs retain reset actions.
+Reuse table controls and warning tokens; extend presentation only. Verify the
+same density/mode/viewport/theme matrix and student-role isolation.

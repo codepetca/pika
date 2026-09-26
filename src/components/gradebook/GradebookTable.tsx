@@ -1,7 +1,6 @@
 'use client'
 
 import type { Ref } from 'react'
-import { RotateCcw, TriangleAlert } from 'lucide-react'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
 import {
   Button, DataTable, DataTableBody, DataTableCell, DataTableHead,
@@ -161,7 +160,6 @@ export function GradebookTable({
                     aria-label={`Maximum mark for ${column.title}${column.is_maximum_override ? ', overridden' : ''}`}
                     className="w-full min-w-0 gap-0.5 px-0 text-xs tabular-nums"
                     onClick={() => onMaxMarkOpen?.(column)}>
-                    {column.is_maximum_override ? <RotateCcw aria-hidden="true" className="h-3 w-3 shrink-0 text-primary" /> : null}
                     <span className="min-w-0 truncate" title={formatPoints(column.possible)}>{formatPoints(column.possible)}</span>
                   </Button>
                 </DataTableCell>)}
@@ -239,8 +237,6 @@ export function GradebookTable({
                       className={cn('w-full min-w-0 gap-1 px-1 tabular-nums', ultraCompact && 'gap-0.5 px-0 text-xs', overMaximum && ABOVE_MAXIMUM_CLASS)}
                       onClick={() => onScoreOpen?.(student, column)}
                     >
-                      {overMaximum ? <TriangleAlert aria-hidden="true" className="absolute right-0.5 top-0.5 h-2.5 w-2.5 text-warning" /> : null}
-                      {cell?.is_manual_override ? <RotateCcw aria-hidden="true" className={cn('h-3 w-3 shrink-0 text-primary', ultraCompact && overMaximum && 'absolute bottom-0.5 left-0.5 h-2.5 w-2.5')} /> : null}
                       <span className={cn(scoreTone, 'min-w-0 truncate')}>{score}</span>
                     </Button>
                   </DataTableCell>
@@ -258,8 +254,6 @@ export function GradebookTable({
                     className={cn('w-full min-w-0 justify-end gap-1 px-1 font-semibold tabular-nums', isGradeAboveMaximum(student.final_percent) && ABOVE_MAXIMUM_CLASS)}
                     onClick={() => onFinalScoreOpen?.(student)}
                   >
-                    {isGradeAboveMaximum(student.final_percent) ? <TriangleAlert aria-hidden="true" className="absolute right-0.5 top-0.5 h-2.5 w-2.5 text-warning" /> : null}
-                    {student.is_final_override ? <RotateCcw aria-hidden="true" className="h-3 w-3 shrink-0 text-primary" /> : null}
                     <span className={isGradeAboveMaximum(student.final_percent) ? 'text-warning' : getGradePercentTextClass(student.final_percent)}>{formatPercent(student.final_percent)}</span>
                   </Button>
                 </DataTableCell>
@@ -278,14 +272,14 @@ export function GradebookTable({
                   const overMaximum = isGradeAboveMaximum(stats.averagePercent) || (stats.averageEarned != null && column.possible > 0 && isGradeAboveMaximum(stats.averageEarned / column.possible * 100))
                   return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap border-t border-border-strong bg-surface-2 text-xs tabular-nums', getGradePercentTextClass(stats.averagePercent))}>
                     <span data-above-maximum={overMaximum || undefined} title={overMaximum ? formatAboveMaximumDescription(stats.averagePercent) : undefined} className={cn(getGradePercentTextClass(stats.averagePercent), overMaximum && 'inline-flex items-center gap-0.5 px-0.5 py-1', overMaximum && ABOVE_MAXIMUM_CLASS)}>
-                      {overMaximum ? <TriangleAlert role="img" aria-label="Above maximum" className="h-3 w-3 shrink-0" /> : null}
+                      {overMaximum ? <span className="sr-only">{formatAboveMaximumDescription(stats.averagePercent)}: </span> : null}
                       {displayMode === 'raw' ? (stats.averageEarned == null ? '—' : formatPoints(stats.averageEarned)) : ultraCompact ? formatWholePercent(stats.averagePercent) : formatColumnStat(stats, column, 'average', displayMode)}
                     </span>
                   </DataTableCell>
                 })}
                 {filler ? <DataTableCell className="border-t border-border-strong bg-surface-2">{null}</DataTableCell> : null}
                 <DataTableCell align="right" className={cn('border-t border-border-strong bg-surface-2 font-semibold tabular-nums', getGradePercentTextClass(finalAverage), frozen && 'sticky right-0 z-sticky-table')}><span data-above-maximum={isGradeAboveMaximum(finalAverage) || undefined} title={isGradeAboveMaximum(finalAverage) ? formatAboveMaximumDescription(finalAverage) : undefined} className={cn(getGradePercentTextClass(finalAverage), isGradeAboveMaximum(finalAverage) && 'inline-flex items-center gap-0.5 px-1 py-1', isGradeAboveMaximum(finalAverage) && ABOVE_MAXIMUM_CLASS)}>
-                  {isGradeAboveMaximum(finalAverage) ? <TriangleAlert role="img" aria-label="Above maximum" className="h-3 w-3 shrink-0" /> : null}
+                  {isGradeAboveMaximum(finalAverage) ? <span className="sr-only">{formatAboveMaximumDescription(finalAverage)}: </span> : null}
                   {formatCompactPercent(finalAverage)}
                 </span></DataTableCell>
               </DataTableRow>

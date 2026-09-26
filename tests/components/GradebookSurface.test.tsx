@@ -65,10 +65,10 @@ describe('Gradebook surface owners', () => {
     const mark = screen.getByRole('button', { name: /Edit Demo Student mark for Essay:.*overridden, above maximum/ })
     expect(mark).toHaveAttribute('data-above-maximum', 'true')
     expect(mark).toHaveAttribute('title', 'Above maximum (110.5%): 55.3/50')
-    expect(mark.querySelectorAll('svg')).toHaveLength(2)
+    expect(mark.querySelectorAll('svg')).toHaveLength(0)
     expect(mark).toHaveClass('bg-warning-bg', 'border-warning')
     expect(screen.getByRole('button', { name: /final mark: 110.5%.*above 100%/ })).toHaveAttribute('data-above-maximum', 'true')
-    expect(within(screen.getByRole('row', { name: 'Class average' })).getAllByRole('img', { name: 'Above maximum' })).toHaveLength(2)
+    expect(within(screen.getByRole('row', { name: 'Class average' })).getAllByText('Above maximum (110.5%):')).toHaveLength(2)
   })
 
   it.each([100, 75])('does not flag a mark at %s percent even when earned exceeds 100', (percent) => {
@@ -160,7 +160,7 @@ describe('Gradebook surface owners', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent(/^Essay$/)
   })
 
-  it('opens mark editing and marks an override with an undo symbol while retaining its grade-band color', () => {
+  it('opens overridden mark editing without icons while retaining its grade-band color', () => {
     const onScoreOpen = vi.fn()
     const column = {
       assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay',
@@ -177,14 +177,14 @@ describe('Gradebook surface owners', () => {
 
     const manualMark = screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 80%, overridden' })
     expect(manualMark).not.toHaveClass('text-primary')
-    expect(manualMark.querySelector('svg')).toHaveClass('text-primary', 'h-3', 'w-3')
+    expect(manualMark.querySelector('svg')).toBeNull()
     expect(manualMark.querySelector('span:last-child')).toHaveClass('text-text-default')
-    fireEvent.click(manualMark.querySelector('svg')!)
+    fireEvent.click(manualMark)
     expect(onScoreOpen).toHaveBeenCalledWith(studentWithManualMark, column)
     expect(screen.queryByRole('button', { name: /Undo override for Demo Student/ })).not.toBeInTheDocument()
   })
 
-  it('opens final mark editing and preserves final grade color with an override symbol', () => {
+  it('opens overridden final mark editing without icons while retaining its grade-band color', () => {
     const onFinalScoreOpen = vi.fn()
     const overriddenStudent: GradebookStudentSummary = {
       ...student,
@@ -194,7 +194,7 @@ describe('Gradebook surface owners', () => {
     render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [overriddenStudent], onFinalScoreOpen })} /></TooltipProvider>)
 
     const finalMark = screen.getByRole('button', { name: 'Edit Demo Student final mark: 49.0%, overridden' })
-    expect(finalMark.querySelector('svg')).toHaveClass('text-primary', 'h-3', 'w-3')
+    expect(finalMark.querySelector('svg')).toBeNull()
     expect(finalMark.querySelector('span:last-child')).toHaveClass('text-danger')
     fireEvent.click(finalMark)
     expect(onFinalScoreOpen).toHaveBeenCalledWith(overriddenStudent)
