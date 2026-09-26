@@ -619,6 +619,29 @@ describe('TeacherTestPreviewPage', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('renders every unsaved draft question without requesting saved test data', async () => {
+    render(
+      <TeacherTestPreviewPage
+        classroomId="pattern-lab"
+        testId="prototype-test"
+        embedded
+        draftPreview={{
+          title: 'Draft wetland test',
+          questions: [
+            { id: 'question-1', test_id: 'prototype-test', question_text: 'Wetland MC', question_type: 'multiple_choice', options: ['A', 'B'], position: 0, created_at: '', updated_at: '' },
+            { id: 'question-2', test_id: 'prototype-test', question_text: 'Wetland open', question_type: 'open_response', options: [], position: 1, created_at: '', updated_at: '' },
+          ],
+          documents: [{ id: 'reference-1', title: 'Reference notes', source: 'text', content: 'Wetland notes' }],
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Draft wetland test' })).toBeVisible()
+    expect(screen.getByTestId('student-test-form')).toHaveTextContent('Wetland MC|Wetland open')
+    expect(screen.getByRole('button', { name: 'Reference notes' })).toBeVisible()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('keeps preview content locked when fullscreen and window resize are blocked', async () => {
     fullscreenElement = null
     Object.defineProperty(document.documentElement, 'requestFullscreen', {

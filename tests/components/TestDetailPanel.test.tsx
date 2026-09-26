@@ -124,6 +124,78 @@ describe('TestDetailPanel', () => {
     return fetchMock
   }
 
+  it('uses the split authoring layout with one navigable question and real document actions', async () => {
+    mockFetchForTest(sampleQuestions)
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'draft' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        onRequestClose={vi.fn()}
+        onRequestPublish={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    expect(await screen.findByTestId('test-split-layout')).toBeInTheDocument()
+    expect(screen.getByTestId('test-editor-details-pane')).toHaveTextContent('Reference Docs')
+    expect(screen.getByTestId('test-editor-content-pane')).toHaveTextContent('Multiple choice')
+    expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Question 2 prompt' })).not.toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
+    expect(screen.getByRole('textbox', { name: 'Question 2 prompt' })).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add reference' }))
+    expect(screen.getByRole('menuitem', { name: 'Link' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Upload PDF or image' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Markdown text' })).toBeInTheDocument()
+  })
+
+  it('flushes option edits before switching questions and blocks invalid choices', async () => {
+    holdAutosaveDebounce()
+    mockFetchForTest(sampleQuestions)
+    render(<TestDetailPanel test={makeTestWithStats({ status: 'draft' })} classroomId="classroom-1" onTestUpdate={vi.fn()} testQuestionLayout="split" />, { wrapper: Wrapper })
+    const option = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(option, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
+    fireEvent.change(option, { target: { value: 'Updated answer' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous question' }))
+    expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Updated answer')
+  })
+
+  it('keeps question actions and Markdown inside the split editor', async () => {
+    holdAutosaveDebounce()
+    mockFetchForTest(summaryDetailQuestions)
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'draft' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    expect(await screen.findByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Points')).toHaveValue(6)
+    fireEvent.click(screen.getByRole('button', { name: 'Question actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Code response' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate question' }))
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
+    expect(screen.getByText('3 total · 15 points')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
+    expect(screen.getByTestId('test-markdown-editor')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('ignores stale draft responses after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleDraft = createDeferred<Response>()

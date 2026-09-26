@@ -26,6 +26,9 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
+  if (access.test.status === 'draft') {
+    return NextResponse.json({ error: 'Cannot grade a draft test' }, { status: 400 })
+  }
 
   const supabase = getServiceRoleClient()
   const { data: responseRow, error: responseError } = await supabase

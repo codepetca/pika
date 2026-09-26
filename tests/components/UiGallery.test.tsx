@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AssignmentEditSplitPattern } from '@/app/__ui/AssignmentEditSplitPattern'
+import { TestEditSplitPattern } from '@/app/__ui/TestEditSplitPattern'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { AssignmentCreationPattern } from '@/app/__ui/AssignmentCreationPattern'
 import { MaterialCreationPattern } from '@/app/__ui/MaterialCreationPattern'
@@ -67,8 +68,10 @@ describe('UiGallery history preview fixture', () => {
   it('demonstrates full-size QR rendering through the shared accessible dialog', async () => {
     renderGallery('teacher')
     expect(AssignmentEditSplitPattern).toBeTypeOf('function')
+    expect(TestEditSplitPattern).toBeTypeOf('function')
     const navigation = screen.getByRole('navigation', { name: 'Pattern Lab sections' })
     expect(within(navigation).getByRole('link', { name: 'Assignment edit' })).toBeInTheDocument()
+    expect(within(navigation).getByRole('link', { name: 'Test edit' })).toBeInTheDocument()
     const user = userEvent.setup()
     const opener = screen.getByRole('button', { name: 'Open QR example' })
     await user.click(opener)
@@ -124,6 +127,22 @@ describe('UiGallery history preview fixture', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(dialog).toBeInTheDocument()
     expect(addRequirement).toHaveFocus()
+  })
+
+  it('supports keyboard reordering in the Test edit prototype reference list', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><TestEditSplitPattern /></TooltipProvider></ThemeProvider>)
+    await user.click(screen.getByRole('button', { name: 'Open test edit prototype' }))
+
+    const references = within(screen.getByRole('dialog', { name: 'Edit Test' })).getByRole('group', { name: 'Reference Docs' })
+    await user.click(within(references).getByRole('button', { name: 'Add reference' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Link' }))
+    expect(within(references).getByText('Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.')).toBeVisible()
+    const handle = within(references).getByRole('button', { name: /Reorder Wetland field notes/ })
+    handle.focus()
+    await user.keyboard('{ArrowDown}')
+    await waitFor(() => expect(within(references.querySelector('[draggable]')!).getByRole('textbox', { name: 'link reference label' })).toBeVisible())
+    await waitFor(() => expect(handle).toHaveFocus())
   })
 
   it('centers the Daily date when relative context is hidden', async () => {

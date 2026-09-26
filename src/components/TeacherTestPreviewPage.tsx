@@ -20,6 +20,11 @@ interface Props {
   embedded?: boolean
   listenForUpdates?: boolean
   onClose?: () => void
+  draftPreview?: {
+    title: string
+    questions: TestAssessmentQuestion[]
+    documents: ExamDocumentItem[]
+  }
 }
 
 function isFullscreenActive(): boolean {
@@ -69,6 +74,7 @@ export function TeacherTestPreviewPage({
   embedded = false,
   listenForUpdates = false,
   onClose,
+  draftPreview,
 }: Props) {
   const [title, setTitle] = useState('Test Preview')
   const [questions, setQuestions] = useState<TestAssessmentQuestion[]>([])
@@ -85,6 +91,7 @@ export function TeacherTestPreviewPage({
   const previewRequestIdRef = useRef(0)
 
   const allowedDocs = useMemo(() => {
+    if (draftPreview) return draftPreview.documents
     const teacherManagedDocs = normalizeTestDocuments(documents).map((doc) => ({
       id: doc.id,
       title: doc.title,
@@ -102,7 +109,7 @@ export function TeacherTestPreviewPage({
     }))
     if (teacherManagedDocs.length > 0) return teacherManagedDocs
     return extractAllowedDocLinks(questions)
-  }, [documents, questions, testId])
+  }, [documents, draftPreview, questions, testId])
 
   useEffect(() => {
     setActiveDoc((previous) => {
@@ -186,12 +193,12 @@ export function TeacherTestPreviewPage({
   }, [embedded])
 
   useEffect(() => {
-    if (loading || error) return
+    if ((!draftPreview && loading) || error) return
     if (!embedded) {
       maximizePreviewWindow()
       void requestExamFullscreen({ allowWindowFallback: true })
     }
-  }, [embedded, error, loading, maximizePreviewWindow, requestExamFullscreen])
+  }, [draftPreview, embedded, error, loading, maximizePreviewWindow, requestExamFullscreen])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -261,12 +268,13 @@ export function TeacherTestPreviewPage({
   }, [testId])
 
   useEffect(() => {
+    if (draftPreview) return
     previewOwnerRef.current = testId
     void loadPreviewData()
     return () => {
       previewRequestIdRef.current += 1
     }
-  }, [loadPreviewData, testId])
+  }, [draftPreview, loadPreviewData, testId])
 
   useEffect(() => {
     autoSyncAttemptedRef.current.clear()
@@ -274,7 +282,7 @@ export function TeacherTestPreviewPage({
   }, [testId])
 
   useEffect(() => {
-    if (!listenForUpdates) return
+    if (!listenForUpdates || draftPreview) return
 
     const handleTestsUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ classroomId?: string }>).detail
@@ -286,9 +294,10 @@ export function TeacherTestPreviewPage({
     return () => {
       window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
     }
-  }, [classroomId, listenForUpdates, loadPreviewData])
+  }, [classroomId, draftPreview, listenForUpdates, loadPreviewData])
 
   useEffect(() => {
+    if (draftPreview) return
     if (loadedTestId !== testId) return
 
     const staleDoc = normalizeTestDocuments(documents).find((doc) => {
@@ -329,7 +338,7 @@ export function TeacherTestPreviewPage({
     return () => {
       isCancelled = true
     }
-  }, [documents, loadedTestId, testId])
+  }, [documents, draftPreview, loadedTestId, testId])
 
   function handleClosePreview() {
     if (onClose) {
@@ -345,7 +354,9 @@ export function TeacherTestPreviewPage({
     }, 150)
   }
 
-  const isLoadingCurrentPreview = loading || loadedTestId !== testId
+  const isLoadingCurrentPreview = !draftPreview && (loading || loadedTestId !== testId)
+  const previewTitle = draftPreview?.title ?? title
+  const previewQuestions = draftPreview?.questions ?? questions
 
   const isPreviewMaximized = isFullscreen || allowWindowMaximizedFallback
   const showNotMaximizedWarning = !isPreviewMaximized && !error
@@ -449,11 +460,11 @@ export function TeacherTestPreviewPage({
                 aria-label="Test questions"
                 className="h-full overflow-y-auto rounded-xl border border-border bg-surface p-3 scrollbar-none sm:p-4"
               >
-                <h2 className="text-xl font-bold text-text-default">{title}</h2>
-                {questions.length > 0 ? (
+                <h2 className="text-xl font-bold text-text-default">{previewTitle}</h2>
+                {previewQuestions.length > 0 ? (
                   <StudentTestForm
                     testId={testId}
-                    questions={questions}
+                    questions={previewQuestions}
                     previewMode
                     onSubmitted={() => {}}
                   />
