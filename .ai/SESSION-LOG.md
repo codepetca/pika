@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-22 — Accept required Assignment links without GitHub identity
-
-- Standard link requirements now send only their URL instead of an irrelevant blank GitHub login; repository-link requirements retain the existing GitHub fields.
-- The Assignment artifact request boundary normalizes a blank optional GitHub login to absent for compatibility with older clients. Component and API regressions cover both paths; the focused gate passes 60 files/664 tests plus architecture, UI/design policy, TypeScript and lint. Risk profile: none.
-- Pattern Lab visual verification covers the student attachment checklist on desktop/mobile in light/dark; the existing layout and states are unchanged. Teacher is n/a because no teacher surface or data contract changed.
-- Composite-widget checklist reviewed: no roles, keyboard behavior, focus handling or semantic state changed; remaining manual follow-up: none. Model recommendation: GPT-5 — bounded submission validation fix.
-
 ## 2026-09-22 — Dormant Assignment AI usage accounting
 
 - Owner `codex/meter-assignment-ai-usage`, based on merged lease-fencing PR1323. Migration203 adds a service-only Assignment admission/finalization boundary: a version1 run reserves one shared `grading.ai` unit per queued student item, skipped missing/empty items reserve zero, successful grade/provenance finalization settles atomically, and terminal item/run failure releases atomically. Retry admission is idempotent and every operation revalidates the exact current lease and Assignment/Classroom/student/document binding.
@@ -311,3 +304,8 @@ async-grading.
 
 - PR #1360 CI passed the browser matrix but failed one of 8,088 tests because the compact production migration note no longer matched the established `Prod DB 001–NNN` format. Restored that format and removed a redundant undated health shorthand to retain the startup size limit. Runtime activation facts and application code are unchanged.
 - Returned the PR to draft before correction. Verify the attendance rollout-note contract together with startup guidance and the focused gate, then independently review the fixed commit before requesting CI again. No production changes or merge performed. Risk profile: none; model recommendation: GPT-6 Sol for this documentation correction.
+
+## 2026-09-26 — Stripe provider decision
+
+- Owner selected Stripe for paid subscriptions. Added SUB-06 to the canonical subscription policy, recorded the decision, and removed provider selection from open decisions. Tier caps remain Free0/Basic2/Plus5/Pro10; paid prices and AI quantities remain undecided. This records provider selection only, without billing implementation or live charges.
+- Corrected the plan-foundation status to point to the verified production strict/default-Free rollout. No runtime behavior changed. Risk profile: none; model recommendation: GPT-6 Sol for policy documentation. Validate focused checks and independent documentation review before marking the updated PR ready.

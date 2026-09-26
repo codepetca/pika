@@ -32918,3 +32918,11 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 
 - Owner `codex/meter-ai-grading`, based on merged metered-reservation PR1318. Migration202 adds a versioned worker contract plus service-only run/item patch and provenance-finalization boundaries. Existing and rolling-deploy runs remain legacy version0; future metered runs opt into version1, requiring the exact current, unexpired lease across DeepSeek and Gradex work while legacy finalizers/direct service-role updates are rejected.
 - Under standing local-migration authorization, migration202 is applied locally. Generated types match local history001–202; the real takeover harness proves expired/stale run and item patches, stale finalization, legacy finalization and direct service-role DML cannot bypass a version1 replacement lease. This slice does not create version1 runs, call the usage ledger or activate metering; production remains001–180.
+
+<!-- pika-session-log-archive-batch:5e6024ad1b90c471b8dc61d3e94dd23e4ae28b396af070dfcda8e2b68a5a708c -->
+## 2026-09-22 — Accept required Assignment links without GitHub identity
+
+- Standard link requirements now send only their URL instead of an irrelevant blank GitHub login; repository-link requirements retain the existing GitHub fields.
+- The Assignment artifact request boundary normalizes a blank optional GitHub login to absent for compatibility with older clients. Component and API regressions cover both paths; the focused gate passes 60 files/664 tests plus architecture, UI/design policy, TypeScript and lint. Risk profile: none.
+- Pattern Lab visual verification covers the student attachment checklist on desktop/mobile in light/dark; the existing layout and states are unchanged. Teacher is n/a because no teacher surface or data contract changed.
+- Composite-widget checklist reviewed: no roles, keyboard behavior, focus handling or semantic state changed; remaining manual follow-up: none. Model recommendation: GPT-5 — bounded submission validation fix.

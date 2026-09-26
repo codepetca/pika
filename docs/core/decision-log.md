@@ -3,6 +3,15 @@
 This file captures **high-level, long-lived decisions** about Pika’s architecture and product behavior.
 It replaces older prompt/spec history artifacts (which are intentionally not kept in the repo).
 
+## Stripe subscription provider (2026-09-26)
+
+- Owner selected Stripe for paid subscriptions. Follow SUB-06 and all existing
+  payment-verification, proration and reconciliation rules in the
+  [subscription policy](../guidance/subscription-policy.md).
+- This selects the provider without changing tier limits or deciding prices,
+  billing intervals, AI quantities, cancellation, downgrade or failed-payment
+  rules. Billing implementation and live charges remain future work.
+
 ## Subscription automation and upgrade proration (2026-09-25)
 
 - Routine subscription tier assignment is automated; the admin prototype provides
@@ -10,8 +19,9 @@ It replaces older prompt/spec history artifacts (which are intentionally not kep
   charge the difference for the remaining paid period and keep the renewal date.
   Higher-tier access follows verified successful payment.
 - The canonical [subscription policy](../guidance/subscription-policy.md) records
-  these requirements and future change rules. Provider selection, prices, grace,
-  refunds, downgrade timing, and AI allowance treatment remain open decisions.
+  these requirements and future change rules. Prices, grace, refunds, downgrade
+  timing, and AI allowance treatment remain open decisions. Stripe was selected
+  on 2026-09-26 (see above).
   This is product direction, not billing implementation or launch authorization.
 
 ## Authentication Model

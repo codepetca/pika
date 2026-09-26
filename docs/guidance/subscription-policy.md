@@ -1,9 +1,10 @@
 # Subscription and tier policy
 
-Status: product policy recorded 2026-09-25; billing automation is not implemented
-or activated. This document is the canonical product policy for subscriptions,
-automated tier assignment, and upgrade proration. It does not select a payment
-provider, set prices, authorize charges, or activate a deployment or migration.
+Status: product policy recorded 2026-09-25; Stripe selected by the owner on
+2026-09-26. Billing automation is not implemented or activated. This document
+is the canonical product policy for subscriptions, automated tier assignment,
+and upgrade proration. It does not set prices, authorize charges, or activate
+a deployment or migration.
 
 ## Authority and change rules
 
@@ -96,6 +97,17 @@ classroom consumption, including creation and restore; joining and student
 work must not require purchasing an owner subscription. This is not a promise
 of indefinite free storage; retention and paid-feature rules remain separate.
 
+### SUB-06 — Payment provider
+
+Use Stripe for paid subscriptions, selected by the owner on 2026-09-26. The
+existing verified-payment, proration, account-mapping and reconciliation rules
+apply to the Stripe implementation. Provider selection does not change current
+customer access or authorize live charges. Prices, currencies, payment methods,
+billing intervals and the remaining lifecycle decisions below are still open.
+Existing Pika plan assignments stay unchanged; this decision does not migrate
+subscriptions or implement billing. Verify test-mode purchase and subscription
+transitions before any separately authorized billing launch.
+
 ## Required automation design
 
 These are implementation requirements, not claims about existing services:
@@ -129,7 +141,7 @@ These are implementation requirements, not claims about existing services:
 
 | Event | Proposed behavior | Decision still required |
 | --- | --- | --- |
-| Successful renewal | Extend access for the paid period | Provider and supported payment methods |
+| Successful renewal | Extend access for the paid period | Supported payment methods |
 | User cancellation | Keep benefits through the paid term, then apply baseline Free access | Cancellation/refund policy and any grant precedence |
 | Renewal failure | Retry payment and allow a defined grace period before reducing access | Grace duration, notifications, retry/exhaustion rules |
 | Downgrade request | Apply the lower plan at the next renewal; keep current benefits until then | Downgrade timing and credits/refunds |
@@ -141,7 +153,7 @@ remaining lifecycle choices.
 
 ## Open decisions before billing launch
 
-- Provider, supported currencies/payment methods, prices, monthly/annual
+- Supported currencies/payment methods, prices, monthly/annual
   offerings, tax and discount configuration, and customer billing management.
 - Trial eligibility and conversion, promotional/sponsored/manual grants, and
   precedence when more than one source could fund access.
@@ -167,7 +179,7 @@ Exercise the chosen cancellation/grace/downgrade policies once approved,
 existing-class protection, role isolation, and eventual recovery of access
 after payment succeeds but synchronization initially fails.
 
-Provider implementation reference (illustrative, not provider selection):
+Selected-provider implementation references:
 [Stripe prorations](https://docs.stripe.com/billing/subscriptions/prorations),
 [subscription events](https://docs.stripe.com/billing/subscriptions/webhooks),
 and [webhook delivery](https://docs.stripe.com/webhooks). Verify current provider

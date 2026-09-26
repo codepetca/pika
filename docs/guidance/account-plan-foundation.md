@@ -1,7 +1,8 @@
 # Account plan foundation (migration 206)
 
-Status: dormant schema and service-only writer. This is not a billing launch or
-permission cutover.
+Status: schema and service-only writer. The separately authorized production
+cutover is recorded in the [rollout status](account-plan-rollout.md); strict
+creation and automatic Free provisioning are active. Billing is not implemented.
 
 Future billing and automated tier changes must follow the
 [subscription policy](subscription-policy.md). Its agreed proration rules are
