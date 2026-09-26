@@ -28,6 +28,34 @@ function makeTableProps(overrides: Partial<GradebookTableProps> = {}): Gradebook
 }
 
 describe('Gradebook surface owners', () => {
+  it('toggles ultra-compact mode through a checked More actions item', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<TooltipProvider><GradebookToolbar preferences={{ ...DEFAULT_GRADEBOOK_PREFERENCES, ultraCompact: true }} onChange={onChange} selectedCount={0} isReadOnly={false} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} studentGradesVisible={false} onStudentGradesVisibilityChange={vi.fn()} /></TooltipProvider>)
+    await user.click(screen.getByRole('button', { name: 'Gradebook more actions' }))
+    const item = screen.getByRole('menuitemcheckbox', { name: 'Ultra-compact gradebook' })
+    expect(item).toHaveAttribute('aria-checked', 'true')
+    await user.click(item)
+    expect(onChange).toHaveBeenCalledWith({ ultraCompact: false })
+  })
+
+  it('compacts codes, categories and percentages while keeping full editing information and final precision', () => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true, category_id: 'term', category_name: 'Term Work', category_percentage: 20.6 }
+    const scored = { ...student, final_percent: 80.6, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 100, earned: 20.6, percent: 20.6, is_graded: true }] }
+    const props = makeTableProps({ students: [scored], columns: [column], ultraCompact: true, showWeights: true, onScoreOpen: vi.fn() })
+    const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^A1$/)
+    expect(screen.getByRole('button', { name: 'Edit category for A1: Essay' })).toHaveTextContent(/^Term$/)
+    expect(screen.getByRole('spinbutton', { name: 'Category weight for Essay' })).toHaveValue(10)
+    expect(screen.getByLabelText('Course weight for Essay')).toHaveTextContent(/^21%$/)
+    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 20.6%' })).toHaveTextContent('21%')
+    expect(screen.getByRole('row', { name: 'Class average' })).toHaveTextContent('21%')
+    expect(screen.getByRole('button', { name: 'Edit Demo Student final mark: 80.6%' })).toHaveTextContent('80.6%')
+    view.rerender(<TooltipProvider><GradebookTable {...props} ultraCompact={false} /></TooltipProvider>)
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent('Essay')
+    expect(screen.getByLabelText('Course weight for Essay')).toHaveTextContent('20.6%')
+  })
+
   it('names the student inspector and provides a working close control', () => {
     const onClose = vi.fn()
     render(<TooltipProvider><GradebookStudentPanel student={student} columns={[]} displayMode="percent" onClose={onClose} /></TooltipProvider>)

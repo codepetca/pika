@@ -17,6 +17,10 @@ export function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+export function formatWholePercent(value: number | null): string {
+  return value == null ? '—' : `${Math.round(value)}%`
+}
+
 export function formatCompactPercent(value: number | null): string {
   if (value == null) return '—'
   const rounded = round2(value)

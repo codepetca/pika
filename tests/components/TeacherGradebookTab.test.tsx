@@ -305,6 +305,20 @@ describe('TeacherGradebookTab', () => {
     })
   })
 
+  it('remembers the compact setting after remount and restores the detailed view when toggled off', async () => {
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Ultra-compact gradebook' }))
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^A1$/)
+    expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({ ultraCompact: true })
+    view.unmount()
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^A1$/)
+    fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Ultra-compact gradebook' }))
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^Essay$/)
+  })
+
   it('supports shared keyboard row navigation and dismissal', async () => {
     renderGradebook('grades')
 

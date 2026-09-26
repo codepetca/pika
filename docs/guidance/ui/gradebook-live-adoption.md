@@ -107,3 +107,31 @@ Selection and the student inspector retain keyboard row navigation and Escape.
 Current visual evidence and final verification results are recorded on the PR.
 Local screenshots live under ignored `output/playwright/`. Browser-only expanded
 fixtures are labeled separately from persisted demo-data verification.
+
+## Ultra-compact display preference
+
+- Surface/reference: teacher Gradebook table and More actions; approved
+  `/pattern-lab#mockup-gradebook-panel`, with production-owner evidence at
+  `/pattern-lab#gradebook-compact`.
+- Extend GradebookToolbar, GradebookTable and local display preferences;
+  reuse shared checked menu items, inputs, buttons, tooltips and table owners.
+  No shared primitive or new experimental pattern is introduced.
+- Default off; remembered in the existing local display preference record.
+  Assessment headers show codes, categories show at most four letters,
+  weight inputs are 44px wide, and assessment/course/average percentages round
+  to whole numbers for display. Original values and calculations remain exact.
+- Percentage columns are 56px; raw-score columns use 104px so fractions remain
+  readable. The second name column is compact; the first displayed name and
+  Final retain their configured widths. Toggling off restores configured widths.
+- Teacher: desktop/mobile, light/dark; toggle on/off, menu open/checked/focused,
+  weight input editing, raw scores, override indicators and horizontal scrolling.
+  Student: n/a for layout; teacher-only specimen role isolation checked.
+- Signal: narrow columns and short labels. No new decoration, dependencies,
+  grade calculations or student display changes. Composite menu keyboard and
+  focus behavior reuse the canonical owner. Risk profile: none.
+- Verification: preference normalization and live remount persistence, compact
+  labels/rounding and precise edit information, unchanged Final precision;
+  Playwright screenshots of the production owners with deterministic fixtures
+  at 1440×900 and 390×844, both themes, plus 44px weight-input target checks.
+  Nearby legacy Pattern Lab mockup renderer duplication remains a future
+  refactor candidate; this specimen uses the live production owners.

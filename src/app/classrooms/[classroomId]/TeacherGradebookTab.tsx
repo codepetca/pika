@@ -789,6 +789,7 @@ export function TeacherGradebookTab({
   const gradebookTable = (
     <GradebookTable
       students={sortedStudents} columns={assessmentColumns} displayMode={scoreDisplayMode}
+      ultraCompact={preferences.ultraCompact}
       lastNameFirst={preferences.lastNameFirst}
       showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
       keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}
