@@ -163,8 +163,7 @@ review remains pending integration verification.
 
 The owner approved an additional45-minute review window and local211 application
 after review. Two preapplication reviews are complete with no blockers; the
-second covered the additive compatibility repair. The five-launch total cap
-remains in effect. Full implementation review follows database verification.
+second covered the additive compatibility repair. The owner subsequently approved a sixth and final review launch. Full implementation review found one eligibility blocker, corrected in212. The owner approved one final integration review (launch6, up to20minutes) after local212 verification.
 
 Phase 1 currently includes the exact public catalog, test-only price provisioning
 with existing trusted products, authenticated catalog/start/status endpoints,
@@ -198,11 +197,13 @@ plan revision before checkout provider work, binding and first-payment
 reconciliation. Drift becomes attention instead of overwriting an existing
 assignment; foundation bindings outside checkout keep their existing behavior.
 The application maps an ineligible first purchase to a safe409 response.
-Migration211 is applied and immutable;212 requires its own preapplication review
-and exact local authorization. Keep both billing gates off until212 is applied
-and its database regressions pass. Focused checks of the correction pass212
-tests plus TypeScript, lint and policy checks; the new SQL regressions are
-authored but not yet executed. A previously issued hosted session may still be
+Migrations211 and212 are applied locally and immutable. The owner explicitly
+approved212 after its targeted review passed; that one-time authorization is
+consumed. Expanded checkout and foundation database contracts pass, including
+legacy-plan rejection and asynchronous plan-change cases. Corrected a SQL test
+to capture the mutation result before inspecting its saved state. Regenerated
+types include the reserved revision column. Keep both billing gates off through
+final integration review and CI; live launch remains separately controlled. A previously issued hosted session may still be
 paid after an operator changes a plan; access remains protected, while provider
 cancellation/refund handling is part of the separate lifecycle phase.
 

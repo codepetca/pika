@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-24 — Teacher assessment title editing
-
-- Owner: `codex/assessment-title-edit`, coordinated in the existing task. Approved outcome: tapping the selected Test or Assignment action-bar title opens its existing editor. Implementation worker owns the two teacher views and their component tests; coordinator owns browser verification, guidance, and PR lifecycle.
-- UI brief: reuse the selected Test context-bar layout, Pattern Lab ghost Button, existing edit handlers/dialogs, and `TeacherWorkSurfaceContextBar`; no shared extraction. Teacher desktop/mobile, light/dark, default/hover/focus/disabled/modal-open and long titles. Student n/a (teacher-only consumers). Primary signal: subtle button hover and visible focus; no new icon or decorative chrome. No new composite widget; check keyboard activation and modal focus return. Risk profile `none`.
-- Implementation complete: both title buttons reuse their existing editor handlers. Read-only buttons remain disabled; assignment loading uses guarded aria-disabled semantics so shared modal focus return survives the refresh. Long titles truncate within the context column without clipping focus.
-- Evidence: 130 component tests pass; Playwright covers both surfaces at desktop/mobile in light/dark (8 cases: default/hover/focus/open, keyboard/touch activation, Escape and focus return), plus 4 long-title cases. Screenshots/scripts/results: `output/playwright/title-edit/` (local, ignored). Student n/a because only teacher consumers changed. Composite accessibility checklist reviewed; keyboard and semantic-state checks covered; no manual follow-up. Next: focused checks, draft PR, one standard-risk independent review, and stable-SHA CI; no merge or production rollout authorized in this task.
-
 ## 2026-09-24 — Test publication in the student-table action bar
 
 - Owner: `codex/test-publish-action-bar`. Moved draft-only Publish from the test editor into the selected test's student-table action bar; reused saved-draft validation and confirmation, and removed obsolete dialog publication props/state.
@@ -370,3 +363,15 @@ full coverage gate). Final focused checks and correction review precede new CI.
   a further owner checkpoint. Previously issued provider sessions may still be
   paid after an operator changes a plan; this patch prevents access overwrite,
   and provider cancellation/refund handling remains a prelaunch lifecycle task.
+
+## 2026-09-26 — Apply checkout eligibility212 and prepare final review
+
+- Owner approved local212 and one final integration review up to20 minutes
+  (launch6). Verified the reviewed hash, local target/history and preview;
+  applied only212 once. Authorization consumed; no reset or reseed.
+- Expanded checkout SQL exposed a test-expression ordering bug: capture the
+  claim result before inspecting saved state. The test-only fix passes;
+  migration212 is unchanged. Checkout and foundation rollback contracts pass;
+  generated types refreshed. Existing three users, one classroom and disabled
+  sandbox are preserved. Final focused checks and review precede ready CI;
+  no Stripe provider purchase or live activation.

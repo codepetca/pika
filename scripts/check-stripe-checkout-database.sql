@@ -285,7 +285,8 @@ begin
         if v_result->>'status'<>'plan_conflict' then raise exception 'Concurrent plan change accepted by paid finish'; end if;
         update public.stripe_billing_subscription_bindings set lease_expires_at=clock_timestamp()-interval '1 second' where id=v_binding;
       end if;
-      if public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120))->>'status'<>'busy'
+      v_result := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+      if v_result->>'status'<>'busy'
         or not exists(select 1 from public.stripe_billing_subscription_bindings where id=v_binding and reconcile_state='attention') then
         raise exception 'Changed plan received first-payment lease';
       end if;

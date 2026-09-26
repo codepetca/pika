@@ -6971,6 +6971,7 @@ export type Database = {
           offering_version_id: string
           reason_code: string | null
           request_fingerprint: string
+          reserved_plan_revision: number | null
           retry_count: number
           status: string
           stripe_customer_id: string | null
@@ -6993,6 +6994,7 @@ export type Database = {
           offering_version_id: string
           reason_code?: string | null
           request_fingerprint: string
+          reserved_plan_revision?: number | null
           retry_count?: number
           status?: string
           stripe_customer_id?: string | null
@@ -7015,6 +7017,7 @@ export type Database = {
           offering_version_id?: string
           reason_code?: string | null
           request_fingerprint?: string
+          reserved_plan_revision?: number | null
           retry_count?: number
           status?: string
           stripe_customer_id?: string | null
