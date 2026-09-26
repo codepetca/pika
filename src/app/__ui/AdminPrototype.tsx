@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ChevronRight, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, ChevronRight, ClipboardList, LayoutDashboard, Layers3, UsersRound, type LucideIcon } from 'lucide-react'
+import { AppShell } from '@/components/AppShell'
+import { LeftSidebar, MainContent, ThreePanelProvider, ThreePanelShell, useLeftSidebar, useMobileDrawer } from '@/components/layout'
 import {
   Button,
   Card,
@@ -15,10 +17,10 @@ import {
   Input,
   PageContent,
   PageHeading,
-  PageLayout,
   PageStack,
   Select,
   TableCard,
+  Tooltip,
 } from '@/ui'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -50,7 +52,65 @@ const ACCOUNTS: Account[] = [
   { id: 'a2060000-0000-4000-8000-000000000004', email: 'taylor@example.invalid', plan: 'basic', revision: 3, grantLimit: 1, grantSource: 'manual', activeClassrooms: 1, access: 'mismatch', lastChange: 'Sep 21, 2026' },
 ]
 
-type Screen = 'accounts' | 'account' | 'preview' | 'activity'
+type Section = 'overview' | 'accounts' | 'activity' | 'plans'
+type Screen = Section | 'account' | 'preview'
+
+const SECTIONS: Array<{ id: Section; label: string; icon: LucideIcon }> = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'accounts', label: 'Accounts', icon: UsersRound },
+  { id: 'activity', label: 'Activity', icon: ClipboardList },
+  { id: 'plans', label: 'Plans', icon: Layers3 },
+]
+
+function AdminPrototypeNav({ active, onNavigate }: { active: Section; onNavigate: (section: Section) => void }) {
+  const { isExpanded } = useLeftSidebar()
+  const { isLeftOpen, close } = useMobileDrawer()
+  const showLabels = isExpanded || isLeftOpen
+
+  return <nav aria-label="Admin sections" className="flex min-h-0 flex-1 flex-col gap-1">
+    {SECTIONS.map(({ id, label, icon: Icon }) => {
+      const item = <Button
+        key={id}
+        type="button"
+        variant="ghost"
+        onClick={() => { onNavigate(id); close() }}
+        aria-current={active === id ? 'page' : undefined}
+        aria-label={label}
+        className={[
+          'group flex h-12 w-full items-center rounded-control border-transparent text-base font-medium transition-colors',
+          showLabels ? 'justify-start gap-3 px-3' : 'justify-center px-0',
+          active === id ? 'bg-surface-selected text-text-default shadow-sm' : 'text-text-muted hover:bg-surface-hover hover:text-text-default',
+          'focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus',
+        ].join(' ')}
+      >
+        <Icon className="h-6 w-6 shrink-0" aria-hidden="true" />
+        {showLabels ? <span className="truncate">{label}</span> : null}
+      </Button>
+      return <span key={id} className="block">{showLabels ? item : <Tooltip content={label}>{item}</Tooltip>}</span>
+    })}
+  </nav>
+}
+
+function AdminPrototypeFrame({ children, screen, onNavigate }: { children: React.ReactNode; screen: Screen; onNavigate: (section: Section) => void }) {
+  const { openLeft } = useMobileDrawer()
+  const activeSection: Section = screen === 'account' || screen === 'preview' ? 'accounts' : screen
+
+  return <AppShell
+    pageTitle={<span className="text-sm font-semibold">Administration</span>}
+    onOpenSidebar={openLeft}
+    sidebarTriggerLabel="Open admin navigation"
+    mainClassName="max-w-none px-0 py-0"
+  >
+    <ThreePanelShell>
+      <LeftSidebar><AdminPrototypeNav active={activeSection} onNavigate={onNavigate} /></LeftSidebar>
+      <MainContent density="teacher" maxWidth="wide">
+        <PageContent className="px-1 sm:px-3">
+          <PageStack>{children}</PageStack>
+        </PageContent>
+      </MainContent>
+    </ThreePanelShell>
+  </AppShell>
+}
 
 function PlanLabel({ plan }: { plan: Plan | null }) {
   return <span className={plan ? 'font-medium text-text-default' : 'text-text-muted'}>{plan ? plan[0].toUpperCase() + plan.slice(1) : 'Unclassified'}</span>
@@ -67,9 +127,13 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 }
 
 export function AdminPrototype() {
+  return <ThreePanelProvider routeKey="roster" initialLeftExpanded><AdminPrototypeContent /></ThreePanelProvider>
+}
+
+function AdminPrototypeContent() {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const hasMounted = useRef(false)
-  const [screen, setScreen] = useState<Screen>('accounts')
+  const [screen, setScreen] = useState<Screen>('overview')
   const [selectedId, setSelectedId] = useState(ACCOUNTS[0].id)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
@@ -108,27 +172,21 @@ export function AdminPrototype() {
   }, [screen, selectedId])
 
   return (
-    <main className="min-h-screen bg-page pb-16 text-text-default">
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex min-h-16 max-w-wide flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-control bg-primary-solid text-text-inverse"><ShieldCheck aria-hidden="true" size={19} /></div>
-            <div><p className="text-sm font-semibold">Pika administration</p><p className="text-xs text-text-muted">Interface prototype</p></div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-badge border border-border bg-surface-2 px-2 py-1 text-xs text-text-muted">Fictional sample data</span>
-            <Button type="button" variant="ghost" size="sm" onClick={toggleTheme}>{theme === 'dark' ? 'Light' : 'Dark'} theme</Button>
-          </div>
-        </div>
-      </header>
+    <AdminPrototypeFrame screen={screen} onNavigate={setScreen}>
+            <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border pb-3">
+              <span className="rounded-badge border border-border bg-surface-2 px-2 py-1 text-xs text-text-muted">Fictional sample data</span>
+              <Button type="button" variant="ghost" size="sm" onClick={toggleTheme}>{theme === 'dark' ? 'Light' : 'Dark'} theme</Button>
+            </div>
 
-      <PageLayout density="teacher" width="wide" bleedX={false}>
-        <PageContent className="px-4 sm:px-6">
-          <PageStack>
-            <nav aria-label="Prototype screens" className="flex gap-2 border-b border-border pb-3">
-              <Button type="button" size="sm" variant={screen === 'activity' ? 'ghost' : 'secondary'} aria-current={screen === 'activity' ? undefined : 'page'} onClick={() => setScreen('accounts')}>Accounts</Button>
-              <Button type="button" size="sm" variant={screen === 'activity' ? 'secondary' : 'ghost'} aria-current={screen === 'activity' ? 'page' : undefined} onClick={() => setScreen('activity')}>Activity</Button>
-            </nav>
+            {screen === 'overview' ? <>
+              <PageHeading title="Overview" description="Sample account and plan status" headingRef={headingRef} tabIndex={-1} />
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Card padding="md"><p className="text-sm text-text-muted">Accounts</p><p className="mt-2 text-3xl font-semibold">{ACCOUNTS.length}</p><p className="mt-2 text-xs text-text-muted">In this fictional sample</p></Card>
+                <Card padding="md"><p className="text-sm text-text-muted">Needs a plan</p><p className="mt-2 text-3xl font-semibold">{ACCOUNTS.filter((item) => item.access === 'unclassified').length}</p><p className="mt-2 text-xs text-text-muted">Unclassified account</p></Card>
+                <Card padding="md"><p className="text-sm text-text-muted">Grant mismatch</p><p className="mt-2 text-3xl font-semibold">{ACCOUNTS.filter((item) => item.access === 'mismatch').length}</p><p className="mt-2 text-xs text-text-muted">Needs review before changes</p></Card>
+              </div>
+              <Card><div className="flex flex-wrap items-center justify-between gap-3"><div><PageHeading level="h2" size="section" title="Accounts to review" /><p className="mt-1 text-sm text-text-muted">Plan and classroom-creation grants that need attention.</p></div><Button type="button" variant="secondary" onClick={() => setScreen('accounts')}>View accounts</Button></div><div className="mt-4 divide-y divide-border border-t border-border">{ACCOUNTS.filter((item) => item.access !== 'ready').map((item) => <Button key={item.id} type="button" variant="ghost" onClick={() => openAccount(item.id)} className="flex min-h-14 w-full items-center justify-between gap-3 rounded-none border-0 px-0 py-3 text-left hover:text-primary focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus"><span className="min-w-0 truncate text-sm font-medium">{item.email}</span><span className="shrink-0 text-sm"><AccessLabel access={item.access} /></span></Button>)}</div></Card>
+            </> : null}
 
             {screen === 'accounts' ? <>
               <div className="flex flex-wrap items-end justify-between gap-3">
@@ -211,12 +269,21 @@ export function AdminPrototype() {
             </> : null}
 
             {screen === 'activity' ? <>
-              <PageHeading title="Plan activity" description="A sample audit view for reviewing changes." headingRef={headingRef} tabIndex={-1} />
+              <PageHeading title="Activity" description="Sample plan-change history" headingRef={headingRef} tabIndex={-1} />
               <Card><div className="divide-y divide-border">{ACCOUNTS.filter((item) => item.plan).map((item) => <div key={item.id} className="py-4 first:pt-0 last:pb-0 sm:flex sm:items-start sm:justify-between sm:gap-4"><div><p className="text-sm font-medium">{item.email}</p><p className="mt-1 text-sm text-text-muted">Plan recorded: <PlanLabel plan={item.plan} /> · revision {item.revision}</p></div><p className="mt-1 text-sm text-text-muted sm:mt-0">{item.lastChange}</p></div>)}</div></Card>
             </> : null}
-          </PageStack>
-        </PageContent>
-      </PageLayout>
-    </main>
+
+            {screen === 'plans' ? <>
+              <PageHeading title="Plans" description="Classroom creation limits by plan" headingRef={headingRef} tabIndex={-1} />
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {(Object.entries(PLAN_LIMITS) as Array<[Plan, number]>).map(([plan, limit]) => <Card key={plan} padding="md">
+                  <PageHeading level="h2" size="section" title={plan[0].toUpperCase() + plan.slice(1)} />
+                  <p className="mt-5 text-3xl font-semibold">{limit}</p>
+                  <p className="mt-1 text-sm text-text-muted">active classroom{limit === 1 ? '' : 's'} allowed</p>
+                </Card>)}
+              </div>
+              <Card tone="muted"><PageHeading level="h2" size="section" title="How plan changes appear" /><p className="mt-2 text-sm text-text-muted">Select an account to preview a plan change and its effect on classroom creation. Existing classrooms remain available when a new limit is lower.</p><Button type="button" variant="secondary" className="mt-4" onClick={() => setScreen('accounts')}>Browse accounts</Button></Card>
+            </> : null}
+    </AdminPrototypeFrame>
   )
 }

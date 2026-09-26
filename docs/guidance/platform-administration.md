@@ -132,6 +132,49 @@ changes move focus to the destination heading. Tests cover labeled fields,
 selection, disabled confirmation, active navigation semantics, and focus
 transfer. This prototype does not create a tab widget.
 
+### Classroom-shell revision brief (2026-09-25)
+
+Surface: the same development-only prototype. The explicit reference is the
+teacher classroom shell (`AppShell`, `ThreePanelShell`, `LeftSidebar`,
+`MainContent`, and the classroom `NavItems` visual treatment), with the
+`/pattern-lab` controls above as component evidence. The regular teacher
+classroom is the approved shell reference; the admin information architecture
+remains experimental. Roles are `n/a` because this fixture does not represent
+an authenticated teacher, student, or operator. Verify desktop (1440×900) and
+mobile (390×844), light and dark, with expanded/collapsed left navigation,
+mobile drawer, selected section, account detail, preview, and disabled
+confirmation. The primary signal is the classroom sidebar's selected surface
+and compact header. Do not add real account reads, administration controls,
+authorization claims, or live writes. Composite-widget review: yes for the
+mobile drawer and section navigation; reuse the shell's drawer/focus behavior
+and ordinary section links.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Header and content grid | `AppShell`, `ThreePanelShell`, `MainContent` | reuse | Matches the classroom geometry and responsive framing |
+| Sidebar and mobile drawer | `LeftSidebar`, `ThreePanelProvider` | reuse | Preserves classroom collapse, focus, and drawer behavior |
+| Admin section items | classroom `NavItems` treatment | create | Admin labels and screens are fixture-specific; no durable shared navigation API yet |
+| Compact cards, table and forms | Existing `@/ui` owners | reuse | Same controls and density as teacher work surfaces |
+| Mobile sidebar label | `AppShell`/`AppHeader` | extend | Lets non-classroom consumers name the existing menu accurately |
+
+The sidebar offers Overview, Accounts, Activity, and Plans; account detail and
+plan preview remain nested Accounts states. No new stable UI guidance or shared
+component is proposed. A future real admin route can justify a shared nav
+extraction once its authorization and URL contracts are approved.
+
+Visual verification passed against the classroom shell at 1440×900 and
+390×844. Playwright captures include expanded and collapsed desktop navigation,
+the mobile drawer, Accounts, Activity, Plans, and a full-height plan preview in
+both themes under `output/playwright/admin-prototype-*-v2.png`. The mobile
+drawer closes after section selection and focus moves to the new heading.
+Neither viewport overflowed horizontally; the browser reported no errors.
+Teacher/student role checks remain `n/a` because this route renders the same
+fictional content without either session. Composite checklist reviewed: yes;
+keyboard navigation uses native section buttons, drawer Escape/focus behavior
+comes from `LeftSidebar`/`ModalLayer`, active section uses `aria-current`, and
+focused tests cover selection, drawer closure, heading focus, and disabled
+confirmation. No manual accessibility follow-up remains for this prototype.
+
 ## Inventory and mutation contract
 
 Inventory returns account UUID and the minimum identity needed to distinguish
