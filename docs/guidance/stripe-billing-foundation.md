@@ -2,8 +2,8 @@
 
 Status: isolated test-mode foundation merged in PR #1366 on 2026-09-26 after
 independent review and all required checks. Consolidated migration 209 was
-applied locally after an owner-approved reset and reseed; the existing local
-database predates the final binding/webhook race correction. Checkout is a
+applied locally after an owner-approved reset and reseed; migration211 now
+repairs the final binding/webhook race correction in that database. Checkout is a
 separate, incomplete follow-up described in the coordinator plan below.
 The [subscription policy](subscription-policy.md) remains the product authority.
 
@@ -73,8 +73,8 @@ payment terms, bounded retry exhaustion, fair queue selection, early event
 adoption and audited recovery. The final bind/webhook race correction serializes
 both identity lookups with the same transaction lock and retains binding-before-
 inbox row locking. Its real concurrent regression runs only in CI's disposable
-database. The reseeded local database predates this last function-body correction;
-refreshing it requires new explicit local migration/reset authorization. Unit tests use simulated Stripe reads and real SDK
+database. The reseeded local database initially predated this function-body correction;
+owner-approved migration211 has now restored both canonical definitions. Unit tests use simulated Stripe reads and real SDK
 signature verification; they do not establish a real Stripe payment result.
 Final integration review identified this concurrency correction; the owner
 approved one additional correction and targeted review. That review and
@@ -161,11 +161,10 @@ prevented fresh reviewer creation, so the existing independent architecture
 reviewer completed the migration preapplication review. Full implementation
 review remains pending integration verification.
 
-Review checkpoint: one preapplication reviewer launch completed, with no
-remediation waves. The 45-minute elapsed review-session window has expired
-(including the pause for user input). No further reviewer has been launched;
-request an additional 45-minute window before the targeted migration-delta and
-remaining implementation reviews, retaining the five-launch total cap.
+The owner approved an additional45-minute review window and local211 application
+after review. Two preapplication reviews are complete with no blockers; the
+second covered the additive compatibility repair. The five-launch total cap
+remains in effect. Full implementation review follows database verification.
 
 Phase 1 currently includes the exact public catalog, test-only price provisioning
 with existing trusted products, authenticated catalog/start/status endpoints,
@@ -174,27 +173,23 @@ Checkout completion binds the purchased version; only the existing verified
 payment reconciler may grant paid access. Both checkout and sandbox gates remain
 disabled by default. No checkout UI or provider configuration has been performed.
 
-The initial migration211 passed independent preapplication review and remains
-unapplied. The owner prefers the existing local database. Gradebook migration210
+Migration211 passed independent preapplication review and was applied once to
+the existing local database under the owner's exact authorization. Gradebook migration210
 has now merged in main and this branch is rebased onto it, so the shared database
 is the current verification target; no separate database, reset or seed is needed.
 Read-only inspection confirmed that its applied209 predates the two final
 binding/webhook identity-lock fixes. Migration211 carries forward the canonical
 209 function definitions using CREATE OR REPLACE, leaving209 immutable and
-preserving existing data. This additional delta needs independent review before
-application. Explicit one-time approval to apply local211 remains pending.
+preserving existing data. Both definitions passed independent review before
+application. That local211 application authorization is now consumed.
 
-Next actions, in order: review the frozen211 update; verify the existing local
-project and preview that only211 is pending; apply211 once authorized; run
-billing and checkout rollback contracts; regenerate types from that database;
-run focused checks; complete independent financial/security implementation
-review and final PR CI. Keep the PR draft until all exit evidence passes.
-The checkout database contract is wired into disposable CI but has not run yet.
-The updated 194 billing-focused tests pass. Focused checks against the updated
-main passed207 tests and policy checks, then stopped at TypeScript because the
-unapplied migration's eight RPCs
-are absent from generated types. Proper generation and full verification remain
-required; do not hand-edit types or cast around this gap.
+Billing and checkout rollback contracts pass against applied211. Database types
+were regenerated from the actual schema. Focused checks pass207 tests plus
+TypeScript, lint and architecture/UI/design policy checks. The security advisor reports no issues;
+the three users and one classroom are preserved, and the billing sandbox remains
+disabled. The updated194 billing-focused tests pass. Focused checks and full
+independent implementation review precede final PR CI. Keep the PR draft until
+all exit evidence passes. No real Stripe checkout or payment has been performed.
 
 First checkout slice keeps taxes, discounts, upgrades, trials and subscription
 restarts unavailable until their separate contracts are implemented. Catalog AI

@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-24 — PNG/JPEG test references
-
-- Owner `codex/test-reference-images`; user approved PNG/JPEG implementation and orchestration in this task, with SVG deferred. Extend private managed uploads with bounded image header/dimension validation and migration208's bucket MIME additions. Existing authorization and cleanup remain in use; no dependencies or public storage added.
-- Reuse the document workspace and canonical controls for a shared teacher/student image viewer with fit, zoom, loading/error/retry and a white transparent-image canvas. Upload dialog accepts images and displays validation errors inside the modal. Preserve question input and exam activity tracking. UI brief and rollout ledger: docs/plans/test-reference-images.md.
-- Bounded implementation and browser workers delivered API regressions and teacher/student desktop/mobile light/dark scenarios. Coordinator fixed cached-image hydration and narrow-screen pane height based on browser evidence. Final focused gate and visual matrix results recorded in the plan.
-- Initial independent review found ambiguous image filename detection and a failed duplicate finalization/cancellation race. One correction batch uses a server-created image path segment and retains failed image reservations for existing one-hour expiry/manual cleanup; verified retries skip reads. Regression tests reproduced both failures before correction.
-- Targeted review caught the managed classroom/blueprint copy path dropping the image marker. Second batch preserves the namespace from source MIME; round-trip PNG/JPEG and misleading-PDF cases plus copied-viewer regressions cover it.
-- Approved continuation: unchanged implementation e05267b9 passes910tests/70files plus architecture/UI/design/types/lint. Targeted review launch4 clear. Migration208 applied once to local Supabase; all208 history entries and generated types match, private bucket/25MB limit preserved. Real PNG/JPEG upload, finalization/retry, persistence, teacher/student delivery and anonymous denial passed; temporary local test removed. Final cumulative review and ready CI follow; no production action or merge.
-
-- Final cumulative review found archive restore lost image controls when rewriting attachment paths. Third correction preserves a test-image namespace from verified archive MIME;4 regressions failed before and35 affected tests passed after. All test-upload producers audited (direct upload, blueprint copy, archive restore); targeted closure and ready CI follow.
-- Restore canary independently calculated extensionless paths; updated its bucket-scoped PNG/JPEG projection and compared it against the actual verified restore plan. Two regressions fail before and24 canary tests pass after. Existing non-image and other-bucket paths remain unchanged.
-- Final targeted closure is clear at412b591b; full1024tests/77files and local Storage smoke passed. Synced unrelated main documentation after an archive-marker-only conflict; application source unchanged. Ready CI follows.
-
 ## 2026-09-24 — Account-plan rollout runbook
 
 - Owner `codex/account-plan-rollout-runbook`; documentation-only, risk profile `none`. Added a plan-specific operator sequence for read-only account inventory, explicit owner decisions, audited per-account assignments, and a separately approved strict cutover. Marked the earlier Access-pilot cutover as historical for plan classification.
@@ -359,3 +346,15 @@ full coverage gate). Final focused checks and correction review precede new CI.
   independent reviews need explicit additional review-time approval. Local211
   application also awaits exact authorization. PR stays draft; generated types,
   database contracts and full implementation review remain pending.
+
+## 2026-09-26 — Apply and verify local checkout211
+
+- Owner approved45 additional review minutes and existing-local211 application
+  after review. Independent delta review passed frozen SHAe5c30fbb. Verified
+  local project/port/history and preview; one `supabase db push --local` applied
+  only211. That approval is consumed. No reset or reseed.
+- Billing and checkout rollback contracts pass; generated types refreshed from
+  applied schema. Security advisor reports no issues. Three users, one classroom
+  and the disabled billing sandbox are preserved. Focused checks pass207 tests,
+  TypeScript, lint and architecture/UI/design gates. Full financial/security and
+  compatibility review follows before ready CI; no provider payment performed.
