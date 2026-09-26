@@ -174,14 +174,15 @@ describe('UiGallery history preview fixture', () => {
   it('demonstrates teacher hover, pin, and exit states', async () => {
     const user = userEvent.setup()
     renderGallery('teacher')
+    const preview = within(screen.getByTestId('history-preview-gallery'))
 
     expect(screen.getByText(/additions and deletions across the actual activity days/i)).toBeInTheDocument()
-    const [previewPoint, latestPreviewPoint] = screen.getAllByRole('button', {
+    const [previewPoint, latestPreviewPoint] = preview.getAllByRole('button', {
       name: 'History point',
     })
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '23')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '14')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '23')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '14')
     expect(previewPoint).toHaveAttribute('data-show-heading', 'no')
     expect(previewPoint).toHaveAttribute('data-entry-count', '5')
     expect(screen.getByText(/six-week project/i)).toBeInTheDocument()
@@ -189,25 +190,25 @@ describe('UiGallery history preview fixture', () => {
     expect(screen.getByText(/final-day crunch/i)).toBeInTheDocument()
 
     fireEvent.mouseEnter(previewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '9')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '9')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '9')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '9')
 
     fireEvent.mouseEnter(latestPreviewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '42')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '20')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '42')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '20')
 
     await user.click(latestPreviewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
     expect(latestPreviewPoint).toHaveAttribute('data-hover-enabled', 'no')
 
     fireEvent.mouseEnter(previewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
 
-    await user.click(screen.getByRole('button', { name: 'Exit preview' }))
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '0')
+    await user.click(preview.getByRole('button', { name: 'Exit preview' }))
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '0')
   })
 
   it('uses the same preview lifecycle for the student surface', () => {

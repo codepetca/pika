@@ -107,3 +107,119 @@ Selection and the student inspector retain keyboard row navigation and Escape.
 Current visual evidence and final verification results are recorded on the PR.
 Local screenshots live under ignored `output/playwright/`. Browser-only expanded
 fixtures are labeled separately from persisted demo-data verification.
+
+## Ultra-compact display preference
+
+- Surface/reference: teacher Gradebook table and More actions; approved
+  `/pattern-lab#mockup-gradebook-panel`, with production-owner evidence at
+  `/pattern-lab#gradebook-compact`.
+- Extend GradebookToolbar, GradebookTable and local display preferences;
+  reuse shared checked menu items, inputs, buttons, tooltips and table owners.
+  No shared primitive or new experimental pattern is introduced.
+- Default off; remembered in the existing local display preference record.
+  Assessment headers show codes, categories show at most four letters,
+  weight inputs are 44px wide, and assessment/course/average percentages round
+  to whole numbers for display. Original values and calculations remain exact.
+- Percentage columns are 56px; raw-score columns use 64px with earned marks only.
+  Raw mode shows the maximum once per assessment in a Max mark row before
+  Weight, even when weights are hidden; regular raw mode uses the same row. The second name column is hidden in ultra-compact mode; the first displayed name and
+  Final retain their configured widths. Toggling off restores configured widths.
+- Teacher: desktop/mobile, light/dark; toggle on/off, menu open/checked/focused,
+  weight input editing, raw scores, override indicators and horizontal scrolling.
+  Student: n/a for layout; teacher-only specimen role isolation checked.
+- Signal: narrow columns and short labels. No new decoration, dependencies,
+  grade calculations or student display changes. Composite menu keyboard and
+  focus behavior reuse the canonical owner. Risk profile: none.
+- Verification: preference normalization and live remount persistence, compact
+  labels/rounding and precise edit information, unchanged Final precision;
+  Playwright screenshots of the production owners with deterministic fixtures
+  at 1440×900 and 390×844, both themes, plus 44px weight-input target checks.
+  Nearby legacy Pattern Lab mockup renderer duplication remains a future
+  refactor candidate; this specimen uses the live production owners.
+
+## Maximum override modal
+
+- Reuse the Gradebook mark dialog, native Select, table buttons and RotateCcw
+  indicator. Extend the dialog with a maximum target and positive-number validation.
+- Raw Max mark cells open Edit max mark. Each save chooses Keep existing marks
+  (percentage changes) or Preserve percentages (earned marks scale with the new
+  maximum). A refresh action restores the original maximum and original scale.
+- Original assignment/rubric/Test/item definitions stay intact. Override maximum
+  and scale persist with the assessment. Newly entered marks are normalized by
+  the current scale in a classroom-locked write; precision is retained internally.
+  These overrides also apply to returned-only student Grades calculations.
+- Migration 210 is required. Before it is applied, the Gradebook remains readable
+  and maximum editing stays disabled. No migration is applied without the exact
+  target/migration permission in the schema rollout checklist.
+- Verify teacher desktop/mobile and both themes: original, modal open, both save
+  choices, overridden indicator, refresh, validation, failure, archived and saving.
+  Student calculation and disclosure are tested server-side; student layout is
+  unchanged. Risk: workspace-state; independent review: high (grade arithmetic,
+  persisted schema, authorization and serialized writes).
+
+### Maximum override rollout and rollback
+
+The schema can be applied before application deployment: new maxima start null
+and scales start 1. In production, new maximum changes remain blocked until
+`GRADEBOOK_MAXIMUM_EDITS_ENABLED=true`; development/test remain enabled. Set
+that production flag only after every mark writer runs this application revision.
+Reads and normalized manual writes remain active regardless of the edit flag;
+reset stays available for recovery. Previous deployments write effective marks
+directly and are unsafe once a maximum/scale is active. Before reverting mark
+writers, restore every maximum and verify all maxima are null and scales are 1.
+Production activation and rollback remain human controlled.
+
+Migration 210 extends the existing cold-archive normalization chain with null
+maximums and scale 1 for historical rows, retaining current overrides on restore.
+Scale is bounded from 1e-12 to 1e12; out-of-range cumulative changes are rejected
+without changing saved state, and reset remains available. Fractional marks remain
+exact internally. The manual mark editor initializes to the displayed tenth;
+only an explicit Save creates that rounded manual mark.
+
+Local preflight on 2026-09-26 found shared migration 209 belongs to the pending
+Stripe billing foundation (PR1366), so gradebook uses migration 210. Do not treat
+a matching version number alone as application evidence: verify its name and RPC
+contract. On 2026-09-26 the owner approved local210, applied once from an
+isolated billing-baseline checkout with the identical reviewed gradebook SQL.
+The dry run listed only210; database contracts and generated type checks pass
+there. No billing migration, reset or history repair ran. The owner subsequently approved production209+210 and a gradebook-first merge;
+the byte-identical209 schema and regenerated001–210 types are now included here.
+
+## Above-maximum grade signal
+
+- Surface/reference: teacher Gradebook table and production-owner compact specimen;
+  reuse the mark dialog's existing over-total warning semantics and warning tokens.
+- Extend score/final/average cells with a warning background, border, bold value
+  without status icons. Keep values and column widths intact.
+  Exact percentages/maximums remain in accessible labels and hover explanations.
+- Threshold is above 100%, or earned above possible; an earned mark of 150/200
+  stays ordinary. Grade calculations remain unchanged.
+- Teacher desktop/mobile, light/dark, regular/compact, raw/percent; normal, exact
+  maximum, over maximum, overridden, disabled/read-only, hover/focus and summaries.
+  Student: n/a; this table is teacher-only, with student specimen isolation checked.
+  Primary signal: highlighted mark; warning text remains in hover/accessibility labels. Composite behavior is reused.
+  Risk: none (display treatment); independent review is a bounded display review.
+
+User refinement: remove warning and refresh/override glyphs from the teacher
+mark table (including max mark status). The mark dialogs retain reset actions.
+Reuse table controls and warning tokens; extend presentation only. Verify the
+same density/mode/viewport/theme matrix and student-role isolation.
+
+Production-first schema preparation: include the byte-identical reviewed billing
+migration209 in this PR and regenerate canonical types against001–210. The
+production edit gate permits schema application before the gradebook merge while
+keeping scale-changing writes disabled until the complete application rollout.
+
+## Paused maximum changes: restoration access
+
+Reference: approved teacher Gradebook table/dialog and `/pattern-lab#gradebook-compact`.
+Extend their existing capability contracts so schema availability remains separate
+from permission to make new maximum changes. Existing overrides can open a
+restoration-only dialog while production changes are paused. Restore keeps its
+existing action; input, behavior selection, and Save remain disabled.
+Verify teacher desktop/mobile, light/dark, normal/ultra compact, open/closed,
+keyboard submission, saving, restoration failure and successful restoration.
+Student layout is n/a: these are teacher-only controls; verify role isolation.
+The primary signal is explicit paused-change copy with an available restore action.
+Reuse shared dialog, buttons, input and select. No new component or visual pattern.
+Composite keyboard and focus verification is required.

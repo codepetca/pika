@@ -1157,6 +1157,8 @@ export type Database = {
           description: string
           due_at: string
           gradebook_category_id: string | null
+          gradebook_maximum_override: number | null
+          gradebook_score_scale: number
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -1181,6 +1183,8 @@ export type Database = {
           description?: string
           due_at: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -1205,6 +1209,8 @@ export type Database = {
           description?: string
           due_at?: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -5666,6 +5672,8 @@ export type Database = {
           created_at: string
           created_by: string
           gradebook_category_id: string | null
+          gradebook_maximum_override: number | null
+          gradebook_score_scale: number
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -5678,6 +5686,8 @@ export type Database = {
           created_at?: string
           created_by: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -5690,6 +5700,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -8082,6 +8094,8 @@ export type Database = {
           created_by: string
           documents: Json
           gradebook_category_id: string | null
+          gradebook_maximum_override: number | null
+          gradebook_score_scale: number
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -8103,6 +8117,8 @@ export type Database = {
           created_by: string
           documents?: Json
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -8124,6 +8140,8 @@ export type Database = {
           created_by?: string
           documents?: Json
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -11135,6 +11153,10 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      normalize_classroom_archive_restore_row_pre_v210: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
       normalize_classroom_archive_restore_row_v143: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
@@ -11272,6 +11294,10 @@ export type Database = {
       queue_managed_storage_cleanup: {
         Args: { p_error_code?: string; p_object_id: string }
         Returns: boolean
+      }
+      read_gradebook_maximum_state: {
+        Args: { p_classroom_id: string }
+        Returns: Json
       }
       reconcile_managed_storage_json_references: {
         Args: never
@@ -11967,6 +11993,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_gradebook_effective_mark: {
+        Args: {
+          p_assessment_id: string
+          p_assessment_type: string
+          p_classroom_id: string
+          p_earned: number
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
         Returns: Json
@@ -12088,6 +12125,19 @@ export type Database = {
           p_earned: number
           p_item_id: string
           p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      set_gradebook_maximum_override: {
+        Args: {
+          p_assessment_id: string
+          p_assessment_type: string
+          p_classroom_id: string
+          p_expected_maximum: number
+          p_expected_scale: number
+          p_maximum: number
+          p_mode: string
           p_teacher_id: string
         }
         Returns: Json

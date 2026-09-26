@@ -17,10 +17,34 @@ export function round2(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+export function formatWholePercent(value: number | null): string {
+  return value == null ? '—' : `${Math.round(value)}%`
+}
+
 export function formatCompactPercent(value: number | null): string {
   if (value == null) return '—'
   const rounded = round2(value)
   return `${Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)}%`
+}
+
+export function isGradeAboveMaximum(percent: number | null | undefined): boolean {
+  return percent != null && Number.isFinite(percent) && percent - 100 > 1e-10
+}
+
+export function getAssessmentMaximumPercent(cell: GradebookAssessmentCell | null): number | null {
+  if (!cell?.is_graded) return null
+  if (cell.earned != null && Number.isFinite(cell.earned) && Number.isFinite(cell.possible) && cell.possible > 0) return cell.earned / cell.possible * 100
+  return getAssessmentCellPercent(cell)
+}
+
+export function isAssessmentAboveMaximum(cell: GradebookAssessmentCell | null): boolean {
+  return isGradeAboveMaximum(getAssessmentMaximumPercent(cell))
+}
+
+export function formatAboveMaximumDescription(percent: number | null): string {
+  if (!isGradeAboveMaximum(percent)) return 'Above maximum'
+  const precise = Number(percent!.toFixed(6))
+  return precise > 100 ? `Above maximum (${precise}%)` : 'Above maximum'
 }
 
 export function getGradePercentTextClass(percent: number | null | undefined): string {
@@ -71,7 +95,7 @@ export function getStudentIdentityValue(student: GradebookStudentSummary, column
   return getStudentDisplayId(student)
 }
 
-export function getAssessmentColumnKey(column: GradebookAssessmentColumn): string {
+export function getAssessmentColumnKey(column: Pick<GradebookAssessmentColumn, 'assessment_type' | 'assessment_id'>): string {
   return `${column.assessment_type}:${column.assessment_id}`
 }
 

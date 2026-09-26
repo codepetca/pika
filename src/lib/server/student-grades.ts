@@ -1,3 +1,4 @@
+import { loadGradebookMaximumState } from '@/lib/server/gradebook-maximum'
 import { ApiError } from '@/lib/api-error'
 import { buildStudentGradesResponse, type StudentGradeCalculationItem, type StudentGradesResponse } from '@/lib/student-grades'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
@@ -19,6 +20,7 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
     throw new ApiError(403, 'Grades are hidden in this classroom')
   }
 
+  const maximumState = await loadGradebookMaximumState(classroomId)
   const supabase = getServiceRoleClient()
   const categoryResult = await loadPagedRows<{
     id: string
@@ -70,7 +72,7 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
     const assignment = row.assignments
     if (!assignment || assignment.is_draft || !row.returned_at) continue
     const possible = Number(assignment.points_possible)
-    if (!(possible > 0)) continue
+    if (!((maximumState.states.get(`assignment:${assignment.id}`)?.maximum ?? possible) > 0)) continue
     const override = overrides.get(itemKey('assignment', assignment.id))
     let earned: number
     if (override !== undefined) {
@@ -86,7 +88,7 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
       title: assignment.title,
       earned,
       possible,
-      percent: (earned / possible) * 100,
+      percent: possible > 0 ? (earned / possible) * 100 : 0,
       included: assignment.include_in_final !== false && Number(assignment.gradebook_weight) > 0
         && Boolean(category && category.percentage > 0),
       href: `/classrooms/${classroomId}?tab=assignments&assignmentId=${assignment.id}`,
@@ -146,14 +148,15 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
   for (const row of returnedTests) {
     const test = row.tests
     const questions = questionsByTest.get(row.test_id) ?? []
-    if (questions.length === 0) continue
-    const possible = questions.reduce((sum, question) => sum + question.points, 0)
+    const sourcePossible = questions.reduce((sum, question) => sum + question.points, 0)
+    const possible = maximumState.states.get(`test:${test.id}`)?.maximum ?? sourcePossible
     if (!(possible > 0)) continue
     const override = overrides.get(itemKey('test', test.id))
     let earned: number
     if (override !== undefined) {
       earned = override
     } else {
+      if (questions.length === 0) continue
       const responses = responsesByTest.get(row.test_id)
       if (!responses || questions.some((question) => responses.get(question.id) == null)) continue
       earned = questions.reduce((sum, question) => sum + Number(responses.get(question.id)), 0)
@@ -211,6 +214,14 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
     })
   }
 
+  for (const item of items) {
+    const type = item.kind === 'Classwork' ? 'assignment' : item.kind === 'Test' ? 'test' : 'item'
+    const state = maximumState.states.get(`${type}:${item.id}`)
+    if (!state) continue
+    item.possible = state.maximum ?? item.possible
+    item.earned *= state.score_scale
+    item.percent = item.earned / item.possible * 100
+  }
   return buildStudentGradesResponse({
     categories: categories.map(({ id, percentage }) => ({ id, percentage })),
     items,

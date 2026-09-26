@@ -1308,6 +1308,9 @@ export type GradebookAssessmentStatus =
   | 'resubmitted'
 
 export interface GradebookAssessmentColumn {
+  is_maximum_override?: boolean
+  source_possible?: number
+  maximum_scale?: number
   assessment_id: string
   assessment_type: GradebookAssessmentType
   code: string

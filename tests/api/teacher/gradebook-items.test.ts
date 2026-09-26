@@ -14,7 +14,7 @@ const create = { action: 'create', classroom_id, item_id, title: 'Attendance –
 const request = (body: unknown) => new NextRequest('http://localhost/api/teacher/gradebook/items', { method: 'POST', body: JSON.stringify(body) })
 
 describe('standalone Gradebook mutations', () => {
-  beforeEach(() => { rpc.mockReset(); rpc.mockResolvedValue({ data: { ok: true }, error: null }) })
+  beforeEach(() => { rpc.mockReset(); rpc.mockImplementation(async (name) => name === 'read_gradebook_maximum_state' ? { data: null, error: { code: 'PGRST202' } } : { data: { ok: true }, error: null }) })
   it('creates a first-class item through the authorized atomic workflow', async () => {
     expect((await POST(request(create))).status).toBe(200)
     expect(rpc).toHaveBeenCalledWith('mutate_gradebook_item', expect.objectContaining({ p_teacher_id: '10000000-0000-4000-8000-000000000009', p_action: 'create', p_classroom_id: classroom_id, p_item_id: item_id, p_title: create.title }))

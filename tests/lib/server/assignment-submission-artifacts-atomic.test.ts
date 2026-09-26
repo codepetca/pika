@@ -29,8 +29,8 @@ function makeAssignment() {
 }
 
 describe('atomic assignment and requirement updates', () => {
-  it('parses a complete successful RPC result', async () => {
-    const assignment = makeAssignment()
+  it.each([false, true])('parses successful RPC data including maximum overrides=%s', async (overridden) => {
+    const assignment = { ...makeAssignment(), ...(overridden ? { gradebook_maximum_override: 50, gradebook_score_scale: 0.5 } : {}) }
     const result = await updateAssignmentWithSubmissionRequirementsAtomic({
       supabase: {
         rpc: vi.fn().mockResolvedValue({
@@ -45,7 +45,7 @@ describe('atomic assignment and requirement updates', () => {
 
     expect(result).toEqual({
       ok: true,
-      assignment,
+      assignment: { ...assignment, gradebook_maximum_override: overridden ? 50 : null, gradebook_score_scale: overridden ? 0.5 : 1 },
       submissionRequirements: [],
     })
   })

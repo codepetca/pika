@@ -8,13 +8,14 @@ export interface GradebookDisplayPreferences {
   summaryKind: GradebookSummaryKind
   lastNameFirst: boolean
   showStudentIds: boolean
+  ultraCompact: boolean
   showWeights: boolean
   keepKeyColumnsVisible: boolean
 }
 
 export const DEFAULT_GRADEBOOK_PREFERENCES: GradebookDisplayPreferences = {
   scoreDisplayMode: 'percent', summaryKind: 'average', lastNameFirst: false,
-  showStudentIds: false, showWeights: false, keepKeyColumnsVisible: true,
+  showStudentIds: false, ultraCompact: false, showWeights: false, keepKeyColumnsVisible: true,
 }
 
 export function normalizeGradebookPreferences(value: unknown): GradebookDisplayPreferences {
@@ -22,7 +23,7 @@ export function normalizeGradebookPreferences(value: unknown): GradebookDisplayP
   const result = { ...DEFAULT_GRADEBOOK_PREFERENCES }
   if (saved.scoreDisplayMode === 'raw') result.scoreDisplayMode = 'raw'
   if (saved.summaryKind === 'median') result.summaryKind = 'median'
-  for (const key of ['lastNameFirst', 'showStudentIds', 'showWeights', 'keepKeyColumnsVisible'] as const) {
+  for (const key of ['lastNameFirst', 'showStudentIds', 'ultraCompact', 'showWeights', 'keepKeyColumnsVisible'] as const) {
     if (typeof saved[key] === 'boolean') result[key] = saved[key]
   }
   return result

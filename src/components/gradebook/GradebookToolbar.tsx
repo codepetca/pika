@@ -110,6 +110,7 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
       { id: 'edit-categories', label: 'Edit categories', icon: <Settings className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly, onSelect: onEditCategories },
       { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || !itemsAvailable || !onAddItem, onSelect: () => onAddItem?.() },
       { id: 'name-order', dividerBefore: true, label: preferences.lastNameFirst ? 'Show first name in column 1' : 'Show last name in column 1', onSelect: () => onChange({ lastNameFirst: !preferences.lastNameFirst }) },
+      { id: 'ultra-compact', label: 'Ultra-compact gradebook', checked: preferences.ultraCompact, onSelect: () => onChange({ ultraCompact: !preferences.ultraCompact }) },
       { id: 'student-ids', label: 'Show student IDs', checked: preferences.showStudentIds, onSelect: () => onChange({ showStudentIds: !preferences.showStudentIds }) },
       { id: 'sticky-columns', label: 'Keep key columns visible', checked: preferences.keepKeyColumnsVisible, onSelect: () => onChange({ keepKeyColumnsVisible: !preferences.keepKeyColumnsVisible }) },
       ...(hasManualChanges ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || undoingManualChanges || !onUndoManualChanges, dividerBefore: true, onSelect: () => onUndoManualChanges?.() }] : []),
