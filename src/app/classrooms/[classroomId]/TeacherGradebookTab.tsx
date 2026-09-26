@@ -16,6 +16,7 @@ import { safeLocalGetJson, safeLocalSetJson } from '@/lib/client-storage'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { average, formatCompactPercent, getAssessmentCell, getStudentDisplayId, getStudentName, getValidEmailList, getAssessmentColumnKey, median, type GradebookIdentityColumn } from '@/lib/gradebook-display'
 import { DEFAULT_GRADEBOOK_PREFERENCES as DEFAULT_PREFERENCES, normalizeGradebookPreferences, downloadGradebookCsv } from '@/lib/gradebook-editor'
+import type { MaximumChangeMode } from '@/lib/gradebook-maximum'
 import { saveGradebookAssessment } from '@/lib/gradebook-save'
 import { getGradebookEmail2Addresses } from '@/lib/gradebook-email'
 import { useGradebookEmail2 } from '@/hooks/useGradebookEmail2'
@@ -27,7 +28,7 @@ import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-vis
 type GradebookSection = 'grades' | 'settings'
 type GradebookSortColumn = GradebookIdentityColumn
 interface Props { classroom: Classroom; isActive?: boolean; sectionParam?: string | null; onSectionChange?: (section: GradebookSection) => void; onClassroomUpdated?: (classroom: Classroom) => void }
-interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; items_available?: boolean; students: GradebookStudentSummary[] }
+interface GradebookPayload { assessment_columns?: GradebookAssessmentColumn[]; categories?: GradebookCategory[]; category_schema_available?: boolean; score_overrides_available?: boolean; items_available?: boolean; maximum_overrides_available?: boolean; students: GradebookStudentSummary[] }
 type GradebookScoreEditTarget =
   | { kind: 'assessment'; student: GradebookStudentSummary; column: GradebookAssessmentColumn }
   | { kind: 'final'; student: GradebookStudentSummary }
@@ -67,6 +68,11 @@ export function TeacherGradebookTab({
   const { scoreDisplayMode } = preferences
   const [categorySchemaAvailable, setCategorySchemaAvailable] = useState(true)
   const [scoreOverridesAvailable, setScoreOverridesAvailable] = useState(true)
+  const [maximumAvailable, setMaximumAvailable] = useState(false)
+  const [maximumTarget, setMaximumTarget] = useState<GradebookAssessmentColumn | null>(null)
+  const [maximumError, setMaximumError] = useState('')
+  const [savingMaxMarkKeys, setSavingMaxMarkKeys] = useState<Set<string>>(new Set())
+  const maximumSequenceRef = useRef(0)
   const [itemsAvailable, setItemsAvailable] = useState(false)
   const [newItemId, setNewItemId] = useState<string | null>(null)
   useEffect(() => {
@@ -267,6 +273,7 @@ export function TeacherGradebookTab({
       setCategorySchemaAvailable(data.category_schema_available !== false)
       setScoreOverridesAvailable(data.score_overrides_available !== false)
       setItemsAvailable(data.items_available === true)
+      setMaximumAvailable(data.maximum_overrides_available === true)
       setAssessmentWeightDrafts(() => {
         const next: Record<string, string> = {}
         for (const column of columnsWithWeights) {
@@ -322,6 +329,11 @@ export function TeacherGradebookTab({
     setSelectedAssessment(null)
     setNewItemId(null)
     setItemsAvailable(false)
+    setMaximumAvailable(false)
+    setMaximumTarget(null)
+    setMaximumError('')
+    setSavingMaxMarkKeys(new Set())
+    maximumSequenceRef.current += 1
     setScoreEditTarget(null)
     setSavingScoreKeys(new Set())
     setScoreDialogError('')
@@ -616,6 +628,40 @@ export function TeacherGradebookTab({
     }
   }
 
+  async function saveMaximum(maximum: number | null, mode: MaximumChangeMode | 'reset' = 'keep_marks') {
+    if (!maximumTarget || isReadOnly || !maximumAvailable) return false
+    const target = maximumTarget
+    const classroomId = classroom.id
+    const key = getAssessmentColumnKey(target)
+    const requestId = ++maximumSequenceRef.current
+    setSavingMaxMarkKeys((keys) => new Set(keys).add(key))
+    setMaximumError('')
+    try {
+      const response = await fetch('/api/teacher/gradebook/maximums', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroom_id: classroomId, assessment_type: target.assessment_type,
+          assessment_id: target.assessment_id, maximum, mode,
+          expected_maximum: target.possible, expected_scale: target.maximum_scale ?? 1 }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Could not save maximum')
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      invalidateCachedJSONMatching(`student-grades:${classroomId}`)
+      if (requestId !== maximumSequenceRef.current || currentClassroomIdRef.current !== classroomId) return false
+      await loadGradebook({ preserveSnapshot: true })
+      if (requestId !== maximumSequenceRef.current || currentClassroomIdRef.current !== classroomId) return false
+      if (mode === 'reset') setMaximumTarget({ ...target, possible: target.source_possible ?? target.possible, maximum_scale: 1, is_maximum_override: false })
+      else setMaximumTarget(null)
+      return true
+    } catch (error) {
+      invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
+      if (requestId === maximumSequenceRef.current && currentClassroomIdRef.current === classroomId) setMaximumError(error instanceof Error ? error.message : 'Could not save maximum')
+      return false
+    } finally {
+      if (requestId === maximumSequenceRef.current && currentClassroomIdRef.current === classroomId) setSavingMaxMarkKeys((keys) => { const next = new Set(keys); next.delete(key); return next })
+    }
+  }
+
   function openAssessment(column: GradebookAssessmentColumn) {
     if (isReadOnly || (column.assessment_type === 'item' && !itemsAvailable)) return
     if (savingAssessmentKeys.size) { showMessage({ text: 'Wait for the weight save to finish', tone: 'info' }); return }
@@ -800,6 +846,8 @@ export function TeacherGradebookTab({
       onWeightDraftChange={handleAssessmentWeightDraftChange} onWeightCommit={handleAssessmentWeightCommit}
       itemScoreEditingDisabled={isReadOnly || !itemsAvailable}
       onAssessmentOpen={openAssessment}
+      onMaxMarkOpen={maximumAvailable ? (column) => { if (!isReadOnly) { setMaximumError(''); setMaximumTarget(column) } } : undefined}
+      savingMaxMarkKeys={savingMaxMarkKeys}
       onScoreOpen={openScore}
       onFinalScoreOpen={(student) => {
         if (!scoreOverridesAvailable) {
@@ -962,6 +1010,14 @@ export function TeacherGradebookTab({
         onDelete={() => mutateItem('delete')}
         onReturnMarks={() => mutateItem('return_marks')}
       />
+      <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null}
+        target={maximumTarget ? { kind: 'maximum', title: maximumTarget.title,
+          value: maximumTarget.possible, isOverride: maximumTarget.is_maximum_override,
+          undoValue: maximumTarget.source_possible } : null}
+        isSaving={maximumTarget ? savingMaxMarkKeys.has(getAssessmentColumnKey(maximumTarget)) : false}
+        error={maximumError} onClose={() => { setMaximumTarget(null); setMaximumError('') }}
+        onSave={async (maximum, mode) => { await saveMaximum(maximum, mode) }}
+        onUndo={() => saveMaximum(null, 'reset')} />
       <GradebookScoreDialog
         isOpen={Boolean(scoreEditTarget)}
         student={scoreEditTarget?.student ?? null}

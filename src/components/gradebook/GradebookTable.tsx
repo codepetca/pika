@@ -36,6 +36,8 @@ export interface GradebookTableProps {
   itemScoreEditingDisabled?: boolean
   onWeightDraftChange: (column: GradebookAssessmentColumn, value: string) => void
   onWeightCommit: (column: GradebookAssessmentColumn) => void
+  onMaxMarkOpen?: (column: GradebookAssessmentColumn) => void
+  savingMaxMarkKeys?: Set<string>
   onAssessmentOpen: (column: GradebookAssessmentColumn) => void
   onScoreOpen?: (student: GradebookStudentSummary, column: GradebookAssessmentColumn) => void
   onFinalScoreOpen?: (student: GradebookStudentSummary) => void
@@ -63,7 +65,7 @@ export function GradebookTable({
   students, columns, displayMode, lastNameFirst, showStudentIds,
   showWeights, ultraCompact = false, keepKeyColumnsVisible: frozen, columnWidths, onColumnWidthChange,
   weightDrafts, savingKeys, isReadOnly, scoreEditingDisabled = isReadOnly, itemScoreEditingDisabled = isReadOnly, onWeightDraftChange, onWeightCommit,
-  onAssessmentOpen, onScoreOpen, onFinalScoreOpen, savingScoreKeys = new Set(), selectedIds, allSelected, someSelected, toggleSelect,
+  onMaxMarkOpen, savingMaxMarkKeys = new Set(), onAssessmentOpen, onScoreOpen, onFinalScoreOpen, savingScoreKeys = new Set(), selectedIds, allSelected, someSelected, toggleSelect,
   toggleSelectAll, selectedStudentId, onStudentSelect, onStudentDeselect,
   sortColumn, sortDirection, onSort, scrollContainerRef, onScroll,
 }: GradebookTableProps) {
@@ -153,7 +155,14 @@ export function GradebookTable({
                 {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="bg-surface-2 !px-1 text-xs tabular-nums">
-                  <span aria-label={`Maximum mark for ${column.title}`}>{formatPoints(column.possible)}</span>
+                  <Button type="button" variant="ghost" size="xs"
+                    disabled={isReadOnly || !onMaxMarkOpen || savingMaxMarkKeys.has(getAssessmentColumnKey(column))}
+                    aria-label={`Maximum mark for ${column.title}${column.is_maximum_override ? ', overridden' : ''}`}
+                    className="w-full min-w-0 gap-0.5 px-0 text-xs tabular-nums"
+                    onClick={() => onMaxMarkOpen?.(column)}>
+                    {column.is_maximum_override ? <RotateCcw aria-hidden="true" className="h-3 w-3 shrink-0 text-primary" /> : null}
+                    <span className="min-w-0 truncate" title={formatPoints(column.possible)}>{formatPoints(column.possible)}</span>
+                  </Button>
                 </DataTableCell>)}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>

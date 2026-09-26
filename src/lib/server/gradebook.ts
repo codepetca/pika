@@ -1,3 +1,6 @@
+import { applyMaximumToCell, applyMaximumToColumn } from '@/lib/gradebook-maximum'
+import { getAssessmentColumnKey } from '@/lib/gradebook-display'
+import { loadGradebookMaximumState, saveEffectiveGradebookMark } from '@/lib/server/gradebook-maximum'
 import { logServerError } from '@/lib/server/diagnostics'
 import type { Assignment, AssignmentDoc } from '@/types'
 import { calculateAssignmentStatus } from '@/lib/assignments'
@@ -297,6 +300,8 @@ export async function loadTeacherGradebook(opts: {
   await assertTeacherOwnsClassroom(teacherId, classroomId)
 
   const supabase = getServiceRoleClient()
+
+  const maximumState = await loadGradebookMaximumState(classroomId)
 
   const categoryResult = await supabase
     .from('gradebook_categories')
@@ -864,7 +869,7 @@ export async function loadTeacherGradebook(opts: {
         cell: {
           assessment_id: assignment.id,
           assessment_type: 'assignment',
-          earned: round2(manualOverride),
+          earned: manualOverride,
           possible: round2(possible),
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
           is_graded: possible > 0,
@@ -986,6 +991,8 @@ export async function loadTeacherGradebook(opts: {
     })),
   ]
 
+  if (maximumState.available) for (const column of assessmentColumns) applyMaximumToColumn(column, maximumState.states.get(getAssessmentColumnKey(column)))
+
   const students = (enrollments || []).map((enrollment) => {
     const studentId = enrollment.student_id
     const profile = profileMap.get(studentId)
@@ -1000,7 +1007,7 @@ export async function loadTeacherGradebook(opts: {
         if (manualOverride == null) return baseCell
         return {
           ...baseCell,
-          earned: round2(manualOverride),
+          earned: manualOverride,
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
           is_graded: possible > 0,
           is_manual_override: true,
@@ -1017,6 +1024,7 @@ export async function loadTeacherGradebook(opts: {
         percent: round2(earned / possible * 100), is_graded: true, returned_at: score.returned_at }
     })
     assessmentScores.push(...standaloneCells)
+    for (const cell of assessmentScores) applyMaximumToCell(cell, maximumState.states.get(getAssessmentColumnKey(cell)))
     const itemRows = items.flatMap((item, index) => {
       const cell = standaloneCells[index]
       if (!item.include_in_final || cell.earned == null) return []
@@ -1025,7 +1033,7 @@ export async function loadTeacherGradebook(opts: {
     const assignmentRows = assignments.flatMap((assignment, index) => {
       const { cell, rawEarned } = assignmentScores[index]
       if (!assignment.include_in_final || assignment.is_draft || rawEarned == null || cell.possible <= 0) return []
-      return [{ earned: rawEarned, possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
+      return [{ earned: rawEarned * (maximumState.states.get(`assignment:${assignment.id}`)?.score_scale ?? 1), possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
     })
     const testOffset = assignments.length
     const testRows = tests.flatMap((test, index) => {
@@ -1148,6 +1156,7 @@ export async function loadTeacherGradebook(opts: {
     categories,
     category_schema_available: categorySchemaAvailable,
     score_overrides_available: scoreOverridesAvailable,
+    maximum_overrides_available: maximumState.available,
     items_available: itemsAvailable,
     assessment_columns: assessmentColumns,
     students,
@@ -1339,6 +1348,9 @@ export async function saveTeacherGradebookScoreOverride(opts: {
   })
 
   const supabase = getServiceRoleClient()
+  if (command.assessment_type !== 'final' && (await loadGradebookMaximumState(command.classroom_id)).available) {
+    return await saveEffectiveGradebookMark(teacherId, command.classroom_id, command.assessment_type, command.assessment_id, command.student_id, command.earned)
+  }
   const { error } = await supabase.from('gradebook_score_overrides').upsert({
     classroom_id: command.classroom_id,
     student_id: command.student_id,

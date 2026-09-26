@@ -75,7 +75,7 @@ export function getStudentIdentityValue(student: GradebookStudentSummary, column
   return getStudentDisplayId(student)
 }
 
-export function getAssessmentColumnKey(column: GradebookAssessmentColumn): string {
+export function getAssessmentColumnKey(column: Pick<GradebookAssessmentColumn, 'assessment_type' | 'assessment_id'>): string {
   return `${column.assessment_type}:${column.assessment_id}`
 }
 

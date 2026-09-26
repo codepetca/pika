@@ -136,3 +136,23 @@ fixtures are labeled separately from persisted demo-data verification.
   at 1440×900 and 390×844, both themes, plus 44px weight-input target checks.
   Nearby legacy Pattern Lab mockup renderer duplication remains a future
   refactor candidate; this specimen uses the live production owners.
+
+## Maximum override modal
+
+- Reuse the Gradebook mark dialog, native Select, table buttons and RotateCcw
+  indicator. Extend the dialog with a maximum target and positive-number validation.
+- Raw Max mark cells open Edit max mark. Each save chooses Keep existing marks
+  (percentage changes) or Preserve percentages (earned marks scale with the new
+  maximum). A refresh action restores the original maximum and original scale.
+- Original assignment/rubric/Test/item definitions stay intact. Override maximum
+  and scale persist with the assessment. Newly entered marks are normalized by
+  the current scale in a classroom-locked write; precision is retained internally.
+  These overrides also apply to returned-only student Grades calculations.
+- Migration 209 is required. Before it is applied, the Gradebook remains readable
+  and maximum editing stays disabled. No migration is applied without the exact
+  target/migration permission in the schema rollout checklist.
+- Verify teacher desktop/mobile and both themes: original, modal open, both save
+  choices, overridden indicator, refresh, validation, failure, archived and saving.
+  Student calculation and disclosure are tested server-side; student layout is
+  unchanged. Risk: workspace-state; independent review: high (grade arithmetic,
+  persisted schema, authorization and serialized writes).

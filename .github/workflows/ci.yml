@@ -136,6 +136,9 @@ jobs:
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
 
+      - name: Verify Gradebook maximum override calculations and ownership
+        run: bash scripts/check-gradebook-maximum-overrides-database.sh
+
       - name: Standalone Gradebook item database contracts
         run: bash scripts/check-standalone-gradebook-items-database.sh
 

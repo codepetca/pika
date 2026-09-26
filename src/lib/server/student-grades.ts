@@ -1,3 +1,4 @@
+import { loadGradebookMaximumState } from '@/lib/server/gradebook-maximum'
 import { ApiError } from '@/lib/api-error'
 import { buildStudentGradesResponse, type StudentGradeCalculationItem, type StudentGradesResponse } from '@/lib/student-grades'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
@@ -211,6 +212,15 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
     })
   }
 
+  const maximumState = await loadGradebookMaximumState(classroomId)
+  for (const item of items) {
+    const type = item.kind === 'Classwork' ? 'assignment' : item.kind === 'Test' ? 'test' : 'item'
+    const state = maximumState.states.get(`${type}:${item.id}`)
+    if (!state) continue
+    item.possible = state.maximum ?? item.possible
+    item.earned *= state.score_scale
+    item.percent = item.earned / item.possible * 100
+  }
   return buildStudentGradesResponse({
     categories: categories.map(({ id, percentage }) => ({ id, percentage })),
     items,

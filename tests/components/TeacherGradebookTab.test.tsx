@@ -319,6 +319,25 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^Essay$/)
   })
 
+  it('saves a maximum with the chosen behavior and retains the dialog on failure', async () => {
+    const data = gradebookResponse()
+    const maximumData = { ...data, maximum_overrides_available: true, assessment_columns: data.assessment_columns.map((column) => ({ ...column, source_possible: 10, maximum_scale: 1 })) }
+    fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => init?.method === 'PUT'
+      ? { ok: false, json: async () => ({ error: 'This maximum changed. Refresh and try again' }) }
+      : { ok: true, json: async () => maximumData })
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('button', { name: 'Show %' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Maximum mark for Essay' }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Max mark' }), { target: { value: '5' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Existing marks' }), { target: { value: 'preserve_percentages' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save max mark' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('This maximum changed')
+    const write = fetchMock.mock.calls.find(([_url, init]) => init?.method === 'PUT')
+    expect(JSON.parse(write![1].body)).toMatchObject({ maximum: 5, mode: 'preserve_percentages', expected_maximum: 10, expected_scale: 1 })
+    expect(screen.getByRole('dialog', { name: 'Edit max mark' })).toBeInTheDocument()
+  })
+
   it('supports shared keyboard row navigation and dismissal', async () => {
     renderGradebook('grades')
 

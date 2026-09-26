@@ -319,6 +319,8 @@ function buildPagedMockFrom(
   })
 }
 
+beforeEach(() => { mockSupabaseClient.rpc.mockReset(); mockSupabaseClient.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } }) })
+
 describe('GET /api/teacher/gradebook', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -399,6 +401,26 @@ describe('GET /api/teacher/gradebook', () => {
     ])
     expect(body.selected_student).not.toHaveProperty('quizzes')
     expect(body.selected_student.tests).toEqual([])
+  })
+
+  it.each([
+    { scale: 1, earned: 24, percent: 160 },
+    { scale: 0.5, earned: 12, percent: 80 },
+  ])('applies maximum scale $scale to rows, final, inspector and summary', async ({ scale, earned, percent }) => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'assignment', assessment_id: 'a1', maximum: 15, score_scale: scale }], error: null })
+    mockSupabaseClient.from = buildMockFrom({
+      assignments: [{ id: 'a1', title: 'Essay', due_at: null, position: 1, is_draft: false, points_possible: 30, include_in_final: true }],
+      docs: [{ assignment_id: 'a1', student_id: 'student-1', score_completion: 8, score_thinking: 8, score_workflow: 8 }],
+    })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1&student_id=student-1'))
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.maximum_overrides_available).toBe(true)
+    expect(body.assessment_columns[0]).toMatchObject({ possible: 15, source_possible: 30, maximum_scale: scale, is_maximum_override: true })
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned, possible: 15, percent })
+    expect(body.students[0].final_percent).toBe(percent)
+    expect(body.selected_student.assignments[0]).toMatchObject({ earned, possible: 15, percent })
+    expect(body.class_summary.assignments[0]).toMatchObject({ average_percent: percent })
   })
 
   it('uses a manual mark in the student row, final, and class summary', async () => {

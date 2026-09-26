@@ -3,6 +3,18 @@ import { describe, expect, it, vi } from 'vitest'
 import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 
 describe('GradebookScoreDialog original marks', () => {
+  it('offers maximum-change behavior and validates a positive maximum', () => {
+    const onSave = vi.fn()
+    render(<GradebookScoreDialog isOpen student={null} target={{ kind: 'maximum', title: 'Essay', value: 100 }} isSaving={false} onClose={vi.fn()} onSave={onSave} />)
+    const input = screen.getByRole('spinbutton', { name: 'Max mark' })
+    fireEvent.change(input, { target: { value: '0' } })
+    expect(screen.getByRole('button', { name: 'Save max mark' })).toBeDisabled()
+    fireEvent.change(input, { target: { value: '50' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Existing marks' }), { target: { value: 'preserve_percentages' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save max mark' }))
+    expect(onSave).toHaveBeenCalledWith(50, 'preserve_percentages')
+  })
+
   it('clears an original zero without presenting an override undo action', () => {
     const onClear = vi.fn(), onUndo = vi.fn()
     render(<GradebookScoreDialog isOpen student={null} target={{ kind: 'item', title: 'Attendance', value: 0, possible: 20 }} isSaving={false} onClose={vi.fn()} onSave={vi.fn()} onClear={onClear} onUndo={onUndo} />)

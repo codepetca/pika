@@ -1,6 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
+import { applyMaximumToCell, applyMaximumToColumn, previewMaximumChange, type GradebookMaximumState, type MaximumChangeMode } from '@/lib/gradebook-maximum'
+import { calculateCategorizedFinalPercent } from '@/lib/gradebook'
+import { getAssessmentColumnKey } from '@/lib/gradebook-display'
 import { GradebookTable } from '@/components/gradebook/GradebookTable'
 import { GradebookToolbar } from '@/components/gradebook/GradebookToolbar'
 import { DEFAULT_GRADEBOOK_PREFERENCES } from '@/lib/gradebook-editor'
@@ -32,22 +36,54 @@ const noop = () => {}
 export function GradebookCompactPattern() {
   const [preferences, setPreferences] = useState({ ...DEFAULT_GRADEBOOK_PREFERENCES, showWeights: true })
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({})
+  const [maximums, setMaximums] = useState<Record<string, GradebookMaximumState>>({})
+  const [maximumTarget, setMaximumTarget] = useState<GradebookAssessmentColumn | null>(null)
+  const displayedColumns = columns.map((column) => {
+    const result = { ...column }
+    applyMaximumToColumn(result, maximums[getAssessmentColumnKey(column)])
+    return result
+  })
+  const displayedStudents = students.map((student) => {
+    const cells = student.assessment_scores?.map((cell) => {
+      const result = { ...cell }
+      applyMaximumToCell(result, maximums[getAssessmentColumnKey(cell)])
+      return result
+    }) ?? []
+    const calculation = calculateCategorizedFinalPercent({ categories: [{ id: 'term', percentage: 100 }],
+      items: cells.filter((cell) => cell.earned != null).map((cell) => ({ earned: cell.earned!, possible: cell.possible, weight: 10, categoryId: 'term' })) })
+    return { ...student, assessment_scores: cells, final_percent: calculation.finalPercent }
+  })
+  function saveMaximum(maximum: number, mode: MaximumChangeMode = 'keep_marks') {
+    if (!maximumTarget) return
+    setMaximums((values) => ({ ...values, [getAssessmentColumnKey(maximumTarget)]: previewMaximumChange(maximumTarget, maximum, mode) }))
+    setMaximumTarget(null)
+  }
   return <div className="space-y-3" data-testid="gradebook-compact-pattern">
     <GradebookToolbar preferences={preferences} onChange={(changes) => setPreferences((value) => ({ ...value, ...changes }))}
       selectedCount={0} isReadOnly={false} onEditCategories={noop} onCopyEmails={noop} onExport={noop}
       studentGradesVisible={false} onStudentGradesVisibilityChange={noop} />
     <div className="h-96">
-      <GradebookTable students={students} columns={columns} displayMode={preferences.scoreDisplayMode}
+      <GradebookTable students={displayedStudents} columns={displayedColumns} displayMode={preferences.scoreDisplayMode}
         ultraCompact={preferences.ultraCompact} lastNameFirst={preferences.lastNameFirst}
         showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
         keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}
         columnWidths={{ first_name: 96, last_name: 96, id: 80, final: 88 }} onColumnWidthChange={noop}
         weightDrafts={weightDrafts} savingKeys={new Set()} isReadOnly={false}
         onWeightDraftChange={(column, value) => setWeightDrafts((drafts) => ({ ...drafts, [`${column.assessment_type}:${column.assessment_id}`]: value }))}
-        onWeightCommit={noop} onAssessmentOpen={noop} onScoreOpen={noop} onFinalScoreOpen={noop}
+        onWeightCommit={noop} onAssessmentOpen={noop} onMaxMarkOpen={setMaximumTarget} onScoreOpen={noop} onFinalScoreOpen={noop}
         selectedIds={new Set()} allSelected={false} someSelected={false} toggleSelect={noop} toggleSelectAll={noop}
         selectedStudentId={null} onStudentSelect={noop} onStudentDeselect={noop}
         sortColumn="first_name" sortDirection="asc" onSort={noop} />
     </div>
+    <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null}
+      target={maximumTarget ? { kind: 'maximum', title: maximumTarget.title, value: maximumTarget.possible,
+        isOverride: maximumTarget.is_maximum_override, undoValue: maximumTarget.source_possible } : null}
+      isSaving={false} onClose={() => setMaximumTarget(null)} onSave={saveMaximum}
+      onUndo={() => {
+        if (!maximumTarget) return false
+        setMaximums((values) => { const next = { ...values }; delete next[getAssessmentColumnKey(maximumTarget)]; return next })
+        setMaximumTarget({ ...maximumTarget, possible: maximumTarget.source_possible ?? maximumTarget.possible, is_maximum_override: false, maximum_scale: 1 })
+        return true
+      }} />
   </div>
 }
