@@ -11,7 +11,11 @@ interface CreationModalShellProps {
   titleId: string
   closeLabel: string
   closeDisabled?: boolean
+  /** Use false only when the dialog content provides its own accessible close control. */
+  showCloseButton?: boolean
+  closeButtonClassName?: string
   maxWidth?: string
+  panelClassName?: string
   contentClassName?: string
   /** Use a consistent viewport-relative height for long authoring forms. */
   tall?: boolean
@@ -65,7 +69,10 @@ export function CreationModalShell({
   titleId,
   closeLabel,
   closeDisabled = false,
+  showCloseButton = true,
+  closeButtonClassName,
   maxWidth = '!max-w-4xl',
+  panelClassName,
   contentClassName,
   tall = false,
   showTitle = false,
@@ -84,7 +91,7 @@ export function CreationModalShell({
       type="button"
       variant="ghost"
       size="sm"
-      className={cn('z-20 h-11 w-11 px-0 text-text-default', !showTitle && 'absolute right-1 top-1')}
+      className={cn('z-20 h-11 w-11 px-0 text-text-default', !showTitle && 'absolute right-1 top-1', closeButtonClassName)}
       onClick={handleRequestClose}
       disabled={closeDisabled}
       aria-label={closeLabel}
@@ -99,7 +106,7 @@ export function CreationModalShell({
       isOpen={isOpen}
       onClose={handleRequestClose}
       maxWidth={maxWidth}
-      className={cn(CREATION_PANEL_CLASS, tall && 'h-[90dvh]')}
+      className={cn(CREATION_PANEL_CLASS, tall && 'h-[90dvh]', panelClassName)}
       viewportPaddingClassName="p-2 sm:p-4"
       ariaLabelledBy={titleId}
     >
@@ -109,13 +116,13 @@ export function CreationModalShell({
             {title}
           </h2>
           {headerCenter && <div className="flex items-center justify-center">{headerCenter}</div>}
-          <div className="flex justify-end">{closeControl}</div>
+          {showCloseButton && <div className="flex justify-end">{closeControl}</div>}
         </div>
       ) : (
         <h2 id={titleId} className="sr-only">{title}</h2>
       )}
 
-      {!showTitle && closeControl}
+      {!showTitle && showCloseButton && closeControl}
 
       <div className={cn('min-h-0 flex-1 overflow-y-auto p-3 sm:p-4', contentClassName)}>
         {children}

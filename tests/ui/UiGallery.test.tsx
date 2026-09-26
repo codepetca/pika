@@ -10,6 +10,7 @@ vi.mock('@/components/HistoryGraph', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
+  MarkdownContentEditor: () => <div />,
   RichTextEditor: () => <div />,
   RichTextViewer: () => <div />,
 }))

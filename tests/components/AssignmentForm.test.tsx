@@ -94,6 +94,29 @@ describe('AssignmentForm', () => {
     expect(details).not.toHaveClass('lg:border-r')
   })
 
+  it('keeps the Title label and its close action accessible in split mode', () => {
+    const onClose = vi.fn()
+    render(
+      <AssignmentForm
+        desktopSplit
+        title="Essay"
+        instructionsMarkdown=""
+        dueAt=""
+        onTitleChange={vi.fn()}
+        onInstructionsMarkdownChange={vi.fn()}
+        onDueAtChange={vi.fn()}
+        titleAccessory={<button type="button" onClick={onClose} aria-label="Close assignment modal">Close</button>}
+      />,
+    )
+
+    const details = screen.getByTestId('assignment-editor-details-pane')
+    const title = within(details).getByRole('textbox', { name: 'Title' })
+    expect(within(details).getByText('Title')).not.toHaveClass('sr-only')
+    expect(details).toContainElement(title)
+    fireEvent.click(within(details).getByRole('button', { name: 'Close assignment modal' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('lets Due fill the bottom row when an assignment has no Post action', async () => {
     render(
       <TooltipProvider><AssignmentForm
