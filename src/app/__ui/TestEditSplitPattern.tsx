@@ -69,7 +69,7 @@ interface TextReferenceEditorDraft {
 }
 
 const SAMPLE_REFERENCES: ReferenceDraft[] = [
-  { id: 'wetland-reference', type: 'pdf', label: 'Wetland reference sheet.pdf' },
+  { id: 'wetland-reference', type: 'text', label: 'Wetland field notes', content: '## Field notes\n- Count native species\n- Record water depth' },
 ]
 
 function ReferenceIcon({ type }: { type: ReferenceType }) {
@@ -120,6 +120,10 @@ export function TestEditSplitPattern() {
   const [markdownError, setMarkdownError] = useState<string | null>(null)
   const nextReferenceIdRef = useRef(1)
   const previewButtonRef = useRef<HTMLButtonElement>(null)
+  const previewActiveRef = useRef(false)
+  const previewOwnsFullscreenRef = useRef(false)
+  const referenceHandleRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const optionHandleRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   useEffect(() => {
     setQuestionNumberDraft(String(selectedQuestion))
@@ -159,6 +163,8 @@ export function TestEditSplitPattern() {
     setAppliedMarkdownSource('')
     setMarkdownError(null)
     setPreviewOpen(false)
+    previewActiveRef.current = false
+    previewOwnsFullscreenRef.current = false
     nextReferenceIdRef.current = 1
     setOpen(true)
   }
@@ -319,9 +325,16 @@ export function TestEditSplitPattern() {
   }
 
   function openFullTestPreview() {
+    previewActiveRef.current = true
     const fullscreenElement = document.documentElement
     if (!document.fullscreenElement && typeof fullscreenElement.requestFullscreen === 'function') {
-      void fullscreenElement.requestFullscreen().catch(() => {
+      void fullscreenElement.requestFullscreen().then(() => {
+        if (previewActiveRef.current) {
+          previewOwnsFullscreenRef.current = true
+        } else if (document.fullscreenElement) {
+          void document.exitFullscreen().catch(() => {})
+        }
+      }).catch(() => {
         // The shared preview shows its maximize prompt when fullscreen is unavailable.
       })
     }
@@ -329,6 +342,11 @@ export function TestEditSplitPattern() {
   }
 
   function closeFullTestPreview() {
+    previewActiveRef.current = false
+    if (previewOwnsFullscreenRef.current && document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {})
+    }
+    previewOwnsFullscreenRef.current = false
     setPreviewOpen(false)
     window.requestAnimationFrame(() => previewButtonRef.current?.focus())
   }
@@ -424,13 +442,25 @@ export function TestEditSplitPattern() {
     [points]
   )
   const filledOptions = options.filter((option) => option.trim())
+  const filledOptionIndices = options.flatMap((option, index) => option.trim() ? [index] : [])
   const titleError = title.trim() ? undefined : 'Add a title before publishing.'
   const questionError = questions[questionIndex]?.trim() ? undefined : 'Add a question prompt.'
   const pointsError = Number(points[questionIndex]) > 0 ? undefined : 'Points must be greater than 0.'
-  const optionsError = isMultipleChoice && (filledOptions.length < 2 || filledOptions.length > MAX_MC_OPTIONS)
-    ? `Multiple-choice questions need 2–${MAX_MC_OPTIONS} options.`
-    : undefined
-  const validationErrors = [titleError, questionError, pointsError, optionsError].filter(Boolean)
+  const optionsError = isMultipleChoice && (
+    filledOptions.length < 2 || filledOptions.length > MAX_MC_OPTIONS
+    || filledOptionIndices.some((index, filledIndex) => index !== filledIndex)
+    || !options[correctOption]?.trim()
+  ) ? `Multiple-choice questions need 2–${MAX_MC_OPTIONS} filled options in order and a correct answer.` : undefined
+  const invalidQuestionIndex = questions.findIndex((question, index) => {
+    if (!question.trim() || !(Number(points[index]) > 0)) return true
+    if (questionTypes[index] !== 'mc') return false
+    const questionOptions = optionsByQuestion[index] ?? []
+    const filledIndices = questionOptions.flatMap((option, optionIndex) => option.trim() ? [optionIndex] : [])
+    return filledIndices.length < 2 || filledIndices.length > MAX_MC_OPTIONS
+      || filledIndices.some((optionIndex, filledIndex) => optionIndex !== filledIndex)
+      || !questionOptions[correctOptions[index] ?? 0]?.trim()
+  })
+  const validationErrors = [titleError, invalidQuestionIndex >= 0 ? `Check question ${invalidQuestionIndex + 1}.` : undefined].filter(Boolean)
   const previewDraft = useMemo(() => ({
     title: title || 'Untitled Test',
     questions: questions.map((question, index): TestAssessmentQuestion => ({
@@ -449,13 +479,15 @@ export function TestEditSplitPattern() {
       created_at: PROTOTYPE_DATE,
       updated_at: PROTOTYPE_DATE,
     })),
-    documents: references.map((reference, index): ExamDocumentItem => ({
+    // PDF rows are pending-upload placeholders in Pattern Lab; no fake file is
+    // offered in the student-facing preview until a real upload exists.
+    documents: references.flatMap((reference, index): ExamDocumentItem[] => reference.type === 'pdf' ? [] : [{
       id: prototypeUuid('document', index),
       title: reference.label,
-      source: reference.type === 'pdf' ? 'upload' : reference.type,
+      source: reference.type,
       url: reference.type === 'link' ? `https://example.com/reference-${index + 1}` : undefined,
       content: reference.type === 'text' ? reference.content : undefined,
-    })),
+    }]),
   }), [answerKeys, correctOptions, optionsByQuestion, points, questionTypes, questions, references, responseFormats, sampleSolutions, title])
 
   return (
@@ -589,9 +621,18 @@ export function TestEditSplitPattern() {
                         type="button"
                         variant="ghost"
                         size="sm"
+                        ref={(element) => { referenceHandleRefs.current[index] = element }}
                         className="flex h-11 w-11 cursor-grab items-center justify-center rounded text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default disabled:cursor-default disabled:opacity-50"
                         disabled={references.length < 2}
-                        aria-label={`Drag to reorder ${reference.label}`}
+                        aria-label={`Reorder ${reference.label}; use Up and Down arrow keys`}
+                        aria-keyshortcuts="ArrowUp ArrowDown"
+                        onKeyDown={(event) => {
+                          const nextIndex = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : index
+                          if (nextIndex === index || nextIndex < 0 || nextIndex >= references.length) return
+                          event.preventDefault()
+                          moveReference(index, nextIndex)
+                          window.requestAnimationFrame(() => referenceHandleRefs.current[nextIndex]?.focus())
+                        }}
                       >
                         <GripVertical className="h-4 w-4" aria-hidden="true" />
                       </Button>
@@ -643,6 +684,9 @@ export function TestEditSplitPattern() {
                   ))}
                 </div>
               ) : null}
+              {references.some((reference) => reference.type === 'pdf') ? (
+                <p className="border-t border-border px-3 py-2 text-xs text-text-muted">PDF uploads are placeholders in Pattern Lab and appear in Preview only after attachment in Pika.</p>
+              ) : null}
             </div>
 
             <div className="rounded-md border border-border bg-surface px-3 py-2">
@@ -682,8 +726,8 @@ export function TestEditSplitPattern() {
                   Publish
                 </Button>
               </div>
-              {validationErrors.length > 0 ? (
-                <p className="mt-2 text-xs text-danger" role="alert">Fix the highlighted fields before publishing.</p>
+              {invalidQuestionIndex >= 0 ? (
+                <p className="mt-2 text-xs text-danger" role="alert">Check question {invalidQuestionIndex + 1}.</p>
               ) : null}
             </div>
           </div>
@@ -885,8 +929,17 @@ export function TestEditSplitPattern() {
                         type="button"
                         variant="ghost"
                         size="xs"
-                        aria-label={`Drag option ${letter} to reorder`}
+                        ref={(element) => { optionHandleRefs.current[index] = element }}
+                        aria-label={`Reorder option ${letter}; use Up and Down arrow keys`}
+                        aria-keyshortcuts="ArrowUp ArrowDown"
                         disabled={isBlankOption}
+                        onKeyDown={(event) => {
+                          const nextIndex = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : index
+                          if (nextIndex === index || nextIndex < 0 || nextIndex >= options.length || !options[nextIndex]?.trim()) return
+                          event.preventDefault()
+                          moveOption(index, nextIndex)
+                          window.requestAnimationFrame(() => optionHandleRefs.current[nextIndex]?.focus())
+                        }}
                         className="shrink-0 cursor-grab px-2 text-text-muted active:cursor-grabbing"
                       >
                         <GripVertical className="h-4 w-4" aria-hidden="true" />

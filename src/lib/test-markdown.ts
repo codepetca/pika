@@ -108,13 +108,16 @@ function isKnownFieldLine(line: string): boolean {
   return parsed ? FIELD_KEYS.has(parsed.key) : false
 }
 
-function splitSectionBlocks(lines: string[]): { heading: string; lines: string[] }[] {
+function splitSectionBlocks(
+  lines: string[],
+  kind: 'Question' | 'Document'
+): { heading: string; lines: string[] }[] {
   const blocks: { heading: string; lines: string[] }[] = []
   let current: { heading: string; lines: string[] } | null = null
 
   for (const rawLine of lines) {
     const line = rawLine.trimEnd()
-    if (isHeading(line, 3)) {
+    if (new RegExp(`^### ${kind} \\d+$`, 'i').test(line.trim())) {
       if (current) blocks.push(current)
       current = {
         heading: line.replace(/^###\s+/, '').trim(),
@@ -144,7 +147,8 @@ function splitSectionBlocks(lines: string[]): { heading: string; lines: string[]
 function parseMultilineField(
   lines: string[],
   startIndex: number,
-  initialValue: string
+  initialValue: string,
+  throughEnd = false
 ): { value: string; nextIndex: number } {
   const collected: string[] = []
   if (initialValue.trim().length > 0) {
@@ -154,7 +158,7 @@ function parseMultilineField(
   let index = startIndex + 1
   while (index < lines.length) {
     const nextLine = lines[index]
-    if (isHeading(nextLine, 2) || isHeading(nextLine, 3) || isKnownFieldLine(nextLine)) {
+    if (!throughEnd && isKnownFieldLine(nextLine)) {
       break
     }
     collected.push(nextLine)
@@ -448,7 +452,9 @@ function parseDocumentBlock(
         break
       }
       case 'content': {
-        const block = parseMultilineField(blockLines, lineIndex, field.value)
+        // Content is the last document field. Preserve its Markdown headings and
+        // field-like lines rather than interpreting them as Test structure.
+        const block = parseMultilineField(blockLines, lineIndex, field.value, true)
         parsed.content = block.value
         lineIndex = block.nextIndex
         break
@@ -646,7 +652,7 @@ export function markdownToTest(
     questionsHeaderIndex + 1,
     documentsHeaderIndex === -1 ? lines.length : documentsHeaderIndex
   )
-  const questionBlocks = splitSectionBlocks(questionLines).filter(
+  const questionBlocks = splitSectionBlocks(questionLines, 'Question').filter(
     (block) => block.heading.trim().length > 0 || block.lines.some((line) => line.trim().length > 0)
   )
 
@@ -674,7 +680,7 @@ export function markdownToTest(
     ) {
       documents = []
     } else {
-      const documentBlocks = splitSectionBlocks(documentLines).filter(
+      const documentBlocks = splitSectionBlocks(documentLines, 'Document').filter(
         (block) => block.heading.trim().length > 0 || block.lines.some((line) => line.trim().length > 0)
       )
       documents = []

@@ -129,6 +129,21 @@ describe('UiGallery history preview fixture', () => {
     expect(addRequirement).toHaveFocus()
   })
 
+  it('supports keyboard reordering in the Test edit prototype reference list', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><TestEditSplitPattern /></TooltipProvider></ThemeProvider>)
+    await user.click(screen.getByRole('button', { name: 'Open test edit prototype' }))
+
+    const references = within(screen.getByRole('dialog', { name: 'Edit Test' })).getByRole('group', { name: 'Reference Docs' })
+    await user.click(within(references).getByRole('button', { name: 'Add reference' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Link' }))
+    const handle = within(references).getByRole('button', { name: /Reorder Wetland field notes/ })
+    handle.focus()
+    await user.keyboard('{ArrowDown}')
+    await waitFor(() => expect(within(references.querySelector('[draggable]')!).getByRole('textbox', { name: 'link reference label' })).toBeVisible())
+    await waitFor(() => expect(handle).toHaveFocus())
+  })
+
   it('centers the Daily date when relative context is hidden', async () => {
     const user = userEvent.setup()
     render(<ThemeProvider><TooltipProvider><TeacherPatterns /></TooltipProvider></ThemeProvider>)
