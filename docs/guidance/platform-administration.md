@@ -178,6 +178,9 @@ focused tests cover selection, drawer closure, heading focus, and disabled
 confirmation. A cookie-isolation test and Playwright browser check confirm
 prototype collapse leaves `pika_left_sidebar` unchanged. No manual
 accessibility follow-up remains for this prototype.
+The unclassified sample's preview displays an unknown current creation grant
+as `—`, while retaining the proposed plan's numeric limit; this avoids
+presenting missing grant data as a known zero.
 
 ## Inventory and mutation contract
 

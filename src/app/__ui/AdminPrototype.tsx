@@ -158,7 +158,6 @@ function AdminPrototypeContent() {
     setScreen('preview')
   }
 
-  const currentLimit = account.grantLimit ?? 0
   const proposedLimit = PLAN_LIMITS[proposedPlan]
   const aboveLimit = account.activeClassrooms > proposedLimit
   const isSamePlan = account.plan === proposedPlan
@@ -254,7 +253,7 @@ function AdminPrototypeContent() {
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card><PageHeading level="h2" size="section" title="Proposed change" />
                   <div className="mt-4 max-w-sm"><FormField label="Proposed plan"><Select value={proposedPlan} onChange={(event) => setProposedPlan(event.target.value as Plan)} options={PLAN_OPTIONS} /></FormField></div>
-                  <dl className="mt-4"><Detail label="Current plan"><PlanLabel plan={account.plan} /></Detail><Detail label="Proposed plan"><PlanLabel plan={proposedPlan} /></Detail><Detail label="Current creation limit">{currentLimit}</Detail><Detail label="Proposed limit">{proposedLimit}</Detail><Detail label="Active classrooms">{account.activeClassrooms}</Detail><Detail label="Expected plan revision">{account.revision}</Detail></dl>
+                  <dl className="mt-4"><Detail label="Current plan"><PlanLabel plan={account.plan} /></Detail><Detail label="Proposed plan"><PlanLabel plan={proposedPlan} /></Detail><Detail label="Current creation limit">{account.grantLimit ?? '—'}</Detail><Detail label="Proposed limit">{proposedLimit}</Detail><Detail label="Active classrooms">{account.activeClassrooms}</Detail><Detail label="Expected plan revision">{account.revision}</Detail></dl>
                 </Card>
                 <Card tone={account.access === 'mismatch' || aboveLimit ? 'accent' : 'muted'}><PageHeading level="h2" size="section" title="Impact and checks" />
                   <div className="mt-4 space-y-3 text-sm">
