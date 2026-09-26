@@ -56,27 +56,40 @@ export type Database = {
       }
       account_plans: {
         Row: {
+          billing_offering_version_id: string | null
           created_at: string
+          management_source: string
           plan_key: string
           revision: number
           subject_user_id: string
           updated_at: string
         }
         Insert: {
+          billing_offering_version_id?: string | null
           created_at?: string
+          management_source?: string
           plan_key: string
           revision: number
           subject_user_id: string
           updated_at?: string
         }
         Update: {
+          billing_offering_version_id?: string | null
           created_at?: string
+          management_source?: string
           plan_key?: string
           revision?: number
           subject_user_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "account_plans_billing_offering_version_id_fkey"
+            columns: ["billing_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "account_plans_subject_user_id_fkey"
             columns: ["subject_user_id"]
@@ -6530,6 +6543,358 @@ export type Database = {
           },
         ]
       }
+      stripe_billing_event_inbox: {
+        Row: {
+          completed_at: string | null
+          event_created_at: string | null
+          event_type: string
+          exception_code: string | null
+          id: string
+          next_attempt_at: string | null
+          payload_hash: string
+          provider_mode: string
+          received_at: string
+          status: string
+          stripe_account: string
+          stripe_customer_id: string | null
+          stripe_event_id: string
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
+          subscription_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          event_created_at?: string | null
+          event_type: string
+          exception_code?: string | null
+          id?: string
+          next_attempt_at?: string | null
+          payload_hash: string
+          provider_mode?: string
+          received_at?: string
+          status?: string
+          stripe_account: string
+          stripe_customer_id?: string | null
+          stripe_event_id: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          event_created_at?: string | null
+          event_type?: string
+          exception_code?: string | null
+          id?: string
+          next_attempt_at?: string | null
+          payload_hash?: string
+          provider_mode?: string
+          received_at?: string
+          status?: string
+          stripe_account?: string
+          stripe_customer_id?: string | null
+          stripe_event_id?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_event_inbox_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_invoice_effects: {
+        Row: {
+          account_plan_revision: number
+          created_at: string
+          event_inbox_id: string | null
+          id: string
+          offering_version_id: string
+          period_end: string
+          period_start: string
+          stripe_account: string
+          stripe_invoice_id: string
+          subscription_id: string
+        }
+        Insert: {
+          account_plan_revision: number
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id: string
+          period_end: string
+          period_start: string
+          stripe_account: string
+          stripe_invoice_id: string
+          subscription_id: string
+        }
+        Update: {
+          account_plan_revision?: number
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id?: string
+          period_end?: string
+          period_start?: string
+          stripe_account?: string
+          stripe_invoice_id?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_invoice_effects_event_inbox_id_fkey"
+            columns: ["event_inbox_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_event_inbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_billing_invoice_effects_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_billing_invoice_effects_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_offering_availability: {
+        Row: {
+          available_from: string | null
+          available_until: string | null
+          is_available: boolean
+          offering_version_id: string
+          updated_at: string
+        }
+        Insert: {
+          available_from?: string | null
+          available_until?: string | null
+          is_available?: boolean
+          offering_version_id: string
+          updated_at?: string
+        }
+        Update: {
+          available_from?: string | null
+          available_until?: string | null
+          is_available?: boolean
+          offering_version_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_offering_availability_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: true
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_offering_versions: {
+        Row: {
+          ai_definition: Json | null
+          classroom_limit: number
+          created_at: string
+          currency: string
+          features: Json
+          id: string
+          interval: string
+          offering_id: string
+          provider_mode: string
+          stripe_account: string
+          stripe_price_id: string
+          stripe_product_id: string
+          unit_amount: number
+          version: number
+        }
+        Insert: {
+          ai_definition?: Json | null
+          classroom_limit: number
+          created_at?: string
+          currency: string
+          features: Json
+          id?: string
+          interval: string
+          offering_id: string
+          provider_mode?: string
+          stripe_account: string
+          stripe_price_id: string
+          stripe_product_id: string
+          unit_amount: number
+          version: number
+        }
+        Update: {
+          ai_definition?: Json | null
+          classroom_limit?: number
+          created_at?: string
+          currency?: string
+          features?: Json
+          id?: string
+          interval?: string
+          offering_id?: string
+          provider_mode?: string
+          stripe_account?: string
+          stripe_price_id?: string
+          stripe_product_id?: string
+          unit_amount?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_offering_versions_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offerings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_offerings: {
+        Row: {
+          created_at: string
+          id: string
+          plan_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_key?: string
+        }
+        Relationships: []
+      }
+      stripe_billing_subscription_audit: {
+        Row: {
+          account_plan_revision: number | null
+          created_at: string
+          event_inbox_id: string | null
+          id: string
+          offering_version_id: string | null
+          outcome: string
+          reason_code: string | null
+          subscription_id: string
+          subscription_revision: number
+        }
+        Insert: {
+          account_plan_revision?: number | null
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id?: string | null
+          outcome: string
+          reason_code?: string | null
+          subscription_id: string
+          subscription_revision: number
+        }
+        Update: {
+          account_plan_revision?: number | null
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id?: string | null
+          outcome?: string
+          reason_code?: string | null
+          subscription_id?: string
+          subscription_revision?: number
+        }
+        Relationships: []
+      }
+      stripe_billing_subscription_bindings: {
+        Row: {
+          created_at: string
+          fencing_token: number
+          id: string
+          last_exception_code: string | null
+          last_period_end: string | null
+          last_period_start: string | null
+          last_provider_status: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_reconcile_at: string
+          offering_version_id: string
+          provider_mode: string
+          revision: number
+          stripe_account: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          subject_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fencing_token?: number
+          id?: string
+          last_exception_code?: string | null
+          last_period_end?: string | null
+          last_period_start?: string | null
+          last_provider_status?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_reconcile_at?: string
+          offering_version_id: string
+          provider_mode?: string
+          revision?: number
+          stripe_account: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          subject_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fencing_token?: number
+          id?: string
+          last_exception_code?: string | null
+          last_period_end?: string | null
+          last_period_start?: string | null
+          last_provider_status?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_reconcile_at?: string
+          offering_version_id?: string
+          provider_mode?: string
+          revision?: number
+          stripe_account?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          subject_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_subscription_bindings_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_billing_subscription_bindings_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_profiles: {
         Row: {
           created_at: string
@@ -8459,6 +8824,19 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_claim_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
       bind_classroom_archive_restore_managed_object: {
         Args: {
           p_managed_object_id: string

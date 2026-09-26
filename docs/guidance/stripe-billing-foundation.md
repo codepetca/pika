@@ -1,0 +1,96 @@
+# Stripe billing foundation
+
+Status: isolated test-mode implementation on `codex/stripe-billing-foundation`;
+migration 209 is applied locally. Independent review and CI remain pending.
+The [subscription policy](subscription-policy.md) remains the product authority.
+
+## Scope and boundaries
+
+This first slice proves initial paid assignment and renewal against an immutable,
+previously bound offering in an isolated local database using Stripe test mode.
+It does not enable live billing. No real prices or AI allowances are established.
+The existing classroom authorization boundary remains authoritative.
+
+The server must reject hosted database targets, live Stripe credentials/events,
+and production hosting. A separate database sandbox gate starts disabled. The
+shared development environment is not sufficient evidence of target isolation.
+
+Purchased offering terms remain immutable. Catalog availability controls new
+purchases only; reconciliation uses the stored version, including archived
+offerings. An unexpected price or subscription change becomes an exception.
+Pending or failed payments preserve the previous effective assignment. Paid
+period timestamps are evidence, not approval for automatic expiry or downgrades.
+
+Checkout, quotes and prorated upgrades, customer portal, automatic cancellation,
+grace periods, refunds/disputes and subscriber migrations require later slices
+and the unresolved decisions in the policy. No scheduler is enabled here.
+
+## Execution plan
+
+The current task owns this branch and integration. Workers own separate files;
+only the coordinator commits and publishes. Risk profile: `runtime-platform`
+with financial, authorization and schema correctness requiring independent review.
+Model recommendation: GPT-6 Astra for architecture and coordination; GPT-5.6
+Terra for bounded implementation; independent security and compatibility review
+before readiness.
+
+1. **Design:** identify version, identity, payment and environment boundaries.
+   Exit: contracts preserve purchased terms and never trust browser claims or
+   event delivery order as payment authority. Architecture review completed.
+2. **Implement:** immutable catalog and trusted bindings; durable verified inbox;
+   leased current-state synchronization; atomic version-aware plan assignment;
+   bounded reconciliation. Exit: tests cover duplicate/conflicting events,
+   stale workers, failed payments, version preservation and target isolation.
+3. **Verify:** review exact migration before requesting local application;
+   regenerate database types, run database contracts and focused checks.
+   Exit: actual results recorded, with no live enablement or hosted mutations.
+4. **Review:** draft PR, fixed-commit security and architecture review, batched
+   remediation and stable-head CI. Exit: reviewable PR with rollout limitations.
+
+## Current verification and next action
+
+The coordinator and workers completed the isolated configuration, minimized
+webhook intake, Stripe read adapter, synchronization/reconciliation, RPC adapter
+and HTTP handler boundaries. The official Stripe SDK is pinned to `22.6.2` and
+API version `2026-08-26.dahlia`. `/api/billing/stripe/webhook` accepts signed
+events; `/api/billing/stripe/process` requires the separate worker secret and
+processes at most one subscription per request. Both return unavailable while
+the sandbox flag is off. No scheduler invokes them.
+
+The owner approved the Stripe dependency and one-time local application of
+migration 209 on 2026-09-26. Application succeeded after the preview named only
+209; generated database types match the local schema. The rollback-only billing
+harness and existing account-plan harness pass. Billing fixtures include
+preserved/new offering versions, repeated/conflicting events, lease expiry,
+missing revision fences and a forced mid-transaction failure proving that the
+plan, grant and invoice effect roll back together. The private sandbox gate
+remains disabled after testing.
+
+Unit tests use simulated Stripe reads and real SDK signature verification;
+they do not establish a real Stripe payment result. Fresh full migration replay
+and the older pre-activation classroom harness run in CI. The latter refuses
+the already-activated local database, whose setting was preserved. Independent
+fixed-SHA review and CI remain outstanding; no branch is ready to merge.
+
+Application of the schema does not activate the private sandbox gate. Database
+tests enable it only inside a transaction that rolls back. A real test-mode
+rehearsal still needs credentials and an explicitly isolated local runtime.
+
+## Operational prerequisites
+
+- Stripe's official Node dependency and local migration 209 were approved and
+  completed. That one-time migration authorization is consumed. Further schema
+  applications follow the [schema checklist](schema-rollout-checklist.md).
+- Stripe test credentials and a local signing secret are not currently configured
+  in the shared environment. Never commit them or copy hosted credentials into
+  fixture data. Unit fixtures do not establish a real Stripe round-trip result.
+- A successful test-mode rehearsal does not authorize production billing.
+
+## Reference contracts
+
+Implementation follows Stripe's [webhook delivery contract](https://docs.stripe.com/webhooks)
+and [subscription events](https://docs.stripe.com/billing/subscriptions/webhooks).
+Verify signatures over original bytes, durably accept before acknowledging,
+and reconcile current provider state because delivery can repeat or arrive out
+of order. Workers must fetch after obtaining a subscription lease and commit
+only while its fencing token remains current.

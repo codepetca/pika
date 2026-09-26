@@ -248,7 +248,7 @@ duplicated or out-of-order events without switching to the latest catalog terms.
 Before any later cohort migration, test its approved grandfathering/renewal/opt-in
 rules, annual paid-term protection, scheduled transition, duplicate execution,
 partial-failure recovery and charge/credit consistency. Versioning and cohort
-migration support remain unimplemented; this policy does not activate them.
+migration support are not enabled for customers; this policy does not activate them.
 
 Selected-provider implementation references:
 [price changes and archiving](https://docs.stripe.com/products-prices/manage-prices),
@@ -257,3 +257,7 @@ Selected-provider implementation references:
 [subscription events](https://docs.stripe.com/billing/subscriptions/webhooks),
 and [webhook delivery](https://docs.stripe.com/webhooks). Verify current provider
 behavior when implementing; provider defaults never supersede this policy.
+
+The [Stripe foundation execution plan](stripe-billing-foundation.md) tracks the
+isolated test-mode implementation and its verification gates. It does not approve
+live billing, commercial terms, or the unresolved lifecycle decisions above.
