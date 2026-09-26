@@ -8,8 +8,8 @@ if [[ "$(docker inspect supabase_db_pika --format '{{ index .Config.Labels "com.
   exit 2
 fi
 
-if [[ "$(docker exec supabase_db_pika psql -U postgres -d postgres -X -Atc "select count(*) from supabase_migrations.schema_migrations where version = '209'")" != '1' ]]; then
-  echo 'Migration 209 must already be applied locally; this harness never applies it.' >&2
+if [[ "$(docker exec supabase_db_pika psql -U postgres -d postgres -X -Atc "select count(*) from supabase_migrations.schema_migrations where version = '210'")" != '1' ]]; then
+  echo 'Migration 210 must already be applied locally; this harness never applies it.' >&2
   exit 2
 fi
 

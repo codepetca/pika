@@ -12,7 +12,7 @@ const stripeEventEnvelopeSchema = z.object({
   livemode: z.literal(false),
   account: z.string().optional(),
   context: z.string().optional(),
-  created: z.number().int().nonnegative(),
+  created: z.number().int().nonnegative().max(8640000000000),
   data: z.object({ object: z.object({
     id: z.string().min(1).max(255),
     customer: providerReferenceSchema.nullish(),
@@ -30,6 +30,7 @@ export type BillingEventReceipt = {
   event_type: string
   payload: { object_id: string; customer_id: string | null; subscription_id: string | null }
   received_at: string
+  event_created_at: string
 }
 
 /** Verifier must authenticate the original bytes using Stripe's official SDK. */
@@ -64,6 +65,7 @@ export async function acceptBillingWebhook<T>(input: {
     event_type: event.type,
     payload: { object_id: object.id, customer_id: object.customer ?? null, subscription_id: subscriptionId },
     received_at: new Date().toISOString(),
+    event_created_at: new Date(event.created * 1000).toISOString(),
   })
 }
 

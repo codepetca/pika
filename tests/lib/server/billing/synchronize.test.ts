@@ -13,7 +13,9 @@ const binding = {
   stripe_subscription_id: 'sub_test_subscription',
   offering_id: '33333333-3333-4333-8333-333333333333',
   offering_version_id: '44444444-4444-4444-8444-444444444444',
+  stripe_product_id: 'prod_preserved',
   stripe_price_id: 'price_preserved',
+  unit_amount: 2000,
   plan_key: 'plus',
   currency: 'usd',
   interval: 'month',
@@ -45,7 +47,9 @@ function paidSnapshot(overrides: Record<string, unknown> = {}) {
     pauseCollection: false,
     scheduleId: null,
     items: [{
+      productId: binding.stripe_product_id,
       priceId: binding.stripe_price_id,
+      unitAmount: binding.unit_amount,
       currency: binding.currency,
       interval: binding.interval,
       intervalCount: 1,
@@ -57,6 +61,17 @@ function paidSnapshot(overrides: Record<string, unknown> = {}) {
     latestInvoice: {
       id: 'in_paid_1',
       status: 'paid',
+      billingReason: 'subscription_cycle',
+      subtotal: 2000,
+      total: 2000,
+      startingBalance: 0,
+      endingBalance: 0,
+      totalDiscountAmount: 0,
+      totalTaxAmount: 0,
+      hasDiscounts: false,
+      hasTaxes: false,
+      prePaymentCreditNotesAmount: 0,
+      postPaymentCreditNotesAmount: 0,
       amountDue: 2000,
       amountPaid: 2000,
       amountPaidOffStripe: 0,
@@ -68,8 +83,11 @@ function paidSnapshot(overrides: Record<string, unknown> = {}) {
         type: 'subscription',
         subscriptionId: binding.stripe_subscription_id,
         priceId: binding.stripe_price_id,
+        amount: 2000,
         quantity: 1,
         proration: false,
+        hasDiscounts: false,
+        hasTaxes: false,
         periodStart: '2026-09-01T00:00:00.000Z',
         periodEnd: '2026-10-01T00:00:00.000Z',
       }],
@@ -81,6 +99,7 @@ function paidSnapshot(overrides: Record<string, unknown> = {}) {
           status: 'succeeded', paid: true, captured: true, refunded: false, amountRefunded: 0,
           disputed: false, customerId: binding.stripe_customer_id, currency: binding.currency,
           paymentIntentId: 'pi_paid_1',
+          paymentMethodType: 'card',
         },
       }],
     },
@@ -183,7 +202,8 @@ describe('synchronizeBillingSubscription', () => {
     await expect(synchronizeBillingSubscription({
       store,
       provider: providerWith(paidSnapshot({ items: [{
-        priceId: 'price_unbound_changed', currency: 'usd', interval: 'month', intervalCount: 1,
+        productId: binding.stripe_product_id, priceId: 'price_unbound_changed', unitAmount: binding.unit_amount,
+        currency: 'usd', interval: 'month', intervalCount: 1,
         priceLiveMode: false, quantity: 1,
         currentPeriodStart: '2026-09-01T00:00:00.000Z',
         currentPeriodEnd: '2026-10-01T00:00:00.000Z',
@@ -253,15 +273,62 @@ describe('synchronizeBillingSubscription', () => {
     ['a partial invoice payment', (snapshot: ReturnType<typeof paidSnapshot>) => ({
       ...snapshot,
       latestInvoice: { ...snapshot.latestInvoice, amountPaid: 1999 },
-    }), 'invoice_payment_unapproved'],
+    }), 'financial_terms_unapproved'],
     ['a zero amount invoice', (snapshot: ReturnType<typeof paidSnapshot>) => ({
       ...snapshot,
       latestInvoice: { ...snapshot.latestInvoice, amountDue: 0, amountPaid: 0, payments: [] },
-    }), 'invoice_payment_unapproved'],
+    }), 'financial_terms_unapproved'],
     ['an incompletely expanded invoice', (snapshot: ReturnType<typeof paidSnapshot>) => ({
       ...snapshot,
       latestInvoice: { ...snapshot.latestInvoice, linesFullyEnumerated: false },
     }), 'provider_snapshot_invalid'],
+    ['a discounted invoice', (snapshot: ReturnType<typeof paidSnapshot>) => ({
+      ...snapshot,
+      latestInvoice: {
+        ...snapshot.latestInvoice, totalDiscountAmount: 1, hasDiscounts: true,
+        total: 1999, amountDue: 1999, amountPaid: 1999,
+        payments: [{ ...snapshot.latestInvoice.payments[0], amountReceived: 1999 }],
+      },
+    }), 'financial_terms_unapproved'],
+    ['a customer credit', (snapshot: ReturnType<typeof paidSnapshot>) => ({
+      ...snapshot,
+      latestInvoice: { ...snapshot.latestInvoice, prePaymentCreditNotesAmount: 1 },
+    }), 'financial_terms_unapproved'],
+    ['taxes', (snapshot: ReturnType<typeof paidSnapshot>) => ({
+      ...snapshot,
+      latestInvoice: { ...snapshot.latestInvoice, totalTaxAmount: 1, hasTaxes: true, total: 2001 },
+    }), 'financial_terms_unapproved'],
+    ['a post-payment credit note', (snapshot: ReturnType<typeof paidSnapshot>) => ({
+      ...snapshot,
+      latestInvoice: { ...snapshot.latestInvoice, postPaymentCreditNotesAmount: 1 },
+    }), 'financial_terms_unapproved'],
+    ['a non-card payment method', (snapshot: ReturnType<typeof paidSnapshot>) => ({
+      ...snapshot,
+      latestInvoice: { ...snapshot.latestInvoice, payments: [{
+        ...snapshot.latestInvoice.payments[0], latestCharge: {
+          ...snapshot.latestInvoice.payments[0].latestCharge, paymentMethodType: 'us_bank_account',
+        },
+      }] },
+    }), 'financial_terms_unapproved'],
+    ['a manual invoice reason', (snapshot: ReturnType<typeof paidSnapshot>) => ({
+      ...snapshot,
+      latestInvoice: { ...snapshot.latestInvoice, billingReason: 'manual' },
+    }), 'financial_terms_unapproved'],
+    ['an item with a different product', (snapshot: ReturnType<typeof paidSnapshot>) => ({
+      ...snapshot,
+      items: [{ ...snapshot.items[0], productId: 'prod_other' }],
+    }), 'financial_terms_unapproved'],
+    ['an item with a different unit amount', (snapshot: ReturnType<typeof paidSnapshot>) => ({
+      ...snapshot,
+      items: [{ ...snapshot.items[0], unitAmount: 2001 }],
+    }), 'financial_terms_unapproved'],
+    ['an invoice with an extra line', (snapshot: ReturnType<typeof paidSnapshot>) => ({
+      ...snapshot,
+      latestInvoice: { ...snapshot.latestInvoice, lines: [
+        ...snapshot.latestInvoice.lines,
+        { ...snapshot.latestInvoice.lines[0], priceId: 'price_extra' },
+      ] },
+    }), 'financial_terms_unapproved'],
   ])('preserves access for %s', async (_name, mutate, reason) => {
     const store = storeWith()
     await expect(synchronizeBillingSubscription({

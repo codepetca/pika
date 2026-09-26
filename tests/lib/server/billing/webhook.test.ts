@@ -18,9 +18,11 @@ describe('durable verified Stripe intake', () => {
     expect(verify).toHaveBeenCalledWith(raw, 'signature')
     expect(record).toHaveBeenCalledWith(expect.objectContaining({
       event_id: 'evt_fixture', stripe_account: 'acct_fixture',
+      event_created_at: new Date(event.created * 1000).toISOString(),
       payload: { object_id: 'in_fixture', customer_id: 'cus_fixture', subscription_id: 'sub_fixture' },
     }))
     expect(JSON.stringify(record.mock.calls)).not.toContain('must-not-persist')
+    expect(record.mock.calls[0][0].received_at).not.toBe(record.mock.calls[0][0].event_created_at)
   })
   it('does not acknowledge failed persistence', async () => {
     await expect(acceptBillingWebhook({ raw: Buffer.from('{}'), signature: 's',

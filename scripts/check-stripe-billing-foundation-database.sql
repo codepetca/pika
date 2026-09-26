@@ -11,7 +11,8 @@ begin
     'public.billing_list_work_v1(jsonb)',
     'public.billing_claim_subscription_v1(jsonb)',
     'public.billing_finish_subscription_v1(jsonb)',
-    'public.billing_fail_subscription_v1(jsonb)'
+    'public.billing_fail_subscription_v1(jsonb)',
+    'public.billing_requeue_subscription_v1(jsonb)'
   ] loop
     if to_regprocedure(v_rpc) is null
       or has_function_privilege('anon', v_rpc, 'execute')
@@ -38,6 +39,7 @@ begin
       'stripe_account', 'acct_b209gate', 'event_id', 'evt_b209gate',
       'payload_hash', repeat('a', 64), 'event_type', 'invoice.paid',
       'payload', jsonb_build_object('object_id', 'in_b209gate', 'customer_id', null, 'subscription_id', null),
+      'event_created_at', clock_timestamp(),
       'received_at', clock_timestamp()
     ));
     raise exception 'Disabled billing gate accepted an event';
@@ -136,11 +138,13 @@ begin
   v_first := public.billing_record_event_v1(jsonb_build_object(
     'stripe_account', 'acct_b209test', 'event_id', 'evt_b209paid', 'payload_hash', repeat('b', 64),
     'event_type', 'invoice.paid', 'payload', jsonb_build_object('object_id', 'in_b209paid', 'customer_id', 'cus_b209customer', 'subscription_id', 'sub_b209subscription'),
+    'event_created_at', '2026-01-01T00:00:00Z',
     'received_at', clock_timestamp()
   ));
   v_duplicate := public.billing_record_event_v1(jsonb_build_object(
     'stripe_account', 'acct_b209test', 'event_id', 'evt_b209paid', 'payload_hash', repeat('b', 64),
     'event_type', 'invoice.paid', 'payload', jsonb_build_object('object_id', 'in_b209paid', 'customer_id', 'cus_b209customer', 'subscription_id', 'sub_b209subscription'),
+    'event_created_at', '2026-01-01T00:00:00Z',
     'received_at', clock_timestamp()
   ));
   if v_first->>'status' <> 'accepted' or v_duplicate->>'status' <> 'duplicate'
@@ -151,6 +155,7 @@ begin
     perform public.billing_record_event_v1(jsonb_build_object(
       'stripe_account', 'acct_b209test', 'event_id', 'evt_b209paid', 'payload_hash', repeat('c', 64),
       'event_type', 'invoice.paid', 'payload', jsonb_build_object('object_id', 'in_b209paid', 'customer_id', 'cus_b209customer', 'subscription_id', 'sub_b209subscription'),
+      'event_created_at', '2026-01-01T00:00:00Z',
       'received_at', clock_timestamp()
     ));
     raise exception 'Conflicting event was accepted';
@@ -344,5 +349,214 @@ begin
   end if;
 end;
 $atomic_failure$;
+reset role;
+
+-- A network failure creates a subscription backoff. Even a separately due
+-- inbox event for that same subscription cannot bypass it, and direct claim
+-- reports busy until the backoff expires.
+update public.stripe_billing_subscription_bindings
+set reconcile_state='queued', reconcile_attempt_count=0,
+    next_reconcile_at=clock_timestamp(), lease_token=null, lease_expires_at=null
+where subject_user_id='f2090000-0000-4000-8000-000000000001';
+update public.stripe_billing_subscription_bindings
+set reconcile_state='queued', reconcile_attempt_count=0,
+    next_reconcile_at=clock_timestamp()-interval '2 minutes', lease_token=null, lease_expires_at=null
+where subject_user_id='f2090000-0000-4000-8000-000000000002';
+set local role service_role;
+do $backoff_failure$
+declare v_subscription uuid; v_claim jsonb;
+begin
+  select id into v_subscription from public.stripe_billing_subscription_bindings
+  where subject_user_id='f2090000-0000-4000-8000-000000000001';
+  v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if public.billing_fail_subscription_v1(jsonb_build_object(
+    'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token',
+    'fencing_token',v_claim->>'fencing_token',
+    'expected_subscription_revision',v_claim->>'subscription_revision',
+    'error_code','provider_unavailable'
+  ))->>'status' <> 'released' then raise exception 'Network failure did not release a bounded retry'; end if;
+end;
+$backoff_failure$;
+reset role;
+update public.stripe_billing_event_inbox
+set status='received', attempt_count=0, exception_code=null,
+    next_attempt_at=clock_timestamp()
+where id=(select id from public.stripe_billing_event_inbox
+  where subscription_id=(select id from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000001')
+  order by received_at limit 1);
+set local role service_role;
+do $backoff_gate$
+declare v_first uuid; v_due uuid; v_work jsonb;
+begin
+  select id into v_first from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000001';
+  select id into v_due from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000002';
+  if public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_first,'lease_seconds',30))->>'status' <> 'busy' then
+    raise exception 'Direct claim bypassed subscription retry backoff';
+  end if;
+  v_work := public.billing_list_work_v1(jsonb_build_object('limit',1));
+  if v_work->'items'->0->>'subscription_id' <> v_due::text then
+    raise exception 'Due inbox event bypassed subscription retry backoff';
+  end if;
+end;
+$backoff_gate$;
+reset role;
+
+-- A fresh trusted event advances the binding revision without stealing the
+-- current lease, so the older worker loses its fence and cannot overwrite the
+-- fresh reconciliation state.
+update public.stripe_billing_subscription_bindings
+set reconcile_state='queued', reconcile_attempt_count=0,
+    next_reconcile_at=clock_timestamp(), lease_token=null, lease_expires_at=null
+where subject_user_id='f2090000-0000-4000-8000-000000000001';
+set local role service_role;
+do $fresh_event_fence$
+declare v_subscription uuid; v_claim jsonb; v_result jsonb;
+begin
+  select id into v_subscription from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000001';
+  v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  perform public.billing_record_event_v1(jsonb_build_object(
+    'stripe_account','acct_b209test','event_id','evt_b210fresh','payload_hash',repeat('d',64),
+    'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b210fresh','customer_id','cus_b209customer','subscription_id','sub_b209subscription'),
+    'event_created_at','2026-02-01T00:00:00Z','received_at',clock_timestamp()
+  ));
+  v_result := public.billing_finish_subscription_v1(jsonb_build_object(
+    'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token',
+    'fencing_token',v_claim->>'fencing_token','expected_subscription_revision',v_claim->>'subscription_revision',
+    'expected_account_plan_revision',v_claim->>'expected_account_plan_revision',
+    'outcome','exception','reason_code','provider_unavailable'
+  ));
+  if v_result->>'status' <> 'lost_claim' then raise exception 'Fresh event did not fence stale worker'; end if;
+end;
+$fresh_event_fence$;
+reset role;
+
+-- The fifth actual transient completion exhausts retry and preserves the
+-- existing paid plan/grant. A duplicate receipt cannot clear that attention.
+update public.stripe_billing_subscription_bindings
+set reconcile_state='retry', reconcile_attempt_count=4,
+    next_reconcile_at=clock_timestamp()-interval '1 minute', lease_token=null, lease_expires_at=null
+where subject_user_id='f2090000-0000-4000-8000-000000000001';
+set local role service_role;
+do $actual_exhaustion$
+declare v_subscription uuid; v_claim jsonb; v_plan_revision bigint; v_quota integer;
+begin
+  select id into v_subscription from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000001';
+  select revision into v_plan_revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000001';
+  select quota_limit into v_quota from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000001' and feature_key='classrooms.create';
+  v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if public.billing_finish_subscription_v1(jsonb_build_object(
+    'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token','fencing_token',v_claim->>'fencing_token',
+    'expected_subscription_revision',v_claim->>'subscription_revision','expected_account_plan_revision',v_claim->>'expected_account_plan_revision',
+    'outcome','exception','reason_code','provider_unavailable'
+  ))->>'status' <> 'applied'
+    or not exists (select 1 from public.stripe_billing_subscription_bindings where id=v_subscription and reconcile_state='attention' and reconcile_attempt_count=5)
+    or (select revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000001') <> v_plan_revision
+    or (select quota_limit from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000001' and feature_key='classrooms.create') <> v_quota then
+    raise exception 'Fifth transient failure did not exhaust without changing paid access';
+  end if;
+  if public.billing_record_event_v1(jsonb_build_object(
+    'stripe_account','acct_b209test','event_id','evt_b210fresh','payload_hash',repeat('d',64),
+    'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b210fresh','customer_id','cus_b209customer','subscription_id','sub_b209subscription'),
+    'event_created_at','2026-02-01T00:00:00Z','received_at',clock_timestamp()
+  ))->>'status' <> 'duplicate'
+    or not exists (select 1 from public.stripe_billing_subscription_bindings where id=v_subscription and reconcile_state='attention') then
+    raise exception 'Duplicate receipt reset exhausted attention';
+  end if;
+end;
+$actual_exhaustion$;
+reset role;
+
+-- Recovery scheduling is globally fair after per-subscription deduplication:
+-- an older due subscription wins over a retrying lower UUID, while attention
+-- and an active lease cannot consume a worker limit of one.
+update public.stripe_billing_subscription_bindings
+set reconcile_state='retry', reconcile_attempt_count=4,
+    next_reconcile_at=clock_timestamp()-interval '1 minute',
+    lease_token=null, lease_expires_at=null
+where subject_user_id='f2090000-0000-4000-8000-000000000001';
+update public.stripe_billing_event_inbox
+set status='attention', next_attempt_at=null
+where subscription_id=(select id from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000001');
+update public.stripe_billing_subscription_bindings
+set reconcile_state='retry', reconcile_attempt_count=1,
+    next_reconcile_at=clock_timestamp()-interval '2 minutes',
+    lease_token=null, lease_expires_at=null
+where subject_user_id='f2090000-0000-4000-8000-000000000002';
+
+set local role service_role;
+do $recovery_fairness$
+declare
+  v_first uuid;
+  v_due uuid;
+  v_work jsonb;
+begin
+  select id into v_first from public.stripe_billing_subscription_bindings
+  where subject_user_id='f2090000-0000-4000-8000-000000000001';
+  select id into v_due from public.stripe_billing_subscription_bindings
+  where subject_user_id='f2090000-0000-4000-8000-000000000002';
+  v_work := public.billing_list_work_v1(jsonb_build_object('limit',1));
+  if v_work->'items'->0->>'subscription_id' <> v_due::text then
+    raise exception 'A retry monopolized the globally due work queue';
+  end if;
+end;
+$recovery_fairness$;
+reset role;
+update public.stripe_billing_subscription_bindings
+set reconcile_state='attention', reconcile_attempt_count=5,
+    reconcile_attention_at=clock_timestamp(), next_reconcile_at=null
+where subject_user_id='f2090000-0000-4000-8000-000000000001';
+set local role service_role;
+do $recovery_requeue$
+declare
+  v_first uuid;
+  v_due uuid;
+  v_work jsonb;
+  v_requeue jsonb;
+begin
+  select id into v_first from public.stripe_billing_subscription_bindings
+  where subject_user_id='f2090000-0000-4000-8000-000000000001';
+  select id into v_due from public.stripe_billing_subscription_bindings
+  where subject_user_id='f2090000-0000-4000-8000-000000000002';
+  v_work := public.billing_list_work_v1(jsonb_build_object('limit',1));
+  if v_work->'items'->0->>'subscription_id' <> v_due::text then
+    raise exception 'Attention subscription consumed queue capacity';
+  end if;
+  v_requeue := public.billing_requeue_subscription_v1(jsonb_build_object(
+    'subscription_id',v_first,'actor_ref','test:migration-210','reason_code','incident_resolved'
+  ));
+  if v_requeue->>'status' <> 'requeued'
+    or not exists (select 1 from public.stripe_billing_subscription_audit where subscription_id=v_first and outcome='requeued' and actor_ref='test:migration-210') then
+    raise exception 'Attention recovery was not durable and auditable';
+  end if;
+end;
+$recovery_requeue$;
+reset role;
+update public.stripe_billing_subscription_bindings
+set reconcile_state='queued', reconcile_attempt_count=0, reconcile_attention_at=null,
+    next_reconcile_at=clock_timestamp(), lease_token=null, lease_expires_at=null
+where subject_user_id='f2090000-0000-4000-8000-000000000002';
+set local role service_role;
+do $permanent_attention$
+declare v_subscription uuid; v_claim jsonb; v_plan_revision bigint; v_quota integer;
+begin
+  select id into v_subscription from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000002';
+  select revision into v_plan_revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000002';
+  select quota_limit into v_quota from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000002' and feature_key='classrooms.create';
+  v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if public.billing_requeue_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'actor_ref','test:migration-210','reason_code','must_not_steal_lease'))->>'status' <> 'busy' then
+    raise exception 'Requeue stole an active worker lease';
+  end if;
+  if public.billing_finish_subscription_v1(jsonb_build_object(
+    'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token','fencing_token',v_claim->>'fencing_token',
+    'expected_subscription_revision',v_claim->>'subscription_revision','expected_account_plan_revision',v_claim->>'expected_account_plan_revision',
+    'outcome','exception','reason_code','financial_terms_unapproved'
+  ))->>'status' <> 'applied'
+    or not exists (select 1 from public.stripe_billing_subscription_bindings where id=v_subscription and reconcile_state='attention' and reconcile_attempt_count=1)
+    or (select revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000002') <> v_plan_revision
+    or (select quota_limit from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000002' and feature_key='classrooms.create') <> v_quota then
+    raise exception 'Permanent financial exception changed paid access or did not require attention';
+  end if;
+end;
+$permanent_attention$;
 reset role;
 rollback;

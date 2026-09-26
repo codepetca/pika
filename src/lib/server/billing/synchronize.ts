@@ -76,6 +76,11 @@ export function verifyPaidSubscriptionSnapshot(
   const item = snapshot.items[0]
   if (item.priceId !== binding.stripe_price_id) return 'changed_price'
   if (
+    binding.unit_amount <= 0
+    || item.productId !== binding.stripe_product_id
+    || item.unitAmount !== binding.unit_amount
+  ) return 'financial_terms_unapproved'
+  if (
     item.currency !== binding.currency
     || item.interval !== binding.interval
     || item.intervalCount !== 1
@@ -94,12 +99,28 @@ export function verifyPaidSubscriptionSnapshot(
   // Payment/discount/credit policy is not approved. A zero-amount invoice or
   // a payment composition other than one captured card payment grants nothing.
   if (
+    !['subscription_create', 'subscription_cycle'].includes(invoice.billingReason)
+    || invoice.subtotal !== binding.unit_amount
+    || invoice.total !== binding.unit_amount
+    || invoice.amountDue !== binding.unit_amount
+    || invoice.amountPaid !== binding.unit_amount
+    || invoice.startingBalance !== 0
+    || invoice.endingBalance !== 0
+    || invoice.totalDiscountAmount !== 0
+    || invoice.totalTaxAmount !== 0
+    || invoice.hasDiscounts
+    || invoice.hasTaxes
+    || invoice.prePaymentCreditNotesAmount !== 0
+    || invoice.postPaymentCreditNotesAmount !== 0
+  ) return 'financial_terms_unapproved'
+  if (
     invoice.amountDue <= 0
     || invoice.amountPaid !== invoice.amountDue
     || !invoice.paymentsFullyEnumerated
     || invoice.payments.length !== 1
   ) return 'invoice_payment_unapproved'
   const payment = invoice.payments[0]
+  if (payment.latestCharge.paymentMethodType !== 'card') return 'financial_terms_unapproved'
   if (
     payment.customerId !== binding.stripe_customer_id
     || invoice.currency !== binding.currency
@@ -114,14 +135,21 @@ export function verifyPaidSubscriptionSnapshot(
     || invoice.subscriptionId !== binding.stripe_subscription_id
   ) return 'invoice_not_bound'
 
-  const matchingLine = invoice.lines.find((line) => (
+  if (invoice.lines.length !== 1) return 'financial_terms_unapproved'
+  const line = invoice.lines[0]
+  if (
+    line.amount !== binding.unit_amount
+    || line.hasDiscounts
+    || line.hasTaxes
+  ) return 'financial_terms_unapproved'
+  const matchingLine = (
     line.subscriptionId === binding.stripe_subscription_id
     && line.priceId === binding.stripe_price_id
     && line.quantity === 1
     && !line.proration
     && equalTimestamp(line.periodStart, item.currentPeriodStart)
     && equalTimestamp(line.periodEnd, item.currentPeriodEnd)
-  ))
+  )
   if (!matchingLine) return 'invoice_line_unverified'
 
   return {

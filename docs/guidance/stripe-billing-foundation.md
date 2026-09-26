@@ -1,7 +1,8 @@
 # Stripe billing foundation
 
 Status: isolated test-mode implementation on `codex/stripe-billing-foundation`;
-migration 209 is applied locally. Independent review and CI remain pending.
+migration 209 is applied locally. Recovery migration 210 is prepared but awaits
+separate local application approval. Remediation review and CI remain pending.
 The [subscription policy](subscription-policy.md) remains the product authority.
 
 ## Scope and boundaries
@@ -70,7 +71,10 @@ Unit tests use simulated Stripe reads and real SDK signature verification;
 they do not establish a real Stripe payment result. Fresh full migration replay
 and the older pre-activation classroom harness run in CI. The latter refuses
 the already-activated local database, whose setting was preserved. Independent
-fixed-SHA review and CI remain outstanding; no branch is ready to merge.
+review found financial-adjustment and retry-fairness blockers. The first
+remediation batch adds exact purchased-product/amount verification and migration
+210 recovery guards; its database execution, generated types, targeted review,
+final integration review and CI remain outstanding. No branch is ready to merge.
 
 Application of the schema does not activate the private sandbox gate. Database
 tests enable it only inside a transaction that rolls back. A real test-mode
@@ -94,3 +98,31 @@ Verify signatures over original bytes, durably accept before acknowledging,
 and reconcile current provider state because delivery can repeat or arrive out
 of order. Workers must fetch after obtaining a subscription lease and commit
 only while its fencing token remains current.
+
+## Supported payment evidence and recovery
+
+This slice accepts only an initial or renewal invoice for one recurring item,
+with its product, price, amount, currency and period matching the purchased
+version. Invoice subtotal, total, amount due, amount paid and captured card
+payment must match the stored unit amount. Discounts, customer balances,
+credits, credit notes, taxes, extra lines and manual or prorated invoices require
+later policy and are recorded as `financial_terms_unapproved` where applicable.
+
+Migration 210 selects due subscriptions globally after deduplication and skips
+active leases. Only provider unavailability retries automatically: attempts 1–4
+wait 1, 2, 4 and 8 minutes; the fifth failure becomes durable `attention`.
+Other exceptions become attention immediately. Neither path changes paid access.
+A new verified event for the exact bound customer/subscription schedules a fresh
+read; duplicate delivery cannot reset retries. Provider event creation and local
+receipt timestamps are separate. Previously fabricated creation timestamps are
+cleared by 210 because the original value cannot be recovered from stored data.
+
+After correcting an incident, a service operator can invoke the sandbox-gated
+`billing_requeue_subscription_v1` RPC with `subscription_id`, `actor_ref` and
+`reason_code`. It audits the request, resets retry state and schedules work; it
+refuses to take an active worker lease. No browser or admin UI exposes this RPC.
+
+Migration 210 must precede activation of this application revision: worker
+bindings now require the immutable product and amount supplied by its RPCs.
+Without 210, decoding fails closed and no paid access is granted. Keep both
+application and database sandbox gates disabled during this rollout.

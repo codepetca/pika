@@ -4,6 +4,7 @@ import { createBillingStore } from '@/lib/server/billing/store'
 const receipt = {
   stripe_account: 'acct_fixture', event_id: 'evt_fixture', event_type: 'invoice.paid',
   payload_hash: 'a'.repeat(64), received_at: '2026-09-26T12:00:00.000Z',
+  event_created_at: '2026-09-25T12:00:00.000Z',
   payload: { object_id: 'in_fixture', customer_id: 'cus_fixture', subscription_id: 'sub_fixture' },
 }
 

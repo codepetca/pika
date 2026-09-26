@@ -4,6 +4,8 @@ const uuidSchema = z.string().uuid().transform((value) => value.toLowerCase())
 const isoDateTimeSchema = z.string().datetime({ offset: true })
 const providerReferenceSchema = z.string().trim().min(1).max(255)
 const currencySchema = z.string().regex(/^[a-z]{3}$/)
+const safeMoneySchema = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER)
+const safeIntegerSchema = z.number().int().min(Number.MIN_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER)
 
 /**
  * The immutable server-side binding. A Stripe payload or its metadata is never
@@ -17,7 +19,9 @@ export const BillingSubscriptionBindingSchema = z.object({
   stripe_subscription_id: providerReferenceSchema,
   offering_id: uuidSchema,
   offering_version_id: uuidSchema,
+  stripe_product_id: providerReferenceSchema,
   stripe_price_id: providerReferenceSchema,
+  unit_amount: safeMoneySchema,
   plan_key: z.enum(['basic', 'plus', 'pro']),
   currency: currencySchema,
   interval: z.enum(['month', 'year']),
@@ -80,7 +84,9 @@ export const BillingFinishResultSchema = z.discriminatedUnion('status', [
 export type BillingFinishResult = z.infer<typeof BillingFinishResultSchema>
 
 const providerItemSchema = z.object({
+  productId: providerReferenceSchema,
   priceId: providerReferenceSchema,
+  unitAmount: safeMoneySchema,
   currency: currencySchema,
   interval: z.enum(['month', 'year']),
   intervalCount: z.number().int().positive(),
@@ -94,8 +100,11 @@ const providerInvoiceLineSchema = z.object({
   type: z.literal('subscription'),
   subscriptionId: providerReferenceSchema,
   priceId: providerReferenceSchema,
+  amount: safeMoneySchema,
   quantity: z.number().int().nonnegative(),
   proration: z.boolean(),
+  hasDiscounts: z.boolean(),
+  hasTaxes: z.boolean(),
   periodStart: isoDateTimeSchema,
   periodEnd: isoDateTimeSchema,
 }).strict()
@@ -103,6 +112,17 @@ const providerInvoiceLineSchema = z.object({
 const providerInvoiceSchema = z.object({
   id: providerReferenceSchema,
   status: z.enum(['draft', 'open', 'paid', 'uncollectible', 'void']),
+  billingReason: providerReferenceSchema,
+  subtotal: safeMoneySchema,
+  total: safeMoneySchema,
+  startingBalance: safeIntegerSchema,
+  endingBalance: safeIntegerSchema.nullable(),
+  totalDiscountAmount: safeMoneySchema,
+  totalTaxAmount: safeMoneySchema,
+  hasDiscounts: z.boolean(),
+  hasTaxes: z.boolean(),
+  prePaymentCreditNotesAmount: safeMoneySchema,
+  postPaymentCreditNotesAmount: safeMoneySchema,
   amountDue: z.number().int().nonnegative(),
   amountPaid: z.number().int().nonnegative(),
   amountPaidOffStripe: z.number().int().nonnegative().optional(),
@@ -129,6 +149,7 @@ const providerInvoiceSchema = z.object({
       customerId: providerReferenceSchema,
       currency: currencySchema,
       paymentIntentId: providerReferenceSchema,
+      paymentMethodType: providerReferenceSchema,
     }).strict(),
   }).strict()).max(100),
 }).strict()
@@ -178,6 +199,7 @@ export const BillingSynchronizationReasonSchema = z.enum([
   'invoice_payment_unapproved',
   'invoice_not_bound',
   'invoice_line_unverified',
+  'financial_terms_unapproved',
 ])
 
 export type BillingSynchronizationReason = z.infer<typeof BillingSynchronizationReasonSchema>
