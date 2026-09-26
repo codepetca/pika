@@ -161,6 +161,12 @@ prevented fresh reviewer creation, so the existing independent architecture
 reviewer completed the migration preapplication review. Full implementation
 review remains pending integration verification.
 
+Review checkpoint: one preapplication reviewer launch completed, with no
+remediation waves. The 45-minute elapsed review-session window has expired
+(including the pause for user input). No further reviewer has been launched;
+request an additional 45-minute window before the targeted migration-delta and
+remaining implementation reviews, retaining the five-launch total cap.
+
 Phase 1 currently includes the exact public catalog, test-only price provisioning
 with existing trusted products, authenticated catalog/start/status endpoints,
 durable checkout reservation and provider recovery, and worker integration.
@@ -168,14 +174,25 @@ Checkout completion binds the purchased version; only the existing verified
 payment reconciler may grant paid access. Both checkout and sandbox gates remain
 disabled by default. No checkout UI or provider configuration has been performed.
 
-Migration 211 passed independent preapplication review but remains unapplied.
-The existing shared local database contains an unrelated gradebook migration210;
-do not reset it or use its schema to generate this branch's types. The proposed
-verification target is a separate disposable `pika_billing_checkout` database
-with migrations001–209 and211, no seed. Explicit application approval is pending.
+The initial migration211 passed independent preapplication review and remains
+unapplied. The owner prefers the existing local database. Gradebook migration210
+has now merged in main and this branch is rebased onto it, so the shared database
+is the current verification target; no separate database, reset or seed is needed.
+Read-only inspection confirmed that its applied209 predates the two final
+binding/webhook identity-lock fixes. Migration211 carries forward the canonical
+209 function definitions using CREATE OR REPLACE, leaving209 immutable and
+preserving existing data. This additional delta needs independent review before
+application. Explicit one-time approval to apply local211 remains pending.
+
+Next actions, in order: review the frozen211 update; verify the existing local
+project and preview that only211 is pending; apply211 once authorized; run
+billing and checkout rollback contracts; regenerate types from that database;
+run focused checks; complete independent financial/security implementation
+review and final PR CI. Keep the PR draft until all exit evidence passes.
 The checkout database contract is wired into disposable CI but has not run yet.
-The 192 billing-focused tests pass; focused checks passed 293 tests and policy
-checks, then stopped at TypeScript because the unapplied migration's eight RPCs
+The updated 194 billing-focused tests pass. Focused checks against the updated
+main passed207 tests and policy checks, then stopped at TypeScript because the
+unapplied migration's eight RPCs
 are absent from generated types. Proper generation and full verification remain
 required; do not hand-edit types or cast around this gap.
 

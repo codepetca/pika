@@ -1,5 +1,147 @@
 -- Local Stripe test-mode checkout only. This migration never enables either gate.
 -- A completed Checkout session binds identity; migration 209 still proves payment.
+-- Repair the last migration-209 identity-lock correction for databases that
+-- applied its earlier local version. Function bodies match immutable 209;
+-- CREATE OR REPLACE retains their existing service-only execution grants.
+create or replace function public.billing_bind_customer_v1(p_request jsonb)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare v_binding public.stripe_billing_subscription_bindings%rowtype; v_version public.stripe_billing_offering_versions%rowtype; v_created boolean := false;
+begin
+  perform private.assert_stripe_billing_sandbox_enabled_v1();
+  if p_request is null or jsonb_typeof(p_request) <> 'object' or coalesce(p_request->>'provider_mode','') <> 'test'
+    or (p_request->>'subject_user_id') is null or (p_request->>'offering_version_id') is null
+    or coalesce(p_request->>'stripe_account','') !~ '^acct_[A-Za-z0-9]{1,255}$'
+    or coalesce(p_request->>'stripe_customer_id','') !~ '^cus_[A-Za-z0-9]{1,255}$'
+    or coalesce(p_request->>'stripe_subscription_id','') !~ '^sub_[A-Za-z0-9]{1,255}$'
+    or coalesce(p_request->>'stripe_price_id','') !~ '^price_[A-Za-z0-9]{1,255}$' then
+    raise exception using errcode='22023', message='stripe_billing_binding_request_invalid';
+  end if;
+  select * into v_version from public.stripe_billing_offering_versions where id=(p_request->>'offering_version_id')::uuid;
+  if not found or v_version.stripe_account <> p_request->>'stripe_account' or v_version.stripe_price_id <> p_request->>'stripe_price_id' then
+    raise exception using errcode='22023', message='stripe_billing_binding_offering_mismatch';
+  end if;
+  -- Serialize identity creation with early webhook intake before either lookup.
+  perform pg_advisory_xact_lock(hashtextextended(
+    'stripe-binding:' || (p_request->>'stripe_account') || ':test:' || (p_request->>'stripe_subscription_id'),
+    20920260926
+  ));
+  select * into v_binding from public.stripe_billing_subscription_bindings where stripe_account=p_request->>'stripe_account' and provider_mode='test' and stripe_subscription_id=p_request->>'stripe_subscription_id' for update;
+  if found then
+    if v_binding.subject_user_id <> (p_request->>'subject_user_id')::uuid or v_binding.stripe_customer_id <> p_request->>'stripe_customer_id' or v_binding.offering_version_id <> v_version.id then
+      raise exception using errcode='23505', message='stripe_billing_binding_conflict';
+    end if;
+  else
+    if not exists (select 1 from public.account_plans where subject_user_id=(p_request->>'subject_user_id')::uuid) then
+      raise exception using errcode='55000', message='stripe_billing_account_plan_unavailable';
+    end if;
+    if not exists (
+      select 1 from public.stripe_billing_offering_availability availability
+      where availability.offering_version_id=v_version.id and availability.is_available
+        and (availability.available_from is null or availability.available_from <= clock_timestamp())
+        and (availability.available_until is null or availability.available_until > clock_timestamp())
+    ) then
+      raise exception using errcode='55000', message='stripe_billing_offering_unavailable';
+    end if;
+    insert into public.stripe_billing_subscription_bindings (subject_user_id,stripe_account,provider_mode,stripe_customer_id,stripe_subscription_id,offering_version_id)
+    values ((p_request->>'subject_user_id')::uuid,p_request->>'stripe_account','test',p_request->>'stripe_customer_id',p_request->>'stripe_subscription_id',v_version.id) returning * into v_binding;
+    v_created := true;
+  end if;
+  update public.stripe_billing_event_inbox
+  set subscription_id=v_binding.id, status='received', exception_code=null, next_attempt_at=clock_timestamp()
+  where stripe_account=v_binding.stripe_account and provider_mode='test' and status='exception'
+    and stripe_subscription_id=v_binding.stripe_subscription_id
+    and (stripe_customer_id is null or stripe_customer_id=v_binding.stripe_customer_id);
+  return jsonb_build_object('subscription_id',v_binding.id,'created',v_created);
+end; $$;
+
+create or replace function public.billing_record_event_v1(p_request jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_event public.stripe_billing_event_inbox%rowtype;
+  v_binding public.stripe_billing_subscription_bindings%rowtype;
+begin
+  perform private.assert_stripe_billing_sandbox_enabled_v1();
+  if p_request is null
+    or jsonb_typeof(p_request) <> 'object'
+    or coalesce(p_request->>'payload_hash', '') !~ '^[a-f0-9]{64}$'
+    or coalesce(p_request->>'event_id', '') !~ '^evt_[A-Za-z0-9]{1,255}$'
+    or coalesce(p_request->>'stripe_account', '') !~ '^acct_[A-Za-z0-9]{1,255}$'
+    or coalesce(p_request->>'event_type', '') = ''
+    or p_request->>'event_created_at' is null
+    or p_request->>'received_at' is null
+    or jsonb_typeof(p_request->'payload') <> 'object'
+  then
+    raise exception using errcode = '22023', message = 'stripe_billing_event_request_invalid';
+  end if;
+
+  -- The same identity lock as binding prevents a receipt from missing a
+  -- concurrently created subscription and being stranded after its adoption scan.
+  if p_request->'payload'->>'subscription_id' is not null then
+    perform pg_advisory_xact_lock(hashtextextended(
+      'stripe-binding:' || (p_request->>'stripe_account') || ':test:' || (p_request->'payload'->>'subscription_id'),
+      20920260926
+    ));
+  end if;
+
+  select * into v_binding
+  from public.stripe_billing_subscription_bindings
+  where stripe_account = p_request->>'stripe_account'
+    and provider_mode = 'test'
+    and stripe_subscription_id = p_request->'payload'->>'subscription_id'
+    and p_request->'payload'->>'customer_id' is not null
+    and stripe_customer_id = p_request->'payload'->>'customer_id'
+  for update;
+
+  insert into public.stripe_billing_event_inbox (
+    stripe_account, provider_mode, stripe_event_id, payload_hash, event_type,
+    event_created_at, received_at, subscription_id, stripe_customer_id,
+    stripe_subscription_id, stripe_invoice_id, status, exception_code,
+    next_attempt_at
+  ) values (
+    p_request->>'stripe_account', 'test', p_request->>'event_id',
+    p_request->>'payload_hash', p_request->>'event_type',
+    (p_request->>'event_created_at')::timestamptz,
+    (p_request->>'received_at')::timestamptz,
+    v_binding.id, p_request->'payload'->>'customer_id',
+    p_request->'payload'->>'subscription_id', p_request->'payload'->>'object_id',
+    case when v_binding.id is null then 'exception' else 'received' end,
+    case when v_binding.id is null then 'unbound_event' end,
+    case when v_binding.id is null then null else clock_timestamp() end
+  ) on conflict (stripe_account, provider_mode, stripe_event_id) do nothing
+  returning * into v_event;
+
+  if v_event.id is null then
+    select * into v_event
+    from public.stripe_billing_event_inbox
+    where stripe_account = p_request->>'stripe_account'
+      and provider_mode = 'test'
+      and stripe_event_id = p_request->>'event_id';
+    if v_event.payload_hash <> p_request->>'payload_hash' then
+      raise exception using errcode = '23505', message = 'stripe_billing_event_conflict';
+    end if;
+    return jsonb_build_object('status', 'duplicate', 'event_inbox_id', v_event.id);
+  end if;
+
+  if v_binding.id is not null then
+    update public.stripe_billing_event_inbox
+    set status = 'attention', attention_at = clock_timestamp(),
+        exception_code = 'superseded_by_verified_event', next_attempt_at = null
+    where subscription_id = v_binding.id and status = 'exception'
+      and id <> v_event.id;
+    update public.stripe_billing_subscription_bindings
+    set reconcile_state = 'queued', reconcile_attempt_count = 0,
+        reconcile_attention_at = null, next_reconcile_at = clock_timestamp(),
+        revision = revision + 1, updated_at = clock_timestamp()
+    where id = v_binding.id;
+  end if;
+  return jsonb_build_object('status', 'accepted', 'event_inbox_id', v_event.id);
+end;
+$$;
+
 create table public.stripe_billing_customers (
   subject_user_id uuid primary key references public.users(id) on delete restrict,
   stripe_account text not null check (stripe_account ~ '^acct_[A-Za-z0-9]+$'),

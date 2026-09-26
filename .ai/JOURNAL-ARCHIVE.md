@@ -33059,3 +33059,64 @@ async-grading.
 ## 2026-09-22 — Daily Log PR final merge window
 
 - PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.
+
+<!-- pika-session-log-archive-batch:07eaceb5644de73dc601a66e2febb127e1695deb8fec7750e5a235feeb84d9b9 -->
+## 2026-09-22 — Assignment AI metering canary gate
+
+- Owner `codex/assignment-ai-metering-canary`; risk profiles async-grading and runtime-platform. Production and local ledgers were verified at migrations001–205. The production classroom-creation cutover remains disabled with181 accounts unclassified, Assignment metering has zero reservations, service-only privileges are intact, and migration205 has no malformed student Grades settings.
+- Assignment AI metering now requires both the exact-`true` server master switch and the authenticated teacher's exact account ID in a bounded comma-separated cohort. Every Assignment request uses the existing durable coordinator: missing, malformed, oversized or unmatched cohorts create unmetered version0 runs, while exact matches create metered version1 runs. Persisted version1 runs remain resumable independently of later gate changes. No flag, cohort, entitlement, quota or active production rollout changed.
+- Targeted Assignment usage/run/API coverage passes91 tests plus TypeScript. The focused gate passes309 tests across24 files plus architecture, UI/design policy, TypeScript and lint; Pika audit is clean. Model recommendation: GPT-6 — financial-usage admission and resumable async grading rollout boundary.
+- Independent security and architecture review found that a single-student retry could leave the durable path after a teacher was removed from the cohort, bypassing an active version1 reservation. A standalone active-run check still had a creation race, so remediation removes the split entirely: all Assignment AI requests now enter the atomic durable coordinator, where matching work resumes and conflicting work remains blocked. The metered Gradex smoke also requires its stable teacher ID in the cohort and verifies a version1 run with exactly one settled `grading.ai` reservation.
+
+## 2026-09-22 — Daily Log PR final merge window
+
+- PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.
+
+## 2026-09-23 — Future classroom retention roadmap
+
+- Owner `codex/classroom-retention-roadmap`; risk profile none. Documented a proposed, plan-independent archived-classroom retention sequence and advance notices in the lifecycle roadmap, with a pointer from the product roadmap. It remains future work; no email, timer, automatic cold transition, deletion worker, database migration, or rollout gate was enabled.
+
+## 2026-09-23 — Dormant account plan foundation
+
+- Owner `codex/account-plan-foundation`. Migration206 adds service-only, revisioned account plans and an audited writer that derives the `classrooms.create` snapshot from Free0, Basic2, Plus5 or Pro10 in one transaction. No caller-supplied quota, existing-account backfill, strict-cutover activation, billing, AI allowance, production configuration or UI change is included. Future signups acquire Free only after the existing strict cutover is activated.
+- With exact authorization, migration206 SHA256 `bc29eefb4b074c4bbad5f43f9755edb5b80c0f91ff157e009784c742d35bd4b8` applied to the local Pika database only; local history is001–206, production remains001–205. The rollback-only contract passes plan mapping, post-cutover Free signup, operation replay/conflict, stale revisions, browser-role isolation and existing-class preservation on downgrade. Generated types match the local schema. The focused gate passes94 tests plus architecture, TypeScript and lint. Local advisors report no new account-plan warnings; hosted application and production data remain unchanged.
+- Rebased onto `f6716e39` after the retention-roadmap merge. The only conflict was an archive-batch marker for identical session-history content; retained main's marker. Migration 206 stayed sequential and unchanged. Fresh local checks and exact-head review/CI are required before this PR is ready again.
+
+## 2026-09-23 — Gradebook zero assessment weight
+
+- Owner `codex/gradebook-zero-assessment-weight`; risk profile none. Gradebook assessment weights now accept 0–999 across teacher controls, APIs, blueprints, and stored constraints. Zero is preserved on reload and excluded from final-grade math; all-zero categories remain ungraded. Migration207 is prepared but not applied to any database.
+- Focused checks passed 733 tests plus architecture, UI/design policy, TypeScript, and lint. Pattern Lab teacher Gradebook verified at desktop light/dark and mobile; a zero entry displayed 0% course weight. Local type check is blocked because migration207 has not been applied to the shared local database; final database replay remains a CI gate. Model recommendation: GPT-6 Sol — multi-layer gradebook contract and migration change.
+- Independent review found two follow-ups: dropping assignment/test defaults would change generated Insert types, and returned zero-weight work would still appear counted in student views. The remediation uses a -1 insert-only default sentinel that the existing before-insert trigger resolves to the category default, and labels zero-weight assignment, test, and standalone marks as not counted. Route and server regressions cover those projections; final checks and targeted re-review follow.
+
+## 2026-09-23 — Bulk test grading execution fix and provenance hotfix
+
+- Owner `claude/fix-bulk-grading-limits` (PR1340, draft); risk profile async-grading. #1324 added `reasoningEffortUsed` to stored AI grading provenance, but migrations 101–104 whitelist provenance keys exactly, so every AI grade save failed. PR1342 (merged to main as `e31dcfc5`) removes the key from storage and adds `tests/lib/grading/provenance-db-contract.test.ts`, which reads the whitelists from the migrations. Anything new in stored provenance now needs a migration first. Production still runs the broken code until draft PR1344 (`claude/promote-grading-hotfix`: #1336, #1338, #1342; excludes #1339) merges; it must first take production after Codex's PR1343 lands.
+- PR1340 makes "Grade all" for tests safe at any batch size without changing grades: attempts are recorded before each provider call, items whose attempts were all interrupted fail instead of restarting (previously an unbounded billed loop), no call starts unless it can finish and save inside a 270s tick budget, tick `maxDuration` 300s, request timeout 60s, lease 240s. Batch output budget grows with the call and caps batches at 4, which is production's size. The DeepSeek adapter captures cache and reasoning tokens in memory only; the stored schema strips them. Focused gate: 513 tests plus architecture, UI/design policy, TypeScript and lint; the contract test fails when a cost field is added to the stored schema.
+- Next: independent review of PR1340, then ready and merge on a green PR Gate with owner approval. Then PR 2, a comparison harness in `scripts/calibrate-test-grading.ts`: batch size 1, 2 or 4 chunked like production, a shuffled-order seed, manual or bulk profile, per-answer latency and cost, scored against the verified targets; align its `MAX_BATCH_SIZE` of 20 with the cap of 4. Independent calls are a hypothesis until that harness measures them. Teacher calibration decisions and de-identified snapshots stay outside the repo (public): snapshots gitignored in the hub root, adjudication notes in the owner's local handoff folder. Open and unowned: the sanitizer turns common-word names into initials, DeepSeek errors reach teachers untranslated, and the middleware logs 25s timeouts.
+
+## 2026-09-24 — Bulk test grading independent review
+
+- Resumed PR #1340 after the Claude handoff. Initial Sol/Terra review found uncached reference generation ran before durable attempt accounting and missing-question recovery could exceed the attempt cap. One correction batch places preparation inside the counted microbatch attempt, checks the deadline again afterward, and caps missing-question recovery. Four new regressions fail before the correction and pass after it; runner suite passes 20 tests. No migration or grading-strategy change. Focused verification, targeted re-review, and owner merge approval remain required.
+- Owner approved a final bounded review, merge on green PR Gate, and production promotion. Final review found database writes or lease renewals could consume the admission window after its check; recheck immediately before reference preparation and single/batch provider calls. Four additional regressions failed before this correction and pass afterward; runner suite now passes 24 tests. Final focused verification and independent confirmation remain required before ready.
+
+## 2026-09-24 — Practice test local server
+
+- Started Docker and Pika on port 3000 from `codex/practice-test-local`, based on main at `94bf3d37`, using the local-dev launcher and existing local Supabase data.
+- Environment verification passed; Next.js reported Ready. Server retained for the user's practice test work.
+
+## 2026-09-24 — Responsive teacher test preview
+
+- Fixed embedded preview inheriting the editor's inactive background. Reused ModalLayer for top-layer focus, inertness, scroll locking, and return to the still-mounted editor; reused PageState so maximize/close survive pending reads. Student test-taking and fullscreen requirement unchanged.
+- UI brief: teacher preview; reference DESIGN overlay contract and Pattern Lab dialog; reuse ModalLayer/PageState, extend preview composition. Teacher desktop/mobile (1440/390), light/dark, loading/ready/maximize/close/focus; student n/a (teacher-only component). Primary signal remains maximize action/Preview Mode; no new pattern or promotion. Composite keyboard/semantics checklist covered. Risk: workspace-state, exam-mode (teacher preview only). Model recommendation: current Codex for implementation; GPT-5.6 Terra high for one standard-risk independent review.
+- Two new regressions failed before and passed after; 11 preview tests and focused gate (159 tests, architecture, UI/design policy, types, lint) pass. Playwright delayed-read/maximize/close/focus matrix passes; screenshots inspected at /tmp/pika-preview-visual; reproducible runner /tmp/pika-preview-verify.cjs. Existing async test-id/request guards retained. Pattern Lab shared modal reference inspected. No shared-component extraction needed.
+
+## 2026-09-24 — Reusable classroom test-authoring guidance
+
+- Owner `codex/test-authoring-guidance`; documentation-only, risk profile `none`. Added a general assessment-authoring guide and routed it from AI instructions, the docs index, and the markdown schema. Covers prompt/rubric/sample alignment, observable credit, diagrams, difficulty, preservation of existing tests, and content readiness versus measured AI grading consistency.
+- Course-specific coding and Karel preferences belong in the companion ICS3U guide. This change does not modify assessment content, grading behavior, publication state, or production data.
+
+## 2026-09-24 — Student test question scrolling
+
+- Owner `codex/student-test-scroll`; risk `exam-mode` (layout only). Bound the existing student question section to its split pane height so long tests scroll to the final questions and Submit. No assessment, attempt, or focus-tracking changes.
+- Reuse ExamDocumentWorkspace/WorkspaceSplitPane; extend StudentTestsTab with the same bounded scroller used by TeacherTestPreviewPage. Student desktop/mobile light/dark wheel-scroll and reference/answer retention checked; teacher n/a (student-only change), no new pattern or promotion. Existing divider keyboard resizing checked.
+- Validation: 43 component tests, four mocked browser matrix checks, focused checks (186 tests, architecture, UI/design policies, types, lint). Local screenshots under `test-results/experience-matrix-student--3e2c4--final-questions-and-submit-*`; fixture avoids live student attempts. Production deployment remains separate.

@@ -7,7 +7,8 @@ declare v_rpc text; v_table text;
 begin
   foreach v_rpc in array array['billing_get_checkout_offering_v1','billing_list_checkout_offerings_v1',
     'billing_get_checkout_v1','billing_reserve_checkout_v1','billing_list_checkout_work_v1',
-    'billing_claim_checkout_v1','billing_save_checkout_progress_v1','billing_finish_checkout_v1'] loop
+    'billing_claim_checkout_v1','billing_save_checkout_progress_v1','billing_finish_checkout_v1',
+    'billing_bind_customer_v1','billing_record_event_v1'] loop
     if has_function_privilege('anon','public.'||v_rpc||'(jsonb)','execute')
       or has_function_privilege('authenticated','public.'||v_rpc||'(jsonb)','execute')
       or not has_function_privilege('service_role','public.'||v_rpc||'(jsonb)','execute') then
@@ -24,6 +25,28 @@ begin
     end if;
   end loop;
 end; $privileges$;
+
+-- Upgrading an earlier applied 209 must repair both sides of the identity race.
+-- Check the installed definitions before fixtures, including lock-before-lookup
+-- ordering and the shared key/seed used by checkout finalization.
+do $identity_locks$
+declare v_rpc text; v_definition text; v_lock integer; v_lookup integer;
+begin
+  foreach v_rpc in array array['billing_bind_customer_v1','billing_record_event_v1'] loop
+    if to_regprocedure('public.'||v_rpc||'(jsonb)') is null then
+      raise exception 'Missing billing identity function: %',v_rpc;
+    end if;
+    v_definition := pg_get_functiondef(to_regprocedure('public.'||v_rpc||'(jsonb)'));
+    v_lock := strpos(v_definition,'pg_advisory_xact_lock(hashtextextended(');
+    v_lookup := strpos(v_definition,'select * into v_binding');
+    if v_lock=0 or v_lookup=0 or v_lock>=v_lookup
+      or strpos(v_definition,'''stripe-binding:''')=0
+      or strpos(v_definition,'20920260926')=0
+      or strpos(substring(v_definition from v_lookup),'for update;')=0 then
+      raise exception 'Billing identity serialization protection missing: %',v_rpc;
+    end if;
+  end loop;
+end; $identity_locks$;
 
 update private.stripe_billing_settings set sandbox_enabled=false where singleton;
 set local role service_role;
