@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(
-  resolve(process.cwd(), 'supabase/migrations/210_stripe_billing_recovery_guards.sql'),
+  resolve(process.cwd(), 'supabase/migrations/209_stripe_billing_foundation.sql'),
   'utf8',
 )
 
@@ -16,7 +16,8 @@ describe('Stripe billing recovery guards migration', () => {
   })
 
   it('bounds retries and selects globally due work after per-subscription deduplication', () => {
-    expect(migration).toContain('alter column next_reconcile_at drop not null')
+    expect(migration).toContain('next_reconcile_at timestamptz default clock_timestamp()')
+    expect(migration).not.toContain('next_reconcile_at timestamptz not null')
     expect(migration).toContain('attempt_count between 0 and 5')
     expect(migration).toContain('reconcile_attempt_count between 0 and 5')
     expect(migration).toContain("when 1 then interval '1 minute'")
@@ -32,7 +33,7 @@ describe('Stripe billing recovery guards migration', () => {
   })
 
   it('requires separate provider and receipt timestamps without inventing old provider history', () => {
-    expect(migration).toContain('update public.stripe_billing_event_inbox set event_created_at = null')
+    expect(migration).not.toContain('update public.stripe_billing_event_inbox set event_created_at = null')
     expect(migration).toContain("p_request->>'event_created_at' is null")
     expect(migration).toContain("p_request->>'received_at' is null")
     expect(migration).toContain("(p_request->>'event_created_at')::timestamptz")

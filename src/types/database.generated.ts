@@ -6545,6 +6545,8 @@ export type Database = {
       }
       stripe_billing_event_inbox: {
         Row: {
+          attempt_count: number
+          attention_at: string | null
           completed_at: string | null
           event_created_at: string | null
           event_type: string
@@ -6564,6 +6566,8 @@ export type Database = {
           subscription_id: string | null
         }
         Insert: {
+          attempt_count?: number
+          attention_at?: string | null
           completed_at?: string | null
           event_created_at?: string | null
           event_type: string
@@ -6583,6 +6587,8 @@ export type Database = {
           subscription_id?: string | null
         }
         Update: {
+          attempt_count?: number
+          attention_at?: string | null
           completed_at?: string | null
           event_created_at?: string | null
           event_type?: string
@@ -6784,6 +6790,7 @@ export type Database = {
       stripe_billing_subscription_audit: {
         Row: {
           account_plan_revision: number | null
+          actor_ref: string | null
           created_at: string
           event_inbox_id: string | null
           id: string
@@ -6795,6 +6802,7 @@ export type Database = {
         }
         Insert: {
           account_plan_revision?: number | null
+          actor_ref?: string | null
           created_at?: string
           event_inbox_id?: string | null
           id?: string
@@ -6806,6 +6814,7 @@ export type Database = {
         }
         Update: {
           account_plan_revision?: number | null
+          actor_ref?: string | null
           created_at?: string
           event_inbox_id?: string | null
           id?: string
@@ -6828,9 +6837,12 @@ export type Database = {
           last_provider_status: string | null
           lease_expires_at: string | null
           lease_token: string | null
-          next_reconcile_at: string
+          next_reconcile_at: string | null
           offering_version_id: string
           provider_mode: string
+          reconcile_attempt_count: number
+          reconcile_attention_at: string | null
+          reconcile_state: string
           revision: number
           stripe_account: string
           stripe_customer_id: string
@@ -6848,9 +6860,12 @@ export type Database = {
           last_provider_status?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
-          next_reconcile_at?: string
+          next_reconcile_at?: string | null
           offering_version_id: string
           provider_mode?: string
+          reconcile_attempt_count?: number
+          reconcile_attention_at?: string | null
+          reconcile_state?: string
           revision?: number
           stripe_account: string
           stripe_customer_id: string
@@ -6868,9 +6883,12 @@ export type Database = {
           last_provider_status?: string | null
           lease_expires_at?: string | null
           lease_token?: string | null
-          next_reconcile_at?: string
+          next_reconcile_at?: string | null
           offering_version_id?: string
           provider_mode?: string
+          reconcile_attempt_count?: number
+          reconcile_attention_at?: string | null
+          reconcile_state?: string
           revision?: number
           stripe_account?: string
           stripe_customer_id?: string
@@ -8837,6 +8855,10 @@ export type Database = {
       billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
       billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
       billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_requeue_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       bind_classroom_archive_restore_managed_object: {
         Args: {
           p_managed_object_id: string

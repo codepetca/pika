@@ -1,8 +1,8 @@
 # Stripe billing foundation
 
 Status: isolated test-mode implementation on `codex/stripe-billing-foundation`;
-migration 209 is applied locally. Recovery migration 210 is prepared but awaits
-separate local application approval. Remediation review and CI remain pending.
+the consolidated migration 209 is applied locally after an owner-approved reset
+and reseed. Final integration review and CI remain pending.
 The [subscription policy](subscription-policy.md) remains the product authority.
 
 ## Scope and boundaries
@@ -58,23 +58,20 @@ events; `/api/billing/stripe/process` requires the separate worker secret and
 processes at most one subscription per request. Both return unavailable while
 the sandbox flag is off. No scheduler invokes them.
 
-The owner approved the Stripe dependency and one-time local application of
-migration 209 on 2026-09-26. Application succeeded after the preview named only
-209; generated database types match the local schema. The rollback-only billing
-harness and existing account-plan harness pass. Billing fixtures include
-preserved/new offering versions, repeated/conflicting events, lease expiry,
-missing revision fences and a forced mid-transaction failure proving that the
-plan, grant and invoice effect roll back together. The private sandbox gate
-remains disabled after testing.
+The owner approved the Stripe dependency and initial local migration209, then
+explicitly approved consolidating the unreleased recovery changes into209 and
+resetting/reseeding local on 2026-09-26. Migration210 was removed. All migrations
+through209 replayed successfully, local fixtures were reseeded, and regenerated
+database types match. Billing, account-plan and pre-activation classroom-creation
+rollback harnesses pass. The private billing sandbox gate remains off.
 
-Unit tests use simulated Stripe reads and real SDK signature verification;
-they do not establish a real Stripe payment result. Fresh full migration replay
-and the older pre-activation classroom harness run in CI. The latter refuses
-the already-activated local database, whose setting was preserved. Independent
-review found financial-adjustment and retry-fairness blockers. The first
-remediation batch adds exact purchased-product/amount verification and migration
-210 recovery guards; its database execution, generated types, targeted review,
-final integration review and CI remain outstanding. No branch is ready to merge.
+Billing contracts cover preserved/new offering versions, repeated/conflicting
+events, lease expiry, missing revision fences, atomic rollback, exact purchased
+payment terms, bounded retry exhaustion, fair queue selection, early event
+adoption and audited recovery. Unit tests use simulated Stripe reads and real SDK
+signature verification; they do not establish a real Stripe payment result.
+Initial and targeted review findings were corrected. Final integration review
+and stable-head CI remain required before PR readiness.
 
 Application of the schema does not activate the private sandbox gate. Database
 tests enable it only inside a transaction that rolls back. A real test-mode
@@ -82,8 +79,8 @@ rehearsal still needs credentials and an explicitly isolated local runtime.
 
 ## Operational prerequisites
 
-- Stripe's official Node dependency and local migration 209 were approved and
-  completed. That one-time migration authorization is consumed. Further schema
+- Stripe's official Node dependency and consolidated local migration209 reset
+  and reseed were approved and completed. That authorization is consumed. Further schema
   applications follow the [schema checklist](schema-rollout-checklist.md).
 - Stripe test credentials and a local signing secret are not currently configured
   in the shared environment. Never commit them or copy hosted credentials into
@@ -108,21 +105,20 @@ payment must match the stored unit amount. Discounts, customer balances,
 credits, credit notes, taxes, extra lines and manual or prorated invoices require
 later policy and are recorded as `financial_terms_unapproved` where applicable.
 
-Migration 210 selects due subscriptions globally after deduplication and skips
+Migration209 selects due subscriptions globally after deduplication and skips
 active leases. Only provider unavailability retries automatically: attempts 1–4
 wait 1, 2, 4 and 8 minutes; the fifth failure becomes durable `attention`.
 Other exceptions become attention immediately. Neither path changes paid access.
 A new verified event for the exact bound customer/subscription schedules a fresh
 read; duplicate delivery cannot reset retries. Provider event creation and local
-receipt timestamps are separate. Previously fabricated creation timestamps are
-cleared by 210 because the original value cannot be recovered from stored data.
+receipt timestamps are separate from the first application of consolidated209.
 
 After correcting an incident, a service operator can invoke the sandbox-gated
 `billing_requeue_subscription_v1` RPC with `subscription_id`, `actor_ref` and
 `reason_code`. It audits the request, resets retry state and schedules work; it
 refuses to take an active worker lease. No browser or admin UI exposes this RPC.
 
-Migration 210 must precede activation of this application revision: worker
+Consolidated migration209 must precede activation of this application revision: worker
 bindings now require the immutable product and amount supplied by its RPCs.
-Without 210, decoding fails closed and no paid access is granted. Keep both
+Without its final schema, decoding fails closed and no paid access is granted. Keep both
 application and database sandbox gates disabled during this rollout.

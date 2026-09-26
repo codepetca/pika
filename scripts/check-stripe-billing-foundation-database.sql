@@ -104,8 +104,8 @@ begin
     'stripe_price_id', 'price_b209plusold', 'offering_version_id', v_old->>'offering_version_id'
   ));
   perform public.billing_record_event_v1(jsonb_build_object(
-    'stripe_account','acct_b209test','event_id','evt_b210early','payload_hash',repeat('e',64),
-    'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b210early','customer_id','cus_b209new','subscription_id','sub_b209new'),
+    'stripe_account','acct_b209test','event_id','evt_b209early','payload_hash',repeat('e',64),
+    'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b209early','customer_id','cus_b209new','subscription_id','sub_b209new'),
     'event_created_at','2026-01-01T00:00:00Z','received_at',clock_timestamp()
   ));
   perform public.billing_bind_customer_v1(jsonb_build_object(
@@ -116,7 +116,7 @@ begin
   if not exists (
     select 1 from public.stripe_billing_event_inbox event
     join public.stripe_billing_subscription_bindings binding on binding.id=event.subscription_id
-    where event.stripe_event_id='evt_b210early' and event.status='received'
+    where event.stripe_event_id='evt_b209early' and event.status='received'
       and event.exception_code is null and event.next_attempt_at is not null
       and binding.stripe_customer_id='cus_b209new'
   ) then raise exception 'Early verified receipt was not adopted by trusted binding'; end if;
@@ -271,7 +271,7 @@ $paid$;
 select public.billing_requeue_subscription_v1(jsonb_build_object(
   'subscription_id',(select id from public.stripe_billing_subscription_bindings
     where subject_user_id='f2090000-0000-4000-8000-000000000001'),
-  'actor_ref','test:migration-210','reason_code','independent_scenario'
+  'actor_ref','test:migration-209','reason_code','independent_scenario'
 ));
 do $fencing$
 declare
@@ -314,7 +314,7 @@ reset role;
 select public.billing_requeue_subscription_v1(jsonb_build_object(
   'subscription_id',(select id from public.stripe_billing_subscription_bindings
     where subject_user_id='f2090000-0000-4000-8000-000000000001'),
-  'actor_ref','test:migration-210','reason_code','independent_scenario'
+  'actor_ref','test:migration-209','reason_code','independent_scenario'
 ));
 do $expired_claim$
 declare v_subscription uuid; v_old jsonb; v_new jsonb; v_result jsonb;
@@ -355,7 +355,7 @@ set local role service_role;
 select public.billing_requeue_subscription_v1(jsonb_build_object(
   'subscription_id',(select id from public.stripe_billing_subscription_bindings
     where subject_user_id='f2090000-0000-4000-8000-000000000001'),
-  'actor_ref','test:migration-210','reason_code','independent_scenario'
+  'actor_ref','test:migration-209','reason_code','independent_scenario'
 ));
 do $atomic_failure$
 declare v_subscription uuid; v_claim jsonb; v_plan_revision bigint; v_grant_revision bigint;
@@ -455,8 +455,8 @@ begin
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
   if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
   perform public.billing_record_event_v1(jsonb_build_object(
-    'stripe_account','acct_b209test','event_id','evt_b210fresh','payload_hash',repeat('d',64),
-    'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b210fresh','customer_id','cus_b209customer','subscription_id','sub_b209subscription'),
+    'stripe_account','acct_b209test','event_id','evt_b209fresh','payload_hash',repeat('d',64),
+    'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b209fresh','customer_id','cus_b209customer','subscription_id','sub_b209subscription'),
     'event_created_at','2026-02-01T00:00:00Z','received_at',clock_timestamp()
   ));
   v_result := public.billing_finish_subscription_v1(jsonb_build_object(
@@ -478,28 +478,30 @@ set reconcile_state='retry', reconcile_attempt_count=4,
 where subject_user_id='f2090000-0000-4000-8000-000000000001';
 set local role service_role;
 do $actual_exhaustion$
-declare v_subscription uuid; v_claim jsonb; v_plan_revision bigint; v_quota integer;
+declare v_subscription uuid; v_claim jsonb; v_result jsonb; v_plan_revision bigint; v_quota integer;
 begin
   select id into v_subscription from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000001';
   select revision into v_plan_revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000001';
   select quota_limit into v_quota from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000001' and feature_key='classrooms.create';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
   if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
-  if public.billing_finish_subscription_v1(jsonb_build_object(
+  v_result := public.billing_finish_subscription_v1(jsonb_build_object(
     'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token','fencing_token',v_claim->>'fencing_token',
     'expected_subscription_revision',v_claim->>'subscription_revision','expected_account_plan_revision',v_claim->>'expected_account_plan_revision',
     'outcome','exception','reason_code','provider_unavailable'
-  ))->>'status' <> 'applied'
+  ));
+  if v_result->>'status' is distinct from 'applied'
     or not exists (select 1 from public.stripe_billing_subscription_bindings where id=v_subscription and reconcile_state='attention' and reconcile_attempt_count=5)
     or (select revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000001') <> v_plan_revision
     or (select quota_limit from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000001' and feature_key='classrooms.create') <> v_quota then
     raise exception 'Fifth transient failure did not exhaust without changing paid access';
   end if;
-  if public.billing_record_event_v1(jsonb_build_object(
-    'stripe_account','acct_b209test','event_id','evt_b210fresh','payload_hash',repeat('d',64),
-    'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b210fresh','customer_id','cus_b209customer','subscription_id','sub_b209subscription'),
+  v_result := public.billing_record_event_v1(jsonb_build_object(
+    'stripe_account','acct_b209test','event_id','evt_b209fresh','payload_hash',repeat('d',64),
+    'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b209fresh','customer_id','cus_b209customer','subscription_id','sub_b209subscription'),
     'event_created_at','2026-02-01T00:00:00Z','received_at',clock_timestamp()
-  ))->>'status' <> 'duplicate'
+  ));
+  if v_result->>'status' is distinct from 'duplicate'
     or not exists (select 1 from public.stripe_billing_subscription_bindings where id=v_subscription and reconcile_state='attention') then
     raise exception 'Duplicate receipt reset exhausted attention';
   end if;
@@ -563,10 +565,10 @@ begin
     raise exception 'Attention subscription consumed queue capacity';
   end if;
   v_requeue := public.billing_requeue_subscription_v1(jsonb_build_object(
-    'subscription_id',v_first,'actor_ref','test:migration-210','reason_code','incident_resolved'
+    'subscription_id',v_first,'actor_ref','test:migration-209','reason_code','incident_resolved'
   ));
   if v_requeue->>'status' <> 'requeued'
-    or not exists (select 1 from public.stripe_billing_subscription_audit where subscription_id=v_first and outcome='requeued' and actor_ref='test:migration-210') then
+    or not exists (select 1 from public.stripe_billing_subscription_audit where subscription_id=v_first and outcome='requeued' and actor_ref='test:migration-209') then
     raise exception 'Attention recovery was not durable and auditable';
   end if;
 end;
@@ -578,21 +580,22 @@ set reconcile_state='queued', reconcile_attempt_count=0, reconcile_attention_at=
 where subject_user_id='f2090000-0000-4000-8000-000000000002';
 set local role service_role;
 do $permanent_attention$
-declare v_subscription uuid; v_claim jsonb; v_plan_revision bigint; v_quota integer;
+declare v_subscription uuid; v_claim jsonb; v_result jsonb; v_plan_revision bigint; v_quota integer;
 begin
   select id into v_subscription from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000002';
   select revision into v_plan_revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000002';
   select quota_limit into v_quota from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000002' and feature_key='classrooms.create';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
   if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
-  if public.billing_requeue_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'actor_ref','test:migration-210','reason_code','must_not_steal_lease'))->>'status' <> 'busy' then
+  if public.billing_requeue_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'actor_ref','test:migration-209','reason_code','must_not_steal_lease'))->>'status' <> 'busy' then
     raise exception 'Requeue stole an active worker lease';
   end if;
-  if public.billing_finish_subscription_v1(jsonb_build_object(
+  v_result := public.billing_finish_subscription_v1(jsonb_build_object(
     'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token','fencing_token',v_claim->>'fencing_token',
     'expected_subscription_revision',v_claim->>'subscription_revision','expected_account_plan_revision',v_claim->>'expected_account_plan_revision',
     'outcome','exception','reason_code','financial_terms_unapproved'
-  ))->>'status' <> 'applied'
+  ));
+  if v_result->>'status' is distinct from 'applied'
     or not exists (select 1 from public.stripe_billing_subscription_bindings where id=v_subscription and reconcile_state='attention' and reconcile_attempt_count=1)
     or (select revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000002') <> v_plan_revision
     or (select quota_limit from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000002' and feature_key='classrooms.create') <> v_quota then

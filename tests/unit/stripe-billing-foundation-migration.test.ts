@@ -49,7 +49,7 @@ describe('Stripe billing foundation migration', () => {
 
   it('uses the stored purchased version for a paid effect and fences the legacy writer', () => {
     expect(migration).toContain('v_version.classroom_limit')
-    expect(migration).toContain("management_source='billing'")
+    expect(migration).toMatch(/management_source\s*=\s*'billing'/)
     expect(migration).toContain("message = 'billing_managed_account_plan'")
     expect(migration).toContain('create table public.stripe_billing_invoice_effects')
     expect(migration).toContain('create table public.stripe_billing_subscription_audit')
