@@ -286,7 +286,7 @@ describe('TeacherGradebookTab', () => {
     expect(screen.queryByRole('group', { name: 'Class summary' })).not.toBeInTheDocument()
     expect(screen.getByRole('row', { name: 'Class average' })).toHaveTextContent('70%85%77.5%')
     fireEvent.click(screen.getByRole('button', { name: 'Show %' }))
-    expect(screen.getByRole('row', { name: /Ada Lovelace.*8[/]10 9[/]10 85[.]0%/ })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: /Ada Lovelace.*8 9 85[.]0%/ })).toBeInTheDocument()
     fireEvent.click(within(openGradebookActions()).getByRole('menuitem', { name: 'Show last name in column 1' }))
     fireEvent.click(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Show student IDs' }))
     expect(screen.getByText('1001')).toBeInTheDocument()

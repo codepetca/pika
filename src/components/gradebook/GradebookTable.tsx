@@ -11,7 +11,7 @@ import {
 } from '@/ui'
 import {
   average, formatAssessmentScore, formatColumnStat, formatCompactPercent,
-  formatPercent, formatWholePercent, getAssessmentCell, getAssessmentCellPercent, getAssessmentColumnKey,
+  formatPercent, formatPoints, formatWholePercent, getAssessmentCell, getAssessmentCellPercent, getAssessmentColumnKey,
   getColumnStats, getGradebookStudentRowId, getGradePercentTextClass,
   getStudentDisplayId, getStudentIdentityValue, getStudentName, GRADEBOOK_NUMBER_INPUT_CLASS,
   type GradebookIdentityColumn, type ScoreDisplayMode,
@@ -71,7 +71,7 @@ export function GradebookTable({
     ? [{ key: 'last_name', label: 'Last' }, { key: 'first_name', label: 'First' }]
     : [{ key: 'first_name', label: 'First' }, { key: 'last_name', label: 'Last' }]
   const names = ultraCompact ? orderedNames.slice(0, 1) : orderedNames
-  const assessmentWidth = ultraCompact ? (displayMode === 'raw' ? 104 : 56) : ASSESSMENT_WIDTH
+  const assessmentWidth = ultraCompact ? (displayMode === 'raw' ? 64 : 56) : ASSESSMENT_WIDTH
   const widths = { ...columnWidths, ...(ultraCompact ? { id: Math.min(columnWidths.id, 80) } : {}) }
   // A flexible spacer keeps Final at the far edge without stretching assessment columns.
   const filler = true
@@ -132,9 +132,9 @@ export function GradebookTable({
               <DataTableHeaderCell align="right" className={cn('border-b border-border bg-surface-2', frozen && 'sticky right-0 z-sticky-table border-l border-border-strong')}>Final</DataTableHeaderCell>
             </DataTableRow>
           </DataTableHead>
-          {showWeights && columns.length > 0 ? (
-            <tbody aria-label="Assessment weights">
-              <DataTableRow aria-label="Category">
+          {(showWeights || displayMode === 'raw') && columns.length > 0 ? (
+            <tbody aria-label="Assessment details">
+              {showWeights ? <DataTableRow aria-label="Category">
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
                 <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Category</DataTableHeaderCell>
                 {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
@@ -146,40 +146,53 @@ export function GradebookTable({
                 </DataTableCell>)}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
-              </DataTableRow>
-              <DataTableRow aria-label="Weight">
+              </DataTableRow> : null}
+              {displayMode === 'raw' ? <DataTableRow aria-label="Max mark">
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
-                <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Weight</DataTableHeaderCell>
+                <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Max mark</DataTableHeaderCell>
                 {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                {columns.map((column) => {
-                  const key = getAssessmentColumnKey(column)
-                  const value = weightDrafts[key] ?? String(column.weight)
-                  const valid = value.trim() !== '' && isValidGradebookWeight(Number(value))
-                  return <DataTableCell key={key} align="center" className="bg-surface-2 !px-1">
-                    <FormField label={`Category weight for ${column.title}`} hideLabel collapseHiddenLabel>
-                      <Input type="number" min={0} max={999} step={1} value={value} aria-invalid={!valid} disabled={isReadOnly || savingKeys.has(key)}
-                        className={cn('px-1 text-center text-sm tabular-nums', ultraCompact && 'mx-auto w-11 min-w-0', GRADEBOOK_NUMBER_INPUT_CLASS)} title="Enter a whole number from 0 to 999"
-                        onChange={(event) => onWeightDraftChange(column, event.target.value)}
-                        onBlur={() => onWeightCommit(column)}
-                        onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} />
-                    </FormField>
-                  </DataTableCell>
-                })}
+                {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="bg-surface-2 !px-1 text-xs tabular-nums">
+                  <span aria-label={`Maximum mark for ${column.title}`}>{formatPoints(column.possible)}</span>
+                </DataTableCell>)}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
-              </DataTableRow>
-              <DataTableRow aria-label="Course %">
-                <DataTableCell className={cn('border-b border-border-strong bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
-                <DataTableHeaderCell scope="row" align="right" className={cn(rowLabelClass, 'border-b border-border-strong')}>Course %</DataTableHeaderCell>
-                {!ultraCompact ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
-                {showStudentIds ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
-                {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="border-b border-border-strong bg-surface-2 !px-1 text-xs font-medium tabular-nums">
-                  <output aria-label={`Course weight for ${column.title}`}>{courseWeights[getAssessmentColumnKey(column)] == null ? '—' : (ultraCompact ? formatWholePercent(courseWeights[getAssessmentColumnKey(column)]) : `${courseWeights[getAssessmentColumnKey(column)]}%`)}</output>
-                </DataTableCell>)}
-                {filler ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
-                <DataTableCell className={cn('border-b border-border-strong bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
-              </DataTableRow>
+              </DataTableRow> : null}
+              {showWeights ? <>
+                <DataTableRow aria-label="Weight">
+                  <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
+                  <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Weight</DataTableHeaderCell>
+                  {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
+                  {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
+                  {columns.map((column) => {
+                    const key = getAssessmentColumnKey(column)
+                    const value = weightDrafts[key] ?? String(column.weight)
+                    const valid = value.trim() !== '' && isValidGradebookWeight(Number(value))
+                    return <DataTableCell key={key} align="center" className="bg-surface-2 !px-1">
+                      <FormField label={`Category weight for ${column.title}`} hideLabel collapseHiddenLabel>
+                        <Input type="number" min={0} max={999} step={1} value={value} aria-invalid={!valid} disabled={isReadOnly || savingKeys.has(key)}
+                          className={cn('px-1 text-center text-sm tabular-nums', ultraCompact && 'mx-auto w-11 min-w-0', GRADEBOOK_NUMBER_INPUT_CLASS)} title="Enter a whole number from 0 to 999"
+                          onChange={(event) => onWeightDraftChange(column, event.target.value)}
+                          onBlur={() => onWeightCommit(column)}
+                          onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} />
+                      </FormField>
+                    </DataTableCell>
+                  })}
+                  {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
+                  <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
+                </DataTableRow>
+                <DataTableRow aria-label="Course %">
+                  <DataTableCell className={cn('border-b border-border-strong bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
+                  <DataTableHeaderCell scope="row" align="right" className={cn(rowLabelClass, 'border-b border-border-strong')}>Course %</DataTableHeaderCell>
+                  {!ultraCompact ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
+                  {showStudentIds ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
+                  {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="border-b border-border-strong bg-surface-2 !px-1 text-xs font-medium tabular-nums">
+                    <output aria-label={`Course weight for ${column.title}`}>{courseWeights[getAssessmentColumnKey(column)] == null ? '—' : (ultraCompact ? formatWholePercent(courseWeights[getAssessmentColumnKey(column)]) : `${courseWeights[getAssessmentColumnKey(column)]}%`)}</output>
+                  </DataTableCell>)}
+                  {filler ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
+                  <DataTableCell className={cn('border-b border-border-strong bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
+                </DataTableRow>
+              </> : null}
             </tbody>
           ) : null}
           <DataTableBody>
@@ -198,7 +211,9 @@ export function GradebookTable({
                   const scoreKey = `${student.student_id}:${getAssessmentColumnKey(column)}`
                   const canEdit = !(column.assessment_type === 'item' ? itemScoreEditingDisabled : scoreEditingDisabled) && Boolean(onScoreOpen)
                   const fullScore = formatAssessmentScore(cell, displayMode)
-                  const score = ultraCompact && displayMode === 'percent' ? formatWholePercent(getAssessmentCellPercent(cell)) : fullScore
+                  const score = displayMode === 'raw'
+                    ? (cell?.is_graded && cell.earned != null ? formatPoints(cell.earned) : '—')
+                    : ultraCompact ? formatWholePercent(getAssessmentCellPercent(cell)) : fullScore
                   const scoreTone = getGradePercentTextClass(getAssessmentCellPercent(cell))
                   return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap tabular-nums', getGradePercentTextClass(getAssessmentCellPercent(cell)))}>
                     <Button
@@ -243,7 +258,7 @@ export function GradebookTable({
                 {showStudentIds ? <DataTableCell className="border-t border-border-strong bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => {
                   const stats = getColumnStats(students, column)
-                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap border-t border-border-strong bg-surface-2 text-xs tabular-nums', getGradePercentTextClass(stats.averagePercent))}>{ultraCompact && displayMode === 'percent' ? formatWholePercent(stats.averagePercent) : formatColumnStat(stats, column, 'average', displayMode)}</DataTableCell>
+                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap border-t border-border-strong bg-surface-2 text-xs tabular-nums', getGradePercentTextClass(stats.averagePercent))}>{displayMode === 'raw' ? (stats.averageEarned == null ? '—' : formatPoints(stats.averageEarned)) : ultraCompact ? formatWholePercent(stats.averagePercent) : formatColumnStat(stats, column, 'average', displayMode)}</DataTableCell>
                 })}
                 {filler ? <DataTableCell className="border-t border-border-strong bg-surface-2">{null}</DataTableCell> : null}
                 <DataTableCell align="right" className={cn('border-t border-border-strong bg-surface-2 font-semibold tabular-nums', getGradePercentTextClass(finalAverage), frozen && 'sticky right-0 z-sticky-table')}>{formatCompactPercent(finalAverage)}</DataTableCell>

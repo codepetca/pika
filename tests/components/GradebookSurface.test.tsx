@@ -64,10 +64,27 @@ describe('Gradebook surface owners', () => {
     render(<TooltipProvider><GradebookTable {...makeTableProps({ ultraCompact: true, lastNameFirst: true, showWeights: true, showStudentIds: true, displayMode: 'raw', students: [scored], columns: [column], onScoreOpen: vi.fn() })} /></TooltipProvider>)
     expect(screen.queryByRole('columnheader', { name: 'First' })).not.toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /Last/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 20.6/100' })).toHaveTextContent('20.6/100')
-    for (const name of ['Category', 'Weight', 'Course %', 'Class average']) {
+    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 20.6/100' })).toHaveTextContent(/^20.6$/)
+    for (const name of ['Category', 'Max mark', 'Weight', 'Course %', 'Class average']) {
       expect(screen.getByRole('row', { name }).children).toHaveLength(6)
     }
+  })
+
+  it.each([false, true])('shows raw maximums before Weight and earned-only marks (compact=%s)', (ultraCompact) => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 12.5, weight: 10, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 12.5, earned: 0, percent: 0, is_graded: true }] }
+    const props = makeTableProps({ ultraCompact, displayMode: 'raw', students: [scored], columns: [column], showWeights: true, onScoreOpen: vi.fn() })
+    const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
+    expect(screen.getByLabelText('Maximum mark for Essay')).toHaveTextContent(/^12.5$/)
+    const maxRow = screen.getByRole('row', { name: 'Max mark' })
+    expect(maxRow.nextElementSibling).toBe(screen.getByRole('row', { name: 'Weight' }))
+    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 0/12.5' })).toHaveTextContent(/^0$/)
+    expect(screen.getByRole('row', { name: 'Class average' })).not.toHaveTextContent('/')
+    view.rerender(<TooltipProvider><GradebookTable {...props} showWeights={false} /></TooltipProvider>)
+    expect(screen.getByRole('row', { name: 'Max mark' })).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: 'Weight' })).not.toBeInTheDocument()
+    view.rerender(<TooltipProvider><GradebookTable {...props} displayMode="percent" /></TooltipProvider>)
+    expect(screen.queryByRole('row', { name: 'Max mark' })).not.toBeInTheDocument()
   })
 
   it('names the student inspector and provides a working close control', () => {
