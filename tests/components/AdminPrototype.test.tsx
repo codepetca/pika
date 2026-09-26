@@ -10,7 +10,7 @@ function renderPrototype() {
 }
 
 describe('admin prototype', () => {
-  it('moves from a filtered account inventory to a scoped plan preview without a live write', async () => {
+  it('finds an account and shows its observed state without tier controls', async () => {
     const user = userEvent.setup()
     renderPrototype()
 
@@ -22,52 +22,48 @@ describe('admin prototype', () => {
     const inventory = screen.getByRole('table', { name: 'Sample account inventory' })
     expect(within(inventory).getByText('morgan@example.invalid')).toBeInTheDocument()
     expect(within(inventory).queryByText('alex@example.invalid')).not.toBeInTheDocument()
-
     await user.click(screen.getByRole('button', { name: 'View morgan@example.invalid' }))
-    expect(screen.getByRole('heading', { name: 'morgan@example.invalid' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'morgan@example.invalid' })).toHaveFocus()
-    expect(screen.getByText('Account ID')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Preview plan change' }))
-    expect(screen.getByRole('heading', { name: 'Preview plan change' })).toHaveFocus()
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Proposed plan' }), 'free')
-    expect(screen.getByText('Current active classrooms remain available. New creation would stop.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Confirm plan change' })).toBeDisabled()
+    expect(screen.getByText('Grant source')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Automation status' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /change plan|change tier|confirm/i })).not.toBeInTheDocument()
   })
 
-  it('shows unclassified and grant mismatch states without inferring a plan', async () => {
+  it('opens an exception, explains the automated response, and links to account context', async () => {
     const user = userEvent.setup()
     renderPrototype()
-    await user.click(screen.getByRole('button', { name: 'Accounts' }))
-    await user.click(screen.getByRole('button', { name: 'View sam@example.invalid' }))
+
+    await user.click(screen.getByRole('button', { name: 'View exceptions' }))
+    expect(screen.getByRole('heading', { name: 'Exceptions' })).toHaveFocus()
+    expect(screen.getByText('Provisioning is still pending')).toBeInTheDocument()
+    expect(screen.getByText('Entitlement does not match the tier')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Inspect sam@example.invalid' }))
+    expect(screen.getByRole('heading', { name: 'Provisioning is still pending' })).toHaveFocus()
+    expect(screen.getByText('An automatic retry is scheduled. No operator change has been made.')).toBeInTheDocument()
+    expect(screen.getByText('Check whether the next run completes and records an entitlement.')).toBeInTheDocument()
     expect(screen.getByText('Unclassified')).toBeInTheDocument()
-    expect(screen.getByText('No plan is assigned to this account.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Preview plan change' }))
-    expect(screen.getByText('Current creation limit').nextElementSibling).toHaveTextContent('—')
-    await user.click(screen.getByRole('button', { name: 'Back to account' }))
-    await user.click(screen.getByRole('button', { name: 'Back to accounts' }))
-    expect(screen.getByRole('heading', { name: 'Accounts' })).toHaveFocus()
-    await user.click(screen.getByRole('button', { name: 'View taylor@example.invalid' }))
-    expect(screen.getByText('Plan/grant mismatch')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Preview plan change' }))
-    expect(screen.getByText('Resolve the plan/grant mismatch before changing this plan.')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Activity' }))
-    expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Activity' })).toHaveFocus()
-    expect(screen.getByRole('button', { name: 'Activity' })).toHaveAttribute('aria-current', 'page')
+    await user.click(screen.getByRole('button', { name: 'View account' }))
+    expect(screen.getByRole('heading', { name: 'sam@example.invalid' })).toHaveFocus()
+    expect(screen.getByText('Creation grant').nextElementSibling).toHaveTextContent('—')
   })
 
-  it('uses the classroom-style sidebar to open plan guidance and return to accounts', async () => {
+  it('filters automation status, reports an empty result, and shows chronological activity', async () => {
     const user = userEvent.setup()
     renderPrototype()
 
-    const navigation = screen.getByRole('navigation', { name: 'Admin sections' })
-    expect(within(navigation).getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-current', 'page')
-    await user.click(within(navigation).getByRole('button', { name: 'Plans' }))
-    expect(screen.getByRole('heading', { name: 'Plans' })).toHaveFocus()
-    expect(within(navigation).getByRole('button', { name: 'Plans' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByText('Classroom creation limits by plan')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Browse accounts' }))
-    expect(screen.getByRole('heading', { name: 'Accounts' })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Accounts' }))
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Automation status' }), 'investigate')
+    const inventory = screen.getByRole('table', { name: 'Sample account inventory' })
+    expect(within(inventory).getByText('taylor@example.invalid')).toBeInTheDocument()
+    expect(within(inventory).queryByText('sam@example.invalid')).not.toBeInTheDocument()
+    await user.type(screen.getByRole('textbox', { name: 'Find account' }), 'missing')
+    expect(screen.getByRole('status')).toHaveTextContent('No sample accounts match this search.')
+    await user.click(screen.getByRole('button', { name: 'Activity' }))
+    expect(screen.getByRole('heading', { name: 'Activity' })).toHaveFocus()
+    expect(screen.getByText('Tier sync completed')).toBeInTheDocument()
+    expect(screen.getByText('Entitlement discrepancy detected')).toBeInTheDocument()
+    expect(screen.getAllByText('Automated workflow')).toHaveLength(4)
+    expect(screen.getByRole('button', { name: 'Activity' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('closes the classroom-style mobile drawer after choosing an admin section', async () => {
@@ -79,9 +75,9 @@ describe('admin prototype', () => {
       await user.click(screen.getByRole('button', { name: 'Open admin navigation' }))
       const drawer = screen.getByRole('dialog', { name: 'Navigation menu' })
       expect(within(drawer).getByRole('button', { name: 'Accounts' })).toBeInTheDocument()
-      await user.click(within(drawer).getByRole('button', { name: 'Plans' }))
+      await user.click(within(drawer).getByRole('button', { name: 'Exceptions' }))
       expect(screen.queryByRole('dialog', { name: 'Navigation menu' })).not.toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Plans' })).toHaveFocus()
+      expect(screen.getByRole('heading', { name: 'Exceptions' })).toHaveFocus()
     } finally {
       Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth })
     }
