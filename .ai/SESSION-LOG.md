@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-22 — Dormant Assignment AI usage accounting
-
-- Owner `codex/meter-assignment-ai-usage`, based on merged lease-fencing PR1323. Migration203 adds a service-only Assignment admission/finalization boundary: a version1 run reserves one shared `grading.ai` unit per queued student item, skipped missing/empty items reserve zero, successful grade/provenance finalization settles atomically, and terminal item/run failure releases atomically. Retry admission is idempotent and every operation revalidates the exact current lease and Assignment/Classroom/student/document binding.
-- Migration203 also hardens shared quota accounting to refresh time after blocking locks and count reserved/settled usage across entitlement revisions, preventing metadata revisions from minting capacity. Expired Assignment operations fail closed and require a fresh run/item after terminal release.
-- Under standing local-migration authorization, migration203 is applied locally. Generated types match local history001–203; warning-level DB lint is clean and the real database harness proves per-item reservation, replay safety, archive and malformed-count rejection, zero-cost skipped completion, atomic settlement rollback, terminal release, cross-revision quota enforcement, failed-admission rollback and the unchanged unmetered version0 path. No application route calls the new boundary, no grant or billing state changed, and production remains001–180.
-
 ## 2026-09-22 — Default-off Assignment metering application integration
 
 - Owner `codex/assignment-ai-metering-integration`; risk profiles async-grading and workspace-state. Exact-true server flag admits all Assignment requests through version1 while flag-off single DeepSeek and new version0 runs retain legacy behavior. Persisted version1 controls per-item DeepSeek/Gradex admission, atomic settlement, retry retention, skip release and terminal release after flag rollback; quota/unavailable responses remain content-free.
@@ -309,3 +303,8 @@ async-grading.
 
 - Owner selected Stripe for paid subscriptions. Added SUB-06 to the canonical subscription policy, recorded the decision, and removed provider selection from open decisions. Tier caps remain Free0/Basic2/Plus5/Pro10; paid prices and AI quantities remain undecided. This records provider selection only, without billing implementation or live charges.
 - Corrected the plan-foundation status to point to the verified production strict/default-Free rollout. No runtime behavior changed. Risk profile: none; model recommendation: GPT-6 Sol for policy documentation. Validate focused checks and independent documentation review before marking the updated PR ready.
+
+## 2026-09-26 — Versioned paid offerings policy
+
+- Owner approved documenting future payment-model changes and existing-subscriber protection. Extended the existing canonical subscription policy with SUB-07/SUB-08: preserved offering versions before paid launch, exact purchase/entitlement binding, explicit grandfathering/renewal/optional migrations, annual paid-term protection, and audited idempotent transition/recovery. No universal grandfathering promise or new price, usage quantity or lifecycle default is assumed.
+- Linked the decision and current fixed-writer limitation from the decision log and plan foundation. No implementation, account or production changes. Risk profile: none; model recommendation: GPT-6 Sol for bounded policy documentation. Focused verification and independent documentation review precede updated ready-PR CI.
