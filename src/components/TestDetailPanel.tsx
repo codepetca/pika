@@ -23,21 +23,22 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { ChevronDown, ChevronUp, Eye, Plus, RotateCcw } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Code2, Copy, Eye, ListPlus, Plus, RotateCcw, Settings, Trash2, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
-import { Button, EmptyState, IconButton, SplitButton, Tooltip, cn } from '@/ui'
+import { Button, EmptyState, FormField, IconButton, Input, SaveStatus, SplitButton, Tooltip, cn } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditTestQuestions } from '@/lib/tests'
 import { allowsTestQuestionChanges, TEST_WORDING_ONLY_MESSAGE } from '@/lib/test-editing-policy'
-import { TestQuestionEditor } from '@/components/TestQuestionEditor'
+import { TestQuestionEditor, type TestQuestionEditorHandle } from '@/components/TestQuestionEditor'
 import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 import { TestResultsView } from '@/components/TestResultsView'
 import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import { TeacherWorkSurfaceModeBar, type TeacherWorkSurfaceMode } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
+import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
@@ -68,7 +69,13 @@ interface Props {
     check: (() => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }) | null
   ) => void
   showInlineDeleteAction?: boolean
-  testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only'
+  testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only' | 'split'
+  initialSplitView?: 'edit' | 'markdown'
+  onRequestClose?: () => void
+  onRequestPublish?: () => void
+  publicationError?: string
+  isClosing?: boolean
+  isPreparingPublish?: boolean
   showPreviewButton?: boolean
   showResultsTab?: boolean
   previewRequestToken?: number
@@ -172,6 +179,12 @@ export function TestDetailPanel({
   onDraftPristineCheckReady,
   showInlineDeleteAction = true,
   testQuestionLayout = 'stacked',
+  initialSplitView = 'edit',
+  onRequestClose,
+  onRequestPublish,
+  publicationError,
+  isClosing = false,
+  isPreparingPublish = false,
   showPreviewButton = true,
   showResultsTab,
   previewRequestToken = 0,
@@ -198,6 +211,13 @@ export function TestDetailPanel({
   const [results, setResults] = useState<TestResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<AssessmentViewMode>(() => 'questions')
+  const [splitView, setSplitView] = useState<'edit' | 'markdown'>(initialSplitView)
+  const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(0)
+  const [questionNumberDraft, setQuestionNumberDraft] = useState('1')
+  const [pointsDraft, setPointsDraft] = useState('1')
+  const [pointsError, setPointsError] = useState('')
+  const splitQuestionEditorRef = useRef<TestQuestionEditorHandle>(null)
+  const splitEditorFlushRef = useRef<(() => boolean) | null>(null)
   const [isDocumentsCardExpanded, setIsDocumentsCardExpanded] = useState(true)
   const [externalDocumentAddRequest, setExternalDocumentAddRequest] = useState<{
     id: number
@@ -536,7 +556,8 @@ export function TestDetailPanel({
   const isEditable = canEditTestQuestions(testAssessment, hasResponses)
   const isStructureEditable = isEditable && !structureLocked
   const usesMarkdownOnlyQuestions = questionLayout === 'markdown-only'
-  const isMarkdownSurfaceEnabled = showMarkdown || usesMarkdownOnlyQuestions
+  const usesSplitQuestions = questionLayout === 'split'
+  const isMarkdownSurfaceEnabled = showMarkdown || usesMarkdownOnlyQuestions || usesSplitQuestions
   const hasPendingMarkdownImport = isMarkdownSurfaceEnabled && markdownDirty
   const isMarkdownEditable = isEditable && isMarkdownEditing
   const markdownHelperStatus = markdownSaving
@@ -548,6 +569,23 @@ export function TestDetailPanel({
         : 'Markdown mirror'
   const usesSummaryDetailQuestions = showMarkdown && questionLayout === 'summary-detail'
   const usesEditorOnlyQuestions = questionLayout === 'editor-only'
+  const selectedQuestion = questions[Math.min(selectedQuestionIndex, Math.max(questions.length - 1, 0))]
+
+  useEffect(() => {
+    setSplitView(initialSplitView)
+    setSelectedQuestionIndex(0)
+    setIsMarkdownEditing(initialSplitView === 'markdown')
+  }, [initialSplitView, testAssessment.id])
+
+  useEffect(() => {
+    setSelectedQuestionIndex((current) => Math.min(current, Math.max(questions.length - 1, 0)))
+  }, [questions.length])
+
+  useEffect(() => {
+    setQuestionNumberDraft(String(Math.min(selectedQuestionIndex + 1, Math.max(questions.length, 1))))
+    setPointsDraft(String(selectedQuestion?.points ?? DEFAULT_MULTIPLE_CHOICE_POINTS))
+    setPointsError('')
+  }, [selectedQuestion?.id, selectedQuestion?.points, selectedQuestionIndex, questions.length])
   const { width: summaryDetailWorkspaceWidth } = useRefRect(summaryDetailWorkspaceRef, {
     enabled: usesSummaryDetailQuestions,
   })
@@ -857,6 +895,7 @@ export function TestDetailPanel({
   )
 
   const flushPendingDraft = useCallback(async (): Promise<boolean> => {
+    if (splitEditorFlushRef.current && !splitEditorFlushRef.current()) return false
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -1200,7 +1239,10 @@ export function TestDetailPanel({
     })
   }
 
-  function handleAddQuestion(questionType: 'multiple_choice' | 'open_response' = 'multiple_choice') {
+  function handleAddQuestion(
+    questionType: 'multiple_choice' | 'open_response' = 'multiple_choice',
+    sourceQuestions = questions,
+  ) {
     if (!isStructureEditable) return
 
     const nextQuestion: TestAssessmentQuestion = questionType === 'open_response'
@@ -1216,7 +1258,7 @@ export function TestDetailPanel({
           points: DEFAULT_OPEN_RESPONSE_POINTS,
           response_max_chars: 5000,
           response_monospace: false,
-          position: questions.length,
+          position: sourceQuestions.length,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
@@ -1232,12 +1274,12 @@ export function TestDetailPanel({
           points: DEFAULT_MULTIPLE_CHOICE_POINTS,
           response_max_chars: 5000,
           response_monospace: false,
-          position: questions.length,
+          position: sourceQuestions.length,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
 
-    const nextQuestions = normalizeQuestionPositions([...questions, nextQuestion])
+    const nextQuestions = normalizeQuestionPositions([...sourceQuestions, nextQuestion])
     setQuestions(nextQuestions)
     emitDraftSummaryChange({
       title: editTitle,
@@ -1284,6 +1326,86 @@ export function TestDetailPanel({
     scheduleAutosave(nextDraft)
   }
 
+  function handleResultsVisibilityChange(showResults: boolean) {
+    if (!isEditable || draftShowResults === showResults) return
+    setDraftShowResults(showResults)
+    const nextDraft = { title: editTitle, show_results: showResults, questions }
+    emitDraftSummaryChange(nextDraft)
+    scheduleAutosave(nextDraft)
+  }
+
+  function selectSplitQuestion(index: number) {
+    if (index < 0 || index >= questions.length) return
+    if (!flushSplitEditor()) {
+      setQuestionNumberDraft(String(selectedQuestionIndex + 1))
+      return
+    }
+    setSelectedQuestionIndex(index)
+  }
+
+  function applySplitQuestionNumber() {
+    const number = Number(questionNumberDraft)
+    if (Number.isInteger(number) && number >= 1 && number <= questions.length) {
+      selectSplitQuestion(number - 1)
+    } else {
+      setQuestionNumberDraft(String(selectedQuestionIndex + 1))
+    }
+  }
+
+  function applySplitPoints(): boolean {
+    if (!selectedQuestion || !isStructureEditable) return true
+    const points = Number(pointsDraft)
+    if (!Number.isFinite(points) || points <= 0) {
+      setPointsError('Points must be greater than 0')
+      return false
+    }
+    setPointsError('')
+    const latestQuestion = pendingDraftRef.current?.questions.find((question) => question.id === selectedQuestion.id) ?? selectedQuestion
+    if (points !== latestQuestion.points) {
+      handleQuestionChange({ ...latestQuestion, points })
+    }
+    return true
+  }
+
+  function flushSplitEditor(): boolean {
+    if (!usesSplitQuestions) return true
+    if (hasPendingMarkdownImport) {
+      setMarkdownError('Apply or undo markdown changes before leaving the editor.')
+      return false
+    }
+    if (splitView !== 'markdown' && splitQuestionEditorRef.current && !splitQuestionEditorRef.current.flush()) return false
+    if (!applySplitPoints()) return false
+    const title = editTitle.trim()
+    if (!title) {
+      setError('Title is required')
+      return false
+    }
+    if (pendingDraftRef.current && title !== pendingDraftRef.current.title) {
+      pendingDraftRef.current = { ...pendingDraftRef.current, title }
+      markDraftUnsaved()
+    }
+    return true
+  }
+
+  splitEditorFlushRef.current = flushSplitEditor
+
+  function addSplitQuestion(type: 'multiple_choice' | 'open_response') {
+    if (!flushSplitEditor()) return
+    setPreferredTestQuestionType(type)
+    handleAddQuestion(type, pendingDraftRef.current?.questions ?? questions)
+    setSelectedQuestionIndex(questions.length)
+  }
+
+  function toggleSplitMarkdown() {
+    if (splitView === 'markdown') {
+      setSplitView('edit')
+      return
+    }
+    if (!flushSplitEditor()) return
+    handleEditMarkdown()
+    setSplitView('markdown')
+  }
+
   function handleQuestionDelete(questionId: string) {
     if (!isStructureEditable) return
     const nextQuestions = normalizeQuestionPositions(
@@ -1305,10 +1427,11 @@ export function TestDetailPanel({
 
   function handleDuplicateQuestion(questionId: string) {
     if (!isStructureEditable) return
-    const sourceIndex = questions.findIndex((question) => question.id === questionId)
+    const sourceQuestions = usesSplitQuestions ? pendingDraftRef.current?.questions ?? questions : questions
+    const sourceIndex = sourceQuestions.findIndex((question) => question.id === questionId)
     if (sourceIndex === -1) return
 
-    const sourceQuestion = questions[sourceIndex]
+    const sourceQuestion = sourceQuestions[sourceIndex]
     const now = new Date().toISOString()
     const duplicatedQuestion: TestAssessmentQuestion = {
       ...sourceQuestion,
@@ -1319,9 +1442,9 @@ export function TestDetailPanel({
     }
 
     const nextQuestions = normalizeQuestionPositions([
-      ...questions.slice(0, sourceIndex + 1),
+      ...sourceQuestions.slice(0, sourceIndex + 1),
       duplicatedQuestion,
-      ...questions.slice(sourceIndex + 1),
+      ...sourceQuestions.slice(sourceIndex + 1),
     ])
 
     setQuestions(nextQuestions)
@@ -1491,7 +1614,7 @@ export function TestDetailPanel({
 
   function handleUndoMarkdownChanges() {
     setMarkdownContent(currentAssessmentMarkdown)
-    setIsMarkdownEditing(usesMarkdownOnlyQuestions && isEditable)
+    setIsMarkdownEditing((usesMarkdownOnlyQuestions || usesSplitQuestions) && isEditable)
     setMarkdownDirty(false)
     markdownDirtyRef.current = false
     setMarkdownError('')
@@ -1571,7 +1694,7 @@ export function TestDetailPanel({
     emitDraftSummaryChange(nextDraft)
     setMarkdownContent(nextDerivedMarkdown)
     savedMarkdownRef.current = nextDerivedMarkdown
-    setIsMarkdownEditing(usesMarkdownOnlyQuestions && isEditable)
+    setIsMarkdownEditing((usesMarkdownOnlyQuestions || usesSplitQuestions) && isEditable)
     setMarkdownDirty(false)
     markdownDirtyRef.current = false
     setMarkdownError('')
@@ -1593,6 +1716,7 @@ export function TestDetailPanel({
   }
 
   const handleOpenTestPreview = useCallback(async () => {
+    if (splitEditorFlushRef.current && !splitEditorFlushRef.current()) return
     const previewUrl = `/classrooms/${classroomId}/tests/${testAssessment.id}/preview`
     let previewWindow: Window | null = null
 
@@ -1603,7 +1727,7 @@ export function TestDetailPanel({
     }
 
     setOpeningTestPreview(true)
-    const nextDraft = {
+    const nextDraft = pendingDraftRef.current ?? {
       title: editTitle,
       show_results: draftShowResults,
       questions,
@@ -2017,6 +2141,256 @@ export function TestDetailPanel({
     </div>
   )
 
+  const testsSplitPanel = (
+    <div data-testid="test-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
+      <div data-testid="test-editor-details-pane" className="flex flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
+        <FormField
+          label="Title"
+          required
+          labelAccessory={(
+            <div className="flex items-center gap-1">
+              <SaveStatus status={saveStatus} />
+              <TeacherWorkSurfaceIconMenuButton
+                icon={<Settings className="h-4 w-4" aria-hidden="true" />}
+                ariaLabel="Settings"
+                tooltip="Settings"
+                menuAriaLabel="Test settings"
+                menuPlacement="down"
+                menuAlign="end"
+                disabled={!isEditable}
+                className="h-11 w-11"
+                items={[
+                  {
+                    id: 'show-results',
+                    label: 'Show results after return',
+                    checked: draftShowResults,
+                    checkedRole: 'menuitemradio',
+                    onSelect: () => handleResultsVisibilityChange(true),
+                  },
+                  {
+                    id: 'hide-results',
+                    label: 'Keep results hidden',
+                    checked: !draftShowResults,
+                    checkedRole: 'menuitemradio',
+                    onSelect: () => handleResultsVisibilityChange(false),
+                  },
+                ]}
+              />
+              {onRequestClose ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Close test editor"
+                  disabled={isClosing || isPreparingPublish}
+                  onClick={onRequestClose}
+                  className="h-11 w-11 p-0"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              ) : null}
+            </div>
+          )}
+        >
+          <Input
+            value={isGeneratedAssessmentTitle(editTitle) ? '' : editTitle}
+            placeholder={titleGeneratedLabel}
+            disabled={!isEditable}
+            onChange={(event) => handleTitleDraftChange(event.target.value)}
+            onBlur={() => { void handleTitleSave(editTitle) }}
+          />
+        </FormField>
+
+        <div role="group" aria-label="Reference Docs" className="rounded-lg border border-border-strong bg-surface">
+          <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-2">
+            <p className="truncate text-sm font-medium leading-5 text-text-default">Reference Docs</p>
+            <TeacherWorkSurfaceIconMenuButton
+              icon={<Plus className="h-7 w-7" aria-hidden="true" />}
+              ariaLabel="Add reference"
+              tooltip="Add reference"
+              menuAriaLabel="Reference type"
+              menuPlacement="down"
+              menuAlign="end"
+              variant="ghost"
+              disabled={!isEditable || hasPendingMarkdownImport}
+              className="h-11 w-11 border-0 p-0"
+              items={[
+                { id: 'link', label: 'Link', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'link' }) },
+                { id: 'upload', label: 'Upload PDF or image', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'upload' }) },
+                { id: 'text', label: 'Markdown text', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'text' }) },
+              ]}
+            />
+          </div>
+          <div className={documents.length > 0 ? 'border-t border-border p-2' : 'px-2 pb-2'}>
+            <TestDocumentsEditor
+              testId={testAssessment.id}
+              documents={documents}
+              apiBasePath={apiBasePath}
+              isEditable={isEditable && !hasPendingMarkdownImport}
+              onDocumentsChange={setDocuments}
+              addButtonPlacement="none"
+              externalAddRequest={externalDocumentAddRequest}
+              onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-md border border-border bg-surface px-3 py-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-text-default">Questions</p>
+            <p className="text-xs text-text-muted">{questions.length} total · {totalQuestionPoints} points</p>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant={splitView === 'markdown' ? 'subtle' : 'surface'}
+          size="sm"
+          fullWidth
+          aria-pressed={splitView === 'markdown'}
+          disabled={splitView === 'markdown' && hasPendingMarkdownImport}
+          onClick={toggleSplitMarkdown}
+          className="justify-start"
+        >
+          <Code2 className="h-4 w-4" aria-hidden="true" />
+          Markdown
+        </Button>
+
+        <div className="mt-1 shrink-0 lg:mt-auto">
+          {publicationError ? <p role="alert" className="mb-2 text-sm text-danger">{publicationError}</p> : null}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              fullWidth
+              disabled={hasPendingMarkdownImport || openingTestPreview || isClosing}
+              onClick={() => { void handleOpenTestPreview() }}
+            >
+              <Eye className="h-4 w-4" aria-hidden="true" />
+              {openingTestPreview ? 'Opening...' : 'Preview'}
+            </Button>
+            {testAssessment.status === 'draft' && onRequestPublish ? (
+              <Button
+                type="button"
+                size="sm"
+                fullWidth
+                disabled={hasPendingMarkdownImport || questions.length < 1 || isClosing || isPreparingPublish}
+                onClick={onRequestPublish}
+              >
+                {isPreparingPublish ? 'Preparing...' : 'Publish'}
+              </Button>
+            ) : (
+              <Button type="button" variant="secondary" size="sm" fullWidth disabled={isClosing} onClick={onRequestClose}>
+                {isClosing ? 'Saving...' : 'Close'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div data-testid="test-editor-content-pane" className="flex min-h-96 min-w-0 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
+        {splitView === 'markdown' ? (
+          <div className="min-h-0 flex-1">{testsMarkdownPanel}</div>
+        ) : (
+          <>
+            <div data-testid="test-question-actionbar" className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+              <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">
+                {selectedQuestion?.question_type === 'multiple_choice' ? 'Multiple choice' : selectedQuestion ? 'Open response' : ''}
+              </p>
+              <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
+                <Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={selectedQuestionIndex <= 0} onClick={() => selectSplitQuestion(selectedQuestionIndex - 1)} className="h-11 w-11 p-0 text-text-muted">
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <FormField label="Question number" hideLabel collapseHiddenLabel className="w-14">
+                <Input
+                  type="number"
+                  min="1"
+                  max={questions.length}
+                  step="1"
+                  value={questionNumberDraft}
+                  aria-label="Question number"
+                  disabled={questions.length === 0}
+                  onChange={(event) => setQuestionNumberDraft(event.target.value)}
+                  onBlur={applySplitQuestionNumber}
+                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applySplitQuestionNumber() } }}
+                  className="px-2 text-center"
+                />
+                </FormField>
+                <span className="whitespace-nowrap text-xs text-text-muted">/ {questions.length}</span>
+                <Button type="button" variant="ghost" size="sm" aria-label="Next question" disabled={selectedQuestionIndex >= questions.length - 1} onClick={() => selectSplitQuestion(selectedQuestionIndex + 1)} className="h-11 w-11 p-0 text-text-muted">
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+              <div role="group" aria-label="Question actions" className="col-start-2 row-start-2 flex items-center justify-self-end gap-1 lg:col-start-3 lg:row-start-1">
+                {selectedQuestion ? (
+                  <div className="relative w-24 shrink-0">
+                    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-text-muted">Points</span>
+                    <FormField label="Points" hideLabel collapseHiddenLabel>
+                    <Input
+                      id="test-split-question-points"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={pointsDraft}
+                      disabled={!isStructureEditable}
+                      aria-invalid={Boolean(pointsError)}
+                      aria-describedby={pointsError ? 'test-split-points-error' : undefined}
+                      onChange={(event) => setPointsDraft(event.target.value)}
+                      onBlur={applySplitPoints}
+                      onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applySplitPoints() } }}
+                      className="w-full pl-12 pr-2 text-right"
+                    />
+                    </FormField>
+                  </div>
+                ) : null}
+                <TeacherWorkSurfaceIconMenuButton
+                  icon={<ListPlus className="h-5 w-5" aria-hidden="true" />}
+                  ariaLabel="Question actions"
+                  tooltip="Question actions"
+                  menuAriaLabel="Question actions"
+                  variant="primary"
+                  menuPlacement="down"
+                  menuAlign="end"
+                  className="h-11 w-14 shadow-sm"
+                  items={[
+                    { id: 'mc', label: 'Add multiple-choice question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('multiple_choice') },
+                    { id: 'open', label: 'Add open-response question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('open_response') },
+                    ...(selectedQuestion?.question_type === 'open_response' ? [{ id: 'code-response', label: 'Code response', icon: <Code2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, checked: selectedQuestion.response_monospace === true, checkedRole: 'menuitemcheckbox' as const, disabled: !isStructureEditable, onSelect: () => {
+                      if (!flushSplitEditor()) return
+                      const latestQuestion = pendingDraftRef.current?.questions.find((question) => question.id === selectedQuestion.id) ?? selectedQuestion
+                      handleQuestionChange({ ...latestQuestion, response_monospace: !latestQuestion.response_monospace })
+                    } }] : []),
+                    { id: 'duplicate', label: 'Duplicate question', icon: <Copy className="h-4 w-4" aria-hidden="true" />, dividerBefore: selectedQuestion?.question_type !== 'open_response', disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (!selectedQuestion || !flushSplitEditor()) return; handleDuplicateQuestion(selectedQuestion.id); setSelectedQuestionIndex(selectedQuestionIndex + 1) } },
+                    { id: 'delete', label: 'Delete question', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (selectedQuestion) handleQuestionDelete(selectedQuestion.id) } },
+                  ]}
+                />
+              </div>
+            </div>
+            {pointsError ? <p id="test-split-points-error" role="alert" className="text-sm text-danger">{pointsError}</p> : null}
+            <div className="min-h-0 flex-1 lg:overflow-y-auto">
+              {selectedQuestion ? (
+                <TestQuestionEditor
+                  ref={splitQuestionEditorRef}
+                  key={selectedQuestion.id}
+                  question={selectedQuestion}
+                  questionNumber={selectedQuestionIndex + 1}
+                  isEditable={isEditable}
+                  structureLocked={structureLocked}
+                  onChange={handleQuestionChange}
+                  onDelete={handleQuestionDelete}
+                  variant="split"
+                />
+              ) : (
+                <EmptyState title="No questions yet" description="Use Question actions to add a multiple-choice or open-response question." />
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+
   if (loading) {
     return (
       <div className="p-4 flex justify-center">
@@ -2043,7 +2417,7 @@ export function TestDetailPanel({
         </p>
       )}
       {/* Tabs */}
-      {!usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && (
+      {!usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && !usesSplitQuestions && (
         <div className="shrink-0 border-b border-border bg-surface px-3 pt-2">
           <TeacherWorkSurfaceModeBar
             modes={assessmentModeTabs}
@@ -2086,28 +2460,28 @@ export function TestDetailPanel({
       {/* Content */}
       <div
         id={
-          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions
+          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && !usesSplitQuestions
             ? assessmentModePanelId(viewMode)
             : undefined
         }
         role={
-          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions
+          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && !usesSplitQuestions
             ? 'tabpanel'
             : undefined
         }
         aria-labelledby={
-          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions
+          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && !usesSplitQuestions
             ? assessmentModeTabId(viewMode)
             : undefined
         }
         tabIndex={
-          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions
+          !usesSummaryDetailQuestions && !usesEditorOnlyQuestions && !usesMarkdownOnlyQuestions && !usesSplitQuestions
             ? 0
             : undefined
         }
         className={[
           'flex-1',
-          usesSummaryDetailQuestions || usesEditorOnlyQuestions || usesMarkdownOnlyQuestions
+          usesSummaryDetailQuestions || usesEditorOnlyQuestions || usesMarkdownOnlyQuestions || usesSplitQuestions
             ? 'min-h-0 overflow-hidden p-0'
             : 'overflow-y-auto p-4',
         ].join(' ')}
@@ -2124,7 +2498,9 @@ export function TestDetailPanel({
           </div>
         )}
 
-        {usesEditorOnlyQuestions ? (
+        {usesSplitQuestions ? (
+          testsSplitPanel
+        ) : usesEditorOnlyQuestions ? (
           <div
             data-testid="test-editor-only-layout"
             className="flex h-full min-h-0 flex-col bg-surface-2"

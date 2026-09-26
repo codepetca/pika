@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-20 — Dormant contextual Assignment feedback return
-
-- Owner `codex/contextual-assignment-feedback-return`, based on merged manual-grading PR1305. Migration196 adds service-only actor-bound wrappers for one feedback-only return and one selected-student full return. Both take the established Assignment return fence, then the Classroom-operation and target learner purge fences, lock authorization parents, recheck stable binding, exact current ownership and active lifecycle, and delegate to the established atomic return operations in the same transaction.
-- Added one independent off-by-default exact user/Assignment gate shared by both return routes. Matched teacher- or student-valued current owners use migration196 with strict returned document, feedback-entry, actor and batch-partition binding; disabled and unmatched requests preserve the legacy teacher-only path. AI grading/repository review, bulk/reorder, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration196 is applied locally. Generated types match local history001–196; error-level DB lint, rollback behavior and purge-first/archive-first/return-first multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
-- PR1307 initial compatibility review signed off exact head `02b384ca`. Security review found uppercase learner UUIDs could commit then fail response binding, feedback entry/document bodies were not cross-checked, and duplicate created-student evidence could satisfy the batch counts. Remediation batch1 canonicalizes request UUIDs before deduplication/RPC and requires exact feedback-body and created-subpartition evidence, with route and adapter regressions; targeted security re-review follows.
-- Security targeted review signed off batch1 head `ee8bc935`. Final compatibility review found shared-parser UUID canonicalization changed disabled/unmatched legacy behavior for case-variant UUIDs. Batch2 restores byte-for-byte legacy parsing and canonicalizes/deduplicates only inside the contextual adapters, with disabled, unmatched-teacher and exact-contextual route coverage; final re-review follows.
-
-## 2026-09-20 — Dormant contextual classwork reorder
-
-- Owner `codex/contextual-classwork-reorder`, based on merged feedback-return PR1307. Migration197 adds service-only actor-bound wrappers for Assignment-only and mixed Assignment/material/survey ordering. Both take the shared Classroom-operation fence, lock the current Classroom, recheck exact ownership and active lifecycle, delegate to the established migration068 ordering functions, and return actor/Classroom binding evidence.
-- Added one independent off-by-default exact user/Classroom gate shared by both reorder routes. Matched teacher- or student-valued current owners use migration197; disabled and unmatched requests preserve the legacy teacher-only path. Bulk Assignment operations, AI grading, repository review, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration197 applied after a clean dry run showing only197. Generated types match local history001–197; rollback behavior and archive-first/reorder-first/creation-first multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
-
-## 2026-09-20 — Dormant contextual Assignment bulk editing
-
-- Owner `codex/contextual-assignment-bulk`, based on merged classwork-reorder PR1308. Migration198 adds one service-only actor-bound transaction for the markdown Assignment bulk editor. It takes canonically ordered Assignment submission fences before the shared Classroom-operation fence, locks and rebinds every parent, validates the complete batch, preserves material/survey slots, and commits creates, updates, releases and positions atomically.
-- Added an independent off-by-default exact user/Classroom gate. Matched teacher- or student-valued current owners use migration198; disabled and unmatched requests preserve the legacy teacher-only path. AI grading, repository review, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration198 applied after the dry run showed only198. Generated types match local history001–198; rollback behavior and archive-first/bulk-first/overlapping reversed-order multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
-- Initial security review found request-supplied foreign Assignment IDs could acquire another tenant's advisory/row locks before the missing-ID result. Compatibility review also found malformed timestamps surfaced as503. Remediation migration199 moves the original implementation private, preflights scope before supplied locks, rechecks and locks only rows still bound to the Classroom, and revokes direct service-role execution; the adapter maps PostgreSQL22007 to400. Cross-Classroom contention and malformed-date rollback regressions join the harnesses; targeted re-review follows.
-
 ## 2026-09-20 — Dormant contextual Assignment repository-target selection
 
 - Owner `codex/contextual-assignment-repo-target`, based on merged Assignment bulk PR1309. Migration200 adds a service-only owner-bound save/reset transaction for one enrolled learner's repository target under Assignment, Classroom-operation and learner-purge fences.
@@ -335,6 +314,12 @@ async-grading.
 
 - Updated `codex/test-publish-action-bar` / PR1357 to retain Publish in the edit modal as well as the student-table action bar, per revised request. Restored the modal's save-before-publish flow and inline validation errors; both controls remain draft-only.
 - All226 focused tests, architecture/UI/design/type/lint checks and Pika audit pass. Playwright verified both publication entry points and both controls disappearing after publication across teacher desktop/mobile light/dark (eight flows). Student UI unchanged. Independent updated-SHA review follows.
+
+## 2026-09-25 — Production Test split-pane authoring
+
+- Owner: `codex/test-split-pane-real`. Applied the approved Pattern Lab Test editor to real New/Edit Test authoring: headerless desktop split panes, left Title/Settings/Reference Docs/Markdown and bottom Preview/Publish, right selected question with centered navigation, compact Points and consolidated Question actions. Reused CreationModalShell, real reference-document workflows, Markdown import/export, draft autosave, publication and maximized whole-Test preview. No student form, API, schema, or dependency changes.
+- MC options support automatic trailing blank creation, remove, pointer/keyboard rearrangement and correct-answer preservation. Open response keeps answer key/sample solution and the separate Code response menu choice. Navigation/preview/publish/close flush local edits and reject invalid options/points rather than silently dropping them; wording-only editing protections remain in force.
+- Focused checks pass 17 files / 281 tests plus architecture, UI/design policy, TypeScript and lint. Audit clean. Composite-widget checklist reviewed: keyboard behavior covered (existing menu/dialog plus option reorder); semantic state tested; final visual verification and independent review follow. Teacher-only authoring means student view is n/a; existing full-test preview is reused unchanged.
 
 ## 2026-09-25 — Disable student actions for unpublished tests
 
