@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-22 — Daily Log PR main synchronization
-
-- PR1329 was brought up to date with main after its exact-head CI passed. The sole textual conflict was in the AI archive; both batch markers and all distinct history were retained. Classroom page and test changes merged automatically without altering the Daily Log implementation. Combined-tree focused checks pass 166 files/1,922 tests plus architecture, UI/design policy, TypeScript and lint. PR remains draft for the updated-head gate; no merge to main was performed.
-
-## 2026-09-22 — Daily Log PR final review and up-to-date gate
-
-- User authorized additional review. An exact-head integration review of 14d6f387 found no blocker, with 112 targeted tests passing. Ready CI run35803112343 passed Test & Build, browser, database and PR Gate on that head. The squash merge was rejected solely because main advanced during CI and the branch-up-to-date rule applies; no admin override was used.
-- Main's two new commits affect only test-grading calibration and rubric scoring, with no Daily Log path overlap. They merged into the feature branch without a textual conflict. Fresh integration review and exact-head CI are required before the merge retry; no persistent database migration was applied.
-- Exact-head 722c9e9e targeted re-review found no blocker (142 tests), and CI run35804835394 passed all lanes. During that run main advanced again via a session-log-only PR. The strict up-to-date gate requires another branch sync; the archive batch-marker conflict retains both markers and unique history, with duplicate rolling-log entries omitted. No Daily Log source changed.
-
 ## 2026-09-22 — Test grading calibrated against adjudicated work
 
 Continuation of the earlier entry today; that one stopped before the second rule and the
@@ -298,3 +288,23 @@ async-grading.
 
 - Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
 - Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
+
+## 2026-09-26 — Approved subscription launch policy
+
+- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
+  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
+  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
+  Updated the access roadmap and durable decisions; distinguished approved
+  product terms from provisional AI costs and missing runtime implementation.
+- Documentation-only risk profile: none. No database, Stripe account, production
+  runtime or existing subscription changed. Next implementation milestone is an
+  isolated Stripe test checkout plus lifecycle/access verification.
+
+## 2026-09-26 — Rename launch plans to Basic, Pro and Max
+
+- Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,
+  launch limits, trial/AI labels and decision log while retaining prices/benefits.
+  Documented legacy `plus` → Pro and `pro` → Max to avoid accidental entitlement
+  reassignment. Historical runtime/schema keys remain unchanged.
+- Continued policy PR1367; documentation-only verification and independent review
+  cover the cumulative approved-policy change. No runtime or live billing change.
