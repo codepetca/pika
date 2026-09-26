@@ -11,125 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-22 — Accept required Assignment links without GitHub identity
-
-- Standard link requirements now send only their URL instead of an irrelevant blank GitHub login; repository-link requirements retain the existing GitHub fields.
-- The Assignment artifact request boundary normalizes a blank optional GitHub login to absent for compatibility with older clients. Component and API regressions cover both paths; the focused gate passes 60 files/664 tests plus architecture, UI/design policy, TypeScript and lint. Risk profile: none.
-- Pattern Lab visual verification covers the student attachment checklist on desktop/mobile in light/dark; the existing layout and states are unchanged. Teacher is n/a because no teacher surface or data contract changed.
-- Composite-widget checklist reviewed: no roles, keyboard behavior, focus handling or semantic state changed; remaining manual follow-up: none. Model recommendation: GPT-5 — bounded submission validation fix.
-
-## 2026-09-22 — Dormant Assignment AI usage accounting
-
-- Owner `codex/meter-assignment-ai-usage`, based on merged lease-fencing PR1323. Migration203 adds a service-only Assignment admission/finalization boundary: a version1 run reserves one shared `grading.ai` unit per queued student item, skipped missing/empty items reserve zero, successful grade/provenance finalization settles atomically, and terminal item/run failure releases atomically. Retry admission is idempotent and every operation revalidates the exact current lease and Assignment/Classroom/student/document binding.
-- Migration203 also hardens shared quota accounting to refresh time after blocking locks and count reserved/settled usage across entitlement revisions, preventing metadata revisions from minting capacity. Expired Assignment operations fail closed and require a fresh run/item after terminal release.
-- Under standing local-migration authorization, migration203 is applied locally. Generated types match local history001–203; warning-level DB lint is clean and the real database harness proves per-item reservation, replay safety, archive and malformed-count rejection, zero-cost skipped completion, atomic settlement rollback, terminal release, cross-revision quota enforcement, failed-admission rollback and the unchanged unmetered version0 path. No application route calls the new boundary, no grant or billing state changed, and production remains001–180.
-
-## 2026-09-22 — Default-off Assignment metering application integration
-
-- Owner `codex/assignment-ai-metering-integration`; risk profiles async-grading and workspace-state. Exact-true server flag admits all Assignment requests through version1 while flag-off single DeepSeek and new version0 runs retain legacy behavior. Persisted version1 controls per-item DeepSeek/Gradex admission, atomic settlement, retry retention, skip release and terminal release after flag rollback; quota/unavailable responses remain content-free.
-- The rendered classroom AI Grade action continues to hand accepted durable runs to the existing `TeacherClassroomView` polling flow; the unused assignment-local controller remains unchanged. Reused all current busy, feedback and error owners; no new visual components or Pattern Lab contracts. Joining/student work and entitlement/plan state are unchanged; no flags enabled.
-- `pnpm check:focused -- --base origin/main` passed 442 tests/31 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit is clean. Browser evidence uses the seeded local classroom and simulated AI responses (no provider work): teacher desktop/mobile, light/dark, default/loading/completion/quota/unavailable; student shared-route regression. Captures are local under `output/playwright/assignment-ai-metering/`.
-- Independent DB review confirmed the expiry cleanup edge. Forward migration204 (201/203 unchanged), authorized/applied locally, preserves already-expired Assignment release evidence during terminal cleanup, renews only live lease-fenced reservations for 24 hours, and adds `internal_failure` cleanup classification. Real DB expiry/renewal/conflict/privilege cases, warning lint and generated-type check pass; dedicated concurrent expiry-vs-renewal stress remains a follow-up to the deterministic serialized harness. Model recommendation: GPT-6 — durable provider lifecycle and transactional accounting boundaries. Epic remains open and rollout disabled.
-- Draft-review remediation keeps migration204 default-off while adding an exact service-only capability sentinel, complete per-item source fingerprints (Assignment, document, structured artifacts and workflow history), Assignment-only `internal_failure`, and lease-fenced durable Gradex run/item correlation. Admission and settlement now reject artifact deletion/replacement races; Gradex polling admits and fetches only live local items, survives pseudonym-salt rotation, and waits for all sibling terminal persistence before surfacing a failure. Validation used a disposable full migration replay because the earlier M204 shape was already applied to the normal local database; no local data was reset.
-
-## 2026-09-22 — Daily Log attendance-save reliability
-
-- Student Today now sends the first nonblank Daily Log immediately, retains per-student/classroom/Toronto-date device drafts, retries an unsent prior-day draft under its original date, and offers an explicit conflict choice when a saved log already exists. No separate check-in action was added; later edits retain throttled autosave, and page exit makes a best-effort save without treating it as confirmed.
-- Client saves are serialized; the PATCH route accepts duplicate content idempotently, rejects a missing or stale entry identity, and uses version-conditional updates to prevent stale overwrites. Log-derived attendance remains tied to the entry's class date; QR attendance is unchanged. No migration or production database change.
-- Focused checks pass 244 tests/16 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit passes. Student recovery reviewed on desktop/mobile light/dark and teacher Daily on desktop/mobile dark. Composite-widget checklist reviewed: existing buttons retain keyboard behavior, status and conflicts have textual labels, and component tests assert accessible status/actions; no manual follow-up identified. PR review pending.
-- Independent review remediation: remove unscoped legacy session draft restore, clear pending saves after Reload latest, preserve blank edits to an existing log, keep old-day recovery from delaying today's save, and carry first post-midnight typing into a new-date draft rather than dropping it. Empty old-day drafts with no known entry are skipped; attendance itself already requires nonblank text. Focused checks now pass 249 tests/16 files plus the same policy/type/lint gates. Targeted re-review pending.
-- Targeted review found a same-date classroom-switch queue collision and a lost-response/blank-clear recovery gap. Second batch binds queued saves to student/classroom/date and rereads that exact draft after switching, while blank older drafts first reconcile against server state before clearing or discarding. Regression tests cover both; focused checks pass 251 tests/16 files plus architecture, UI/design policy, TypeScript and lint. Final integration review pending.
-- Final integration review found no blocker but identified storage-unavailable loss on stale-tab date rollover. Third batch retains the new-date keystroke in scoped memory when device storage rejects it, keeps the warning visible, and schedules a server save after the new-date load even if loading state was batched. Storage-failure regression added; focused checks pass 252 tests/16 files plus all policy/type/lint gates. Exact-head re-review and CI pending.
-- User-approved fourth review batch addresses the remaining P1: later edits now supersede or clear the rollover-only memory draft, so a load cannot prefer first-typed A over newer durable AB. A deferred-first-save/reload regression covers the exact sequence. Focused checks pass 253 tests/16 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit passes. Current student Today and teacher Daily Playwright captures loaded and inspected at mobile/desktop; prior light/dark recovery-state captures remain valid because no visual treatment changed. Exact-head targeted review and CI pending.
-- Cumulative review found a storage-failure rollover conflict gap: an in-memory draft could auto-save over a new-day log from another device. Fifth batch treats in-memory and durable drafts equally for conflict detection and waits for the fresh entry read before auto-saving a cached restore. A blocked-storage/existing-log regression confirms visible conflict and no PATCH. Focused checks pass 254 tests/16 files plus policy/type/lint gates; pre-commit audit passes. Final exact-head review and CI pending.
-
-## 2026-09-22 — Production student Grades
-
-- Owner `codex/student-grades-production`, based on merged Classroom Grades patterns. Added a default-off `student_grades` classroom preference, a teacher Gradebook visibility switch, and a student Classroom Grades tab backed by a private no-store server projection.
-- The student projection includes only fully graded, returned work from currently visible Classwork/Test sources, honors per-assessment overrides, keeps excluded or non-contributing returned items visible as `Not counted`, and calculates the current grade with the teacher Gradebook category/assessment-weight rules. Final-grade overrides remain teacher-only.
-- Migration202 is authored with default-off backfill, shape enforcement, and the latest cold-archive restore adapters, but was not applied to any database. Focused full verification passes 160 files/1,816 tests plus architecture, UI/design policy, TypeScript and lint; Pika audit passes. Playwright verified teacher/student desktop/mobile in light/dark, default-off/visible states, and the local classroom was restored to off. Composite checklist reviewed: native switch and links have keyboard coverage, checked/active state is semantic, and no manual follow-up remains. Independent PR review follows.
-- PR1320 security review found migration202 would have replaced the top-level archive normalizer and bypassed the wrappers added by migrations147/150/164. Remediation batch1 now renames and delegates to the current adapter before adding only `student_grades`, preserves service-role-only execution, and ratchets the chain in a focused migration test; the full 161-file/1,823-test gate remains green.
-- Cumulative review cleared the archive correction but found fractional scores were rounded before aggregate calculation, causing teacher/student current-grade drift. Remediation batch2 preserves raw earned/possible values through `calculateCategorizedFinalPercent`, rounds only the public response fields, adds a fractional rubric regression, and removes stale prototype copy.
-- Final integration review found the teacher aggregate still consumed rounded assignment display cells. Remediation batch3 now carries raw rubric-earned values into both legacy and categorized teacher calculations while retaining rounded display fields, with an API regression asserting teacher/student parity at 3.33%.
-- User-authorized extended review found returned assessment overrides were omitted from student Grades when underlying rubric/responses were incomplete. Remediation batch4 now evaluates assignment/test overrides before base-score completeness, preserves omission for incomplete work without overrides, and covers zero assignment and response-free closed-test overrides.
-- Teacher Gradebook visibility refinement moves the control from a standalone settings card into the existing action bar immediately before More actions. The slightly enlarged settings-style switch is neutral and icon-free when hidden; when shown, its track is solid green and its right thumb contains the Lucide Users icon. The optimistic checked treatment now remains visible while the background save disables the switch, with failure rollback covered. Concise “Show grades to students” / “Hide grades from students” tooltips remain, and save errors stay in the Gradebook feedback area. Targeted component and Pattern Lab tests, TypeScript, UI/design policy checks, and desktop/mobile light/dark visual verification pass; the student Grades surface is unchanged.
-
-## 2026-09-22 — Persistent students icon in Gradebook visibility switch
-
-- The teacher Gradebook switch now shows a neutral Users icon at the right end of its track while off; when on, the icon moves with the thumb and the track remains green. The shared switch gained an optional off-state icon without changing switches that omit it. The full focused gate passes 166 files/1,904 tests plus architecture, TypeScript, lint and UI/design policy; Pika audit passes. Playwright confirms off/on at teacher desktop/mobile in light/dark, the live teacher off state, and the unchanged student Grades view at desktop/mobile. Risk profile: none. Model recommendation: GPT-6 — narrow shared-control styling change with role and state verification.
-
-## 2026-09-22 — Student Grades merge preparation
-
-- PR1320 was rebased onto current main after an AI-log archive conflict was resolved without dropping either existing archived entry. Main now owns migrations202–204, so the unapplied student Grades migration was resequenced to205 and its private archive-adapter name and regression updated. The first exact-head CI replay applied205 in its ephemeral database, then found the generated types lacked the new private adapter; the checked-in types were synchronized to CI's exact generated diff. The user requested merge; final CI and merge gates follow. No migration was applied to a persistent environment.
-- The next exact-head CI passed build and database contracts but exposed two stale Pattern Lab selectors after production-component reuse and four outdated icon-catalog screenshots following the new student Grades navigation item. Browser tests now target the production switch name and `student-grades-view`; Linux screenshots come from the failed CI artifacts and Mac screenshots were regenerated locally. Targeted teacher/student desktop/mobile light/dark browser checks pass (12/12), as do the full focused gate (166 files/1,905 tests), TypeScript, lint, architecture, and UI/design policy. The normal local dev server was restored at port3001. PR1320 remains draft pending a fresh exact-head CI and merge.
-
-## 2026-09-22 — Daily Log PR main synchronization
-
-- PR1329 was brought up to date with main after its exact-head CI passed. The sole textual conflict was in the AI archive; both batch markers and all distinct history were retained. Classroom page and test changes merged automatically without altering the Daily Log implementation. Combined-tree focused checks pass 166 files/1,922 tests plus architecture, UI/design policy, TypeScript and lint. PR remains draft for the updated-head gate; no merge to main was performed.
-
-## 2026-09-22 — Daily Log PR final review and up-to-date gate
-
-- User authorized additional review. An exact-head integration review of 14d6f387 found no blocker, with 112 targeted tests passing. Ready CI run35803112343 passed Test & Build, browser, database and PR Gate on that head. The squash merge was rejected solely because main advanced during CI and the branch-up-to-date rule applies; no admin override was used.
-- Main's two new commits affect only test-grading calibration and rubric scoring, with no Daily Log path overlap. They merged into the feature branch without a textual conflict. Fresh integration review and exact-head CI are required before the merge retry; no persistent database migration was applied.
-- Exact-head 722c9e9e targeted re-review found no blocker (142 tests), and CI run35804835394 passed all lanes. During that run main advanced again via a session-log-only PR. The strict up-to-date gate requires another branch sync; the archive batch-marker conflict retains both markers and unique history, with duplicate rolling-log entries omitted. No Daily Log source changed.
-
-## 2026-09-22 — Test grading calibrated against adjudicated work
-
-Continuation of the earlier entry today; that one stopped before the second rule and the
-harness landed. Shipped after it: PR1321 (request timeout 25s to 60s), PR1324 (retry at
-reduced reasoning effort instead of failing when both token budgets truncate, plus
-`reasoningEffortUsed` in assignment and test provenance), PR1330 (score itemized rubrics as
-a checklist) and PR1331 (the calibration harness itself).
-
-PR1330 came from adjudicating real responses with the teacher. On a ten-criterion key worth
-ten marks, submissions satisfying six and seven criteria scored four; the teacher set both
-at 6-8 and 7-8. Failures were being charged more than once. Measured on a fixed benchmark —
-all 48 ten-point responses, five with verified targets — both adjudicated cases moved from
-4 into band (8 and 7), cell harshness fell from 36/48 to 21/44, and weak submissions held
-their low scores rather than floating up, which was the specific failure mode worth checking.
-Generalisation was then measured by re-running the same 80 responses from the earlier seed-7
-run: overall agreement 42 to 47, mean absolute disagreement 0.145 to 0.132, with the 10-point
-cell improving on a different draw than the rule was derived from.
-
-I dismissed this finding once before. A sweep of a second ten-point question graded
-accurately and read as a refutation, but those submissions failed on concepts rather than
-transcription and had fewer satisfied criteria, so the effect had little room to show. Two
-non-comparable questions treated as if one disproved the other; it cost several rounds and
-only resurfaced once PR1319 removed the masking noise.
-
-Reasoning effort was tested and ruled out as the cause of 10-point harshness: low and medium
-are harsh at an identical 36/48, and medium is marginally less harsh and more accurate for
-1.5x the tokens. Keep medium; stop looking there.
-
-OPEN, and the reason to keep the benchmark. The 9-point cell drifted more lenient under
-PR1330 (+0.239 to +0.248). This was predicted before the run — a floor rule raises scores by
-construction and that cell was already the most lenient — and it is NOT resolved. It cannot
-be resolved by another run: that cell is scored against the marks with the strongest evidence
-of being wrong, including the response recorded 2/9 which the teacher adjudicated at 8/9. It
-needs a human to adjudicate a handful of 9-point cases. Also open: peak output reached 16,386
-tokens after PR1330, so the 60s timeout binds again on the heaviest responses; four of 48 and
-one of 80 responses failed on timeout or invalid output in the last two runs.
-
-The benchmark is repeatable: `pnpm calibrate:test-grading --max-points 10 --all` over the 48
-ten-point responses, with verified targets for student-21 (6-8), student-16 (7-8), student-20
-(~10), student-12 (8-9) and student-06 (9). De-identified snapshots for both archived
-classrooms sit gitignored in the repo root.
-
-Process: this session again worked in the hub checkout rather than a feature worktree, and
-pushed twice to ready PRs, which PR Gate correctly rejected both times. Risk profile:
-async-grading.
-
-## 2026-09-22 — Assignment AI metering canary gate
-
-- Owner `codex/assignment-ai-metering-canary`; risk profiles async-grading and runtime-platform. Production and local ledgers were verified at migrations001–205. The production classroom-creation cutover remains disabled with181 accounts unclassified, Assignment metering has zero reservations, service-only privileges are intact, and migration205 has no malformed student Grades settings.
-- Assignment AI metering now requires both the exact-`true` server master switch and the authenticated teacher's exact account ID in a bounded comma-separated cohort. Every Assignment request uses the existing durable coordinator: missing, malformed, oversized or unmatched cohorts create unmetered version0 runs, while exact matches create metered version1 runs. Persisted version1 runs remain resumable independently of later gate changes. No flag, cohort, entitlement, quota or active production rollout changed.
-- Targeted Assignment usage/run/API coverage passes91 tests plus TypeScript. The focused gate passes309 tests across24 files plus architecture, UI/design policy, TypeScript and lint; Pika audit is clean. Model recommendation: GPT-6 — financial-usage admission and resumable async grading rollout boundary.
-- Independent security and architecture review found that a single-student retry could leave the durable path after a teacher was removed from the cohort, bypassing an active version1 reservation. A standalone active-run check still had a creation race, so remediation removes the split entirely: all Assignment AI requests now enter the atomic durable coordinator, where matching work resumes and conflicting work remains blocked. The metered Gradex smoke also requires its stable teacher ID in the cohort and verifies a version1 run with exactly one settled `grading.ai` reservation.
-
-## 2026-09-22 — Daily Log PR final merge window
-
-- PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.
-
 ## 2026-09-23 — Future classroom retention roadmap
 
 - Owner `codex/classroom-retention-roadmap`; risk profile none. Documented a proposed, plan-independent archived-classroom retention sequence and advance notices in the lifecycle roadmap, with a pointer from the product roadmap. It remains future work; no email, timer, automatic cold transition, deletion worker, database migration, or rollout gate was enabled.
@@ -257,6 +138,44 @@ async-grading.
 - Draft PR1362 independent review found five prototype edge cases: whole-Test Markdown rejected Text reference headings, preview Close left browser fullscreen, sample PDF opened unavailable/blank, Publish ignored errors on other questions, and reference/option drag handles lacked a keyboard path. One remediation batch preserves headings and field-like Text content in the existing Test Markdown parser; makes the sample reference a visibly rendered Text doc and labels new PDFs as pending prototype uploads; owns/exits preview fullscreen; validates all questions; and adds arrow-key reordering with focus and browser/component coverage. The focused gate passes 49 files / 774 tests plus architecture, UI/design policy, TypeScript, and lint; audit passes; 12 teacher desktop/mobile light/dark Pattern Lab browser checks pass. Targeted review, final integration review and ready-PR CI follow.
 - Targeted re-review at `ddd5e498` found two residual edges: a literal `### Document N` heading still collided with whole-Test Markdown delimiters, and fullscreen entered through the preview's retry button was not released. Batch2 adds reversible escaping for reserved structural headings in prompt/reference Markdown, preserves literal backslashes, and exits fullscreen if preview began outside fullscreen regardless of which preview control entered it. Link rows join PDF rows as clearly labeled unbound Pattern Lab placeholders rather than fake student references. Parser round-trip regressions, a desktop fullscreen-retry browser case, all 12 teacher desktop/mobile light/dark Pattern Lab cases, focused checks (49 files / 774 tests), and audit pass. Final integration review and ready-PR CI remain.
 
+## 2026-09-25 — Platform administration design proposal
+
+- Coordinator task `01a0d8f5-aa5b-7643-8357-40883f4193cc`, active persistent goal; branch `codex/platform-administration-design`, main base `74648fd8`. Proposed phased plan/threat model in `docs/guidance/platform-administration.md`; owner review pending before implementation.
+- Source and independent session inventory confirm service-only plan206 foundation, 180-day base sessions, and missing privileged elevation/MFA contract. Recommend capability membership independent of classroom roles/plans, read-only inventory first, scoped transactional plan writes and separate production gates.
+- Live Supabase connector returned USER_NOT_LOGGED_IN; production plan assignments, migration206 and strict setting remain unverified. No code, migrations, grants, plan changes, PR, merge or deployment performed. Next: owner review of phase sequence, session policy and first authorization slice.
+
+## 2026-09-25 — Fictional platform-admin prototype
+
+- User requested admin prototype screens. Added a development-only Pattern Lab route with fixed fictional inventory, account detail, activity and plan-preview screens. Confirm action remains disabled; no live account API or admin authority was added. Design brief and reuse decisions are recorded in `docs/guidance/platform-administration.md`.
+- Browser-verified desktop/mobile and light/dark list/detail/preview/activity. Mobile inventory changed from horizontal table to cards with visible View actions; no page overflow or console errors. Focused checks pass (11 files, 93 tests, architecture, UI/design policy, TypeScript, lint).
+- Design approval, real authorization and plan operations, production target verification, and all production enablement remain pending.
+
+## 2026-09-25 — Admin prototype classroom shell revision
+
+- User clarified the prototype should follow the regular classroom layout. Reused `AppShell`, `ThreePanelShell`, `LeftSidebar`, and `MainContent`; added fixture-only Overview, Accounts, Activity, and Plans sections in the classroom-style collapsible rail/mobile drawer. Account detail and disabled plan preview stay under Accounts. The prototype remains fictional and development-only.
+- Extended the shared app-header sidebar trigger with an optional accessible label for admin navigation. Focused component coverage now checks section selection, mobile drawer closure, heading focus, and disabled confirmation. Playwright reviewed desktop/mobile, light/dark, expanded/collapsed rail, mobile drawer, and preview; no horizontal overflow or browser errors. UI brief and evidence are in `docs/guidance/platform-administration.md`. Teacher/student checks are n/a because no role session is involved. Risk profile: none. Model recommendation: GPT-6 Sol — scoped UI shell integration and review.
+- Independent review found the shared sidebar cookie leaked a prototype-only collapse into real classroom preferences. The provider now supports non-persistent sidebar state for this fixture; component and browser checks confirm `pika_left_sidebar` stays unchanged.
+- Final integration review found the unclassified account preview labeled a missing creation grant as zero. The preview now shows `—`; targeted component and browser checks cover the unknown value.
+
+## 2026-09-25 — Read-only admin operations prototype
+
+- Owner: codex/platform-administration-design, PR #1360. Product direction now assumes all tier and entitlement changes are automated. Replaced the prototype's Plans and plan-preview screens with Exceptions and exception detail, leaving tier as read-only account context; Overview, Accounts, and Activity now explain automated outcomes.
+- Reused the classroom shell and governed UI controls. Fictional example.invalid fixtures only; no live reads or writes. Playwright reviewed desktop/mobile, light/dark, account and exception details, activity, and drawer. The mobile exception title now wraps, navigation resets scroll, and browser checks show no horizontal overflow or errors. Teacher/student roles are n/a for this session-free fixture. Risk profile: none. Model recommendation: GPT-6 Sol — scoped prototype and product-scope revision.
+- The platform-administration proposal now describes a narrow read-only operations console. Live authorization, data scope, deployment, and any manual recovery action remain separate future decisions.
+- Focused check passed 28 files / 248 tests plus architecture, UI/design, TypeScript and lint. Pika audit passed. The shared drawer passed an Escape/focus-return browser check; composite-widget checklist has no remaining prototype follow-up.
+- Final independent integration review found the prototype theme button persisted a shared app preference. Removed the button so browsing this fixture cannot change the regular app's theme; light/dark verification uses isolated Playwright browser settings.
+- A regression test confirms prototype navigation leaves the shared theme preference unchanged and exposes no theme control. Final focused check passed 28 files / 249 tests plus architecture, UI/design, TypeScript, and lint; audit passed. Removed five duplicated historical archive entries introduced by the trim after rebasing, retaining their earlier copies and the unique subsequent entry.
+
+## 2026-09-25 — Subscription policy source of truth
+
+- Owner: `codex/platform-administration-design`, PR #1360. Added `docs/guidance/subscription-policy.md` for automated tier assignment, verified payment/account mapping, immediate same-interval upgrade proration, unchanged renewal dates, clear quotes, and existing-class protection. Linked it from the AI router, decision log, access roadmap, plan foundation, and operations proposal.
+- Explicitly separated agreed rules from proposed cancellation/grace/downgrade defaults and open provider, pricing, refund, grant-precedence, and AI-metering decisions. Billing is not implemented or activated by this documentation. Risk profile: none (documentation only). Model recommendation: GPT-6 Sol — bounded policy documentation.
+
+## 2026-09-25 — Strict creation activation readiness
+
+- User delegated final production checks and activation if gates pass. Subagent refreshed 182 classified accounts (180 Free, 1 Plus, 1 Pro), zero plan/grant/dual-audit mismatches, reviewed live database functions/triggers, and prepared guarded activation privately. Strict creation and automatic Free signup remain OFF; no hosted writes occurred.
+- Parent verified production alias at app SHA `213b2787`, authenticated owner classroom/Daily attendance/Classwork/Gradebook read access, 69 focused tests, and local rollback-only plan database contracts. Production student join/submission and remaining synthetic/write-flow canaries need completion using a designated disposable classroom and student session; user clarification pending. Private evidence stays outside Git. Existing work and account assignments unchanged.
+
 ## 2026-09-26 — Ultra-compact Gradebook
 
 Added a remembered More actions toggle for compact assessment codes, four-letter
@@ -359,43 +278,6 @@ and failure-recovery tests pass; eight desktop/mobile, light/dark, regular/compa
 visual matrices verify keyboard restore and student isolation. Canonical database
 types and rollback-only maximum database harness pass. Production209/210 approval
 is still unconsumed; exact-head targeted review and CI precede application/merge.
-## 2026-09-25 — Platform administration design proposal
-
-- Coordinator task `01a0d8f5-aa5b-7643-8357-40883f4193cc`, active persistent goal; branch `codex/platform-administration-design`, main base `74648fd8`. Proposed phased plan/threat model in `docs/guidance/platform-administration.md`; owner review pending before implementation.
-- Source and independent session inventory confirm service-only plan206 foundation, 180-day base sessions, and missing privileged elevation/MFA contract. Recommend capability membership independent of classroom roles/plans, read-only inventory first, scoped transactional plan writes and separate production gates.
-- Live Supabase connector returned USER_NOT_LOGGED_IN; production plan assignments, migration206 and strict setting remain unverified. No code, migrations, grants, plan changes, PR, merge or deployment performed. Next: owner review of phase sequence, session policy and first authorization slice.
-
-## 2026-09-25 — Fictional platform-admin prototype
-
-- User requested admin prototype screens. Added a development-only Pattern Lab route with fixed fictional inventory, account detail, activity and plan-preview screens. Confirm action remains disabled; no live account API or admin authority was added. Design brief and reuse decisions are recorded in `docs/guidance/platform-administration.md`.
-- Browser-verified desktop/mobile and light/dark list/detail/preview/activity. Mobile inventory changed from horizontal table to cards with visible View actions; no page overflow or console errors. Focused checks pass (11 files, 93 tests, architecture, UI/design policy, TypeScript, lint).
-- Design approval, real authorization and plan operations, production target verification, and all production enablement remain pending.
-
-## 2026-09-25 — Admin prototype classroom shell revision
-
-- User clarified the prototype should follow the regular classroom layout. Reused `AppShell`, `ThreePanelShell`, `LeftSidebar`, and `MainContent`; added fixture-only Overview, Accounts, Activity, and Plans sections in the classroom-style collapsible rail/mobile drawer. Account detail and disabled plan preview stay under Accounts. The prototype remains fictional and development-only.
-- Extended the shared app-header sidebar trigger with an optional accessible label for admin navigation. Focused component coverage now checks section selection, mobile drawer closure, heading focus, and disabled confirmation. Playwright reviewed desktop/mobile, light/dark, expanded/collapsed rail, mobile drawer, and preview; no horizontal overflow or browser errors. UI brief and evidence are in `docs/guidance/platform-administration.md`. Teacher/student checks are n/a because no role session is involved. Risk profile: none. Model recommendation: GPT-6 Sol — scoped UI shell integration and review.
-- Independent review found the shared sidebar cookie leaked a prototype-only collapse into real classroom preferences. The provider now supports non-persistent sidebar state for this fixture; component and browser checks confirm `pika_left_sidebar` stays unchanged.
-- Final integration review found the unclassified account preview labeled a missing creation grant as zero. The preview now shows `—`; targeted component and browser checks cover the unknown value.
-
-## 2026-09-25 — Read-only admin operations prototype
-
-- Owner: codex/platform-administration-design, PR #1360. Product direction now assumes all tier and entitlement changes are automated. Replaced the prototype's Plans and plan-preview screens with Exceptions and exception detail, leaving tier as read-only account context; Overview, Accounts, and Activity now explain automated outcomes.
-- Reused the classroom shell and governed UI controls. Fictional example.invalid fixtures only; no live reads or writes. Playwright reviewed desktop/mobile, light/dark, account and exception details, activity, and drawer. The mobile exception title now wraps, navigation resets scroll, and browser checks show no horizontal overflow or errors. Teacher/student roles are n/a for this session-free fixture. Risk profile: none. Model recommendation: GPT-6 Sol — scoped prototype and product-scope revision.
-- The platform-administration proposal now describes a narrow read-only operations console. Live authorization, data scope, deployment, and any manual recovery action remain separate future decisions.
-- Focused check passed 28 files / 248 tests plus architecture, UI/design, TypeScript and lint. Pika audit passed. The shared drawer passed an Escape/focus-return browser check; composite-widget checklist has no remaining prototype follow-up.
-- Final independent integration review found the prototype theme button persisted a shared app preference. Removed the button so browsing this fixture cannot change the regular app's theme; light/dark verification uses isolated Playwright browser settings.
-- A regression test confirms prototype navigation leaves the shared theme preference unchanged and exposes no theme control. Final focused check passed 28 files / 249 tests plus architecture, UI/design, TypeScript, and lint; audit passed. Removed five duplicated historical archive entries introduced by the trim after rebasing, retaining their earlier copies and the unique subsequent entry.
-
-## 2026-09-25 — Subscription policy source of truth
-
-- Owner: `codex/platform-administration-design`, PR #1360. Added `docs/guidance/subscription-policy.md` for automated tier assignment, verified payment/account mapping, immediate same-interval upgrade proration, unchanged renewal dates, clear quotes, and existing-class protection. Linked it from the AI router, decision log, access roadmap, plan foundation, and operations proposal.
-- Explicitly separated agreed rules from proposed cancellation/grace/downgrade defaults and open provider, pricing, refund, grant-precedence, and AI-metering decisions. Billing is not implemented or activated by this documentation. Risk profile: none (documentation only). Model recommendation: GPT-6 Sol — bounded policy documentation.
-
-## 2026-09-25 — Strict creation activation readiness
-
-- User delegated final production checks and activation if gates pass. Subagent refreshed 182 classified accounts (180 Free, 1 Plus, 1 Pro), zero plan/grant/dual-audit mismatches, reviewed live database functions/triggers, and prepared guarded activation privately. Strict creation and automatic Free signup remain OFF; no hosted writes occurred.
-- Parent verified production alias at app SHA `213b2787`, authenticated owner classroom/Daily attendance/Classwork/Gradebook read access, 69 focused tests, and local rollback-only plan database contracts. Production student join/submission and remaining synthetic/write-flow canaries need completion using a designated disposable classroom and student session; user clarification pending. Private evidence stays outside Git. Existing work and account assignments unchanged.
 
 ## 2026-09-26 — Disposable tier activation fixtures
 
@@ -423,3 +305,15 @@ is still unconsumed; exact-head targeted review and CI precede application/merge
 
 - Owner approved documenting future payment-model changes and existing-subscriber protection. Extended the existing canonical subscription policy with SUB-07/SUB-08: preserved offering versions before paid launch, exact purchase/entitlement binding, explicit grandfathering/renewal/optional migrations, annual paid-term protection, and audited idempotent transition/recovery. No universal grandfathering promise or new price, usage quantity or lifecycle default is assumed.
 - Linked the decision and current fixed-writer limitation from the decision log and plan foundation. No implementation, account or production changes. Risk profile: none; model recommendation: GPT-6 Sol for bounded policy documentation. Focused verification and independent documentation review precede updated ready-PR CI.
+
+## 2026-09-26 — Gradebook final CI test correction
+
+Targeted Terra cleared reset remediation on11dfb1dd. Synced main with both
+session histories retained; reviewed source diff was byte-identical. Final CI
+36258739324 found an outdated explicit Gradebook helper allowlist and two
+whole-gallery query timeouts. PR1365 returned to draft; production remains
+through208 and209/210 permission is unconsumed. Test-only correction names
+three reviewed helpers and scopes gallery role queries to their sections, with
+all existing assertions/timeouts preserved.24 targeted tests pass, including
+coverage instrumentation (partial-suite global coverage thresholds are not a
+full coverage gate). Final focused checks and correction review precede new CI.
