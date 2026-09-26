@@ -114,14 +114,14 @@ $$;
 revoke all on function public.save_gradebook_effective_mark(uuid,uuid,text,uuid,uuid,numeric) from public,anon,authenticated;
 grant execute on function public.save_gradebook_effective_mark(uuid,uuid,text,uuid,uuid,numeric) to service_role;
 
--- Extend the existing restore compatibility chain for pre-209 cold archives.
+-- Extend the existing restore compatibility chain for pre-210 cold archives.
 alter function public.normalize_classroom_archive_restore_row(uuid,text,jsonb)
- rename to normalize_classroom_archive_restore_row_pre_v209;
-revoke all on function public.normalize_classroom_archive_restore_row_pre_v209(uuid,text,jsonb) from public,anon,authenticated;
+ rename to normalize_classroom_archive_restore_row_pre_v210;
+revoke all on function public.normalize_classroom_archive_restore_row_pre_v210(uuid,text,jsonb) from public,anon,authenticated;
 create function public.normalize_classroom_archive_restore_row(p_operation_id uuid,p_table_name text,p_row jsonb)
 returns jsonb language plpgsql stable set search_path = '' as $$
 begin
- p_row := public.normalize_classroom_archive_restore_row_pre_v209(p_operation_id,p_table_name,p_row);
+ p_row := public.normalize_classroom_archive_restore_row_pre_v210(p_operation_id,p_table_name,p_row);
  if p_table_name in ('assignments','tests','gradebook_items') then
   if not (p_row ? 'gradebook_maximum_override') then p_row := p_row || jsonb_build_object('gradebook_maximum_override',null); end if;
   if not (p_row ? 'gradebook_score_scale') then p_row := p_row || jsonb_build_object('gradebook_score_scale',1); end if;

@@ -371,3 +371,14 @@ Second targeted review found an effective-maximum gate for empty/zero-point Test
 Manual marks now count with a positive override in teacher cells, final/summary,
 and returned student projection. Empty and zero-point tests have regressions.
 Migration 209 still awaits local approval; PR1365 remains draft.
+
+Final correction also handles fully scored zero-point Test questions without a
+manual mark against a positive effective maximum. Empty/unscored Tests stay
+omitted in both roles. Third fix batch; final integration review remains bounded.
+
+Local preflight found an external task had applied migration209
+stripe_billing_foundation (PR1366), which is absent from origin/main. Reserved
+210_gradebook_maximum_overrides.sql and added harness name checking; did not
+apply/repair/remove any migration. Local DB/types verification is additionally
+blocked until this checkout includes the approved billing baseline. The earlier
+209 approval request is obsolete; gradebook application would require local210.

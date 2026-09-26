@@ -9,7 +9,7 @@ const stateSchema = z.array(z.object({
   maximum: z.number().finite().positive().nullable(), score_scale: z.number().finite().positive(),
 }))
 
-// Rollout adapter: generated RPC types are regenerated after migration 209 is
+// Rollout adapter: generated RPC types are regenerated after migration 210 is
 // explicitly approved/applied. This narrow signature prevents untyped payloads.
 type MaximumRpc = (name: 'read_gradebook_maximum_state' | 'set_gradebook_maximum_override' | 'save_gradebook_effective_mark', args: Record<string, string | number | null>) => PromiseLike<{ data: unknown; error: { code?: string } | null }>
 async function maximumRpc(name: Parameters<MaximumRpc>[0], args: Parameters<MaximumRpc>[1]) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Rollback-only synthetic fixture; migration 209 requires separate application approval.
+# Rollback-only synthetic fixture; migration 210 requires separate application approval.
 GRADEBOOK_MAX_DB_CONTAINER="supabase_db_pika"
 PROJECT_LABEL="$(docker inspect "$GRADEBOOK_MAX_DB_CONTAINER" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')"
 DB_BINDING="$(docker port "$GRADEBOOK_MAX_DB_CONTAINER" 5432/tcp)"
@@ -11,31 +11,31 @@ fi
 docker exec -i "$GRADEBOOK_MAX_DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 do $$ begin
- if not exists(select 1 from supabase_migrations.schema_migrations where version='209') then
-  raise exception 'Migration 209 requires separate local application approval';
+ if not exists(select 1 from supabase_migrations.schema_migrations where version='210' and name='gradebook_maximum_overrides') then
+  raise exception 'Migration 210 requires separate local application approval';
  end if;
 end $$;
 insert into public.users(id,email,role) values
- ('20900000-0000-4000-8000-000000000001','maximum-teacher@example.test','teacher'),
- ('20900000-0000-4000-8000-000000000002','maximum-student@example.test','student');
+ ('21000000-0000-4000-8000-000000000001','maximum-teacher@example.test','teacher'),
+ ('21000000-0000-4000-8000-000000000002','maximum-student@example.test','student');
 insert into public.classrooms(id,teacher_id,title,class_code) values
- ('20900000-0000-4000-8000-000000000010','20900000-0000-4000-8000-000000000001','Maximum fixture','G20901');
+ ('21000000-0000-4000-8000-000000000010','21000000-0000-4000-8000-000000000001','Maximum fixture','G21001');
 insert into public.classroom_enrollments(classroom_id,student_id) values
- ('20900000-0000-4000-8000-000000000010','20900000-0000-4000-8000-000000000002');
+ ('21000000-0000-4000-8000-000000000010','21000000-0000-4000-8000-000000000002');
 insert into public.assignments(id,classroom_id,title,due_at,created_by,points_possible) values
- ('20900000-0000-4000-8000-000000000020','20900000-0000-4000-8000-000000000010','Maximum assignment',now()+interval '1 day','20900000-0000-4000-8000-000000000001',100);
+ ('21000000-0000-4000-8000-000000000020','21000000-0000-4000-8000-000000000010','Maximum assignment',now()+interval '1 day','21000000-0000-4000-8000-000000000001',100);
 insert into public.gradebook_items(id,classroom_id,title,points_possible,created_by) values
- ('20900000-0000-4000-8000-000000000030','20900000-0000-4000-8000-000000000010','Maximum item',100,'20900000-0000-4000-8000-000000000001');
+ ('21000000-0000-4000-8000-000000000030','21000000-0000-4000-8000-000000000010','Maximum item',100,'21000000-0000-4000-8000-000000000001');
 insert into public.tests(id,classroom_id,title,created_by) values
- ('20900000-0000-4000-8000-000000000040','20900000-0000-4000-8000-000000000010','Maximum test','20900000-0000-4000-8000-000000000001');
+ ('21000000-0000-4000-8000-000000000040','21000000-0000-4000-8000-000000000010','Maximum test','21000000-0000-4000-8000-000000000001');
 insert into public.test_questions(test_id,question_text,question_type,points,"order") values
- ('20900000-0000-4000-8000-000000000040','Maximum question','open_response',100,0);
+ ('21000000-0000-4000-8000-000000000040','Maximum question','open_response',100,0);
 
 do $$
 declare
- teacher uuid := '20900000-0000-4000-8000-000000000001'; student uuid := '20900000-0000-4000-8000-000000000002';
- classroom uuid := '20900000-0000-4000-8000-000000000010'; assignment uuid := '20900000-0000-4000-8000-000000000020';
- item uuid := '20900000-0000-4000-8000-000000000030'; test_id uuid := '20900000-0000-4000-8000-000000000040';
+ teacher uuid := '21000000-0000-4000-8000-000000000001'; student uuid := '21000000-0000-4000-8000-000000000002';
+ classroom uuid := '21000000-0000-4000-8000-000000000010'; assignment uuid := '21000000-0000-4000-8000-000000000020';
+ item uuid := '21000000-0000-4000-8000-000000000030'; test_id uuid := '21000000-0000-4000-8000-000000000040';
  n numeric; r jsonb; original jsonb; table_name text; keys_before text[]; keys_after text[];
 begin
  perform public.set_gradebook_maximum_override(teacher,classroom,'assignment',assignment,50,'preserve_percentages',100,1);

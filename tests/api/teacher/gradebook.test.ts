@@ -535,6 +535,15 @@ describe('GET /api/teacher/gradebook', () => {
     expect(body.class_summary.tests[0]).toMatchObject({ average_percent: 70 })
   })
 
+  it.each([{ scored: true }, { scored: false }])('uses effective maximum for calculated zero-point Test, scored=$scored', async ({ scored }) => {
+    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id: 't1', maximum: 10, score_scale: 1 }], error: null })
+    mockSupabaseClient.from = buildMockFrom({ tests: [{ id: 't1', title: 'Zero point Test', status: 'closed', include_in_final: true }], testQuestions: scored ? [{ id: 'q1', test_id: 't1', points: 0 }] : [], testResponses: scored ? [{ test_id: 't1', question_id: 'q1', student_id: 'student-1', score: 0 }] : [], testAttempts: [{ test_id: 't1', student_id: 'student-1', is_submitted: true }] })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: scored ? 0 : null, possible: 10, percent: scored ? 0 : null, is_graded: scored })
+    expect(body.students[0].final_percent).toBe(scored ? 0 : null)
+    expect(body.class_summary.tests[0].average_percent).toBe(scored ? 0 : null)
+  })
+
   it('includes fully scored tests in grade calculations and class summary', async () => {
     ;(mockSupabaseClient.from as any) = buildMockFrom({
       tests: [{ id: 't1', title: 'Unit Test', status: 'closed', include_in_final: true }],

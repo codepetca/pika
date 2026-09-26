@@ -148,7 +148,7 @@ fixtures are labeled separately from persisted demo-data verification.
   and scale persist with the assessment. Newly entered marks are normalized by
   the current scale in a classroom-locked write; precision is retained internally.
   These overrides also apply to returned-only student Grades calculations.
-- Migration 209 is required. Before it is applied, the Gradebook remains readable
+- Migration 210 is required. Before it is applied, the Gradebook remains readable
   and maximum editing stays disabled. No migration is applied without the exact
   target/migration permission in the schema rollout checklist.
 - Verify teacher desktop/mobile and both themes: original, modal open, both save
@@ -159,7 +159,7 @@ fixtures are labeled separately from persisted demo-data verification.
 
 ### Maximum override rollout and rollback
 
-Deploy this application revision fully before applying migration 209. Until the
+Deploy this application revision fully before applying migration 210. Until the
 RPC is present, reads use original marks and maximum editing is disabled. After
 activation, all mark writers must run this revision: previous deployments write
 effective marks directly and are unsafe against normalized marks when a scale
@@ -169,9 +169,16 @@ the new application and verify all maxima are null and scales are 1. This return
 marks to original source coordinates; the old application can then read/write
 that coordinate system. Production activation and rollback remain human controlled.
 
-Migration 209 extends the existing cold-archive normalization chain with null
+Migration 210 extends the existing cold-archive normalization chain with null
 maximums and scale 1 for historical rows, retaining current overrides on restore.
 Scale is bounded from 1e-12 to 1e12; out-of-range cumulative changes are rejected
 without changing saved state, and reset remains available. Fractional marks remain
 exact internally. The manual mark editor initializes to the displayed tenth;
 only an explicit Save creates that rounded manual mark.
+
+Local preflight on 2026-09-26 found shared migration 209 belongs to the pending
+Stripe billing foundation (PR1366), so gradebook uses migration 210. Do not treat
+a matching version number alone as application evidence: verify its name and RPC
+contract. Local application/type generation must wait until the checkout and
+shared database migration histories align; do not repair history or apply the
+unrelated billing migration as part of this feature.

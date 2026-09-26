@@ -778,6 +778,7 @@ export async function loadTeacherGradebook(opts: {
 
       const questionsForTest = testQuestionsByTest.get(testId) || []
       const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+      const effectivePossible = maximumState.states.get(`test:${testId}`)?.maximum ?? possible
       let earned: number | null = null
       const responseKey = `${testId}:${studentId}`
       const responsesForStudent = testResponsesByStudentTest.get(responseKey)
@@ -787,7 +788,8 @@ export async function loadTeacherGradebook(opts: {
 
       if (
         test.status !== 'draft' &&
-        possible > 0 &&
+        effectivePossible > 0 &&
+        questionsForTest.length > 0 &&
         (submittedTestAttempts.has(responseKey) || hasResponses)
       ) {
         let scoredEarned = 0
@@ -807,17 +809,17 @@ export async function loadTeacherGradebook(opts: {
         testStatus: test.status,
         hasResponses,
         isSubmitted,
-        isGraded: earned != null && possible > 0,
+        isGraded: earned != null && effectivePossible > 0,
       })
 
-      testCellMap.set(cellKey(studentId, testId), earned == null || possible <= 0
+      testCellMap.set(cellKey(studentId, testId), earned == null || effectivePossible <= 0
         ? blankAssessmentCell('test', testId, possible, undefined, testCellStatus)
         : {
             assessment_id: testId,
             assessment_type: 'test',
             earned: hasAdjustedMaximum('test', testId) ? earned : round2(earned),
             possible: hasAdjustedMaximum('test', testId) ? possible : round2(possible),
-            percent: round2((earned / possible) * 100),
+            percent: round2((earned / effectivePossible) * 100),
             is_graded: true,
             ...(testCellStatus ? { status: testCellStatus } : {}),
           }
@@ -825,7 +827,7 @@ export async function loadTeacherGradebook(opts: {
 
       if (test.include_in_final === false) continue
       if (test.status === 'draft') continue
-      if (possible <= 0) continue
+      if (effectivePossible <= 0) continue
       if (earned == null) continue
 
       const rows = testRowsByStudent.get(studentId) || []
@@ -847,7 +849,7 @@ export async function loadTeacherGradebook(opts: {
         title: test.title,
         earned: round2(earned),
         possible: round2(possible),
-        percent: round2((earned / possible) * 100),
+        percent: round2((earned / effectivePossible) * 100),
         status: test.status,
       })
       testDetailsByStudent.set(studentId, details)
