@@ -12,6 +12,7 @@ alter table public.stripe_billing_event_inbox
   add constraint stripe_billing_event_inbox_status_check
     check (status in ('received', 'completed', 'exception', 'attention'));
 alter table public.stripe_billing_subscription_bindings
+  alter column next_reconcile_at drop not null,
   add column reconcile_state text not null default 'queued'
     check (reconcile_state in ('queued', 'retry', 'attention')),
   add column reconcile_attempt_count integer not null default 0
@@ -113,7 +114,7 @@ begin
     (p_request->>'received_at')::timestamptz,
     v_binding.id, p_request->'payload'->>'customer_id',
     p_request->'payload'->>'subscription_id', p_request->'payload'->>'object_id',
-    case when v_binding.id is null then 'attention' else 'received' end,
+    case when v_binding.id is null then 'exception' else 'received' end,
     case when v_binding.id is null then 'unbound_event' end,
     case when v_binding.id is null then null else clock_timestamp() end
   ) on conflict (stripe_account, provider_mode, stripe_event_id) do nothing

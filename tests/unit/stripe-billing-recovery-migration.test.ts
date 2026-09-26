@@ -16,6 +16,7 @@ describe('Stripe billing recovery guards migration', () => {
   })
 
   it('bounds retries and selects globally due work after per-subscription deduplication', () => {
+    expect(migration).toContain('alter column next_reconcile_at drop not null')
     expect(migration).toContain('attempt_count between 0 and 5')
     expect(migration).toContain('reconcile_attempt_count between 0 and 5')
     expect(migration).toContain("when 1 then interval '1 minute'")
@@ -39,6 +40,7 @@ describe('Stripe billing recovery guards migration', () => {
   })
 
   it('keeps permanent failures actionable and permits audited service-only requeue', () => {
+    expect(migration).toContain("case when v_binding.id is null then 'exception' else 'received' end")
     expect(migration).toContain("'financial_terms_unapproved'")
     expect(migration).toContain('create function public.billing_requeue_subscription_v1(p_request jsonb)')
     expect(migration).toContain("message = 'stripe_billing_requeue_request_invalid'")

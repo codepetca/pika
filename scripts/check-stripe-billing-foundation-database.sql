@@ -103,11 +103,23 @@ begin
     'provider_mode', 'test', 'stripe_customer_id', 'cus_b209customer', 'stripe_subscription_id', 'sub_b209subscription',
     'stripe_price_id', 'price_b209plusold', 'offering_version_id', v_old->>'offering_version_id'
   ));
+  perform public.billing_record_event_v1(jsonb_build_object(
+    'stripe_account','acct_b209test','event_id','evt_b210early','payload_hash',repeat('e',64),
+    'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b210early','customer_id','cus_b209new','subscription_id','sub_b209new'),
+    'event_created_at','2026-01-01T00:00:00Z','received_at',clock_timestamp()
+  ));
   perform public.billing_bind_customer_v1(jsonb_build_object(
     'subject_user_id', 'f2090000-0000-4000-8000-000000000002', 'stripe_account', 'acct_b209test',
     'provider_mode', 'test', 'stripe_customer_id', 'cus_b209new', 'stripe_subscription_id', 'sub_b209new',
     'stripe_price_id', 'price_b209plusnew', 'offering_version_id', v_new->>'offering_version_id'
   ));
+  if not exists (
+    select 1 from public.stripe_billing_event_inbox event
+    join public.stripe_billing_subscription_bindings binding on binding.id=event.subscription_id
+    where event.stripe_event_id='evt_b210early' and event.status='received'
+      and event.exception_code is null and event.next_attempt_at is not null
+      and binding.stripe_customer_id='cus_b209new'
+  ) then raise exception 'Early verified receipt was not adopted by trusted binding'; end if;
 end;
 $catalog$;
 
@@ -170,6 +182,7 @@ declare v_subscription uuid; v_claim jsonb; v_result jsonb;
 begin
   select id into v_subscription from public.stripe_billing_subscription_bindings where stripe_subscription_id='sub_b209new';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
   v_result := public.billing_finish_subscription_v1(jsonb_build_object(
     'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token','fencing_token',v_claim->>'fencing_token',
     'expected_subscription_revision',v_claim->>'subscription_revision','expected_account_plan_revision',v_claim->>'expected_account_plan_revision',
@@ -198,6 +211,7 @@ begin
   select id into v_subscription from public.stripe_billing_subscription_bindings where stripe_subscription_id = 'sub_b209subscription';
   select id into v_event from public.stripe_billing_event_inbox where stripe_event_id = 'evt_b209paid';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id', v_subscription, 'lease_seconds', 30));
+  if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
   if v_claim->>'status' <> 'claimed' or (v_claim->'binding'->>'classroom_limit') is not null then
     raise exception 'Claim did not return the normalized binding contract';
   end if;
@@ -220,6 +234,7 @@ begin
     raise exception 'Paid effect did not atomically use the stored old offering';
   end if;
   v_replay_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id', v_subscription, 'lease_seconds', 30));
+  if v_replay_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_replay_claim'; end if;
   v_replay := public.billing_finish_subscription_v1(jsonb_build_object(
     'subscription_id', v_subscription, 'lease_token', v_replay_claim->>'lease_token', 'fencing_token', v_replay_claim->>'fencing_token',
     'expected_subscription_revision', v_replay_claim->>'subscription_revision', 'expected_account_plan_revision', v_replay_claim->>'expected_account_plan_revision',
@@ -228,6 +243,7 @@ begin
   ));
   if v_replay->>'status' <> 'replayed' then raise exception 'Invoice effect was not idempotent'; end if;
   v_exception_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id', v_subscription, 'lease_seconds', 30));
+  if v_exception_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_exception_claim'; end if;
   v_exception := public.billing_finish_subscription_v1(jsonb_build_object(
     'subscription_id', v_subscription, 'lease_token', v_exception_claim->>'lease_token', 'fencing_token', v_exception_claim->>'fencing_token',
     'expected_subscription_revision', v_exception_claim->>'subscription_revision', 'expected_account_plan_revision', v_exception_claim->>'expected_account_plan_revision',
@@ -251,6 +267,12 @@ begin
 end;
 $paid$;
 
+-- Each independent scenario starts with an explicit audited recovery.
+select public.billing_requeue_subscription_v1(jsonb_build_object(
+  'subscription_id',(select id from public.stripe_billing_subscription_bindings
+    where subject_user_id='f2090000-0000-4000-8000-000000000001'),
+  'actor_ref','test:migration-210','reason_code','independent_scenario'
+));
 do $fencing$
 declare
   v_subscription uuid;
@@ -262,6 +284,7 @@ begin
   where subject_user_id='f2090000-0000-4000-8000-000000000001';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object(
     'subscription_id',v_subscription,'lease_seconds',30));
+  if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
   if public.billing_claim_subscription_v1(jsonb_build_object(
     'subscription_id',v_subscription,'lease_seconds',30))->>'status' <> 'busy' then
     raise exception 'A live lease admitted another worker';
@@ -287,15 +310,23 @@ $fencing$;
 reset role;
 
 -- Test expiry without sleeping. This fixture-only change rolls back with the test.
+-- Each independent scenario starts with an explicit audited recovery.
+select public.billing_requeue_subscription_v1(jsonb_build_object(
+  'subscription_id',(select id from public.stripe_billing_subscription_bindings
+    where subject_user_id='f2090000-0000-4000-8000-000000000001'),
+  'actor_ref','test:migration-210','reason_code','independent_scenario'
+));
 do $expired_claim$
 declare v_subscription uuid; v_old jsonb; v_new jsonb; v_result jsonb;
 begin
   select id into v_subscription from public.stripe_billing_subscription_bindings
   where subject_user_id='f2090000-0000-4000-8000-000000000001';
   v_old := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if v_old->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_old'; end if;
   update public.stripe_billing_subscription_bindings
     set lease_expires_at=clock_timestamp()-interval '1 second' where id=v_subscription;
   v_new := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if v_new->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_new'; end if;
   v_result := public.billing_finish_subscription_v1(jsonb_build_object(
     'subscription_id',v_subscription,'lease_token',v_old->>'lease_token',
     'fencing_token',v_old->>'fencing_token',
@@ -320,6 +351,12 @@ for each row when (new.subject_user_id='f2090000-0000-4000-8000-000000000001')
 execute function pg_temp.fail_billing_audit();
 
 set local role service_role;
+-- Each independent scenario starts with an explicit audited recovery.
+select public.billing_requeue_subscription_v1(jsonb_build_object(
+  'subscription_id',(select id from public.stripe_billing_subscription_bindings
+    where subject_user_id='f2090000-0000-4000-8000-000000000001'),
+  'actor_ref','test:migration-210','reason_code','independent_scenario'
+));
 do $atomic_failure$
 declare v_subscription uuid; v_claim jsonb; v_plan_revision bigint; v_grant_revision bigint;
 begin
@@ -330,6 +367,7 @@ begin
   select revision into v_grant_revision from public.effective_feature_entitlements
   where subject_user_id='f2090000-0000-4000-8000-000000000001' and feature_key='classrooms.create';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
   begin
     perform public.billing_finish_subscription_v1(jsonb_build_object(
       'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token',
@@ -369,6 +407,7 @@ begin
   select id into v_subscription from public.stripe_billing_subscription_bindings
   where subject_user_id='f2090000-0000-4000-8000-000000000001';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
   if public.billing_fail_subscription_v1(jsonb_build_object(
     'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token',
     'fencing_token',v_claim->>'fencing_token',
@@ -414,6 +453,7 @@ declare v_subscription uuid; v_claim jsonb; v_result jsonb;
 begin
   select id into v_subscription from public.stripe_billing_subscription_bindings where subject_user_id='f2090000-0000-4000-8000-000000000001';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
   perform public.billing_record_event_v1(jsonb_build_object(
     'stripe_account','acct_b209test','event_id','evt_b210fresh','payload_hash',repeat('d',64),
     'event_type','invoice.paid','payload',jsonb_build_object('object_id','in_b210fresh','customer_id','cus_b209customer','subscription_id','sub_b209subscription'),
@@ -444,6 +484,7 @@ begin
   select revision into v_plan_revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000001';
   select quota_limit into v_quota from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000001' and feature_key='classrooms.create';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
   if public.billing_finish_subscription_v1(jsonb_build_object(
     'subscription_id',v_subscription,'lease_token',v_claim->>'lease_token','fencing_token',v_claim->>'fencing_token',
     'expected_subscription_revision',v_claim->>'subscription_revision','expected_account_plan_revision',v_claim->>'expected_account_plan_revision',
@@ -543,6 +584,7 @@ begin
   select revision into v_plan_revision from public.account_plans where subject_user_id='f2090000-0000-4000-8000-000000000002';
   select quota_limit into v_quota from public.effective_feature_entitlements where subject_user_id='f2090000-0000-4000-8000-000000000002' and feature_key='classrooms.create';
   v_claim := public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'lease_seconds',30));
+  if v_claim->>'status' is distinct from 'claimed' then raise exception 'Expected claimed state for v_claim'; end if;
   if public.billing_requeue_subscription_v1(jsonb_build_object('subscription_id',v_subscription,'actor_ref','test:migration-210','reason_code','must_not_steal_lease'))->>'status' <> 'busy' then
     raise exception 'Requeue stole an active worker lease';
   end if;
