@@ -22,7 +22,6 @@ import {
   TableCard,
   Tooltip,
 } from '@/ui'
-import { useTheme } from '@/contexts/ThemeContext'
 
 type Plan = 'free' | 'basic' | 'plus' | 'pro'
 type AccountStatus = 'healthy' | 'retrying' | 'investigate'
@@ -188,7 +187,6 @@ function AdminPrototypeContent() {
   const [selectedId, setSelectedId] = useState(ACCOUNTS[0].id)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
-  const { theme, toggleTheme } = useTheme()
 
   const account = ACCOUNTS.find((item) => item.id === selectedId) ?? ACCOUNTS[0]
   const exceptions = ACCOUNTS.filter((item) => item.status !== 'healthy')
@@ -221,7 +219,6 @@ function AdminPrototypeContent() {
     <AdminPrototypeFrame screen={screen} onNavigate={setScreen}>
       <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border pb-3">
         <span className="rounded-badge border border-border bg-surface-2 px-2 py-1 text-xs text-text-muted">Fictional sample data</span>
-        <Button type="button" variant="ghost" size="sm" onClick={toggleTheme}>{theme === 'dark' ? 'Light' : 'Dark'} theme</Button>
       </div>
 
       {screen === 'overview' ? <>

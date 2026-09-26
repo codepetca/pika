@@ -66,6 +66,20 @@ describe('admin prototype', () => {
     expect(screen.getByRole('button', { name: 'Activity' })).toHaveAttribute('aria-current', 'page')
   })
 
+  it('does not offer a control that changes the shared app theme preference', async () => {
+    localStorage.setItem('theme', 'light')
+    try {
+      const user = userEvent.setup()
+      renderPrototype()
+      expect(screen.queryByRole('button', { name: /theme/i })).not.toBeInTheDocument()
+      await user.click(screen.getByRole('button', { name: 'Exceptions' }))
+      await user.click(screen.getByRole('button', { name: 'Inspect sam@example.invalid' }))
+      expect(localStorage.getItem('theme')).toBe('light')
+    } finally {
+      localStorage.removeItem('theme')
+    }
+  })
+
   it('closes the classroom-style mobile drawer after choosing an admin section', async () => {
     const originalWidth = window.innerWidth
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 })

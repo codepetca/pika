@@ -57,7 +57,8 @@ native buttons and the shared drawer focus contract.
 
 The prototype stays behind the non-production ENABLE_UI_GALLERY gate and uses
 only fixed example.invalid identities. It does not call an account, plan,
-billing, or authentication API. Visual evidence is local under
+billing, or authentication API. It has no theme toggle that could persist a
+preference into the regular app. Visual evidence is local under
 output/playwright/admin-prototype-*.png.
 
 Visual verification: the read-only revision was checked in Playwright at
@@ -71,7 +72,8 @@ session-free fictional fixture for either role. Section changes focus the
 new heading and reset scroll to the top; the existing drawer supplies Escape
 and focus-return behavior. Focused interaction tests cover navigation,
 filtering and empty results, the exception-to-account path, the absence of
-tier controls, mobile drawer closure, and sidebar cookie isolation.
+tier and shared-theme controls, mobile drawer closure, and sidebar cookie
+isolation.
 Composite-widget checklist reviewed: yes; keyboard behavior covered: yes,
 using native section buttons and the existing drawer (Playwright confirmed
 Escape closes it and returns focus to the trigger); semantic state covered
