@@ -179,9 +179,11 @@ only an explicit Save creates that rounded manual mark.
 Local preflight on 2026-09-26 found shared migration 209 belongs to the pending
 Stripe billing foundation (PR1366), so gradebook uses migration 210. Do not treat
 a matching version number alone as application evidence: verify its name and RPC
-contract. Local application/type generation must wait until the checkout and
-shared database migration histories align; do not repair history or apply the
-unrelated billing migration as part of this feature.
+contract. On 2026-09-26 the owner approved local210, applied once from an
+isolated billing-baseline checkout with the identical reviewed gradebook SQL.
+The dry run listed only210; database contracts and generated type checks pass
+there. No billing migration, reset or history repair ran. Integrating canonical
+types into this feature branch still awaits the merged billing209 baseline.
 
 ## Above-maximum grade signal
 

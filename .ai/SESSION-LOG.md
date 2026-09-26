@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-21 — Classroom Grades page patterns
-
-- Owner `codex/classroom-grades-patterns`, based on `origin/main@ed6e6ca1`. Pattern Lab now places a default-off “Show grades to students” switch at the top of the teacher Gradebook page pattern and adds a student Classroom Grades tab showing a returned-work-only 84% fixture with counted and excluded examples.
-- The paired Student Grades visibility pattern reuses the same teacher control and student card, while retaining the standalone returned-marks comparison. These development-only fixtures do not alter production navigation, persistence, authorization, or grade APIs.
-- Focused verification passes with 15 files and 147 tests plus architecture, UI/design policy, TypeScript and lint. Visual verification covered teacher and student desktop/mobile in light/dark, both teacher switch states, the enabled student Grades view, and zero horizontal page overflow. Risk profile: none.
-
 ## 2026-09-22 — Test grading repaired and calibrated against archived work
 
 Goal was to improve AI grading of open-response test questions the way assignment grading
@@ -386,3 +380,12 @@ and average cells per user refinement. Amber above-maximum highlight and
 accessible/hover explanation remain; dialog reset actions remain functional.
 Raw preview retains earned-only values and Max mark before Weight. Sixteen
 layout/theme/viewport/mode screenshots plus student-role isolation passed.
+
+## 2026-09-26 — Apply Gradebook maximum migration locally
+
+Owner explicitly approved210 locally. Applied exactly once from isolated detached
+billing9b710884 baseline checkout with identical reviewed210; dry run listed only
+210, local target verified. Migration history now001–210. Database harness passes
+with rollback after fixing its question insert to canonical position column.
+Isolated generated types verification recorded in PR1365; feature-branch type
+integration awaits billing209 merge. Application permission is consumed.

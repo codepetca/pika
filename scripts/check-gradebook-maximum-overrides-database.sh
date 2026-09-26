@@ -28,7 +28,7 @@ insert into public.gradebook_items(id,classroom_id,title,points_possible,created
  ('21000000-0000-4000-8000-000000000030','21000000-0000-4000-8000-000000000010','Maximum item',100,'21000000-0000-4000-8000-000000000001');
 insert into public.tests(id,classroom_id,title,created_by) values
  ('21000000-0000-4000-8000-000000000040','21000000-0000-4000-8000-000000000010','Maximum test','21000000-0000-4000-8000-000000000001');
-insert into public.test_questions(test_id,question_text,question_type,points,"order") values
+insert into public.test_questions(test_id,question_text,question_type,points,position) values
  ('21000000-0000-4000-8000-000000000040','Maximum question','open_response',100,0);
 
 do $$
