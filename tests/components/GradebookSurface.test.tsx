@@ -44,6 +44,7 @@ describe('Gradebook surface owners', () => {
     const scored = { ...student, final_percent: 80.6, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 100, earned: 20.6, percent: 20.6, is_graded: true }] }
     const props = makeTableProps({ students: [scored], columns: [column], ultraCompact: true, showWeights: true, onScoreOpen: vi.fn() })
     const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
+    expect(screen.queryByRole('columnheader', { name: 'Last' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^A1$/)
     expect(screen.getByRole('button', { name: 'Edit category for A1: Essay' })).toHaveTextContent(/^Term$/)
     expect(screen.getByRole('spinbutton', { name: 'Category weight for Essay' })).toHaveValue(10)
@@ -52,8 +53,21 @@ describe('Gradebook surface owners', () => {
     expect(screen.getByRole('row', { name: 'Class average' })).toHaveTextContent('21%')
     expect(screen.getByRole('button', { name: 'Edit Demo Student final mark: 80.6%' })).toHaveTextContent('80.6%')
     view.rerender(<TooltipProvider><GradebookTable {...props} ultraCompact={false} /></TooltipProvider>)
+    expect(screen.getByRole('columnheader', { name: 'Last' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent('Essay')
     expect(screen.getByLabelText('Course weight for Essay')).toHaveTextContent('20.6%')
+  })
+
+  it('hides the second name in either name order and keeps raw marks aligned with their assessment', () => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 100, earned: 20.6, percent: 20.6, is_graded: true }] }
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ ultraCompact: true, lastNameFirst: true, showWeights: true, showStudentIds: true, displayMode: 'raw', students: [scored], columns: [column], onScoreOpen: vi.fn() })} /></TooltipProvider>)
+    expect(screen.queryByRole('columnheader', { name: 'First' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Last/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 20.6/100' })).toHaveTextContent('20.6/100')
+    for (const name of ['Category', 'Weight', 'Course %', 'Class average']) {
+      expect(screen.getByRole('row', { name }).children).toHaveLength(6)
+    }
   })
 
   it('names the student inspector and provides a working close control', () => {

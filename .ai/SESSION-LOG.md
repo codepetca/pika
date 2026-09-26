@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-20 — Preserve grading comment focus during autosave
-
-- Owner `codex/grading-comment-focus-main`, based on `origin/main@cbb80e93`. The assignment grading comment textarea now remains enabled while its background grade autosave is in flight, so the browser keeps keyboard focus; comment sending and conflicting grade actions remain disabled until the save completes.
-- Added a regression that holds the grade request open and proves the editor remains enabled and focused while Send comment is disabled. Targeted 30 tests and the focused application-browser gate (14 files/225 tests plus architecture, UI/design policy, TypeScript and lint) pass.
-- Playwright verified the live teacher grading editor retains focus after autosave on desktop/mobile in light/dark themes; the student baseline is unaffected. Composite checklist reviewed: native textbox keyboard behavior and tested focus/disabled semantics pass, no manual follow-up. Risk profile: none. Model recommendation: GPT-6 — bounded focus-state bug with browser verification.
-
 ## 2026-09-21 — Dormant metered paid-operation reservations
 
 - Product decision: AI grading and repository review are metered paid owner tools; joining a Classroom and completing assigned student work remain free. Prices, plan allowances, billing periods, trials and grace behavior are still deferred.
@@ -354,3 +348,10 @@ name/Final widths and grade calculations retain their existing behavior. Raw
 scores remain readable; production-owner Pattern Lab evidence added. Focused
 component/helper tests and desktop/mobile light/dark Playwright checks passed,
 including toggle persistence, editing, scroll, override marks and role isolation.
+
+## 2026-09-26 — Ultra-compact name-column refinement
+
+Hide the second displayed student name in ultra-compact mode, including metadata
+and summary rows. Detailed mode restores both names. Regression checks cover
+both name orders, ID visibility and raw-score alignment. Fresh raw screenshots
+show full earned/possible marks on desktop/mobile in light/dark themes.

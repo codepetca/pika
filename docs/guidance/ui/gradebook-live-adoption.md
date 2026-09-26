@@ -121,7 +121,7 @@ fixtures are labeled separately from persisted demo-data verification.
   weight inputs are 44px wide, and assessment/course/average percentages round
   to whole numbers for display. Original values and calculations remain exact.
 - Percentage columns are 56px; raw-score columns use 104px so fractions remain
-  readable. The second name column is compact; the first displayed name and
+  readable. The second name column is hidden in ultra-compact mode; the first displayed name and
   Final retain their configured widths. Toggling off restores configured widths.
 - Teacher: desktop/mobile, light/dark; toggle on/off, menu open/checked/focused,
   weight input editing, raw scores, override indicators and horizontal scrolling.

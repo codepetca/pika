@@ -67,17 +67,18 @@ export function GradebookTable({
   toggleSelectAll, selectedStudentId, onStudentSelect, onStudentDeselect,
   sortColumn, sortDirection, onSort, scrollContainerRef, onScroll,
 }: GradebookTableProps) {
-  const names: Array<{ key: GradebookIdentityColumn; label: string }> = lastNameFirst
+  const orderedNames: Array<{ key: GradebookIdentityColumn; label: string }> = lastNameFirst
     ? [{ key: 'last_name', label: 'Last' }, { key: 'first_name', label: 'First' }]
     : [{ key: 'first_name', label: 'First' }, { key: 'last_name', label: 'Last' }]
+  const names = ultraCompact ? orderedNames.slice(0, 1) : orderedNames
   const assessmentWidth = ultraCompact ? (displayMode === 'raw' ? 104 : 56) : ASSESSMENT_WIDTH
-  const widths = { ...columnWidths, ...(ultraCompact ? { [names[1].key]: 88, id: Math.min(columnWidths.id, 80) } : {}) }
+  const widths = { ...columnWidths, ...(ultraCompact ? { id: Math.min(columnWidths.id, 80) } : {}) }
   // A flexible spacer keeps Final at the far edge without stretching assessment columns.
   const filler = true
-  const minWidth = SELECTION_WIDTH + widths.first_name + widths.last_name
+  const minWidth = SELECTION_WIDTH + names.reduce((total, column) => total + widths[column.key], 0)
     + (showStudentIds ? widths.id : 0) + columnWidths.final
     + Math.max(1, columns.length) * assessmentWidth
-  const colSpan = 3 + (showStudentIds ? 1 : 0) + columns.length + (filler ? 1 : 0) + 1
+  const colSpan = 1 + names.length + (showStudentIds ? 1 : 0) + columns.length + (filler ? 1 : 0) + 1
   const finalValues = students.map((student) => student.final_percent).filter((value): value is number => value != null)
   const finalAverage = average(finalValues)
   const courseWeights = gradebookCourseWeightPreviews(columns, weightDrafts)
@@ -114,7 +115,7 @@ export function GradebookTable({
                   key={column.key} label={column.label} isActive={sortColumn === column.key}
                   direction={sortDirection} onClick={() => onSort(column.key)}
                   className={cn('border-b border-border bg-surface-2', frozen && index === 0 && 'sticky left-10 z-sticky-table border-r border-border-strong')}
-                  resize={ultraCompact && index === 1 ? undefined : { value: columnWidths[column.key], min: 72, max: 220, onChange: (width) => onColumnWidthChange(column.key, width) }}
+                  resize={{ value: columnWidths[column.key], min: 72, max: 220, onChange: (width) => onColumnWidthChange(column.key, width) }}
                 />
               ))}
               {showStudentIds ? <SortableHeaderCell label="ID" isActive={sortColumn === 'id'} direction={sortDirection} onClick={() => onSort('id')} className="border-b border-border bg-surface-2" /> : null}
@@ -136,7 +137,7 @@ export function GradebookTable({
               <DataTableRow aria-label="Category">
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
                 <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Category</DataTableHeaderCell>
-                <DataTableCell className="bg-surface-2">{null}</DataTableCell>
+                {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="truncate bg-surface-2 !px-1 text-xs text-text-muted">
                   <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit category for ${column.code}: ${column.title}`} className="w-full min-w-0 truncate px-1 font-normal text-text-muted">
@@ -149,7 +150,7 @@ export function GradebookTable({
               <DataTableRow aria-label="Weight">
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
                 <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Weight</DataTableHeaderCell>
-                <DataTableCell className="bg-surface-2">{null}</DataTableCell>
+                {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => {
                   const key = getAssessmentColumnKey(column)
@@ -171,7 +172,7 @@ export function GradebookTable({
               <DataTableRow aria-label="Course %">
                 <DataTableCell className={cn('border-b border-border-strong bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
                 <DataTableHeaderCell scope="row" align="right" className={cn(rowLabelClass, 'border-b border-border-strong')}>Course %</DataTableHeaderCell>
-                <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell>
+                {!ultraCompact ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
                 {showStudentIds ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="border-b border-border-strong bg-surface-2 !px-1 text-xs font-medium tabular-nums">
                   <output aria-label={`Course weight for ${column.title}`}>{courseWeights[getAssessmentColumnKey(column)] == null ? '—' : (ultraCompact ? formatWholePercent(courseWeights[getAssessmentColumnKey(column)]) : `${courseWeights[getAssessmentColumnKey(column)]}%`)}</output>
