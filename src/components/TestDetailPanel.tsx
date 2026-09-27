@@ -270,7 +270,11 @@ export function TestDetailPanel({
   const previousQuestionIdsRef = useRef<string[]>([])
   const summaryDetailWorkspaceRef = useRef<HTMLDivElement>(null)
   const summaryDetailResizeCleanupRef = useRef<(() => void) | null>(null)
-  const testDefaultsRef = useRef({ title: testAssessment.title, show_results: testAssessment.show_results })
+  const testDefaultsRef = useRef({
+    title: testAssessment.title,
+    show_results: testAssessment.show_results,
+    documents: (testAssessment as { documents?: unknown }).documents,
+  })
   const loadRequestIdRef = useRef(0)
   const currentLoadScopeRef = useRef({
     testId: testAssessment.id,
@@ -281,7 +285,11 @@ export function TestDetailPanel({
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
   const loadedDraftTestIdRef = useRef<string | null>(null)
-  testDefaultsRef.current = { title: testAssessment.title, show_results: testAssessment.show_results }
+  testDefaultsRef.current = {
+    title: testAssessment.title,
+    show_results: testAssessment.show_results,
+    documents: (testAssessment as { documents?: unknown }).documents,
+  }
   currentLoadScopeRef.current = {
     testId: testAssessment.id,
     classroomId,
@@ -504,6 +512,9 @@ export function TestDetailPanel({
     setStructureLocked(true)
     setEditTitle(testDefaults.title)
     setDraftShowResults(testDefaults.show_results)
+    // Parent summaries omit documents. Only reset them when the editor owner changes;
+    // detail loads and document mutations own updates within the selected test.
+    setDocuments(normalizeTestDocuments(testDefaults.documents))
     setResults(null)
     setConflictDraft(null)
     setIsMarkdownEditing(false)
@@ -512,10 +523,6 @@ export function TestDetailPanel({
     setMarkdownError('')
     setMarkdownInfo('')
   }, [apiBasePath, classroomId, testAssessment.id])
-
-  useEffect(() => {
-    setDocuments(normalizeTestDocuments((testAssessment as { documents?: unknown }).documents))
-  }, [testAssessment])
 
   useEffect(() => {
     autoSyncAttemptedRef.current.clear()

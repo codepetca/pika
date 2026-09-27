@@ -274,6 +274,47 @@ describe('TestDetailPanel', () => {
     expect(screen.queryByText('Stale draft question')).not.toBeInTheDocument()
   })
 
+  it('preserves loaded references across summary refreshes and preview saves', async () => {
+    const documents = [
+      { id: '11111111-1111-4111-8111-111111111111', title: 'Coding instructions', source: 'text', content: '# Instructions\nUse helper methods.' },
+      { id: '22222222-2222-4222-8222-222222222222', title: 'Karel worlds', source: 'upload', storage_bucket: 'test-documents', storage_path: 'classrooms/classroom-1/tests/test-1/documents/worlds.png' },
+    ]
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+      if (url.endsWith('/draft')) {
+        return Promise.resolve(jsonResponse({
+          editingPolicy: { structureLocked: false },
+          draft: { version: options?.method === 'PATCH' ? 2 : 1, content: { title: 'Reference test', show_results: false, questions: sampleQuestions } },
+        }))
+      }
+      return Promise.resolve(jsonResponse({ test: { documents } }))
+    })
+    const onRequestTestPreview = vi.fn()
+    function Parent() {
+      const [test, setTest] = useState(makeTestWithStats({ title: 'Reference test', status: 'draft' }))
+      return <>
+        <button onClick={() => setTest(current => ({ ...current, stats: { ...current.stats, questions_count: 3 } }))}>Refresh summary</button>
+        <TestDetailPanel test={test} classroomId="classroom-1" testQuestionLayout="split"
+          onTestUpdate={() => setTest(current => ({ ...current, updated_at: '2026-09-27T12:00:00Z' }))}
+          onRequestTestPreview={onRequestTestPreview} />
+      </>
+    }
+    render(<Parent />, { wrapper: Wrapper })
+    expect(await screen.findByRole('button', { name: 'Edit Coding instructions' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh summary' }))
+    expect(screen.getByRole('button', { name: 'Edit Coding instructions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Karel worlds' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+    await waitFor(() => expect(onRequestTestPreview).toHaveBeenCalled())
+    const patchCall = fetchMock.mock.calls.find(call => call[1]?.method === 'PATCH')
+    const body = JSON.parse(patchCall![1].body)
+    expect(body.documents).toEqual(documents)
+    expect(body.content.source_markdown).toContain('Coding instructions')
+    expect(body.content.source_markdown).toContain('Karel worlds')
+    expect(screen.getByRole('button', { name: 'Edit Coding instructions' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Karel worlds' })).toBeInTheDocument()
+  })
+
   it('ignores stale test detail documents after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleDetail = createDeferred<Response>()
