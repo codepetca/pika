@@ -196,6 +196,15 @@ Local data remains nine users and one classroom, with billing disabled. Final
 cumulative review and required CI remain before this slice is ready. This evidence
 does not complete phase 2 or authorize activation.
 
+The first CI candidate passed Test & Build and billing database contracts but
+failed the warning-free function gate on four unused variables. Under the owner's
+bounded review extension, forward migration 216 removed only unused results while
+preserving the writes, `FOUND` checks, row locks and permissions. It passed targeted
+review, received exact local approval and was applied once. Warning-level database
+lint now returns no issues; all four billing database contracts and generated-type
+checks pass again. Applied migrations 214 and 215 remain unchanged. The corrected
+candidate still requires final review and a passing PR Gate before merge.
+
 Unresolved launch policy remains explicit: tax/refund/dispute consequences and AI
 quantities are not silently invented. A scheduled downgrade's failed-renewal grace
 quota is being confirmed with the owner. Operational defaults and classroom ranking
