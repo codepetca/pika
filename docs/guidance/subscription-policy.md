@@ -3,9 +3,11 @@
 Status: owner-approved launch policy, updated 2026-09-26 after pricing and
 lifecycle decisions. Ontario is the initial market; USD is the base currency,
 with fixed CAD prices below. The isolated Stripe test-mode foundation exists;
-checkout and the complete lifecycle remain future implementation. Live billing
-is off. This document is the canonical product policy, not authorization to
-charge customers, deploy, or apply migrations.
+gated first-purchase checkout is implemented and has passed a local sandbox
+rehearsal. The complete lifecycle remains future implementation. Live billing
+is off. See the [dated test report](billing-test-report-2026-09-27.md) for the
+coverage and remaining launch gates. This document is the canonical product
+policy, not authorization to charge customers, deploy, or apply migrations.
 
 ## Authority and change rules
 
@@ -368,7 +370,7 @@ edit must not rewrite an already-purchased offering or a historical migration.
 - Confirm tax registrations/configuration, refund entitlement effects and
   disputes/chargeback handling. Currency changes within a subscription and
   promotional/sponsored/manual grant precedence remain outside launch scope.
-- Implement checkout, authoritative upgrade quotes, scheduled changes, portal,
+- Complete customer checkout UI, authoritative upgrade quotes, scheduled changes, portal,
   grace/expiry, notices and reconciliation with exact-cutoff/concurrency tests.
   Set quote validity and scheduler cadence explicitly; hosting constraints apply.
 - Rehearse real Stripe test-mode flows in an isolated runtime. No live enablement,
