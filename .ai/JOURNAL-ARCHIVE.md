@@ -33161,3 +33161,9 @@ async-grading.
 
 - User authorized merging PR1358. Original reviewed head `4f99bcf7` passed Test & Build, Browser Experience Matrix and PR Gate. Main advanced via PR1355; rebase conflict was only a duplicate session-archive batch marker. Preserved main’s marker and both sessions; title implementation and its tests are unchanged.
 - PR returned to draft before rebasing. Next: focused checks and targeted rebase review, then stable-SHA CI and authorized squash merge to main.
+
+<!-- pika-session-log-archive-batch:c7d8412d5ded80c42ab51dc517c7b93b1fa07a639f829aa85f20ae1df1ca5906 -->
+## 2026-09-25 — Publish tests from either teacher surface
+
+- Updated `codex/test-publish-action-bar` / PR1357 to retain Publish in the edit modal as well as the student-table action bar, per revised request. Restored the modal's save-before-publish flow and inline validation errors; both controls remain draft-only.
+- All226 focused tests, architecture/UI/design/type/lint checks and Pika audit pass. Playwright verified both publication entry points and both controls disappearing after publication across teacher desktop/mobile light/dark (eight flows). Student UI unchanged. Independent updated-SHA review follows.

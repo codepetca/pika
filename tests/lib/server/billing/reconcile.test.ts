@@ -105,6 +105,20 @@ describe('reconcileBillingSubscriptions', () => {
     expect(store.listWork).not.toHaveBeenCalled()
   })
 
+  it('rejects malformed reconciliation work before claiming or refreshing provider state', async () => {
+    const store = {
+      listWork: vi.fn().mockResolvedValue({ items: [{ subscription_id: binding.subscription_id }] }),
+      claimSubscription: vi.fn(),
+      finishSubscription: vi.fn(),
+    } as unknown as BillingStore
+    const provider = { retrieveSubscription: vi.fn() } as unknown as BillingProvider
+
+    await expect(reconcileBillingSubscriptions({ store, provider, limit: 1, leaseSeconds: 60 }))
+      .rejects.toThrow('Billing reconciliation work is unavailable')
+    expect(store.claimSubscription).not.toHaveBeenCalled()
+    expect(provider.retrieveSubscription).not.toHaveBeenCalled()
+  })
+
   it('contains one failed due item and continues with the next known binding', async () => {
     const secondId = '99999999-9999-4999-8999-999999999999'
     const store: BillingStore = {

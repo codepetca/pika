@@ -52,7 +52,7 @@ export async function acceptBillingWebhook<T>(input: {
   const parsed = stripeEventEnvelopeSchema.safeParse(verified)
   if (!parsed.success) throw new ApiError(400, 'Unsupported Stripe event envelope')
   const event = parsed.data
-  if ((event.account && event.account !== input.stripeAccount) || event.context) {
+  if ((event.account !== undefined && event.account !== input.stripeAccount) || event.context !== undefined) {
     throw new ApiError(400, 'Stripe account mismatch')
   }
   const object = event.data.object
