@@ -284,7 +284,7 @@ describe('AppHeader date and time visibility', () => {
     expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
   })
 
-  it.each([[1400, 820], [1440, 820], [1000, 900]])(
+  it.each([[1400, 820], [1440, 820], [1000, 900], [1433, 893], [1439, 899]])(
     'hides in a restored %s by %s window even when it nearly fills the screen', (width, height) => {
       setWindowSize(width, height)
       render(<AppHeader />, { wrapper: Wrapper })
