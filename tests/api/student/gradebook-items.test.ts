@@ -4,8 +4,8 @@ import { GET } from '@/app/api/student/classrooms/[id]/gradebook-items/route'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import { mockAuthenticationError, mockAuthorizationError } from '../setup'
 
-const mocks = vi.hoisted(() => ({ from: vi.fn(), requireRole: vi.fn(), access: vi.fn() }))
-vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: mocks.from }) }))
+const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn(), requireRole: vi.fn(), access: vi.fn() }))
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }))
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.requireRole }))
 vi.mock('@/lib/server/classrooms', () => ({ assertStudentCanAccessClassroom: mocks.access }))
 
@@ -46,6 +46,7 @@ function queryRows(rows: Array<Record<string, unknown>>, error: unknown = null) 
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } })
   mocks.requireRole.mockResolvedValue({ id: studentId, role: 'student' })
   mocks.access.mockResolvedValue({ ok: true, classroom: { feature_visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY } })
 })
@@ -96,6 +97,18 @@ describe('student returned standalone marks', () => {
     expect(query.select.mock.calls[0][0]).not.toContain('*')
     expect(query.select.mock.calls[0][0]).toContain('gradebook_weight')
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  })
+
+  it.each([
+    { maximum: 5, score_scale: 1, earned: 8, possible: 5, percent: 160 },
+    { maximum: 5, score_scale: 0.5, earned: 4, possible: 5, percent: 80 },
+    { maximum: null, score_scale: 1, earned: 8, possible: 10, percent: 80 },
+  ])('aligns returned Classwork with maximum $maximum, scale $score_scale', async ({ maximum, score_scale, earned, possible, percent }) => {
+    mocks.rpc.mockResolvedValue({ data: [{ assessment_type: 'item', assessment_id: 'item-1', maximum, score_scale }], error: null })
+    queryRows([{ ...returnedScore, earned: 8 }, { ...returnedScore, earned: 9, returned_at: null }])
+    const data = await (await request()).json()
+    expect(data.items).toHaveLength(1)
+    expect(data.items[0]).toMatchObject({ earned, possible, percent })
   })
 
   it('keeps returned marks available when the teacher Gradebook tool is hidden', async () => {

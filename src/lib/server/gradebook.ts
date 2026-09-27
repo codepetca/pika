@@ -1,3 +1,6 @@
+import { applyMaximumToCell, applyMaximumToColumn } from '@/lib/gradebook-maximum'
+import { getAssessmentColumnKey } from '@/lib/gradebook-display'
+import { isGradebookMaximumEditingEnabled, loadGradebookMaximumState, saveEffectiveGradebookMark } from '@/lib/server/gradebook-maximum'
 import { logServerError } from '@/lib/server/diagnostics'
 import type { Assignment, AssignmentDoc } from '@/types'
 import { calculateAssignmentStatus } from '@/lib/assignments'
@@ -297,6 +300,12 @@ export async function loadTeacherGradebook(opts: {
   await assertTeacherOwnsClassroom(teacherId, classroomId)
 
   const supabase = getServiceRoleClient()
+
+  const maximumState = await loadGradebookMaximumState(classroomId)
+  const hasAdjustedMaximum = (type: 'assignment' | 'test', id: string) => {
+    const state = maximumState.states.get(`${type}:${id}`)
+    return Boolean(state && (state.maximum != null || state.score_scale !== 1))
+  }
 
   const categoryResult = await supabase
     .from('gradebook_categories')
@@ -769,6 +778,7 @@ export async function loadTeacherGradebook(opts: {
 
       const questionsForTest = testQuestionsByTest.get(testId) || []
       const possible = questionsForTest.reduce((sum, question) => sum + question.points, 0)
+      const effectivePossible = maximumState.states.get(`test:${testId}`)?.maximum ?? possible
       let earned: number | null = null
       const responseKey = `${testId}:${studentId}`
       const responsesForStudent = testResponsesByStudentTest.get(responseKey)
@@ -778,7 +788,8 @@ export async function loadTeacherGradebook(opts: {
 
       if (
         test.status !== 'draft' &&
-        possible > 0 &&
+        effectivePossible > 0 &&
+        questionsForTest.length > 0 &&
         (submittedTestAttempts.has(responseKey) || hasResponses)
       ) {
         let scoredEarned = 0
@@ -798,17 +809,17 @@ export async function loadTeacherGradebook(opts: {
         testStatus: test.status,
         hasResponses,
         isSubmitted,
-        isGraded: earned != null && possible > 0,
+        isGraded: earned != null && effectivePossible > 0,
       })
 
-      testCellMap.set(cellKey(studentId, testId), earned == null || possible <= 0
+      testCellMap.set(cellKey(studentId, testId), earned == null || effectivePossible <= 0
         ? blankAssessmentCell('test', testId, possible, undefined, testCellStatus)
         : {
             assessment_id: testId,
             assessment_type: 'test',
-            earned: round2(earned),
-            possible: round2(possible),
-            percent: round2((earned / possible) * 100),
+            earned: hasAdjustedMaximum('test', testId) ? earned : round2(earned),
+            possible: hasAdjustedMaximum('test', testId) ? possible : round2(possible),
+            percent: round2((earned / effectivePossible) * 100),
             is_graded: true,
             ...(testCellStatus ? { status: testCellStatus } : {}),
           }
@@ -816,7 +827,7 @@ export async function loadTeacherGradebook(opts: {
 
       if (test.include_in_final === false) continue
       if (test.status === 'draft') continue
-      if (possible <= 0) continue
+      if (effectivePossible <= 0) continue
       if (earned == null) continue
 
       const rows = testRowsByStudent.get(studentId) || []
@@ -838,7 +849,7 @@ export async function loadTeacherGradebook(opts: {
         title: test.title,
         earned: round2(earned),
         possible: round2(possible),
-        percent: round2((earned / possible) * 100),
+        percent: round2((earned / effectivePossible) * 100),
         status: test.status,
       })
       testDetailsByStudent.set(studentId, details)
@@ -854,22 +865,24 @@ export async function loadTeacherGradebook(opts: {
     const st = score?.score_thinking
     const sw = score?.score_workflow
     const possible = Number(assignment.points_possible ?? ASSIGNMENT_POINTS_DEFAULT)
+    const adjustedMaximum = hasAdjustedMaximum('assignment', assignment.id)
+    const effectivePossible = maximumState.states.get(`assignment:${assignment.id}`)?.maximum ?? possible
     const isGraded = sc != null && st != null && sw != null
     const status = getAssignmentGradebookStatus(assignment, score, isGraded)
     const manualOverride = scoreOverrideMap.get(scoreOverrideKey(studentId, 'assignment', assignment.id))
     if (manualOverride != null) {
       const calculatedEarned = isGraded ? ((Number(sc) + Number(st) + Number(sw)) / 30) * possible : null
       return {
-        rawEarned: possible > 0 ? manualOverride : null,
+        rawEarned: effectivePossible > 0 ? manualOverride : null,
         cell: {
           assessment_id: assignment.id,
           assessment_type: 'assignment',
-          earned: round2(manualOverride),
-          possible: round2(possible),
+          earned: manualOverride,
+          possible: adjustedMaximum ? possible : round2(possible),
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
-          is_graded: possible > 0,
+          is_graded: effectivePossible > 0,
           is_manual_override: true,
-          calculated_earned: calculatedEarned == null ? null : round2(calculatedEarned),
+          calculated_earned: calculatedEarned == null ? null : adjustedMaximum ? calculatedEarned : round2(calculatedEarned),
           ...(status ? { status } : {}),
         },
       }
@@ -889,8 +902,8 @@ export async function loadTeacherGradebook(opts: {
       cell: {
         assessment_id: assignment.id,
         assessment_type: 'assignment',
-        earned: round2(earned),
-        possible: round2(possible),
+        earned: adjustedMaximum ? earned : round2(earned),
+        possible: adjustedMaximum ? possible : round2(possible),
         percent: round2((earned / possible) * 100),
         is_graded: true,
         ...(status ? { status } : {}),
@@ -986,6 +999,8 @@ export async function loadTeacherGradebook(opts: {
     })),
   ]
 
+  if (maximumState.available) for (const column of assessmentColumns) applyMaximumToColumn(column, maximumState.states.get(getAssessmentColumnKey(column)))
+
   const students = (enrollments || []).map((enrollment) => {
     const studentId = enrollment.student_id
     const profile = profileMap.get(studentId)
@@ -1000,9 +1015,9 @@ export async function loadTeacherGradebook(opts: {
         if (manualOverride == null) return baseCell
         return {
           ...baseCell,
-          earned: round2(manualOverride),
+          earned: manualOverride,
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
-          is_graded: possible > 0,
+          is_graded: (maximumState.states.get(`test:${test.id}`)?.maximum ?? possible) > 0,
           is_manual_override: true,
           calculated_earned: baseCell.earned,
         }
@@ -1017,6 +1032,7 @@ export async function loadTeacherGradebook(opts: {
         percent: round2(earned / possible * 100), is_graded: true, returned_at: score.returned_at }
     })
     assessmentScores.push(...standaloneCells)
+    for (const cell of assessmentScores) applyMaximumToCell(cell, maximumState.states.get(getAssessmentColumnKey(cell)))
     const itemRows = items.flatMap((item, index) => {
       const cell = standaloneCells[index]
       if (!item.include_in_final || cell.earned == null) return []
@@ -1025,7 +1041,7 @@ export async function loadTeacherGradebook(opts: {
     const assignmentRows = assignments.flatMap((assignment, index) => {
       const { cell, rawEarned } = assignmentScores[index]
       if (!assignment.include_in_final || assignment.is_draft || rawEarned == null || cell.possible <= 0) return []
-      return [{ earned: rawEarned, possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
+      return [{ earned: rawEarned * (maximumState.states.get(`assignment:${assignment.id}`)?.score_scale ?? 1), possible: cell.possible, weight: assignment.gradebook_weight, categoryId: assignment.gradebook_category_id }]
     })
     const testOffset = assignments.length
     const testRows = tests.flatMap((test, index) => {
@@ -1148,6 +1164,8 @@ export async function loadTeacherGradebook(opts: {
     categories,
     category_schema_available: categorySchemaAvailable,
     score_overrides_available: scoreOverridesAvailable,
+    maximum_overrides_available: maximumState.available,
+    maximum_edits_enabled: maximumState.available && isGradebookMaximumEditingEnabled(),
     items_available: itemsAvailable,
     assessment_columns: assessmentColumns,
     students,
@@ -1339,6 +1357,9 @@ export async function saveTeacherGradebookScoreOverride(opts: {
   })
 
   const supabase = getServiceRoleClient()
+  if (command.assessment_type !== 'final' && (await loadGradebookMaximumState(command.classroom_id)).available) {
+    return await saveEffectiveGradebookMark(teacherId, command.classroom_id, command.assessment_type, command.assessment_id, command.student_id, command.earned)
+  }
   const { error } = await supabase.from('gradebook_score_overrides').upsert({
     classroom_id: command.classroom_id,
     student_id: command.student_id,

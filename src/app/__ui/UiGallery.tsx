@@ -68,6 +68,7 @@ import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { TestEditSplitPattern } from './TestEditSplitPattern'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
+import { GradebookCompactPattern } from './GradebookCompactPattern'
 import { PageMockups } from './PageMockups'
 import { OwnedJoinedHomeMockup } from './OwnedJoinedHomeMockup'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
@@ -582,6 +583,11 @@ export function UiGallery({ role }: Props) {
         >
           <PageMockups role={role} />
         </PatternSection>
+
+        {role === 'teacher' && <PatternSection id="gradebook-compact" eyebrow="Feature-owned evidence"
+          title="Gradebook density" description="Production Gradebook controls with compact codes, categories, weights, and marks.">
+          <GradebookCompactPattern />
+        </PatternSection>}
 
         <PatternSection
           id="feature-patterns"

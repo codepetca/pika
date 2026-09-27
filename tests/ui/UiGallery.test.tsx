@@ -255,12 +255,12 @@ describe('UiGallery accessibility contracts', () => {
   it('opens and dismisses the canonical alert dialog', () => {
     renderGallery()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open alert dialog' }))
+    fireEvent.click(within(screen.getByTestId('pattern-section-controls')).getByRole('button', { name: 'Open alert dialog' }))
     const dialog = screen.getByRole('alertdialog', { name: 'Pattern confirmed' })
     expect(dialog).toHaveAccessibleDescription('This dialog is rendered by the canonical shared owner.')
     expect(within(dialog).getByRole('button', { name: 'Close example' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close example' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close example' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })

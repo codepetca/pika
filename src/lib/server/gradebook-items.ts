@@ -1,3 +1,4 @@
+import { loadGradebookMaximumState, saveEffectiveGradebookMark } from '@/lib/server/gradebook-maximum'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { GradebookItemMutation, GradebookItemScore } from '@/lib/validations/gradebook-items'
@@ -34,6 +35,9 @@ export async function mutateTeacherGradebookItem(teacherId: string, command: Gra
 }
 
 export async function setTeacherGradebookItemScore(teacherId: string, command: GradebookItemScore) {
+  if ((await loadGradebookMaximumState(command.classroom_id)).available) {
+    return await saveEffectiveGradebookMark(teacherId, command.classroom_id, 'item', command.item_id, command.student_id, command.earned)
+  }
   const { data, error } = await getServiceRoleClient().rpc('set_gradebook_item_score', {
     p_teacher_id: teacherId,
     p_classroom_id: command.classroom_id,

@@ -4,6 +4,7 @@ import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-vi
 
 const mocks = vi.hoisted(() => ({
   access: vi.fn(),
+  rpc: vi.fn(),
   loadPagedRows: vi.fn(),
   loadChunkedRows: vi.fn(),
 }))
@@ -13,13 +14,17 @@ vi.mock('@/lib/server/query-chunks', () => ({
   loadPagedRows: mocks.loadPagedRows,
   loadChunkedRows: mocks.loadChunkedRows,
 }))
-vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: vi.fn() }) }))
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: vi.fn(), rpc: mocks.rpc }) }))
 
 const classroomId = '11111111-1111-4111-8111-111111111111'
 const studentId = '22222222-2222-4222-8222-222222222222'
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.loadPagedRows.mockReset()
+  mocks.loadChunkedRows.mockReset()
+  mocks.loadChunkedRows.mockResolvedValue({ rows: [], error: null })
+  mocks.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } })
   mocks.access.mockResolvedValue({
     ok: true,
     classroom: { feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, student_grades: true } },
@@ -105,6 +110,20 @@ describe('student grades server projection', () => {
     expect(JSON.stringify(result)).not.toContain('categoryId')
   })
 
+  it.each([{ scale: 1, earned: 8, percent: 160 }, { scale: 0.5, earned: 4, percent: 80 }])('applies maximum scale $scale to returned student marks and final', async ({ scale, earned, percent }) => {
+    mocks.rpc.mockResolvedValue({ data: [{ assessment_type: 'assignment', assessment_id: 'a1', maximum: 5, score_scale: scale }], error: null })
+    mocks.loadPagedRows
+      .mockResolvedValueOnce({ rows: [{ id: 'term', name: 'Term', percentage: 100 }], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+      .mockResolvedValueOnce({ rows: [{ assignment_id: 'a1', score_completion: 8, score_thinking: 8, score_workflow: 8, returned_at: '2026-09-20T12:00:00Z', assignments: { id: 'a1', title: 'Essay', points_possible: 10, include_in_final: true, gradebook_weight: 1, gradebook_category_id: 'term', is_draft: false } }], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+    const result = await getStudentGrades(studentId, classroomId)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]).toMatchObject({ earned, possible: 5, percent })
+    expect(result.currentPercent).toBe(percent)
+  })
+
   it('labels returned zero-weight work as not counted across all assessment kinds', async () => {
     mocks.loadPagedRows
       .mockResolvedValueOnce({ rows: [{ id: 'term', name: 'Term', percentage: 100 }], error: null })
@@ -139,6 +158,36 @@ describe('student grades server projection', () => {
     for (const id of ['zero-assignment', 'zero-test', 'zero-item']) {
       expect(result.items.find((item) => item.id === id)?.included).toBe(false)
     }
+  })
+
+  it.each([{ questions: [] }, { questions: [{ id: 'q1', test_id: 't1', points: 0 }] }])('returns manual marks on empty/zero-point Tests with a positive maximum (%j)', async ({ questions }) => {
+    mocks.rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id: 't1', maximum: 10, score_scale: 1 }], error: null })
+    mocks.loadPagedRows
+      .mockResolvedValueOnce({ rows: [{ id: 'term', name: 'Term', percentage: 100 }], error: null })
+      .mockResolvedValueOnce({ rows: [{ assessment_type: 'test', assessment_id: 't1', earned: 7 }], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+      .mockResolvedValueOnce({ rows: [{ test_id: 't1', returned_at: '2026-09-21T12:00:00Z', tests: { id: 't1', title: 'Test', status: 'closed', include_in_final: true, gradebook_weight: 1, gradebook_category_id: 'term' } }], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+    mocks.loadChunkedRows.mockResolvedValueOnce({ rows: questions, error: null }).mockResolvedValueOnce({ rows: [], error: null })
+    const result = await getStudentGrades(studentId, classroomId)
+    expect(result.items).toHaveLength(1)
+    expect(result.items[0]).toMatchObject({ earned: 7, possible: 10, percent: 70 })
+    expect(result.currentPercent).toBe(70)
+  })
+
+  it.each([{ scored: true }, { scored: false }])('aligns calculated zero-point Test with teacher, scored=$scored', async ({ scored }) => {
+    mocks.rpc.mockResolvedValue({ data: [{ assessment_type: 'test', assessment_id: 't1', maximum: 10, score_scale: 1 }], error: null })
+    mocks.loadPagedRows
+      .mockResolvedValueOnce({ rows: [{ id: 'term', name: 'Term', percentage: 100 }], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+      .mockResolvedValueOnce({ rows: [{ test_id: 't1', returned_at: '2026-09-21T12:00:00Z', tests: { id: 't1', title: 'Test', status: 'closed', include_in_final: true, gradebook_weight: 1, gradebook_category_id: 'term' } }], error: null })
+      .mockResolvedValueOnce({ rows: [], error: null })
+    mocks.loadChunkedRows.mockResolvedValueOnce({ rows: scored ? [{ id: 'q1', test_id: 't1', points: 0 }] : [], error: null }).mockResolvedValueOnce({ rows: scored ? [{ test_id: 't1', question_id: 'q1', score: 0 }] : [], error: null })
+    const result = await getStudentGrades(studentId, classroomId)
+    expect(result.items).toHaveLength(scored ? 1 : 0)
+    if (scored) expect(result.items[0]).toMatchObject({ earned: 0, possible: 10, percent: 0 })
+    expect(result.currentPercent).toBe(scored ? 0 : null)
   })
 
   it('uses returned assessment overrides when underlying scores are incomplete', async () => {
