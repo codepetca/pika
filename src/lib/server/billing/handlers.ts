@@ -16,6 +16,7 @@ export type BillingHandlerRuntime = {
 export function createBillingHandlers(
   configuration: () => { stripeAccount: string; workerSecret: string } | null,
   loadRuntime: () => Promise<BillingHandlerRuntime>,
+  loadPurchases?: () => Promise<{ reconcileCheckouts(input: { limit: number }): Promise<unknown> } | null>,
 ) {
   function requireConfiguration() {
     const config = configuration()
@@ -42,7 +43,11 @@ export function createBillingHandlers(
       const result = await reconcileBillingSubscriptions({
         store: runtime.store, provider: runtime.provider, limit: 1, leaseSeconds: 120,
       })
-      return NextResponse.json(result)
+      // A newly completed purchase is bound here; the next worker pass verifies
+      // its captured invoice before applying paid access. Neither needs a redirect.
+      const purchaseRuntime = loadPurchases ? await loadPurchases() : null
+      const purchases = purchaseRuntime ? await purchaseRuntime.reconcileCheckouts({ limit: 1 }) : undefined
+      return NextResponse.json(purchases ? { ...result, purchases } : result)
     }),
   }
 }

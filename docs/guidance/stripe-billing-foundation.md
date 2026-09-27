@@ -1,8 +1,10 @@
 # Stripe billing foundation
 
-Status: isolated test-mode implementation on `codex/stripe-billing-foundation`;
-the consolidated migration 209 is applied locally after an owner-approved reset
-and reseed. Final integration review and CI remain pending.
+Status: isolated test-mode foundation merged in PR #1366 on 2026-09-26 after
+independent review and all required checks. Consolidated migration 209 was
+applied locally after an owner-approved reset and reseed; migration211 now
+repairs the final binding/webhook race correction in that database. Checkout is a
+separate, incomplete follow-up described in the coordinator plan below.
 The [subscription policy](subscription-policy.md) remains the product authority.
 
 ## Scope and boundaries
@@ -71,12 +73,13 @@ payment terms, bounded retry exhaustion, fair queue selection, early event
 adoption and audited recovery. The final bind/webhook race correction serializes
 both identity lookups with the same transaction lock and retains binding-before-
 inbox row locking. Its real concurrent regression runs only in CI's disposable
-database. The reseeded local database predates this last function-body correction;
-refreshing it requires new explicit local migration/reset authorization. Unit tests use simulated Stripe reads and real SDK
+database. The reseeded local database initially predated this function-body correction;
+owner-approved migration211 has now restored both canonical definitions. Unit tests use simulated Stripe reads and real SDK
 signature verification; they do not establish a real Stripe payment result.
 Final integration review identified this concurrency correction; the owner
 approved one additional correction and targeted review. That review and
-stable-head CI remain required before readiness.
+stable-head CI passed before PR #1366 merged; this does not establish a real
+Stripe payment rehearsal or update the existing local database.
 
 Application of the schema does not activate the private sandbox gate. Database
 rollback tests enable it only inside a transaction that rolls back. The CI-only
@@ -129,3 +132,93 @@ Consolidated migration209 must precede activation of this application revision: 
 bindings now require the immutable product and amount supplied by its RPCs.
 Without its final schema, decoding fails closed and no paid access is granted. Keep both
 application and database sandbox gates disabled during this rollout.
+
+## Approved launch execution — coordinator plan (2026-09-26)
+
+The owner authorized merging the approved policy and orchestrating implementation
+through Stripe test-mode verification. Canonical terms are SUB-01–15 in the
+subscription policy, including the final Basic/Pro/Max names. This is not live
+billing or production deployment authorization. New migration application still
+requires the exact target-and-migration approval in the schema checklist.
+
+| Phase | Deliverable and exit evidence | State |
+| --- | --- | --- |
+| 0 | Land admin, Stripe foundation and policy dependency chain with required PR Gate on each final SHA | Complete: #1360, #1366 and #1367 merged |
+| 1 | Exact 12-variant USD/CAD catalog; authenticated, durable hosted checkout; idempotent creation/recovery; verified payment grants selected version | Implementation on `codex/stripe-checkout-trial` |
+| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | Pending phase 1 contracts |
+| 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | Pending lifecycle integration |
+| 4 | Billing UI, self-service portal, expiry/failure notifications and missed-schedule recovery; role/theme/viewport visual verification | Pending backend contracts |
+| 5 | Full provider test-mode lifecycle rehearsal, concurrency/retry evidence, AI cost validation and tax setup review | Test credentials absent; live launch remains separate |
+
+Current ownership: coordinator owns shared runtime/HTTP integration and PRs;
+Astra/high worker owns durable checkout/provider/schema implementation;
+Terra/high worker owns the pure launch catalog and catalog tests. No worker may
+apply schema changes, mutate Stripe, publish, merge or recursively delegate.
+Financial/schema review uses independent reviewers with the bounded HQ review
+budget (one initial wave, at most three targeted fix waves, at most five launches
+and 45 minutes; any extension needs explicit approval). The agent thread limit
+prevented fresh reviewer creation, so the existing independent architecture
+reviewer completed the migration preapplication review. Full implementation
+review remains pending integration verification.
+
+The owner approved an additional45-minute review window and local211 application
+after review. Two preapplication reviews are complete with no blockers; the
+second covered the additive compatibility repair. The owner subsequently approved a sixth and final review launch. Full implementation review found one eligibility blocker, corrected in212. The owner approved one final integration review (launch6, up to20minutes) after local212 verification.
+
+Phase 1 currently includes the exact public catalog, test-only price provisioning
+with existing trusted products, authenticated catalog/start/status endpoints,
+durable checkout reservation and provider recovery, and worker integration.
+Checkout completion binds the purchased version; only the existing verified
+payment reconciler may grant paid access. Both checkout and sandbox gates remain
+disabled by default. No checkout UI or provider configuration has been performed.
+
+Migration211 passed independent preapplication review and was applied once to
+the existing local database under the owner's exact authorization. Gradebook migration210
+has now merged in main and this branch is rebased onto it, so the shared database
+is the current verification target; no separate database, reset or seed is needed.
+Read-only inspection confirmed that its applied209 predates the two final
+binding/webhook identity-lock fixes. Migration211 carries forward the canonical
+209 function definitions using CREATE OR REPLACE, leaving209 immutable and
+preserving existing data. Both definitions passed independent review before
+application. That local211 application authorization is now consumed.
+
+Billing and checkout rollback contracts pass against applied211. Database types
+were regenerated from the actual schema. Focused checks pass207 tests plus
+TypeScript, lint and architecture/UI/design policy checks. The security advisor reports no issues;
+the three users and one classroom are preserved, and the billing sandbox remains
+disabled. The updated194 billing-focused tests pass. Focused checks and full
+independent implementation review precede final PR CI. Keep the PR draft until
+all exit evidence passes. No real Stripe checkout or payment has been performed.
+
+Full implementation review identified a blocking first-purchase eligibility gap:
+legacy paid accounts could reserve a new checkout. Follow-up migration212
+restricts new reservations to Free/legacy accounts and rechecks the reserved
+plan revision before checkout provider work, binding and first-payment
+reconciliation. Drift becomes attention instead of overwriting an existing
+assignment; foundation bindings outside checkout keep their existing behavior.
+The application maps an ineligible first purchase to a safe409 response.
+Migrations211 and212 are applied locally and immutable. The owner explicitly
+approved212 after its targeted review passed; that one-time authorization is
+consumed. Expanded checkout and foundation database contracts pass, including
+legacy-plan rejection and asynchronous plan-change cases. Corrected a SQL test
+to capture the mutation result before inspecting its saved state. Regenerated
+types include the reserved revision column. Keep both billing gates off through
+final integration review and CI; live launch remains separately controlled. A previously issued hosted session may still be
+paid after an operator changes a plan; access remains protected, while provider
+cancellation/refund handling is part of the separate lifecycle phase.
+
+A separate nonblocking launch follow-up remains: public active status should
+match effective entitlement state after operator overrides. Address that with
+the lifecycle/status integration before exposing the customer billing screen.
+
+First checkout slice keeps taxes, discounts, upgrades, trials and subscription
+restarts unavailable until their separate contracts are implemented. Catalog AI
+quantities remain provisional metadata and do not grant usage. The existing
+foundation's paid grant does not yet implement expiry; therefore partial checkout
+implementation must not be treated as launch-ready. Subscription archiving needs
+explicit completion and retention protections, not the ordinary archive action.
+
+External prerequisites: locally configured Stripe test credentials/account/signing
+secret, an isolated runtime, and reviewed authorization for exact schema changes.
+Never paste keys into task messages or commit them. Missing prerequisites prevent
+a real provider rehearsal, not the authorized code and fixture implementation.

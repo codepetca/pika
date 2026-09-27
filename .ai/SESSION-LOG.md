@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-24 — Bulk test grading production promotion
-
-- Promote reviewed main #1340 (94bf3d37) after green PR Gate and owner approval. Preserve production DB rollout status, append-only journal entries from both histories, and the reviewed main application/test tree while reconciling prior squash releases. No migrations or additional feature changes. Local DeepSeek bulk smoke saved five fixture responses via reference, single and batch paths; scores/feedback persisted after reload.
-
-## 2026-09-24 — Student test scrolling production promotion
-
-- User authorized merging `main` into `production`. Draft PR #1354 promotes reviewed scroll fix #1352 and the already published test-authoring clarification; no database migration or configuration change.
-- Production and main histories diverged after earlier release merges. The promotion preserves both session histories and the main archive marker; the only runtime change is the student question pane height constraint. The scrolling fix passed desktop/mobile light/dark browser checks, independent review, and PR Gate on main. Promotion review and CI follow before merging.
-
-## 2026-09-24 — Teacher assessment title editing
-
-- Owner: `codex/assessment-title-edit`, coordinated in the existing task. Approved outcome: tapping the selected Test or Assignment action-bar title opens its existing editor. Implementation worker owns the two teacher views and their component tests; coordinator owns browser verification, guidance, and PR lifecycle.
-- UI brief: reuse the selected Test context-bar layout, Pattern Lab ghost Button, existing edit handlers/dialogs, and `TeacherWorkSurfaceContextBar`; no shared extraction. Teacher desktop/mobile, light/dark, default/hover/focus/disabled/modal-open and long titles. Student n/a (teacher-only consumers). Primary signal: subtle button hover and visible focus; no new icon or decorative chrome. No new composite widget; check keyboard activation and modal focus return. Risk profile `none`.
-- Implementation complete: both title buttons reuse their existing editor handlers. Read-only buttons remain disabled; assignment loading uses guarded aria-disabled semantics so shared modal focus return survives the refresh. Long titles truncate within the context column without clipping focus.
-- Evidence: 130 component tests pass; Playwright covers both surfaces at desktop/mobile in light/dark (8 cases: default/hover/focus/open, keyboard/touch activation, Escape and focus return), plus 4 long-title cases. Screenshots/scripts/results: `output/playwright/title-edit/` (local, ignored). Student n/a because only teacher consumers changed. Composite accessibility checklist reviewed; keyboard and semantic-state checks covered; no manual follow-up. Next: focused checks, draft PR, one standard-risk independent review, and stable-SHA CI; no merge or production rollout authorized in this task.
-
-## 2026-09-24 — Test publication in the student-table action bar
-
-- Owner: `codex/test-publish-action-bar`. Moved draft-only Publish from the test editor into the selected test's student-table action bar; reused saved-draft validation and confirmation, and removed obsolete dialog publication props/state.
-- Verification: 225 focused tests plus architecture/UI/design/TypeScript/lint checks and Pika audit pass. Local Playwright fixtures cover teacher desktop/mobile, light/dark, draft focus, editor, confirmation, and published states; screenshots under `output/playwright/`. Compared with Pattern Lab teacher controls. Student UI is unchanged. No new shared component or experimental pattern.
-
-## 2026-09-25 — Test reference image production promotion
-
-- User authorized deploying merged PNG/JPEG test reference attachments from main PR #1355. Production migration 208 was applied and verified before the app promotion: the private test-documents bucket permits image/png and image/jpeg, retains its 25 MB limit, and migration history matches through 208.
-- Draft production PR #1359 batches the reviewed image feature, account-plan documentation, and title-editor PR #1358, which joined main during promotion preparation. The promotion merge preserves both branch histories; its only conflict was archive bookkeeping. The runtime source tree matches main commit 74648fd8. Cumulative promotion review and PR Gate precede merge.
-
-## 2026-09-25 — Assessment title PR merge preparation
-
-- User authorized merging PR1358. Original reviewed head `4f99bcf7` passed Test & Build, Browser Experience Matrix and PR Gate. Main advanced via PR1355; rebase conflict was only a duplicate session-archive batch marker. Preserved main’s marker and both sessions; title implementation and its tests are unchanged.
-- PR returned to draft before rebasing. Next: focused checks and targeted rebase review, then stable-SHA CI and authorized squash merge to main.
-
-## 2026-09-25 — Publish tests from either teacher surface
-
-- Updated `codex/test-publish-action-bar` / PR1357 to retain Publish in the edit modal as well as the student-table action bar, per revised request. Restored the modal's save-before-publish flow and inline validation errors; both controls remain draft-only.
-- All226 focused tests, architecture/UI/design/type/lint checks and Pika audit pass. Playwright verified both publication entry points and both controls disappearing after publication across teacher desktop/mobile light/dark (eight flows). Student UI unchanged. Independent updated-SHA review follows.
-
 ## 2026-09-25 — Production Test split-pane authoring
 
 - Owner: `codex/test-split-pane-real`. Applied the approved Pattern Lab Test editor to real New/Edit Test authoring: headerless desktop split panes, left Title/Settings/Reference Docs/Markdown and bottom Preview/Publish, right selected question with centered navigation, compact Points and consolidated Question actions. Reused CreationModalShell, real reference-document workflows, Markdown import/export, draft autosave, publication and maximized whole-Test preview. No student form, API, schema, or dependency changes.
@@ -313,7 +277,107 @@ full coverage gate). Final focused checks and correction review precede new CI.
 - Continued policy PR1367; documentation-only verification and independent review
   cover the cumulative approved-policy change. No runtime or live billing change.
 
+## 2026-09-26 — Land policy and prepare durable test checkout
+
+- Owner authorized merging the policy and orchestrating implementation. Merged
+  admin1360, foundation1366 and policy1367 into main after their final required
+  PR Gate passed. Descendant rebases preserved complete reviewed trees.
+- Coordinator owns `codex/stripe-checkout-trial`. Workers completed the immutable
+  12-variant Basic/Pro/Max USD/CAD catalog, test-price provisioning, durable
+  checkout/service/provider/schema contracts. Coordinator added authenticated
+  catalog/start/status routes, bounded worker integration and disabled-by-default
+  checkout configuration. Browser redirects cannot grant access.
+- Independent preapplication review found no blockers in migration211, checksum
+  `567b4dfe360266c1b70899e34b70a7ec388a5fdc99494162dbf524207e3c61e9`.
+  It remains unapplied. Shared local has unrelated gradebook210; do not reset it.
+  Await explicit approval for disposable local `pika_billing_checkout`, applying
+  001–209 plus211 without seed. Prior209 reset authorization was consumed.
+- Billing-focused tests192/18 files pass; focused checks passed293 tests and
+  architecture/UI/design policy checks, then stopped at TypeScript because eight
+  new RPCs await proper generated types. Changed-file ESLint, Pika audit and22 CI
+  workflow tests pass. SQL harness is wired into CI but unexecuted locally.
+- Keep the checkout PR draft until SQL tests, generated types, full focused checks
+  and independent implementation review complete. Stripe test credentials remain
+  absent; no provider objects/payments or live billing were created. Trial,
+  lifecycle/access enforcement, billing UI and provider rehearsal remain pending
+  under the durable coordinator plan in `docs/guidance/stripe-billing-foundation.md`.
+
+## 2026-09-26 — Reuse shared local database for checkout verification
+
+- Owner requested the existing local database. Rebased checkout PR1368 onto
+  main402f8028 after gradebook210 merged. Read-only comparison found exactly two
+  outdated209 billing functions; additive211 now reinstalls their canonical
+  definitions without changing209 or data. New static parity and SQL assertions
+  cover grants and identity-lock ordering. Billing tests194/18 files pass.
+- Local migration list and dry-run preview only211. No application, reset or seed
+  occurred. Updated211 SHA256 is
+  `e5c30fbb3fa0ead4d4c05ea617ed79e8a5ba3928615ece3991738e8c0d58dc03`.
+  Prior independent review covered the original211, not this compatibility delta.
+- Review checkpoint: one preapplication launch, zero remediation waves; the
+  45-minute elapsed window expired including the user-input pause. Further
+  independent reviews need explicit additional review-time approval. Local211
+  application also awaits exact authorization. PR stays draft; generated types,
+  database contracts and full implementation review remain pending.
+
+## 2026-09-26 — Apply and verify local checkout211
+
+- Owner approved45 additional review minutes and existing-local211 application
+  after review. Independent delta review passed frozen SHAe5c30fbb. Verified
+  local project/port/history and preview; one `supabase db push --local` applied
+  only211. That approval is consumed. No reset or reseed.
+- Billing and checkout rollback contracts pass; generated types refreshed from
+  applied schema. Security advisor reports no issues. Three users, one classroom
+  and the disabled billing sandbox are preserved. Focused checks pass207 tests,
+  TypeScript, lint and architecture/UI/design gates. Full financial/security and
+  compatibility review follows before ready CI; no provider payment performed.
+
+## 2026-09-26 — Preserve legacy plans during first checkout
+
+- Full review of41c75110 found a P1: legacy paid accounts could reserve first
+  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
+  unchanged legacy Free eligibility at reservation, resumption, progress save,
+  binding and first-payment claim. Changed plans become attention; existing
+  paid-finish revision fencing handles the subsequent race. Applied209/211 are
+  unchanged. API returns a safe409 for initial ineligibility.
+- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
+  legacy paid rejection and plan-change races; they remain unrun until exact
+  local212 authorization. The harness refuses a database without212. Migration
+  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
+- Targeted correction/preapplication review follows as launch5/5, remediation
+  batch1. New212 and refreshed generated types/final integration review require
+  a further owner checkpoint. Previously issued provider sessions may still be
+  paid after an operator changes a plan; this patch prevents access overwrite,
+  and provider cancellation/refund handling remains a prelaunch lifecycle task.
+
+## 2026-09-26 — Apply checkout eligibility212 and prepare final review
+
+- Owner approved local212 and one final integration review up to20 minutes
+  (launch6). Verified the reviewed hash, local target/history and preview;
+  applied only212 once. Authorization consumed; no reset or reseed.
+- Expanded checkout SQL exposed a test-expression ordering bug: capture the
+  claim result before inspecting saved state. The test-only fix passes;
+  migration212 is unchanged. Checkout and foundation rollback contracts pass;
+  generated types refreshed. Existing three users, one classroom and disabled
+  sandbox are preserved. Final focused checks and review precede ready CI;
+  no Stripe provider purchase or live activation.
+
+## 2026-09-27 — Preserve test references during Preview saves
+
+Fixed the teacher editor resetting authoritative document state from document-free parent summaries. References now reset only on owner changes (test/classroom/API scope); detail reads and document mutations own same-test updates. Regression covers a parent summary refresh, Preview payload/source Markdown, and the save-triggered parent refresh; existing stale-response tests remain passing. No schema, API, grading, fullscreen, or visual contract changes. Reuse: existing split Tests editor and Preview/reference controls. Risk: workspace-state.
+
+Verification: TestDetailPanel 48/48; focused checks 276 tests plus architecture/UI/design/TypeScript/lint; 12 mocked Playwright contracts across teacher/student, desktop/mobile, light/dark (image uploads/preview/retry/zoom/answer retention plus Pattern Lab Markdown reference preview), with screenshots inspected at /tmp/pika-preview-browser-results. Local Supabase stopped; fixture server uses loopback-only placeholders. Production quiz content remains unchanged by this code task. Pending independent PR review and release.
+
+Independent review identified a pending document-mutation response crossing selected-test boundaries. Batched remediation guards all document callbacks and auto-sync by captured assessment scope, and keys document editors by owner so pending child state cannot carry into another test. Deferred edit regression verifies the new test's references and Preview payload survive the old response. Editor suite now 49/49; final focused checks and targeted review follow.
+Final integration review caught auto-sync attempt suppression resetting only on test ID changes. Second batch aligns suppression reset with classroom/API/test ownership, with both classroom and API transition regressions. Final focused checks and bounded correction/integration review follow.
+Third correction attaches an owner key to document state and prevents auto-sync effects from mixing prior documents with a newly selected endpoint during the transition render. Different-link API transition regression confirms only the new owner's link is synced. Final focused checks pass 280 tests plus architecture/UI/design/TypeScript/lint. Bounded final correction review pending; release remains separate.
+
+Main sync: resolved only continuity-document overlap after PR1368 landed; reviewed application/test blobs remain identical to fe74df85. Independent review complete, no blockers. Updated-base focused checks and exact-head CI precede authorized squash merge.
+
 ## 2026-09-27 — Main production promotion
 
 - Owner authorized main-to-production release PR1369. Batch main402f8028 contains admin prototype, local-only Stripe foundation, subscription policy and compact Gradebook changes. Reconciled only CURRENT and journal history conflicts, preserving both histories. Fresh production read confirms migrations206–210 and strict automatic Free signup active for183 classified accounts. No migration or feature switch changed.
 - Risk runtime-platform. One independent Sol security and Terra compatibility wave; local focused verification and final reviewed-head CI precede merge. Billing/admin and maximum-edit activation remain separate gates.
+
+## 2026-09-27 — Deploy reference-preservation fix
+
+User authorized production release of the merged fix. PR1373 promotes reviewed main6650e76a, including default-off checkout foundation PR1368 and reference-preservation PR1370. Independent Sol safety and Terra compatibility reviews found no application blockers; resolved continuity archive conflict by retaining both histories, with application/schema blobs unchanged. No migrations, billing flags, provider configuration, or worker scheduling are authorized or performed. Exact-head release CI and Vercel readiness precede completion.

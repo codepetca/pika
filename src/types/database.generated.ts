@@ -6555,6 +6555,38 @@ export type Database = {
           },
         ]
       }
+      stripe_billing_customers: {
+        Row: {
+          created_at: string
+          provider_mode: string
+          stripe_account: string
+          stripe_customer_id: string
+          subject_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          provider_mode?: string
+          stripe_account: string
+          stripe_customer_id: string
+          subject_user_id: string
+        }
+        Update: {
+          created_at?: string
+          provider_mode?: string
+          stripe_account?: string
+          stripe_customer_id?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_customers_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stripe_billing_event_inbox: {
         Row: {
           attempt_count: number
@@ -6921,6 +6953,135 @@ export type Database = {
             columns: ["subject_user_id"]
             isOneToOne: true
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_checkout_attempts: {
+        Row: {
+          cancel_url: string
+          checkout_url: string | null
+          created_at: string
+          fencing_token: number
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          lookup_key: string
+          next_attempt_at: string
+          offering_version_id: string
+          reason_code: string | null
+          request_fingerprint: string
+          reserved_plan_revision: number | null
+          retry_count: number
+          status: string
+          stripe_customer_id: string | null
+          stripe_session_id: string | null
+          subject_user_id: string
+          subscription_id: string | null
+          success_url: string
+          write_deadline: string
+        }
+        Insert: {
+          cancel_url: string
+          checkout_url?: string | null
+          created_at?: string
+          fencing_token?: number
+          id: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          lookup_key: string
+          next_attempt_at?: string
+          offering_version_id: string
+          reason_code?: string | null
+          request_fingerprint: string
+          reserved_plan_revision?: number | null
+          retry_count?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_session_id?: string | null
+          subject_user_id: string
+          subscription_id?: string | null
+          success_url: string
+          write_deadline?: string
+        }
+        Update: {
+          cancel_url?: string
+          checkout_url?: string | null
+          created_at?: string
+          fencing_token?: number
+          id?: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          lookup_key?: string
+          next_attempt_at?: string
+          offering_version_id?: string
+          reason_code?: string | null
+          request_fingerprint?: string
+          reserved_plan_revision?: number | null
+          retry_count?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_session_id?: string | null
+          subject_user_id?: string
+          subscription_id?: string | null
+          success_url?: string
+          write_deadline?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_checkout_attempts_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_checkout_attempts_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_checkout_attempts_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_checkout_audit: {
+        Row: {
+          action: string
+          attempt_id: string
+          created_at: string
+          fencing_token: number
+          id: number
+          reason_code: string | null
+        }
+        Insert: {
+          action: string
+          attempt_id: string
+          created_at?: string
+          fencing_token: number
+          id?: never
+          reason_code?: string | null
+        }
+        Update: {
+          action?: string
+          attempt_id?: string
+          created_at?: string
+          fencing_token?: number
+          id?: never
+          reason_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_checkout_audit_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_checkout_attempts"
             referencedColumns: ["id"]
           },
         ]
@@ -8861,12 +9022,27 @@ export type Database = {
         Returns: Json
       }
       billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_claim_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_claim_subscription_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
       billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_get_checkout_offering_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_get_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_list_checkout_offerings_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_list_checkout_work_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
@@ -8874,6 +9050,11 @@ export type Database = {
       billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
       billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
       billing_requeue_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_reserve_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_save_checkout_progress_v1: {
         Args: { p_request: Json }
         Returns: Json
       }

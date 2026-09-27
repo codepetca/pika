@@ -208,6 +208,9 @@ export function TestDetailPanel({
   const [documents, setDocuments] = useState<TestDocument[]>(
     () => normalizeTestDocuments((testAssessment as { documents?: unknown }).documents)
   )
+  const [documentsOwnerKey, setDocumentsOwnerKey] = useState(
+    () => JSON.stringify([apiBasePath, classroomId, testAssessment.id])
+  )
   const [results, setResults] = useState<TestResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<AssessmentViewMode>(() => 'questions')
@@ -270,7 +273,11 @@ export function TestDetailPanel({
   const previousQuestionIdsRef = useRef<string[]>([])
   const summaryDetailWorkspaceRef = useRef<HTMLDivElement>(null)
   const summaryDetailResizeCleanupRef = useRef<(() => void) | null>(null)
-  const testDefaultsRef = useRef({ title: testAssessment.title, show_results: testAssessment.show_results })
+  const testDefaultsRef = useRef({
+    title: testAssessment.title,
+    show_results: testAssessment.show_results,
+    documents: (testAssessment as { documents?: unknown }).documents,
+  })
   const loadRequestIdRef = useRef(0)
   const currentLoadScopeRef = useRef({
     testId: testAssessment.id,
@@ -281,7 +288,11 @@ export function TestDetailPanel({
     TEST_SUMMARY_DETAIL_LAYOUT.defaultMarkdownWidth
   )
   const loadedDraftTestIdRef = useRef<string | null>(null)
-  testDefaultsRef.current = { title: testAssessment.title, show_results: testAssessment.show_results }
+  testDefaultsRef.current = {
+    title: testAssessment.title,
+    show_results: testAssessment.show_results,
+    documents: (testAssessment as { documents?: unknown }).documents,
+  }
   currentLoadScopeRef.current = {
     testId: testAssessment.id,
     classroomId,
@@ -318,6 +329,12 @@ export function TestDetailPanel({
       currentScope.apiBasePath === scope.apiBasePath
     )
   }, [])
+
+  const documentEditorScopeKey = JSON.stringify([apiBasePath, classroomId, testAssessment.id])
+  const handleDocumentsChange = useCallback((nextDocuments: TestDocument[]) => {
+    const scope = { testId: testAssessment.id, classroomId, apiBasePath }
+    if (isCurrentAssessmentScope(scope)) setDocuments(nextDocuments)
+  }, [apiBasePath, classroomId, isCurrentAssessmentScope, testAssessment.id])
 
   const isCurrentLoadRequest = useCallback((requestId: number, scope: AssessmentRequestScope) => {
     return loadRequestIdRef.current === requestId && isCurrentAssessmentScope(scope)
@@ -504,6 +521,10 @@ export function TestDetailPanel({
     setStructureLocked(true)
     setEditTitle(testDefaults.title)
     setDraftShowResults(testDefaults.show_results)
+    // Parent summaries omit documents. Only reset them when the editor owner changes;
+    // detail loads and document mutations own updates within the selected test.
+    setDocuments(normalizeTestDocuments(testDefaults.documents))
+    setDocumentsOwnerKey(JSON.stringify([apiBasePath, classroomId, testAssessment.id]))
     setResults(null)
     setConflictDraft(null)
     setIsMarkdownEditing(false)
@@ -514,12 +535,8 @@ export function TestDetailPanel({
   }, [apiBasePath, classroomId, testAssessment.id])
 
   useEffect(() => {
-    setDocuments(normalizeTestDocuments((testAssessment as { documents?: unknown }).documents))
-  }, [testAssessment])
-
-  useEffect(() => {
     autoSyncAttemptedRef.current.clear()
-  }, [testAssessment.id])
+  }, [apiBasePath, classroomId, testAssessment.id])
 
   const emitDraftSummaryChange = useCallback(
     (content: Pick<AssessmentEditorDraft, 'title' | 'show_results' | 'questions'>) => {
@@ -1070,6 +1087,8 @@ export function TestDetailPanel({
   }, [loadTestDetails])
 
   useEffect(() => {
+    // Effects from an owner transition still close over the prior documents.
+    if (documentsOwnerKey !== documentEditorScopeKey) return
     const staleDoc = normalizeTestDocuments(documents).find((doc) => {
       if (!isLinkDocumentSnapshotStale(doc)) return false
       const attemptKey = `${doc.id}:${doc.url || ''}:${doc.synced_at || ''}:${doc.snapshot_path || ''}`
@@ -1082,6 +1101,7 @@ export function TestDetailPanel({
     autoSyncAttemptedRef.current.add(attemptKey)
 
     let isCancelled = false
+    const scope = { testId: testAssessment.id, classroomId, apiBasePath }
 
     void (async () => {
       try {
@@ -1089,7 +1109,7 @@ export function TestDetailPanel({
           method: 'POST',
         })
         const data = await response.json()
-        if (!response.ok || isCancelled) {
+        if (!response.ok || isCancelled || !isCurrentAssessmentScope(scope)) {
           if (!response.ok) {
             console.error(`Auto-sync failed for ${staleDoc.title}:`, data?.error || 'Unknown error')
           }
@@ -1108,7 +1128,7 @@ export function TestDetailPanel({
     return () => {
       isCancelled = true
     }
-  }, [apiBasePath, documents, testAssessment.id])
+  }, [apiBasePath, classroomId, documentEditorScopeKey, documents, documentsOwnerKey, isCurrentAssessmentScope, testAssessment.id])
 
   useEffect(() => {
     const currentQuestionIds = questions.map((question) => question.id)
@@ -1899,11 +1919,12 @@ export function TestDetailPanel({
         {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
       </div>
       <TestDocumentsEditor
+        key={documentEditorScopeKey}
         testId={testAssessment.id}
         documents={documents}
         apiBasePath={apiBasePath}
         isEditable={isEditable}
-        onDocumentsChange={setDocuments}
+        onDocumentsChange={handleDocumentsChange}
       />
     </div>
   )
@@ -1954,11 +1975,12 @@ export function TestDetailPanel({
       {isDocumentsCardExpanded ? (
         <div className="border-t border-border p-3">
           <TestDocumentsEditor
+        key={documentEditorScopeKey}
             testId={testAssessment.id}
             documents={documents}
             apiBasePath={apiBasePath}
             isEditable={isEditable && !hasPendingMarkdownImport}
-            onDocumentsChange={setDocuments}
+            onDocumentsChange={handleDocumentsChange}
             addButtonPlacement="none"
             externalAddRequest={externalDocumentAddRequest}
             onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
@@ -2223,11 +2245,12 @@ export function TestDetailPanel({
           </div>
           <div className={documents.length > 0 ? 'border-t border-border p-2' : 'px-2 pb-2'}>
             <TestDocumentsEditor
+        key={documentEditorScopeKey}
               testId={testAssessment.id}
               documents={documents}
               apiBasePath={apiBasePath}
               isEditable={isEditable && !hasPendingMarkdownImport}
-              onDocumentsChange={setDocuments}
+              onDocumentsChange={handleDocumentsChange}
               addButtonPlacement="none"
               externalAddRequest={externalDocumentAddRequest}
               onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
@@ -2570,11 +2593,12 @@ export function TestDetailPanel({
         ) : viewMode === 'documents' ? (
           <div className="space-y-3">
             <TestDocumentsEditor
+        key={documentEditorScopeKey}
               testId={testAssessment.id}
               documents={documents}
               apiBasePath={apiBasePath}
               isEditable={isEditable}
-              onDocumentsChange={setDocuments}
+              onDocumentsChange={handleDocumentsChange}
               addButtonPlacement="header"
               headerTitle="Reference Documents"
             />

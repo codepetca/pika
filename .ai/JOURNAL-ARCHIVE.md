@@ -33048,6 +33048,7 @@ violate `.ai/START-HERE.md`. Risk profile: async-grading.
 - Main's two new commits affect only test-grading calibration and rubric scoring, with no Daily Log path overlap. They merged into the feature branch without a textual conflict. Fresh integration review and exact-head CI are required before the merge retry; no persistent database migration was applied.
 - Exact-head 722c9e9e targeted re-review found no blocker (142 tests), and CI run35804835394 passed all lanes. During that run main advanced again via a session-log-only PR. The strict up-to-date gate requires another branch sync; the archive batch-marker conflict retains both markers and unique history, with duplicate rolling-log entries omitted. No Daily Log source changed.
 
+<!-- pika-session-log-archive-batch:cb53a6eed0487d57d16d6adfcd5585bd856dc6865eb7a39bb53f771d4778501d -->
 ## 2026-09-22 — Test grading calibrated against adjudicated work
 
 Continuation of the earlier entry today; that one stopped before the second rule and the
@@ -33105,6 +33106,7 @@ async-grading.
 
 - PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.
 
+<!-- pika-session-log-archive-batch:07eaceb5644de73dc601a66e2febb127e1695deb8fec7750e5a235feeb84d9b9 -->
 <!-- pika-session-log-archive-batch:ea28e83f94851943a8ca16aa7d805de287c433a1f53aa1efbbb77de96ed6cb85 -->
 ## 2026-09-22 — Test grading calibrated against adjudicated work
 
@@ -33231,6 +33233,7 @@ async-grading.
 - Reuse ExamDocumentWorkspace/WorkspaceSplitPane; extend StudentTestsTab with the same bounded scroller used by TeacherTestPreviewPage. Student desktop/mobile light/dark wheel-scroll and reference/answer retention checked; teacher n/a (student-only change), no new pattern or promotion. Existing divider keyboard resizing checked.
 - Validation: 43 component tests, four mocked browser matrix checks, focused checks (186 tests, architecture, UI/design policies, types, lint). Local screenshots under `test-results/experience-matrix-student--3e2c4--final-questions-and-submit-*`; fixture avoids live student attempts. Production deployment remains separate.
 
+<!-- pika-session-log-archive-batch:f4742440d72a7318c219b9aed4c95b07b1437b139a6bd42a07a7215d8e2883d9 -->
 ## 2026-09-24 — PNG/JPEG test references
 
 - Owner `codex/test-reference-images`; user approved PNG/JPEG implementation and orchestration in this task, with SVG deferred. Extend private managed uploads with bounded image header/dimension validation and migration208's bucket MIME additions. Existing authorization and cleanup remain in use; no dependencies or public storage added.
@@ -33244,12 +33247,63 @@ async-grading.
 - Restore canary independently calculated extensionless paths; updated its bucket-scoped PNG/JPEG projection and compared it against the actual verified restore plan. Two regressions fail before and24 canary tests pass after. Existing non-image and other-bucket paths remain unchanged.
 - Final targeted closure is clear at412b591b; full1024tests/77files and local Storage smoke passed. Synced unrelated main documentation after an archive-marker-only conflict; application source unchanged. Ready CI follows.
 
+<!-- pika-session-log-archive-batch:d7a860003338544a4f6bd989ef632f0aed2d41b1a74e8a8167fe88bf953e276f -->
 ## 2026-09-24 — Account-plan rollout runbook
 
 - Owner `codex/account-plan-rollout-runbook`; documentation-only, risk profile `none`. Added a plan-specific operator sequence for read-only account inventory, explicit owner decisions, audited per-account assignments, and a separately approved strict cutover. Marked the earlier Access-pilot cutover as historical for plan classification.
 - No account, entitlement, migration, database switch, app behavior, or production data changed. Live account inventory remains unverified while hosted access is unavailable. Model recommendation: GPT-6 Sol — bounded rollout documentation tied to existing migration contracts.
 - Independent documentation review found that audited-missing grants fail closed even before strict activation and that ownership-transfer canaries were omitted. The runbook now calls out both conditions and their stop/repair behavior; targeted re-review and final CI remain pending.
 
+<!-- pika-session-log-archive-batch:f35bfba9026a9e8429f4a5c16aa6d47b1442e56ed29bc65a29decfe2df887b6b -->
+## 2026-09-24 — Teacher assessment title editing
+
+- Owner: `codex/assessment-title-edit`, coordinated in the existing task. Approved outcome: tapping the selected Test or Assignment action-bar title opens its existing editor. Implementation worker owns the two teacher views and their component tests; coordinator owns browser verification, guidance, and PR lifecycle.
+- UI brief: reuse the selected Test context-bar layout, Pattern Lab ghost Button, existing edit handlers/dialogs, and `TeacherWorkSurfaceContextBar`; no shared extraction. Teacher desktop/mobile, light/dark, default/hover/focus/disabled/modal-open and long titles. Student n/a (teacher-only consumers). Primary signal: subtle button hover and visible focus; no new icon or decorative chrome. No new composite widget; check keyboard activation and modal focus return. Risk profile `none`.
+- Implementation complete: both title buttons reuse their existing editor handlers. Read-only buttons remain disabled; assignment loading uses guarded aria-disabled semantics so shared modal focus return survives the refresh. Long titles truncate within the context column without clipping focus.
+- Evidence: 130 component tests pass; Playwright covers both surfaces at desktop/mobile in light/dark (8 cases: default/hover/focus/open, keyboard/touch activation, Escape and focus return), plus 4 long-title cases. Screenshots/scripts/results: `output/playwright/title-edit/` (local, ignored). Student n/a because only teacher consumers changed. Composite accessibility checklist reviewed; keyboard and semantic-state checks covered; no manual follow-up. Next: focused checks, draft PR, one standard-risk independent review, and stable-SHA CI; no merge or production rollout authorized in this task.
+
+<!-- pika-session-log-archive-batch:bfde6fc941724714dc565163ee1ae02fd1ee63b4e6a813e5df99382a79aef097 -->
+## 2026-09-24 — Test publication in the student-table action bar
+
+- Owner: `codex/test-publish-action-bar`. Moved draft-only Publish from the test editor into the selected test's student-table action bar; reused saved-draft validation and confirmation, and removed obsolete dialog publication props/state.
+- Verification: 225 focused tests plus architecture/UI/design/TypeScript/lint checks and Pika audit pass. Local Playwright fixtures cover teacher desktop/mobile, light/dark, draft focus, editor, confirmation, and published states; screenshots under `output/playwright/`. Compared with Pattern Lab teacher controls. Student UI is unchanged. No new shared component or experimental pattern.
 ## 2026-09-24 — Grading hotfix production handoff
 
 - Resumed PR #1344 in its existing worktree and merged production #1343 without conflicts, preserving both histories. Promotion contains the provenance save fix, checklist precedence, and retention-policy documentation; no new migration or UI change. Focused checks and independent review precede ready status and the production merge.
+
+<!-- pika-session-log-archive-batch:bfb53a9fe2afc2ca9a38bef0d425cd66cdcd5f7f0e9c2fca0b19e66fb817eb0e -->
+## 2026-09-24 — Bulk test grading production promotion
+
+- Promote reviewed main #1340 (94bf3d37) after green PR Gate and owner approval. Preserve production DB rollout status, append-only journal entries from both histories, and the reviewed main application/test tree while reconciling prior squash releases. No migrations or additional feature changes. Local DeepSeek bulk smoke saved five fixture responses via reference, single and batch paths; scores/feedback persisted after reload.
+
+## 2026-09-24 — Student test scrolling production promotion
+
+- User authorized merging `main` into `production`. Draft PR #1354 promotes reviewed scroll fix #1352 and the already published test-authoring clarification; no database migration or configuration change.
+- Production and main histories diverged after earlier release merges. The promotion preserves both session histories and the main archive marker; the only runtime change is the student question pane height constraint. The scrolling fix passed desktop/mobile light/dark browser checks, independent review, and PR Gate on main. Promotion review and CI follow before merging.
+
+## 2026-09-24 — Teacher assessment title editing
+
+- Owner: `codex/assessment-title-edit`, coordinated in the existing task. Approved outcome: tapping the selected Test or Assignment action-bar title opens its existing editor. Implementation worker owns the two teacher views and their component tests; coordinator owns browser verification, guidance, and PR lifecycle.
+- UI brief: reuse the selected Test context-bar layout, Pattern Lab ghost Button, existing edit handlers/dialogs, and `TeacherWorkSurfaceContextBar`; no shared extraction. Teacher desktop/mobile, light/dark, default/hover/focus/disabled/modal-open and long titles. Student n/a (teacher-only consumers). Primary signal: subtle button hover and visible focus; no new icon or decorative chrome. No new composite widget; check keyboard activation and modal focus return. Risk profile `none`.
+- Implementation complete: both title buttons reuse their existing editor handlers. Read-only buttons remain disabled; assignment loading uses guarded aria-disabled semantics so shared modal focus return survives the refresh. Long titles truncate within the context column without clipping focus.
+- Evidence: 130 component tests pass; Playwright covers both surfaces at desktop/mobile in light/dark (8 cases: default/hover/focus/open, keyboard/touch activation, Escape and focus return), plus 4 long-title cases. Screenshots/scripts/results: `output/playwright/title-edit/` (local, ignored). Student n/a because only teacher consumers changed. Composite accessibility checklist reviewed; keyboard and semantic-state checks covered; no manual follow-up. Next: focused checks, draft PR, one standard-risk independent review, and stable-SHA CI; no merge or production rollout authorized in this task.
+
+## 2026-09-24 — Test publication in the student-table action bar
+
+- Owner: `codex/test-publish-action-bar`. Moved draft-only Publish from the test editor into the selected test's student-table action bar; reused saved-draft validation and confirmation, and removed obsolete dialog publication props/state.
+- Verification: 225 focused tests plus architecture/UI/design/TypeScript/lint checks and Pika audit pass. Local Playwright fixtures cover teacher desktop/mobile, light/dark, draft focus, editor, confirmation, and published states; screenshots under `output/playwright/`. Compared with Pattern Lab teacher controls. Student UI is unchanged. No new shared component or experimental pattern.
+
+## 2026-09-25 — Test reference image production promotion
+
+- User authorized deploying merged PNG/JPEG test reference attachments from main PR #1355. Production migration 208 was applied and verified before the app promotion: the private test-documents bucket permits image/png and image/jpeg, retains its 25 MB limit, and migration history matches through 208.
+- Draft production PR #1359 batches the reviewed image feature, account-plan documentation, and title-editor PR #1358, which joined main during promotion preparation. The promotion merge preserves both branch histories; its only conflict was archive bookkeeping. The runtime source tree matches main commit 74648fd8. Cumulative promotion review and PR Gate precede merge.
+
+## 2026-09-25 — Assessment title PR merge preparation
+
+- User authorized merging PR1358. Original reviewed head `4f99bcf7` passed Test & Build, Browser Experience Matrix and PR Gate. Main advanced via PR1355; rebase conflict was only a duplicate session-archive batch marker. Preserved main’s marker and both sessions; title implementation and its tests are unchanged.
+- PR returned to draft before rebasing. Next: focused checks and targeted rebase review, then stable-SHA CI and authorized squash merge to main.
+
+## 2026-09-25 — Publish tests from either teacher surface
+
+- Updated `codex/test-publish-action-bar` / PR1357 to retain Publish in the edit modal as well as the student-table action bar, per revised request. Restored the modal's save-before-publish flow and inline validation errors; both controls remain draft-only.
+- All226 focused tests, architecture/UI/design/type/lint checks and Pika audit pass. Playwright verified both publication entry points and both controls disappearing after publication across teacher desktop/mobile light/dark (eight flows). Student UI unchanged. Independent updated-SHA review follows.
