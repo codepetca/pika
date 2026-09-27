@@ -189,9 +189,12 @@ to the existing local database; generated types and all focused checks pass.
 Lifecycle and checkout database contracts pass. The older foundation contract
 exposed missing invalid-request validation in the new lifecycle entrypoint;
 forward migration 215 restores that contract without editing applied 214.
-Migration 215 and its dedicated rollback harness await exact local application
-approval after review. Local data remains nine users and one classroom, with
-billing disabled. This evidence does not complete phase 2 or authorize activation.
+Migration 215 passed targeted security/compatibility review and was separately
+approved and applied once locally. Foundation, checkout, lifecycle and validation
+rollback database contracts now all pass; generated types match the applied schema.
+Local data remains nine users and one classroom, with billing disabled. Final
+cumulative review and required CI remain before this slice is ready. This evidence
+does not complete phase 2 or authorize activation.
 
 Unresolved launch policy remains explicit: tax/refund/dispute consequences and AI
 quantities are not silently invented. A scheduled downgrade's failed-renewal grace
