@@ -47,17 +47,16 @@ interface ExamDocumentWorkspaceProps {
   textViewerClassName?: string
 }
 
-const DOCUMENTS_LIST_WIDTH_PERCENT = 30
-const DOCUMENTS_OPEN_DEFAULT_WIDTH_PERCENT = 50
-const DOCUMENTS_OPEN_MAX_WIDTH_PERCENT = 50
-const DOCUMENTS_OPEN_MIN_WIDTH_PERCENT = 30
+const DOCUMENTS_DEFAULT_WIDTH_PERCENT = 30
+const DOCUMENTS_MAX_WIDTH_PERCENT = 50
+const DOCUMENTS_MIN_WIDTH_PERCENT = 30
 const DOCUMENTS_RESIZE_STEP_PERCENT = 5
 
 function clampDocumentsWidth(value: number): number {
-  if (!Number.isFinite(value)) return DOCUMENTS_OPEN_DEFAULT_WIDTH_PERCENT
+  if (!Number.isFinite(value)) return DOCUMENTS_DEFAULT_WIDTH_PERCENT
   return Math.min(
-    DOCUMENTS_OPEN_MAX_WIDTH_PERCENT,
-    Math.max(DOCUMENTS_OPEN_MIN_WIDTH_PERCENT, Math.round(value * 10) / 10),
+    DOCUMENTS_MAX_WIDTH_PERCENT,
+    Math.max(DOCUMENTS_MIN_WIDTH_PERCENT, Math.round(value * 10) / 10),
   )
 }
 
@@ -84,14 +83,11 @@ export function ExamDocumentWorkspace({
   const removePointerResizeListenersRef = useRef<(() => void) | null>(null)
   const documentButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
   const returnFocusDocumentIdRef = useRef<string | null>(null)
-  const [openDocumentsWidth, setOpenDocumentsWidth] = useState(
-    DOCUMENTS_OPEN_DEFAULT_WIDTH_PERCENT,
+  const [documentsWidth, setDocumentsWidth] = useState(
+    DOCUMENTS_DEFAULT_WIDTH_PERCENT,
   )
   const [isPointerResizing, setIsPointerResizing] = useState(false)
   const documentIsOpen = activeDocument !== null
-  const documentsWidth = documentIsOpen
-    ? openDocumentsWidth
-    : DOCUMENTS_LIST_WIDTH_PERCENT
   const questionsWidth = 100 - documentsWidth
   const iframeDocuments = useMemo(
     () => documents.filter((document) => document.source !== 'text' && !document.imageType && Boolean(document.url)),
@@ -100,7 +96,7 @@ export function ExamDocumentWorkspace({
 
   useEffect(() => {
     removePointerResizeListenersRef.current?.()
-    setOpenDocumentsWidth(DOCUMENTS_OPEN_DEFAULT_WIDTH_PERCENT)
+    setDocumentsWidth(DOCUMENTS_DEFAULT_WIDTH_PERCENT)
     setIsPointerResizing(false)
     returnFocusDocumentIdRef.current = null
   }, [resetKey])
@@ -131,7 +127,7 @@ export function ExamDocumentWorkspace({
     if (!splitElement) return
     const { left, width } = splitElement.getBoundingClientRect()
     if (width <= 0) return
-    setOpenDocumentsWidth(clampDocumentsWidth(((clientX - left) / width) * 100))
+    setDocumentsWidth(clampDocumentsWidth(((clientX - left) / width) * 100))
   }, [])
 
   const handleResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
@@ -169,24 +165,24 @@ export function ExamDocumentWorkspace({
   const handleResizeKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     let nextWidth: number | null = null
     if (event.key === 'ArrowLeft') {
-      nextWidth = openDocumentsWidth - DOCUMENTS_RESIZE_STEP_PERCENT
+      nextWidth = documentsWidth - DOCUMENTS_RESIZE_STEP_PERCENT
     } else if (event.key === 'ArrowRight') {
-      nextWidth = openDocumentsWidth + DOCUMENTS_RESIZE_STEP_PERCENT
+      nextWidth = documentsWidth + DOCUMENTS_RESIZE_STEP_PERCENT
     } else if (event.key === 'Home') {
-      nextWidth = DOCUMENTS_OPEN_MIN_WIDTH_PERCENT
+      nextWidth = DOCUMENTS_MIN_WIDTH_PERCENT
     } else if (event.key === 'End') {
-      nextWidth = DOCUMENTS_OPEN_MAX_WIDTH_PERCENT
+      nextWidth = DOCUMENTS_MAX_WIDTH_PERCENT
     }
 
     if (nextWidth === null) return
     event.preventDefault()
     onDocumentInteraction?.()
-    setOpenDocumentsWidth(clampDocumentsWidth(nextWidth))
-  }, [onDocumentInteraction, openDocumentsWidth])
+    setDocumentsWidth(clampDocumentsWidth(nextWidth))
+  }, [onDocumentInteraction, documentsWidth])
 
   const handleResizeReset = useCallback(() => {
     onDocumentInteraction?.()
-    setOpenDocumentsWidth(DOCUMENTS_OPEN_DEFAULT_WIDTH_PERCENT)
+    setDocumentsWidth(DOCUMENTS_DEFAULT_WIDTH_PERCENT)
   }, [onDocumentInteraction])
 
   const handleOpenDocument = useCallback((document: ExamDocumentItem) => {
@@ -216,24 +212,25 @@ export function ExamDocumentWorkspace({
       <WorkspaceSplitPane
         data-testid={splitTestId}
         orientation="responsive"
-        className={documentIsOpen ? 'gap-2 lg:gap-1' : 'gap-2'}
+        className="gap-2"
         leftPaneClassName={cn(
-          'flex-1 lg:flex-none lg:basis-0 lg:grow-[var(--exam-documents-grow)]',
+          'min-w-0 flex-1 lg:flex-none lg:basis-0 lg:grow-[var(--exam-documents-grow)]',
           paneTransitionClass,
         )}
         rightPaneClassName={cn(
-          'flex-1 lg:flex-none lg:basis-0 lg:grow-[var(--exam-questions-grow)]',
+          'min-w-0 flex-1 lg:flex-none lg:basis-0 lg:grow-[var(--exam-questions-grow)]',
           paneTransitionClass,
         )}
-        divider={documentIsOpen ? {
+        divider={{
           label: 'Resize documents and questions panes',
+          lineClassName: 'bg-transparent',
           onPointerDown: handleResizeStart,
           onKeyDown: handleResizeKeyDown,
           onDoubleClick: handleResizeReset,
-          ariaValueMin: DOCUMENTS_OPEN_MIN_WIDTH_PERCENT,
-          ariaValueMax: DOCUMENTS_OPEN_MAX_WIDTH_PERCENT,
-          ariaValueNow: openDocumentsWidth,
-        } : undefined}
+          ariaValueMin: DOCUMENTS_MIN_WIDTH_PERCENT,
+          ariaValueMax: DOCUMENTS_MAX_WIDTH_PERCENT,
+          ariaValueNow: documentsWidth,
+        }}
         left={(
           <section
             aria-label="Test documents"

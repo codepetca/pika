@@ -95,7 +95,7 @@ describe('ExamDocumentWorkspace', () => {
     expect(split).toHaveStyle('--exam-documents-grow: 30')
     expect(split).toHaveStyle('--exam-questions-grow: 70')
     expect(screen.getByRole('heading', { name: 'Documents' })).toBeInTheDocument()
-    expect(screen.queryByRole('separator')).not.toBeInTheDocument()
+    expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow', '30')
     expect(screen.getByTitle('API reference')).toHaveAttribute('loading', 'eager')
     expect(screen.getByTitle('API reference')).toHaveAttribute('tabindex', '-1')
     expect(screen.getByTitle('API reference')).toHaveAttribute('aria-hidden', 'true')
@@ -143,15 +143,15 @@ describe('ExamDocumentWorkspace', () => {
     })
     expect(separator).toHaveAttribute('aria-valuemin', '30')
     expect(separator).toHaveAttribute('aria-valuemax', '50')
-    expect(separator).toHaveAttribute('aria-valuenow', '50')
+    expect(separator).toHaveAttribute('aria-valuenow', '30')
     expect(screen.getByTitle('API reference')).toHaveAttribute('tabindex', '0')
     expect(screen.getByTitle('API reference')).toHaveAttribute('aria-hidden', 'false')
     expect(screen.getByTitle('Formula reference')).toHaveAttribute('aria-hidden', 'true')
 
-    fireEvent.keyDown(separator, { key: 'ArrowLeft' })
-    expect(separator).toHaveAttribute('aria-valuenow', '45')
-    expect(split).toHaveStyle('--exam-documents-grow: 45')
-    expect(split).toHaveStyle('--exam-questions-grow: 55')
+    fireEvent.keyDown(separator, { key: 'ArrowRight' })
+    expect(separator).toHaveAttribute('aria-valuenow', '35')
+    expect(split).toHaveStyle('--exam-documents-grow: 35')
+    expect(split).toHaveStyle('--exam-questions-grow: 65')
 
     fireEvent.keyDown(separator, { key: 'Home' })
     expect(separator).toHaveAttribute('aria-valuenow', '30')
@@ -190,24 +190,26 @@ describe('ExamDocumentWorkspace', () => {
     expect(onDocumentInteraction).toHaveBeenCalled()
   })
 
-  it('remembers the open-document width across Back and resets it on double click', () => {
+  it('preserves the user width from the list through opening different documents and Back', () => {
     render(<Harness />)
-    fireEvent.click(screen.getByRole('button', { name: 'API reference' }))
-    let separator = screen.getByRole('separator', { name: 'Resize documents and questions panes' })
-    fireEvent.keyDown(separator, { key: 'ArrowLeft' })
-    fireEvent.keyDown(separator, { key: 'ArrowLeft' })
-    expect(separator).toHaveAttribute('aria-valuenow', '40')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
+    const separator = screen.getByRole('separator', { name: 'Resize documents and questions panes' })
+    fireEvent.keyDown(separator, { key: 'ArrowRight' })
+    fireEvent.keyDown(separator, { key: 'ArrowRight' })
     const split = screen.getByTestId('exam-document-split').parentElement!
-    expect(split).toHaveStyle('--exam-documents-grow: 30')
-    expect(split).toHaveStyle('--exam-questions-grow: 70')
-
+    const expectUserWidth = () => {
+      expect(separator).toHaveAttribute('aria-valuenow', '40')
+      expect(split).toHaveStyle('--exam-documents-grow: 40')
+      expect(split).toHaveStyle('--exam-questions-grow: 60')
+    }
+    expectUserWidth()
     fireEvent.click(screen.getByRole('button', { name: 'API reference' }))
-    separator = screen.getByRole('separator', { name: 'Resize documents and questions panes' })
-    expect(separator).toHaveAttribute('aria-valuenow', '40')
+    expectUserWidth()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
+    expectUserWidth()
+    fireEvent.click(screen.getByRole('button', { name: 'Unit 1 Docs' }))
+    expectUserWidth()
     fireEvent.doubleClick(separator)
-    expect(separator).toHaveAttribute('aria-valuenow', '50')
+    expect(separator).toHaveAttribute('aria-valuenow', '30')
   })
 
   it('keeps question input state mounted through document navigation and resizing', () => {

@@ -2270,9 +2270,28 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   const answer = page.getByLabel('Response for question 1', { exact: true })
   const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
   await answer.fill('move()\nmove()\npick_beeper()')
+  const documentsPane = page.getByTestId('student-test-documents-pane')
+  const questionsPane = page.getByTestId('student-test-detail-pane')
+  const separator = page.getByRole('separator', { name: 'Resize documents and questions panes' })
+  if (viewport === 'desktop') {
+    await separator.focus()
+    await separator.press('ArrowRight')
+    await separator.press('ArrowRight')
+    await expect(separator).toHaveAttribute('aria-valuenow', '40')
+  }
+  const bounds = async () => {
+    const panes = [await documentsPane.boundingBox(), await questionsPane.boundingBox()]
+    // Mobile stacks panes; image references already reserve additional reading height.
+    return viewport === 'desktop' ? panes : panes.map((pane) => pane?.width)
+  }
+  await page.waitForTimeout(350)
+  const before = await bounds()
+  await page.screenshot({ path: testInfo.outputPath(`student-test-list-${viewport}.png`), animations: 'disabled' })
   await page.getByRole('button', { name: 'Karel grid PNG', exact: true }).click()
   const image = page.getByRole('img', { name: 'Karel grid PNG' })
   await expect(image).toBeVisible()
+  await page.waitForTimeout(350)
+  expect(await bounds()).toEqual(before)
   await expect(page.getByRole('region', { name: 'Karel grid PNG image' })).toHaveCount(1)
   await expect(imageZoomStatus).toHaveText('Fit')
   await page.getByRole('button', { name: 'Zoom in' }).click()
@@ -2284,6 +2303,12 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   await verifyProjectContract(page, testInfo)
   await waitForKarelRasterPaint(image)
   await page.screenshot({ path: testInfo.outputPath(`student-test-image-${viewport}.png`), animations: 'disabled' })
+  await page.getByRole('button', { name: 'Back to documents list' }).click()
+  await page.waitForTimeout(350)
+  expect(await bounds()).toEqual(before)
+  await expect(answer).toHaveValue('move()\nmove()\npick_beeper()')
+  await page.screenshot({ path: testInfo.outputPath(`student-test-back-${viewport}.png`), animations: 'disabled' })
+
 })
 
 test('uploads PNG and JPEG references, projects them into teacher preview, and retries a failed image', async ({ page }, testInfo) => {
