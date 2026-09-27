@@ -342,6 +342,60 @@ actual integration findings; this roadmap is not a delivery-date commitment.
 
 ## Safe rollout while real classes continue
 
+### Completion sequence — 2026-09-27
+
+The owner requested the full rollout and orchestration of the remaining work.
+PR #1371 is merged and its image boundary passed independent review, focused
+checks, database races and CI. A fresh source audit confirms that the live home
+still uses global account roles, and the ordinary classroom shell exposes
+unmigrated Tests, Surveys, Daily, Grades and owner mutations. The full rollout
+therefore requires the remaining integrations below; enabling the existing page
+gate alone is not sufficient. Preserve the current classroom UI and functionality.
+Do not substitute an Assignment-only product for this goal.
+
+The immediate integration checkpoint is a real local manual Assignment lifecycle
+rehearsal using synthetic mixed-role identities. The first run exposed an
+owner-precedence defect: an admitted owner with historical self-enrollment can
+open a learner document (200 rather than 403). Correct the contextual learner
+transaction boundaries before treating this checkpoint as passed. Then execute
+these five batches:
+
+| Batch | Scope | Exit evidence |
+| --- | --- | --- |
+| 1. Shared access and everyday classroom work | One server-owned complete-experience admission contract; Daily, lesson plans, announcements, materials and roster | Both account-role values can perform their actual owner/member operations; resource binding, archive/removal races, revision semantics and Pal atomicity remain enforced |
+| 2. Assessments and grades | Existing Assignment adapters, Tests, Surveys, Gradebook/Grades and their files/history; preserve current grading entrypoints | Create/release/start/save/submit/inspect/grade/return/results work through existing screens, including cross-role identities and denied cross-class access |
+| 3. Lifecycle and attached services | Archive/restore, reorder/reuse/blueprints, recovery/export/purge boundaries, attendance and Pal/Bara adapters | Existing owner operations and jobs remain tenant-bound; creation/restore retain entitlement enforcement; connected services use the current classroom relationship |
+| 4. Product entry and navigation | Approved Teaching/Joined home, classroom page/shell, shared menu, join/create, ordering and persisted hide/unhide | One account teaches A and joins B; owner archive differs from member hide; Hidden appears below Archived; desktop/mobile light/dark verification passes |
+| 5. Integrated release | Full teacher/student/mixed-role rehearsal, production canaries, compatible release floor and stop-new-admission procedure | Complete reachable experience works, including existing classes, with concrete recovery evidence before cohort activation |
+
+Batch 2 consumes the shared contract from batch 1. Batch 3 may be implemented
+independently once that contract is stable. Batch 4 remains dormant until batches
+1–3 are complete. Batch 5 verifies their integrated result. Each implementation
+batch may contain bounded reviewable PRs; do not add unrelated infrastructure or
+a new per-feature rollout switch for each route family.
+
+The shared cohort grants admission to the compatible experience, never classroom
+ownership or enrollment. Resource-specific authorization remains mandatory.
+Stopping new admission must not strand people already teaching or learning: retain
+their compatible access configuration and minimum application version. Entitlements
+continue to govern creation and expensive operations independently. Members may
+complete assigned work on Free. Billing and subscription implementation remain owned
+by the separate billing task.
+
+Use the existing owner and enrollment records. New schema is justified only for
+missing transaction boundaries or persistence requirements: Daily's existing atomic
+writer lacks a transaction-time classroom/enrollment check, the ordered lesson-plan
+writer lacks an actor check, and resource/roster writes require actor-bound owner
+checks. Add service-only wrappers/versioned functions rather than rewriting applied
+migrations. Hidden joined classrooms need an actor-scoped preference that never
+changes membership or the classroom's archived state. Exact migration application
+permissions still follow the schema rollout checklist.
+
+The design reference remains `src/app/__ui/OwnedJoinedHomeMockup.tsx`: Teaching and
+Joined without count badges or an All/Teaching/Joined filter; one top-right menu;
+owner archive/restore and member hide/unhide, with Hidden below Archived. Apply the
+UI-change and visual-verification workflow when implementing its live consumer.
+
 ### Current bounded integration slice — Assignment inline images
 
 The 2026-09-27 source audit found that private inline-image delivery still branches
