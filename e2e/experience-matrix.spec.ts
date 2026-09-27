@@ -2336,6 +2336,19 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   await verifyProjectContract(page, testInfo)
   await waitForKarelRasterPaint(image)
   await page.screenshot({ path: testInfo.outputPath(`student-test-image-${viewport}.png`), animations: 'disabled' })
+  if (viewport === 'desktop') {
+    const divider = await separator.boundingBox()
+    expect(divider).not.toBeNull()
+    const dragX = divider!.x + divider!.width / 2
+    const dragY = divider!.y + divider!.height / 2
+    await page.mouse.move(dragX, dragY)
+    await page.mouse.down()
+    await page.mouse.move(dragX - 100, dragY, { steps: 5 })
+    await page.mouse.up()
+    expect(Number(await separator.getAttribute('aria-valuenow'))).toBeLessThan(50)
+    await page.waitForTimeout(700) // Includes the exam's delayed blur-signal grace period.
+    expect(focusEventRequests).toBe(0)
+  }
   await page.getByRole('button', { name: 'Back to documents list' }).click()
   await page.waitForTimeout(350)
   expect(await bounds()).toEqual(before)
