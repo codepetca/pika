@@ -84,4 +84,25 @@ describe('contextual Assignment inline-image migration', () => {
     ]) expect(harness).toContain(phrase)
     expect(harness).not.toMatch(/supabase\s+(?:db\s+push|migration\s+up|db\s+reset)/)
   })
+
+  it('wires bounded multi-connection race checks through the database harness', () => {
+    const harness = readFileSync('scripts/check-contextual-assignment-inline-images-database.sh', 'utf8')
+    const raceHarness = readFileSync('scripts/check-contextual-assignment-inline-images-race.sh', 'utf8')
+
+    expect(harness).toContain('check-contextual-assignment-inline-images-race.sh')
+    for (const phrase of [
+      'supabase_db_pika',
+      'pg_blocking_pids(waiter.pid)',
+      'remove_classroom_students_preserving_data',
+      'submit_assignment_doc_for_member_v1',
+      'reserve_assignment_inline_image_for_member_v1',
+      'finalize_assignment_inline_image_for_member_v1',
+      'Reservation crossed committed membership removal',
+      'Membership removal crossed in-flight reservation',
+      'Submission/finalization race allowed a forbidden storage transition',
+      'Finalization/submission race did not serialize to its valid terminal state',
+      'Race fixture cleanup changed baseline counts',
+    ]) expect(raceHarness).toContain(phrase)
+    expect(raceHarness).not.toMatch(/supabase\s+(?:db\s+push|migration\s+up|db\s+reset)/)
+  })
 })

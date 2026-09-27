@@ -56,11 +56,27 @@ Migration 213 was applied locally on 2026-09-27 with exact owner authorization,
 after a dry-run preview containing only that migration. Billing PR #1368 is
 merged and this branch includes migrations 211–212. Local history is through
 213, and generated database types have been refreshed and checked against it.
-The rollback-only `scripts/check-contextual-assignment-inline-images-database.sh`
-passed; its temporary users were verified absent after rollback.
+The mixed-role/lifecycle fixture in
+`scripts/check-contextual-assignment-inline-images-database.sh` passed and rolls
+back. Its invoked race harness passed four real cross-connection cases: removal
+before reservation, reservation before removal, submission before finalization,
+and finalization before submission. Barrier evidence uses PostgreSQL blocking
+relationships and terminal stored state, not timing alone.
 
-A multi-connection membership-removal/submission race rehearsal and final
-integration review remain outstanding. PR #1371 stays draft, the independent
+The local race harness requires compatibility storage mode and never changes
+that setting. It temporarily commits exact synthetic fixtures for connection
+visibility, removes mutable fixture rows and temporary trigger/functions, and
+checks baseline counts. Immutable anonymous PAL membership audit evidence is
+retained by its existing guard; the tests do not bypass it. No physical storage
+bytes are uploaded by these fixtures.
+
+Final integration review remains outstanding. PR #1371 stays draft, the independent
 gate stays off, and neither production migration application nor UI activation
 is authorized by this local application. Regenerate types only from the
 up-to-date local schema; never edit `src/types/database.generated.ts` by hand.
+
+After this dormant image slice lands, the next integration phase is a restricted
+synthetic Assignment lifecycle rehearsal, as described in the classroom-access
+roadmap. That later rehearsal is not evidence supplied by the image contract
+tests, and neither the unrestricted classroom shell nor Teaching/Joined home
+may be enabled as part of these tests.

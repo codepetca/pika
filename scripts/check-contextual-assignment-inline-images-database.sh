@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Rollback-only post-migration contract check. It never applies migration 213;
-# run only against the isolated local Supabase fixture after explicit approval.
+# Post-migration contract check. Its mixed-role/lifecycle fixture rolls back;
+# its invoked race harness uses only exact, transient committed fixture rows for
+# multi-connection visibility, then removes them. Neither harness applies 213.
 CONTEXTUAL_IMAGE_DB_CONTAINER="$(docker ps --filter 'name=^supabase_db_pika$' --format '{{.Names}}')"
 if [[ "$CONTEXTUAL_IMAGE_DB_CONTAINER" != 'supabase_db_pika' ]]; then
   echo 'The exact local Supabase container supabase_db_pika must be running.' >&2
@@ -214,5 +215,7 @@ $owner_behavior$;
 reset role;
 rollback;
 SQL
+
+"$(dirname "$0")/check-contextual-assignment-inline-images-race.sh"
 
 echo 'Contextual Assignment inline-image database contract checks passed.'
