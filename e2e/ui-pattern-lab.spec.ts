@@ -264,6 +264,7 @@ for (const role of ['teacher', 'student'] as const) {
     const bounds = (await absent.boundingBox())!
     expect(bounds.width).toBeGreaterThanOrEqual(44)
     expect(bounds.height).toBeGreaterThanOrEqual(44)
+    await absent.scrollIntoViewIfNeeded()
     await absent.focus()
     await expect(page.getByRole('tooltip')).toContainText('1 student absent')
     await page.keyboard.press('Enter')
