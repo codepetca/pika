@@ -52,11 +52,12 @@ previously issued signed delivery URL before that URL expires.
 
 ## Rollout and verification checkpoint
 
-No migration has been applied and generated database types have not been
-changed. Before a separate exact local migration-application authorization,
-resolve migration sequencing against main (213 may collide after dependent
-Stripe work lands), inspect the target history, and run the dry-run required by
-the schema rollout checklist. Only after successful application may the
+Migration 213 has not been applied and generated database types have not been
+refreshed for it. Billing PR #1368 is merged, this branch is synced with its
+migrations 211–212, and the local database history is through 212. The local
+dry-run now previews only `213_contextual_assignment_inline_images.sql`.
+Application still requires separate exact local authorization under the schema
+rollout checklist. Only after successful application may the
 rollback-only `scripts/check-contextual-assignment-inline-images-database.sh`
 and a multi-connection membership-removal/submission race rehearsal run.
 Regenerate types only from that authorized, up-to-date local schema; never edit
