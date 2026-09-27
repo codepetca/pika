@@ -241,6 +241,12 @@ jobs:
       - name: Verify contextual Assignment inline-image authorization contracts
         run: bash scripts/check-contextual-assignment-inline-images-database.sh
 
+      - name: Verify contextual Assignment owner precedence
+        run: bash scripts/check-contextual-assignment-owner-precedence-database.sh
+
+      - name: Rehearse contextual Assignment routes against local Supabase
+        run: bash scripts/rehearse-local-contextual-assignment-lifecycle.sh
+
       - name: Verify contextual Assignment owner mutation atomicity
         run: bash scripts/check-contextual-assignment-owner-mutations-database.sh
 

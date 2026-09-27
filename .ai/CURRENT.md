@@ -1,3 +1,3 @@
-Prod DB 001–212;Ent181/Plan206 strict+autoFree ON2026-09-26;billing/admin off. A:open/Pal182–183,save184–185,sub186–187,hist188–189,art190,owner191,create192–193,grade194–195,ret196/order197/bulk198–199/repo200;off. M201–204;Assignment AI/off. V205 Grades/off. P:classroom-pal-and-student-cleanup-plan.md,attendance-decommission.md.
+Prod DB001–212 (09-27);213 connect timeout,retry approval pending;local213. Ent181/Plan206 strict+autoFree ON09-26. A182–200/image213 off;214 owner-self-enrollment fix pending. M201–204 AI/off;V205 Grades/off. Full rollout:classroom-access-and-entitlements-roadmap.md. Billing/admin off,separate task.
 Attendance timing released;teacher_entitlements smoke 4/4 passed 2026-08-28. CI authority;student purge on;others off.
 WT:$HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika. Env:$HOME/Repos/.env/pika/.env.local;collaborators:.env.example.

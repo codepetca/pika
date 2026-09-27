@@ -70,12 +70,16 @@ checks baseline counts. Immutable anonymous PAL membership audit evidence is
 retained by its existing guard; the tests do not bypass it. No physical storage
 bytes are uploaded by these fixtures.
 
-Final integration review remains outstanding. PR #1371 stays draft, the independent
-gate stays off, and neither production migration application nor UI activation
-is authorized by this local application. Regenerate types only from the
-up-to-date local schema; never edit `src/types/database.generated.ts` by hand.
+PR #1371 merged as `39c948e8` after final independent review, 125 focused tests,
+static checks and full CI. The independent gate stays off. On 2026-09-27, the
+owner authorized applying migration 213 to production; the application command
+timed out while connecting before reporting migration execution. A subsequent
+read-only history check confirmed production remained through 212. A fresh
+retry authorization is pending under the repository's one-attempt rule.
+Regenerate types only from the up-to-date local schema; never edit
+`src/types/database.generated.ts` by hand.
 
-After this dormant image slice lands, the next integration phase is a restricted
+After this dormant image slice, the next integration phase is a restricted
 synthetic Assignment lifecycle rehearsal, as described in the classroom-access
 roadmap. That later rehearsal is not evidence supplied by the image contract
 tests, and neither the unrestricted classroom shell nor Teaching/Joined home
