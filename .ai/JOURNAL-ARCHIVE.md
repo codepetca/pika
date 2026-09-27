@@ -32804,9 +32804,7 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - PR1307 initial compatibility review signed off exact head `02b384ca`. Security review found uppercase learner UUIDs could commit then fail response binding, feedback entry/document bodies were not cross-checked, and duplicate created-student evidence could satisfy the batch counts. Remediation batch1 canonicalizes request UUIDs before deduplication/RPC and requires exact feedback-body and created-subpartition evidence, with route and adapter regressions; targeted security re-review follows.
 - Security targeted review signed off batch1 head `ee8bc935`. Final compatibility review found shared-parser UUID canonicalization changed disabled/unmatched legacy behavior for case-variant UUIDs. Batch2 restores byte-for-byte legacy parsing and canonicalizes/deduplicates only inside the contextual adapters, with disabled, unmatched-teacher and exact-contextual route coverage; final re-review follows.
 
-<<<<<<< HEAD
 <!-- pika-session-log-archive-batch:c9b1819c5bfa9797209439c37cf7b333690709821de76f925ed8a7f68f72f7da -->
-=======
 <!-- pika-session-log-archive-batch:fd09e655d7436cd7d930820a553e0c179e9c045f2d40c50f2cf8dd435cf5e58b -->
 ## 2026-09-20 — Dormant contextual classwork reorder
 
@@ -32852,7 +32850,6 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - PR1307 initial compatibility review signed off exact head `02b384ca`. Security review found uppercase learner UUIDs could commit then fail response binding, feedback entry/document bodies were not cross-checked, and duplicate created-student evidence could satisfy the batch counts. Remediation batch1 canonicalizes request UUIDs before deduplication/RPC and requires exact feedback-body and created-subpartition evidence, with route and adapter regressions; targeted security re-review follows.
 - Security targeted review signed off batch1 head `ee8bc935`. Final compatibility review found shared-parser UUID canonicalization changed disabled/unmatched legacy behavior for case-variant UUIDs. Batch2 restores byte-for-byte legacy parsing and canonicalizes/deduplicates only inside the contextual adapters, with disabled, unmatched-teacher and exact-contextual route coverage; final re-review follows.
 
->>>>>>> origin/production
 ## 2026-09-20 — Dormant contextual classwork reorder
 
 - Owner `codex/contextual-classwork-reorder`, based on merged feedback-return PR1307. Migration197 adds service-only actor-bound wrappers for Assignment-only and mixed Assignment/material/survey ordering. Both take the shared Classroom-operation fence, lock the current Classroom, recheck exact ownership and active lifecycle, delegate to the established migration068 ordering functions, and return actor/Classroom binding evidence.
@@ -32866,27 +32863,20 @@ NEXT: run `pnpm eval:assignment-anchors ppz3c A1` locally with a real key and co
 - Under standing local-migration authorization, migration198 applied after the dry run showed only198. Generated types match local history001–198; rollback behavior and archive-first/bulk-first/overlapping reversed-order multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
 - Initial security review found request-supplied foreign Assignment IDs could acquire another tenant's advisory/row locks before the missing-ID result. Compatibility review also found malformed timestamps surfaced as503. Remediation migration199 moves the original implementation private, preflights scope before supplied locks, rechecks and locks only rows still bound to the Classroom, and revokes direct service-role execution; the adapter maps PostgreSQL22007 to400. Cross-Classroom contention and malformed-date rollback regressions join the harnesses; targeted re-review follows.
 
-<<<<<<< HEAD
 <!-- pika-session-log-archive-batch:f783ca9e9ce74a41269ede3a16cdb9faa3f4b5e96a8625510a4165d512bc5488 -->
-=======
->>>>>>> origin/production
 ## 2026-09-20 — Dormant contextual Assignment repository-target selection
 
 - Owner `codex/contextual-assignment-repo-target`, based on merged Assignment bulk PR1309. Migration200 adds a service-only owner-bound save/reset transaction for one enrolled learner's repository target under Assignment, Classroom-operation and learner-purge fences.
 - Added an independent off-by-default exact user/Assignment gate. Matched teacher- or student-valued current owners retain the existing read-only preflight before external GitHub validation, then recheck ownership, lifecycle and enrollment transactionally; disabled and unmatched requests preserve the legacy teacher-only path. Repository analysis, AI grading, UI and activation remain out of scope.
 - Under standing local-migration authorization, migration200 is applied locally. Generated types match local history001–200; error-level DB lint, rollback behavior and purge/archive multi-connection contracts pass. Production remains001–180 and all twelve contextual Assignment gates remain off. Focused verification and independent review follow.
 
-<<<<<<< HEAD
 <!-- pika-session-log-archive-batch:7de4d6154483df473e7306ad972b842f02b9844b8106dbb50928feb584774a58 -->
 <!-- pika-session-log-archive-batch:ebdd8a2fa169ba8ba365d895fa7d14ecb6551add592b08022f0c3f5c452e0bec -->
-=======
->>>>>>> origin/production
 ## 2026-09-20 — Preserve grading comment focus during autosave
 
 - Owner `codex/grading-comment-focus-main`, based on `origin/main@cbb80e93`. The assignment grading comment textarea now remains enabled while its background grade autosave is in flight, so the browser keeps keyboard focus; comment sending and conflicting grade actions remain disabled until the save completes.
 - Added a regression that holds the grade request open and proves the editor remains enabled and focused while Send comment is disabled. Targeted 30 tests and the focused application-browser gate (14 files/225 tests plus architecture, UI/design policy, TypeScript and lint) pass.
 - Playwright verified the live teacher grading editor retains focus after autosave on desktop/mobile in light/dark themes; the student baseline is unaffected. Composite checklist reviewed: native textbox keyboard behavior and tested focus/disabled semantics pass, no manual follow-up. Risk profile: none. Model recommendation: GPT-6 — bounded focus-state bug with browser verification.
-<<<<<<< HEAD
 
 <!-- pika-session-log-archive-batch:3907712b9349b1ddb51405bad2c331736e8c10876dd018e821342bf1045afaec -->
 <!-- pika-session-log-archive-batch:6e3685b4cfc3c4ac43c8510b46b0964561711946fcc6dcdccd5e44ae25874dd8 -->
@@ -33114,5 +33104,3 @@ async-grading.
 ## 2026-09-22 — Daily Log PR final merge window
 
 - PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.
-=======
->>>>>>> origin/production
