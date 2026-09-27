@@ -3110,9 +3110,10 @@ test('student long test scroll reaches final questions and submit', async ({ pag
   await expect(firstAnswer).toHaveValue(answer)
   if (viewport === 'desktop') {
     const divider = page.getByRole('separator', { name: 'Resize documents and questions panes' })
+    await expect(divider).toHaveAttribute('aria-valuenow', '30')
     await divider.focus()
-    await divider.press('ArrowLeft')
-    await expect(divider).toHaveAttribute('aria-valuenow', '45')
+    await divider.press('ArrowRight')
+    await expect(divider).toHaveAttribute('aria-valuenow', '35')
   }
   await page.screenshot({ path: testInfo.outputPath('student-test-scroll-reference.png'), animations: 'disabled' })
 })
