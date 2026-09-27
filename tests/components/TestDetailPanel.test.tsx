@@ -338,6 +338,27 @@ describe('TestDetailPanel', () => {
     expect(syncCalls()[1][0]).toContain(owner === 'api' ? '/api/teacher/assignments/' : '/api/teacher/tests/')
   })
 
+  it('syncs only the new owner links when changing API scope', async () => {
+    const oldDoc = { id: '11111111-1111-4111-8111-111111111111', title: 'Old link', source: 'link', url: 'https://example.com/old' }
+    const newDoc = { id: '22222222-2222-4222-8222-222222222222', title: 'New link', source: 'link', url: 'https://example.com/new' }
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/sync')) return Promise.resolve(new Response('{}', { status: 500 }))
+      if (url.endsWith('/draft')) return Promise.resolve(jsonResponse({
+        editingPolicy: { structureLocked: false },
+        draft: { version: 1, content: { title: 'Test', show_results: false, questions: sampleQuestions } },
+      }))
+      return Promise.resolve(jsonResponse({ test: { documents: [url.startsWith('/api/teacher/tests') ? oldDoc : newDoc] } }))
+    })
+    const panel = (apiBasePath: string) => <TestDetailPanel test={makeTestWithStats({ status: 'draft' })}
+      classroomId="classroom-1" apiBasePath={apiBasePath} testQuestionLayout="split" onTestUpdate={vi.fn()} />
+    const { rerender } = render(panel('/api/teacher/tests'), { wrapper: Wrapper })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/tests/test-1/documents/${oldDoc.id}/sync`, { method: 'POST' }))
+    rerender(panel('/api/teacher/assignments'))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`/api/teacher/assignments/test-1/documents/${newDoc.id}/sync`, { method: 'POST' }))
+    expect(fetchMock).not.toHaveBeenCalledWith(`/api/teacher/assignments/test-1/documents/${oldDoc.id}/sync`, expect.anything())
+  })
+
   it('ignores a document edit completing after switching tests', async () => {
     const staleMutation = createDeferred<Response>()
     const currentDocuments = [{ id: '22222222-2222-4222-8222-222222222222', title: 'Current instructions', source: 'text', content: 'Current content' }]

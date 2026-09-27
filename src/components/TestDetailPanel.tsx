@@ -208,6 +208,9 @@ export function TestDetailPanel({
   const [documents, setDocuments] = useState<TestDocument[]>(
     () => normalizeTestDocuments((testAssessment as { documents?: unknown }).documents)
   )
+  const [documentsOwnerKey, setDocumentsOwnerKey] = useState(
+    () => JSON.stringify([apiBasePath, classroomId, testAssessment.id])
+  )
   const [results, setResults] = useState<TestResultsAggregate[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<AssessmentViewMode>(() => 'questions')
@@ -521,6 +524,7 @@ export function TestDetailPanel({
     // Parent summaries omit documents. Only reset them when the editor owner changes;
     // detail loads and document mutations own updates within the selected test.
     setDocuments(normalizeTestDocuments(testDefaults.documents))
+    setDocumentsOwnerKey(JSON.stringify([apiBasePath, classroomId, testAssessment.id]))
     setResults(null)
     setConflictDraft(null)
     setIsMarkdownEditing(false)
@@ -1083,6 +1087,8 @@ export function TestDetailPanel({
   }, [loadTestDetails])
 
   useEffect(() => {
+    // Effects from an owner transition still close over the prior documents.
+    if (documentsOwnerKey !== documentEditorScopeKey) return
     const staleDoc = normalizeTestDocuments(documents).find((doc) => {
       if (!isLinkDocumentSnapshotStale(doc)) return false
       const attemptKey = `${doc.id}:${doc.url || ''}:${doc.synced_at || ''}:${doc.snapshot_path || ''}`
@@ -1122,7 +1128,7 @@ export function TestDetailPanel({
     return () => {
       isCancelled = true
     }
-  }, [apiBasePath, classroomId, documents, isCurrentAssessmentScope, testAssessment.id])
+  }, [apiBasePath, classroomId, documentEditorScopeKey, documents, documentsOwnerKey, isCurrentAssessmentScope, testAssessment.id])
 
   useEffect(() => {
     const currentQuestionIds = questions.map((question) => question.id)
