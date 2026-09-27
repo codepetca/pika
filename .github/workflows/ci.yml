@@ -238,6 +238,9 @@ jobs:
       - name: Verify contextual learner assignment artifact atomicity
         run: bash scripts/check-contextual-assignment-artifacts-database.sh
 
+      - name: Verify contextual Assignment inline-image authorization contracts
+        run: bash scripts/check-contextual-assignment-inline-images-database.sh
+
       - name: Verify contextual Assignment owner mutation atomicity
         run: bash scripts/check-contextual-assignment-owner-mutations-database.sh
 

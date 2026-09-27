@@ -11,6 +11,43 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-24 — Student test question scrolling
+
+- Owner `codex/student-test-scroll`; risk `exam-mode` (layout only). Bound the existing student question section to its split pane height so long tests scroll to the final questions and Submit. No assessment, attempt, or focus-tracking changes.
+- Reuse ExamDocumentWorkspace/WorkspaceSplitPane; extend StudentTestsTab with the same bounded scroller used by TeacherTestPreviewPage. Student desktop/mobile light/dark wheel-scroll and reference/answer retention checked; teacher n/a (student-only change), no new pattern or promotion. Existing divider keyboard resizing checked.
+- Validation: 43 component tests, four mocked browser matrix checks, focused checks (186 tests, architecture, UI/design policies, types, lint). Local screenshots under `test-results/experience-matrix-student--3e2c4--final-questions-and-submit-*`; fixture avoids live student attempts. Production deployment remains separate.
+
+## 2026-09-24 — PNG/JPEG test references
+
+- Owner `codex/test-reference-images`; user approved PNG/JPEG implementation and orchestration in this task, with SVG deferred. Extend private managed uploads with bounded image header/dimension validation and migration208's bucket MIME additions. Existing authorization and cleanup remain in use; no dependencies or public storage added.
+- Reuse the document workspace and canonical controls for a shared teacher/student image viewer with fit, zoom, loading/error/retry and a white transparent-image canvas. Upload dialog accepts images and displays validation errors inside the modal. Preserve question input and exam activity tracking. UI brief and rollout ledger: docs/plans/test-reference-images.md.
+- Bounded implementation and browser workers delivered API regressions and teacher/student desktop/mobile light/dark scenarios. Coordinator fixed cached-image hydration and narrow-screen pane height based on browser evidence. Final focused gate and visual matrix results recorded in the plan.
+- Initial independent review found ambiguous image filename detection and a failed duplicate finalization/cancellation race. One correction batch uses a server-created image path segment and retains failed image reservations for existing one-hour expiry/manual cleanup; verified retries skip reads. Regression tests reproduced both failures before correction.
+- Targeted review caught the managed classroom/blueprint copy path dropping the image marker. Second batch preserves the namespace from source MIME; round-trip PNG/JPEG and misleading-PDF cases plus copied-viewer regressions cover it.
+- Approved continuation: unchanged implementation e05267b9 passes910tests/70files plus architecture/UI/design/types/lint. Targeted review launch4 clear. Migration208 applied once to local Supabase; all208 history entries and generated types match, private bucket/25MB limit preserved. Real PNG/JPEG upload, finalization/retry, persistence, teacher/student delivery and anonymous denial passed; temporary local test removed. Final cumulative review and ready CI follow; no production action or merge.
+
+- Final cumulative review found archive restore lost image controls when rewriting attachment paths. Third correction preserves a test-image namespace from verified archive MIME;4 regressions failed before and35 affected tests passed after. All test-upload producers audited (direct upload, blueprint copy, archive restore); targeted closure and ready CI follow.
+- Restore canary independently calculated extensionless paths; updated its bucket-scoped PNG/JPEG projection and compared it against the actual verified restore plan. Two regressions fail before and24 canary tests pass after. Existing non-image and other-bucket paths remain unchanged.
+- Final targeted closure is clear at412b591b; full1024tests/77files and local Storage smoke passed. Synced unrelated main documentation after an archive-marker-only conflict; application source unchanged. Ready CI follows.
+
+## 2026-09-24 — Account-plan rollout runbook
+
+- Owner `codex/account-plan-rollout-runbook`; documentation-only, risk profile `none`. Added a plan-specific operator sequence for read-only account inventory, explicit owner decisions, audited per-account assignments, and a separately approved strict cutover. Marked the earlier Access-pilot cutover as historical for plan classification.
+- No account, entitlement, migration, database switch, app behavior, or production data changed. Live account inventory remains unverified while hosted access is unavailable. Model recommendation: GPT-6 Sol — bounded rollout documentation tied to existing migration contracts.
+- Independent documentation review found that audited-missing grants fail closed even before strict activation and that ownership-transfer canaries were omitted. The runbook now calls out both conditions and their stop/repair behavior; targeted re-review and final CI remain pending.
+
+## 2026-09-24 — Teacher assessment title editing
+
+- Owner: `codex/assessment-title-edit`, coordinated in the existing task. Approved outcome: tapping the selected Test or Assignment action-bar title opens its existing editor. Implementation worker owns the two teacher views and their component tests; coordinator owns browser verification, guidance, and PR lifecycle.
+- UI brief: reuse the selected Test context-bar layout, Pattern Lab ghost Button, existing edit handlers/dialogs, and `TeacherWorkSurfaceContextBar`; no shared extraction. Teacher desktop/mobile, light/dark, default/hover/focus/disabled/modal-open and long titles. Student n/a (teacher-only consumers). Primary signal: subtle button hover and visible focus; no new icon or decorative chrome. No new composite widget; check keyboard activation and modal focus return. Risk profile `none`.
+- Implementation complete: both title buttons reuse their existing editor handlers. Read-only buttons remain disabled; assignment loading uses guarded aria-disabled semantics so shared modal focus return survives the refresh. Long titles truncate within the context column without clipping focus.
+- Evidence: 130 component tests pass; Playwright covers both surfaces at desktop/mobile in light/dark (8 cases: default/hover/focus/open, keyboard/touch activation, Escape and focus return), plus 4 long-title cases. Screenshots/scripts/results: `output/playwright/title-edit/` (local, ignored). Student n/a because only teacher consumers changed. Composite accessibility checklist reviewed; keyboard and semantic-state checks covered; no manual follow-up. Next: focused checks, draft PR, one standard-risk independent review, and stable-SHA CI; no merge or production rollout authorized in this task.
+
+## 2026-09-24 — Test publication in the student-table action bar
+
+- Owner: `codex/test-publish-action-bar`. Moved draft-only Publish from the test editor into the selected test's student-table action bar; reused saved-draft validation and confirmation, and removed obsolete dialog publication props/state.
+- Verification: 225 focused tests plus architecture/UI/design/TypeScript/lint checks and Pika audit pass. Local Playwright fixtures cover teacher desktop/mobile, light/dark, draft focus, editor, confirmation, and published states; screenshots under `output/playwright/`. Compared with Pattern Lab teacher controls. Student UI is unchanged. No new shared component or experimental pattern.
+
 ## 2026-09-25 — Assessment title PR merge preparation
 
 - User authorized merging PR1358. Original reviewed head `4f99bcf7` passed Test & Build, Browser Experience Matrix and PR Gate. Main advanced via PR1355; rebase conflict was only a duplicate session-archive batch marker. Preserved main’s marker and both sessions; title implementation and its tests are unchanged.
@@ -382,3 +419,8 @@ Final integration review caught auto-sync attempt suppression resetting only on 
 Third correction attaches an owner key to document state and prevents auto-sync effects from mixing prior documents with a newly selected endpoint during the transition render. Different-link API transition regression confirms only the new owner's link is synced. Final focused checks pass 280 tests plus architecture/UI/design/TypeScript/lint. Bounded final correction review pending; release remains separate.
 
 Main sync: resolved only continuity-document overlap after PR1368 landed; reviewed application/test blobs remain identical to fe74df85. Independent review complete, no blockers. Updated-base focused checks and exact-head CI precede authorized squash merge.
+## 2026-09-27 — Stage contextual Assignment inline-image fix
+
+- User authorized orchestration of the audited image-access boundary. This task owns codex/contextual-assignment-images based on main402f8028. Terra implementation worker staged the independent default-off exact user/Classroom gate, relationship-aware delivery, transaction-fenced reservation/finalization and migration213. A separate read-only worker mapped restricted API/RPC lifecycle verification; no classroom UI or billing activation is included.
+- Image-focused tests pass33 checks and TypeScript passes after installing existing locked dependencies into this worktree. Behavioral rollback-only database fixtures and CI wiring are authored, not executed. Database types remain unchanged. Source review and final focused checks follow; concurrent removal/submission proof and persisted manual lifecycle rehearsal remain outstanding before readiness.
+- Started Docker solely for local diagnostic checks. Local database history is001–212; main source is001–210 because billing PR1368 is still open. No migration, reset, hosted data, runtime gate or production change. Sync billing migration source before the exact local213 application/type-generation checkpoint; do not import or modify the other task's work.
