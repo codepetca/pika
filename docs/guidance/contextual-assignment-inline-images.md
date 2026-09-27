@@ -52,13 +52,15 @@ previously issued signed delivery URL before that URL expires.
 
 ## Rollout and verification checkpoint
 
-Migration 213 has not been applied and generated database types have not been
-refreshed for it. Billing PR #1368 is merged, this branch is synced with its
-migrations 211–212, and the local database history is through 212. The local
-dry-run now previews only `213_contextual_assignment_inline_images.sql`.
-Application still requires separate exact local authorization under the schema
-rollout checklist. Only after successful application may the
-rollback-only `scripts/check-contextual-assignment-inline-images-database.sh`
-and a multi-connection membership-removal/submission race rehearsal run.
-Regenerate types only from that authorized, up-to-date local schema; never edit
-`src/types/database.generated.ts` by hand.
+Migration 213 was applied locally on 2026-09-27 with exact owner authorization,
+after a dry-run preview containing only that migration. Billing PR #1368 is
+merged and this branch includes migrations 211–212. Local history is through
+213, and generated database types have been refreshed and checked against it.
+The rollback-only `scripts/check-contextual-assignment-inline-images-database.sh`
+passed; its temporary users were verified absent after rollback.
+
+A multi-connection membership-removal/submission race rehearsal and final
+integration review remain outstanding. PR #1371 stays draft, the independent
+gate stays off, and neither production migration application nor UI activation
+is authorized by this local application. Regenerate types only from the
+up-to-date local schema; never edit `src/types/database.generated.ts` by hand.
