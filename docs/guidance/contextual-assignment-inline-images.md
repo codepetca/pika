@@ -74,8 +74,13 @@ PR #1371 merged as `39c948e8` after final independent review, 125 focused tests,
 static checks and full CI. The independent gate stays off. On 2026-09-27, the
 owner authorized applying migration 213 to production; the application command
 timed out while connecting before reporting migration execution. A subsequent
-read-only history check confirmed production remained through 212. A fresh
-retry authorization is pending under the repository's one-attempt rule.
+read-only history check confirmed production remained through 212. With fresh
+exact authorization, a later retry on 2026-09-27 applied only 213 successfully.
+Production history now matches 001–213. Read-only catalog verification confirms
+all four functions exist with empty search paths; public entrypoints are callable
+only by service_role among application roles, and the private helper is not
+directly executable by application roles. No rollout settings changed; 214 was
+not applied.
 Regenerate types only from the up-to-date local schema; never edit
 `src/types/database.generated.ts` by hand.
 
