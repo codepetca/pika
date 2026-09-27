@@ -356,9 +356,13 @@ Do not substitute an Assignment-only product for this goal.
 The immediate integration checkpoint is a real local manual Assignment lifecycle
 rehearsal using synthetic mixed-role identities. The first run exposed an
 owner-precedence defect: an admitted owner with historical self-enrollment can
-open a learner document (200 rather than 403). Correct the contextual learner
-transaction boundaries before treating this checkpoint as passed. Then execute
-these five batches:
+open a learner document (200 rather than 403). PR #1376 corrected the learner
+transaction boundaries and passed all seven real route/database scenarios,
+the database contract suite and browser CI before merging as `7758ed44`.
+Migration 214 is applied and catalog-verified in production. Local application
+is blocked by separately applied billing migrations using 214–216; do not repair
+or reset that shared history without a coordinated, explicitly authorized plan.
+The remaining full-experience work follows these five batches:
 
 | Batch | Scope | Exit evidence |
 | --- | --- | --- |
@@ -373,6 +377,14 @@ independently once that contract is stable. Batch 4 remains dormant until batche
 1–3 are complete. Batch 5 verifies their integrated result. Each implementation
 batch may contain bounded reviewable PRs; do not add unrelated infrastructure or
 a new per-feature rollout switch for each route family.
+
+The first bounded batch-1 implementation is the
+[retained shared admission contract](classroom-experience-admission.md) and its
+material-list read consumer. It uses one strict server-managed actor cohort;
+current owner/member/resource checks remain authoritative. Absent configuration
+preserves legacy/pair-pilot behavior. No live cohort is configured; writes, Daily,
+other domains and product entry remain unfinished. Cohort retention and compatible
+recovery versions are operator obligations, not guarantees of the stateless reader.
 
 The shared cohort grants admission to the compatible experience, never classroom
 ownership or enrollment. Resource-specific authorization remains mandatory.

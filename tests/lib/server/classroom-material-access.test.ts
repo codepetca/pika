@@ -61,6 +61,81 @@ describe('classroom material exact-pair access', () => {
     expect(resolveClassroomAccess).not.toHaveBeenCalled()
   })
 
+  it('lets a shared-cohort admitted actor bypass the old exact-pair configuration', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
+      version: 1,
+      admittedUserIds: [actorId],
+    }))
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_ENABLED', 'false')
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_PAIRS', 'not-json')
+    vi.mocked(resolveClassroomAccess).mockResolvedValue(context('owner'))
+
+    expect(await authorizeClassroomMaterialRequest(classroomId, {
+      legacyRole: 'teacher',
+      permission: 'owner',
+    })).toMatchObject({ mode: 'contextual', context: { relationship: 'owner' } })
+  })
+
+  it('retains the old disabled-pilot role guard for shared-cohort nonmembers', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
+      version: 1,
+      admittedUserIds: [],
+    }))
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_ENABLED', 'false')
+    vi.mocked(requireAuth).mockResolvedValue(user('student'))
+    const resolveClassroomId = vi.fn().mockResolvedValue(classroomId)
+
+    await expect(authorizeClassroomMaterialRequest(resolveClassroomId, {
+      legacyRole: 'teacher',
+      permission: 'owner',
+    })).rejects.toMatchObject({ name: 'AuthorizationError' })
+    expect(resolveClassroomId).not.toHaveBeenCalled()
+    expect(resolveClassroomAccess).not.toHaveBeenCalled()
+  })
+
+  it('uses the exact old pair pilot for shared-cohort nonmembers', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
+      version: 1,
+      admittedUserIds: [],
+    }))
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_ENABLED', 'true')
+    vi.mocked(requireAuth).mockResolvedValue(user('teacher'))
+    vi.mocked(resolveClassroomAccess).mockResolvedValue(context('owner'))
+
+    expect(await authorizeClassroomMaterialRequest(classroomId, {
+      legacyRole: 'teacher',
+      permission: 'owner',
+    })).toMatchObject({ mode: 'contextual', context: { relationship: 'owner' } })
+  })
+
+  it('does not cross-product a shared admitted actor with unrelated actors', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
+      version: 1,
+      admittedUserIds: [ownerId],
+    }))
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_ENABLED', 'false')
+    vi.mocked(requireAuth).mockResolvedValue(user('student'))
+
+    await expect(authorizeClassroomMaterialRequest(classroomId, {
+      legacyRole: 'teacher',
+      permission: 'owner',
+    })).rejects.toMatchObject({ name: 'AuthorizationError' })
+    expect(resolveClassroomAccess).not.toHaveBeenCalled()
+  })
+
+  it('makes an invalid shared cohort terminal after authentication', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', 'not-json')
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_ENABLED', 'true')
+    const resolveClassroomId = vi.fn().mockResolvedValue(classroomId)
+
+    await expect(authorizeClassroomMaterialRequest(resolveClassroomId, {
+      legacyRole: 'teacher',
+      permission: 'owner',
+    })).rejects.toMatchObject({ statusCode: 503 })
+    expect(resolveClassroomId).not.toHaveBeenCalled()
+    expect(resolveClassroomAccess).not.toHaveBeenCalled()
+  })
+
   it.each([
     '',
     'not-json',
@@ -153,6 +228,56 @@ describe('classroom material exact-pair access', () => {
       legacyRole: 'teacher',
       permission: 'owner',
     })).rejects.toMatchObject({ statusCode: 403 })
+  })
+
+  it.each([
+    { role: 'teacher' as const, relationship: 'owner' as const, legacyRole: 'teacher' as const, permission: 'owner' as const },
+    { role: 'student' as const, relationship: 'owner' as const, legacyRole: 'teacher' as const, permission: 'owner' as const },
+    { role: 'teacher' as const, relationship: 'member' as const, legacyRole: 'student' as const, permission: 'member' as const },
+    { role: 'student' as const, relationship: 'member' as const, legacyRole: 'student' as const, permission: 'member' as const },
+  ])('uses the classroom relationship, not the global $role role, for a shared admitted $relationship', async ({
+    role, relationship, legacyRole, permission,
+  }) => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
+      version: 1,
+      admittedUserIds: [actorId],
+    }))
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_ENABLED', 'false')
+    vi.mocked(requireAuth).mockResolvedValue(user(role))
+    vi.mocked(resolveClassroomAccess).mockResolvedValue(context(relationship))
+
+    expect(await authorizeClassroomMaterialRequest(classroomId, { legacyRole, permission }))
+      .toMatchObject({ mode: 'contextual', context: { relationship } })
+  })
+
+  it('denies an admitted outsider after the trusted resolver proves removed membership', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
+      version: 1,
+      admittedUserIds: [actorId],
+    }))
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_ENABLED', 'false')
+    vi.mocked(resolveClassroomAccess).mockResolvedValue(context('none'))
+
+    await expect(authorizeClassroomMaterialRequest(classroomId, {
+      legacyRole: 'student',
+      permission: 'member',
+    })).rejects.toMatchObject({ statusCode: 403 })
+  })
+
+  it('keeps a shared admitted relationship denial terminal instead of falling back to a global role', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
+      version: 1,
+      admittedUserIds: [actorId],
+    }))
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_ENABLED', 'false')
+    vi.mocked(requireAuth).mockResolvedValue(user('teacher'))
+    vi.mocked(resolveClassroomAccess).mockResolvedValue(context('member'))
+
+    await expect(authorizeClassroomMaterialRequest(classroomId, {
+      legacyRole: 'teacher',
+      permission: 'owner',
+    })).rejects.toMatchObject({ statusCode: 403 })
+    expect(requireRole).not.toHaveBeenCalled()
   })
 
   it('preserves archived owner reads and denies archived member participation', async () => {
