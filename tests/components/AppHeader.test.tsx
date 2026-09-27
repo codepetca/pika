@@ -243,21 +243,14 @@ describe('AppHeader date and time visibility', () => {
     vi.spyOn(window.screen, 'availHeight', 'get').mockReturnValue(900)
   }
 
-  it.each(['teacher', 'student'] as const)('updates on maximize and restore for %s', (role) => {
-    setWindowSize(1000, 700)
+  it.each(['teacher', 'student'] as const)('keeps the clock hidden after loading and resizing a screen-sized browser for %s', (role) => {
+    // A normal browser can report screen-sized outer bounds without Pika fullscreen.
+    setWindowSize(1440, 900)
     render(<AppHeader user={{ email: 'user@example.com', role }} />, { wrapper: Wrapper })
     expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
 
-    vi.stubGlobal('innerWidth', 1440)
-    vi.stubGlobal('innerHeight', 700) // Browser chrome reduces the content viewport.
-    vi.stubGlobal('outerWidth', 1440)
-    vi.stubGlobal('outerHeight', 900)
     fireEvent(window, new Event('resize'))
-    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
-
-    vi.stubGlobal('innerWidth', 1000)
-    vi.stubGlobal('outerWidth', 1000)
-    fireEvent(window, new Event('resize'))
+    fireEvent(window, new Event('focus'))
     expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
   })
 
@@ -266,6 +259,22 @@ describe('AppHeader date and time visibility', () => {
     Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
     const fullscreen = vi.spyOn(document, 'fullscreenElement', 'get').mockReturnValue(document.documentElement)
     render(<AppHeader />, { wrapper: Wrapper })
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+
+    fullscreen.mockReturnValue(null)
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('shows only while Pika fullscreen is active for %s', (role) => {
+    setWindowSize(1440, 900)
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
+    const fullscreen = vi.spyOn(document, 'fullscreenElement', 'get').mockReturnValue(null)
+    render(<AppHeader user={{ email: 'user@example.com', role }} />, { wrapper: Wrapper })
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+
+    fullscreen.mockReturnValue(document.documentElement)
+    fireEvent(document, new Event('fullscreenchange'))
     expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
 
     fullscreen.mockReturnValue(null)
@@ -284,18 +293,5 @@ describe('AppHeader date and time visibility', () => {
     expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
   })
 
-  it.each([[1400, 820], [1440, 820], [1000, 900], [1433, 893], [1439, 899]])(
-    'hides in a restored %s by %s window even when it nearly fills the screen', (width, height) => {
-      setWindowSize(width, height)
-      render(<AppHeader />, { wrapper: Wrapper })
-      expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
-    },
-  )
 
-  it('does not infer maximization when screen dimensions are unavailable', () => {
-    setWindowSize(1000, 700)
-    vi.spyOn(window.screen, 'availWidth', 'get').mockReturnValue(0)
-    render(<AppHeader />, { wrapper: Wrapper })
-    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
-  })
 })

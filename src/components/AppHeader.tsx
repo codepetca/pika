@@ -9,7 +9,6 @@ import { UserMenu } from './UserMenu'
 import { PikaLogo } from './PikaLogo'
 import { Tooltip } from '@/ui'
 import { useFullscreen } from '@/hooks/use-fullscreen'
-import { useWindowMaximized } from '@/hooks/use-window-maximized'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { getClassroomThemeDefinition, getClassroomThemeStyle, type ClassroomThemeColor } from '@/lib/classroom-theme'
 import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
@@ -65,7 +64,6 @@ export function AppHeader({
   const [exitCountPulseActive, setExitCountPulseActive] = useState(false)
   const previousExamExitCountRef = useRef<number | null>(null)
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
-  const isWindowMaximized = useWindowMaximized()
   const hints = useKeyboardShortcutHint()
 
   useEffect(() => {
@@ -248,7 +246,7 @@ export function AppHeader({
             </button>
           </Tooltip>
         )}
-        {(isFullscreen || isWindowMaximized || isExamMode) && (
+        {(isFullscreen || isExamMode) && (
           <span data-testid="header-date-time" className="mr-2 hidden whitespace-nowrap text-base font-semibold tabular-nums text-text-default sm:inline-flex">
             <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
             <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
