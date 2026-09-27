@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-25 — Production Test split-pane authoring
-
-- Owner: `codex/test-split-pane-real`. Applied the approved Pattern Lab Test editor to real New/Edit Test authoring: headerless desktop split panes, left Title/Settings/Reference Docs/Markdown and bottom Preview/Publish, right selected question with centered navigation, compact Points and consolidated Question actions. Reused CreationModalShell, real reference-document workflows, Markdown import/export, draft autosave, publication and maximized whole-Test preview. No student form, API, schema, or dependency changes.
-- MC options support automatic trailing blank creation, remove, pointer/keyboard rearrangement and correct-answer preservation. Open response keeps answer key/sample solution and the separate Code response menu choice. Navigation/preview/publish/close flush local edits and reject invalid options/points rather than silently dropping them; wording-only editing protections remain in force.
-- Focused checks pass 17 files / 281 tests plus architecture, UI/design policy, TypeScript and lint. Audit clean. Composite-widget checklist reviewed: keyboard behavior covered (existing menu/dialog plus option reorder); semantic state tested; final visual verification and independent review follow. Teacher-only authoring means student view is n/a; existing full-test preview is reused unchanged.
-
 ## 2026-09-25 — Disable student actions for unpublished tests
 
 - Owner: `codex/disable-draft-test-student-actions`. Draft test student tables now disable selection, batch grading/return/unsubmit/delete, access controls, and row unsubmit; row activation cannot open the grading inspector. Publish remains available from the action bar and editor. Publishing restores student selection and actions.
@@ -440,3 +434,7 @@ Main sync: resolved only continuity-document overlap after PR1368 landed; review
 ## 2026-09-27 — Test-mode pane layout
 
 Removed the redundant separator line from the shared student/teacher-preview document workspace. One 30/70-default width state now survives reference opening, Back, and switching documents; the resize control is available in the list too. Kept answer forms mounted and existing pointer/keyboard controls. Verification: 245 focused tests plus architecture/UI/design/typecheck/lint; student and teacher Playwright desktop/mobile light/dark captures and pane-width regressions. Composite accessibility checklist reviewed; keyboard and semantic state tested; no manual follow-up. Branch: codex/test-mode-pane-layout.
+
+## 2026-09-27 — Test reference image scrollbar stability
+
+Fixed image resize feedback by measuring fractional border-box viewport dimensions and using CSS minimum canvas dimensions instead of previous content-box measurements. Preserves zoom, Fit, scrolling, and mounted answers. Unit regression covers scrollbar-area changes and real pane resizing; browser regressions reserve scrollbar space and sample image geometry across 40 frames. Teacher/student desktop/mobile light/dark verification passed (8 scenarios); focused suite 250 tests plus architecture/UI/design/typecheck/lint passed. Also verified the local seeded Markdown/PNG test. PR1375 returned to draft before this correction.

@@ -142,6 +142,32 @@ async function waitForKarelRasterPaint(image: Locator) {
   expect(decoded.hasKarelBlue).toBe(true)
 }
 
+async function verifyStableImageGeometry(image: Locator) {
+  await waitForKarelRasterPaint(image)
+  const samples = await image.evaluate(async (element) => {
+    const viewport = element.parentElement!.parentElement!
+    const before = element.getBoundingClientRect()
+    const originalGutter = viewport.style.scrollbarGutter
+    const samples = [{ width: before.width, height: before.height }]
+    // Exercise reserved scrollbar space even on systems with overlay scrollbars.
+    viewport.style.scrollbarGutter = 'stable both-edges'
+    try {
+      for (let frame = 0; frame < 40; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const rect = element.getBoundingClientRect()
+        samples.push({ width: rect.width, height: rect.height })
+      }
+    } finally {
+      viewport.style.scrollbarGutter = originalGutter
+    }
+    return samples
+  })
+  for (const sample of samples) {
+    expect(sample.width).toBeCloseTo(samples[0].width, 2)
+    expect(sample.height).toBeCloseTo(samples[0].height, 2)
+  }
+}
+
 function installExamWindowFixture(page: Page) {
   return page.addInitScript(() => {
     Object.defineProperty(window.screen, 'availWidth', { configurable: true, get: () => window.innerWidth })
@@ -2296,6 +2322,7 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   await expect(imageZoomStatus).toHaveText('Fit')
   await page.getByRole('button', { name: 'Zoom in' }).click()
   await expect(imageZoomStatus).toHaveText('125%')
+  await verifyStableImageGeometry(image)
   await page.getByRole('button', { name: 'Fit image' }).click()
   await expect(imageZoomStatus).toHaveText('Fit')
   await expect(answer).toHaveValue('move()\nmove()\npick_beeper()')
@@ -2410,6 +2437,7 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
   const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
   await page.getByRole('button', { name: 'Zoom in' }).click()
   await expect(imageZoomStatus).toHaveText('125%')
+  await verifyStableImageGeometry(image)
   await page.getByRole('button', { name: 'Fit image' }).click()
   await expect(imageZoomStatus).toHaveText('Fit')
   await verifyProjectContract(page, testInfo)
