@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-25 — Assessment title PR merge preparation
-
-- User authorized merging PR1358. Original reviewed head `4f99bcf7` passed Test & Build, Browser Experience Matrix and PR Gate. Main advanced via PR1355; rebase conflict was only a duplicate session-archive batch marker. Preserved main’s marker and both sessions; title implementation and its tests are unchanged.
-- PR returned to draft before rebasing. Next: focused checks and targeted rebase review, then stable-SHA CI and authorized squash merge to main.
-
-## 2026-09-25 — Publish tests from either teacher surface
-
-- Updated `codex/test-publish-action-bar` / PR1357 to retain Publish in the edit modal as well as the student-table action bar, per revised request. Restored the modal's save-before-publish flow and inline validation errors; both controls remain draft-only.
-- All226 focused tests, architecture/UI/design/type/lint checks and Pika audit pass. Playwright verified both publication entry points and both controls disappearing after publication across teacher desktop/mobile light/dark (eight flows). Student UI unchanged. Independent updated-SHA review follows.
-
 ## 2026-09-25 — Production Test split-pane authoring
 
 - Owner: `codex/test-split-pane-real`. Applied the approved Pattern Lab Test editor to real New/Edit Test authoring: headerless desktop split panes, left Title/Settings/Reference Docs/Markdown and bottom Preview/Publish, right selected question with centered navigation, compact Points and consolidated Question actions. Reused CreationModalShell, real reference-document workflows, Markdown import/export, draft autosave, publication and maximized whole-Test preview. No student form, API, schema, or dependency changes.
@@ -382,3 +372,12 @@ Final integration review caught auto-sync attempt suppression resetting only on 
 Third correction attaches an owner key to document state and prevents auto-sync effects from mixing prior documents with a newly selected endpoint during the transition render. Different-link API transition regression confirms only the new owner's link is synced. Final focused checks pass 280 tests plus architecture/UI/design/TypeScript/lint. Bounded final correction review pending; release remains separate.
 
 Main sync: resolved only continuity-document overlap after PR1368 landed; reviewed application/test blobs remain identical to fe74df85. Independent review complete, no blockers. Updated-base focused checks and exact-head CI precede authorized squash merge.
+
+## 2026-09-27 — Main production promotion
+
+- Owner authorized main-to-production release PR1369. Batch main402f8028 contains admin prototype, local-only Stripe foundation, subscription policy and compact Gradebook changes. Reconciled only CURRENT and journal history conflicts, preserving both histories. Fresh production read confirms migrations206–210 and strict automatic Free signup active for183 classified accounts. No migration or feature switch changed.
+- Risk runtime-platform. One independent Sol security and Terra compatibility wave; local focused verification and final reviewed-head CI precede merge. Billing/admin and maximum-edit activation remain separate gates.
+
+## 2026-09-27 — Deploy reference-preservation fix
+
+User authorized production release of the merged fix. PR1373 promotes reviewed main6650e76a, including default-off checkout foundation PR1368 and reference-preservation PR1370. Independent Sol safety and Terra compatibility reviews found no application blockers; resolved continuity archive conflict by retaining both histories, with application/schema blobs unchanged. No migrations, billing flags, provider configuration, or worker scheduling are authorized or performed. Exact-head release CI and Vercel readiness precede completion.
