@@ -26,6 +26,7 @@ export interface ExamDocumentItem {
   url?: string
   content?: string
   imageType?: 'image/png' | 'image/jpeg' | null
+  isPdf?: boolean
 }
 
 interface ExamDocumentWorkspaceProps {
@@ -377,6 +378,9 @@ export function ExamDocumentWorkspace({
                 >
                   {iframeDocuments.map((document) => {
                     const isVisible = activeDocument?.id === document.id
+                    // Chrome's PDF viewer cannot load inside a sandboxed frame.
+                    // Mount PDFs only when opened so hidden documents do not start a viewer.
+                    if (document.isPdf && !isVisible) return null
                     return (
                       <iframe
                         key={document.id}
@@ -389,7 +393,7 @@ export function ExamDocumentWorkspace({
                           'absolute inset-y-0 left-0 h-full w-[calc(100%+10px)] transition-opacity duration-fast motion-reduce:transition-none',
                           isVisible ? 'opacity-100' : 'pointer-events-none opacity-0',
                         )}
-                        sandbox="allow-same-origin allow-scripts allow-forms"
+                        sandbox={document.isPdf ? undefined : 'allow-same-origin allow-scripts allow-forms'}
                         loading="eager"
                         tabIndex={isVisible ? 0 : -1}
                       />
