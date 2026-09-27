@@ -26,6 +26,20 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('demonstrates normal and exam header navigation for %s', (role) => {
+    renderGallery(role)
+    const references = within(screen.getByRole('region', { name: 'Application header references' }))
+    const headers = references.getAllByRole('banner')
+    expect(within(headers[0]).getByRole('heading', { name: 'Classrooms' })).toBeInTheDocument()
+    expect(within(headers[0]).getByRole('button', { name: 'Enter fullscreen' })).toBeInTheDocument()
+    expect(within(headers[1]).getByText('Exam header reference')).toBeInTheDocument()
+    expect(within(headers[1]).getByLabelText('Exits 0')).toBeInTheDocument()
+    expect(within(headers[1]).queryByRole('button', { name: 'Enter fullscreen' })).not.toBeInTheDocument()
+    for (const header of headers) {
+      expect(within(header).getByRole('link', { name: 'Home' })).toBeInTheDocument()
+    }
+  })
+
   beforeEach(() => { vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }) })
   afterEach(() => { vi.unstubAllGlobals() })
   it('demonstrates explicitly activated formatted help', async () => {

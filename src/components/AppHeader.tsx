@@ -246,10 +246,12 @@ export function AppHeader({
             </button>
           </Tooltip>
         )}
-        <span className="mr-2 hidden whitespace-nowrap text-base font-semibold tabular-nums text-text-default sm:inline-flex">
-          <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
-          <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
-        </span>
+        {(isFullscreen || isExamMode) && (
+          <span data-testid="header-date-time" className="mr-2 hidden whitespace-nowrap text-base font-semibold tabular-nums text-text-default sm:inline-flex">
+            <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
+            <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
+          </span>
+        )}
         <UserMenu user={user} />
       </div>
     </header>
