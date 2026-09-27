@@ -57,6 +57,7 @@ describe('contextual Assignment inline-image migration', () => {
     expect(read).toContain('v_current_assignment_id is distinct from v_initial_assignment_id')
     expect(read).toContain('v_archived_at is not null')
     expect(read).toContain('v_object.resource_id is distinct from p_assignment_doc_id')
+    expect(read).toContain('v_object.created_by_user_id is distinct from v_subject_id')
     expect(read).toContain("v_object.status <> 'ready'")
     expect(read).toContain("v_object.status not in ('verified', 'ready')")
     expect(reserve).toContain("'submission-images'")
@@ -72,6 +73,10 @@ describe('contextual Assignment inline-image migration', () => {
       'Teacher-valued member reservation returned invalid evidence',
       'Student-valued owner could not inspect ready image',
       'Owner self-enrollment bypassed write precedence',
+      'Owner read image with substituted creator',
+      'Teacher-valued member read cross-subject image',
+      'Owner could not read ready image in archived Classroom',
+      'Owner read revoked subject image',
       'Submitted member image became unreadable',
       'Submitted document accepted a reservation',
       'Revoked member reserved an inline image',

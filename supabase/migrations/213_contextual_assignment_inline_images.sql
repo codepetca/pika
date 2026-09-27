@@ -383,6 +383,7 @@ begin
     or v_object.storage_bucket <> 'submission-images'
     or v_object.purpose <> 'student_inline_image'
     or v_object.classroom_id is distinct from v_assignment_classroom_id
+    or v_object.created_by_user_id is distinct from v_subject_id
     or v_object.data_subject_user_id is distinct from v_subject_id
     or v_object.resource_type <> 'assignment_doc'
     or v_object.resource_id is distinct from p_assignment_doc_id

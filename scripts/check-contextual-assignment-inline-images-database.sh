@@ -161,11 +161,6 @@ begin
   ] loop
     if (v_result->>'ok')::boolean then raise exception 'Hidden lifecycle image was readable: %', v_result; end if;
   end loop;
-  delete from public.classroom_enrollments where classroom_id = v_classroom and student_id = v_teacher_member;
-  begin
-    perform public.reserve_assignment_inline_image_for_member_v1(v_teacher_member, v_classroom, v_teacher_doc, gen_random_uuid(), 'png', 'image/png', 4);
-    raise exception 'Revoked member reserved an inline image';
-  exception when insufficient_privilege then null; end;
 end;
 $behavior$;
 reset role;
@@ -173,22 +168,47 @@ reset role;
 -- Only the fixture's postgres session may promote verified bytes without a
 -- persistent reference. Application service_role never receives this grant.
 select public.managed_storage_mark_ready('c2130000-0000-4000-8000-000000000040');
+select public.begin_managed_storage_upload('c2130000-0000-4000-8000-000000000044', 'submission-images', 'fixture/c213/wrong-creator.png', 'c2130000-0000-4000-8000-000000000010', null, null, 'student_inline_image', 'c2130000-0000-4000-8000-000000000004', 'c2130000-0000-4000-8000-000000000002', 'assignment_doc', 'c2130000-0000-4000-8000-000000000030', 'image/png', 4);
+select public.begin_managed_storage_upload('c2130000-0000-4000-8000-000000000045', 'submission-images', 'fixture/c213/cross-subject.png', 'c2130000-0000-4000-8000-000000000010', null, null, 'student_inline_image', 'c2130000-0000-4000-8000-000000000003', 'c2130000-0000-4000-8000-000000000003', 'assignment_doc', 'c2130000-0000-4000-8000-000000000031', 'image/png', 4);
+insert into storage.objects (bucket_id, name) values ('submission-images', 'fixture/c213/wrong-creator.png'), ('submission-images', 'fixture/c213/cross-subject.png');
+select public.verify_managed_storage_upload('c2130000-0000-4000-8000-000000000044'), public.verify_managed_storage_upload('c2130000-0000-4000-8000-000000000045');
+select public.managed_storage_mark_ready('c2130000-0000-4000-8000-000000000043'), public.managed_storage_mark_ready('c2130000-0000-4000-8000-000000000044'), public.managed_storage_mark_ready('c2130000-0000-4000-8000-000000000045');
 set local role service_role;
 do $owner_behavior$
 declare
   v_owner constant uuid := 'c2130000-0000-4000-8000-000000000001';
+  v_teacher_member constant uuid := 'c2130000-0000-4000-8000-000000000002';
   v_classroom constant uuid := 'c2130000-0000-4000-8000-000000000010';
+  v_archived_classroom constant uuid := 'c2130000-0000-4000-8000-000000000011';
   v_teacher_doc constant uuid := 'c2130000-0000-4000-8000-000000000030';
+  v_student_doc constant uuid := 'c2130000-0000-4000-8000-000000000031';
+  v_archived_doc constant uuid := 'c2130000-0000-4000-8000-000000000034';
   v_owner_doc constant uuid := 'c2130000-0000-4000-8000-000000000035';
   v_object constant uuid := 'c2130000-0000-4000-8000-000000000040';
   v_result jsonb;
 begin
   v_result := public.read_assignment_inline_image_for_context_v1(v_owner, v_classroom, v_teacher_doc, v_object);
   if not (v_result->>'ok')::boolean then raise exception 'Student-valued owner could not inspect ready image: %', v_result; end if;
+  v_result := public.read_assignment_inline_image_for_context_v1(v_owner, v_classroom, v_teacher_doc, 'c2130000-0000-4000-8000-000000000044');
+  if (v_result->>'ok')::boolean then raise exception 'Owner read image with substituted creator: %', v_result; end if;
+  v_result := public.read_assignment_inline_image_for_context_v1(v_teacher_member, v_classroom, v_student_doc, 'c2130000-0000-4000-8000-000000000045');
+  if (v_result->>'ok')::boolean then raise exception 'Teacher-valued member read cross-subject image: %', v_result; end if;
+  v_result := public.read_assignment_inline_image_for_context_v1(v_owner, v_archived_classroom, v_archived_doc, 'c2130000-0000-4000-8000-000000000043');
+  if not (v_result->>'ok')::boolean then raise exception 'Owner could not read ready image in archived Classroom: %', v_result; end if;
   begin
     perform public.reserve_assignment_inline_image_for_member_v1(v_owner, v_classroom, v_owner_doc, gen_random_uuid(), 'png', 'image/png', 4);
     raise exception 'Owner self-enrollment bypassed write precedence';
   exception when insufficient_privilege then null; end;
+  delete from public.classroom_enrollments where classroom_id = v_classroom and student_id = v_teacher_member;
+  begin
+    perform public.reserve_assignment_inline_image_for_member_v1(v_teacher_member, v_classroom, v_teacher_doc, gen_random_uuid(), 'png', 'image/png', 4);
+    raise exception 'Revoked member reserved an inline image';
+  exception when insufficient_privilege then null; end;
+  v_result := public.read_assignment_inline_image_for_context_v1(v_owner, v_classroom, v_teacher_doc, v_object);
+  if (v_result->>'ok')::boolean then raise exception 'Owner read revoked subject image: %', v_result; end if;
+  delete from public.classroom_enrollments where classroom_id = v_archived_classroom and student_id = 'c2130000-0000-4000-8000-000000000003';
+  v_result := public.read_assignment_inline_image_for_context_v1(v_owner, v_archived_classroom, v_archived_doc, 'c2130000-0000-4000-8000-000000000043');
+  if (v_result->>'ok')::boolean then raise exception 'Owner read removed archived subject image: %', v_result; end if;
 end;
 $owner_behavior$;
 reset role;
