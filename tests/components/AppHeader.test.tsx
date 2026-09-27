@@ -237,6 +237,8 @@ describe('AppHeader date and time visibility', () => {
   function setWindowSize(width: number, height: number) {
     vi.stubGlobal('innerWidth', width)
     vi.stubGlobal('innerHeight', height)
+    vi.stubGlobal('outerWidth', width)
+    vi.stubGlobal('outerHeight', height)
     vi.spyOn(window.screen, 'availWidth', 'get').mockReturnValue(1440)
     vi.spyOn(window.screen, 'availHeight', 'get').mockReturnValue(900)
   }
@@ -247,11 +249,14 @@ describe('AppHeader date and time visibility', () => {
     expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
 
     vi.stubGlobal('innerWidth', 1440)
-    vi.stubGlobal('innerHeight', 820)
+    vi.stubGlobal('innerHeight', 700) // Browser chrome reduces the content viewport.
+    vi.stubGlobal('outerWidth', 1440)
+    vi.stubGlobal('outerHeight', 900)
     fireEvent(window, new Event('resize'))
     expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
 
     vi.stubGlobal('innerWidth', 1000)
+    vi.stubGlobal('outerWidth', 1000)
     fireEvent(window, new Event('resize'))
     expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
   })
@@ -278,6 +283,14 @@ describe('AppHeader date and time visibility', () => {
     rerender(<AppHeader />)
     expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
   })
+
+  it.each([[1400, 820], [1440, 820], [1000, 900]])(
+    'hides in a restored %s by %s window even when it nearly fills the screen', (width, height) => {
+      setWindowSize(width, height)
+      render(<AppHeader />, { wrapper: Wrapper })
+      expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+    },
+  )
 
   it('does not infer maximization when screen dimensions are unavailable', () => {
     setWindowSize(1000, 700)

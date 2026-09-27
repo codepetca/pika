@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react'
 
-/** Browser windows have no maximize event; use the teacher exam-preview size heuristic. */
+// Allow for small platform window-border differences without counting near-full windows.
+const WINDOW_BORDER_TOLERANCE = 8
+
+/** Browsers expose no native maximize state; compare outer window and available screen bounds. */
 export function useWindowMaximized() {
   const [isMaximized, setIsMaximized] = useState(false)
 
@@ -11,8 +14,8 @@ export function useWindowMaximized() {
       const { availWidth, availHeight } = window.screen
       setIsMaximized(
         availWidth > 0 && availHeight > 0
-        && window.innerWidth / availWidth >= 0.96
-        && window.innerHeight / availHeight >= 0.9
+        && Math.abs(window.outerWidth - availWidth) <= WINDOW_BORDER_TOLERANCE
+        && Math.abs(window.outerHeight - availHeight) <= WINDOW_BORDER_TOLERANCE
       )
     }
     update()
