@@ -2312,12 +2312,18 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   }
   await page.waitForTimeout(350)
   const before = await bounds()
+  const listDocumentWidth = (await documentsPane.boundingBox())!.width
   await page.screenshot({ path: testInfo.outputPath(`student-test-list-${viewport}.png`), animations: 'disabled' })
   await page.getByRole('button', { name: 'Karel grid PNG', exact: true }).click()
   const image = page.getByRole('img', { name: 'Karel grid PNG' })
   await expect(image).toBeVisible()
   await page.waitForTimeout(350)
-  expect(await bounds()).toEqual(before)
+  if (viewport === 'desktop') {
+    await expect(separator).toHaveAttribute('aria-valuenow', '50')
+    expect((await documentsPane.boundingBox())!.width).toBeGreaterThan(listDocumentWidth)
+  } else {
+    expect(await bounds()).toEqual(before)
+  }
   await expect(page.getByRole('region', { name: 'Karel grid PNG image' })).toHaveCount(1)
   await expect(imageZoomStatus).toHaveText('Fit')
   await page.getByRole('button', { name: 'Zoom in' }).click()
@@ -2430,6 +2436,9 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
   })
   await page.getByRole('button', { name: 'Maximize Window' }).click()
   await page.getByRole('button', { name: 'karel-grid.jpeg', exact: true }).click()
+  if (viewport === 'desktop') {
+    await expect(page.getByRole('separator', { name: 'Resize documents and questions panes' })).toHaveAttribute('aria-valuenow', '50')
+  }
   await expect(page.getByText('Image unavailable', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Try again' }).click()
   const image = page.getByRole('img', { name: 'karel-grid.jpeg' })

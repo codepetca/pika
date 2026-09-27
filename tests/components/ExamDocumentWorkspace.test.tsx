@@ -212,6 +212,30 @@ describe('ExamDocumentWorkspace', () => {
     expect(separator).toHaveAttribute('aria-valuenow', '30')
   })
 
+  it('opens images at maximum width and restores the chosen width after Back', () => {
+    render(<Harness />)
+    const separator = screen.getByRole('separator', { name: 'Resize documents and questions panes' })
+    const split = screen.getByTestId('exam-document-split').parentElement!
+
+    fireEvent.keyDown(separator, { key: 'ArrowRight' })
+    fireEvent.keyDown(separator, { key: 'ArrowRight' })
+    expect(separator).toHaveAttribute('aria-valuenow', '40')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start world' }))
+    expect(separator).toHaveAttribute('aria-valuenow', '50')
+    expect(split).toHaveStyle('--exam-documents-grow: 50')
+    expect(split).toHaveStyle('--exam-questions-grow: 50')
+
+    fireEvent.keyDown(separator, { key: 'ArrowLeft' })
+    expect(separator).toHaveAttribute('aria-valuenow', '45')
+    fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
+    expect(separator).toHaveAttribute('aria-valuenow', '40')
+    expect(split).toHaveStyle('--exam-documents-grow: 40')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unit 1 Docs' }))
+    expect(separator).toHaveAttribute('aria-valuenow', '40')
+  })
+
   it('keeps question input state mounted through document navigation and resizing', () => {
     render(<Harness />)
     const answer = screen.getByRole('textbox', { name: 'Answer' })

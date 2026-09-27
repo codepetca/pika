@@ -83,6 +83,7 @@ export function ExamDocumentWorkspace({
   const removePointerResizeListenersRef = useRef<(() => void) | null>(null)
   const documentButtonRefs = useRef<Map<string, HTMLButtonElement>>(new Map())
   const returnFocusDocumentIdRef = useRef<string | null>(null)
+  const widthBeforeImageRef = useRef<number | null>(null)
   const [documentsWidth, setDocumentsWidth] = useState(
     DOCUMENTS_DEFAULT_WIDTH_PERCENT,
   )
@@ -99,6 +100,7 @@ export function ExamDocumentWorkspace({
     setDocumentsWidth(DOCUMENTS_DEFAULT_WIDTH_PERCENT)
     setIsPointerResizing(false)
     returnFocusDocumentIdRef.current = null
+    widthBeforeImageRef.current = null
   }, [resetKey])
 
   useEffect(() => () => {
@@ -188,13 +190,24 @@ export function ExamDocumentWorkspace({
   const handleOpenDocument = useCallback((document: ExamDocumentItem) => {
     onDocumentInteraction?.()
     returnFocusDocumentIdRef.current = document.id
+    if (document.imageType) {
+      widthBeforeImageRef.current ??= documentsWidth
+      setDocumentsWidth(DOCUMENTS_MAX_WIDTH_PERCENT)
+    } else if (widthBeforeImageRef.current !== null) {
+      setDocumentsWidth(widthBeforeImageRef.current)
+      widthBeforeImageRef.current = null
+    }
     onOpenDocument(document)
-  }, [onDocumentInteraction, onOpenDocument])
+  }, [documentsWidth, onDocumentInteraction, onOpenDocument])
 
   const handleCloseDocument = useCallback(() => {
     onDocumentInteraction?.()
     if (activeDocument) {
       returnFocusDocumentIdRef.current = activeDocument.id
+    }
+    if (widthBeforeImageRef.current !== null) {
+      setDocumentsWidth(widthBeforeImageRef.current)
+      widthBeforeImageRef.current = null
     }
     onCloseDocument()
   }, [activeDocument, onCloseDocument, onDocumentInteraction])
