@@ -12,3 +12,6 @@ if [[ "$(docker exec supabase_db_pika psql -U postgres -d postgres -X -Atc "sele
 fi
 docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
   < scripts/check-subscription-lifecycle-database.sql
+
+# Forward validation repair is independently migration-gated and rollback-only.
+bash scripts/check-subscription-lifecycle-validation-database.sh

@@ -2425,6 +2425,209 @@ export type Database = {
           },
         ]
       }
+      billing_account_access: {
+        Row: {
+          access_ends_at: string
+          account_plan_revision: number
+          end_reason: string
+          entitlement_revision: number | null
+          expiry_applied_at: string | null
+          failed_renewal_invoice_id: string | null
+          last_paid_invoice_id: string | null
+          last_provider_verified_at: string | null
+          offering_version_id: string | null
+          paid_period_start: string | null
+          paid_through: string | null
+          revision: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          subscription_id: string | null
+          trial_subject_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_ends_at: string
+          account_plan_revision: number
+          end_reason: string
+          entitlement_revision?: number | null
+          expiry_applied_at?: string | null
+          failed_renewal_invoice_id?: string | null
+          last_paid_invoice_id?: string | null
+          last_provider_verified_at?: string | null
+          offering_version_id?: string | null
+          paid_period_start?: string | null
+          paid_through?: string | null
+          revision?: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          subscription_id?: string | null
+          trial_subject_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_ends_at?: string
+          account_plan_revision?: number
+          end_reason?: string
+          entitlement_revision?: number | null
+          expiry_applied_at?: string | null
+          failed_renewal_invoice_id?: string | null
+          last_paid_invoice_id?: string | null
+          last_provider_verified_at?: string | null
+          offering_version_id?: string | null
+          paid_period_start?: string | null
+          paid_through?: string | null
+          revision?: number
+          source?: string
+          starts_at?: string
+          subject_user_id?: string
+          subscription_id?: string | null
+          trial_subject_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_account_access_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_account_access_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_account_access_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_account_access_trial_subject_user_id_fkey"
+            columns: ["trial_subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "billing_trials"
+            referencedColumns: ["subject_user_id"]
+          },
+        ]
+      }
+      billing_lifecycle_audit: {
+        Row: {
+          created_at: string
+          id: string
+          next_state: Json
+          operation_id: string
+          previous_state: Json | null
+          reason: string
+          subject_user_id: string
+          subscription_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          next_state: Json
+          operation_id: string
+          previous_state?: Json | null
+          reason: string
+          subject_user_id: string
+          subscription_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          next_state?: Json
+          operation_id?: string
+          previous_state?: Json | null
+          reason?: string
+          subject_user_id?: string
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_lifecycle_audit_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_lifecycle_audit_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_trial_definitions: {
+        Row: {
+          classroom_limit: number
+          duration_seconds: number
+          id: string
+          plan_key: string
+        }
+        Insert: {
+          classroom_limit: number
+          duration_seconds: number
+          id: string
+          plan_key: string
+        }
+        Update: {
+          classroom_limit?: number
+          duration_seconds?: number
+          id?: string
+          plan_key?: string
+        }
+        Relationships: []
+      }
+      billing_trials: {
+        Row: {
+          converted_to_paid_at: string | null
+          definition_id: string
+          ends_at: string
+          operation_id: string
+          started_at: string
+          subject_user_id: string
+        }
+        Insert: {
+          converted_to_paid_at?: string | null
+          definition_id: string
+          ends_at: string
+          operation_id: string
+          started_at: string
+          subject_user_id: string
+        }
+        Update: {
+          converted_to_paid_at?: string | null
+          definition_id?: string
+          ends_at?: string
+          operation_id?: string
+          started_at?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_trials_definition_id_fkey"
+            columns: ["definition_id"]
+            isOneToOne: false
+            referencedRelation: "billing_trial_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_trials_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_days: {
         Row: {
           classroom_id: string
@@ -6875,6 +7078,7 @@ export type Database = {
           created_at: string
           fencing_token: number
           id: string
+          is_current: boolean
           last_exception_code: string | null
           last_period_end: string | null
           last_period_start: string | null
@@ -6882,6 +7086,7 @@ export type Database = {
           lease_expires_at: string | null
           lease_token: string | null
           next_reconcile_at: string | null
+          obligations_cleared_at: string | null
           offering_version_id: string
           provider_mode: string
           reconcile_attempt_count: number
@@ -6892,12 +7097,14 @@ export type Database = {
           stripe_customer_id: string
           stripe_subscription_id: string
           subject_user_id: string
+          terminal_confirmed_at: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           fencing_token?: number
           id?: string
+          is_current?: boolean
           last_exception_code?: string | null
           last_period_end?: string | null
           last_period_start?: string | null
@@ -6905,6 +7112,7 @@ export type Database = {
           lease_expires_at?: string | null
           lease_token?: string | null
           next_reconcile_at?: string | null
+          obligations_cleared_at?: string | null
           offering_version_id: string
           provider_mode?: string
           reconcile_attempt_count?: number
@@ -6915,12 +7123,14 @@ export type Database = {
           stripe_customer_id: string
           stripe_subscription_id: string
           subject_user_id: string
+          terminal_confirmed_at?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           fencing_token?: number
           id?: string
+          is_current?: boolean
           last_exception_code?: string | null
           last_period_end?: string | null
           last_period_start?: string | null
@@ -6928,6 +7138,7 @@ export type Database = {
           lease_expires_at?: string | null
           lease_token?: string | null
           next_reconcile_at?: string | null
+          obligations_cleared_at?: string | null
           offering_version_id?: string
           provider_mode?: string
           reconcile_attempt_count?: number
@@ -6938,6 +7149,7 @@ export type Database = {
           stripe_customer_id?: string
           stripe_subscription_id?: string
           subject_user_id?: string
+          terminal_confirmed_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -6951,7 +7163,7 @@ export type Database = {
           {
             foreignKeyName: "stripe_billing_subscription_bindings_subject_user_id_fkey"
             columns: ["subject_user_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -9021,6 +9233,7 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_apply_due_access_v1: { Args: { p_request: Json }; Returns: Json }
       billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
       billing_claim_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_claim_subscription_v1: {
@@ -9029,10 +9242,12 @@ export type Database = {
       }
       billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_subscription_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_get_access_status_v1: { Args: { p_request: Json }; Returns: Json }
       billing_get_checkout_offering_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -9058,6 +9273,7 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_start_trial_v1: { Args: { p_request: Json }; Returns: Json }
       bind_classroom_archive_restore_managed_object: {
         Args: {
           p_managed_object_id: string

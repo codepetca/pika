@@ -202,7 +202,7 @@ begin
       'provider_status',case when v_elapsed then 'canceled' else 'active' end));
     if r->>'status'<>'applied' then raise exception 'Exhausted-retry first observation failed: %',r; end if;
     r:=public.billing_get_access_status_v1(jsonb_build_object('subject_user_id',v_user));
-    if r->>'state'<>case when v_elapsed then 'free' else 'renewal_grace' end
+    if r->>'state'<>(case when v_elapsed then 'free' else 'renewal_grace' end)
       or (r->>'can_start_paid_work')::boolean=v_elapsed then raise exception 'Delayed failure moved its grace window'; end if;
     select revision into v_before_revision from public.account_plans where subject_user_id=v_user;
     c:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));

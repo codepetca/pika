@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-25 — Draft test selection guidance
-
-- Updated PR1361 on `codex/disable-draft-test-student-actions`: disabled draft student header/row checkboxes and the Student actions menu now show concise Publish-first tooltips on hover and keyboard focus. The shared `TableSelectionCheckbox` has an optional `disabledTooltip` prop; Pattern Lab documents it with a deterministic teacher example. No student UI changed.
-- Reused canonical Tooltip and existing teacher table/menu owners; no new visual pattern. Teacher draft/published states passed Playwright at 1440/390 widths, light/dark; Pattern Lab teacher example passed the same matrix. Screenshots under ignored `output/playwright/`. Composite widget checklist: relationships retained; focusable disabled guidance and semantics tested; no manual follow-up. Focused gate passed 1820 tests plus architecture/UI/design/type/lint checks; audit clean. Independent review and stable-SHA CI follow.
-- User approved resuming the time-limited independent reviews. Both reviewers confirmed two blockers: Turkish/German case variants could evade name masking, and unknown batch-grading provider refs could reach durable Test-run errors. Batched fixes add folded matching with original grapheme-offset substitution and fixed unknown/duplicate-ref errors, preserving existing retry/classification behavior. Also corrected UTF-16-only initials for astral names.
-- Added regressions for Turkish-I, sharp-S in both directions, Greek sigma, unchanged surrounding text/context, astral initials, and actual batch-adapter errors through saved Test-run items. Targeted tests pass 4 files / 75 tests. Focused gate, targeted privacy re-review and final cumulative integration review remain required before ready/CI. No migration, dependency, production setting or deployment change.
-
 ## 2026-09-25 — Remove Test split-pane prototype header
 
 - Removed the visible full-width Edit Test header and made the experimental modal flush to its pane edges. Saved status now sits beside the Title label and Settings icon; the accessible Close control remains at the top-right without overlapping the mobile controls. Production Test editing and other creation modals are unchanged.
@@ -407,3 +400,7 @@ Owner requested remaining lifecycle, classroom enforcement, billing screens and 
 ## 2026-09-27 Subscription lifecycle draft and first review
 
 Draft PR #1377 adds gated once-only Pro trials, finite version-bound paid access, renewal/grace/cancellation observations, due expiry, authenticated status/trial APIs, and rollback-only SQL contracts. Initial Sol/high security and Terra/high compatibility reviews completed; batch 1 fixes grace truncation by cancellation/original-invoice replay and missed uncollectible renewal recovery. Billing tests pass 285; SQL harness and generated RPC types remain pending exact local migration 214 approval. Existing local DB is still at 213 and unchanged. Further lifecycle commands/financial closeout, classroom restrictions, UI/notices and full sandbox rehearsal remain in the coordinator plan. No new merge, production, live billing or real email authority.
+
+## 2026-09-27 Local subscription schema verification
+
+Owner approved local214; one reviewed push applied only214 successfully. Generated types refreshed; focused248tests/architecture/UI/design/TypeScript/lint pass. Lifecycle and checkout SQL contracts pass after a harness-only CASE parenthesis correction. Foundation SQL contract exposed changed malformed-fence responses; forward215 restores original22023 validation for both entrypoints and adds rollback-only validation coverage.214 remains immutable.215 is authored and unapplied pending review/exact approval. Local9users/1classroom/billingsandboxfalse preserved. PR1377 remains draft; reviewbudget3launches and2fixbatches (45minute cap19:57UTC).

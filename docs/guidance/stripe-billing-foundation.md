@@ -184,9 +184,14 @@ shorten recorded grace, and a first observation of an uncollectible renewal
 could miss grace entirely. The remediation preserves the exact recorded cutoff
 and failed-invoice identity; only a genuinely later verified paid term clears
 grace. Strict unpaid-cycle evidence is evaluated before generic cancellation.
-The billing suite passes 285 tests; the new rollback-only database harness and
-generated types still await separately approved local migration 214 application.
-This evidence does not complete phase 2 or authorize activation.
+The billing suite passes 285 tests. Migration 214 was approved and applied once
+to the existing local database; generated types and all focused checks pass.
+Lifecycle and checkout database contracts pass. The older foundation contract
+exposed missing invalid-request validation in the new lifecycle entrypoint;
+forward migration 215 restores that contract without editing applied 214.
+Migration 215 and its dedicated rollback harness await exact local application
+approval after review. Local data remains nine users and one classroom, with
+billing disabled. This evidence does not complete phase 2 or authorize activation.
 
 Unresolved launch policy remains explicit: tax/refund/dispute consequences and AI
 quantities are not silently invented. A scheduled downgrade's failed-renewal grace
