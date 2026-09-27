@@ -2346,7 +2346,11 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
     await page.mouse.move(dragX - 100, dragY, { steps: 5 })
     await page.mouse.up()
     expect(Number(await separator.getAttribute('aria-valuenow'))).toBeLessThan(50)
-    await page.waitForTimeout(700) // Includes the exam's delayed blur-signal grace period.
+    expect(focusEventRequests).toBe(0)
+    // Browser chrome can briefly take focus at pointer release; the drag marks
+    // this as a document interaction, so it must not become a delayed exit.
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+    await page.waitForTimeout(700)
     expect(focusEventRequests).toBe(0)
   }
   await page.getByRole('button', { name: 'Back to documents list' }).click()
