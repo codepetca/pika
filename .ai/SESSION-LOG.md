@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-25 — Disable student actions for unpublished tests
-
-- Owner: `codex/disable-draft-test-student-actions`. Draft test student tables now disable selection, batch grading/return/unsubmit/delete, access controls, and row unsubmit; row activation cannot open the grading inspector. Publish remains available from the action bar and editor. Publishing restores student selection and actions.
-- Reused the existing teacher test action bar, student table, and status controls; Pattern Lab teacher operational controls were the visual reference. No student-facing surface changed. Teacher desktop/mobile light/dark fixture verification passed for draft and published states; screenshots under ignored `output/playwright/`.
-- Component coverage includes stale submitted/open draft rows and confirms controls remain disabled; 77 direct component tests passed. Pika audit passed. Composite-widget accessibility checklist reviewed: keyboard behavior yes, semantic disabled state tested yes, manual follow-up none. Focused checks and PR review follow.
-- Independent review found direct draft grading/deletion API access despite UI gating. One remediation batch adds draft rejection to AI grading/suggestion, manual grade/save/clear, and single/bulk work deletion routes, with no-mutation API regressions. Exit-alert activation is also disabled for drafts; draft student tables do not start exit polling. Affected tests: 126 passed; focused gate: 269 passed plus architecture/UI/design/types/lint; audit clean. Targeted re-review and stable-SHA CI follow.
-- Targeted re-review found queued AI grading runs could still tick for draft tests. Second correction rejects draft ticks server-side and stops client polling for draft runs; API and component regressions pass (81 targeted tests). Final targeted review and ready-SHA CI follow.
-
-## 2026-09-25 — Draft test selection guidance
-
-- Updated PR1361 on `codex/disable-draft-test-student-actions`: disabled draft student header/row checkboxes and the Student actions menu now show concise Publish-first tooltips on hover and keyboard focus. The shared `TableSelectionCheckbox` has an optional `disabledTooltip` prop; Pattern Lab documents it with a deterministic teacher example. No student UI changed.
-- Reused canonical Tooltip and existing teacher table/menu owners; no new visual pattern. Teacher draft/published states passed Playwright at 1440/390 widths, light/dark; Pattern Lab teacher example passed the same matrix. Screenshots under ignored `output/playwright/`. Composite widget checklist: relationships retained; focusable disabled guidance and semantics tested; no manual follow-up. Focused gate passed 1820 tests plus architecture/UI/design/type/lint checks; audit clean. Independent review and stable-SHA CI follow.
-- User approved resuming the time-limited independent reviews. Both reviewers confirmed two blockers: Turkish/German case variants could evade name masking, and unknown batch-grading provider refs could reach durable Test-run errors. Batched fixes add folded matching with original grapheme-offset substitution and fixed unknown/duplicate-ref errors, preserving existing retry/classification behavior. Also corrected UTF-16-only initials for astral names.
-- Added regressions for Turkish-I, sharp-S in both directions, Greek sigma, unchanged surrounding text/context, astral initials, and actual batch-adapter errors through saved Test-run items. Targeted tests pass 4 files / 75 tests. Focused gate, targeted privacy re-review and final cumulative integration review remain required before ready/CI. No migration, dependency, production setting or deployment change.
-
 ## 2026-09-25 — Remove Test split-pane prototype header
 
 - Removed the visible full-width Edit Test header and made the experimental modal flush to its pane edges. Saved status now sits beside the Title label and Settings icon; the accessible Close control remains at the top-right without overlapping the mobile controls. Production Test editing and other creation modals are unchanged.
@@ -423,3 +408,7 @@ Main sync: resolved only continuity-document overlap after PR1368 landed; review
 - User clarified that the date/time must stay hidden whenever Pika is not fullscreen, for both teacher and student. Removed the OS-window size inference, which could re-enable the clock after hydration; visibility now uses only the existing Fullscreen API state or exam header state. Exam enforcement is unchanged.
 - Reuse AppHeader/useFullscreen and existing clock styling; shared shell/Pattern Lab remain the reference. Verify both roles, light/dark, windowed (including screen-sized browser), fullscreen entry/exit, reload, mobile and exam header. No new components or composite-widget behavior.
 - Focused checks passed206 tests plus type/lint/architecture/UI/design gates;18 header tests cover screen-sized normal windows after effects/resize/focus and real fullscreen events. Browser verification and fixed-SHA review follow before returning PR1374 to ready.
+
+## 2026-09-27 — Titlebar clock merge preparation
+- User approved the fullscreen-only result and authorized PR1374 merge to main. Synced main85e8a2bf; the sole conflict was a duplicate archive-batch marker, resolved in favor of main's marker. Application and test files match reviewed687b3469; no product behavior changed during sync.
+- Required focused checks and targeted sync review precede stable-SHA CI and squash merge. Local server3107 remains the preview; no production promotion requested.
