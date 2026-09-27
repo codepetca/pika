@@ -226,3 +226,63 @@ describe('AppHeader classroom theme', () => {
     expect(cardRule).not.toContain('border-left-color')
   })
 })
+
+
+describe('AppHeader date and time visibility', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  function setWindowSize(width: number, height: number) {
+    vi.stubGlobal('innerWidth', width)
+    vi.stubGlobal('innerHeight', height)
+    vi.spyOn(window.screen, 'availWidth', 'get').mockReturnValue(1440)
+    vi.spyOn(window.screen, 'availHeight', 'get').mockReturnValue(900)
+  }
+
+  it.each(['teacher', 'student'] as const)('updates on maximize and restore for %s', (role) => {
+    setWindowSize(1000, 700)
+    render(<AppHeader user={{ email: 'user@example.com', role }} />, { wrapper: Wrapper })
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+
+    vi.stubGlobal('innerWidth', 1440)
+    vi.stubGlobal('innerHeight', 820)
+    fireEvent(window, new Event('resize'))
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+
+    vi.stubGlobal('innerWidth', 1000)
+    fireEvent(window, new Event('resize'))
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it('shows in fullscreen and hides on exit in a restored window', () => {
+    setWindowSize(1000, 700)
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
+    const fullscreen = vi.spyOn(document, 'fullscreenElement', 'get').mockReturnValue(document.documentElement)
+    render(<AppHeader />, { wrapper: Wrapper })
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+
+    fullscreen.mockReturnValue(null)
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it('keeps the clock in exam mode while window compliance is restored', () => {
+    setWindowSize(1000, 700)
+    const { rerender } = render(
+      <AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 0, awayTotalSeconds: 0 }} />,
+      { wrapper: Wrapper },
+    )
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+    rerender(<AppHeader />)
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it('does not infer maximization when screen dimensions are unavailable', () => {
+    setWindowSize(1000, 700)
+    vi.spyOn(window.screen, 'availWidth', 'get').mockReturnValue(0)
+    render(<AppHeader />, { wrapper: Wrapper })
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+})
