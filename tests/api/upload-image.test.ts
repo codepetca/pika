@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { DELETE, PATCH, POST } from '@/app/api/upload-image/route'
 import { IMAGE_MAX_SIZE } from '@/lib/image-upload'
@@ -72,6 +72,24 @@ describe('/api/upload-image direct storage flow', () => {
       error: null,
     })
     rpc.mockImplementation(async (name: string, args: Record<string, unknown>) => {
+      if (name === 'reserve_assignment_inline_image_for_member_v1') {
+        return { data: {
+          ok: true,
+          classroom_id: classroomId,
+          assignment_id: assignmentId,
+          assignment_doc_id: assignmentDocId,
+          managed_object_id: args.p_object_id,
+        }, error: null }
+      }
+      if (name === 'finalize_assignment_inline_image_for_member_v1') {
+        return { data: {
+          ok: true,
+          classroom_id: classroomId,
+          assignment_id: assignmentId,
+          assignment_doc_id: assignmentDocId,
+          managed_object_id: args.p_managed_object_id,
+        }, error: null }
+      }
       if (name === 'begin_managed_storage_upload') {
         managedObject = {
           ...managedObject,
@@ -111,6 +129,8 @@ describe('/api/upload-image direct storage flow', () => {
     } as unknown as ReturnType<typeof getServiceRoleClient>)
   })
 
+  afterEach(() => vi.unstubAllEnvs())
+
   it('rejects unauthenticated and identity-less sessions', async () => {
     const authError = new Error('Not authenticated')
     authError.name = 'AuthenticationError'
@@ -149,6 +169,26 @@ describe('/api/upload-image direct storage flow', () => {
       byte_size: IMAGE_MAX_SIZE + 1,
     })))).status).toBe(400)
     expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('lets a teacher-valued exact member reserve through the contextual transaction', async () => {
+    const contextualMemberId = '50000000-0000-4000-8000-000000000001'
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', JSON.stringify([{
+      userId: contextualMemberId, classroomId,
+    }]))
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: contextualMemberId, email: 'member@example.com', role: 'teacher',
+    } as Awaited<ReturnType<typeof requireAuth>>)
+
+    const response = await POST(request('POST', reservationBody()))
+
+    expect(response.status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('reserve_assignment_inline_image_for_member_v1', expect.objectContaining({
+      p_actor_id: contextualMemberId, p_assignment_doc_id: assignmentDocId,
+      p_expected_classroom_id: classroomId,
+    }))
+    expect(rpc).not.toHaveBeenCalledWith('begin_managed_storage_upload', expect.anything())
   })
 
   it('finalizes only an exact uploaded object whose size and MIME match', async () => {

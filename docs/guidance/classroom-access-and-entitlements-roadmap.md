@@ -342,6 +342,26 @@ actual integration findings; this roadmap is not a delivery-date commitment.
 
 ## Safe rollout while real classes continue
 
+### Current bounded integration slice — Assignment inline images
+
+The 2026-09-27 source audit found that private inline-image delivery still branches
+on the global account role, despite the gated contextual Assignment foundation.
+The authorized next slice is relationship-aware image delivery and upload/finalization
+lifecycle authorization. Implementation lives on `codex/contextual-assignment-images`;
+this task coordinates integration and review, separately from billing.
+
+Exit evidence: default-off exact-pair admission; unchanged unmatched legacy behavior;
+complete managed object/document/assignment/classroom binding; mixed-role owner/member
+tests; visibility, archive, enrollment-revocation and retry checks; transaction-time
+authorization for writes; focused checks and independent security/compatibility review.
+Any required migration application remains a separate exact-target authorization.
+
+After the image boundary is verified, rehearse a restricted synthetic manual Assignment
+flow (author/release, open/save/images, submit, inspect/manual grade/return, feedback).
+Do not enable the unrestricted classroom page or Teaching/Joined home for that rehearsal:
+their other reachable domains are not yet contextual. No cohort activation, production
+deployment, AI enablement, signup change or billing work is included in this slice.
+
 1. Establish baseline login, open-class, submission, grading and attendance canaries;
    capture the exact app/database versions and active rollout settings before each release.
 2. Ship additive code and any separately reviewed additive schema first. Existing accounts,

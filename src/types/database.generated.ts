@@ -10872,6 +10872,15 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_assignment_inline_image_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_doc_id: string
+          p_expected_classroom_id: string
+          p_managed_object_id: string
+        }
+        Returns: Json
+      }
       finalize_cold_archived_classroom_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -11476,6 +11485,15 @@ export type Database = {
         Args: { p_error_code?: string; p_object_id: string }
         Returns: boolean
       }
+      read_assignment_inline_image_for_context_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_doc_id: string
+          p_expected_classroom_id: string
+          p_managed_object_id: string
+        }
+        Returns: Json
+      }
       read_gradebook_maximum_state: {
         Args: { p_classroom_id: string }
         Returns: Json
@@ -11807,6 +11825,18 @@ export type Database = {
       }
       reserve_assignment_ai_grading_item_usage_with_lease_v1: {
         Args: { p_item_id: string; p_lease_token: string }
+        Returns: Json
+      }
+      reserve_assignment_inline_image_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_doc_id: string
+          p_byte_size: number
+          p_content_type: string
+          p_expected_classroom_id: string
+          p_extension: string
+          p_object_id: string
+        }
         Returns: Json
       }
       reserve_feature_usage_v1: {
