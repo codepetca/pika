@@ -315,6 +315,29 @@ describe('TestDetailPanel', () => {
     expect(screen.getByRole('button', { name: 'Edit Karel worlds' })).toBeInTheDocument()
   })
 
+  it.each(['classroom', 'api'] as const)('retries stale link sync after a %s owner change', async (owner) => {
+    const documents = [{ id: '11111111-1111-4111-8111-111111111111', title: 'Link reference', source: 'link', url: 'https://example.com/reference' }]
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/sync')) return Promise.resolve(new Response(JSON.stringify({ error: 'Sync unavailable' }), { status: 500, headers: { 'Content-Type': 'application/json' } }))
+      if (url.endsWith('/draft')) return Promise.resolve(jsonResponse({
+        editingPolicy: { structureLocked: false },
+        draft: { version: 1, content: { title: 'Test', show_results: false, questions: sampleQuestions } },
+      }))
+      return Promise.resolve(jsonResponse({ test: { documents } }))
+    })
+    const panel = (changed: boolean) => <TestDetailPanel test={makeTestWithStats({ status: 'draft' })}
+      classroomId={changed && owner === 'classroom' ? 'classroom-2' : 'classroom-1'}
+      apiBasePath={changed && owner === 'api' ? '/api/teacher/assignments' : '/api/teacher/tests'}
+      testQuestionLayout="split" onTestUpdate={vi.fn()} />
+    const { rerender } = render(panel(false), { wrapper: Wrapper })
+    const syncCalls = () => fetchMock.mock.calls.filter(call => call[0].endsWith('/sync'))
+    await waitFor(() => expect(syncCalls()).toHaveLength(1))
+    rerender(panel(true))
+    await waitFor(() => expect(syncCalls()).toHaveLength(2))
+    expect(syncCalls()[1][0]).toContain(owner === 'api' ? '/api/teacher/assignments/' : '/api/teacher/tests/')
+  })
+
   it('ignores a document edit completing after switching tests', async () => {
     const staleMutation = createDeferred<Response>()
     const currentDocuments = [{ id: '22222222-2222-4222-8222-222222222222', title: 'Current instructions', source: 'text', content: 'Current content' }]

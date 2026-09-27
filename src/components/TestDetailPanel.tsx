@@ -532,7 +532,7 @@ export function TestDetailPanel({
 
   useEffect(() => {
     autoSyncAttemptedRef.current.clear()
-  }, [testAssessment.id])
+  }, [apiBasePath, classroomId, testAssessment.id])
 
   const emitDraftSummaryChange = useCallback(
     (content: Pick<AssessmentEditorDraft, 'title' | 'show_results' | 'questions'>) => {
