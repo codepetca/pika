@@ -315,6 +315,42 @@ describe('TestDetailPanel', () => {
     expect(screen.getByRole('button', { name: 'Edit Karel worlds' })).toBeInTheDocument()
   })
 
+  it('ignores a document edit completing after switching tests', async () => {
+    const staleMutation = createDeferred<Response>()
+    const currentDocuments = [{ id: '22222222-2222-4222-8222-222222222222', title: 'Current instructions', source: 'text', content: 'Current content' }]
+    const staleDocuments = [{ id: '11111111-1111-4111-8111-111111111111', title: 'Old instructions', source: 'text', content: 'Old content' }]
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string, options?: RequestInit) => {
+      if (url.endsWith('/test-old') && options?.method === 'PATCH') return staleMutation.promise
+      if (url.endsWith('/draft')) return Promise.resolve(jsonResponse({
+        editingPolicy: { structureLocked: false },
+        draft: { version: 1, content: { title: 'Test', show_results: false, questions: sampleQuestions } },
+      }))
+      return Promise.resolve(jsonResponse({ test: { documents: url.endsWith('/test-old') ? staleDocuments : currentDocuments } }))
+    })
+    const onRequestTestPreview = vi.fn()
+    const panel = (id: string) => <TestDetailPanel test={makeTestWithStats({ id, status: 'draft' })}
+      classroomId="classroom-1" testQuestionLayout="split" onTestUpdate={vi.fn()}
+      onRequestTestPreview={onRequestTestPreview} />
+    const { rerender } = render(panel('test-old'), { wrapper: Wrapper })
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Old instructions' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Document text' }), { target: { value: 'Edited old content' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(call => call[0].endsWith('/test-old') && call[1]?.method === 'PATCH')).toBe(true))
+    rerender(panel('test-current'))
+    expect(await screen.findByRole('button', { name: 'Edit Current instructions' })).toBeInTheDocument()
+    await act(async () => {
+      staleMutation.resolve(jsonResponse({ test: { documents: staleDocuments } }))
+      await staleMutation.promise
+    })
+    expect(screen.getByRole('button', { name: 'Edit Current instructions' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit Old instructions' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }))
+    await waitFor(() => expect(onRequestTestPreview).toHaveBeenCalled())
+    const previewSave = fetchMock.mock.calls.find(call => call[0].endsWith('/test-current/draft') && call[1]?.method === 'PATCH')
+    expect(JSON.parse(previewSave![1].body).documents).toEqual(currentDocuments)
+  })
+
   it('ignores stale test detail documents after selected assessment changes', async () => {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
     const staleDetail = createDeferred<Response>()

@@ -327,6 +327,12 @@ export function TestDetailPanel({
     )
   }, [])
 
+  const documentEditorScopeKey = JSON.stringify([apiBasePath, classroomId, testAssessment.id])
+  const handleDocumentsChange = useCallback((nextDocuments: TestDocument[]) => {
+    const scope = { testId: testAssessment.id, classroomId, apiBasePath }
+    if (isCurrentAssessmentScope(scope)) setDocuments(nextDocuments)
+  }, [apiBasePath, classroomId, isCurrentAssessmentScope, testAssessment.id])
+
   const isCurrentLoadRequest = useCallback((requestId: number, scope: AssessmentRequestScope) => {
     return loadRequestIdRef.current === requestId && isCurrentAssessmentScope(scope)
   }, [isCurrentAssessmentScope])
@@ -1089,6 +1095,7 @@ export function TestDetailPanel({
     autoSyncAttemptedRef.current.add(attemptKey)
 
     let isCancelled = false
+    const scope = { testId: testAssessment.id, classroomId, apiBasePath }
 
     void (async () => {
       try {
@@ -1096,7 +1103,7 @@ export function TestDetailPanel({
           method: 'POST',
         })
         const data = await response.json()
-        if (!response.ok || isCancelled) {
+        if (!response.ok || isCancelled || !isCurrentAssessmentScope(scope)) {
           if (!response.ok) {
             console.error(`Auto-sync failed for ${staleDoc.title}:`, data?.error || 'Unknown error')
           }
@@ -1115,7 +1122,7 @@ export function TestDetailPanel({
     return () => {
       isCancelled = true
     }
-  }, [apiBasePath, documents, testAssessment.id])
+  }, [apiBasePath, classroomId, documents, isCurrentAssessmentScope, testAssessment.id])
 
   useEffect(() => {
     const currentQuestionIds = questions.map((question) => question.id)
@@ -1906,11 +1913,12 @@ export function TestDetailPanel({
         {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'Saved'}
       </div>
       <TestDocumentsEditor
+        key={documentEditorScopeKey}
         testId={testAssessment.id}
         documents={documents}
         apiBasePath={apiBasePath}
         isEditable={isEditable}
-        onDocumentsChange={setDocuments}
+        onDocumentsChange={handleDocumentsChange}
       />
     </div>
   )
@@ -1961,11 +1969,12 @@ export function TestDetailPanel({
       {isDocumentsCardExpanded ? (
         <div className="border-t border-border p-3">
           <TestDocumentsEditor
+        key={documentEditorScopeKey}
             testId={testAssessment.id}
             documents={documents}
             apiBasePath={apiBasePath}
             isEditable={isEditable && !hasPendingMarkdownImport}
-            onDocumentsChange={setDocuments}
+            onDocumentsChange={handleDocumentsChange}
             addButtonPlacement="none"
             externalAddRequest={externalDocumentAddRequest}
             onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
@@ -2230,11 +2239,12 @@ export function TestDetailPanel({
           </div>
           <div className={documents.length > 0 ? 'border-t border-border p-2' : 'px-2 pb-2'}>
             <TestDocumentsEditor
+        key={documentEditorScopeKey}
               testId={testAssessment.id}
               documents={documents}
               apiBasePath={apiBasePath}
               isEditable={isEditable && !hasPendingMarkdownImport}
-              onDocumentsChange={setDocuments}
+              onDocumentsChange={handleDocumentsChange}
               addButtonPlacement="none"
               externalAddRequest={externalDocumentAddRequest}
               onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
@@ -2577,11 +2587,12 @@ export function TestDetailPanel({
         ) : viewMode === 'documents' ? (
           <div className="space-y-3">
             <TestDocumentsEditor
+        key={documentEditorScopeKey}
               testId={testAssessment.id}
               documents={documents}
               apiBasePath={apiBasePath}
               isEditable={isEditable}
-              onDocumentsChange={setDocuments}
+              onDocumentsChange={handleDocumentsChange}
               addButtonPlacement="header"
               headerTitle="Reference Documents"
             />
