@@ -38,6 +38,17 @@ function deferredParams(id: string) {
   }
 }
 
+function materialsBuilder() {
+  const builder = {
+    select: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    order: vi.fn()
+      .mockImplementationOnce(() => builder)
+      .mockResolvedValueOnce({ data: [], error: null }),
+  }
+  return builder
+}
+
 describe('classroom material route authentication order', () => {
   beforeEach(() => {
     vi.resetAllMocks()
@@ -84,4 +95,52 @@ describe('classroom material route authentication order', () => {
       expect(getServiceRoleClient).not.toHaveBeenCalled()
     }
   )
+
+  it.each(routes)('fails closed for invalid shared admission after authentication and before params for $name', async ({ handler, callerRole }) => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', 'not-json')
+    const params = deferredParams('invalid')
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: actorId,
+      email: 'private@example.com',
+      role: callerRole,
+    } as AuthenticatedUser)
+
+    const response = await handler(request, params.context)
+
+    expect(response.status).toBe(503)
+    expect(params.then).not.toHaveBeenCalled()
+    expect(resolveClassroomAccess).not.toHaveBeenCalled()
+    expect(getServiceRoleClient).not.toHaveBeenCalled()
+  })
+
+  it('uses the real shared admission gate before the teacher material read', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
+      version: 1,
+      admittedUserIds: [actorId],
+    }))
+    vi.stubEnv('PIKA_CLASSROOM_MATERIALS_ACCESS_ENABLED', 'false')
+    vi.mocked(requireAuth).mockResolvedValue({
+      id: actorId,
+      email: 'private@example.com',
+      role: 'student',
+    } as AuthenticatedUser)
+    vi.mocked(resolveClassroomAccess).mockResolvedValue({
+      userId: actorId,
+      classroomId,
+      ownerId: actorId,
+      relationship: 'owner',
+      archived: false,
+    })
+    const builder = materialsBuilder()
+    vi.mocked(getServiceRoleClient).mockReturnValue({
+      from: vi.fn(() => builder),
+    } as unknown as ReturnType<typeof getServiceRoleClient>)
+
+    const response = await teacherGet(new NextRequest(`http://localhost/api/classrooms/${classroomId}/materials`), {
+      params: Promise.resolve({ id: classroomId }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(resolveClassroomAccess).toHaveBeenCalledWith(actorId, classroomId)
+  })
 })

@@ -37,6 +37,14 @@ when opening learner work instead of 403. Migration 214 addresses ownership
 precedence in the contextual learner transactions. Do not weaken the assertion or
 remove the historical enrollment to make this case pass.
 
+PR #1376 merged as `7758ed44` after independent review and complete CI
+(`36344942279`). Its ephemeral database applied 214 and passed all seven route
+scenarios plus the owner-precedence database harness. Production 214 was then
+applied under exact authorization and verified through history and function
+permissions. The shared local database instead has billing migrations using
+214–216, so local application of this fix is blocked pending coordinated history
+resolution. A local history row numbered 214 alone is not evidence this fix exists.
+
 Inline-image database authorization and concurrency evidence remains in
 `scripts/check-contextual-assignment-inline-images-database.sh`. Real image-byte
 upload/finalize/delivery is not claimed by this route suite. The shared local

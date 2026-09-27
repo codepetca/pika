@@ -135,8 +135,12 @@ provide the policy/resolver foundation. Off-by-default compatibility observers d
 authorize requests. The separate [classroom-core gate](../guidance/classroom-core-contextual-access.md)
 enforces contextual access only for exact server-configured account/classroom pairs
 on its listed APIs; other requests retain legacy guards. Signup and UI routing remain
-unchanged. No general subscription store or billing integration exists. Further domains
-require their own resource checks, rollout gates and quota/transaction safeguards.
+unchanged. The dormant [shared admission contract](../guidance/classroom-experience-admission.md)
+begins consolidating rollout admission for the complete classroom experience;
+material-list reads are its first consumer. It does not activate home/page routing
+or replace resource, relationship, quota or transaction safeguards. Other domains
+retain their existing pilot/legacy paths until explicitly integrated. Billing and
+entitlement decisions remain separate from classroom admission.
 
 ### Attendance Logic
 - Statuses: `present` or `absent` only. Presence is determined by existence of an entry for a class day where `is_class_day=true`.
