@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-25 — Disable student actions for unpublished tests
-
-- Owner: `codex/disable-draft-test-student-actions`. Draft test student tables now disable selection, batch grading/return/unsubmit/delete, access controls, and row unsubmit; row activation cannot open the grading inspector. Publish remains available from the action bar and editor. Publishing restores student selection and actions.
-- Reused the existing teacher test action bar, student table, and status controls; Pattern Lab teacher operational controls were the visual reference. No student-facing surface changed. Teacher desktop/mobile light/dark fixture verification passed for draft and published states; screenshots under ignored `output/playwright/`.
-- Component coverage includes stale submitted/open draft rows and confirms controls remain disabled; 77 direct component tests passed. Pika audit passed. Composite-widget accessibility checklist reviewed: keyboard behavior yes, semantic disabled state tested yes, manual follow-up none. Focused checks and PR review follow.
-- Independent review found direct draft grading/deletion API access despite UI gating. One remediation batch adds draft rejection to AI grading/suggestion, manual grade/save/clear, and single/bulk work deletion routes, with no-mutation API regressions. Exit-alert activation is also disabled for drafts; draft student tables do not start exit polling. Affected tests: 126 passed; focused gate: 269 passed plus architecture/UI/design/types/lint; audit clean. Targeted re-review and stable-SHA CI follow.
-- Targeted re-review found queued AI grading runs could still tick for draft tests. Second correction rejects draft ticks server-side and stops client polling for draft runs; API and component regressions pass (81 targeted tests). Final targeted review and ready-SHA CI follow.
-
 ## 2026-09-25 — Draft test selection guidance
 
 - Updated PR1361 on `codex/disable-draft-test-student-actions`: disabled draft student header/row checkboxes and the Student actions menu now show concise Publish-first tooltips on hover and keyboard focus. The shared `TableSelectionCheckbox` has an optional `disabledTooltip` prop; Pattern Lab documents it with a deterministic teacher example. No student UI changed.
@@ -411,3 +403,7 @@ Main sync: resolved only continuity-document overlap after PR1368 landed; review
 ## 2026-09-27 Subscription automation implementation in progress
 
 Owner requested remaining lifecycle, classroom enforcement, billing screens and full sandbox testing after #1372 merged. Worktree `codex/subscription-automation`, base `85e8a2bf`; active coordinator plan in `docs/guidance/stripe-billing-foundation.md`. Phase 2 lifecycle storage/runtime and authenticated trial/effective-status endpoints are being implemented, with provider unpaid-invoice decoding. Migration214 is being authored, not applied; existing local database remains unchanged. New merge, production rollout, live billing and real email remain outside authorization. Phase 3 must cover timestamp-based scheduled assignments and subscription-specific archive protections before exposing launch UI. Preserve the separate dirty `subscription-lifecycle` prototype; it is not the runtime implementation.
+
+## 2026-09-27 Subscription lifecycle draft and first review
+
+Draft PR #1377 adds gated once-only Pro trials, finite version-bound paid access, renewal/grace/cancellation observations, due expiry, authenticated status/trial APIs, and rollback-only SQL contracts. Initial Sol/high security and Terra/high compatibility reviews completed; batch 1 fixes grace truncation by cancellation/original-invoice replay and missed uncollectible renewal recovery. Billing tests pass 285; SQL harness and generated RPC types remain pending exact local migration 214 approval. Existing local DB is still at 213 and unchanged. Further lifecycle commands/financial closeout, classroom restrictions, UI/notices and full sandbox rehearsal remain in the coordinator plan. No new merge, production, live billing or real email authority.

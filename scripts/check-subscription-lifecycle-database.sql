@@ -167,4 +167,83 @@ do $$ declare c jsonb; b uuid; r jsonb; before_quota bigint; begin
   r:=public.billing_get_checkout_v1('{"subject_user_id":"f2140000-0000-4000-8000-000000000002","attempt_id":"f2142000-0000-4000-8000-000000000001"}');
   if (r->>'access_confirmed')::boolean is distinct from false then raise exception 'Checkout status ignores operator override'; end if;
 end $$;
+
+-- Grace is a durable promise, not a provider-status alias. These transaction-only
+-- fixtures simulate first observing exhausted retries before and after the cutoff.
+-- The TS verifier matrix separately proves uncollectible/open invoice evidence.
+do $$
+declare v_case integer; v_elapsed boolean; v_user uuid; v_binding uuid; v_version uuid; v_suffix text; c jsonb; r jsonb;
+  v_end timestamptz; v_start timestamptz; v_grace timestamptz; v_before_revision bigint; v_original_invoice text;
+  v_failed_invoice text; v_provider_status text; v_next_end timestamptz;
+begin
+  select id into v_version from public.stripe_billing_offering_versions where stripe_price_id='price_lifecycle214';
+  foreach v_case in array array[0,1,2] loop
+    v_elapsed:=v_case<>0;
+    v_user:=gen_random_uuid(); v_suffix:=replace(v_user::text,'-','');
+    insert into public.users(id,email,role) values(v_user,'grace-'||v_suffix||'@example.invalid','teacher');
+    if not exists(select 1 from public.account_plans where subject_user_id=v_user) then
+      perform public.set_account_plan_v1(gen_random_uuid(),v_user,'free','test:lifecycle','fixture',0);
+    end if;
+    r:=public.billing_bind_customer_v1(jsonb_build_object('subject_user_id',v_user,'stripe_account','acct_lifecycle214','provider_mode','test',
+      'stripe_price_id','price_lifecycle214','stripe_customer_id','cus_'||v_suffix,'stripe_subscription_id','sub_'||v_suffix,'offering_version_id',v_version));
+    v_binding:=(r->>'subscription_id')::uuid;
+    v_end:=clock_timestamp()-case when v_elapsed then interval '8 days' else interval '1 day' end;
+    v_start:=v_end-interval '30 days'; v_grace:=v_end+interval '168 hours';
+    v_original_invoice:='in_original'||v_suffix; v_failed_invoice:='in_failed'||v_suffix;
+    c:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+    r:=public.billing_finish_lifecycle_v1(jsonb_build_object('subscription_id',v_binding,'lease_token',c->>'lease_token','fencing_token',c->'fencing_token',
+      'expected_subscription_revision',c->'subscription_revision','expected_account_plan_revision',c->'expected_account_plan_revision',
+      'outcome','paid','invoice_id',v_original_invoice,'period_start',v_start,'period_end',v_end,'provider_status','active'));
+    if r->>'status'<>'applied' then raise exception 'Grace fixture paid term failed'; end if;
+    c:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+    r:=public.billing_finish_lifecycle_v1(jsonb_build_object('subscription_id',v_binding,'lease_token',c->>'lease_token','fencing_token',c->'fencing_token',
+      'expected_subscription_revision',c->'subscription_revision','expected_account_plan_revision',c->'expected_account_plan_revision',
+      'outcome','renewal_failed','invoice_id',v_failed_invoice,'period_start',v_end,'period_end',v_end+interval '30 days',
+      'provider_status',case when v_elapsed then 'canceled' else 'active' end));
+    if r->>'status'<>'applied' then raise exception 'Exhausted-retry first observation failed: %',r; end if;
+    r:=public.billing_get_access_status_v1(jsonb_build_object('subject_user_id',v_user));
+    if r->>'state'<>case when v_elapsed then 'free' else 'renewal_grace' end
+      or (r->>'can_start_paid_work')::boolean=v_elapsed then raise exception 'Delayed failure moved its grace window'; end if;
+    select revision into v_before_revision from public.account_plans where subject_user_id=v_user;
+    c:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+    r:=public.billing_finish_lifecycle_v1(jsonb_build_object('subscription_id',v_binding,'lease_token',c->>'lease_token','fencing_token',c->'fencing_token',
+      'expected_subscription_revision',c->'subscription_revision','expected_account_plan_revision',c->'expected_account_plan_revision',
+      'outcome','canceled','provider_status','canceled','obligations_cleared',false));
+    if r->>'status'<>'applied' then raise exception 'Cancellation after failed renewal failed'; end if;
+    foreach v_provider_status in array array['active','canceled'] loop
+      c:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+      r:=public.billing_finish_lifecycle_v1(jsonb_build_object('subscription_id',v_binding,'lease_token',c->>'lease_token','fencing_token',c->'fencing_token',
+        'expected_subscription_revision',c->'subscription_revision','expected_account_plan_revision',c->'expected_account_plan_revision',
+        'outcome','paid','invoice_id',v_original_invoice,'period_start',v_start,'period_end',v_end,'provider_status',v_provider_status,'obligations_cleared',false));
+      if r->>'status'<>'replayed' then raise exception 'Old paid invoice was mistaken for renewal: %',r; end if;
+      if not exists(select 1 from public.billing_account_access where subject_user_id=v_user and end_reason='renewal_grace'
+        and access_ends_at=v_grace and failed_renewal_invoice_id=v_failed_invoice)
+        or (select revision from public.account_plans where subject_user_id=v_user)<>v_before_revision then
+        raise exception 'Cancellation/replay erased grace or reopened expired access'; end if;
+    end loop;
+    if v_case=2 then
+      c:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+      r:=public.billing_finish_lifecycle_v1(jsonb_build_object('subscription_id',v_binding,'lease_token',c->>'lease_token','fencing_token',c->'fencing_token',
+        'expected_subscription_revision',c->'subscription_revision','expected_account_plan_revision',c->'expected_account_plan_revision',
+        'outcome','canceled','provider_status','canceled','obligations_cleared',true));
+      if r->>'status'<>'applied' or exists(select 1 from public.stripe_billing_subscription_bindings where id=v_binding and is_current)
+        or not exists(select 1 from public.billing_account_access where subject_user_id=v_user and access_ends_at=v_grace
+          and end_reason='renewal_grace' and failed_renewal_invoice_id=v_failed_invoice) then
+        raise exception 'Terminal clearance retired incorrectly or rewrote expired grace'; end if;
+      continue;
+    end if;
+    -- A genuinely new verified renewal extends the paid period and clears grace,
+    -- even when local expiry already happened while its event was delayed.
+    v_next_end:=v_end+interval '30 days';
+    c:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+    r:=public.billing_finish_lifecycle_v1(jsonb_build_object('subscription_id',v_binding,'lease_token',c->>'lease_token','fencing_token',c->'fencing_token',
+      'expected_subscription_revision',c->'subscription_revision','expected_account_plan_revision',c->'expected_account_plan_revision',
+      'outcome','paid','invoice_id',v_failed_invoice,'period_start',v_end,'period_end',v_next_end,'provider_status','active'));
+    if r->>'status'<>'applied' or not exists(select 1 from public.billing_account_access where subject_user_id=v_user
+      and paid_through=v_next_end and access_ends_at=v_next_end and end_reason='renewal_pending' and failed_renewal_invoice_id is null and expiry_applied_at is null)
+      or public.billing_get_access_status_v1(jsonb_build_object('subject_user_id',v_user))->>'state'<>'paid' then
+      raise exception 'Verified renewal did not clear grace'; end if;
+  end loop;
+end $$;
+
 rollback;

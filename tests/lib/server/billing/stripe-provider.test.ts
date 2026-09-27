@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createStripeBillingProvider } from '@/lib/server/billing/stripe-provider'
-import { verifyPaidSubscriptionSnapshot } from '@/lib/server/billing/synchronize'
+import { verifyBillingLifecycleSnapshot, verifyPaidSubscriptionSnapshot } from '@/lib/server/billing/synchronize'
 
 const binding = {
   subscription_id: '11111111-1111-4111-8111-111111111111',
@@ -262,6 +262,41 @@ describe('Stripe current-state adapter', () => {
       expect(snapshot).toMatchObject({ latestInvoice: { status, amountPaid: 0, payments: [] } })
       expect(verifyPaidSubscriptionSnapshot(binding, snapshot)).toBe('invoice_not_paid')
       expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['active', 'past_due', 'unpaid', 'canceled'] as const)(
+    'recovers an uncollectible renewal from a complete %s provider snapshot',
+    async status => {
+      const f = fixture()
+      f.subscription.status = status
+      makeUnpaidInvoice(f, 'uncollectible')
+      f.invoice.billing_reason = 'subscription_cycle'
+      f.invoice.payments.data = [unpaidPayment('canceled', 0)]
+      f.sdk.invoices.list.mockResolvedValue({ object: 'list', has_more: false, data: [f.invoice] })
+      const paidThrough = new Date(f.subscription.items.data[0].current_period_start * 1000).toISOString()
+      const claim = {
+        status: 'claimed' as const, subscription_id: binding.subscription_id, binding,
+        lease_token: '55555555-5555-4555-8555-555555555555', fencing_token: 1,
+        lease_expires_at: '2026-10-01T00:02:00.000Z', subscription_revision: 1,
+        expected_account_plan_revision: 1,
+        lifecycle: {
+          paid_through: paidThrough, paid_period_start: '2026-09-01T00:00:00.000Z',
+          last_paid_invoice_id: 'in_prior_paid', access_ends_at: paidThrough,
+          end_reason: 'renewal_pending' as const, assignment_revision: 1, is_current: true,
+        },
+      }
+
+      const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+      expect(verifyBillingLifecycleSnapshot(claim, snapshot)).toMatchObject({
+        outcome: 'renewal_failed', invoice_id: 'in_fixture', period_start: paidThrough,
+        provider_status: status, obligations_cleared: false,
+      })
+      expect(verifyPaidSubscriptionSnapshot(binding, snapshot)).toBe(
+        status === 'active' ? 'invoice_not_paid' : 'subscription_not_active',
+      )
+      expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+      expect(f.sdk.charges.retrieve).not.toHaveBeenCalled()
     },
   )
   it.each([

@@ -201,13 +201,13 @@ export function verifyBillingLifecycleSnapshot(
   }
   if (!facts.paid_through || !facts.last_paid_invoice_id) return 'invoice_not_paid'
   if (snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, facts.paid_through)) return 'subscription_transition_unapproved'
-  if (cancellation) {
-    if (snapshot.latestInvoice && (snapshot.latestInvoice.customerId !== binding.stripe_customer_id
-      || snapshot.latestInvoice.subscriptionId !== binding.stripe_subscription_id)) return 'invoice_not_bound'
-    return { ...common, outcome: 'canceled' }
-  }
   const invoice = snapshot.latestInvoice
-  if (['past_due', 'unpaid'].includes(snapshot.status) && invoice?.status === 'open') {
+  // Exhausted retries can leave the subscription active, unpaid, or canceled.
+  // Decode the verified failed cycle before treating canceled as voluntary expiry.
+  // https://docs.stripe.com/billing/subscriptions/overview#subscription-statuses
+  const failedRenewal = (invoice?.status === 'uncollectible' && ['active', 'past_due', 'unpaid', 'canceled'].includes(snapshot.status))
+    || (invoice?.status === 'open' && ['past_due', 'unpaid', 'canceled'].includes(snapshot.status))
+  if (failedRenewal && invoice) {
     if (invoice.billingReason !== 'subscription_cycle' || invoice.customerId !== binding.stripe_customer_id
       || invoice.subscriptionId !== binding.stripe_subscription_id || invoice.currency !== binding.currency) return 'invoice_not_bound'
     if (invoice.amountPaid !== 0 || invoice.payments.length !== 0 || (invoice.amountPaidOffStripe ?? 0) !== 0
@@ -221,6 +221,11 @@ export function verifyBillingLifecycleSnapshot(
       || !equalTimestamp(line.periodStart, facts.paid_through) || !equalTimestamp(line.periodStart, item.currentPeriodStart)
       || !equalTimestamp(line.periodEnd, item.currentPeriodEnd) || Date.parse(line.periodEnd) <= Date.parse(line.periodStart)) return 'invoice_line_unverified'
     return { ...common, outcome: 'renewal_failed', invoice_id: invoice.id, period_start: line.periodStart, period_end: line.periodEnd }
+  }
+  if (cancellation) {
+    if (snapshot.latestInvoice && (snapshot.latestInvoice.customerId !== binding.stripe_customer_id
+      || snapshot.latestInvoice.subscriptionId !== binding.stripe_subscription_id)) return 'invoice_not_bound'
+    return { ...common, outcome: 'canceled' }
   }
   return 'invoice_not_paid'
 }

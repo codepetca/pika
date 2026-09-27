@@ -225,7 +225,7 @@ returns jsonb language plpgsql security definer set search_path='' as $$
 declare b public.stripe_billing_subscription_bindings%rowtype; p public.account_plans%rowtype;
   a public.billing_account_access%rowtype; e public.stripe_billing_invoice_effects%rowtype;
   v_outcome text:=p_request->>'outcome'; v_now timestamptz:=clock_timestamp(); v_period_start timestamptz;
-  v_period_end timestamptz; v_end timestamptz; v_reason text; v_replayed boolean:=false; v_changed boolean:=false;
+  v_period_end timestamptz; v_end timestamptz; v_reason text; v_replayed boolean:=false; v_changed boolean:=false; v_preserve_cutoff boolean:=false;
   v_previous jsonb; v_event uuid:=(p_request->>'event_inbox_id')::uuid; v_revision bigint;
 begin
   perform private.assert_stripe_billing_sandbox_enabled_v1();
@@ -265,15 +265,26 @@ begin
         return jsonb_build_object('status','rejected','retry_scheduled',false); end if;
       v_replayed:=true;
     end if;
-    v_reason:=case when coalesce((p_request->>'cancel_at_period_end')::boolean,false) or coalesce(p_request->>'provider_status','')='canceled' then 'cancellation' else 'renewal_pending' end;
+    -- Re-reading the original paid invoice is not a successful renewal. Preserve
+    -- its recorded grace (including an elapsed cutoff) and failed invoice identity.
+    -- An elapsed cancellation also cannot be undone by replaying its old payment.
+    v_preserve_cutoff:=coalesce(a.source='paid' and a.subscription_id=b.id and a.paid_through=v_period_end
+      and (a.end_reason='renewal_grace' or (a.end_reason='cancellation' and a.access_ends_at<=v_now)),false);
+    if v_preserve_cutoff and a.last_paid_invoice_id is distinct from (p_request->>'invoice_id') then
+      return jsonb_build_object('status','rejected','retry_scheduled',false); end if;
+    v_reason:=case when v_preserve_cutoff then a.end_reason
+      when coalesce((p_request->>'cancel_at_period_end')::boolean,false) or coalesce(p_request->>'provider_status','')='canceled' then 'cancellation' else 'renewal_pending' end;
+    v_end:=case when v_preserve_cutoff then a.access_ends_at else v_period_end end;
     v_changed:=a.subject_user_id is null or a.source<>'paid' or a.subscription_id<>b.id or a.paid_through is distinct from v_period_end
-      or a.end_reason<>v_reason or a.expiry_applied_at is not null;
+      or a.end_reason<>v_reason or (a.expiry_applied_at is not null and not v_preserve_cutoff);
     insert into public.billing_account_access(subject_user_id,source,subscription_id,offering_version_id,starts_at,
-      paid_period_start,paid_through,last_paid_invoice_id,access_ends_at,end_reason,account_plan_revision,last_provider_verified_at)
-      values(b.subject_user_id,'paid',b.id,b.offering_version_id,v_period_start,v_period_start,v_period_end,p_request->>'invoice_id',v_period_end,v_reason,p.revision,v_now)
+      paid_period_start,paid_through,last_paid_invoice_id,access_ends_at,end_reason,failed_renewal_invoice_id,account_plan_revision,last_provider_verified_at)
+      values(b.subject_user_id,'paid',b.id,b.offering_version_id,v_period_start,v_period_start,v_period_end,p_request->>'invoice_id',v_end,v_reason,
+        case when v_preserve_cutoff then a.failed_renewal_invoice_id else null end,p.revision,v_now)
     on conflict(subject_user_id) do update set source='paid',subscription_id=b.id,offering_version_id=b.offering_version_id,
       trial_subject_user_id=null,starts_at=v_period_start,paid_period_start=v_period_start,paid_through=v_period_end,
-      last_paid_invoice_id=p_request->>'invoice_id',access_ends_at=v_period_end,end_reason=v_reason,failed_renewal_invoice_id=null,
+      last_paid_invoice_id=p_request->>'invoice_id',access_ends_at=v_end,end_reason=v_reason,
+      failed_renewal_invoice_id=case when v_preserve_cutoff then a.failed_renewal_invoice_id else null end,
       last_provider_verified_at=v_now,revision=public.billing_account_access.revision+case when v_changed then 1 else 0 end,updated_at=v_now;
     update public.billing_trials set converted_to_paid_at=coalesce(converted_to_paid_at,v_now) where subject_user_id=b.subject_user_id;
     if v_changed then v_revision:=private.billing_write_access_v1(b.subject_user_id,p.revision,'stripe_paid'); else v_revision:=p.revision; end if;
@@ -287,12 +298,16 @@ begin
       return jsonb_build_object('status','rejected','retry_scheduled',false); end if;
     if v_outcome='renewal_failed' then
       if p_request->>'invoice_id' is null or (p_request->>'period_start')::timestamptz is distinct from a.paid_through
-        or a.end_reason='cancellation' or p_request->>'provider_status' not in ('past_due','unpaid') then
+        or coalesce(p_request->>'provider_status','') not in ('active','past_due','unpaid','canceled')
+        or (p_request->>'period_end')::timestamptz is null or (p_request->>'period_end')::timestamptz<=a.paid_through
+        or (a.end_reason='renewal_grace' and a.failed_renewal_invoice_id is distinct from (p_request->>'invoice_id')) then
         return jsonb_build_object('status','rejected','retry_scheduled',false); end if;
       v_end:=a.paid_through+interval '168 hours'; v_reason:='renewal_grace';
     else
-      -- A provider terminal status cannot invent paid time. Keep the last verified term.
-      v_end:=a.paid_through; v_reason:='cancellation';
+      -- Provider cancellation after exhausted retries does not revoke the promised
+      -- complimentary grace. Preserve its exact cutoff even after local expiry.
+      v_end:=case when a.end_reason='renewal_grace' then a.access_ends_at else a.paid_through end;
+      v_reason:=case when a.end_reason='renewal_grace' then 'renewal_grace' else 'cancellation' end;
     end if;
     v_changed:=a.access_ends_at<>v_end or a.end_reason<>v_reason;
     update public.billing_account_access set access_ends_at=v_end,end_reason=v_reason,

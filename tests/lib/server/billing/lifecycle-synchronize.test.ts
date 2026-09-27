@@ -140,4 +140,30 @@ describe('verified lifecycle observations', () => {
   it('does not credit a canceled period truncated before its paid invoice line end', () => {
     expect(verifyBillingLifecycleSnapshot(lifecycleClaim, paidSnapshot({ cancelAt: '2026-09-15T00:00:00.000Z' }))).toBe('subscription_transition_unapproved')
   })
+  it.each(['active', 'past_due', 'unpaid', 'canceled'])('recovers an uncollectible renewal under %s without missed-event timing changing its anchor', status => {
+    const failed = failedRenewal()
+    const result = verifyBillingLifecycleSnapshot(lifecycleClaim, { ...failed, status,
+      latestInvoice: { ...failed.latestInvoice, status: 'uncollectible' } })
+    expect(result).toMatchObject({ outcome: 'renewal_failed', period_start: lifecycleClaim.lifecycle.paid_through })
+  })
+  it('classifies a canceled open renewal before generic cancellation', () => {
+    expect(verifyBillingLifecycleSnapshot(lifecycleClaim, { ...failedRenewal(), status: 'canceled' })).toMatchObject({ outcome: 'renewal_failed' })
+  })
+  it('does not turn an active open invoice into failed-renewal proof', () => {
+    expect(verifyBillingLifecycleSnapshot(lifecycleClaim, { ...failedRenewal(), status: 'active' })).toBe('invoice_not_paid')
+  })
+  it.each(['active', 'past_due', 'unpaid', 'canceled'])('rejects uncollectible first purchase or partial payment under %s', status => {
+    const failed = failedRenewal()
+    const snapshot = { ...failed, status, latestInvoice: { ...failed.latestInvoice, status: 'uncollectible' } }
+    expect(verifyBillingLifecycleSnapshot({ ...lifecycleClaim, lifecycle: { ...lifecycleClaim.lifecycle, paid_through: null, last_paid_invoice_id: null } }, snapshot)).toBe('invoice_not_paid')
+    expect(verifyBillingLifecycleSnapshot(lifecycleClaim, { ...snapshot, latestInvoice: { ...snapshot.latestInvoice, amountPaid: 1 } })).toBe('financial_terms_unapproved')
+  })
+  it.each(['active', 'canceled'])('keeps old paid invoice replay distinguishable from a new renewal under %s', status => {
+    const paid = paidSnapshot({ status })
+    const graceClaim = { ...lifecycleClaim, lifecycle: { ...lifecycleClaim.lifecycle,
+      paid_through: '2026-10-01T00:00:00.000Z', last_paid_invoice_id: 'in_paid_1',
+      access_ends_at: '2026-10-08T00:00:00.000Z', end_reason: 'renewal_grace' as const } }
+    expect(verifyBillingLifecycleSnapshot(graceClaim, paid)).toMatchObject({ outcome: 'paid', invoice_id: 'in_paid_1', period_end: graceClaim.lifecycle.paid_through })
+  })
+
 })

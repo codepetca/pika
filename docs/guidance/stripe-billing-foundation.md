@@ -178,6 +178,16 @@ purchased terms, revision fences and payment/expiry race evidence. Unknown renew
 outcome is a synchronization-pending state; it must not fabricate cancellation or
 grace. Provider outages must not remove recorded facts or suspend a local trial.
 
+The first phase-2 slice is draft PR #1377. Its initial independent review found
+two grace-recovery defects: cancellation or an original-invoice replay could
+shorten recorded grace, and a first observation of an uncollectible renewal
+could miss grace entirely. The remediation preserves the exact recorded cutoff
+and failed-invoice identity; only a genuinely later verified paid term clears
+grace. Strict unpaid-cycle evidence is evaluated before generic cancellation.
+The billing suite passes 285 tests; the new rollback-only database harness and
+generated types still await separately approved local migration 214 application.
+This evidence does not complete phase 2 or authorize activation.
+
 Unresolved launch policy remains explicit: tax/refund/dispute consequences and AI
 quantities are not silently invented. A scheduled downgrade's failed-renewal grace
 quota is being confirmed with the owner. Operational defaults and classroom ranking
