@@ -150,21 +150,48 @@ requires the exact target-and-migration approval in the schema checklist.
 | --- | --- | --- |
 | 0 | Land admin, Stripe foundation and policy dependency chain with required PR Gate on each final SHA | Complete: #1360, #1366 and #1367 merged |
 | 1 | Exact 12-variant USD/CAD catalog; authenticated, durable hosted checkout; idempotent creation/recovery; verified payment grants selected version | Merged #1368; local sandbox first-purchase rehearsal passed; customer return UI pending |
-| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | Pending phase 1 contracts |
+| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | In progress on `codex/subscription-automation`; phase 1 and testing PR #1372 merged |
 | 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | Pending lifecycle integration |
 | 4 | Billing UI, self-service portal, expiry/failure notifications and missed-schedule recovery; role/theme/viewport visual verification | Pending backend contracts |
 | 5 | Full provider test-mode lifecycle rehearsal, concurrency/retry evidence, AI cost validation and tax setup review | First-purchase rehearsal completed; full lifecycle blocked by phases 2–4 and remaining policy contracts |
 
-Current ownership: coordinator owns shared runtime/HTTP integration and PRs;
-Astra/high worker owns durable checkout/provider/schema implementation;
-Terra/high worker owns the pure launch catalog and catalog tests. No worker may
-apply schema changes, mutate Stripe, publish, merge or recursively delegate.
-Financial/schema review uses independent reviewers with the bounded HQ review
-budget (one initial wave, at most three targeted fix waves, at most five launches
-and 45 minutes; any extension needs explicit approval). The agent thread limit
-prevented fresh reviewer creation, so the existing independent architecture
-reviewer completed the migration preapplication review. Full implementation
-review remains pending integration verification.
+Current execution (2026-09-27): the owner requested orchestration of the remaining
+lifecycle, classroom restrictions, customer billing screens, notices, and full
+sandbox acceptance matrix. The coordinator owns this branch and the complete
+outcome; completing one slice does not complete the launch plan. Phases 2–5 remain
+ordered by their backend dependencies. Main is at `85e8a2bf` when this work starts.
+
+Current ownership on `codex/subscription-automation`:
+- Astra/high: lifecycle schema, service contracts, exact effective-access resolver,
+  synchronization and local transition integration, and database harness.
+- Billing adapter worker: unpaid invoice normalization and its regression tests.
+- Terra/high: read-only classroom mutation/archive/purge integration map; implementation
+  follows the lifecycle contract and keeps existing-work protections explicit.
+- Coordinator: HTTP/API integration, plan/status documentation, generated database
+  contract, overall verification, and PR lifecycle. Workers do not commit, apply
+  migrations, mutate Stripe, send email, merge, or recursively delegate.
+
+Phase 2 exit requires an integrated runtime, not an unused calculator: lifetime
+trial idempotency, verified paid conversion/renewal, exact known cancellation and
+grace cutoffs, effective access at request time with a late worker, immutable
+purchased terms, revision fences and payment/expiry race evidence. Unknown renewal
+outcome is a synchronization-pending state; it must not fabricate cancellation or
+grace. Provider outages must not remove recorded facts or suspend a local trial.
+
+Unresolved launch policy remains explicit: tax/refund/dispute consequences and AI
+quantities are not silently invented. A scheduled downgrade's failed-renewal grace
+quota is being confirmed with the owner. Operational defaults and classroom ranking
+must be recorded with implementation and verified before activation.
+
+Schema application will use the existing local database after the owner approves
+the exact reviewed new migration. No reset/reseed is planned. Current authorization
+covers code, tests and draft PR publication, not a new merge, production deployment,
+live billing, live Stripe mutations, or real email delivery. Gates remain off by
+default. Final independent review follows the bounded HQ review workflow; previous
+PR review extensions are consumed and do not expand this new PR's budget.
+
+The following paragraphs retain the historical phase-1 rollout evidence; their
+pending statements describe that earlier slice, not current phase-2 completion.
 
 The owner approved an additional45-minute review window and local211 application
 after review. Two preapplication reviews are complete with no blockers; the

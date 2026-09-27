@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockLoadBillingRuntime } = vi.hoisted(() => ({
+const { mockLoadBillingRuntime, mockLifecycleRuntime, applyDue } = vi.hoisted(() => ({
   mockLoadBillingRuntime: vi.fn(),
+  mockLifecycleRuntime: vi.fn(),
+  applyDue: vi.fn(),
 }))
 
 vi.mock('@/lib/server/billing/runtime', () => ({
   createBillingRuntime: mockLoadBillingRuntime,
 }))
+vi.mock('@/lib/server/billing/lifecycle-runtime', () => ({ createBillingLifecycleRuntime: mockLifecycleRuntime }))
 
 import { POST as processBilling } from '@/app/api/billing/stripe/process/route'
 import { POST as receiveWebhook } from '@/app/api/billing/stripe/webhook/route'
@@ -26,6 +29,8 @@ function enableBilling() {
 describe('Stripe billing routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    applyDue.mockResolvedValue({ processed: 0 })
+    mockLifecycleRuntime.mockReturnValue({ applyDue })
   })
 
   afterEach(() => {
@@ -43,6 +48,7 @@ describe('Stripe billing routes', () => {
     expect(webhookResponse.status).toBe(404)
     expect(processResponse.status).toBe(404)
     expect(mockLoadBillingRuntime).not.toHaveBeenCalled()
+    expect(mockLifecycleRuntime).not.toHaveBeenCalled()
   })
 
   it('checks the dedicated worker credential before constructing the billing runtime', async () => {
@@ -54,6 +60,7 @@ describe('Stripe billing routes', () => {
 
     expect(response.status).toBe(401)
     expect(mockLoadBillingRuntime).not.toHaveBeenCalled()
+    expect(mockLifecycleRuntime).not.toHaveBeenCalled()
   })
 
   it('runs at most one claimed subscription with a 120-second lease', async () => {
@@ -74,5 +81,6 @@ describe('Stripe billing routes', () => {
     await expect(response.json()).resolves.toMatchObject({ requested: 1, processed: 0 })
     expect(listWork).toHaveBeenCalledWith({ limit: 1 })
     expect(mockLoadBillingRuntime).toHaveBeenCalledOnce()
+    expect(applyDue).toHaveBeenCalledWith({ limit: 25 })
   })
 })

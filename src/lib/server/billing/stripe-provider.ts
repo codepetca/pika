@@ -2,11 +2,14 @@ import { z } from 'zod'
 import type { BillingProvider } from '@/lib/server/billing/synchronize'
 
 type ReadResource = { retrieve(id: string): Promise<unknown> }
+type UnpaidInvoiceStatus = 'draft' | 'open' | 'uncollectible'
 /** Supplied by the official SDK at runtime; fixtures implement this read-only seam. */
 export type StripeBillingReadPort = {
   accounts: { retrieve(): Promise<unknown> }
   subscriptions: ReadResource
-  invoices: ReadResource
+  invoices: ReadResource & {
+    list?(input: { subscription: string; status: UnpaidInvoiceStatus; limit: 1 }): Promise<unknown>
+  }
   paymentIntents: ReadResource
   charges: ReadResource
 }
@@ -16,6 +19,9 @@ const referenceSchema = z.union([z.string(), z.object({ id: z.string() })])
 const timestampSchema = z.number().int().nonnegative().max(8640000000000)
   .transform(value => new Date(value * 1000).toISOString())
 const stripeAccountSchema = z.object({ id: z.string() })
+const stripeInvoiceListSchema = z.object({
+  object: z.literal('list'), has_more: z.literal(false), data: z.array(z.unknown()),
+})
 const stripeSubscriptionSchema = z.object({
   id: z.string(), livemode: z.boolean(), customer: referenceSchema, status: z.string(),
   pending_update: z.unknown(), cancel_at: timestampSchema.nullable(),
@@ -30,10 +36,24 @@ const stripeSubscriptionSchema = z.object({
     }),
   })).max(100) }),
 })
+const stripePaidInvoicePaymentSchema = z.object({
+  invoice: referenceSchema, livemode: z.literal(false), status: z.literal('paid'),
+  amount_paid: z.number().int().positive(),
+  payment: z.object({ type: z.literal('payment_intent'), payment_intent: referenceSchema }),
+})
+const stripeUnpaidInvoicePaymentSchema = z.object({
+  invoice: referenceSchema, livemode: z.literal(false), status: z.enum(['canceled', 'open']),
+  amount_paid: z.union([z.literal(0), z.null()]),
+  payment: z.object({ type: z.literal('payment_intent'), payment_intent: referenceSchema }),
+})
+const stripeInvoicePaymentSchema = z.union([
+  stripePaidInvoicePaymentSchema,
+  stripeUnpaidInvoicePaymentSchema,
+])
 const stripeInvoiceSchema = z.object({
   id: z.string(), livemode: z.literal(false), customer: referenceSchema,
-  currency: z.string(), status: z.string(), amount_due: z.number().int(),
-  amount_paid: z.number().int(), amount_remaining: z.literal(0),
+  currency: z.string(), status: z.enum(['draft', 'open', 'paid', 'uncollectible', 'void']), amount_due: z.number().int(),
+  amount_paid: z.number().int().nonnegative(), amount_remaining: z.number().int().nonnegative(),
   amount_paid_off_stripe: z.number().int().optional(),
   billing_reason: z.string().nullable(), subtotal: z.number().int(), total: z.number().int(),
   starting_balance: z.number().int(), ending_balance: z.number().int().nullable(),
@@ -54,11 +74,7 @@ const stripeInvoiceSchema = z.object({
     pricing: z.object({ price_details: z.object({ price: referenceSchema }) }),
     period: z.object({ start: timestampSchema, end: timestampSchema }),
   })).max(100) }),
-  payments: z.object({ has_more: z.literal(false), data: z.array(z.object({
-    invoice: referenceSchema, livemode: z.literal(false), status: z.literal('paid'),
-    amount_paid: z.number().int().positive(),
-    payment: z.object({ type: z.literal('payment_intent'), payment_intent: referenceSchema }),
-  })).length(1) }),
+  payments: z.object({ has_more: z.literal(false), data: z.array(stripeInvoicePaymentSchema).max(100) }),
 })
 const stripePaymentIntentSchema = z.object({
   id: z.string(), livemode: z.literal(false), customer: referenceSchema,
@@ -73,6 +89,19 @@ const stripeChargeSchema = z.object({
   payment_method_details: z.object({ type: z.string() }),
 })
 
+async function canceledObligationsCleared(
+  invoices: StripeBillingReadPort['invoices'],
+  subscriptionId: string,
+): Promise<boolean> {
+  if (!invoices.list) return false
+  let cleared = true
+  for (const status of ['draft', 'open', 'uncollectible'] as const) {
+    const result = stripeInvoiceListSchema.safeParse(await invoices.list({ subscription: subscriptionId, status, limit: 1 }))
+    if (!result.success || result.data.data.length !== 0) cleared = false
+  }
+  return cleared
+}
+
 export function createStripeBillingProvider(sdk: StripeBillingReadPort): BillingProvider {
   return {
     async retrieveSubscription(binding) {
@@ -82,16 +111,49 @@ export function createStripeBillingProvider(sdk: StripeBillingReadPort): Billing
         const subscription = stripeSubscriptionSchema.parse(
           await sdk.subscriptions.retrieve(binding.stripe_subscription_id),
         )
+        if (
+          subscription.id !== binding.stripe_subscription_id
+          || subscription.customer !== binding.stripe_customer_id
+          || subscription.livemode
+        ) return null
         let latestInvoice = null
         if (subscription.latest_invoice) {
           const invoice = stripeInvoiceSchema.parse(await sdk.invoices.retrieve(subscription.latest_invoice))
           if (invoice.id !== subscription.latest_invoice) return null
-          const payment = invoice.payments.data[0]
-          if (payment.invoice !== invoice.id || payment.amount_paid !== invoice.amount_due) return null
-          const intent = stripePaymentIntentSchema.parse(await sdk.paymentIntents.retrieve(payment.payment.payment_intent))
-          if (intent.id !== payment.payment.payment_intent) return null
-          const charge = stripeChargeSchema.parse(await sdk.charges.retrieve(intent.latest_charge))
-          if (charge.id !== intent.latest_charge) return null
+          let payments: Array<{
+            type: 'payment_intent'; status: 'succeeded'; paymentIntentId: string; customerId: string
+            currency: string; amountReceived: number
+            latestCharge: {
+              status: 'succeeded'; paid: true; captured: true; refunded: false; amountRefunded: 0
+              disputed: false; customerId: string; currency: string; paymentIntentId: string; paymentMethodType: string
+            }
+          }> = []
+          if (invoice.status === 'paid') {
+            if (invoice.amount_remaining !== 0 || invoice.payments.data.length !== 1) return null
+            const payment = stripePaidInvoicePaymentSchema.parse(invoice.payments.data[0])
+            if (payment.invoice !== invoice.id || payment.amount_paid !== invoice.amount_due) return null
+            const intent = stripePaymentIntentSchema.parse(await sdk.paymentIntents.retrieve(payment.payment.payment_intent))
+            if (intent.id !== payment.payment.payment_intent) return null
+            const charge = stripeChargeSchema.parse(await sdk.charges.retrieve(intent.latest_charge))
+            if (charge.id !== intent.latest_charge) return null
+            payments = [{
+              type: 'payment_intent', status: intent.status, paymentIntentId: intent.id,
+              customerId: intent.customer, currency: intent.currency, amountReceived: intent.amount_received,
+              latestCharge: {
+                status: charge.status, paid: charge.paid, captured: charge.captured,
+                refunded: charge.refunded, amountRefunded: charge.amount_refunded, disputed: charge.disputed,
+                customerId: charge.customer, currency: charge.currency, paymentIntentId: charge.payment_intent,
+                paymentMethodType: charge.payment_method_details.type,
+              },
+            }]
+          } else {
+            if (
+              invoice.amount_paid !== 0
+              || (invoice.amount_paid_off_stripe !== undefined && invoice.amount_paid_off_stripe !== 0)
+            ) return null
+            const unpaidPayments = z.array(stripeUnpaidInvoicePaymentSchema).safeParse(invoice.payments.data)
+            if (!unpaidPayments.success || unpaidPayments.data.some(payment => payment.invoice !== invoice.id)) return null
+          }
           latestInvoice = {
             id: invoice.id, status: invoice.status, currency: invoice.currency,
             amountDue: invoice.amount_due, amountPaid: invoice.amount_paid,
@@ -117,18 +179,12 @@ export function createStripeBillingProvider(sdk: StripeBillingReadPort): Billing
               periodStart: line.period.start, periodEnd: line.period.end,
             })),
             paymentsFullyEnumerated: true,
-            payments: [{
-              type: 'payment_intent', status: intent.status, paymentIntentId: intent.id,
-              customerId: intent.customer, currency: intent.currency, amountReceived: intent.amount_received,
-              latestCharge: {
-                status: charge.status, paid: charge.paid, captured: charge.captured,
-                refunded: charge.refunded, amountRefunded: charge.amount_refunded, disputed: charge.disputed,
-                customerId: charge.customer, currency: charge.currency, paymentIntentId: charge.payment_intent,
-                paymentMethodType: charge.payment_method_details.type,
-              },
-            }],
+            payments,
           }
         }
+        const terminalObligationsCleared = subscription.status === 'canceled'
+          ? await canceledObligationsCleared(sdk.invoices, subscription.id)
+          : false
         return {
           stripeAccount: account.id, liveMode: subscription.livemode, isCurrent: true,
           subscriptionId: subscription.id, customerId: subscription.customer, status: subscription.status,
@@ -142,6 +198,7 @@ export function createStripeBillingProvider(sdk: StripeBillingReadPort): Billing
             quantity: item.quantity, currentPeriodStart: item.current_period_start, currentPeriodEnd: item.current_period_end,
           })),
           latestInvoice,
+          terminalObligationsCleared,
         }
       } catch (error) {
         // Invalid provider shapes become durable exceptions; transport failures retry.

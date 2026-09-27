@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { BillingLifecycleClaimFactsSchema } from './lifecycle-contracts'
 
 const uuidSchema = z.string().uuid().transform((value) => value.toLowerCase())
 const isoDateTimeSchema = z.string().datetime({ offset: true })
@@ -39,6 +40,7 @@ const claimedSubscriptionSchema = z.object({
   subscription_revision: z.number().int().positive(),
   expected_account_plan_revision: z.number().int().positive(),
   binding: BillingSubscriptionBindingSchema,
+  lifecycle: BillingLifecycleClaimFactsSchema.optional(),
 }).strict()
 
 export const BillingSubscriptionClaimSchema = z.discriminatedUnion('status', [
@@ -178,6 +180,7 @@ export const BillingProviderSubscriptionSnapshotSchema = z.object({
   scheduleId: providerReferenceSchema.nullable(),
   items: z.array(providerItemSchema).max(100),
   latestInvoice: providerInvoiceSchema.nullable(),
+  terminalObligationsCleared: z.boolean().optional(),
 }).strict()
 
 export type BillingProviderSubscriptionSnapshot = z.infer<typeof BillingProviderSubscriptionSnapshotSchema>
@@ -210,10 +213,13 @@ export type BillingFinishInput = {
   fencing_token: number
   expected_subscription_revision: number
   expected_account_plan_revision: number
-  outcome: 'paid' | 'noop' | 'exception'
+  outcome: 'paid' | 'noop' | 'exception' | 'renewal_failed' | 'canceled' | 'observed'
   event_inbox_id: string | null
   invoice_id: string | null
   period_start: string | null
   period_end: string | null
   reason_code: BillingSynchronizationReason | null
+  provider_status?: string
+  cancel_at_period_end?: boolean
+  obligations_cleared?: boolean
 }
