@@ -1,6 +1,6 @@
 # Stripe billing foundation
 
-Status as of 2026-09-27: foundation PR #1366 and gated first-purchase PR #1368
+Earlier phase-1 checkpoint on 2026-09-27: foundation PR #1366 and gated first-purchase PR #1368
 are merged. Local and production databases have migrations through 212, including
 the separately approved 211/212 applications. Schema application did not activate
 billing. A real local Stripe sandbox rehearsal now covers successful payments,
@@ -11,6 +11,60 @@ customer billing UI, notices and classroom cutoff behavior remain unfinished.
 The [subscription policy](subscription-policy.md) remains the product authority.
 The historical implementation/review notes below describe earlier checkpoints;
 the dated report supersedes their credential/rehearsal/readiness status.
+
+## Current migration reconciliation checkpoint (2026-09-27)
+
+PR #1377 is rebased onto main `ede9b218`. Main owns
+`214_contextual_assignment_owner_precedence.sql`; production already has that
+migration, and this billing task must not reapply it there. The three billing
+files are renamed without changing any SQL bytes:
+
+| Previously applied local version | Current repository version | Name |
+| --- | --- | --- |
+| 214 | 215 | subscription_lifecycle |
+| 215 | 216 | subscription_lifecycle_validation |
+| 216 | 217 | subscription_lifecycle_warning_cleanup |
+
+The old numbers in the historical evidence below describe the original local
+applications. The shared local database still records those old numbers; no
+history repair or owner-precedence application has occurred at this checkpoint.
+The billing test harnesses now require both the correct version and migration
+name, so a colliding number cannot satisfy their prerequisite.
+
+A private full local backup, readable archive manifest, exact history export and
+source checksum evidence were saved under
+`~/.codex/backups/pika-billing-resequence-20260927/`. All recorded billing SQL
+statements match the renamed files; the files match reviewed commit `971292b8`
+byte for byte. No backup contents or credentials belong in Git.
+
+The proposed sequence requires separate, exact owner approval for **both local
+migration-history repair and application of only migration 214 using
+`--include-all`**. The current correction/review authorization does not grant it.
+After independent review and that approval:
+
+1. Verify the local `pika` container/port, backup archive, source hashes and exact
+   history. Run `bash scripts/reconcile-local-billing-migration-history.sh --check`.
+   This preview checks all 216 recorded versions and exact names/statement
+   checksums of the three billing entries, then rolls back.
+2. Invoke the reviewed helper once with `--apply-approved`. In one transaction it
+   changes only the version column, in descending order: 216 to 217, 215 to 216,
+   214 to 215. Names, statements and other metadata are preserved. It never runs
+   migration bodies or changes application data. Recheck the resulting history.
+3. Run `supabase migration list --local`, then
+   `supabase db push --dry-run --local --include-all`. The preview must list only
+   `214_contextual_assignment_owner_precedence.sql`. Stop for any other pending
+   file, drift, target mismatch or unexpected prompt.
+4. Apply once with `supabase db push --local --include-all`, then re-list history.
+   Versions 001–217 must be present with owner-precedence at 214 and billing at
+   215–217. Already-applied billing SQL must not run again.
+5. Run the owner-precedence rollback database harness, all four billing database
+   contracts, warning-level database lint and generated-type verification.
+   Verify existing user/classroom counts and the disabled billing sandbox gate.
+
+Stop on any partial failure and obtain new authority before retrying. This plan
+contains no reset, reseed, application-data deletion, production billing change,
+or billing activation. Required CI must pass on the final reviewed PR commit;
+local reconciliation alone does not make the PR ready to merge.
 
 ## Scope and boundaries
 

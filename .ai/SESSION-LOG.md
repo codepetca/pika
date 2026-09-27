@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-25 — Platform administration design proposal
-
-- Coordinator task `01a0d8f5-aa5b-7643-8357-40883f4193cc`, active persistent goal; branch `codex/platform-administration-design`, main base `74648fd8`. Proposed phased plan/threat model in `docs/guidance/platform-administration.md`; owner review pending before implementation.
-- Source and independent session inventory confirm service-only plan206 foundation, 180-day base sessions, and missing privileged elevation/MFA contract. Recommend capability membership independent of classroom roles/plans, read-only inventory first, scoped transactional plan writes and separate production gates.
-- Live Supabase connector returned USER_NOT_LOGGED_IN; production plan assignments, migration206 and strict setting remain unverified. No code, migrations, grants, plan changes, PR, merge or deployment performed. Next: owner review of phase sequence, session policy and first authorization slice.
-
-## 2026-09-25 — Fictional platform-admin prototype
-
-- User requested admin prototype screens. Added a development-only Pattern Lab route with fixed fictional inventory, account detail, activity and plan-preview screens. Confirm action remains disabled; no live account API or admin authority was added. Design brief and reuse decisions are recorded in `docs/guidance/platform-administration.md`.
-- Browser-verified desktop/mobile and light/dark list/detail/preview/activity. Mobile inventory changed from horizontal table to cards with visible View actions; no page overflow or console errors. Focused checks pass (11 files, 93 tests, architecture, UI/design policy, TypeScript, lint).
-- Design approval, real authorization and plan operations, production target verification, and all production enablement remain pending.
-
-## 2026-09-25 — Admin prototype classroom shell revision
-
-- User clarified the prototype should follow the regular classroom layout. Reused `AppShell`, `ThreePanelShell`, `LeftSidebar`, and `MainContent`; added fixture-only Overview, Accounts, Activity, and Plans sections in the classroom-style collapsible rail/mobile drawer. Account detail and disabled plan preview stay under Accounts. The prototype remains fictional and development-only.
-- Extended the shared app-header sidebar trigger with an optional accessible label for admin navigation. Focused component coverage now checks section selection, mobile drawer closure, heading focus, and disabled confirmation. Playwright reviewed desktop/mobile, light/dark, expanded/collapsed rail, mobile drawer, and preview; no horizontal overflow or browser errors. UI brief and evidence are in `docs/guidance/platform-administration.md`. Teacher/student checks are n/a because no role session is involved. Risk profile: none. Model recommendation: GPT-6 Sol — scoped UI shell integration and review.
-- Independent review found the shared sidebar cookie leaked a prototype-only collapse into real classroom preferences. The provider now supports non-persistent sidebar state for this fixture; component and browser checks confirm `pika_left_sidebar` stays unchanged.
-- Final integration review found the unclassified account preview labeled a missing creation grant as zero. The preview now shows `—`; targeted component and browser checks cover the unknown value.
-
-## 2026-09-25 — Read-only admin operations prototype
-
-- Owner: codex/platform-administration-design, PR #1360. Product direction now assumes all tier and entitlement changes are automated. Replaced the prototype's Plans and plan-preview screens with Exceptions and exception detail, leaving tier as read-only account context; Overview, Accounts, and Activity now explain automated outcomes.
-- Reused the classroom shell and governed UI controls. Fictional example.invalid fixtures only; no live reads or writes. Playwright reviewed desktop/mobile, light/dark, account and exception details, activity, and drawer. The mobile exception title now wraps, navigation resets scroll, and browser checks show no horizontal overflow or errors. Teacher/student roles are n/a for this session-free fixture. Risk profile: none. Model recommendation: GPT-6 Sol — scoped prototype and product-scope revision.
-- The platform-administration proposal now describes a narrow read-only operations console. Live authorization, data scope, deployment, and any manual recovery action remain separate future decisions.
-- Focused check passed 28 files / 248 tests plus architecture, UI/design, TypeScript and lint. Pika audit passed. The shared drawer passed an Escape/focus-return browser check; composite-widget checklist has no remaining prototype follow-up.
-- Final independent integration review found the prototype theme button persisted a shared app preference. Removed the button so browsing this fixture cannot change the regular app's theme; light/dark verification uses isolated Playwright browser settings.
-- A regression test confirms prototype navigation leaves the shared theme preference unchanged and exposes no theme control. Final focused check passed 28 files / 249 tests plus architecture, UI/design, TypeScript, and lint; audit passed. Removed five duplicated historical archive entries introduced by the trim after rebasing, retaining their earlier copies and the unique subsequent entry.
-
-## 2026-09-25 — Subscription policy source of truth
-
-- Owner: `codex/platform-administration-design`, PR #1360. Added `docs/guidance/subscription-policy.md` for automated tier assignment, verified payment/account mapping, immediate same-interval upgrade proration, unchanged renewal dates, clear quotes, and existing-class protection. Linked it from the AI router, decision log, access roadmap, plan foundation, and operations proposal.
-- Explicitly separated agreed rules from proposed cancellation/grace/downgrade defaults and open provider, pricing, refund, grant-precedence, and AI-metering decisions. Billing is not implemented or activated by this documentation. Risk profile: none (documentation only). Model recommendation: GPT-6 Sol — bounded policy documentation.
-
 ## 2026-09-25 — Strict creation activation readiness
 
 - User delegated final production checks and activation if gates pass. Subagent refreshed 182 classified accounts (180 Free, 1 Plus, 1 Pro), zero plan/grant/dual-audit mismatches, reviewed live database functions/triggers, and prepared guarded activation privately. Strict creation and automatic Free signup remain OFF; no hosted writes occurred.
@@ -377,6 +344,7 @@ Main sync: resolved only continuity-document overlap after PR1368 landed; review
 - Resumed with explicit approval. PR1376/f3c00147 passed fullCI36344942279, including7realroute scenarios and browsermatrix; merged as7758ed44 and hubfastforwarded. Five reviewer passes, one formatting correction; final CI22m50s. User authorized214 for both targets. Production preflight previewed only214; apply succeeded and history001–214 plus8function ownerchecks/privileges were verified. No feature activation.
 - Local preflight instead found214 subscription_lifecycle,215 subscription_lifecycle_validation,216 subscription_lifecycle_warning_cleanup. No owner214 local apply or history repair attempted. Notified billing task Admin dashboard with exact collision and main/prod precedence; preserve all data and obtain coordinated repair authorization.
 - Began independent batch1 in codex/classroom-shared-admission: strict optional manual actorcohort consumed by materialGET authorization, preserving relationships/projections/legacy pairpilots. No migration, env activation, role/plan rewrite, home/page/signup or materialwrite change. Astra bounded design and Terra implementation; coordinator corrected absent-config behavior and strengthened sameactorA/B/C and archived-member tests.69targeted tests/types pass; focused checks and independent review follow.
+
 ## 2026-09-27 Subscription automation implementation in progress
 
 Owner requested remaining lifecycle, classroom enforcement, billing screens and full sandbox testing after #1372 merged. Worktree `codex/subscription-automation`, base `85e8a2bf`; active coordinator plan in `docs/guidance/stripe-billing-foundation.md`. Phase 2 lifecycle storage/runtime and authenticated trial/effective-status endpoints are being implemented, with provider unpaid-invoice decoding. Migration214 is being authored, not applied; existing local database remains unchanged. New merge, production rollout, live billing and real email remain outside authorization. Phase 3 must cover timestamp-based scheduled assignments and subscription-specific archive protections before exposing launch UI. Preserve the separate dirty `subscription-lifecycle` prototype; it is not the runtime implementation.
@@ -392,3 +360,7 @@ Owner approved local214; one reviewed push applied only214 successfully. Generat
 ## 2026-09-27 Billing CI warning cleanup checkpoint
 
 PR1377 returned to draft after CI database warning gate found unused variables in trial-start and three checkout functions; Test & Build and all billing database contracts passed. Owner approved one cleanup batch plus two further reviews within30minutes (19:46:49–20:16:49UTC). Forward216 replaces unused result assignments with PERFORM while retaining writes, row locks, FOUND checks, ACLs and behavior.214/215 remain immutable.216 passed targeted review and received exact local approval; one push applied only216. Warninglint returnszeroissues, allfourDBcontracts pass, generatedtypes match, and9users/1classroom/billingsandboxfalse remain. Reviewbudget now3fixbatches; launches6, with finalreview7 reserved beforeCI. Dependent renewal-closeout worktree preserved/paused with only corecontract and worker-handler changes; no closeoutmigration or provideradapter yet.
+
+## 2026-09-27 — Billing migration collision correction
+
+PR #1377 rebased onto main ede9b218; preserved main owner-precedence migration214. Renamed reviewed billing214/215/216 to215/216/217 byte for byte and made lifecycle harness prerequisites check names as well as versions. Saved private local backup/history/checksum evidence; prepared a guarded metadata-only local reconciliation helper whose default check rolls back. No history repair/application performed. Owner approved fourth correction batch and eighth/final review (30minutes); exact local history repair and owner214 --include-all application still need separate approval. Existing local data and disabled billing gate preserved. Next: final independent review, exact local repair approval, verification and stable-SHA CI.
