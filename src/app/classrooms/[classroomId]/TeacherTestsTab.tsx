@@ -2622,7 +2622,7 @@ export function TeacherTestsTab({
         title={getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}
         disabled={isReadOnly}
         onClick={() => openSelectedTestEditor()}
-        className="h-11 min-h-11 min-w-11 max-w-full flex-1 justify-start px-2 text-left font-medium text-text-default sm:flex-none sm:max-w-32 xl:max-w-64"
+        className="h-11 min-h-11 min-w-11 max-w-full flex-1 justify-start px-2 text-left text-lg font-medium text-text-default sm:flex-none sm:max-w-32 sm:text-xl lg:max-w-48 xl:max-w-80"
       >
         <span className="min-w-0 truncate">{getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}</span>
       </Button>
