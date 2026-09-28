@@ -52,6 +52,7 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   assignment_submission_artifacts: ['student_id'],
   assignments: ['created_by'],
   classroom_enrollments: ['student_id'],
+  classroom_guided_draft_provenance: ['created_by'],
   classroom_roster: ['removed_student_id'],
   classroom_retired_assessment_record_actors: ['actor_id'],
   classroom_resources: ['updated_by'],
@@ -419,6 +420,7 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('assignment_submission_artifacts', 'assignment_docs', 'assignment_doc_id', ['student_identity', 'student_work', 'external_reference'], 'exclude', ['assignment_submission_requirements']),
   resource('class_days', 'classrooms', 'classroom_id', ['teacher_content', 'operations']),
   resource('classroom_enrollments', 'classrooms', 'classroom_id', ['student_identity']),
+  resource('classroom_guided_draft_provenance', 'classrooms', 'classroom_id', ['teacher_content'], 'exclude', ['assignments', 'tests']),
   resource('gradebook_score_overrides', 'classrooms', 'classroom_id', ['student_identity', 'grades_and_feedback'], 'exclude', ['classroom_enrollments']),
   resource('gradebook_items', 'classrooms', 'classroom_id', ['teacher_content', 'grades_and_feedback'], 'exclude', ['gradebook_categories']),
   resource('gradebook_item_scores', 'classrooms', 'classroom_id', ['student_identity', 'grades_and_feedback'], 'exclude', ['classroom_enrollments', 'gradebook_items']),
@@ -520,10 +522,13 @@ export function auditClassroomResourceSchema(
   includeGradebookOverrides = true,
   includeGradebookItems = true,
   includeRemovedRosterActor = true,
+  includeGuidedDraftProvenance = primaryKeys.some((primaryKey) =>
+    primaryKey.table_name === 'classroom_guided_draft_provenance'),
 ): ClassroomResourceSchemaAudit {
   const relationalResources = CLASSROOM_RELATIONAL_RESOURCES.filter((resource) =>
     (resource.table !== 'gradebook_score_overrides' || includeGradebookOverrides)
-    && (!['gradebook_items', 'gradebook_item_scores'].includes(resource.table) || includeGradebookItems),
+    && (!['gradebook_items', 'gradebook_item_scores'].includes(resource.table) || includeGradebookItems)
+    && (resource.table !== 'classroom_guided_draft_provenance' || includeGuidedDraftProvenance),
   )
   const nonOwningReferenceKeys = new Set(
     CLASSROOM_NON_OWNING_REFERENCES.flatMap((relationship) =>

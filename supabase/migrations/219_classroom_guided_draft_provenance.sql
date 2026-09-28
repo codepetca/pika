@@ -37,6 +37,39 @@ alter table public.classroom_guided_draft_provenance enable row level security;
 revoke all on public.classroom_guided_draft_provenance from public, anon, authenticated;
 grant select, insert on public.classroom_guided_draft_provenance to service_role;
 
+-- Keep teacher-private provenance in portable classroom archives. Existing v2
+-- archives predate this additive table and restore it as an empty collection.
+insert into public.classroom_archive_resource_contract_versions (
+  format_version, table_name, primary_key_columns, parent_table, parent_column,
+  actor_columns, restore_after, export_position
+)
+select 2, 'classroom_guided_draft_provenance', array['id'], 'classrooms',
+  'classroom_id', array['created_by'], array['classrooms', 'assignments', 'tests'],
+  coalesce(max(export_position), 0) + 1
+from public.classroom_archive_resource_contract_versions
+where format_version = 2;
+
+insert into public.classroom_archive_resource_contract (
+  table_name, primary_key_columns, parent_table, parent_column,
+  actor_columns, restore_after, export_position
+)
+select 'classroom_guided_draft_provenance', array['id'], 'classrooms',
+  'classroom_id', array['created_by'], array['classrooms', 'assignments', 'tests'],
+  coalesce(max(export_position), 0) + 1
+from public.classroom_archive_resource_contract;
+
+create trigger car_classroom_guided_draft_provenance
+  before insert or delete or update on public.classroom_guided_draft_provenance
+  for each row execute function public.bump_classroom_archive_revision_from_resource(
+    'classrooms', 'classroom_id'
+  );
+
+create trigger classroom_purge_fence_guided_draft_provenance
+  before insert or delete or update on public.classroom_guided_draft_provenance
+  for each row execute function public.reject_classroom_resource_change_during_purge(
+    'classrooms', 'classroom_id'
+  );
+
 -- Reconstruct the exact ordered Markdown supplied by the application. This
 -- prevents an RPC caller from attaching unrelated rules to a Version or unit.
 create function public.resolve_classroom_guided_rules_v1(
@@ -46,7 +79,7 @@ create function public.resolve_classroom_guided_rules_v1(
 )
 returns jsonb
 language plpgsql
-immutable
+stable
 set search_path = ''
 as $function$
 declare

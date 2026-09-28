@@ -9,10 +9,14 @@ const mocks = vi.hoisted(() => ({
   getGuidance: vi.fn(),
   generate: vi.fn(),
   acquire: vi.fn(),
+  canMutate: vi.fn(),
 }))
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.requireRole }))
 vi.mock('@/lib/server/classroom-authoring-guidance', () => ({
   getClassroomAuthoringGuidance: mocks.getGuidance,
+}))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertTeacherCanMutateClassroom: mocks.canMutate,
 }))
 vi.mock('@/lib/server/course-blueprint-guided-drafting', () => ({
   generateClassroomGuidedDraft: mocks.generate,
@@ -54,6 +58,7 @@ beforeEach(() => {
   vi.stubEnv('SESSION_SECRET', 'test-session-secret-with-at-least-32-characters')
   mocks.requireRole.mockResolvedValue({ id: 'teacher-1' })
   mocks.getGuidance.mockResolvedValue({ ok: true, context: source })
+  mocks.canMutate.mockResolvedValue({ ok: true, classroom: { id: 'classroom-1' } })
   mocks.acquire.mockResolvedValue(vi.fn(async () => {}))
   mocks.generate.mockResolvedValue({
     target: 'assignments', content: '## A draft\n\nPoints: 5', draft: { title: 'A draft' },
@@ -111,6 +116,15 @@ describe('classroom guided draft suggestion', () => {
     const response = await POST(request({ target: 'tests' }), context)
     expect(response.status).toBe(409)
     expect(mocks.acquire).not.toHaveBeenCalled()
+  })
+
+  it('rejects an archived classroom before reserving a slot or calling the model', async () => {
+    mocks.canMutate.mockResolvedValue({ ok: false, status: 403, error: 'Classroom is archived' })
+    const response = await POST(request({ target: 'tests' }), context)
+    expect(response.status).toBe(403)
+    expect(mocks.getGuidance).not.toHaveBeenCalled()
+    expect(mocks.acquire).not.toHaveBeenCalled()
+    expect(mocks.generate).not.toHaveBeenCalled()
   })
 
   it('honors paid per-teacher admission and releases after provider failure', async () => {

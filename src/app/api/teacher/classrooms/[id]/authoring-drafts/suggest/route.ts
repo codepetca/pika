@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { classroomGuidedDraftSuggestSchema } from '@/lib/validations/classroom-guided-drafts'
 import { getClassroomAuthoringGuidance } from '@/lib/server/classroom-authoring-guidance'
+import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { generateClassroomGuidedDraft } from '@/lib/server/course-blueprint-guided-drafting'
 import { acquireCourseBlueprintDraftSlot } from '@/lib/server/course-blueprint-draft-admission'
 import {
@@ -17,6 +18,8 @@ export const POST = withErrorHandler('PostTeacherClassroomAuthoringDraftSuggest'
   const user = await requireRole('teacher')
   const { id } = await context.params
   const { target, prompt, unit_exception_id } = classroomGuidedDraftSuggestSchema.parse(await request.json())
+  const access = await assertTeacherCanMutateClassroom(user.id, id)
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
   const result = await getClassroomAuthoringGuidance(user.id, id)
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })

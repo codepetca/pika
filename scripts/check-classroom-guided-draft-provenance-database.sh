@@ -45,6 +45,21 @@ begin
   then
     raise exception 'Guided draft provenance privacy contract failed';
   end if;
+  if not exists (
+    select 1 from public.classroom_archive_resource_contract_versions
+    where format_version = 2 and table_name = 'classroom_guided_draft_provenance'
+      and parent_table = 'classrooms' and parent_column = 'classroom_id'
+      and actor_columns = array['created_by']
+      and restore_after = array['classrooms', 'assignments', 'tests']
+  ) or not exists (
+    select 1 from public.classroom_archive_resource_contract
+    where table_name = 'classroom_guided_draft_provenance'
+      and parent_table = 'classrooms' and parent_column = 'classroom_id'
+      and actor_columns = array['created_by']
+      and restore_after = array['classrooms', 'assignments', 'tests']
+  ) then
+    raise exception 'Guided draft archive resource contract failed';
+  end if;
 
   insert into public.users (id, email, role) values
     (v_owner, 'guided-draft-owner@example.test', 'teacher'),

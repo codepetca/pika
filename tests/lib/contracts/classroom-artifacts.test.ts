@@ -150,9 +150,9 @@ describe('classroom data inventory', () => {
     expect(GRADEX_RESOURCE_TABLES).not.toContain('classroom_creation_operations')
   })
 
-  it('is a valid, complete 44-resource classroom ownership graph', () => {
-    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(44)
-    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(44)
+  it('is a valid, complete 45-resource classroom ownership graph', () => {
+    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(45)
+    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(45)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'assignments')?.restore_after)
       .toContain('gradebook_categories')
@@ -397,7 +397,7 @@ describe('classroom artifact contracts', () => {
     expect(classroomArchiveManifestSchema.safeParse(validArchiveManifest()).success).toBe(true)
 
     const missingResource = validArchiveManifest()
-    missingResource.resources.pop()
+    missingResource.resources.shift()
     expect(classroomArchiveManifestSchema.safeParse(missingResource).success).toBe(false)
 
     const duplicateResource = validArchiveManifest()

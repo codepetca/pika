@@ -163,10 +163,11 @@ describe('classroom archive format', () => {
     expect(verification.ok && verification.manifest.version).toBe(2)
   })
 
-  it('decodes legacy v2 archives without newer Gradebook resources as empty rows', () => {
+  it('decodes legacy v2 archives without newer resources as empty rows', () => {
     const fixture = buildClassroomArchiveV2Fixture({
       omitGradebookCategories: true,
       omitGradebookScoreOverrides: true,
+      omitGuidedDraftProvenance: true,
     })
     const verification = verifyClassroomArchiveBundle(fixture.archive)
 
@@ -176,6 +177,7 @@ describe('classroom archive format', () => {
     expect(decodeClassroomArchiveData(verification).resources.gradebook_score_overrides).toEqual([])
     expect(decodeClassroomArchiveData(verification).resources.gradebook_items).toEqual([])
     expect(decodeClassroomArchiveData(verification).resources.gradebook_item_scores).toEqual([])
+    expect(decodeClassroomArchiveData(verification).resources.classroom_guided_draft_provenance).toEqual([])
   })
 
   it('canonicalizes object keys recursively while retaining array order', () => {
