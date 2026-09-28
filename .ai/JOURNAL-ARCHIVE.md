@@ -33329,3 +33329,125 @@ Hide the second displayed student name in ultra-compact mode, including metadata
 and summary rows. Detailed mode restores both names. Regression checks cover
 both name orders, ID visibility and raw-score alignment. Fresh raw screenshots
 show full earned/possible marks on desktop/mobile in light/dark themes.
+
+<!-- pika-session-log-archive-batch:5968da861e171805102c06db44b45eaafcbfbbea7c1f277d08b6e4a1ecc865a9 -->
+## 2026-09-25 — Strict creation activation readiness
+
+- User delegated final production checks and activation if gates pass. Subagent refreshed 182 classified accounts (180 Free, 1 Plus, 1 Pro), zero plan/grant/dual-audit mismatches, reviewed live database functions/triggers, and prepared guarded activation privately. Strict creation and automatic Free signup remain OFF; no hosted writes occurred.
+- Parent verified production alias at app SHA `213b2787`, authenticated owner classroom/Daily attendance/Classwork/Gradebook read access, 69 focused tests, and local rollback-only plan database contracts. Production student join/submission and remaining synthetic/write-flow canaries need completion using a designated disposable classroom and student session; user clarification pending. Private evidence stays outside Git. Existing work and account assignments unchanged.
+
+## 2026-09-26 — Ultra-compact Gradebook
+
+Added a remembered More actions toggle for compact assessment codes, four-letter
+categories, 44px weight inputs, and whole-number displayed percentages. First
+name/Final widths and grade calculations retain their existing behavior. Raw
+scores remain readable; production-owner Pattern Lab evidence added. Focused
+component/helper tests and desktop/mobile light/dark Playwright checks passed,
+including toggle persistence, editing, scroll, override marks and role isolation.
+
+## 2026-09-26 — Ultra-compact name-column refinement
+
+Hide the second displayed student name in ultra-compact mode, including metadata
+and summary rows. Detailed mode restores both names. Regression checks cover
+both name orders, ID visibility and raw-score alignment. Fresh raw screenshots
+show full earned/possible marks on desktop/mobile in light/dark themes.
+
+## 2026-09-26 — Raw Gradebook maximum row
+
+Raw mode now shows a Max mark row before Weight in compact and regular layouts,
+including when weights are hidden. Student and average cells show earned marks
+only; precise earned/possible information remains in editing labels. Compact raw
+columns are 64px. Tests cover zero/fractional values, row order and display-mode
+switching; production-owner desktop/mobile light/dark screenshots verified.
+
+## 2026-09-26 — Maximum override modal and calculation choices
+
+Prepared the maximum editor with Keep existing marks / Preserve percentages,
+refresh-to-original, persisted per-assessment maximum/scale, serialized normalized
+mark writes, and matching returned-only student calculation. Production-owner
+modal/table screenshots verified desktop/mobile light/dark. Migration 209 and a
+rollback-only database contract are authored; application/types verification
+requires one-time permission for local migration 209. No database changes applied.
+
+Independent Sol/Terra review found and remediation fixed cold-archive defaults,
+returned Classwork item scaling, fractional precision, manual input rounding,
+and bounded cumulative scales. App-first activation and rollback gate documented.
+Database harness now covers normalized fractions, historical archive keys,
+repeated scale rejection and reset. Local application approval remains pending.
+
+Second targeted review found an effective-maximum gate for empty/zero-point Tests.
+Manual marks now count with a positive override in teacher cells, final/summary,
+and returned student projection. Empty and zero-point tests have regressions.
+Migration 209 still awaits local approval; PR1365 remains draft.
+
+Final correction also handles fully scored zero-point Test questions without a
+manual mark against a positive effective maximum. Empty/unscored Tests stay
+omitted in both roles. Third fix batch; final integration review remains bounded.
+
+Local preflight found an external task had applied migration209
+stripe_billing_foundation (PR1366), which is absent from origin/main. Reserved
+210_gradebook_maximum_overrides.sql and added harness name checking; did not
+apply/repair/remove any migration. Local DB/types verification is additionally
+blocked until this checkout includes the approved billing baseline. The earlier
+209 approval request is obsolete; gradebook application would require local210.
+
+## 2026-09-26 — Above-maximum Gradebook warning
+
+Added amber border/background and warning triangle for assessment, final and
+average marks above 100%; raw mode compares earned to maximum. Compact warning
+and override icons coexist without clipping. Exact 100% and 150/200 stay normal.
+Verified 16 Pattern Lab screenshots across density, raw/percent, viewport and
+theme plus student-role isolation; focused checks and independent display review
+recorded in PR1365. Existing migration210/type/harness gates keep PR draft.
+
+## 2026-09-26 — Simplify Gradebook mark cells
+
+Removed warning and refresh/override status icons from assessment, final, max
+and average cells per user refinement. Amber above-maximum highlight and
+accessible/hover explanation remain; dialog reset actions remain functional.
+Raw preview retains earned-only values and Max mark before Weight. Sixteen
+layout/theme/viewport/mode screenshots plus student-role isolation passed.
+
+## 2026-09-26 — Apply Gradebook maximum migration locally
+
+Owner explicitly approved210 locally. Applied exactly once from isolated detached
+billing9b710884 baseline checkout with identical reviewed210; dry run listed only
+210, local target verified. Migration history now001–210. Database harness passes
+with rollback after fixing its question insert to canonical position column.
+Isolated generated types verification recorded in PR1365; feature-branch type
+integration awaits billing209 merge. Application permission is consumed.
+
+## 2026-09-26 — Prepare production209/210 and gradebook merge
+
+Owner explicitly authorized production209+210 then gradebook merge. Import the
+unchanged reviewed billing209 schema and generated001–210 types so gradebook
+can merge before billing application code. Remove temporary RPC cast; refine
+nullable reset/clear arguments and preserve maxima in assignment atomic parser.
+Production maximum edits default off until GRADEBOOK_MAXIMUM_EDITS_ENABLED is
+true after full mark-writer deployment; reads/normalized writes/reset stay usable.
+731 focused tests and canonical type checks pass; independent integration review,
+production application and stable-head CI remain in progress.
+
+## 2026-09-26 — Restore maximum access during paused production changes
+
+Owner authorized reset-access remediation and one extra targeted Terra review
+after the five-launch checkpoint. Separate schema availability from maximum edit
+capability. Overridden columns remain accessible; paused dialog disables input,
+behavior selection, Save and form submission while retaining reset. Integration
+and failure-recovery tests pass; eight desktop/mobile, light/dark, regular/compact
+visual matrices verify keyboard restore and student isolation. Canonical database
+types and rollback-only maximum database harness pass. Production209/210 approval
+is still unconsumed; exact-head targeted review and CI precede application/merge.
+
+## 2026-09-26 — Disposable tier activation fixtures
+
+- User authorized creating the production test classroom and Free student fixture. Created a clearly labeled disposable classroom through the authenticated owner UI and one isolated student record with an audited Free plan/zero creation limit. Private identities and execution records remain outside Git. No WorkOS identity, verified-email flag, or fabricated session was added.
+- Subagent production rollback canaries passed creation/replay, Free/at-capacity Blueprint denial, restore, transfer, and downgrade preservation; independent before/after counts and row hashes prove no synthetic data persisted. Strict creation/automatic Free signup remain OFF. Actual student sign-in/join/submission require a user-controlled test mailbox for WorkOS verification; requested without passwords. No billing/admin enablement, migration, deploy, or real-class edits.
+
+<!-- pika-session-log-archive-batch:bb78cf06726d32eb8f67ec8941bfa1ab4da0070414b2a0df1bc0b67b54c859c9 -->
+## 2026-09-26 — Strict creation and automatic Free signup activated
+
+- Owner `codex/platform-administration-design`, PR #1360. Under the user's scoped activation authorization, the subagent executed the reviewed guarded production activation RPC once at 11:54:17 UTC. Migrations 181/206 verified; strict creation and default-Free provisioning now ON. Readback: 183 accounts (181 Free, one Plus, one Pro), complete plan/grant/paired-audit parity, original nine classrooms' ownership/archive states preserved. Identity-level records and exact operation evidence remain private outside Git.
+- Normal user-controlled magic sign-in, Free student roster join, link/richtext submission, final grading and returned grade visibility passed in the disposable classroom. Teacher/student attendance views render expected non-class-day states; no fresh QR/check-in or attendance-write round trip claimed. After activation student returned work and teacher Gradebook remain accessible.
+- Postactivation rollback-only synthetic account probe passed atomic Free provisioning, disabled quota0 creation, paired system audits, and missing-grant denial. Independent before/after counts, full class hash, plans/grants/audits and settings prove no synthetic probe records persisted. No migration, app deploy, billing/admin enablement, role rewrite or real-class teaching edit. Test fixtures remain available; no destructive cleanup performed.
+- Updated current context, rollout status and administration proposal to distinguish active creation/default-Free behavior from unimplemented billing/admin. Synced latest main into the feature branch; resolved archive conflict by retaining existing unique history rather than reintroducing duplicated entries. Required documentation/prototype checks and stable-SHA review follow; no merge authorized.

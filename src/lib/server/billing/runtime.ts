@@ -23,7 +23,10 @@ export function createStripeBillingReadPort(stripe: Stripe): StripeBillingReadPo
     accounts: { retrieve: () => stripe.accounts.retrieve(null) },
     subscriptions: { retrieve: id => stripe.subscriptions.retrieve(id) },
     // Invoice.payments is optional unless explicitly expanded in SDK 22.6.2.
-    invoices: { retrieve: id => stripe.invoices.retrieve(id, { expand: ['payments'] }) },
+    invoices: {
+      retrieve: id => stripe.invoices.retrieve(id, { expand: ['payments'] }),
+      list: input => stripe.invoices.list(input),
+    },
     paymentIntents: { retrieve: id => stripe.paymentIntents.retrieve(id) },
     charges: { retrieve: id => stripe.charges.retrieve(id) },
   }
