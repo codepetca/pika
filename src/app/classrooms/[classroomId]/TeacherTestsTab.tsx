@@ -21,6 +21,7 @@ import {
 import { ChevronDown, ClockAlert, Code, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
+import { ClassroomBlueprintDraftDialog } from '@/components/ClassroomBlueprintDraftDialog'
 import {
   AssessmentStatusIndicator,
   getTestGradingWorkStatusDisplay,
@@ -443,6 +444,7 @@ export function TeacherTestsTab({
   const [testEditorInitialView, setTestEditorInitialView] = useState<'edit' | 'markdown'>('edit')
   const [showMarkdownTestPicker, setShowMarkdownTestPicker] = useState(false)
   const [isCreatingTest, setIsCreatingTest] = useState(false)
+  const [isBlueprintDraftOpen, setIsBlueprintDraftOpen] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [newlyCreatedTestId, setNewlyCreatedTestId] = useState<string | null>(null)
   const [pendingDeleteTest, setPendingDeleteTest] = useState<TestAssessmentWithStats | null>(null)
@@ -2739,6 +2741,16 @@ export function TeacherTestsTab({
       trailingClassName="overflow-visible"
       primary={
         <TeacherWorkSurfaceActionCluster>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => setIsBlueprintDraftOpen(true)}
+            disabled={isReadOnly || loading}
+          >
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            Draft with Blueprint
+          </Button>
           <IconButton
             icon={Plus}
             label="Create test"
@@ -3183,6 +3195,16 @@ export function TeacherTestsTab({
         onCancel={() => setPendingDeleteStudentAttemptIds(null)}
         onConfirm={() => {
           void handleDeleteSelectedStudentAttempts()
+        }}
+      />
+
+      <ClassroomBlueprintDraftDialog
+        isOpen={isBlueprintDraftOpen}
+        classroomId={classroom.id}
+        target="tests"
+        onClose={() => setIsBlueprintDraftOpen(false)}
+        onCreated={({ test }) => {
+          if (test) handleTestCreated(test)
         }}
       />
 

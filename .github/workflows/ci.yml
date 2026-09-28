@@ -191,6 +191,9 @@ jobs:
       - name: Verify Blueprint draft admission and rolling quota
         run: bash scripts/check-course-blueprint-draft-admission-database.sh
 
+      - name: Verify classroom guided draft provenance and atomic creation
+        run: bash scripts/check-classroom-guided-draft-provenance-database.sh
+
       - name: Verify Bara attendance tenancy, ordering, and deletion guards
         run: pnpm run check:bara-attendance-db
 

@@ -20,6 +20,15 @@ turn one quiz's length, point total, topic, or mix of questions into a default f
 every test. For revisions, preserve question/document IDs, unrelated content,
 point totals, and release settings unless the requested change includes them.
 
+When a classroom was created from a saved Course Blueprint Version, teachers
+can use **Draft with Blueprint** from Tests or Classwork. Choose the unit, give
+the assessment brief, and review the editable Markdown before creating a draft.
+The draft uses that classroom's frozen Version rules, including any selected
+unit rule; later edits to the Blueprint Draft do not silently change it. The
+teacher editor shows the source Version after creation. Keep guidance and
+answer keys in teacher-only fields, and check the student preview before
+publishing.
+
 ## Write the prompt, rubric, and sample together
 
 Treat each question as one coordinated package:

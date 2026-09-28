@@ -44,6 +44,10 @@ describe('frozen classroom authoring guidance', () => {
       id: 'version', course_blueprint_id: 'blueprint', version_number: 3,
       source_draft_revision: 9,
       snapshot_json: {
+        metadata: { title: 'Frozen title', subject: 'Computer Science', grade_level: '11' },
+        sections: { outline_markdown: 'Frozen outline' },
+        assignments: [{ title: 'Existing assignment' }],
+        assessments: [{ title: 'Existing test' }],
         authoring_guidance: {
           course_expectations_markdown: 'Course rule',
           assignment_guidance_markdown: 'Assignment rule',
@@ -66,6 +70,11 @@ describe('frozen classroom authoring guidance', () => {
           assignment_guidance_markdown: 'Assignment rule',
           test_guidance_markdown: 'Test rule',
           unit_exceptions: [],
+        },
+        course: {
+          title: 'Frozen title', subject: 'Computer Science', grade_level: '11',
+          outline_markdown: 'Frozen outline',
+          assignment_titles: ['Existing assignment'], test_titles: ['Existing test'],
         },
       },
     })
@@ -103,6 +112,7 @@ describe('frozen classroom authoring guidance', () => {
         test_guidance_markdown: '',
         unit_exceptions: [],
       })
+      expect(result.context.course.title).toBe('')
     }
   })
 })

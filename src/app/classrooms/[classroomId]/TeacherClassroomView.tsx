@@ -46,6 +46,7 @@ import { MaterialCreationDialog } from '@/components/materials/MaterialCreationD
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
+import { ClassroomBlueprintDraftDialog } from '@/components/ClassroomBlueprintDraftDialog'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
 import { SurveyCreationModal } from '@/components/surveys/SurveyCreationModal'
@@ -623,6 +624,7 @@ export function TeacherClassroomView({
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [classworkLoadError, setClassworkLoadError] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isBlueprintDraftOpen, setIsBlueprintDraftOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
   const [isSurveyCreateModalOpen, setIsSurveyCreateModalOpen] = useState(false)
   const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
@@ -2584,6 +2586,13 @@ export function TeacherClassroomView({
       disabled: isReadOnly,
     },
     {
+      id: 'blueprint-assignment',
+      label: 'Draft assignment with Blueprint',
+      icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
+      onSelect: () => setIsBlueprintDraftOpen(true),
+      disabled: isReadOnly,
+    },
+    {
       id: 'material',
       label: 'Material',
       icon: <Paperclip className="h-4 w-4" aria-hidden="true" />,
@@ -2952,6 +2961,20 @@ export function TeacherClassroomView({
             return
           }
           closeAssignmentModal()
+        }}
+      />
+
+      <ClassroomBlueprintDraftDialog
+        isOpen={isBlueprintDraftOpen}
+        classroomId={classroom.id}
+        target="assignments"
+        onClose={() => setIsBlueprintDraftOpen(false)}
+        onCreated={({ assignment }) => {
+          if (assignment) {
+            handleCreateSuccess(assignment)
+            setEditAssignment(assignment)
+            setAssignmentInstructionsMode('markdown')
+          }
         }}
       />
 

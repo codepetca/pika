@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
+import { ClassroomBlueprintDraftSource } from '@/components/ClassroomBlueprintDraftSource'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -99,7 +100,14 @@ export function TeacherTestAuthoringDialog({
       contentClassName="!overflow-hidden !p-0"
       tall
     >
-      <div className="h-full min-h-0 overflow-hidden">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        <ClassroomBlueprintDraftSource
+          classroomId={classroomId}
+          target="tests"
+          artifactId={test?.id}
+          isOpen={isOpen}
+        />
+        <div className="min-h-0 flex-1 overflow-hidden">
         {test ? (
           <TestDetailPanel
             test={test}
@@ -128,6 +136,7 @@ export function TeacherTestAuthoringDialog({
             generatedTitleLabel="Untitled Test"
           />
         ) : null}
+        </div>
       </div>
     </CreationModalShell>
   )

@@ -1142,6 +1142,23 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByRole('button', { name: 'Open assignment code editor' })).not.toBeInTheDocument()
   })
 
+  it('opens the Blueprint drafting dialog from the classwork create menu', async () => {
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ context: null }),
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+
+    openAddClassworkMenu()
+    const guidedAction = screen.getByRole('menuitem', { name: 'Draft assignment with Blueprint' })
+    expect(guidedAction).not.toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(guidedAction)
+
+    expect(await screen.findByRole('dialog', { name: 'Draft assignment with Blueprint' })).toBeInTheDocument()
+    expect(await screen.findByText(/no saved Blueprint Version/i)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'New Assignment' })).toBeNull()
+  })
+
   it('opens selected assignment Markdown and returns to visual mode on normal edit', async () => {
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)

@@ -1,8 +1,9 @@
 # Living blueprint authoring guidance
 
-Status: implementation in progress, 2026-09-28. Owner: the Blueprint authoring task on
-`codex/blueprint-authoring-ux`. This plan tracks the complete goal; a polished
-workspace alone does not satisfy it.
+Status: implementation in progress, 2026-09-28. The Blueprint workspace is in
+PR #1386 (`codex/blueprint-authoring-ux`); classroom drafting is in the
+follow-up branch `codex/blueprint-classroom-drafts`. This plan tracks the
+complete goal.
 
 ## Goal
 
@@ -60,8 +61,8 @@ equally first-class.
   Proposals, and export it as `authoring-guidance.md` in package v6. Legacy
   packages import with empty guidance. A classroom-derived proposal preserves
   the Blueprint's guidance; instantiation does not copy it to classroom rows.
-- Identify the real drafting entry points and whether existing AI Drafting can
-  truthfully apply guidance or needs a new teacher-reviewed draft flow.
+- Classroom Classwork and Tests keep their existing blank creation actions and
+  add a shared teacher-reviewed guided draft flow at those entry points.
 - Classroom drafting reads the frozen source Blueprint Version through a
   teacher-only endpoint. Its AI draft request must use that Version's rules,
   not the live Blueprint Draft. A draft records the Version and chosen unit
@@ -84,25 +85,31 @@ equally first-class.
   then explicitly applied or rejected. A prior history entry can be restored as
   a new staged change; history remains immutable.
 
+## Classroom drafting implementation
+
+- The teacher chooses a target, unit, and request, then edits the generated
+  standalone Markdown before creating an unpublished draft. The model receives
+  the classroom's frozen Version rules. A trial of unsaved Blueprint rules
+  cannot create a classroom artifact.
+- A signed preview proof binds the teacher, classroom, Version, unit, rules,
+  and original generated draft. Edited Markdown is parsed and validated before
+  creation. One-use `draft_id` prevents the same preview from creating twice.
+- A private sidecar stores the frozen Version and exact rules used. Existing
+  `source_blueprint_version_id` on Assignment and Test remains direct copied
+  artifact lineage. Atomic database functions create the artifact, initial
+  content, and sidecar in one transaction. The teacher editor shows a compact
+  source note after reload; students only receive the assessment content.
+
 ## Remaining release gates
 
-- Verify the SQL migration and generate the database contract from a clean
-  local stack. The shared local stack currently has an unrelated migration 218;
-  this branch's new migration is also numbered 218 from current `origin/main`.
-  Never treat a matching number as proof that its SQL has run. A one-time local
-  instruction for the exact file was requested under the rollout checklist.
-- Run the full focused check after updating all package-version test fixtures.
-  Publish a draft PR, obtain independent fixed-SHA review, and complete PR Gate.
-- Follow-up PR: connect classroom Test and Assignment creation to the frozen
-  source Version guidance. The teacher-only Version reader is present, but the
-  classroom creation UI currently opens an empty draft. The Blueprint AI
-  Drafting path is the first working consumer. The classroom flow needs a unit
-  picker, model request containing the frozen rules, an editable preview, and
-  server-verified provenance on creation. Store provenance in a private sidecar
-  row; existing `source_blueprint_version_id` tracks copied artifact lineage
-  and must not be repurposed. Create the artifact, initial content, and
-  provenance atomically. A read-only guidance notice alone does not establish
-  that the rules shaped the draft.
-
-Resolve these from the current source and migration contracts before changing
-the schema. Record decisions and verification evidence here as phases land.
+- PR #1386 remains in draft after a database lint warning. Its one-line typed
+  array initialization fix passed focused local checks; another review and
+  exact-head CI require the current review-budget checkpoint.
+- Replay migrations 218 and 219 from a clean isolated database, run the real
+  database contract scripts and warning-level lint, and generate/check types.
+  The shared local stack has an unrelated migration 218; no feature migration
+  has been applied there. One-time permission for exact-file local application
+  was requested under the schema rollout checklist.
+- Complete focused checks, teacher/student visual verification, independent
+  review, a draft-first PR, and a stable-SHA ready PR Gate for the classroom
+  change. Merge each PR only after the repository's normal authority gate.
