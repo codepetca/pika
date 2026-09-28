@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { AppHeader } from '@/components/AppHeader'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
@@ -150,6 +151,13 @@ export function UiGallery({ role }: Props) {
 
   return (
     <main className="min-h-screen bg-page text-text-default">
+      <section aria-label="Application header references">
+        <AppHeader user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
+        <AppHeader
+          user={{ email: `${role}@example.invalid`, role }}
+          examModeHeader={{ testTitle: 'Exam header reference', exitsCount: 0, awayTotalSeconds: 0 }}
+        />
+      </section>
       <div className="mx-auto max-w-wide space-y-8 px-4 py-8 sm:px-6">
         <header className="space-y-5" data-testid="pattern-lab-header">
           <div className="flex flex-wrap items-start justify-between gap-4">

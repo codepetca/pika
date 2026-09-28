@@ -11,119 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-25 — Strict creation activation readiness
-
-- User delegated final production checks and activation if gates pass. Subagent refreshed 182 classified accounts (180 Free, 1 Plus, 1 Pro), zero plan/grant/dual-audit mismatches, reviewed live database functions/triggers, and prepared guarded activation privately. Strict creation and automatic Free signup remain OFF; no hosted writes occurred.
-- Parent verified production alias at app SHA `213b2787`, authenticated owner classroom/Daily attendance/Classwork/Gradebook read access, 69 focused tests, and local rollback-only plan database contracts. Production student join/submission and remaining synthetic/write-flow canaries need completion using a designated disposable classroom and student session; user clarification pending. Private evidence stays outside Git. Existing work and account assignments unchanged.
-
-## 2026-09-26 — Ultra-compact Gradebook
-
-Added a remembered More actions toggle for compact assessment codes, four-letter
-categories, 44px weight inputs, and whole-number displayed percentages. First
-name/Final widths and grade calculations retain their existing behavior. Raw
-scores remain readable; production-owner Pattern Lab evidence added. Focused
-component/helper tests and desktop/mobile light/dark Playwright checks passed,
-including toggle persistence, editing, scroll, override marks and role isolation.
-
-## 2026-09-26 — Ultra-compact name-column refinement
-
-Hide the second displayed student name in ultra-compact mode, including metadata
-and summary rows. Detailed mode restores both names. Regression checks cover
-both name orders, ID visibility and raw-score alignment. Fresh raw screenshots
-show full earned/possible marks on desktop/mobile in light/dark themes.
-
-## 2026-09-26 — Raw Gradebook maximum row
-
-Raw mode now shows a Max mark row before Weight in compact and regular layouts,
-including when weights are hidden. Student and average cells show earned marks
-only; precise earned/possible information remains in editing labels. Compact raw
-columns are 64px. Tests cover zero/fractional values, row order and display-mode
-switching; production-owner desktop/mobile light/dark screenshots verified.
-
-## 2026-09-26 — Maximum override modal and calculation choices
-
-Prepared the maximum editor with Keep existing marks / Preserve percentages,
-refresh-to-original, persisted per-assessment maximum/scale, serialized normalized
-mark writes, and matching returned-only student calculation. Production-owner
-modal/table screenshots verified desktop/mobile light/dark. Migration 209 and a
-rollback-only database contract are authored; application/types verification
-requires one-time permission for local migration 209. No database changes applied.
-
-Independent Sol/Terra review found and remediation fixed cold-archive defaults,
-returned Classwork item scaling, fractional precision, manual input rounding,
-and bounded cumulative scales. App-first activation and rollback gate documented.
-Database harness now covers normalized fractions, historical archive keys,
-repeated scale rejection and reset. Local application approval remains pending.
-
-Second targeted review found an effective-maximum gate for empty/zero-point Tests.
-Manual marks now count with a positive override in teacher cells, final/summary,
-and returned student projection. Empty and zero-point tests have regressions.
-Migration 209 still awaits local approval; PR1365 remains draft.
-
-Final correction also handles fully scored zero-point Test questions without a
-manual mark against a positive effective maximum. Empty/unscored Tests stay
-omitted in both roles. Third fix batch; final integration review remains bounded.
-
-Local preflight found an external task had applied migration209
-stripe_billing_foundation (PR1366), which is absent from origin/main. Reserved
-210_gradebook_maximum_overrides.sql and added harness name checking; did not
-apply/repair/remove any migration. Local DB/types verification is additionally
-blocked until this checkout includes the approved billing baseline. The earlier
-209 approval request is obsolete; gradebook application would require local210.
-
-## 2026-09-26 — Above-maximum Gradebook warning
-
-Added amber border/background and warning triangle for assessment, final and
-average marks above 100%; raw mode compares earned to maximum. Compact warning
-and override icons coexist without clipping. Exact 100% and 150/200 stay normal.
-Verified 16 Pattern Lab screenshots across density, raw/percent, viewport and
-theme plus student-role isolation; focused checks and independent display review
-recorded in PR1365. Existing migration210/type/harness gates keep PR draft.
-
-## 2026-09-26 — Simplify Gradebook mark cells
-
-Removed warning and refresh/override status icons from assessment, final, max
-and average cells per user refinement. Amber above-maximum highlight and
-accessible/hover explanation remain; dialog reset actions remain functional.
-Raw preview retains earned-only values and Max mark before Weight. Sixteen
-layout/theme/viewport/mode screenshots plus student-role isolation passed.
-
-## 2026-09-26 — Apply Gradebook maximum migration locally
-
-Owner explicitly approved210 locally. Applied exactly once from isolated detached
-billing9b710884 baseline checkout with identical reviewed210; dry run listed only
-210, local target verified. Migration history now001–210. Database harness passes
-with rollback after fixing its question insert to canonical position column.
-Isolated generated types verification recorded in PR1365; feature-branch type
-integration awaits billing209 merge. Application permission is consumed.
-
-## 2026-09-26 — Prepare production209/210 and gradebook merge
-
-Owner explicitly authorized production209+210 then gradebook merge. Import the
-unchanged reviewed billing209 schema and generated001–210 types so gradebook
-can merge before billing application code. Remove temporary RPC cast; refine
-nullable reset/clear arguments and preserve maxima in assignment atomic parser.
-Production maximum edits default off until GRADEBOOK_MAXIMUM_EDITS_ENABLED is
-true after full mark-writer deployment; reads/normalized writes/reset stay usable.
-731 focused tests and canonical type checks pass; independent integration review,
-production application and stable-head CI remain in progress.
-
-## 2026-09-26 — Restore maximum access during paused production changes
-
-Owner authorized reset-access remediation and one extra targeted Terra review
-after the five-launch checkpoint. Separate schema availability from maximum edit
-capability. Overridden columns remain accessible; paused dialog disables input,
-behavior selection, Save and form submission while retaining reset. Integration
-and failure-recovery tests pass; eight desktop/mobile, light/dark, regular/compact
-visual matrices verify keyboard restore and student isolation. Canonical database
-types and rollback-only maximum database harness pass. Production209/210 approval
-is still unconsumed; exact-head targeted review and CI precede application/merge.
-
-## 2026-09-26 — Disposable tier activation fixtures
-
-- User authorized creating the production test classroom and Free student fixture. Created a clearly labeled disposable classroom through the authenticated owner UI and one isolated student record with an audited Free plan/zero creation limit. Private identities and execution records remain outside Git. No WorkOS identity, verified-email flag, or fabricated session was added.
-- Subagent production rollback canaries passed creation/replay, Free/at-capacity Blueprint denial, restore, transfer, and downgrade preservation; independent before/after counts and row hashes prove no synthetic data persisted. Strict creation/automatic Free signup remain OFF. Actual student sign-in/join/submission require a user-controlled test mailbox for WorkOS verification; requested without passwords. No billing/admin enablement, migration, deploy, or real-class edits.
-
 ## 2026-09-26 — Strict creation and automatic Free signup activated
 
 - Owner `codex/platform-administration-design`, PR #1360. Under the user's scoped activation authorization, the subagent executed the reviewed guarded production activation RPC once at 11:54:17 UTC. Migrations 181/206 verified; strict creation and default-Free provisioning now ON. Readback: 183 accounts (181 Free, one Plus, one Pro), complete plan/grant/paired-audit parity, original nine classrooms' ownership/archive states preserved. Identity-level records and exact operation evidence remain private outside Git.
@@ -364,3 +251,63 @@ PR1377 returned to draft after CI database warning gate found unused variables i
 ## 2026-09-27 — Billing migration collision correction
 
 PR #1377 rebased onto main ede9b218; preserved main owner-precedence migration214. Renamed reviewed billing214/215/216 to215/216/217 byte for byte and made lifecycle harness prerequisites check names as well as versions. Saved private local backup/history/checksum evidence; prepared a guarded metadata-only local reconciliation helper whose default check rolls back. No history repair/application performed. Owner approved fourth correction batch and eighth/final review (30minutes); exact local history repair and owner214 --include-all application still need separate approval. Existing local data and disabled billing gate preserved. Next: final independent review, exact local repair approval, verification and stable-SHA CI.
+
+## 2026-09-27 — Resume Chrome PDF reference fix PR1353
+
+- User explicitly authorized merging PR1353 when ready. Rebased the previously reviewed PDF fix onto current main, preserving image-viewer routing and combining PDF MIME metadata with image metadata. Prior 853-test gate and Sol/Terra reviews cleared original head89ab04a8; updated integration checks and independent review required before merge. Risk profile: exam-mode.
+
+## 2026-09-27 — Titlebar clock visibility
+- Task branch `codex/titlebar-clock-visibility`: show the existing Toronto date/time only in fullscreen, maximized windows, or exam mode. Keep exam compliance enforcement and mobile clock treatment unchanged. Reuse AppHeader clock/useFullscreen; extend visibility with a resize/focus-aware maximize hook. Risk: exam-mode presentation only; no compliance changes or new composite widget.
+- Shared app header is the approved shell reference; Pattern Lab now renders normal/exam production owners for both roles. Visual verification passed16 Playwright captures: teacher/student, light/dark, restored/maximized/fullscreen/mobile. Screenshots and reproducible capture script remain local under artifacts/titlebar-clock and /tmp/pika-titlebar-visual.cjs.
+- Initial focused checks passed203 tests, architecture, UI/design policy, TypeScript and lint. Header tests passed17, including resizing, initial fullscreen/exit and exam recovery. Draft-first publication and independent fixed-SHA review follow; no merge or production rollout authorized.
+
+- Independent Terra review identified near-full restored windows being mistaken for maximized. Replaced the viewport ratios with outer-window/screen bounds; added near-full and one-dimension restored regressions plus Pattern Lab header accessibility coverage. Targeted review flagged the8px boundary too; removed tolerance and added within8px restored regressions. Final review follows strict screen-bounds matching.
+
+## 2026-09-27 — Correct titlebar fullscreen interpretation
+- User clarified that the date/time must stay hidden whenever Pika is not fullscreen, for both teacher and student. Removed the OS-window size inference, which could re-enable the clock after hydration; visibility now uses only the existing Fullscreen API state or exam header state. Exam enforcement is unchanged.
+- Reuse AppHeader/useFullscreen and existing clock styling; shared shell/Pattern Lab remain the reference. Verify both roles, light/dark, windowed (including screen-sized browser), fullscreen entry/exit, reload, mobile and exam header. No new components or composite-widget behavior.
+- Focused checks passed206 tests plus type/lint/architecture/UI/design gates;18 header tests cover screen-sized normal windows after effects/resize/focus and real fullscreen events. Browser verification and fixed-SHA review follow before returning PR1374 to ready.
+
+## 2026-09-27 — Titlebar clock merge preparation
+- User approved the fullscreen-only result and authorized PR1374 merge to main. Synced main85e8a2bf; the sole conflict was a duplicate archive-batch marker, resolved in favor of main's marker. Application and test files match reviewed687b3469; no product behavior changed during sync.
+- Required focused checks and targeted sync review precede stable-SHA CI and squash merge. Local server3107 remains the preview; no production promotion requested.
+
+## 2026-09-27 — Titlebar mobile CI stabilization
+- Owner extended the review budget to resolve PR1374's mobile Pattern Lab tooltip failure and complete merge. CI passed Test & Build but failed the student mobile attendance tooltip checks. Reproduced the scroll/focus race locally; scrolling the absent chip into view before focus preserves the tooltip assertion and avoids the tooltip being dismissed by focus-induced scrolling.
+- Synced main ede9b218; conflicts were confined to duplicate archive history, preserving main's entries. Titlebar application/component-test files are byte-identical to reviewed632136b0. One-line browser-test correction, focused checks, bounded independent review and final-SHA CI precede merge.
+
+## 2026-09-27 — Test-mode pane layout
+
+Removed the redundant separator line from the shared student/teacher-preview document workspace. One 30/70-default width state now survives reference opening, Back, and switching documents; the resize control is available in the list too. Kept answer forms mounted and existing pointer/keyboard controls. Verification: 245 focused tests plus architecture/UI/design/typecheck/lint; student and teacher Playwright desktop/mobile light/dark captures and pane-width regressions. Composite accessibility checklist reviewed; keyboard and semantic state tested; no manual follow-up. Branch: codex/test-mode-pane-layout.
+
+## 2026-09-27 — Test reference image scrollbar stability
+
+Fixed image resize feedback by measuring fractional border-box viewport dimensions and using CSS minimum canvas dimensions instead of previous content-box measurements. Preserves zoom, Fit, scrolling, and mounted answers. Unit regression covers scrollbar-area changes and real pane resizing; browser regressions reserve scrollbar space and sample image geometry across 40 frames. Teacher/student desktop/mobile light/dark verification passed (8 scenarios); focused suite 250 tests plus architecture/UI/design/typecheck/lint passed. Also verified the local seeded Markdown/PNG test. PR1375 returned to draft before this correction.
+
+User chose image-specific maximum pane width. Opening an image now expands documents to the existing 50% limit, allows manual resizing while open, and restores the previous list width on Back; text and link references keep the user-selected width. Shared workspace state owns the behavior. Unit regression covers expand/manual resize/restore; eight teacher/student desktop/mobile light/dark browser scenarios pass, and all screenshots were inspected. Four affected component suites pass (76 tests); architecture/UI/design/TypeScript/lint and Pika audit pass. A broad focused rerun hit Vitest worker/test timeouts under local load, so final CI remains the full-suite gate. PR1375 correction review/CI pending.
+
+Checked whether divider dragging could record an exam exit. The divider changes only its CSS pane width, and its pointer interactions mark an allowed document interaction; window-compliance telemetry observes browser-window resize, fullscreen, visibility, focus, and navigation instead. Added a desktop student browser drag through the actual divider, then explicitly dispatched a transient window blur and asserted no focus-event request after the 600ms blur grace period. Light and dark variants pass. No product-code change was needed.
+
+Main advanced while PR1375 was open. Rebasing onto cdc48bc3 retained the new PDF-reference handling; the only conflicts were duplicate archived continuity entries, so main's copies were kept. On the rebased source, focused checks pass 255 tests plus architecture/UI/design/TypeScript/lint; all eight teacher/student image browser scenarios pass across desktop/mobile light/dark, and screenshots show the intended layout. The local dev server was relaunched with the repository launcher. Targeted sync review and exact-head CI follow.
+
+Exact-head CI passed Test & Build but failed two desktop long-test browser scenarios because their older text-reference assertion expected a 50% open pane. Updated the assertion to verify the new 30% preserved width and keyboard expansion to 35%; all four long-test desktop/mobile light/dark scenarios now pass locally, as do 255 focused tests and static gates. Seven unrelated browser scenarios were flaky but passed on retry in that CI run. PR returned to draft before this test correction; final review and fresh CI follow.
+
+## 2026-09-27 — Pause Pal UI CI
+
+Owner confirmed Pal is disabled until further notice. Recorded the pause in the current-state summary and Pal operations guide. Required CI now excludes the two Pal learner-component suites and dedicated Pal classroom browser scenario; backend, API, feature-gate, and theme-contract checks remain. Full component suites remain available through `pnpm test:coverage`, and the browser scenario can still be run directly before reactivation. PR1375 returned to draft before this correction. The CI test-selection check confirms the UI suites are absent and backend checks remain; workflow and focused validation follow.
+
+Independent review confirmed the CI exclusion scope and found the reactivation guide still named widget alpha.4 while the pinned dependency is alpha.6. Updated both guide references to alpha.6. Focused checks passed 255 tests and architecture/UI/design/TypeScript/lint; full CI coverage run follows.
+
+Full CI coverage command passed 885 files / 8,438 tests with coverage thresholds met. A first run exposed that the compact CURRENT note had changed exact phrases used by the Bara attendance documentation contract; restored those phrases while staying under the startup size budget. Both targeted contracts and the full coverage rerun passed. Targeted re-review reported no remaining blockers.
+
+## 2026-09-27 — Owner-authorized local database reset
+
+Owner explicitly requested resetting local DB to resolve migration numbering. From reviewed source0a2c1c2d, one local-only reset through217 with no seed succeeded after a fresh private custom-format database backup and archive-list verification. All217 history versions/names match source; dry-run reports up to date. Classroom owner-precedence and billing foundation/checkout/lifecycle/validation rollback contracts pass. Post-check: zero local users/classrooms; billing sandboxfalse/test. Production untouched. Prior metadata-repair proposal is superseded and must not run. Billing215–217 remain PR1377 source, not yet merged main. Backup and logs: /Users/stew/.codex/backups/pika-local-reset-217.efCeer. No accounts restored or test data seeded.
+
+## 2026-09-27 — Authorized local reseed
+
+Owner subsequently requested local reseeding. Standard pnpm seed (seed.ts plus planned-course fixtures) succeeded using in-memory credentials from the running local stack, guarded API127.0.0.1:54321 and ENV_FILE=/dev/null. Verified3users,1classroom,2enrollments,3assignments,2tests,3blueprints; planned-course idempotency check passed. Migration214–217 names unchanged, billing sandboxfalse/test. No second reset, hosted access, real account restore or gate activation.
+
+## 2026-09-27 — Billing documentation sync after local reset
+
+Owner approved one documentation-only fifth correction batch and CI, with no additional reviewer, database changes or merge. Merged main4d0c4474 into PR1377; the sole archive conflict contained branch entries already present verbatim in main, so retained main archive without losing history. Consolidated reset/reseed receipts and superseded the old history-repair plan. Billing source/migration bytes stay identical to independently reviewed0a2c1c2d. Verified local001–217,3demo users/1classroom,sandboxfalse/test; generated types match and warning lint is clean. Focused checks and stable-commit CI follow. Review count remains8 (hard cap); no new launch.

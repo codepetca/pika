@@ -33215,7 +33215,67 @@ async-grading.
 - Draft PR1362 independent review found five prototype edge cases: whole-Test Markdown rejected Text reference headings, preview Close left browser fullscreen, sample PDF opened unavailable/blank, Publish ignored errors on other questions, and reference/option drag handles lacked a keyboard path. One remediation batch preserves headings and field-like Text content in the existing Test Markdown parser; makes the sample reference a visibly rendered Text doc and labels new PDFs as pending prototype uploads; owns/exits preview fullscreen; validates all questions; and adds arrow-key reordering with focus and browser/component coverage. The focused gate passes 49 files / 774 tests plus architecture, UI/design policy, TypeScript, and lint; audit passes; 12 teacher desktop/mobile light/dark Pattern Lab browser checks pass. Targeted review, final integration review and ready-PR CI follow.
 - Targeted re-review at `ddd5e498` found two residual edges: a literal `### Document N` heading still collided with whole-Test Markdown delimiters, and fullscreen entered through the preview's retry button was not released. Batch2 adds reversible escaping for reserved structural headings in prompt/reference Markdown, preserves literal backslashes, and exits fullscreen if preview began outside fullscreen regardless of which preview control entered it. Link rows join PDF rows as clearly labeled unbound Pattern Lab placeholders rather than fake student references. Parser round-trip regressions, a desktop fullscreen-retry browser case, all 12 teacher desktop/mobile light/dark Pattern Lab cases, focused checks (49 files / 774 tests), and audit pass. Final integration review and ready-PR CI remain.
 
-<!-- pika-session-log-archive-batch:99c313954d36958764f85a39d79062906290af3d260749399678e4b34d8ab225 -->
+<!-- pika-session-log-archive-batch:0f1dc6563bd0cf1c9b69a71bf0446144de33275dfbff581e9a02e81370b90db1 -->
+## 2026-09-25 — Platform administration design proposal
+
+- Coordinator task `01a0d8f5-aa5b-7643-8357-40883f4193cc`, active persistent goal; branch `codex/platform-administration-design`, main base `74648fd8`. Proposed phased plan/threat model in `docs/guidance/platform-administration.md`; owner review pending before implementation.
+- Source and independent session inventory confirm service-only plan206 foundation, 180-day base sessions, and missing privileged elevation/MFA contract. Recommend capability membership independent of classroom roles/plans, read-only inventory first, scoped transactional plan writes and separate production gates.
+- Live Supabase connector returned USER_NOT_LOGGED_IN; production plan assignments, migration206 and strict setting remain unverified. No code, migrations, grants, plan changes, PR, merge or deployment performed. Next: owner review of phase sequence, session policy and first authorization slice.
+
+## 2026-09-25 — Fictional platform-admin prototype
+
+- User requested admin prototype screens. Added a development-only Pattern Lab route with fixed fictional inventory, account detail, activity and plan-preview screens. Confirm action remains disabled; no live account API or admin authority was added. Design brief and reuse decisions are recorded in `docs/guidance/platform-administration.md`.
+- Browser-verified desktop/mobile and light/dark list/detail/preview/activity. Mobile inventory changed from horizontal table to cards with visible View actions; no page overflow or console errors. Focused checks pass (11 files, 93 tests, architecture, UI/design policy, TypeScript, lint).
+- Design approval, real authorization and plan operations, production target verification, and all production enablement remain pending.
+
+## 2026-09-25 — Admin prototype classroom shell revision
+
+- User clarified the prototype should follow the regular classroom layout. Reused `AppShell`, `ThreePanelShell`, `LeftSidebar`, and `MainContent`; added fixture-only Overview, Accounts, Activity, and Plans sections in the classroom-style collapsible rail/mobile drawer. Account detail and disabled plan preview stay under Accounts. The prototype remains fictional and development-only.
+- Extended the shared app-header sidebar trigger with an optional accessible label for admin navigation. Focused component coverage now checks section selection, mobile drawer closure, heading focus, and disabled confirmation. Playwright reviewed desktop/mobile, light/dark, expanded/collapsed rail, mobile drawer, and preview; no horizontal overflow or browser errors. UI brief and evidence are in `docs/guidance/platform-administration.md`. Teacher/student checks are n/a because no role session is involved. Risk profile: none. Model recommendation: GPT-6 Sol — scoped UI shell integration and review.
+- Independent review found the shared sidebar cookie leaked a prototype-only collapse into real classroom preferences. The provider now supports non-persistent sidebar state for this fixture; component and browser checks confirm `pika_left_sidebar` stays unchanged.
+- Final integration review found the unclassified account preview labeled a missing creation grant as zero. The preview now shows `—`; targeted component and browser checks cover the unknown value.
+
+## 2026-09-25 — Read-only admin operations prototype
+
+- Owner: codex/platform-administration-design, PR #1360. Product direction now assumes all tier and entitlement changes are automated. Replaced the prototype's Plans and plan-preview screens with Exceptions and exception detail, leaving tier as read-only account context; Overview, Accounts, and Activity now explain automated outcomes.
+- Reused the classroom shell and governed UI controls. Fictional example.invalid fixtures only; no live reads or writes. Playwright reviewed desktop/mobile, light/dark, account and exception details, activity, and drawer. The mobile exception title now wraps, navigation resets scroll, and browser checks show no horizontal overflow or errors. Teacher/student roles are n/a for this session-free fixture. Risk profile: none. Model recommendation: GPT-6 Sol — scoped prototype and product-scope revision.
+- The platform-administration proposal now describes a narrow read-only operations console. Live authorization, data scope, deployment, and any manual recovery action remain separate future decisions.
+- Focused check passed 28 files / 248 tests plus architecture, UI/design, TypeScript and lint. Pika audit passed. The shared drawer passed an Escape/focus-return browser check; composite-widget checklist has no remaining prototype follow-up.
+- Final independent integration review found the prototype theme button persisted a shared app preference. Removed the button so browsing this fixture cannot change the regular app's theme; light/dark verification uses isolated Playwright browser settings.
+- A regression test confirms prototype navigation leaves the shared theme preference unchanged and exposes no theme control. Final focused check passed 28 files / 249 tests plus architecture, UI/design, TypeScript, and lint; audit passed. Removed five duplicated historical archive entries introduced by the trim after rebasing, retaining their earlier copies and the unique subsequent entry.
+
+<!-- pika-session-log-archive-batch:5683d447af7672fa42511bd22f5a80cb846d6a2e766b4f03be93e68b8222a891 -->
+## 2026-09-25 — Disable student actions for unpublished tests
+
+- Owner: `codex/disable-draft-test-student-actions`. Draft test student tables now disable selection, batch grading/return/unsubmit/delete, access controls, and row unsubmit; row activation cannot open the grading inspector. Publish remains available from the action bar and editor. Publishing restores student selection and actions.
+- Reused the existing teacher test action bar, student table, and status controls; Pattern Lab teacher operational controls were the visual reference. No student-facing surface changed. Teacher desktop/mobile light/dark fixture verification passed for draft and published states; screenshots under ignored `output/playwright/`.
+- Component coverage includes stale submitted/open draft rows and confirms controls remain disabled; 77 direct component tests passed. Pika audit passed. Composite-widget accessibility checklist reviewed: keyboard behavior yes, semantic disabled state tested yes, manual follow-up none. Focused checks and PR review follow.
+- Independent review found direct draft grading/deletion API access despite UI gating. One remediation batch adds draft rejection to AI grading/suggestion, manual grade/save/clear, and single/bulk work deletion routes, with no-mutation API regressions. Exit-alert activation is also disabled for drafts; draft student tables do not start exit polling. Affected tests: 126 passed; focused gate: 269 passed plus architecture/UI/design/types/lint; audit clean. Targeted re-review and stable-SHA CI follow.
+- Targeted re-review found queued AI grading runs could still tick for draft tests. Second correction rejects draft ticks server-side and stops client polling for draft runs; API and component regressions pass (81 targeted tests). Final targeted review and ready-SHA CI follow.
+
+## 2026-09-25 — Draft test selection guidance
+
+- Updated PR1361 on `codex/disable-draft-test-student-actions`: disabled draft student header/row checkboxes and the Student actions menu now show concise Publish-first tooltips on hover and keyboard focus. The shared `TableSelectionCheckbox` has an optional `disabledTooltip` prop; Pattern Lab documents it with a deterministic teacher example. No student UI changed.
+- Reused canonical Tooltip and existing teacher table/menu owners; no new visual pattern. Teacher draft/published states passed Playwright at 1440/390 widths, light/dark; Pattern Lab teacher example passed the same matrix. Screenshots under ignored `output/playwright/`. Composite widget checklist: relationships retained; focusable disabled guidance and semantics tested; no manual follow-up. Focused gate passed 1820 tests plus architecture/UI/design/type/lint checks; audit clean. Independent review and stable-SHA CI follow.
+- User approved resuming the time-limited independent reviews. Both reviewers confirmed two blockers: Turkish/German case variants could evade name masking, and unknown batch-grading provider refs could reach durable Test-run errors. Batched fixes add folded matching with original grapheme-offset substitution and fixed unknown/duplicate-ref errors, preserving existing retry/classification behavior. Also corrected UTF-16-only initials for astral names.
+- Added regressions for Turkish-I, sharp-S in both directions, Greek sigma, unchanged surrounding text/context, astral initials, and actual batch-adapter errors through saved Test-run items. Targeted tests pass 4 files / 75 tests. Focused gate, targeted privacy re-review and final cumulative integration review remain required before ready/CI. No migration, dependency, production setting or deployment change.
+
+## 2026-09-25 — Remove Test split-pane prototype header
+
+- Removed the visible full-width Edit Test header and made the experimental modal flush to its pane edges. Saved status now sits beside the Title label and Settings icon; the accessible Close control remains at the top-right without overlapping the mobile controls. Production Test editing and other creation modals are unchanged.
+- Extended the shared modal shell with an optional panel class hook, used only by this prototype. The focused gate passes 21 files / 276 tests plus architecture, UI/design policy, TypeScript, and lint. Pattern Lab interaction and visual verification pass for teacher desktop/mobile in light/dark; student is n/a because Test authoring is teacher-only.
+- Centered the Test question number/previous-next selector at the top of the right pane and consolidated Points, open-response Code, Duplicate, and Delete into its action bar. Removed the redundant question-reorder arrows and the right-pane Questions heading. On mobile, Close now lives in the scrolling Title row rather than floating over Publish. Four teacher Pattern Lab browser variants and the refreshed 276-test focused gate pass; production Test editing remains unchanged.
+- Removed the full-width header from both the Pattern Lab assignment edit prototype and the production Assignment edit modal while preserving the create modal's visible header. The edit Title line now contains autosave status and the accessible Close control, leaving the editor toolbar unobstructed; the split panes begin at the dialog edge. Focused checks pass 21 files / 277 tests plus architecture, UI/design policy, TypeScript, and lint. Eight assignment/Test Pattern Lab browser variants pass; live teacher edit was visually inspected desktop/mobile in light/dark. Student is n/a for teacher editing.
+- Consolidated the Test prototype's question selector, type, compact in-field Points label, Add question, and overflow options into one top action bar. Open-response Code response, Duplicate, and Delete now use the accessible overflow menu; the close control stays beside Title at all widths. Four teacher desktop/mobile, light/dark interaction and visual checks pass. Production Test editing remains unchanged.
+- Replaced the separate Add and overflow triggers in the experimental Test edit action bar with one blue `ListPlus` Question actions menu. It offers add multiple-choice/open-response, open-only Code response, Duplicate, and destructive Delete, with semantic checked state and focus restoration. Desktop/mobile, light/dark Pattern Lab checks and open-menu screenshots pass; production Test editing remains unchanged.
+- Replaced the Test prototype's selected-question Preview dialog with the existing full-screen teacher Test Preview/StudentTestForm composition, fed by its unsaved in-memory draft and reference list without API writes. The editor dialog suspends while previewing and restores focus on Close; browser full-screen/maximize behavior matches the saved-test preview. MC answer options and correct choices are now stored per question so a full-test preview reflects each draft independently. Unit and four teacher Pattern Lab desktop/mobile light/dark interaction and visual checks pass; production saved-test preview behavior remains unchanged.
+- Made New Assignment use the existing headerless split-pane AssignmentForm in both production and its Pattern Lab example, matching Edit Assignment without changing create/draft behavior. Teacher desktop/mobile light/dark screenshots and interactions pass; focused checks pass 23 files / 292 tests plus architecture, UI/design policy, TypeScript, and lint. Student is n/a for teacher authoring.
+- Pulled main `f4c6e3ff` into the uncommitted prototype worktree. Resolved the sole stash-restore conflict in the continuity archive, retaining main and prototype history; product code auto-merged. The refreshed focused gate passes 23 files / 305 tests plus architecture, UI/design policy, TypeScript, and lint, and eight Assignment/Test Pattern Lab desktop/mobile light/dark checks pass. No migration was applied by this sync.
+- Brought the Pattern Lab split Test Text reference in line with production authoring: its add/edit dialog now captures a required title and up to 20,000 characters of Markdown, supports cancel/validation, and feeds actual content into the full-test preview. The prototype's Reference Docs row opens the editor; no API writes or production Test editor changes. Focused checks pass 23 files / 305 tests plus architecture/UI/design policy, TypeScript and lint; four teacher desktop/mobile light/dark add/edit/preview flows and screenshots pass. Student authoring is n/a; teacher preview uses the student-facing reference renderer.
+- Synced main `513aeaa0` before the split-pane PR; the only restore conflict was the shared archive, preserving both histories. Added a Title/Close accessibility regression test and passed the pre-commit audit plus refreshed focused gate (23 files / 306 tests, architecture, UI/design policy, TypeScript and lint). The 12-case Pattern Lab split Assignment/Test and Markdown-reference browser matrix passed across teacher desktop/mobile light/dark; an initial mobile-dark 404 was traced to two local servers sharing one checkout, then rerun successfully on a single server. Production Test editing remains unchanged; draft PR, independent review and stable-head CI follow.
+- Draft PR1362 independent review found five prototype edge cases: whole-Test Markdown rejected Text reference headings, preview Close left browser fullscreen, sample PDF opened unavailable/blank, Publish ignored errors on other questions, and reference/option drag handles lacked a keyboard path. One remediation batch preserves headings and field-like Text content in the existing Test Markdown parser; makes the sample reference a visibly rendered Text doc and labels new PDFs as pending prototype uploads; owns/exits preview fullscreen; validates all questions; and adds arrow-key reordering with focus and browser/component coverage. The focused gate passes 49 files / 774 tests plus architecture, UI/design policy, TypeScript, and lint; audit passes; 12 teacher desktop/mobile light/dark Pattern Lab browser checks pass. Targeted review, final integration review and ready-PR CI follow.
+- Targeted re-review at `ddd5e498` found two residual edges: a literal `### Document N` heading still collided with whole-Test Markdown delimiters, and fullscreen entered through the preview's retry button was not released. Batch2 adds reversible escaping for reserved structural headings in prompt/reference Markdown, preserves literal backslashes, and exits fullscreen if preview began outside fullscreen regardless of which preview control entered it. Link rows join PDF rows as clearly labeled unbound Pattern Lab placeholders rather than fake student references. Parser round-trip regressions, a desktop fullscreen-retry browser case, all 12 teacher desktop/mobile light/dark Pattern Lab cases, focused checks (49 files / 774 tests), and audit pass. Final integration review and ready-PR CI remain.
+
 ## 2026-09-25 — Platform administration design proposal
 
 - Coordinator task `01a0d8f5-aa5b-7643-8357-40883f4193cc`, active persistent goal; branch `codex/platform-administration-design`, main base `74648fd8`. Proposed phased plan/threat model in `docs/guidance/platform-administration.md`; owner review pending before implementation.
@@ -33248,3 +33308,138 @@ async-grading.
 
 - Owner: `codex/platform-administration-design`, PR #1360. Added `docs/guidance/subscription-policy.md` for automated tier assignment, verified payment/account mapping, immediate same-interval upgrade proration, unchanged renewal dates, clear quotes, and existing-class protection. Linked it from the AI router, decision log, access roadmap, plan foundation, and operations proposal.
 - Explicitly separated agreed rules from proposed cancellation/grace/downgrade defaults and open provider, pricing, refund, grant-precedence, and AI-metering decisions. Billing is not implemented or activated by this documentation. Risk profile: none (documentation only). Model recommendation: GPT-6 Sol — bounded policy documentation.
+
+## 2026-09-25 — Strict creation activation readiness
+
+- User delegated final production checks and activation if gates pass. Subagent refreshed 182 classified accounts (180 Free, 1 Plus, 1 Pro), zero plan/grant/dual-audit mismatches, reviewed live database functions/triggers, and prepared guarded activation privately. Strict creation and automatic Free signup remain OFF; no hosted writes occurred.
+- Parent verified production alias at app SHA `213b2787`, authenticated owner classroom/Daily attendance/Classwork/Gradebook read access, 69 focused tests, and local rollback-only plan database contracts. Production student join/submission and remaining synthetic/write-flow canaries need completion using a designated disposable classroom and student session; user clarification pending. Private evidence stays outside Git. Existing work and account assignments unchanged.
+
+## 2026-09-26 — Ultra-compact Gradebook
+
+Added a remembered More actions toggle for compact assessment codes, four-letter
+categories, 44px weight inputs, and whole-number displayed percentages. First
+name/Final widths and grade calculations retain their existing behavior. Raw
+scores remain readable; production-owner Pattern Lab evidence added. Focused
+component/helper tests and desktop/mobile light/dark Playwright checks passed,
+including toggle persistence, editing, scroll, override marks and role isolation.
+
+## 2026-09-26 — Ultra-compact name-column refinement
+
+Hide the second displayed student name in ultra-compact mode, including metadata
+and summary rows. Detailed mode restores both names. Regression checks cover
+both name orders, ID visibility and raw-score alignment. Fresh raw screenshots
+show full earned/possible marks on desktop/mobile in light/dark themes.
+
+<!-- pika-session-log-archive-batch:5968da861e171805102c06db44b45eaafcbfbbea7c1f277d08b6e4a1ecc865a9 -->
+## 2026-09-25 — Strict creation activation readiness
+
+- User delegated final production checks and activation if gates pass. Subagent refreshed 182 classified accounts (180 Free, 1 Plus, 1 Pro), zero plan/grant/dual-audit mismatches, reviewed live database functions/triggers, and prepared guarded activation privately. Strict creation and automatic Free signup remain OFF; no hosted writes occurred.
+- Parent verified production alias at app SHA `213b2787`, authenticated owner classroom/Daily attendance/Classwork/Gradebook read access, 69 focused tests, and local rollback-only plan database contracts. Production student join/submission and remaining synthetic/write-flow canaries need completion using a designated disposable classroom and student session; user clarification pending. Private evidence stays outside Git. Existing work and account assignments unchanged.
+
+## 2026-09-26 — Ultra-compact Gradebook
+
+Added a remembered More actions toggle for compact assessment codes, four-letter
+categories, 44px weight inputs, and whole-number displayed percentages. First
+name/Final widths and grade calculations retain their existing behavior. Raw
+scores remain readable; production-owner Pattern Lab evidence added. Focused
+component/helper tests and desktop/mobile light/dark Playwright checks passed,
+including toggle persistence, editing, scroll, override marks and role isolation.
+
+## 2026-09-26 — Ultra-compact name-column refinement
+
+Hide the second displayed student name in ultra-compact mode, including metadata
+and summary rows. Detailed mode restores both names. Regression checks cover
+both name orders, ID visibility and raw-score alignment. Fresh raw screenshots
+show full earned/possible marks on desktop/mobile in light/dark themes.
+
+## 2026-09-26 — Raw Gradebook maximum row
+
+Raw mode now shows a Max mark row before Weight in compact and regular layouts,
+including when weights are hidden. Student and average cells show earned marks
+only; precise earned/possible information remains in editing labels. Compact raw
+columns are 64px. Tests cover zero/fractional values, row order and display-mode
+switching; production-owner desktop/mobile light/dark screenshots verified.
+
+## 2026-09-26 — Maximum override modal and calculation choices
+
+Prepared the maximum editor with Keep existing marks / Preserve percentages,
+refresh-to-original, persisted per-assessment maximum/scale, serialized normalized
+mark writes, and matching returned-only student calculation. Production-owner
+modal/table screenshots verified desktop/mobile light/dark. Migration 209 and a
+rollback-only database contract are authored; application/types verification
+requires one-time permission for local migration 209. No database changes applied.
+
+Independent Sol/Terra review found and remediation fixed cold-archive defaults,
+returned Classwork item scaling, fractional precision, manual input rounding,
+and bounded cumulative scales. App-first activation and rollback gate documented.
+Database harness now covers normalized fractions, historical archive keys,
+repeated scale rejection and reset. Local application approval remains pending.
+
+Second targeted review found an effective-maximum gate for empty/zero-point Tests.
+Manual marks now count with a positive override in teacher cells, final/summary,
+and returned student projection. Empty and zero-point tests have regressions.
+Migration 209 still awaits local approval; PR1365 remains draft.
+
+Final correction also handles fully scored zero-point Test questions without a
+manual mark against a positive effective maximum. Empty/unscored Tests stay
+omitted in both roles. Third fix batch; final integration review remains bounded.
+
+Local preflight found an external task had applied migration209
+stripe_billing_foundation (PR1366), which is absent from origin/main. Reserved
+210_gradebook_maximum_overrides.sql and added harness name checking; did not
+apply/repair/remove any migration. Local DB/types verification is additionally
+blocked until this checkout includes the approved billing baseline. The earlier
+209 approval request is obsolete; gradebook application would require local210.
+
+## 2026-09-26 — Above-maximum Gradebook warning
+
+Added amber border/background and warning triangle for assessment, final and
+average marks above 100%; raw mode compares earned to maximum. Compact warning
+and override icons coexist without clipping. Exact 100% and 150/200 stay normal.
+Verified 16 Pattern Lab screenshots across density, raw/percent, viewport and
+theme plus student-role isolation; focused checks and independent display review
+recorded in PR1365. Existing migration210/type/harness gates keep PR draft.
+
+## 2026-09-26 — Simplify Gradebook mark cells
+
+Removed warning and refresh/override status icons from assessment, final, max
+and average cells per user refinement. Amber above-maximum highlight and
+accessible/hover explanation remain; dialog reset actions remain functional.
+Raw preview retains earned-only values and Max mark before Weight. Sixteen
+layout/theme/viewport/mode screenshots plus student-role isolation passed.
+
+## 2026-09-26 — Apply Gradebook maximum migration locally
+
+Owner explicitly approved210 locally. Applied exactly once from isolated detached
+billing9b710884 baseline checkout with identical reviewed210; dry run listed only
+210, local target verified. Migration history now001–210. Database harness passes
+with rollback after fixing its question insert to canonical position column.
+Isolated generated types verification recorded in PR1365; feature-branch type
+integration awaits billing209 merge. Application permission is consumed.
+
+## 2026-09-26 — Prepare production209/210 and gradebook merge
+
+Owner explicitly authorized production209+210 then gradebook merge. Import the
+unchanged reviewed billing209 schema and generated001–210 types so gradebook
+can merge before billing application code. Remove temporary RPC cast; refine
+nullable reset/clear arguments and preserve maxima in assignment atomic parser.
+Production maximum edits default off until GRADEBOOK_MAXIMUM_EDITS_ENABLED is
+true after full mark-writer deployment; reads/normalized writes/reset stay usable.
+731 focused tests and canonical type checks pass; independent integration review,
+production application and stable-head CI remain in progress.
+
+## 2026-09-26 — Restore maximum access during paused production changes
+
+Owner authorized reset-access remediation and one extra targeted Terra review
+after the five-launch checkpoint. Separate schema availability from maximum edit
+capability. Overridden columns remain accessible; paused dialog disables input,
+behavior selection, Save and form submission while retaining reset. Integration
+and failure-recovery tests pass; eight desktop/mobile, light/dark, regular/compact
+visual matrices verify keyboard restore and student isolation. Canonical database
+types and rollback-only maximum database harness pass. Production209/210 approval
+is still unconsumed; exact-head targeted review and CI precede application/merge.
+
+## 2026-09-26 — Disposable tier activation fixtures
+
+- User authorized creating the production test classroom and Free student fixture. Created a clearly labeled disposable classroom through the authenticated owner UI and one isolated student record with an audited Free plan/zero creation limit. Private identities and execution records remain outside Git. No WorkOS identity, verified-email flag, or fabricated session was added.
+- Subagent production rollback canaries passed creation/replay, Free/at-capacity Blueprint denial, restore, transfer, and downgrade preservation; independent before/after counts and row hashes prove no synthetic data persisted. Strict creation/automatic Free signup remain OFF. Actual student sign-in/join/submission require a user-controlled test mailbox for WorkOS verification; requested without passwords. No billing/admin enablement, migration, deploy, or real-class edits.

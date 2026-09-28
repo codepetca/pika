@@ -264,6 +264,7 @@ for (const role of ['teacher', 'student'] as const) {
     const bounds = (await absent.boundingBox())!
     expect(bounds.width).toBeGreaterThanOrEqual(44)
     expect(bounds.height).toBeGreaterThanOrEqual(44)
+    await absent.scrollIntoViewIfNeeded()
     await absent.focus()
     await expect(page.getByRole('tooltip')).toContainText('1 student absent')
     await page.keyboard.press('Enter')
@@ -873,7 +874,24 @@ test.describe('teacher Pattern Lab', () => {
     await details.getByRole('button', { name: 'Markdown', exact: true }).click()
     await details.getByRole('button', { name: 'Preview', exact: true }).click()
     const preview = page.getByRole('region', { name: 'Teacher test preview' })
+    const documentsPane = preview.getByRole('region', { name: 'Test documents' })
+    const questionsPane = preview.getByRole('region', { name: 'Test questions' })
+    const separator = preview.getByRole('separator', { name: 'Resize documents and questions panes' })
+    if (testInfo.project.name.includes('desktop')) {
+      await separator.focus()
+      await separator.press('ArrowRight')
+      await separator.press('ArrowRight')
+      await expect(separator).toHaveAttribute('aria-valuenow', '40')
+    }
+    const bounds = async () => [await documentsPane.boundingBox(), await questionsPane.boundingBox()]
+    // Finish any resize animation before comparing actual pane geometry.
+    await page.waitForTimeout(350)
+    const before = await bounds()
+    await testInfo.attach('reference-list', { body: await preview.screenshot(), contentType: 'image/png' })
     await preview.getByRole('button', { name: 'Wetland notes' }).click()
+    await page.waitForTimeout(350)
+    expect(await bounds()).toEqual(before)
+
     await expect(preview.getByRole('heading', { name: 'Field notes' })).toBeVisible()
     await expect(preview.getByRole('heading', { name: 'Document 2' })).toBeVisible()
     await expect(preview.getByText('Record water temperature')).toBeVisible()
@@ -881,6 +899,10 @@ test.describe('teacher Pattern Lab', () => {
       body: await page.screenshot({ path: testInfo.outputPath('test-text-reference-preview.png'), animations: 'disabled' }),
       contentType: 'image/png',
     })
+    await preview.getByRole('button', { name: 'Back to documents list' }).click()
+    await page.waitForTimeout(350)
+    expect(await bounds()).toEqual(before)
+    await testInfo.attach('reference-back', { body: await preview.screenshot(), contentType: 'image/png' })
     expect(writes).toEqual([])
   })
 

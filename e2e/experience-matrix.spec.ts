@@ -142,6 +142,32 @@ async function waitForKarelRasterPaint(image: Locator) {
   expect(decoded.hasKarelBlue).toBe(true)
 }
 
+async function verifyStableImageGeometry(image: Locator) {
+  await waitForKarelRasterPaint(image)
+  const samples = await image.evaluate(async (element) => {
+    const viewport = element.parentElement!.parentElement!
+    const before = element.getBoundingClientRect()
+    const originalGutter = viewport.style.scrollbarGutter
+    const samples = [{ width: before.width, height: before.height }]
+    // Exercise reserved scrollbar space even on systems with overlay scrollbars.
+    viewport.style.scrollbarGutter = 'stable both-edges'
+    try {
+      for (let frame = 0; frame < 40; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const rect = element.getBoundingClientRect()
+        samples.push({ width: rect.width, height: rect.height })
+      }
+    } finally {
+      viewport.style.scrollbarGutter = originalGutter
+    }
+    return samples
+  })
+  for (const sample of samples) {
+    expect(sample.width).toBeCloseTo(samples[0].width, 2)
+    expect(sample.height).toBeCloseTo(samples[0].height, 2)
+  }
+}
+
 function installExamWindowFixture(page: Page) {
   return page.addInitScript(() => {
     Object.defineProperty(window.screen, 'availWidth', { configurable: true, get: () => window.innerWidth })
@@ -2270,13 +2296,39 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   const answer = page.getByLabel('Response for question 1', { exact: true })
   const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
   await answer.fill('move()\nmove()\npick_beeper()')
+  const documentsPane = page.getByTestId('student-test-documents-pane')
+  const questionsPane = page.getByTestId('student-test-detail-pane')
+  const separator = page.getByRole('separator', { name: 'Resize documents and questions panes' })
+  if (viewport === 'desktop') {
+    await separator.focus()
+    await separator.press('ArrowRight')
+    await separator.press('ArrowRight')
+    await expect(separator).toHaveAttribute('aria-valuenow', '40')
+  }
+  const bounds = async () => {
+    const panes = [await documentsPane.boundingBox(), await questionsPane.boundingBox()]
+    // Mobile stacks panes; image references already reserve additional reading height.
+    return viewport === 'desktop' ? panes : panes.map((pane) => pane?.width)
+  }
+  await page.waitForTimeout(350)
+  const before = await bounds()
+  const listDocumentWidth = (await documentsPane.boundingBox())!.width
+  await page.screenshot({ path: testInfo.outputPath(`student-test-list-${viewport}.png`), animations: 'disabled' })
   await page.getByRole('button', { name: 'Karel grid PNG', exact: true }).click()
   const image = page.getByRole('img', { name: 'Karel grid PNG' })
   await expect(image).toBeVisible()
+  await page.waitForTimeout(350)
+  if (viewport === 'desktop') {
+    await expect(separator).toHaveAttribute('aria-valuenow', '50')
+    expect((await documentsPane.boundingBox())!.width).toBeGreaterThan(listDocumentWidth)
+  } else {
+    expect(await bounds()).toEqual(before)
+  }
   await expect(page.getByRole('region', { name: 'Karel grid PNG image' })).toHaveCount(1)
   await expect(imageZoomStatus).toHaveText('Fit')
   await page.getByRole('button', { name: 'Zoom in' }).click()
   await expect(imageZoomStatus).toHaveText('125%')
+  await verifyStableImageGeometry(image)
   await page.getByRole('button', { name: 'Fit image' }).click()
   await expect(imageZoomStatus).toHaveText('Fit')
   await expect(answer).toHaveValue('move()\nmove()\npick_beeper()')
@@ -2284,6 +2336,29 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   await verifyProjectContract(page, testInfo)
   await waitForKarelRasterPaint(image)
   await page.screenshot({ path: testInfo.outputPath(`student-test-image-${viewport}.png`), animations: 'disabled' })
+  if (viewport === 'desktop') {
+    const divider = await separator.boundingBox()
+    expect(divider).not.toBeNull()
+    const dragX = divider!.x + divider!.width / 2
+    const dragY = divider!.y + divider!.height / 2
+    await page.mouse.move(dragX, dragY)
+    await page.mouse.down()
+    await page.mouse.move(dragX - 100, dragY, { steps: 5 })
+    await page.mouse.up()
+    expect(Number(await separator.getAttribute('aria-valuenow'))).toBeLessThan(50)
+    expect(focusEventRequests).toBe(0)
+    // Browser chrome can briefly take focus at pointer release; the drag marks
+    // this as a document interaction, so it must not become a delayed exit.
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+    await page.waitForTimeout(700)
+    expect(focusEventRequests).toBe(0)
+  }
+  await page.getByRole('button', { name: 'Back to documents list' }).click()
+  await page.waitForTimeout(350)
+  expect(await bounds()).toEqual(before)
+  await expect(answer).toHaveValue('move()\nmove()\npick_beeper()')
+  await page.screenshot({ path: testInfo.outputPath(`student-test-back-${viewport}.png`), animations: 'disabled' })
+
 })
 
 test('uploads PNG and JPEG references, projects them into teacher preview, and retries a failed image', async ({ page }, testInfo) => {
@@ -2378,6 +2453,9 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
   })
   await page.getByRole('button', { name: 'Maximize Window' }).click()
   await page.getByRole('button', { name: 'karel-grid.jpeg', exact: true }).click()
+  if (viewport === 'desktop') {
+    await expect(page.getByRole('separator', { name: 'Resize documents and questions panes' })).toHaveAttribute('aria-valuenow', '50')
+  }
   await expect(page.getByText('Image unavailable', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Try again' }).click()
   const image = page.getByRole('img', { name: 'karel-grid.jpeg' })
@@ -2385,6 +2463,7 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
   const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
   await page.getByRole('button', { name: 'Zoom in' }).click()
   await expect(imageZoomStatus).toHaveText('125%')
+  await verifyStableImageGeometry(image)
   await page.getByRole('button', { name: 'Fit image' }).click()
   await expect(imageZoomStatus).toHaveText('Fit')
   await verifyProjectContract(page, testInfo)
@@ -3031,9 +3110,10 @@ test('student long test scroll reaches final questions and submit', async ({ pag
   await expect(firstAnswer).toHaveValue(answer)
   if (viewport === 'desktop') {
     const divider = page.getByRole('separator', { name: 'Resize documents and questions panes' })
+    await expect(divider).toHaveAttribute('aria-valuenow', '30')
     await divider.focus()
-    await divider.press('ArrowLeft')
-    await expect(divider).toHaveAttribute('aria-valuenow', '45')
+    await divider.press('ArrowRight')
+    await expect(divider).toHaveAttribute('aria-valuenow', '35')
   }
   await page.screenshot({ path: testInfo.outputPath('student-test-scroll-reference.png'), animations: 'disabled' })
 })

@@ -12,59 +12,50 @@ The [subscription policy](subscription-policy.md) remains the product authority.
 The historical implementation/review notes below describe earlier checkpoints;
 the dated report supersedes their credential/rehearsal/readiness status.
 
-## Current migration reconciliation checkpoint (2026-09-27)
+## Current local schema checkpoint (2026-09-27)
 
-PR #1377 is rebased onto main `ede9b218`. Main owns
-`214_contextual_assignment_owner_precedence.sql`; production already has that
-migration, and this billing task must not reapply it there. The three billing
-files are renamed without changing any SQL bytes:
+PR #1377 now includes main `4d0c4474`. Main owns migration
+`214_contextual_assignment_owner_precedence.sql`; production already has it.
+The billing migrations remain byte-identical to the independently reviewed
+`0a2c1c2d` source:
 
-| Previously applied local version | Current repository version | Name |
+| Historical local number | Current number | Name |
 | --- | --- | --- |
 | 214 | 215 | subscription_lifecycle |
 | 215 | 216 | subscription_lifecycle_validation |
 | 216 | 217 | subscription_lifecycle_warning_cleanup |
 
-The old numbers in the historical evidence below describe the original local
-applications. The shared local database still records those old numbers; no
-history repair or owner-precedence application has occurred at this checkpoint.
-The billing test harnesses now require both the correct version and migration
-name, so a colliding number cannot satisfy their prerequisite.
+The owner separately instructed the classroom task to reset the existing local
+database to resolve this collision, then requested a local reseed. That task
+backed up the database and successfully reset/replayed exact reviewed source
+`0a2c1c2d` through 217, then ran the standard seed against the guarded local API.
+All 217 migration versions and names match source. The current baseline is three
+synthetic users, one classroom, two enrollments, three assignments, two tests and
+three blueprints; the planned-course seed idempotency check passed. Billing stays
+disabled with provider mode `test`. Production was not changed.
 
-A private full local backup, readable archive manifest, exact history export and
-source checksum evidence were saved under
-`~/.codex/backups/pika-billing-resequence-20260927/`. All recorded billing SQL
-statements match the renamed files; the files match reviewed commit `971292b8`
-byte for byte. No backup contents or credentials belong in Git.
+The earlier metadata-repair proposal is **superseded and must not be executed**.
+Do not run the historical reconciliation helper's apply mode or reapply 214.
+Its fail-closed precondition no longer matches the reset database. The old
+migration numbers below are historical application evidence, not current state.
 
-The proposed sequence requires separate, exact owner approval for **both local
-migration-history repair and application of only migration 214 using
-`--include-all`**. The current correction/review authorization does not grant it.
-After independent review and that approval:
+The verified pre-reset backup and reset/contract logs are held privately under
+`~/.codex/backups/pika-local-reset-217.efCeer/`; no backup contents or credentials
+belong in Git. The earlier pre-resequence backup is retained separately.
 
-1. Verify the local `pika` container/port, backup archive, source hashes and exact
-   history. Run `bash scripts/reconcile-local-billing-migration-history.sh --check`.
-   This preview checks all 216 recorded versions and exact names/statement
-   checksums of the three billing entries, then rolls back.
-2. Invoke the reviewed helper once with `--apply-approved`. In one transaction it
-   changes only the version column, in descending order: 216 to 217, 215 to 216,
-   214 to 215. Names, statements and other metadata are preserved. It never runs
-   migration bodies or changes application data. Recheck the resulting history.
-3. Run `supabase migration list --local`, then
-   `supabase db push --dry-run --local --include-all`. The preview must list only
-   `214_contextual_assignment_owner_precedence.sql`. Stop for any other pending
-   file, drift, target mismatch or unexpected prompt.
-4. Apply once with `supabase db push --local --include-all`, then re-list history.
-   Versions 001–217 must be present with owner-precedence at 214 and billing at
-   215–217. Already-applied billing SQL must not run again.
-5. Run the owner-precedence rollback database harness, all four billing database
-   contracts, warning-level database lint and generated-type verification.
-   Verify existing user/classroom counts and the disabled billing sandbox gate.
+Owner-precedence and all four billing rollback database contracts pass after
+replay. The coordinator independently verified current migration names, local
+counts and the disabled gate; generated database types match and warning-level
+lint reports no issues. All 285 billing tests and 248 focused checks passed on
+the reviewed billing source. Eight independent-review launches are complete
+with no remaining source blockers.
 
-Stop on any partial failure and obtain new authority before retrying. This plan
-contains no reset, reseed, application-data deletion, production billing change,
-or billing activation. Required CI must pass on the final reviewed PR commit;
-local reconciliation alone does not make the PR ready to merge.
+The owner approved a fifth, documentation-only correction batch to synchronize
+new main history, preserve archived entries, record reset/reseed completion, and
+run required CI. No additional reviewer, database mutation or merge is included.
+Billing source and migration SQL must remain unchanged during this sync. Required
+CI on the final synchronized commit remains the next gate; billing activation
+and the later lifecycle phases remain unfinished.
 
 ## Scope and boundaries
 
