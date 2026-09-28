@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Stripe provider decision
-
-- Owner selected Stripe for paid subscriptions. Added SUB-06 to the canonical subscription policy, recorded the decision, and removed provider selection from open decisions. Tier caps remain Free0/Basic2/Plus5/Pro10; paid prices and AI quantities remain undecided. This records provider selection only, without billing implementation or live charges.
-- Corrected the plan-foundation status to point to the verified production strict/default-Free rollout. No runtime behavior changed. Risk profile: none; model recommendation: GPT-6 Sol for policy documentation. Validate focused checks and independent documentation review before marking the updated PR ready.
-
 ## 2026-09-26 — Versioned paid offerings policy
 
 - Owner approved documenting future payment-model changes and existing-subscriber protection. Extended the existing canonical subscription policy with SUB-07/SUB-08: preserved offering versions before paid launch, exact purchase/entitlement binding, explicit grandfathering/renewal/optional migrations, annual paid-term protection, and audited idempotent transition/recovery. No universal grandfathering promise or new price, usage quantity or lifecycle default is assumed.
@@ -307,3 +302,8 @@ Owner approved the sixth/final documentation-only correction and CI rerun. Resto
 ## 2026-09-28 — Selected assessment label size
 
 Enlarged the teacher assignment and test edit labels above their student tables to 18px mobile and 20px desktop. Follow-up: each existing ghost edit button now fills the available left section of the context bar, stopping before the centered action cluster. Student-facing pages and composite behavior are unchanged. Local seeded teacher Playwright captures covered both workspaces at desktop/mobile in light/dark, measured full-width click targets with no page overflow, verified keyboard focus, and confirmed each label opens its editor. PR1382's first final-SHA CI passed Test & Build but failed unrelated mobile Pattern Lab attendance-tooltip checks. The test now uses a real keyboard focus transition; all eight focused Pattern Lab cases pass across teacher/student, desktop/mobile, light/dark. Focused checks pass 275 tests plus architecture, UI/design policy, TypeScript, and lint. Risk: none. Model recommendation: GPT-6 Sol for the localized UI adjustment. Final review and CI follow.
+
+## 2026-09-28 — Coding-test reference authoring conventions
+
+- Documented the reusable student-facing reference order: general `Instructions` first, language or subject reference second, and question visuals afterward. Added a general Markdown outline, concise question guidance, assessment-specific marking policy, and copy/adaptation checks based on the Unit 1 Karel quiz authoring work.
+- Documentation only; no product, grading, database, or published-test changes. Risk profile: none. Model recommendation: GPT-6 Sol for the focused documentation update. Focused checks, independent documentation review, and draft-first PR gate precede merge.
