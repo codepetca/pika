@@ -33463,3 +33463,21 @@ is still unconsumed; exact-head targeted review and CI precede application/merge
 
 - Owner selected Stripe for paid subscriptions. Added SUB-06 to the canonical subscription policy, recorded the decision, and removed provider selection from open decisions. Tier caps remain Free0/Basic2/Plus5/Pro10; paid prices and AI quantities remain undecided. This records provider selection only, without billing implementation or live charges.
 - Corrected the plan-foundation status to point to the verified production strict/default-Free rollout. No runtime behavior changed. Risk profile: none; model recommendation: GPT-6 Sol for policy documentation. Validate focused checks and independent documentation review before marking the updated PR ready.
+
+<!-- pika-session-log-archive-batch:a8efa55714fad698d5d68579e954fbc35b1b9a53d93b6d04baddc81661da7b36 -->
+## 2026-09-26 — Versioned paid offerings policy
+
+- Owner approved documenting future payment-model changes and existing-subscriber protection. Extended the existing canonical subscription policy with SUB-07/SUB-08: preserved offering versions before paid launch, exact purchase/entitlement binding, explicit grandfathering/renewal/optional migrations, annual paid-term protection, and audited idempotent transition/recovery. No universal grandfathering promise or new price, usage quantity or lifecycle default is assumed.
+- Linked the decision and current fixed-writer limitation from the decision log and plan foundation. No implementation, account or production changes. Risk profile: none; model recommendation: GPT-6 Sol for bounded policy documentation. Focused verification and independent documentation review precede updated ready-PR CI.
+
+## 2026-09-26 — Gradebook final CI test correction
+
+Targeted Terra cleared reset remediation on11dfb1dd. Synced main with both
+session histories retained; reviewed source diff was byte-identical. Final CI
+36258739324 found an outdated explicit Gradebook helper allowlist and two
+whole-gallery query timeouts. PR1365 returned to draft; production remains
+through208 and209/210 permission is unconsumed. Test-only correction names
+three reviewed helpers and scopes gallery role queries to their sections, with
+all existing assertions/timeouts preserved.24 targeted tests pass, including
+coverage instrumentation (partial-suite global coverage thresholds are not a
+full coverage gate). Final focused checks and correction review precede new CI.

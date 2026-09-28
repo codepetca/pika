@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Versioned paid offerings policy
-
-- Owner approved documenting future payment-model changes and existing-subscriber protection. Extended the existing canonical subscription policy with SUB-07/SUB-08: preserved offering versions before paid launch, exact purchase/entitlement binding, explicit grandfathering/renewal/optional migrations, annual paid-term protection, and audited idempotent transition/recovery. No universal grandfathering promise or new price, usage quantity or lifecycle default is assumed.
-- Linked the decision and current fixed-writer limitation from the decision log and plan foundation. No implementation, account or production changes. Risk profile: none; model recommendation: GPT-6 Sol for bounded policy documentation. Focused verification and independent documentation review precede updated ready-PR CI.
-
-## 2026-09-26 — Gradebook final CI test correction
-
-Targeted Terra cleared reset remediation on11dfb1dd. Synced main with both
-session histories retained; reviewed source diff was byte-identical. Final CI
-36258739324 found an outdated explicit Gradebook helper allowlist and two
-whole-gallery query timeouts. PR1365 returned to draft; production remains
-through208 and209/210 permission is unconsumed. Test-only correction names
-three reviewed helpers and scopes gallery role queries to their sections, with
-all existing assertions/timeouts preserved.24 targeted tests pass, including
-coverage instrumentation (partial-suite global coverage thresholds are not a
-full coverage gate). Final focused checks and correction review precede new CI.
-
 ## 2026-09-26 — Stripe test-mode foundation prepared
 
 - Owner `codex/stripe-billing-foundation`, based on the unmerged admin/policy branch at `85138d24`; risk `runtime-platform`. Astra architecture review and two bounded Terra workers prepared immutable offering versions, trusted bindings, durable event intake, fenced payment synchronization and bounded reconciliation. Coordinator integrated local-only gates, provider decoding, transport adapters and handler boundaries.
@@ -307,3 +290,11 @@ Enlarged the teacher assignment and test edit labels above their student tables 
 
 - Documented the reusable student-facing reference order: general `Instructions` first, language or subject reference second, and question visuals afterward. Added a general Markdown outline, concise question guidance, assessment-specific marking policy, and copy/adaptation checks based on the Unit 1 Karel quiz authoring work.
 - Documentation only; no product, grading, database, or published-test changes. Risk profile: none. Model recommendation: GPT-6 Sol for the focused documentation update. Focused checks, independent documentation review, and draft-first PR gate precede merge.
+
+## 2026-09-28 — Image reference first-load measurement
+
+Inspected the teacher/student private image route and measured it on a temporary seeded local Test using 787,252-byte and 7,081,652-byte PNGs. The first small request took 428ms to authorize/redirect and 10ms to transfer; repeat requests took 38–41ms plus 8–21ms. The large image took 33–40ms to authorize and 61–70ms to transfer. The temporary Test was deleted through the teacher API; its two managed objects entered normal cleanup_pending state. No application code, migration or hosted data changed. Live production timing and the actual reference-file size remain unknown because browser control timed out and the connected Supabase app was unavailable. A 1MB cap is not justified by this local evidence alone.
+
+## 2026-09-28 — Image reference first-open preload
+
+Mounted the first image reference when the teacher preview or started student test workspace appears, and kept the same image instance for first open and return. Other images continue to load on demand. The viewer resets zoom on close and keeps the existing authenticated route, full-resolution image, and retry behavior. Component tests and targeted Playwright teacher/student cases passed across desktop/mobile and light/dark; the browser case observed one image file request before first click and no second request on open. Visual screenshots were reviewed. Hosted latency and file size remain unmeasured.
