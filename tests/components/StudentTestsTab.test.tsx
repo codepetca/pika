@@ -461,6 +461,51 @@ describe('StudentTestsTab exam mode', () => {
     return { requestFullscreen }
   }
 
+  it('renders verified student PDFs without sandboxing other uploaded documents', async () => {
+    mockFullscreenSuccess()
+    queueTestList()
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      test: {
+        id: 'test-1', title: 'Midterm Test', assessment_type: 'test', status: 'active',
+        show_results: false, position: 0, student_status: 'not_started',
+        documents: [
+          {
+            id: 'pdf', title: 'World PDF', source: 'upload',
+            storage_path: 'classroom-1/tests/test-1/pdf/world.txt',
+            upload_content_type: 'application/pdf',
+          },
+          {
+            id: 'text', title: 'Text file', source: 'upload',
+            storage_path: 'classroom-1/tests/test-1/text/notes.pdf',
+            upload_content_type: 'text/plain',
+          },
+        ],
+      },
+      student_status: 'not_started',
+      questions: [{
+        id: 'q1', test_id: 'test-1', question_text: '2 + 2 = ?', options: ['3', '4'],
+        question_type: 'multiple_choice', points: 1, response_max_chars: 5000, position: 0,
+      }],
+      student_responses: {},
+      focus_summary: null,
+    }))
+
+    render(<StudentTestsTab classroom={classroom} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Midterm Test/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start the Test' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ started: true }))
+    fireEvent.click(await screen.findByText('Start test'))
+
+    const pdfButton = await screen.findByRole('button', { name: 'World PDF' })
+    expect(screen.queryByTitle('World PDF')).not.toBeInTheDocument()
+    expect(screen.getByTitle('Text file')).toHaveAttribute('sandbox')
+    fireEvent.click(pdfButton)
+    expect(screen.getByTitle('World PDF')).toHaveAttribute(
+      'src', '/api/student/tests/test-1/documents/pdf/file',
+    )
+    expect(screen.getByTitle('World PDF')).not.toHaveAttribute('sandbox')
+  })
+
   it('does not show an in-panel exit control for active tests', async () => {
     queueTestList()
     queueTestDetail()
@@ -1249,7 +1294,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(within(leftPane).getByLabelText(/Away time/)).toBeInTheDocument()
   })
 
-  it('opens docs at 50/50 with a resizer and restores 30/70 on back', async () => {
+  it('preserves the user pane width when opening reference documents and returning', async () => {
     mockFullscreenSuccess()
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
 
@@ -1393,6 +1438,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(leftPaneScroller).toBeInTheDocument()
     expect(leftPaneScroller?.className || '').toContain('overflow-y-auto')
 
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize documents and questions panes' }), { key: 'ArrowRight' })
     fireEvent.click(screen.getByRole('button', { name: 'Node.js API' }))
 
     await waitFor(() => {
@@ -1408,11 +1454,11 @@ describe('StudentTestsTab exam mode', () => {
     expect(container.querySelector('.z-\\[1\\].w-3.bg-white')).not.toBeInTheDocument()
     const splitContainerDocOpen = getSplitContainer(container)
     expect(splitContainerDocOpen.parentElement).toHaveStyle({
-      '--exam-documents-grow': '50',
-      '--exam-questions-grow': '50',
+      '--exam-documents-grow': '35',
+      '--exam-questions-grow': '65',
     })
     expect(screen.getByRole('separator', { name: 'Resize documents and questions panes' }))
-      .toHaveAttribute('aria-valuenow', '50')
+      .toHaveAttribute('aria-valuenow', '35')
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
 
@@ -1421,8 +1467,8 @@ describe('StudentTestsTab exam mode', () => {
     })
     const splitContainerBack = getSplitContainer(container)
     expect(splitContainerBack.parentElement).toHaveStyle({
-      '--exam-documents-grow': '30',
-      '--exam-questions-grow': '70',
+      '--exam-documents-grow': '35',
+      '--exam-questions-grow': '65',
     })
     fireEvent.click(screen.getByRole('button', { name: 'Teacher reference PDF' }))
     await waitFor(() => {

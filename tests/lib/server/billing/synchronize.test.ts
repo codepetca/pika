@@ -175,6 +175,22 @@ describe('synchronizeBillingSubscription', () => {
     }))
   })
 
+  it.each(['busy', 'not_found'] as const)('does not retrieve or complete a %s claim', async status => {
+    const store = storeWith({ claimSubscription: vi.fn().mockResolvedValue({ status }) })
+    const provider = providerWith(paidSnapshot())
+
+    await expect(synchronizeBillingSubscription({
+      store,
+      provider,
+      subscriptionId: binding.subscription_id,
+      eventInboxId: null,
+      leaseSeconds: 60,
+    })).resolves.toEqual({ kind: status })
+
+    expect(provider.retrieveSubscription).not.toHaveBeenCalled()
+    expect(store.finishSubscription).not.toHaveBeenCalled()
+  })
+
   it('preserves the existing grant and schedules a durable retry when provider refresh fails', async () => {
     const store = storeWith()
     const provider: BillingProvider = { retrieveSubscription: vi.fn().mockRejectedValue(new Error('network unavailable')) }

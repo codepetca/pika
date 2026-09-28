@@ -24,7 +24,7 @@ import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
 } from '@/lib/events'
-import { getTestDocumentImageType, normalizeTestDocuments } from '@/lib/test-documents'
+import { getTestDocumentImageType, isPdfTestDocument, normalizeTestDocuments } from '@/lib/test-documents'
 import {
   createExamIncidentState,
   EXAM_FOCUS_LOSS_GRACE_MS,
@@ -357,6 +357,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         url: doc.source === 'link' ? snapshotUrl : uploadUrl,
         content: doc.content,
         imageType: getTestDocumentImageType(doc),
+        isPdf: isPdfTestDocument(doc),
       }
     })
     if (teacherManagedDocs.length > 0) return teacherManagedDocs

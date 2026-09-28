@@ -238,6 +238,15 @@ jobs:
       - name: Verify contextual learner assignment artifact atomicity
         run: bash scripts/check-contextual-assignment-artifacts-database.sh
 
+      - name: Verify contextual Assignment inline-image authorization contracts
+        run: bash scripts/check-contextual-assignment-inline-images-database.sh
+
+      - name: Verify contextual Assignment owner precedence
+        run: bash scripts/check-contextual-assignment-owner-precedence-database.sh
+
+      - name: Rehearse contextual Assignment routes against local Supabase
+        run: bash scripts/rehearse-local-contextual-assignment-lifecycle.sh
+
       - name: Verify contextual Assignment owner mutation atomicity
         run: bash scripts/check-contextual-assignment-owner-mutations-database.sh
 
@@ -467,7 +476,8 @@ jobs:
 
       - name: Run tests with coverage
         if: needs.classify-changes.outputs.run_test_build == 'true'
-        run: pnpm run test:coverage
+        # Pal's learner UI is paused; keep its API and data safety suites in CI.
+        run: pnpm run test:coverage:ci
 
       - name: Check TypeScript
         if: needs.classify-changes.outputs.run_test_build == 'true'

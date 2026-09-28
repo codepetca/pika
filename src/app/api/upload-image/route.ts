@@ -12,6 +12,12 @@ import {
   reserveManagedStorageUpload,
   verifyManagedStorageUpload,
 } from '@/lib/server/managed-storage'
+import {
+  authorizeContextualAssignmentInlineImageAccess,
+  type ContextualAssignmentInlineImageClient,
+  finalizeContextualAssignmentInlineImage,
+  reserveContextualAssignmentInlineImage,
+} from '@/lib/server/contextual-assignment-inline-images'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -67,23 +73,36 @@ export const POST = withErrorHandler('ReserveUploadImage', async (request: NextR
     user.id,
     input.assignment_doc_id,
   )
+  const access = authorizeContextualAssignmentInlineImageAccess(user, assignment.classroom_id)
   const objectId = crypto.randomUUID()
-  const storagePath = `classrooms/${assignment.classroom_id}/students/${user.id}/assignment-docs/${assignmentDoc.id}/${objectId}.${safeExtension(input.file_name)}`
-  const reservation = await reserveManagedStorageUpload({
-    supabase,
-    objectId,
-    bucket: 'submission-images',
-    path: storagePath,
-    classroomId: assignment.classroom_id,
-    purpose: 'student_inline_image',
-    createdByUserId: user.id,
-    dataSubjectUserId: user.id,
-    resourceType: 'assignment_doc',
-    resourceId: assignmentDoc.id,
-    contentType: input.content_type,
-    byteSize: input.byte_size,
-  })
+  const extension = safeExtension(input.file_name)
+  const reservation = access.mode === 'contextual'
+    ? await reserveContextualAssignmentInlineImage({
+      supabase: supabase as unknown as ContextualAssignmentInlineImageClient,
+      actorId: user.id,
+      classroomId: access.classroomId,
+      assignmentDocId: assignmentDoc.id,
+      managedObjectId: objectId,
+      extension,
+      contentType: input.content_type,
+      byteSize: input.byte_size,
+    })
+    : await reserveManagedStorageUpload({
+      supabase,
+      objectId,
+      bucket: 'submission-images',
+      path: `classrooms/${assignment.classroom_id}/students/${user.id}/assignment-docs/${assignmentDoc.id}/${objectId}.${extension}`,
+      classroomId: assignment.classroom_id,
+      purpose: 'student_inline_image',
+      createdByUserId: user.id,
+      dataSubjectUserId: user.id,
+      resourceType: 'assignment_doc',
+      resourceId: assignmentDoc.id,
+      contentType: input.content_type,
+      byteSize: input.byte_size,
+    })
   if (!reservation) throw new ApiError(503, 'Managed image storage is unavailable')
+  const storagePath = `classrooms/${assignment.classroom_id}/students/${user.id}/assignment-docs/${assignmentDoc.id}/${objectId}.${extension}`
 
   try {
     const uploadAuthorization = await createManagedUploadAuthorization({
@@ -115,6 +134,7 @@ export const PATCH = withErrorHandler('FinalizeUploadImage', async (request: Nex
     user.id,
     input.assignment_doc_id,
   )
+  const access = authorizeContextualAssignmentInlineImageAccess(user, assignment.classroom_id)
   const { data: object, error } = await supabase
     .from('managed_storage_objects')
     .select('id,storage_bucket,storage_path,status,purpose,classroom_id,created_by_user_id,data_subject_user_id,resource_type,resource_id,content_type,byte_size')
@@ -138,7 +158,17 @@ export const PATCH = withErrorHandler('FinalizeUploadImage', async (request: Nex
       expectedByteSize: object.byte_size,
       expectedContentType: object.content_type,
     })
-    await verifyManagedStorageUpload({ supabase, objectId: object.id })
+    if (access.mode === 'contextual') {
+      await finalizeContextualAssignmentInlineImage({
+        supabase: supabase as unknown as ContextualAssignmentInlineImageClient,
+        actorId: user.id,
+        classroomId: access.classroomId,
+        assignmentDocId: assignmentDoc.id,
+        managedObjectId: object.id,
+      })
+    } else {
+      await verifyManagedStorageUpload({ supabase, objectId: object.id })
+    }
   } catch (finalizeError) {
     await queueManagedStorageCleanupBestEffort({
       supabase,

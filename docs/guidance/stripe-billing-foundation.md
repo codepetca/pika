@@ -1,17 +1,22 @@
 # Stripe billing foundation
 
-Status: isolated test-mode foundation merged in PR #1366 on 2026-09-26 after
-independent review and all required checks. Consolidated migration 209 was
-applied locally after an owner-approved reset and reseed; migration211 now
-repairs the final binding/webhook race correction in that database. Checkout is a
-separate, incomplete follow-up described in the coordinator plan below.
+Status as of 2026-09-27: foundation PR #1366 and gated first-purchase PR #1368
+are merged. Local and production databases have migrations through 212, including
+the separately approved 211/212 applications. Schema application did not activate
+billing. A real local Stripe sandbox rehearsal now covers successful payments,
+decline/authentication retries, expired sessions and missed-webhook recovery.
+See the [dated test report](billing-test-report-2026-09-27.md) for exact evidence,
+limitations and remaining launch blockers. Live billing remains off; lifecycle,
+customer billing UI, notices and classroom cutoff behavior remain unfinished.
 The [subscription policy](subscription-policy.md) remains the product authority.
+The historical implementation/review notes below describe earlier checkpoints;
+the dated report supersedes their credential/rehearsal/readiness status.
 
 ## Scope and boundaries
 
 This first slice proves initial paid assignment and renewal against an immutable,
 previously bound offering in an isolated local database using Stripe test mode.
-It does not enable live billing. No real prices or AI allowances are established.
+It does not enable live billing. No live prices or usable AI allowances are established.
 The existing classroom authorization boundary remains authoritative.
 
 The server must reject hosted database targets, live Stripe credentials/events,
@@ -144,11 +149,11 @@ requires the exact target-and-migration approval in the schema checklist.
 | Phase | Deliverable and exit evidence | State |
 | --- | --- | --- |
 | 0 | Land admin, Stripe foundation and policy dependency chain with required PR Gate on each final SHA | Complete: #1360, #1366 and #1367 merged |
-| 1 | Exact 12-variant USD/CAD catalog; authenticated, durable hosted checkout; idempotent creation/recovery; verified payment grants selected version | Implementation on `codex/stripe-checkout-trial` |
+| 1 | Exact 12-variant USD/CAD catalog; authenticated, durable hosted checkout; idempotent creation/recovery; verified payment grants selected version | Merged #1368; local sandbox first-purchase rehearsal passed; customer return UI pending |
 | 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | Pending phase 1 contracts |
 | 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | Pending lifecycle integration |
 | 4 | Billing UI, self-service portal, expiry/failure notifications and missed-schedule recovery; role/theme/viewport visual verification | Pending backend contracts |
-| 5 | Full provider test-mode lifecycle rehearsal, concurrency/retry evidence, AI cost validation and tax setup review | Test credentials absent; live launch remains separate |
+| 5 | Full provider test-mode lifecycle rehearsal, concurrency/retry evidence, AI cost validation and tax setup review | First-purchase rehearsal completed; full lifecycle blocked by phases 2–4 and remaining policy contracts |
 
 Current ownership: coordinator owns shared runtime/HTTP integration and PRs;
 Astra/high worker owns durable checkout/provider/schema implementation;

@@ -33,12 +33,23 @@ describe('durable verified Stripe intake', () => {
   it.each([
     { ...event, livemode: true },
     { ...event, account: 'acct_other' },
+    { ...event, context: 'connected-account-context' },
     { ...event, id: 'unrecognized' },
   ])('rejects incompatible verified events before persistence', async (invalid) => {
     const record = vi.fn()
     await expect(acceptBillingWebhook({ raw: Buffer.from('{}'), signature: 's',
       stripeAccount: 'acct_fixture', verify: () => invalid, record,
     })).rejects.toThrow()
+    expect(record).not.toHaveBeenCalled()
+  })
+  it.each([
+    { ...event, account: '' },
+    { ...event, context: '' },
+  ])('fails closed when optional connected-account fields are present but empty', async invalid => {
+    const record = vi.fn()
+    await expect(acceptBillingWebhook({ raw: Buffer.from('{}'), signature: 's',
+      stripeAccount: 'acct_fixture', verify: () => invalid, record,
+    })).rejects.toThrow('Stripe account mismatch')
     expect(record).not.toHaveBeenCalled()
   })
   it('does not persist signature failures or oversized requests', async () => {

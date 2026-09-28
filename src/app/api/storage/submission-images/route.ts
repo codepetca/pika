@@ -8,6 +8,12 @@ import {
   buildPrivateStorageRedirect,
   getPrivateStorageContentType,
 } from '@/lib/server/direct-storage-delivery'
+import {
+  authorizeContextualAssignmentInlineImageAccess,
+  assertContextualAssignmentInlineImageConfiguration,
+  type ContextualAssignmentInlineImageClient,
+  readContextualAssignmentInlineImage,
+} from '@/lib/server/contextual-assignment-inline-images'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -23,6 +29,7 @@ const imageRequestSchema = z.object({
 
 export const GET = withErrorHandler('GetManagedSubmissionImage', async (request) => {
   const user = await requireAuth()
+  assertContextualAssignmentInlineImageConfiguration()
   const input = imageRequestSchema.parse(Object.fromEntries(new URL(request.url).searchParams))
   const supabase = getServiceRoleClient()
 
@@ -79,7 +86,17 @@ export const GET = withErrorHandler('GetManagedSubmissionImage', async (request)
     return NextResponse.json({ error: 'Image not found' }, { status: 404 })
   }
 
-  if (user.role === 'student') {
+  const access = authorizeContextualAssignmentInlineImageAccess(user, assignment.classroom_id)
+  if (access.mode === 'contextual') {
+    const authorized = await readContextualAssignmentInlineImage({
+      supabase: supabase as unknown as ContextualAssignmentInlineImageClient,
+      actorId: user.id,
+      classroomId: access.classroomId,
+      assignmentDocId: assignmentDoc.id,
+      managedObjectId: object.id,
+    })
+    if (!authorized) return NextResponse.json({ error: 'Image not found' }, { status: 404 })
+  } else if (user.role === 'student') {
     if (assignmentDoc.student_id !== user.id || object.data_subject_user_id !== user.id) {
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }

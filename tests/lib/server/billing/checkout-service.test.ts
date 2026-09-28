@@ -119,6 +119,28 @@ describe('durable hosted checkout orchestration', () => {
     expect(f.provider.createSession).toHaveBeenCalledTimes(1)
     expect(f.store.finishCheckout).toHaveBeenLastCalledWith(expect.objectContaining({ reason_code: 'write_recovery_expired' }))
   })
+  it('does not issue a provider write when its checkout lease lacks the recovery buffer', async () => {
+    const f = fixture()
+    // Reserve first so the claimed attempt is a real persisted row.
+    vi.mocked(f.store.claimCheckout).mockImplementationOnce(async () => ({
+      status: 'claimed', attempt: {
+        attempt_id: id, subject_user_id: user, offering, lookup_key: offering.catalog_key,
+        status: 'reserved', customer_id: null, session_id: null, checkout_url: null,
+        success_url: `http://localhost:3000/billing?checkout=${id}&result=success`,
+        cancel_url: `http://localhost:3000/billing?checkout=${id}&result=cancel`,
+        created_at: new Date(at).toISOString(), write_deadline: new Date(at + 23 * 3600_000).toISOString(),
+        access_confirmed: false,
+      },
+      lease_token: lease, fencing_token: 1, lease_expires_at: new Date(at + 9_000).toISOString(),
+    }))
+
+    expect((await f.start()).status).toBe('attention')
+    expect(f.provider.createCustomer).not.toHaveBeenCalled()
+    expect(f.provider.createSession).not.toHaveBeenCalled()
+    expect(f.store.finishCheckout).toHaveBeenCalledWith(expect.objectContaining({
+      outcome: 'attention', reason_code: 'write_recovery_expired',
+    }))
+  })
   it('stops on a lost progress lease before another provider mutation', async () => {
     const f = fixture()
     vi.mocked(f.store.saveCheckoutProgress).mockResolvedValueOnce({ status: 'lost_claim' })

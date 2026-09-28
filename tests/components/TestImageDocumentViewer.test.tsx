@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import { TooltipProvider } from '@/ui'
-import { fireEvent, render as rtlRender, screen } from '@testing-library/react'
+import { act, fireEvent, render as rtlRender, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TestImageDocumentViewer } from '@/components/TestImageDocumentViewer'
 
@@ -29,6 +29,45 @@ describe('TestImageDocumentViewer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Fit image' }))
     expect(screen.getByText('Fit', { selector: 'span' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled()
+  })
+
+  it('keeps image dimensions stable when scrollbars change the content area', () => {
+    let resize: (() => void) | undefined
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { resize = callback }
+      observe() {}
+      disconnect() {}
+    })
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(416)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(301)
+    const box = { width: 415.59375, height: 300.5 }
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({
+      ...box, x: 0, y: 0, top: 0, left: 0, right: box.width, bottom: box.height,
+      toJSON: () => ({}),
+    }))
+    render(<TestImageDocumentViewer title="Narrow world" url="/api/narrow/file" />)
+    const image = screen.getByAltText('Narrow world')
+    const viewport = screen.getByRole('region', { name: 'Narrow world image' })
+    Object.defineProperties(image, { naturalWidth: { value: 800 }, naturalHeight: { value: 600 } })
+    fireEvent.load(image)
+    expect(parseFloat(image.style.width)).toBeCloseTo(300.5 * 800 / 600)
+    expect(parseFloat(image.style.height)).toBeCloseTo(300.5)
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    const zoomedWidth = image.style.width
+    const zoomedHeight = image.style.height
+    Object.defineProperties(viewport, {
+      clientWidth: { configurable: true, value: 399 },
+      clientHeight: { configurable: true, value: 284 },
+    })
+    act(() => resize?.())
+    expect(image.style.width).toBe(zoomedWidth)
+    expect(image.style.height).toBe(zoomedHeight)
+    // A genuine pane resize still recomputes Fit, retaining the selected zoom.
+    box.width = 300.25
+    act(() => resize?.())
+    expect(parseFloat(image.style.width)).toBeCloseTo(300.25 * 1.25)
+    fireEvent.click(screen.getByRole('button', { name: 'Fit image' }))
+    expect(parseFloat(image.style.width)).toBeCloseTo(300.25)
   })
 
   it('retries a failed image through the authorized endpoint', () => {
