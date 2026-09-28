@@ -8,6 +8,7 @@ import {
 } from '@/lib/course-blueprint-assessments-markdown'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
+import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
 import type { CourseBlueprintAuthoringGuidance } from '@/lib/course-blueprint-authoring-guidance'
 import type { ClassroomAuthoringGuidance } from '@/lib/server/classroom-authoring-guidance'
 
@@ -143,6 +144,7 @@ function buildTestRecord(draft: TestDraft, position: number): CourseBlueprintAss
   const testContent: TestDraftContent = {
     title: draft.title,
     show_results: false,
+    question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
     questions,
   }
   const validated = validateTestDraftContent(testContent)

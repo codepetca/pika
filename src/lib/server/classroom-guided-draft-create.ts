@@ -7,6 +7,7 @@ import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { markdownToCourseBlueprintAssignments } from '@/lib/course-blueprint-assignments'
 import { markdownToCourseBlueprintAssessments } from '@/lib/course-blueprint-assessments-markdown'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import { markPortableTestQuestionIdentity } from '@/lib/test-question-identity'
 import type { TestDocument, TestDraftContent } from '@/types'
 
 type ParsedAssignment = {
@@ -87,7 +88,7 @@ export function parseClassroomGuidedDraft(target: 'assignments' | 'tests', conte
   if (errors.length) return { ok: false, errors }
   return { ok: true, draft: {
     target,
-    draftContent: validated.value,
+    draftContent: markPortableTestQuestionIdentity(validated.value),
     documents: assessment.documents,
   } }
 }

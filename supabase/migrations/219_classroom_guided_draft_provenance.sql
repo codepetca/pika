@@ -335,6 +335,7 @@ begin
   if p_draft_id is null or p_seed_sha256 is null
     or p_seed_sha256 !~ '^[a-f0-9]{64}$'
     or jsonb_typeof(p_draft_content) is distinct from 'object'
+    or p_draft_content->'question_identity_version' is distinct from '1'::jsonb
     or jsonb_typeof(p_draft_content->'questions') is distinct from 'array'
     or jsonb_array_length(p_draft_content->'questions') not between 1 and 50
     or jsonb_typeof(p_draft_content->'show_results') is distinct from 'boolean'

@@ -127,7 +127,7 @@ describe('classroom guided draft creation', () => {
     expect(response.status).toBe(201)
     expect((await response.json()).test).toEqual({ id: 'test-1' })
     expect(mocks.rpc).toHaveBeenCalledWith('create_guided_test_for_owner_v1', expect.objectContaining({
-      p_draft_content: expect.objectContaining({ questions: [expect.objectContaining({
+      p_draft_content: expect.objectContaining({ question_identity_version: 1, questions: [expect.objectContaining({
         question_text: 'Explain the result.',
       })] }),
       p_documents: [expect.objectContaining({ title: 'Instructions', source: 'text' })],

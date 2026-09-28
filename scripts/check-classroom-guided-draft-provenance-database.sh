@@ -28,7 +28,7 @@ declare
   v_test_draft constant uuid := 'c1900000-0000-4000-8000-000000000008';
   v_assignment_rules constant text := '## Course expectations' || E'\n\n' || 'Use taught vocabulary.' || E'\n\n' || '## Assignment rules' || E'\n\n' || 'State a deliverable.' || E'\n\n' || '## Unit: Loops' || E'\n\n' || 'Use a loop.';
   v_test_rules constant text := '## Course expectations' || E'\n\n' || 'Use taught vocabulary.' || E'\n\n' || '## Test rules' || E'\n\n' || 'Short prompts.' || E'\n\n' || '## Unit: Loops' || E'\n\n' || 'Use iteration.';
-  v_test_content constant jsonb := '{"title":"Guided Test","show_results":false,"questions":[{"id":"c1900000-0000-4000-8000-000000000009","question_type":"open_response","question_text":"Write a loop.","options":[],"correct_option":null,"answer_key":"A loop.","sample_solution":"for ...","points":5,"response_max_chars":5000,"response_monospace":true}]}';
+  v_test_content constant jsonb := '{"title":"Guided Test","show_results":false,"question_identity_version":1,"questions":[{"id":"c1900000-0000-4000-8000-000000000009","question_type":"open_response","question_text":"Write a loop.","options":[],"correct_option":null,"answer_key":"A loop.","sample_solution":"for ...","points":5,"response_max_chars":5000,"response_monospace":true}]}';
   v_assignment jsonb;
   v_test jsonb;
   v_assignment_id uuid;
