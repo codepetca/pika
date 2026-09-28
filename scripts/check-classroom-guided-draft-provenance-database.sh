@@ -33,6 +33,8 @@ declare
   v_test jsonb;
   v_assignment_id uuid;
   v_test_id uuid;
+  v_archive_result jsonb;
+  v_archive_operation constant uuid := 'c1900000-0000-4000-8000-00000000000b';
 begin
   if not exists (
     select 1 from pg_class where oid = 'public.classroom_guided_draft_provenance'::regclass
@@ -200,6 +202,19 @@ begin
     raise exception 'Archived classroom was accepted';
   exception when object_not_in_prerequisite_state then null;
   end;
+  v_archive_result := public.begin_classroom_archive_export_v2(
+    v_archive_operation, v_owner, v_classroom, repeat('e', 64),
+    '107_classroom_archive_v2_direct_source', 'abcdef1',
+    '{"mode":"teacher_managed","delete_after":null}'::jsonb, 2, 2
+  );
+  if v_archive_result->>'ok' <> 'true'
+    or v_archive_result->'resource_counts'->>'classroom_guided_draft_provenance' <> '2'
+    or (select count(*) from public.classroom_archive_snapshot_resources
+      where operation_id = v_archive_operation
+        and table_name = 'classroom_guided_draft_provenance') <> 2
+  then
+    raise exception 'Guided draft provenance was omitted from classroom archive snapshot';
+  end if;
 end;
 $contract$;
 

@@ -114,6 +114,9 @@ insert into public.assessment_drafts (
   '12000000-0000-4000-8000-000000000001'
 );
 
+do $guided_fixture$
+begin
+if to_regclass('public.classroom_guided_draft_provenance') is not null then
 insert into public.assignments (id, classroom_id, title, description, due_at, created_by)
 values (
   '32000000-0000-4000-8000-000000000021',
@@ -151,6 +154,9 @@ insert into public.classroom_guided_draft_provenance (
     'Test guidance', repeat('c', 64), repeat('d', 64),
     '12000000-0000-4000-8000-000000000001'
   );
+end if;
+end;
+$guided_fixture$;
 
 do $contract$
 declare
@@ -234,7 +240,8 @@ begin
 
   v_archive_id := (v_result->>'archive_id')::uuid;
   v_source_counts := v_result->'resource_counts';
-  if v_source_counts->>'classroom_guided_draft_provenance' <> '2' then
+  if to_regclass('public.classroom_guided_draft_provenance') is not null
+    and v_source_counts->>'classroom_guided_draft_provenance' <> '2' then
     raise exception 'Guided draft provenance was omitted from archive snapshot';
   end if;
   select jsonb_object_agg(
@@ -502,16 +509,18 @@ begin
   select 'classrooms', classroom.id, to_jsonb(classroom)
   from public.classrooms classroom
   where classroom.id = v_classroom_id;
-  insert into expected_archive_v2_rows (table_name, row_id, row_data)
-  select 'assignments', assignment.id, to_jsonb(assignment)
-  from public.assignments assignment where assignment.classroom_id = v_classroom_id;
-  insert into expected_archive_v2_rows (table_name, row_id, row_data)
-  select 'tests', test.id, to_jsonb(test)
-  from public.tests test where test.classroom_id = v_classroom_id;
-  insert into expected_archive_v2_rows (table_name, row_id, row_data)
-  select 'classroom_guided_draft_provenance', provenance.id, to_jsonb(provenance)
-  from public.classroom_guided_draft_provenance provenance
-  where provenance.classroom_id = v_classroom_id;
+  if to_regclass('public.classroom_guided_draft_provenance') is not null then
+    insert into expected_archive_v2_rows (table_name, row_id, row_data)
+    select 'assignments', assignment.id, to_jsonb(assignment)
+    from public.assignments assignment where assignment.classroom_id = v_classroom_id;
+    insert into expected_archive_v2_rows (table_name, row_id, row_data)
+    select 'tests', test.id, to_jsonb(test)
+    from public.tests test where test.classroom_id = v_classroom_id;
+    insert into expected_archive_v2_rows (table_name, row_id, row_data)
+    select 'classroom_guided_draft_provenance', provenance.id, to_jsonb(provenance)
+    from public.classroom_guided_draft_provenance provenance
+    where provenance.classroom_id = v_classroom_id;
+  end if;
   insert into expected_archive_v2_rows (table_name, row_id, row_data)
   select 'classroom_retired_assessment_records', record.id, to_jsonb(record)
   from public.classroom_retired_assessment_records record
@@ -624,6 +633,7 @@ begin
   ) <> 5 then
     raise exception 'Archive-v2 restore did not preserve retired assessment records';
   end if;
+  if to_regclass('public.classroom_guided_draft_provenance') is not null then
   if (select count(*) from public.classroom_guided_draft_provenance
       where classroom_id = v_classroom_id) <> 2
     or not exists (select 1 from public.classroom_guided_draft_provenance
@@ -634,6 +644,7 @@ begin
         and rules_markdown = 'Test guidance')
   then
     raise exception 'Archive-v2 restore lost guided draft provenance';
+  end if;
   end if;
   if exists (
     select 1 from public.quizzes where classroom_id = v_classroom_id
