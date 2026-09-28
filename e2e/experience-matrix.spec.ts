@@ -2238,6 +2238,7 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   const png = await createKarelGridRaster(page, 'image/png')
   const jpeg = await createKarelGridRaster(page, 'image/jpeg')
   let focusEventRequests = 0
+  let pngFileRequests = 0
   await applyProjectTheme(page, testInfo)
   await installExamWindowFixture(page)
 
@@ -2282,6 +2283,7 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ focus_summary: focusSummary }) })
   })
   await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/file`, async (route) => {
+    pngFileRequests += 1
     await route.fulfill({ status: 200, contentType: 'image/png', body: png })
   })
   await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/documents/30000000-0000-4000-8000-000000000034/file`, async (route) => {
@@ -2292,6 +2294,8 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   await page.getByRole('button', { name: 'Karel image references' }).click()
   await page.getByRole('button', { name: 'Start the Test', exact: true }).click()
   await page.getByRole('button', { name: 'Start test', exact: true }).click()
+  await expect.poll(() => pngFileRequests).toBe(1)
+  await expect.poll(() => page.locator('img[alt="Karel grid PNG"]').evaluate((image: HTMLImageElement) => image.complete)).toBe(true)
 
   const answer = page.getByLabel('Response for question 1', { exact: true })
   const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
@@ -2315,6 +2319,7 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   const listDocumentWidth = (await documentsPane.boundingBox())!.width
   await page.screenshot({ path: testInfo.outputPath(`student-test-list-${viewport}.png`), animations: 'disabled' })
   await page.getByRole('button', { name: 'Karel grid PNG', exact: true }).click()
+  expect(pngFileRequests).toBe(1)
   const image = page.getByRole('img', { name: 'Karel grid PNG' })
   await expect(image).toBeVisible()
   await page.waitForTimeout(350)
@@ -2365,6 +2370,7 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
   const { viewport } = getExperienceMetadata(testInfo)
   const png = await createKarelGridRaster(page, 'image/png')
   const jpeg = await createKarelGridRaster(page, 'image/jpeg')
+  let pngFileRequests = 0
   await applyProjectTheme(page, testInfo)
 
   let nextDocumentNumber = 34
@@ -2414,10 +2420,12 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
     await route.fallback()
   })
   await page.route('**/mock-storage/**', async (route) => { await route.fulfill({ status: 200 }) })
-  await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/file`, async (route) => {
-    await route.fulfill({ status: 200, contentType: 'image/png', body: png })
-  })
   await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}/documents/*/file*`, async (route) => {
+    if (route.request().url().includes(`/${IMAGE_REFERENCE_PNG_ID}/file`)) {
+      pngFileRequests += 1
+      await route.fulfill({ status: 200, contentType: 'image/png', body: png })
+      return
+    }
     if (remainingJpegFailures > 0) {
       remainingJpegFailures -= 1
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'temporary image delivery failure' }) })
@@ -2452,6 +2460,8 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
     Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => document.documentElement })
   })
   await page.getByRole('button', { name: 'Maximize Window' }).click()
+  await expect.poll(() => pngFileRequests).toBe(1)
+  await expect.poll(() => page.locator('img[alt="Karel grid PNG"]').evaluate((image: HTMLImageElement) => image.complete)).toBe(true)
   await page.getByRole('button', { name: 'karel-grid.jpeg', exact: true }).click()
   if (viewport === 'desktop') {
     await expect(page.getByRole('separator', { name: 'Resize documents and questions panes' })).toHaveAttribute('aria-valuenow', '50')

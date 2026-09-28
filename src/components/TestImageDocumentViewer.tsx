@@ -7,6 +7,7 @@ import { Button, IconButton, PageState } from '@/ui'
 interface Props {
   title: string
   url: string
+  active?: boolean
 }
 
 /** A new file starts with fresh load/zoom state without remounting the test form. */
@@ -14,7 +15,7 @@ export function TestImageDocumentViewer(props: Props) {
   return <ImageDocument key={props.url} {...props} />
 }
 
-function ImageDocument({ title, url }: Props) {
+function ImageDocument({ title, url, active = true }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const [viewport, setViewport] = useState({ width: 0, height: 0 })
@@ -52,6 +53,12 @@ function ImageDocument({ title, url }: Props) {
     observer.observe(element, { box: 'border-box' })
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (active) return
+    setZoom(1)
+    viewportRef.current?.scrollTo?.({ left: 0, top: 0 })
+  }, [active])
 
   const fitScale = dimensions.width && dimensions.height && viewport.width && viewport.height
     ? Math.min(1, viewport.width / dimensions.width, viewport.height / dimensions.height)
