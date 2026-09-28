@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Strict creation and automatic Free signup activated
-
-- Owner `codex/platform-administration-design`, PR #1360. Under the user's scoped activation authorization, the subagent executed the reviewed guarded production activation RPC once at 11:54:17 UTC. Migrations 181/206 verified; strict creation and default-Free provisioning now ON. Readback: 183 accounts (181 Free, one Plus, one Pro), complete plan/grant/paired-audit parity, original nine classrooms' ownership/archive states preserved. Identity-level records and exact operation evidence remain private outside Git.
-- Normal user-controlled magic sign-in, Free student roster join, link/richtext submission, final grading and returned grade visibility passed in the disposable classroom. Teacher/student attendance views render expected non-class-day states; no fresh QR/check-in or attendance-write round trip claimed. After activation student returned work and teacher Gradebook remain accessible.
-- Postactivation rollback-only synthetic account probe passed atomic Free provisioning, disabled quota0 creation, paired system audits, and missing-grant denial. Independent before/after counts, full class hash, plans/grants/audits and settings prove no synthetic probe records persisted. No migration, app deploy, billing/admin enablement, role rewrite or real-class teaching edit. Test fixtures remain available; no destructive cleanup performed.
-- Updated current context, rollout status and administration proposal to distinguish active creation/default-Free behavior from unimplemented billing/admin. Synced latest main into the feature branch; resolved archive conflict by retaining existing unique history rather than reintroducing duplicated entries. Required documentation/prototype checks and stable-SHA review follow; no merge authorized.
-
 ## 2026-09-26 — Activation status-note CI correction
 
 - PR #1360 CI passed the browser matrix but failed one of 8,088 tests because the compact production migration note no longer matched the established `Prod DB 001–NNN` format. Restored that format and removed a redundant undated health shorthand to retain the startup size limit. Runtime activation facts and application code are unchanged.
@@ -311,3 +304,7 @@ Owner subsequently requested local reseeding. Standard pnpm seed (seed.ts plus p
 ## 2026-09-27 — Billing documentation sync after local reset
 
 Owner approved one documentation-only fifth correction batch and CI, with no additional reviewer, database changes or merge. Merged main4d0c4474 into PR1377; the sole archive conflict contained branch entries already present verbatim in main, so retained main archive without losing history. Consolidated reset/reseed receipts and superseded the old history-repair plan. Billing source/migration bytes stay identical to independently reviewed0a2c1c2d. Verified local001–217,3demo users/1classroom,sandboxfalse/test; generated types match and warning lint is clean. Focused checks and stable-commit CI follow. Review count remains8 (hard cap); no new launch.
+
+## 2026-09-27 — Billing final documentation-format correction
+
+Owner approved the sixth/final documentation-only correction and CI rerun. Restored CURRENT’s required `Prod DB 001–214` prefix after the prior shortening failed the rollout-format contract; no billing code, tests, migration SQL or database state changed. Prior CI passed8524tests plus billing DB contracts and warning lint; remaining jobs were incomplete at the failure checkpoint. Verify both startup size and rollout-format tests, focused checks, then fixed-commit CI. No additional reviewer or merge authority.
