@@ -220,7 +220,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 2,
+          "count": 1,
           "reason": "legacy-form-control"
         },
         {
@@ -241,6 +241,17 @@
         {
           "kind": "textarea",
           "count": 3,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
+      "file": "src/components/BlueprintAuthoringGuidanceEditor.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 1,
           "reason": "native-textarea"
         }
       ]

@@ -4,6 +4,10 @@ import { courseBlueprintLessonTemplatesToMarkdown } from '@/lib/course-blueprint
 import { courseBlueprintMaterialsToMarkdown } from '@/lib/course-blueprint-materials'
 import { courseBlueprintSurveysToMarkdown } from '@/lib/course-blueprint-surveys'
 import { DEFAULT_PLANNED_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
+import {
+  normalizeCourseBlueprintAuthoringGuidance,
+  type CourseBlueprintAuthoringGuidance,
+} from '@/lib/course-blueprint-authoring-guidance'
 import type { CourseBlueprintDetail, PlannedCourseSiteConfig } from '@/types'
 
 export const COURSE_BLUEPRINT_MARKDOWN_TABS = [
@@ -22,6 +26,7 @@ export type CourseBlueprintEditorSection =
   | 'metadata'
   | 'planned-site'
   | 'grading'
+  | 'guidance'
   | CourseBlueprintMarkdownTab
 
 export type CourseBlueprintMetadataDraft = {
@@ -50,6 +55,7 @@ export type CourseBlueprintEditorState = {
   metadata: CourseBlueprintMetadataDraft
   plannedSite: CourseBlueprintPlannedSiteDraft
   grading: CourseBlueprintGradingDraft
+  guidance: CourseBlueprintAuthoringGuidance
   drafts: CourseBlueprintDraftState
 }
 
@@ -96,6 +102,7 @@ export function courseBlueprintEditorStateFromDetail(
       assignments_weight: detail.gradebook_assignments_weight ?? 70,
       tests_weight: detail.gradebook_tests_weight ?? 30,
     },
+    guidance: normalizeCourseBlueprintAuthoringGuidance(detail.authoring_guidance),
     drafts: {
       overview: detail.overview_markdown || '',
       outline: detail.outline_markdown || '',
@@ -134,6 +141,9 @@ export function getCourseBlueprintDirtySections(
     dirtySections.push('planned-site')
   }
   if (!recordsEqual(current.grading, saved.grading)) dirtySections.push('grading')
+  if (JSON.stringify(current.guidance) !== JSON.stringify(saved.guidance)) {
+    dirtySections.push('guidance')
+  }
 
   COURSE_BLUEPRINT_MARKDOWN_TABS.forEach((tab) => {
     if (current.drafts[tab] !== saved.drafts[tab]) dirtySections.push(tab)

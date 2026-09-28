@@ -2,6 +2,10 @@ import { createHash, randomUUID } from 'node:crypto'
 import { addDays, format, isValid, parse } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
 import { z } from 'zod'
+import {
+  courseBlueprintAuthoringGuidanceSchema,
+  EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
+} from '@/lib/course-blueprint-authoring-guidance'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { normalizeAssignmentSubmissionRequirementDrafts } from '@/lib/assignment-submission-requirements'
@@ -148,6 +152,7 @@ export const createBlueprintWritePlanSchema = z.object({
     overview_markdown: z.string(),
     outline_markdown: z.string(),
     resources_markdown: z.string(),
+    authoring_guidance: courseBlueprintAuthoringGuidanceSchema,
     gradebook_use_weights: z.boolean(),
     gradebook_assignments_weight: z.number().int().min(0).max(100),
     gradebook_tests_weight: z.number().int().min(0).max(100),
@@ -404,7 +409,7 @@ export const blueprintOperationResultSchema = z.discriminatedUnion('ok', [
 export type BlueprintOperationResult = z.infer<typeof blueprintOperationResultSchema>
 
 type BlueprintRpcName =
-  | 'create_course_blueprint_atomic_v2'
+  | 'create_course_blueprint_atomic_v3'
   | 'create_archived_classroom_blueprint_atomic'
   | 'instantiate_course_blueprint_atomic_v2'
 type SupabaseRpcClient = Pick<SupabaseClient<any>, 'rpc'>
@@ -550,7 +555,7 @@ export async function createCourseBlueprintAtomic(args: {
 
   return executeBlueprintOperation(
     args.supabase,
-    'create_course_blueprint_atomic_v2',
+    'create_course_blueprint_atomic_v3',
     {
       p_operation_id: args.operationId,
       p_teacher_id: args.teacherId,
@@ -766,7 +771,8 @@ function normalizeRequirementsForClassroom(
 }
 
 export function buildCreateBlueprintWritePlan(args: {
-  blueprint: CreateBlueprintWritePlan['blueprint']
+  blueprint: Omit<CreateBlueprintWritePlan['blueprint'], 'authoring_guidance'>
+    & { authoring_guidance?: CreateBlueprintWritePlan['blueprint']['authoring_guidance'] }
   assignments: Array<Omit<CourseBlueprintAssignment, 'id' | 'course_blueprint_id' | 'created_at' | 'updated_at'>>
   assessments: CreateBlueprintWritePlan['assessments']
   lessonTemplates: CreateBlueprintWritePlan['lesson_templates']
@@ -784,6 +790,8 @@ export function buildCreateBlueprintWritePlan(args: {
   return createBlueprintWritePlanSchema.parse({
     blueprint: {
       ...args.blueprint,
+      authoring_guidance: args.blueprint.authoring_guidance
+        ?? EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
       gradebook_use_weights: args.blueprint.gradebook_use_weights ?? false,
       gradebook_assignments_weight: args.blueprint.gradebook_assignments_weight ?? 70,
       gradebook_tests_weight: args.blueprint.gradebook_tests_weight ?? 30,

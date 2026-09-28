@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { CLASSROOM_THEME_COLORS } from '@/lib/classroom-theme'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { markPortableTestQuestionIdentity } from '@/lib/test-question-identity'
+import { courseBlueprintAuthoringGuidanceSchema } from '@/lib/course-blueprint-authoring-guidance'
 import {
   stripTestDocumentSnapshots,
   validateTestDocumentsPayload,
@@ -31,6 +32,8 @@ export const updateCourseBlueprintSchema = z.object({
   overview_markdown: z.string().optional(),
   outline_markdown: z.string().optional(),
   resources_markdown: z.string().optional(),
+  authoring_guidance: courseBlueprintAuthoringGuidanceSchema.optional(),
+  expected_content_revision: z.number().int().positive().optional(),
   gradebook_use_weights: z.boolean().optional(),
   gradebook_assignments_weight: z.number().int().min(0).max(100).optional(),
   gradebook_tests_weight: z.number().int().min(0).max(100).optional(),
@@ -39,6 +42,20 @@ export const updateCourseBlueprintSchema = z.object({
   planned_site_config: plannedCourseSiteConfigSchema.optional(),
   position: z.number().int().optional(),
 }).superRefine((value, ctx) => {
+  if (value.authoring_guidance !== undefined && value.expected_content_revision === undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'The current Blueprint revision is required when saving authoring guidance',
+      path: ['expected_content_revision'],
+    })
+  }
+  if (value.authoring_guidance === undefined && value.expected_content_revision !== undefined) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'The expected Blueprint revision is only used when saving authoring guidance',
+      path: ['expected_content_revision'],
+    })
+  }
   if (
     value.authority_mode !== undefined
     && Object.keys(value).some((key) => key !== 'authority_mode')
@@ -100,7 +117,9 @@ export const courseBlueprintAiSuggestSchema = z.object({
     'surveys',
     'grading',
   ]),
-  prompt: z.string().optional().default(''),
+  prompt: z.string().max(4000).optional().default(''),
+  unit_exception_id: z.string().uuid().nullable().optional(),
+  trial_guidance: courseBlueprintAuthoringGuidanceSchema.optional(),
 })
 
 export const courseBlueprintAiApplySchema = z.object({
@@ -116,6 +135,8 @@ export const courseBlueprintAiApplySchema = z.object({
     'grading',
   ]),
   content: z.string(),
+  expected_blueprint_revision: z.number().int().positive().optional(),
+  unit_exception_id: z.string().uuid().nullable().optional(),
 })
 
 const blueprintSubmissionRequirementSchema = z.object({

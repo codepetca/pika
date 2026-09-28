@@ -2,11 +2,11 @@ import { z } from 'zod'
 
 export const COURSE_BLUEPRINT_PACKAGE_FORMAT = 'pika.course-package' as const
 export const COURSE_BLUEPRINT_PACKAGE_EXTENSION = '.course-package.tar' as const
-export const COURSE_BLUEPRINT_PACKAGE_VERSION = '5' as const
-export const COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS = ['2', '3', '4', '5'] as const
+export const COURSE_BLUEPRINT_PACKAGE_VERSION = '6' as const
+export const COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS = ['2', '3', '4', '5', '6'] as const
 export const COURSE_BLUEPRINT_PACKAGE_MAX_BYTES = 8 * 1024 * 1024
 export const COURSE_BLUEPRINT_PACKAGE_MAX_FILE_BYTES = 2 * 1024 * 1024
-export const COURSE_BLUEPRINT_PACKAGE_MAX_FILE_COUNT = 10
+export const COURSE_BLUEPRINT_PACKAGE_MAX_FILE_COUNT = 11
 
 export type CoursePackageVersion =
   (typeof COURSE_BLUEPRINT_SUPPORTED_PACKAGE_VERSIONS)[number]
@@ -24,7 +24,11 @@ export const COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES = [
   ...COURSE_BLUEPRINT_LEGACY_PACKAGE_FILE_NAMES,
   'classwork-materials.md',
   'surveys.md',
+  'authoring-guidance.md',
 ] as const
+
+export const COURSE_BLUEPRINT_V5_PACKAGE_FILE_NAMES =
+  COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES.slice(0, -1)
 
 const textEncoder = new TextEncoder()
 export const coursePackageFileContentSchema = z.string().superRefine((value, ctx) => {
@@ -110,11 +114,16 @@ export const coursePackageManifestV5Schema = z.object({
   planned_site_config: plannedCourseSiteConfigSchema.optional(),
 }).strict()
 
+export const coursePackageManifestV6Schema = coursePackageManifestV5Schema.omit({ version: true }).extend({
+  version: z.literal('6'),
+}).strict()
+
 export const coursePackageManifestSchema = z.discriminatedUnion('version', [
   coursePackageManifestV2Schema,
   coursePackageManifestV3Schema,
   coursePackageManifestV4Schema,
   coursePackageManifestV5Schema,
+  coursePackageManifestV6Schema,
 ])
 
 const legacyCoursePackageFilesShape = {
@@ -153,11 +162,22 @@ export const coursePackageV5BundleSchema = z.object({
   }).strict(),
 }).strict()
 
+export const coursePackageV6BundleSchema = z.object({
+  manifest: coursePackageManifestV6Schema,
+  files: z.object({
+    ...legacyCoursePackageFilesShape,
+    'classwork-materials.md': coursePackageFileContentSchema,
+    'surveys.md': coursePackageFileContentSchema,
+    'authoring-guidance.md': coursePackageFileContentSchema,
+  }).strict(),
+}).strict()
+
 export const coursePackageBundleSchema = z.union([
   coursePackageV2BundleSchema,
   coursePackageV3BundleSchema,
   coursePackageV4BundleSchema,
   coursePackageV5BundleSchema,
+  coursePackageV6BundleSchema,
 ])
 
 export const COURSE_BLUEPRINT_PACKAGE_CONTRACTS = {
@@ -184,10 +204,17 @@ export const COURSE_BLUEPRINT_PACKAGE_CONTRACTS = {
   },
   '5': {
     version: '5',
-    requiredFiles: COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES,
-    allowedFiles: COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES,
+    requiredFiles: COURSE_BLUEPRINT_V5_PACKAGE_FILE_NAMES,
+    allowedFiles: COURSE_BLUEPRINT_V5_PACKAGE_FILE_NAMES,
     manifestSchema: coursePackageManifestV5Schema,
     bundleSchema: coursePackageV5BundleSchema,
+  },
+  '6': {
+    version: '6',
+    requiredFiles: COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES,
+    allowedFiles: COURSE_BLUEPRINT_CURRENT_PACKAGE_FILE_NAMES,
+    manifestSchema: coursePackageManifestV6Schema,
+    bundleSchema: coursePackageV6BundleSchema,
   },
 } as const
 
@@ -195,9 +222,11 @@ export type CoursePackageManifestV2 = z.infer<typeof coursePackageManifestV2Sche
 export type CoursePackageManifestV3 = z.infer<typeof coursePackageManifestV3Schema>
 export type CoursePackageManifestV4 = z.infer<typeof coursePackageManifestV4Schema>
 export type CoursePackageManifestV5 = z.infer<typeof coursePackageManifestV5Schema>
+export type CoursePackageManifestV6 = z.infer<typeof coursePackageManifestV6Schema>
 export type CoursePackageManifest = z.infer<typeof coursePackageManifestSchema>
 export type CoursePackageRawV2 = z.infer<typeof coursePackageV2BundleSchema>
 export type CoursePackageRawV3 = z.infer<typeof coursePackageV3BundleSchema>
 export type CoursePackageRawV4 = z.infer<typeof coursePackageV4BundleSchema>
 export type CoursePackageRawV5 = z.infer<typeof coursePackageV5BundleSchema>
+export type CoursePackageRawV6 = z.infer<typeof coursePackageV6BundleSchema>
 export type CoursePackageRawBundle = z.infer<typeof coursePackageBundleSchema>
