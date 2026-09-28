@@ -7,6 +7,7 @@ import { getClassroomAuthoringGuidance } from '@/lib/server/classroom-authoring-
 import { resolveCourseBlueprintAuthoringContext } from '@/lib/course-blueprint-authoring-context'
 import { verifyClassroomDraftProvenanceToken } from '@/lib/server/classroom-draft-provenance'
 import { parseClassroomGuidedDraft } from '@/lib/server/classroom-guided-draft-create'
+import type { Json } from '@/types/database.generated'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -62,34 +63,31 @@ export const POST = withErrorHandler('PostTeacherClassroomAuthoringDraftCreate',
     return NextResponse.json({ error: 'Invalid edited draft', errors: parsed.errors }, { status: 400 })
   }
   const supabase = getServiceRoleClient()
-  // The migration's RPCs are typed after the local migration-schema replay.
-  const rpc = supabase.rpc.bind(supabase) as unknown as (name: string, args: Record<string, unknown>) => Promise<{
-    data: unknown; error: { code?: string; message?: string } | null
-  }>
   const shared = {
     p_actor_id: user.id,
     p_classroom_id: id,
     p_expected_blueprint_version_id: source.source_blueprint_version_id,
-    p_unit_exception_id: provenance.unit_exception_id,
+    // Generated RPC types do not represent nullable SQL input arguments.
+    p_unit_exception_id: provenance.unit_exception_id as string,
     p_draft_id: body.draft_id,
     p_rules_markdown: provenance.rules_markdown,
     p_seed_sha256: body.original_content_sha256,
   }
   const created = parsed.draft.target === 'assignments'
-    ? await rpc('create_guided_assignment_for_owner_v1', {
+    ? await supabase.rpc('create_guided_assignment_for_owner_v1', {
       ...shared,
       p_title: parsed.draft.title,
       p_description: parsed.draft.description,
       p_instructions_markdown: parsed.draft.instructionsMarkdown,
-      p_rich_instructions: parsed.draft.richInstructions,
+      p_rich_instructions: parsed.draft.richInstructions as unknown as Json,
       p_due_at: parsed.draft.dueAt,
-      p_requirements: parsed.draft.requirements,
+      p_requirements: parsed.draft.requirements as Json,
       p_points_possible: parsed.draft.pointsPossible,
     })
-    : await rpc('create_guided_test_for_owner_v1', {
+    : await supabase.rpc('create_guided_test_for_owner_v1', {
       ...shared,
       p_draft_content: parsed.draft.draftContent,
-      p_documents: parsed.draft.documents,
+      p_documents: parsed.draft.documents as unknown as Json,
     })
   if (created.error) {
     const mapped = createError(created.error)

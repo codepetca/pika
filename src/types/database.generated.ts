@@ -3642,6 +3642,89 @@ export type Database = {
           },
         ]
       }
+      classroom_guided_draft_provenance: {
+        Row: {
+          assignment_id: string | null
+          classroom_id: string
+          created_at: string
+          created_by: string
+          created_content_sha256: string
+          draft_id: string
+          id: string
+          rules_markdown: string
+          seed_sha256: string
+          source_blueprint_version_id: string
+          source_blueprint_version_number: number
+          source_draft_revision: number
+          test_id: string | null
+          unit_exception_id: string | null
+          unit_label: string | null
+        }
+        Insert: {
+          assignment_id?: string | null
+          classroom_id: string
+          created_at?: string
+          created_by: string
+          created_content_sha256: string
+          draft_id: string
+          id?: string
+          rules_markdown: string
+          seed_sha256: string
+          source_blueprint_version_id: string
+          source_blueprint_version_number: number
+          source_draft_revision: number
+          test_id?: string | null
+          unit_exception_id?: string | null
+          unit_label?: string | null
+        }
+        Update: {
+          assignment_id?: string | null
+          classroom_id?: string
+          created_at?: string
+          created_by?: string
+          created_content_sha256?: string
+          draft_id?: string
+          id?: string
+          rules_markdown?: string
+          seed_sha256?: string
+          source_blueprint_version_id?: string
+          source_blueprint_version_number?: number
+          source_draft_revision?: number
+          test_id?: string | null
+          unit_exception_id?: string | null
+          unit_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classroom_guided_draft_provenance_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: true
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_guided_draft_provenance_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_guided_draft_provenance_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classroom_guided_draft_provenance_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: true
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classroom_join_rate_limits: {
         Row: {
           attempt_timestamps: string[]
@@ -9027,6 +9110,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      assert_classroom_guided_draft_context_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_expected_blueprint_version_id: string
+          p_rules_markdown: string
+          p_target: string
+          p_unit_exception_id: string
+        }
+        Returns: Json
+      }
       attendance_classroom_has_state_v1: {
         Args: { p_classroom_id: string }
         Returns: boolean
@@ -10640,6 +10734,39 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_guided_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_description: string
+          p_draft_id: string
+          p_due_at: string
+          p_expected_blueprint_version_id: string
+          p_instructions_markdown: string
+          p_points_possible: number
+          p_requirements: Json
+          p_rich_instructions: Json
+          p_rules_markdown: string
+          p_seed_sha256: string
+          p_title: string
+          p_unit_exception_id: string
+        }
+        Returns: Json
+      }
+      create_guided_test_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_documents: Json
+          p_draft_content: Json
+          p_draft_id: string
+          p_expected_blueprint_version_id: string
+          p_rules_markdown: string
+          p_seed_sha256: string
+          p_unit_exception_id: string
+        }
+        Returns: Json
+      }
       create_metered_assignment_ai_grading_run_v1: {
         Args: {
           p_assignment_id: string
@@ -12235,6 +12362,14 @@ export type Database = {
           p_table_name: string
         }
         Returns: string
+      }
+      resolve_classroom_guided_rules_v1: {
+        Args: {
+          p_guidance: Json
+          p_target: string
+          p_unit_exception_id: string
+        }
+        Returns: Json
       }
       resolve_managed_storage_blueprint_copy_source: {
         Args: {

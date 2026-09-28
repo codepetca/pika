@@ -19,7 +19,7 @@ export const GET = withErrorHandler('GetTeacherClassroomAuthoringDraftProvenance
   if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: ownership.status })
 
   const artifactColumn = query.target === 'tests' ? 'test_id' : 'assignment_id'
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from('classroom_guided_draft_provenance')
     .select('source_blueprint_version_number,unit_label')
     .eq('classroom_id', id)

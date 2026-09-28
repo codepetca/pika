@@ -43,7 +43,9 @@ async function responseBody(response: Response): Promise<Record<string, unknown>
 }
 
 function errorFrom(body: Record<string, unknown>, fallback: string): string {
-  return typeof body.error === 'string' && body.error ? body.error : fallback
+  const message = typeof body.error === 'string' && body.error ? body.error : fallback
+  const detail = Array.isArray(body.errors) && typeof body.errors[0] === 'string' ? body.errors[0] : null
+  return detail ? `${message}: ${detail}` : message
 }
 
 const textareaClasses = 'w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus-visible:border-primary focus-visible:ring-foundation focus-visible:ring-focus'
@@ -116,7 +118,15 @@ export function ClassroomBlueprintDraftDialog({
       if (generation !== generationRef.current) return
       if (!response.ok) throw new Error(errorFrom(body, 'Failed to draft from Blueprint'))
       const next = body.suggestion as GuidedSuggestion | undefined
-      if (!next || typeof next.content !== 'string' || !next.draft_provenance_token) {
+      if (!next || typeof next.content !== 'string'
+        || typeof next.draft_id !== 'string'
+        || typeof next.original_content_sha256 !== 'string'
+        || typeof next.draft_provenance_token !== 'string'
+        || !next.guidance
+        || typeof next.guidance.rules_markdown !== 'string'
+        || typeof next.guidance.source_blueprint_version_number !== 'number'
+        || (next.guidance.unit_exception_id !== null && typeof next.guidance.unit_exception_id !== 'string')
+        || (next.guidance.unit_label !== null && typeof next.guidance.unit_label !== 'string')) {
         throw new Error('The generated draft was incomplete')
       }
       setSuggestion(next)
