@@ -1734,6 +1734,30 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByText('Open')).not.toBeInTheDocument()
   })
 
+  it('shows an open badge when a closed test has reopened student access', async () => {
+    mockTestsResponse([
+      makeTest({
+        id: 'test-1',
+        title: 'Unit Test',
+        status: 'closed',
+        stats: {
+          total_students: 2,
+          responded: 1,
+          submitted: 1,
+          open_access: 1,
+          closed_access: 1,
+          questions_count: 3,
+        },
+      }),
+    ])
+
+    renderTab()
+
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
+    expect(screen.getByText('Open')).toBeInTheDocument()
+    expect(screen.queryByText('Closed')).not.toBeInTheDocument()
+  })
+
   it('shows card reorder controls from the list actions menu and resets reorder mode when tests is revisited', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
     const view = renderTab({ testsTabClickToken: 0 })

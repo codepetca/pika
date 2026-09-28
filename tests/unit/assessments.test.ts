@@ -56,6 +56,28 @@ describe('assessment utilities', () => {
   })
 
   describe('getTeacherTestListDisplayStatus', () => {
+    it('keeps drafts as drafts regardless of access counts', () => {
+      expect(
+        getTeacherTestListDisplayStatus({
+          status: 'draft',
+          stats: { total_students: 2, open_access: 1, closed_access: 1 },
+        })
+      ).toBe('draft')
+    })
+
+    it('shows a closed test as open when access is reopened for a student', () => {
+      expect(
+        getTeacherTestListDisplayStatus({
+          status: 'closed',
+          stats: {
+            total_students: 2,
+            open_access: 1,
+            closed_access: 1,
+          },
+        })
+      ).toBe('active')
+    })
+
     it('shows active tests as closed when access is closed for every student', () => {
       expect(
         getTeacherTestListDisplayStatus({

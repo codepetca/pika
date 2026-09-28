@@ -2084,6 +2084,64 @@ test('shows publication language only at the publish transition', async ({ page 
   })
 })
 
+test('shows teacher test list status from effective student access', async ({ page }, testInfo) => {
+  const { viewport, theme } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  await page.route('**/api/teacher/tests?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tests: [
+          {
+            id: '30000000-0000-4000-8000-000000000013',
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Reopened for one student',
+            status: 'closed',
+            position: 1,
+            documents: [],
+            stats: {
+              total_students: 2,
+              responded: 1,
+              submitted: 1,
+              open_access: 1,
+              closed_access: 1,
+              questions_count: 1,
+            },
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000014',
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Closed for everyone',
+            status: 'active',
+            position: 0,
+            documents: [],
+            stats: {
+              total_students: 2,
+              responded: 1,
+              submitted: 1,
+              open_access: 0,
+              closed_access: 2,
+              questions_count: 1,
+            },
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-test-grading?view=list', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('Reopened for one student')).toBeVisible()
+  await expect(page.getByText('Closed for everyone')).toBeVisible()
+  await expect(page.getByText('Open', { exact: true })).toBeVisible()
+  await expect(page.getByText('Closed', { exact: true })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`teacher-test-list-access-${viewport}-${theme}.png`),
+    animations: 'disabled',
+  })
+})
+
 test('shows published closed Tests to students without opening them', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   await applyProjectTheme(page, testInfo)

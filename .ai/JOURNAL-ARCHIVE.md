@@ -33481,3 +33481,10 @@ three reviewed helpers and scopes gallery role queries to their sections, with
 all existing assertions/timeouts preserved.24 targeted tests pass, including
 coverage instrumentation (partial-suite global coverage thresholds are not a
 full coverage gate). Final focused checks and correction review precede new CI.
+
+<!-- pika-session-log-archive-batch:716471f485c960deb3fdf0b2cab472788093f00f566ba3315113fbae78635ee2 -->
+## 2026-09-26 — Stripe test-mode foundation prepared
+
+- Owner `codex/stripe-billing-foundation`, based on the unmerged admin/policy branch at `85138d24`; risk `runtime-platform`. Astra architecture review and two bounded Terra workers prepared immutable offering versions, trusted bindings, durable event intake, fenced payment synchronization and bounded reconciliation. Coordinator integrated local-only gates, provider decoding, transport adapters and handler boundaries.
+- Migration 209 and rollback-only contracts are prepared but unapplied. Local dry run includes only 209. Test fixtures establish neither real Stripe connectivity nor deployed billing. No live or hosted changes; no HTTP route/runtime activation yet.
+- Local unit/static checks pass; exact verification and remaining gates live in `docs/guidance/stripe-billing-foundation.md`. Awaiting explicit approval for `stripe@22.6.2` and one-time application of migration 209 to local. Next: SDK/runtime wiring, authorized local DB application, generated types and database proof, draft PR and independent fixed-SHA review.

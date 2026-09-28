@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Stripe test-mode foundation prepared
-
-- Owner `codex/stripe-billing-foundation`, based on the unmerged admin/policy branch at `85138d24`; risk `runtime-platform`. Astra architecture review and two bounded Terra workers prepared immutable offering versions, trusted bindings, durable event intake, fenced payment synchronization and bounded reconciliation. Coordinator integrated local-only gates, provider decoding, transport adapters and handler boundaries.
-- Migration 209 and rollback-only contracts are prepared but unapplied. Local dry run includes only 209. Test fixtures establish neither real Stripe connectivity nor deployed billing. No live or hosted changes; no HTTP route/runtime activation yet.
-- Local unit/static checks pass; exact verification and remaining gates live in `docs/guidance/stripe-billing-foundation.md`. Awaiting explicit approval for `stripe@22.6.2` and one-time application of migration 209 to local. Next: SDK/runtime wiring, authorized local DB application, generated types and database proof, draft PR and independent fixed-SHA review.
-
 ## 2026-09-26 — Approved local Stripe integration verification
 
 - Owner approved exact `stripe@22.6.2` and one-time local migration 209. Both completed; migration approval consumed. Generated database types match; Stripe and existing account-plan rollback harnesses pass, including forced partial failure rollback and lease takeover. Billing sandbox setting remains false. The older classroom harness correctly refuses the post-cutover local setting; CI runs it against fresh replay.
@@ -298,3 +292,7 @@ Inspected the teacher/student private image route and measured it on a temporary
 ## 2026-09-28 — Image reference first-open preload
 
 Mounted the first image reference when the teacher preview or started student test workspace appears, and kept the same image instance for first open and return. Other images continue to load on demand. The viewer resets zoom on close and keeps the existing authenticated route, full-resolution image, and retry behavior. Component tests and targeted Playwright teacher/student cases passed across desktop/mobile and light/dark; the browser case observed one image file request before first click and no second request on open. Visual screenshots were reviewed. Hosted latency and file size remain unmeasured.
+
+## 2026-09-28 — Teacher Tests list access status
+
+The Tests list now displays Open when any enrolled student has effective open access, including a test whose stored status is closed; active tests with every student's access closed still display Closed. Drafts remain Draft. Added unit/component and browser regression coverage. Focused checks passed 1,031 tests plus architecture, UI/design policy, TypeScript, and lint; the browser scenario passed desktop/mobile in light/dark, and screenshots were reviewed. Risk profile: none. Model recommendation: GPT-6 Sol for the localized status correction.
