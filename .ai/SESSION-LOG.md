@@ -12,331 +12,289 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## 2026-09-19 — Dormant transactional learner assignment open
+## 2026-09-26 — Approved local Stripe integration verification
+
+- Owner approved exact `stripe@22.6.2` and one-time local migration 209. Both completed; migration approval consumed. Generated database types match; Stripe and existing account-plan rollback harnesses pass, including forced partial failure rollback and lease takeover. Billing sandbox setting remains false. The older classroom harness correctly refuses the post-cutover local setting; CI runs it against fresh replay.
+- Added real SDK signature verification and local-only webhook/operator-worker routes, with pinned API version, bounded requests and shared database origin/redirect checks. New database harnesses are wired into CI. Credentials are absent, so no real Stripe payment rehearsal or live activation is claimed.
+- Proceeding with focused checks, draft publication and bounded independent fixed-SHA security/compatibility review. No merge or production authority implied.
+
+## 2026-09-26 — Stripe billing review remediation prepared
+
+- Draft PR #1366 is stacked on #1360. Initial fixed-SHA Sol/Terra review found financial-adjustment and retry-fairness blockers; architecture review found no separate blocker. Batched fixes verify immutable product/amount and exact unadjusted card payment, preserve signed event timestamps, and add migration210 for fair due selection, bounded transient retries, durable attention and audited operator requeue. Existing209 is unchanged and its local application permission is consumed.
+- Focused checks pass342 tests plus TypeScript, lint and architecture/UI/design policies; Pika audit passes. Migration210 remains unapplied pending exact local authorization, including clearing unrecoverable legacy provider-created timestamps. Its rollback database contracts and regenerated types remain pending; no real Stripe round trip, live enablement or merge is claimed. Targeted correction review follows before the application checkpoint.
+
+- Targeted Sol review found a missing nullable-schedule alteration, non-isolated retry fixtures, and early-event adoption compatibility. Batch2 fixes all three in unapplied210 and its harness, adding explicit claimed-state assertions and an early-event binding regression. No further schema application is authorized yet.
+
+## 2026-09-26 — Consolidated billing209 and rebuilt local database
+
+- User explicitly approved combining unreleased209/210, erasing/resetting local and reseeding. Consolidated the reviewed final functions and table definitions into209; removed210 and its upgrade-only backfill. Verified local target/history; one `supabase db reset --local --no-seed` replayed001–209 successfully. Reseeded via local runtime credentials with shared hosted env excluded. Local fixtures: three users and one classroom; billing sandbox off and no billing inbox records. Reset restores migration defaults, including local creation/Free-provisioning gates; production is unchanged.
+- Generated types match the rebuilt schema. Billing recovery/payment, account-plan and classroom-creation rollback harnesses pass. Corrected SQL harness evaluation ordering by capturing the mutation result before inspecting persisted state. Focused checks pass342 tests plus TypeScript/lint/policy checks; final integration review and CI remain pending. Earlier209/reset authorization is consumed. No live Stripe payment rehearsal, production change or merge.
+
+## 2026-09-26 — Billing binding/webhook race correction
+
+- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
+- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
+
+## 2026-09-26 — Approved subscription launch policy
+
+- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
+  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
+  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
+  Updated the access roadmap and durable decisions; distinguished approved
+  product terms from provisional AI costs and missing runtime implementation.
+- Documentation-only risk profile: none. No database, Stripe account, production
+  runtime or existing subscription changed. Next implementation milestone is an
+  isolated Stripe test checkout plus lifecycle/access verification.
+
+## 2026-09-26 — Rename launch plans to Basic, Pro and Max
+
+- Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,
+  launch limits, trial/AI labels and decision log while retaining prices/benefits.
+  Documented legacy `plus` → Pro and `pro` → Max to avoid accidental entitlement
+  reassignment. Historical runtime/schema keys remain unchanged.
+- Continued policy PR1367; documentation-only verification and independent review
+  cover the cumulative approved-policy change. No runtime or live billing change.
+
+## 2026-09-26 — Land policy and prepare durable test checkout
+
+- Owner authorized merging the policy and orchestrating implementation. Merged
+  admin1360, foundation1366 and policy1367 into main after their final required
+  PR Gate passed. Descendant rebases preserved complete reviewed trees.
+- Coordinator owns `codex/stripe-checkout-trial`. Workers completed the immutable
+  12-variant Basic/Pro/Max USD/CAD catalog, test-price provisioning, durable
+  checkout/service/provider/schema contracts. Coordinator added authenticated
+  catalog/start/status routes, bounded worker integration and disabled-by-default
+  checkout configuration. Browser redirects cannot grant access.
+- Independent preapplication review found no blockers in migration211, checksum
+  `567b4dfe360266c1b70899e34b70a7ec388a5fdc99494162dbf524207e3c61e9`.
+  It remains unapplied. Shared local has unrelated gradebook210; do not reset it.
+  Await explicit approval for disposable local `pika_billing_checkout`, applying
+  001–209 plus211 without seed. Prior209 reset authorization was consumed.
+- Billing-focused tests192/18 files pass; focused checks passed293 tests and
+  architecture/UI/design policy checks, then stopped at TypeScript because eight
+  new RPCs await proper generated types. Changed-file ESLint, Pika audit and22 CI
+  workflow tests pass. SQL harness is wired into CI but unexecuted locally.
+- Keep the checkout PR draft until SQL tests, generated types, full focused checks
+  and independent implementation review complete. Stripe test credentials remain
+  absent; no provider objects/payments or live billing were created. Trial,
+  lifecycle/access enforcement, billing UI and provider rehearsal remain pending
+  under the durable coordinator plan in `docs/guidance/stripe-billing-foundation.md`.
+
+## 2026-09-26 — Reuse shared local database for checkout verification
+
+- Owner requested the existing local database. Rebased checkout PR1368 onto
+  main402f8028 after gradebook210 merged. Read-only comparison found exactly two
+  outdated209 billing functions; additive211 now reinstalls their canonical
+  definitions without changing209 or data. New static parity and SQL assertions
+  cover grants and identity-lock ordering. Billing tests194/18 files pass.
+- Local migration list and dry-run preview only211. No application, reset or seed
+  occurred. Updated211 SHA256 is
+  `e5c30fbb3fa0ead4d4c05ea617ed79e8a5ba3928615ece3991738e8c0d58dc03`.
+  Prior independent review covered the original211, not this compatibility delta.
+- Review checkpoint: one preapplication launch, zero remediation waves; the
+  45-minute elapsed window expired including the user-input pause. Further
+  independent reviews need explicit additional review-time approval. Local211
+  application also awaits exact authorization. PR stays draft; generated types,
+  database contracts and full implementation review remain pending.
+
+## 2026-09-26 — Apply and verify local checkout211
+
+- Owner approved45 additional review minutes and existing-local211 application
+  after review. Independent delta review passed frozen SHAe5c30fbb. Verified
+  local project/port/history and preview; one `supabase db push --local` applied
+  only211. That approval is consumed. No reset or reseed.
+- Billing and checkout rollback contracts pass; generated types refreshed from
+  applied schema. Security advisor reports no issues. Three users, one classroom
+  and the disabled billing sandbox are preserved. Focused checks pass207 tests,
+  TypeScript, lint and architecture/UI/design gates. Full financial/security and
+  compatibility review follows before ready CI; no provider payment performed.
+
+## 2026-09-26 — Preserve legacy plans during first checkout
+
+- Full review of41c75110 found a P1: legacy paid accounts could reserve first
+  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
+  unchanged legacy Free eligibility at reservation, resumption, progress save,
+  binding and first-payment claim. Changed plans become attention; existing
+  paid-finish revision fencing handles the subsequent race. Applied209/211 are
+  unchanged. API returns a safe409 for initial ineligibility.
+- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
+  legacy paid rejection and plan-change races; they remain unrun until exact
+  local212 authorization. The harness refuses a database without212. Migration
+  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
+- Targeted correction/preapplication review follows as launch5/5, remediation
+  batch1. New212 and refreshed generated types/final integration review require
+  a further owner checkpoint. Previously issued provider sessions may still be
+  paid after an operator changes a plan; this patch prevents access overwrite,
+  and provider cancellation/refund handling remains a prelaunch lifecycle task.
 
-- Owner `codex/contextual-assignment-doc-open`, based on merged individual-work PR1293. Migration182 adds a service-only transaction that rechecks live assignment/classroom state and exact enrollment under the membership-removal fences before creating or refreshing one learner assignment document. It preserves first-view/returned-feedback acknowledgment and constrains the optional legacy Pal event to the assignment-view contract.
-- No route, feature flag, UI, production database or cohort activation uses the function in this slice. The strict server adapter validates actor/assignment/document evidence; rollback-only behavior and multi-connection harnesses cover removal-first, archive-first, draft-first, open-first and duplicate-open ordering.
-- With exact local authorization, migration182 SHA256 `181d8124527349599b8d772eeb213ac0e3d12eb48f557ebe4838ab9c17cd3a74` applied after one corrected retry authorization. Local history001–182, behavior/concurrency contracts, generated types, warning-level database lint, 117 focused tests, architecture, UI/design policy, TypeScript, lint and Pika audit pass. Independent high-risk review follows.
-- Initial compatibility review was clean. Initial security review found membership-scoped Pal routing still depended on the account's legacy student role, so a teacher-valued exact member could create the document without emitting its first-view fact. Batch1 adds migration183 to make Pal identity relationship-based while preserving all removal/archive/purge/generation fences, with teacher- and student-valued exact-member plus retry-dedup coverage. With exact authorization, migration183 SHA256 `d2153b9e3cbf94c991abbaf177ba6d16e5fa9d2147ad4c1a03d0b57c861664ea` applied locally; local history001–183 and the assignment-open, membership identity and classroom Pal contracts pass.
+## 2026-09-26 — Apply checkout eligibility212 and prepare final review
 
-## 2026-09-19 — Dormant contextual learner assignment-open route
+- Owner approved local212 and one final integration review up to20 minutes
+  (launch6). Verified the reviewed hash, local target/history and preview;
+  applied only212 once. Authorization consumed; no reset or reseed.
+- Expanded checkout SQL exposed a test-expression ordering bug: capture the
+  claim result before inspecting saved state. The test-only fix passes;
+  migration212 is unchanged. Checkout and foundation rollback contracts pass;
+  generated types refreshed. Existing three users, one classroom and disabled
+  sandbox are preserved. Final focused checks and review precede ready CI;
+  no Stripe provider purchase or live activation.
 
-- Owner `codex/contextual-assignment-route`, based on merged transactional-open PR1294. Added an independent, off-by-default exact user/assignment gate to `GET /api/assignment-docs/[id]`. A matched teacher- or student-valued active member opens only their own document through migration182; the transaction remains the membership/visibility authority and a foreign `student_id` teacher projection is rejected.
-- Contextual mode binds RPC assignment/document evidence plus feedback, requirements, artifacts and optional GitHub identity before returning, sanitizes the member document and preserves immediate Pal delivery after a transaction-created document. Disabled and unmatched requests retain the legacy route. Autosave, submission and artifact mutations remain legacy, so no cohort may be activated yet. No UI, migration, production configuration or database state changed in this slice.
-- Initial security review found strict requirement/artifact loaders still normalized missing-schema errors to empty evidence, and downstream evidence failure could skip immediate Pal delivery after the transaction committed creation. Batch1 makes missing schema fail closed only in strict mode while preserving legacy compatibility, and moves immediate delivery directly after the successful create result with global- and classroom-Pal failure-path regressions. Targeted re-review follows.
+## 2026-09-27 — Preserve test references during Preview saves
 
-## 2026-09-19 — Dormant contextual learner assignment save
+Fixed the teacher editor resetting authoritative document state from document-free parent summaries. References now reset only on owner changes (test/classroom/API scope); detail reads and document mutations own same-test updates. Regression covers a parent summary refresh, Preview payload/source Markdown, and the save-triggered parent refresh; existing stale-response tests remain passing. No schema, API, grading, fullscreen, or visual contract changes. Reuse: existing split Tests editor and Preview/reference controls. Risk: workspace-state.
 
-- Owner `codex/contextual-assignment-save`, based on merged assignment-open route PR1295. Migration184 adds a service-only transaction that rechecks live assignment/classroom state and exact enrollment under membership-removal fences before delegating revision, idempotency, history and metric behavior to the established atomic save.
-- Added an independent off-by-default exact user/assignment PATCH gate. A matched teacher- or student-valued active member saves only their own document; bounded preflight and RPC evidence are strictly rebound to the authenticated actor and assignment. Disabled and unmatched requests retain the legacy student-only route, and missing schema never falls back after admission.
-- With exact local authorization, migration184 SHA256 `5a761230159d7ad1b795426eac2b290d58e75da508124bb389e4a90a080edc5d` applied locally. Rollback-only behavior and multi-connection removal/archive/draft/save/duplicate-save contracts pass, generated types match local history001–184, and the GET/PATCH gates remain off. Submission, unsubmit, history/restore and artifact mutations remain legacy, so no cohort may be activated.
-- Initial security review found that migration184 could hold classroom/member fences while an existing submit, unsubmit, restore or legacy save held its document fence, making ordinary overlap deadlock or surface raw contention. Batch1 adds migration185's fixed submission→editor-save→classroom/member ordering, maps guarded assignment/classroom contention to safe 409 retry responses, and expands real two-connection coverage to both save/submit and contextual/legacy-save orderings, unsubmit-first, and save-first draft/archive retries. With exact local authorization, migration185 SHA256 `833b009433c95d288bccb241b6a360234186b6b5ae143be717950e67a3febd88` applied locally; all 12 race cases pass and randomized fixtures are removed.
+Verification: TestDetailPanel 48/48; focused checks 276 tests plus architecture/UI/design/TypeScript/lint; 12 mocked Playwright contracts across teacher/student, desktop/mobile, light/dark (image uploads/preview/retry/zoom/answer retention plus Pattern Lab Markdown reference preview), with screenshots inspected at /tmp/pika-preview-browser-results. Local Supabase stopped; fixture server uses loopback-only placeholders. Production quiz content remains unchanged by this code task. Pending independent PR review and release.
 
-## 2026-09-20 — Dormant contextual learner assignment submit/unsubmit
+Independent review identified a pending document-mutation response crossing selected-test boundaries. Batched remediation guards all document callbacks and auto-sync by captured assessment scope, and keys document editors by owner so pending child state cannot carry into another test. Deferred edit regression verifies the new test's references and Preview payload survive the old response. Editor suite now 49/49; final focused checks and targeted review follow.
+Final integration review caught auto-sync attempt suppression resetting only on test ID changes. Second batch aligns suppression reset with classroom/API/test ownership, with both classroom and API transition regressions. Final focused checks and bounded correction/integration review follow.
+Third correction attaches an owner key to document state and prevents auto-sync effects from mixing prior documents with a newly selected endpoint during the transition render. Different-link API transition regression confirms only the new owner's link is synced. Final focused checks pass 280 tests plus architecture/UI/design/TypeScript/lint. Bounded final correction review pending; release remains separate.
 
-- Owner `codex/contextual-assignment-submit`, based on merged assignment-save PR1297. Migration186 adds service-only submit and unsubmit transactions that recheck live assignment/classroom state and exact enrollment under the established submission→editor→classroom/member lock order before delegating to the legacy atomic operations.
-- Added one independent off-by-default exact user/assignment gate shared by the submit and unsubmit routes. Matched teacher- or student-valued active members mutate only their own document; strict adapter and preflight evidence binding fail closed without legacy fallback. Disabled and unmatched requests retain the legacy student-only path.
-- With exact local-only authorization, migration186 SHA256 `a06d0915a0df1930ef35e3acf459e271f93d6a7d579d52b23afe48cb5047959f` applied after local history001–185. Warning-level schema lint, generated-type parity, rollback-only behavior checks and all 18 removal/save/submit/unsubmit concurrency contracts pass; randomized fixtures are removed. Production remains001–180 and every contextual assignment gate remains off. History/restore and artifact mutations still block cohort activation.
-- PR1298 initial Sol/Terra review found attachment-race errors collapsed to503, service-role preflight evidence returned before membership authorization, and a post-transaction authenticity write outside the member boundary. Remediation batch1 preserves both attachment outcomes, moves all contextual preflight evidence into migration187's service-only locked transaction, and removes the contextual authenticity write. Under the user's standing local-migration authorization, migration187 SHA256 `5f84d7f11c37807b525dda31e8015906accdcc1a93490322d023c4aa7c3d636d` applied locally; local history001–187, removed-member denial, type parity, lint, both rollback harnesses and all18 concurrency cases pass. Targeted re-review follows; production/gates remain unchanged.
+Main sync: resolved only continuity-document overlap after PR1368 landed; reviewed application/test blobs remain identical to fe74df85. Independent review complete, no blockers. Updated-base focused checks and exact-head CI precede authorized squash merge.
 
-## 2026-09-20 — Dormant contextual assignment history/restore
+## 2026-09-27 — Stage contextual Assignment inline-image fix
 
-- Owner `codex/contextual-assignment-history`, based on merged submit/unsubmit PR1298. Migration188 adds service-only role-neutral owner/member history reads and exact member restore. Both boundaries take submission/editor fences before classroom/member locks; restore independently rechecks live visibility, current enrollment, document revision and exact history ownership before delegating to the established atomic save.
-- Added one independent off-by-default exact user/assignment gate shared by history and restore. Matched owners can read one current enrollee's existing history; matched teacher- or student-valued members can read and restore only their own live-assignment history. Disabled and unmatched requests retain legacy auth/role behavior. Artifact mutations remain legacy, so every contextual assignment gate stays off.
-- Under standing local-migration authorization, migration188 SHA256 `4b08bfdcb80a8e655355ad16afe9e01bbedfd62de15bd24635ab8c663e170b9f` applied locally. Local history001–188, generated types, warning-level DB lint, rollback behavior, all22 save/submit/restore races,55 targeted tests,238 focused tests, architecture/UI/design/type/lint checks and Pika audit pass. Production remains001–180; no cohort, deployment or production migration changed.
-- PR1299 initial Terra compatibility review was clean. Sol security review found restore accepted caller content after checking only target ownership. Remediation migration189 (`ba7ffe7e44d39ccb3be6e7abef14e8805a3aa6de04ff3c07bbe49a6d2d99c2f7`) reconstructs the locked snapshot/patch chain in PostgreSQL, rejects mismatched content atomically, and derives restore snapshot/counts from the selected row. Under standing local authorization it is applied through local history001–189; clean DB lint,239 focused tests, the tamper rollback contract and all22 patch-target removal/save races pass. Production and gates remain unchanged; targeted and final reviews follow.
-- Sol targeted review signed off remediation head `ca4de8f8`; Terra final integration also signed off, with one non-blocking operability gap: the shared concurrency harness required188 but not189. Batch2 adds the exact migration189 preflight plus regression; all22 races,239 focused tests and audit pass. Final bounded re-review follows; production/gates remain unchanged.
+- User authorized orchestration of the audited image-access boundary. This task owns codex/contextual-assignment-images based on main402f8028. Terra implementation worker staged the independent default-off exact user/Classroom gate, relationship-aware delivery, transaction-fenced reservation/finalization and migration213. A separate read-only worker mapped restricted API/RPC lifecycle verification; no classroom UI or billing activation is included.
+- Image-focused tests pass33 checks and TypeScript passes after installing existing locked dependencies into this worktree. Behavioral rollback-only database fixtures and CI wiring are authored, not executed. Database types remain unchanged. Source review and final focused checks follow; concurrent removal/submission proof and persisted manual lifecycle rehearsal remain outstanding before readiness.
+- Started Docker solely for local diagnostic checks. Local database history is001–212; main source is001–210 because billing PR1368 is still open. No migration, reset, hosted data, runtime gate or production change. Sync billing migration source before the exact local213 application/type-generation checkpoint; do not import or modify the other task's work.
+- Draft PR1371 at initial head a8679dff is attached. Full focused checks pass124 tests across14 files plus TypeScript/lint/policies; staged-file Pika audit passes. Sol/Terra initial source review found a fixture revocation ordering blocker, a creator-binding gap and missing archived-owner/revocation coverage. One remediation batch fixes all three; targeted Sol review follows. Local dry-run refused missing211/212 source; no history repair attempted. Review ledger: /private/tmp/pika-assignment-images-review-ledger.json (two initial launches, one initial wave, batch1; final integration deferred until schema/types evidence).
+- Correction68632997 pushed; repeated full focused checks pass124 tests and all static gates. Targeted Sol review found no actionable issue and independently passed33 tests plus shell syntax/diff hygiene. Three reviewer launches and one fix batch consumed. PR remains draft; next is billing1368 landing/sync, then exact local migration213 authorization, generated types, database/race evidence and final integration review. This final continuity note is local/uncommitted to preserve the reviewed source SHA.
+- User reported billing1368 merged and212 applied. Verified merge43c170b5, rebased this branch onto main, resolved only duplicate historical archive notes while retaining main's history, and restored the local handoff note. No image runtime/schema/harness/test content changed from reviewed68632997; migration remains213. Local history through212 verified; dry-run previews only213. This task's temporary rebase stash is consumed; unrelated existing stashes are untouched. Post-sync checks precede updating draft1371; exact local213 application authorization is still needed. No migration or production action performed.
+- Owner approved exact local213 application. Rechecked clean feature worktree, local history and dry-run containing only213; applied213 once successfully. Rollback-only image database contracts pass and fixture users are absent afterward. Generated types add only the three image RPC signatures; generation/check pass. No production migration or gate activation. Concurrency evidence and final integration review remain pending; keep1371 draft and check the existing review deadline before any additional reviewer launch.
+- Owner approved one final integration review capped at20minutes. Terra test worker added four actual removal/submission versus image reservation/finalization races; coordinator corrected test cleanup to use the local compatibility metadata protocol, exact fixture IDs, collision preflight and bounded background sessions. All four race cases and the mixed-role image contract passed; mutable fixtures/test schema artifacts clear, immutable anonymous PAL audit evidence intentionally remains. Synced main6650e76a (#1370), resolving only duplicate archive notes. Reviewed runtime/migration213 unchanged. Final checks/review/CI precede authorized merge; restricted full Assignment rehearsal is the next separate integration phase, not claimed by these image tests. No production or gate activation.
 
-## 2026-09-20 — Dormant contextual assignment artifacts
+## 2026-09-27 — Billing flow and edge-case verification
 
-- Owner `codex/contextual-assignment-artifacts`, based on merged history/restore PR1299. Migration190 adds service-only prepare, upsert and delete boundaries for one active member's exact assignment requirement/document/artifact. All mutations share submission→editor→classroom/member ordering, recheck live visibility and current enrollment, reject submitted documents, bind managed images to database-derived classroom/subject/document ownership, and save optional GitHub identity in the same actor-bound transaction.
-- Added one independent off-by-default exact user/assignment gate to link/repository attachment, image upload/attachment and artifact deletion. Matched teacher- or student-valued members use the contextual RPCs; disabled and unmatched requests retain the legacy student-only path. Post-upload authorization failure queues managed bytes for cleanup rather than attaching them.
-- Under standing local-migration authorization, migration190 applied locally after a clean dry run. Local history001–190, warning-level DB lint, generated types, rollback-only artifact behavior and all26 shared save/submit/restore/artifact concurrency cases pass; synthetic fixtures roll back or are removed. Production remains001–180 and every contextual assignment gate remains off. Focused verification and independent review follow.
+- Owner: `codex/billing-flow-testing`. Audited the complete subscription policy against runtime; recorded implemented coverage, missing lifecycle/customer UI, and launch blockers in `docs/guidance/billing-test-report-2026-09-27.md`. Updated stale checkout/prod-schema continuity (211/212 were previously approved and applied; no migration applied this pass).
+- Added seven billing regressions and fixed empty signed webhook account/context fields bypassing presence validation. Red tests reproduced the defect; all198 billing tests and162 focused tests plus types/lint/architecture passed. Both local billing database rollback harnesses and Pika audit passed.
+- Real isolated Stripe sandbox:12 catalog variants; Pro purchase, decline/retry, unpaid expiry, Max CAD annual 3DS failure/retry, Basic annual recovery without webhook delivery, duplicate synthetic delivery and HTTP authorization/signature checks. Exactly one invoice effect per paid fixture and correct2/5/12 effective caps. Billing return route404 remains a launch blocker. No live billing or production writes; cleanup disabled local gate and canceled test subscriptions. Independent review and final CI follow.
 
-## 2026-09-20 — Dormant contextual Assignment owner mutations
+- Final CI caught the production-history summary format expected by an existing attendance migration contract (8,369 other tests passed). Restored `Prod DB 001–212` without changing the verified schema state or billing runtime. Targeted contract and focused checks precede correction review and a new stable-SHA CI run.
+- Reviewed head1f49006a passed all8,370 CI tests, production build, database contracts, Stripe binding/webhook race and PR Gate (run36337177687). Main then advanced via1371/39c948e8, causing only a duplicate archive-marker conflict. Rebased while draft, preserving both sessions; billing runtime/test patch is unchanged. Five reviewer launches and three correction/sync batches are consumed. New-head focused checks precede an owner checkpoint for one additional bounded rebase review; no new CI or merge until that review passes.
 
-- Owner `codex/contextual-assignment-owner-mutations`, based on merged artifact PR1300. Migration191 adds service-only actor-bound edit, release, delete and pristine-draft-discard boundaries for an existing Assignment. The shared helper acquires assignment-submission then Classroom-operation fences, locks both authorization parents, and rechecks exact current owner, binding and archive state transactionally.
-- Added one independent off-by-default exact user/assignment gate across the four existing owner routes. Matched teacher- or student-valued owners use migration191; disabled and unmatched requests preserve the legacy teacher-only path. Creation, bulk/reorder, grading, return, UI and rollout activation remain out of scope.
-- Under standing local-migration authorization, migration191 applied locally after correcting a failed, rolled-back composite-row definition. Generated types match local history001–191. The rollback behavior contract and ownership-transfer/archive two-connection races pass; production remains001–180 and all contextual gates remain off. Focused verification and independent review follow.
+## 2026-09-27 — Verify classroom rollout readiness
 
-## 2026-09-20 — Dormant contextual Assignment creation
+- PR1371 merged as39c948e8 after final review,125 focused tests and full CI. Continued rollout in `codex/contextual-rollout-rehearsal`; startup verified. Fresh production history matches001–212; linked dry-run previews only213. Exact production213 approval requested, not yet received; no production writes or activation. Existing production PR1373 belongs to another active task and excludes1371; leave its branch untouched.
+- Read-only Terra source audit confirms live home still routes by global role; contextual home has no live consumer. Full classroom shell exposes legacy-role Tests, Daily, Grades/Gradebook, roster and content writes; owner Classwork also fetches legacy surveys. Full UI rollout therefore needs implementation, not just enabling gates. Restricted manual Assignment integration remains next; do not present an Assignment-only pilot as the completed full-classroom rollout. Private checkpoint: `/private/tmp/pika-contextual-rollout-status-20260927.md`.
 
-- Owner `codex/contextual-assignment-creation`, based on merged owner-mutation PR1301. Migration192 adds one service-only actor-bound transaction that rechecks exact current Classroom ownership and archive state, allocates a mixed-classwork position, and inserts an Assignment plus initial requirements atomically.
-- Added an independent off-by-default exact user/Classroom gate to Assignment POST. Matched teacher- or student-valued owners use migration192; disabled and unmatched requests preserve the legacy teacher-only path, including authentication before request validation. Bulk/reorder, grading, return, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration192 applied after a clean dry run. Generated types match local history001–192; warning-level DB lint, rollback behavior and ownership-transfer/two-creation concurrency contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
-- Initial compatibility review found strict request validation changed dormant legacy teacher behavior and contextual creation could race legacy material/survey writers for a mixed-classwork position. Batch1 confines strict validation to exact-pair contextual requests, restores legacy parsing/messages, and records a tested hard activation blocker until every mixed-classwork writer shares the position fence.
+## 2026-09-27 — Orchestrate full rollout and correct owner precedence
 
-## 2026-09-20 — Shared contextual classwork creation fence
+- Owner authorized production213. Fresh target/history and dry-run matched only213; the single application attempt timed out connecting before reporting execution. Subsequent linked history confirms001–212,213 pending. Fresh retry approval requested, no second attempt. Production code PR1373 merged separately as6904c2ed and excludes image1371.
+- Terra built a real local route-handler/DB manual Assignment rehearsal with mocked request identity only, exact-loopback/demo-JWT validation, outbound transport containment and tracked synthetic cleanup. Coordinator strengthened negative cases: six scenarios pass, but admitted owner with historical self-enrollment can open/create learner work (200 vs403). Pre-return saved grades/feedback remain correctly hidden. No browser/session or image-byte round trip claimed; exact-object byte cleanup is unavailable on the shared local stack.
+- Astra mapped five finite full-experience batches into the existing roadmap, then implemented forward migration214: eight contextual learner definitions reject the owner from locked classroom evidence while preserving signatures, locks, prior bodies and owner-history inspection. Added18 passing static regressions plus a rollback-only behavioral harness; migration214 not applied. Added both the harness and real route rehearsal to ephemeral-database CI. Focused checks and independent review follow; keep all product gates off.
 
-- Owner `codex/contextual-classwork-position-fence`, based on merged Assignment creation PR1303. Migration193 moves Assignment, material and survey creation behind one private position allocator and the existing Classroom-operation fence. It rechecks exact current ownership and active state transactionally, and exposes service-only actor-bound material/survey creation RPCs while replacing the migration192 Assignment creator with the shared allocator.
-- Replaced the Assignment-only exact user/Classroom gate with one off-by-default classwork creation gate across all three POST routes. Exact teacher- or student-valued current owners use strict schemas and contextual transactions; disabled and unmatched requests preserve each legacy teacher-only path. The former mixed-writer activation blocker is resolved, but bulk/reorder, grading, return, survey reads/edits and the wider owner experience remain incomplete, so no cohort may be activated.
-- Under standing local-migration authorization, migration193 applied locally after a clean dry run. Generated types match local history001–193; warning-level DB lint, rollback behavior, and material→survey plus survey→Assignment multi-session races pass with distinct sequential positions. Production remains001–180 and all contextual gates remain off. Focused verification and independent review follow.
-- PR1304 initial security review signed off exact head `78692b4a`. Compatibility review found one non-blocking guide error claiming every classwork identity was allocated before locking; remediation batch1 now distinguishes Assignment pre-allocation from material/survey insert-time IDs. No functional, compatibility or CI-wiring blocker was found; targeted and final cumulative review follow.
+## 2026-09-27 — Apply migration 213 to production
 
-## 2026-09-20 — Dormant contextual manual Assignment grading
+- Fresh exact owner authorization allowed one retry. Verified production binding zhioqbapgfcrronyuidm, merged1371 migration bytes, passing CI36335825410, matching history001–212 and dry-run containing only213. Linked push succeeded; post-apply history matches001–213 with no drift.
+- Read-only catalog check confirms all four image functions, empty search paths, service-only public entrypoints and no direct application-role access to the private helper. No214 application, deployment, rollout activation or account changes. Continuity-only edits remain uncommitted in the existing draft1376 worktree; PR review checkpoint is not resumed by this migration-only request.
 
-- Owner `codex/contextual-owner-next-slice`, based on merged classwork-creation PR1304. Migration194 adds a service-only manual-grading wrapper that takes the established grading fence, then the Classroom-operation fence, locks Assignment/Classroom parents, rechecks stable binding, exact current ownership and active lifecycle, and delegates to the existing atomic grade save in the same transaction.
-- Added one independent off-by-default exact user/Assignment gate shared by the single-student and selected-students grade routes. Matched teacher- or student-valued current owners use migration194 with exact returned Assignment/student binding; disabled and unmatched requests preserve the legacy teacher-only path. Feedback return, AI grading/repository review, bulk/reorder, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration194 applied locally after a ledger/dry-run showing only194. Generated types and warning-level DB lint are clean; rollback behavior and archive-first/grade-first multi-connection contracts pass. Production remains001–180 and all contextual gates remain off. Focused verification and independent review follow.
-- PR1305 initial compatibility review signed off exact head `ba617df6`. Security review found a reverse-order deadlock with individual-student purge and an overbroad `55000` archive mapping. Remediation migration195 acquires each target learner's purge subject/pair fences nonblocking after Classroom admission, making a started purge return deterministic retry instead of deadlocking; the server now reserves403 for the exact archive sentinel and maps other lifecycle contention to409. A real purge-subject/grade race joins the archive races; targeted and final cumulative review follow.
+## 2026-09-27 — Merge owner precedence and begin shared admission
 
-## 2026-09-20 — Dormant contextual Assignment feedback return
+- Resumed with explicit approval. PR1376/f3c00147 passed fullCI36344942279, including7realroute scenarios and browsermatrix; merged as7758ed44 and hubfastforwarded. Five reviewer passes, one formatting correction; final CI22m50s. User authorized214 for both targets. Production preflight previewed only214; apply succeeded and history001–214 plus8function ownerchecks/privileges were verified. No feature activation.
+- Local preflight instead found214 subscription_lifecycle,215 subscription_lifecycle_validation,216 subscription_lifecycle_warning_cleanup. No owner214 local apply or history repair attempted. Notified billing task Admin dashboard with exact collision and main/prod precedence; preserve all data and obtain coordinated repair authorization.
+- Began independent batch1 in codex/classroom-shared-admission: strict optional manual actorcohort consumed by materialGET authorization, preserving relationships/projections/legacy pairpilots. No migration, env activation, role/plan rewrite, home/page/signup or materialwrite change. Astra bounded design and Terra implementation; coordinator corrected absent-config behavior and strengthened sameactorA/B/C and archived-member tests.69targeted tests/types pass; focused checks and independent review follow.
 
-- Owner `codex/contextual-assignment-feedback-return`, based on merged manual-grading PR1305. Migration196 adds service-only actor-bound wrappers for one feedback-only return and one selected-student full return. Both take the established Assignment return fence, then the Classroom-operation and target learner purge fences, lock authorization parents, recheck stable binding, exact current ownership and active lifecycle, and delegate to the established atomic return operations in the same transaction.
-- Added one independent off-by-default exact user/Assignment gate shared by both return routes. Matched teacher- or student-valued current owners use migration196 with strict returned document, feedback-entry, actor and batch-partition binding; disabled and unmatched requests preserve the legacy teacher-only path. AI grading/repository review, bulk/reorder, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration196 is applied locally. Generated types match local history001–196; error-level DB lint, rollback behavior and purge-first/archive-first/return-first multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
-- PR1307 initial compatibility review signed off exact head `02b384ca`. Security review found uppercase learner UUIDs could commit then fail response binding, feedback entry/document bodies were not cross-checked, and duplicate created-student evidence could satisfy the batch counts. Remediation batch1 canonicalizes request UUIDs before deduplication/RPC and requires exact feedback-body and created-subpartition evidence, with route and adapter regressions; targeted security re-review follows.
-- Security targeted review signed off batch1 head `ee8bc935`. Final compatibility review found shared-parser UUID canonicalization changed disabled/unmatched legacy behavior for case-variant UUIDs. Batch2 restores byte-for-byte legacy parsing and canonicalizes/deduplicates only inside the contextual adapters, with disabled, unmatched-teacher and exact-contextual route coverage; final re-review follows.
+## 2026-09-27 Subscription automation implementation in progress
 
-## 2026-09-20 — Dormant contextual classwork reorder
+Owner requested remaining lifecycle, classroom enforcement, billing screens and full sandbox testing after #1372 merged. Worktree `codex/subscription-automation`, base `85e8a2bf`; active coordinator plan in `docs/guidance/stripe-billing-foundation.md`. Phase 2 lifecycle storage/runtime and authenticated trial/effective-status endpoints are being implemented, with provider unpaid-invoice decoding. Migration214 is being authored, not applied; existing local database remains unchanged. New merge, production rollout, live billing and real email remain outside authorization. Phase 3 must cover timestamp-based scheduled assignments and subscription-specific archive protections before exposing launch UI. Preserve the separate dirty `subscription-lifecycle` prototype; it is not the runtime implementation.
 
-- Owner `codex/contextual-classwork-reorder`, based on merged feedback-return PR1307. Migration197 adds service-only actor-bound wrappers for Assignment-only and mixed Assignment/material/survey ordering. Both take the shared Classroom-operation fence, lock the current Classroom, recheck exact ownership and active lifecycle, delegate to the established migration068 ordering functions, and return actor/Classroom binding evidence.
-- Added one independent off-by-default exact user/Classroom gate shared by both reorder routes. Matched teacher- or student-valued current owners use migration197; disabled and unmatched requests preserve the legacy teacher-only path. Bulk Assignment operations, AI grading, repository review, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration197 applied after a clean dry run showing only197. Generated types match local history001–197; rollback behavior and archive-first/reorder-first/creation-first multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
+## 2026-09-27 Subscription lifecycle draft and first review
 
-## 2026-09-20 — Dormant contextual Assignment bulk editing
+Draft PR #1377 adds gated once-only Pro trials, finite version-bound paid access, renewal/grace/cancellation observations, due expiry, authenticated status/trial APIs, and rollback-only SQL contracts. Initial Sol/high security and Terra/high compatibility reviews completed; batch 1 fixes grace truncation by cancellation/original-invoice replay and missed uncollectible renewal recovery. Billing tests pass 285; SQL harness and generated RPC types remain pending exact local migration 214 approval. Existing local DB is still at 213 and unchanged. Further lifecycle commands/financial closeout, classroom restrictions, UI/notices and full sandbox rehearsal remain in the coordinator plan. No new merge, production, live billing or real email authority.
 
-- Owner `codex/contextual-assignment-bulk`, based on merged classwork-reorder PR1308. Migration198 adds one service-only actor-bound transaction for the markdown Assignment bulk editor. It takes canonically ordered Assignment submission fences before the shared Classroom-operation fence, locks and rebinds every parent, validates the complete batch, preserves material/survey slots, and commits creates, updates, releases and positions atomically.
-- Added an independent off-by-default exact user/Classroom gate. Matched teacher- or student-valued current owners use migration198; disabled and unmatched requests preserve the legacy teacher-only path. AI grading, repository review, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration198 applied after the dry run showed only198. Generated types match local history001–198; rollback behavior and archive-first/bulk-first/overlapping reversed-order multi-connection contracts pass. Production remains001–180 and every contextual gate remains off. Focused verification and independent review follow.
-- Initial security review found request-supplied foreign Assignment IDs could acquire another tenant's advisory/row locks before the missing-ID result. Compatibility review also found malformed timestamps surfaced as503. Remediation migration199 moves the original implementation private, preflights scope before supplied locks, rechecks and locks only rows still bound to the Classroom, and revokes direct service-role execution; the adapter maps PostgreSQL22007 to400. Cross-Classroom contention and malformed-date rollback regressions join the harnesses; targeted re-review follows.
+## 2026-09-27 Local subscription schema verification
 
-## 2026-09-20 — Dormant contextual Assignment repository-target selection
+Owner approved local214; one reviewed push applied only214 successfully. Generated types refreshed; focused248tests/architecture/UI/design/TypeScript/lint pass. Lifecycle and checkout SQL contracts pass after a harness-only CASE parenthesis correction. Foundation SQL contract exposed changed malformed-fence responses; forward215 restores original22023 validation for both entrypoints and adds rollback-only validation coverage.214 remains immutable.215 passed targeted security/compatibility review, then owner approved local215 and one push applied only215 successfully. Foundation, checkout, lifecycle and validation rollback database contracts all pass; generated types match. Local9users/1classroom/billingsandboxfalse preserved. PR1377 remains draft pending final cumulative review and required CI; reviewbudget4launches and2fixbatches (45minute cap19:57UTC).
 
-- Owner `codex/contextual-assignment-repo-target`, based on merged Assignment bulk PR1309. Migration200 adds a service-only owner-bound save/reset transaction for one enrolled learner's repository target under Assignment, Classroom-operation and learner-purge fences.
-- Added an independent off-by-default exact user/Assignment gate. Matched teacher- or student-valued current owners retain the existing read-only preflight before external GitHub validation, then recheck ownership, lifecycle and enrollment transactionally; disabled and unmatched requests preserve the legacy teacher-only path. Repository analysis, AI grading, UI and activation remain out of scope.
-- Under standing local-migration authorization, migration200 is applied locally. Generated types match local history001–200; error-level DB lint, rollback behavior and purge/archive multi-connection contracts pass. Production remains001–180 and all twelve contextual Assignment gates remain off. Focused verification and independent review follow.
+## 2026-09-27 Billing CI warning cleanup checkpoint
 
-## 2026-09-20 — Preserve grading comment focus during autosave
+PR1377 returned to draft after CI database warning gate found unused variables in trial-start and three checkout functions; Test & Build and all billing database contracts passed. Owner approved one cleanup batch plus two further reviews within30minutes (19:46:49–20:16:49UTC). Forward216 replaces unused result assignments with PERFORM while retaining writes, row locks, FOUND checks, ACLs and behavior.214/215 remain immutable.216 passed targeted review and received exact local approval; one push applied only216. Warninglint returnszeroissues, allfourDBcontracts pass, generatedtypes match, and9users/1classroom/billingsandboxfalse remain. Reviewbudget now3fixbatches; launches6, with finalreview7 reserved beforeCI. Dependent renewal-closeout worktree preserved/paused with only corecontract and worker-handler changes; no closeoutmigration or provideradapter yet.
 
-- Owner `codex/grading-comment-focus-main`, based on `origin/main@cbb80e93`. The assignment grading comment textarea now remains enabled while its background grade autosave is in flight, so the browser keeps keyboard focus; comment sending and conflicting grade actions remain disabled until the save completes.
-- Added a regression that holds the grade request open and proves the editor remains enabled and focused while Send comment is disabled. Targeted 30 tests and the focused application-browser gate (14 files/225 tests plus architecture, UI/design policy, TypeScript and lint) pass.
-- Playwright verified the live teacher grading editor retains focus after autosave on desktop/mobile in light/dark themes; the student baseline is unaffected. Composite checklist reviewed: native textbox keyboard behavior and tested focus/disabled semantics pass, no manual follow-up. Risk profile: none. Model recommendation: GPT-6 — bounded focus-state bug with browser verification.
+## 2026-09-27 — Billing migration collision correction
 
-## 2026-09-21 — Dormant metered paid-operation reservations
-
-- Product decision: AI grading and repository review are metered paid owner tools; joining a Classroom and completing assigned student work remain free. Prices, plan allowances, billing periods, trials and grace behavior are still deferred.
-- Migration201 adds a service-only `grading.ai` reservation ledger with assignment-grading, Test-grading and repository-review operation kinds. Reserve, settle and release are idempotent, bind one effective-entitlement revision, expire pending work, and serialize concurrent quota checks without holding locks across provider calls.
-- Under standing local-migration authorization, migration201 is applied locally. Generated types, error-level DB lint, rollback behavior and the concurrent quota race pass. No route uses the ledger, no grant or billing state changed, and production remains001–180.
-
-## 2026-09-21 — Preserve assignment work around unfinished image uploads
-
-- Owner `codex/fix-assignment-viewer-upload-placeholder`, based on `origin/main@3424be87`. Read-only Tiptap surfaces now register a noninteractive `imageUpload` compatibility node, preventing an autosaved unfinished upload from invalidating and blanking the rest of a student's document.
-- The compatibility node renders a semantic note, “Image upload was not completed,” while preserving all surrounding work. Pattern Lab now carries the persisted-node case in both teacher and student history previews.
-- Regression coverage proves text before and after the placeholder remains visible, read-only editors expose no uploader or image paste/drop side effects, editable editors retain upload behavior, and a live editable editor rebuilds with the inert node when entering history preview. A separate renderability predicate lets teacher panels and modals show current or historical image/upload-only work without changing text counts or submission semantics; the compatibility node also supplies an explicit plain-text serialization. Targeted tests, TypeScript, lint, Pika audit and the focused full gate (161 files/2110 tests plus architecture and UI/design policy) pass. Playwright verified teacher/student desktop/mobile light mode and teacher desktop dark mode, including the exact read-only editor configuration with uploads enabled. Composite checklist reviewed: the read-only node is noninteractive, semantic state is covered by role-based testing, keyboard behavior is not applicable, and no manual follow-up remains. Risk profile: none. Model recommendation: GPT-5 — small compatibility fix with UI verification.
-
-## 2026-09-21 — Hide unreturned grading status from students
-
-- Added a student-specific Assignment status projection that ignores internal `graded_at` state until work is returned. Student Classwork now retains its submission status before return and shows `Returned` only after the existing return boundary; teacher-facing `Graded` behavior is unchanged.
-- Added utility, API, and integration coverage. Focused checks pass with 76 files and 1,017 tests plus architecture, UI/design policy, TypeScript and lint. Visual verification covered the student Classwork summary at desktop/mobile in light/dark, including the exact unreturned-graded fixture; teacher reference captures showed no surface change.
-
-## 2026-09-21 — Prevent incomplete student image uploads
-
-- Owner `codex/prevent-incomplete-image-uploads`, based on merged PR1313. The Assignment editor now opens the native picker before changing content, keeps progress/failure state outside Tiptap JSON, and inserts only completed managed images. Canceling leaves the response unchanged; failures expose Retry/Remove; paste/drop use the same transient path.
-- Student submission is disabled and guarded imperatively while an image is uploading or awaiting recovery. Legacy saved `imageUpload` nodes remain readable through the inert compatibility note and can no longer be created by the toolbar/shortcut.
-- Focused gate passes 45 files/699 tests plus architecture, UI/design policy, TypeScript and lint. Playwright verified default, uploading and failure recovery on student desktop/mobile in light/dark; teacher is n/a because this follow-up changes only editable student state. Composite checklist passed with a labeled native picker, polite live progress, alert recovery and keyboard-reachable actions. Risk profile: none. Model recommendation: GPT-5 — bounded editor state transition with autosave and submit coordination.
-- Initial independent review found two non-blocking recovery gaps: paste/drop could replace a visible failed upload without an explicit student choice, and a finalized image could be orphaned if the editor became read-only before insertion. Remediation batch 1 preserves the failed item until Retry/Remove and requests reference-safe managed-storage cleanup for finalized-but-uninserted images; focused regressions and API coverage pass.
-- Targeted review found a blocking commit-to-passive-effect race where read-only or document-identity changes could occur just before upload completion. Remediation batch 2 makes completion validate render-current editability and document identity synchronously, with layout-phase unmount invalidation and both transition regressions.
-
-## 2026-09-21 — Classroom Grades page patterns
-
-- Owner `codex/classroom-grades-patterns`, based on `origin/main@ed6e6ca1`. Pattern Lab now places a default-off “Show grades to students” switch at the top of the teacher Gradebook page pattern and adds a student Classroom Grades tab showing a returned-work-only 84% fixture with counted and excluded examples.
-- The paired Student Grades visibility pattern reuses the same teacher control and student card, while retaining the standalone returned-marks comparison. These development-only fixtures do not alter production navigation, persistence, authorization, or grade APIs.
-- Focused verification passes with 15 files and 147 tests plus architecture, UI/design policy, TypeScript and lint. Visual verification covered teacher and student desktop/mobile in light/dark, both teacher switch states, the enabled student Grades view, and zero horizontal page overflow. Risk profile: none.
-
-## 2026-09-22 — Test grading repaired and calibrated against archived work
-
-Goal was to improve AI grading of open-response test questions the way assignment grading
-was improved in `b0557ac3`. Reaching that goal required fixing three defects the DeepSeek
-migration left on the test path; the assignment path had been migrated thoroughly and the
-test path had not.
-
-Shipped: PR1316 raised test output budgets from 220/420 (and 600/900 batch) to 6000/8000.
-DeepSeek counts reasoning against `max_tokens` and effort had been raised to `medium`
-(provider tier `high`), so every open-response test grade truncated twice and threw —
-broken in production, reachable from the teacher AI-suggest route, not only from tooling.
-Values measured, not guessed: 12 real responses spent 71-4509 output tokens. PR1312 fixed
-the gold-set harness, which gated on `OPENAI_API_KEY` and ran bare `tsx` with no
-`--env-file`. PR1319 added transcription-tolerance guidance to both prompt profiles; policy
-to v3, both prompt versions to v2.
-
-PR1319 came from adjudicating real archived work with the teacher, not from inspection.
-Codex exported two archived classrooms (684 teacher-scored responses, all coding,
-de-identified via `sanitizeAiText`; retained as JSONB in
-`classroom_retired_assessment_records`, no timed purge). A new `pnpm calibrate:test-grading`
-samples balanced across classroom and point scale and ranks disagreements for human
-adjudication, explicitly treating recorded marks as a second opinion rather than ground
-truth — the teacher had stated their own marking may contain errors, and that proved
-correct in both directions. Eight cases adjudicated. Finding: the grader reads concepts
-accurately (it caught backwards inheritance and an integer-division bug) but over-penalised
-transcription, costing a submission that matched the sample solution 3 of 10 marks for a
-stray period and a missing parenthesis. The defect was inconsistent application of its own
-leniency rule, not harshness. Post-fix run on the same seed: target cell improved from
--0.254 to -0.185, agreement 1/13 to 4/13.
-
-Open and unresolved. The rule was validated on the same 80 responses it was derived from,
-so generalisation is untested; a different seed on unseen work is the honest check. Only
-1 of 13 nine-point cases was adjudicated, so that cell's apparent regression is read as a
-yardstick artifact rather than demonstrated. PR1321 (request timeout 25s to 60s) is
-deliberately draft until a full run is observed completing at the shipped value; the
-evidence so far came from a temporary local override, and the timeout only began biting
-because PR1316 let grading think longer. Branch `claude/test-grading-calibrator` holds the
-calibrator, token/effort tracking and provenance stamping, unpushed with no PR; it carries
-a production change (optional `reasoningEffort` override, production default unchanged) and
-wants real review. Assignment and repo-review paths still carry the same 25s timeout,
-untouched for lack of evidence. DeepSeek retention remains account-level only, confirmed
-against `docs/guidance/ai-grading-egress.md` but not settled with the owner.
-
-Process note: this session worked in the hub checkout rather than a feature worktree, and
-opened its first two PRs ready instead of draft, which PR Gate correctly rejected. Both
-violate `.ai/START-HERE.md`. Risk profile: async-grading.
-
-## 2026-09-22 — Assignment AI grading lease-fencing prerequisite
-
-- Owner `codex/meter-ai-grading`, based on merged metered-reservation PR1318. Migration202 adds a versioned worker contract plus service-only run/item patch and provenance-finalization boundaries. Existing and rolling-deploy runs remain legacy version0; future metered runs opt into version1, requiring the exact current, unexpired lease across DeepSeek and Gradex work while legacy finalizers/direct service-role updates are rejected.
-- Under standing local-migration authorization, migration202 is applied locally. Generated types match local history001–202; the real takeover harness proves expired/stale run and item patches, stale finalization, legacy finalization and direct service-role DML cannot bypass a version1 replacement lease. This slice does not create version1 runs, call the usage ledger or activate metering; production remains001–180.
-
-## 2026-09-22 — Accept required Assignment links without GitHub identity
-
-- Standard link requirements now send only their URL instead of an irrelevant blank GitHub login; repository-link requirements retain the existing GitHub fields.
-- The Assignment artifact request boundary normalizes a blank optional GitHub login to absent for compatibility with older clients. Component and API regressions cover both paths; the focused gate passes 60 files/664 tests plus architecture, UI/design policy, TypeScript and lint. Risk profile: none.
-- Pattern Lab visual verification covers the student attachment checklist on desktop/mobile in light/dark; the existing layout and states are unchanged. Teacher is n/a because no teacher surface or data contract changed.
-- Composite-widget checklist reviewed: no roles, keyboard behavior, focus handling or semantic state changed; remaining manual follow-up: none. Model recommendation: GPT-5 — bounded submission validation fix.
-
-## 2026-09-22 — Dormant Assignment AI usage accounting
-
-- Owner `codex/meter-assignment-ai-usage`, based on merged lease-fencing PR1323. Migration203 adds a service-only Assignment admission/finalization boundary: a version1 run reserves one shared `grading.ai` unit per queued student item, skipped missing/empty items reserve zero, successful grade/provenance finalization settles atomically, and terminal item/run failure releases atomically. Retry admission is idempotent and every operation revalidates the exact current lease and Assignment/Classroom/student/document binding.
-- Migration203 also hardens shared quota accounting to refresh time after blocking locks and count reserved/settled usage across entitlement revisions, preventing metadata revisions from minting capacity. Expired Assignment operations fail closed and require a fresh run/item after terminal release.
-- Under standing local-migration authorization, migration203 is applied locally. Generated types match local history001–203; warning-level DB lint is clean and the real database harness proves per-item reservation, replay safety, archive and malformed-count rejection, zero-cost skipped completion, atomic settlement rollback, terminal release, cross-revision quota enforcement, failed-admission rollback and the unchanged unmetered version0 path. No application route calls the new boundary, no grant or billing state changed, and production remains001–180.
-
-## 2026-09-22 — Default-off Assignment metering application integration
-
-- Owner `codex/assignment-ai-metering-integration`; risk profiles async-grading and workspace-state. Exact-true server flag admits all Assignment requests through version1 while flag-off single DeepSeek and new version0 runs retain legacy behavior. Persisted version1 controls per-item DeepSeek/Gradex admission, atomic settlement, retry retention, skip release and terminal release after flag rollback; quota/unavailable responses remain content-free.
-- The rendered classroom AI Grade action continues to hand accepted durable runs to the existing `TeacherClassroomView` polling flow; the unused assignment-local controller remains unchanged. Reused all current busy, feedback and error owners; no new visual components or Pattern Lab contracts. Joining/student work and entitlement/plan state are unchanged; no flags enabled.
-- `pnpm check:focused -- --base origin/main` passed 442 tests/31 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit is clean. Browser evidence uses the seeded local classroom and simulated AI responses (no provider work): teacher desktop/mobile, light/dark, default/loading/completion/quota/unavailable; student shared-route regression. Captures are local under `output/playwright/assignment-ai-metering/`.
-- Independent DB review confirmed the expiry cleanup edge. Forward migration204 (201/203 unchanged), authorized/applied locally, preserves already-expired Assignment release evidence during terminal cleanup, renews only live lease-fenced reservations for 24 hours, and adds `internal_failure` cleanup classification. Real DB expiry/renewal/conflict/privilege cases, warning lint and generated-type check pass; dedicated concurrent expiry-vs-renewal stress remains a follow-up to the deterministic serialized harness. Model recommendation: GPT-6 — durable provider lifecycle and transactional accounting boundaries. Epic remains open and rollout disabled.
-- Draft-review remediation keeps migration204 default-off while adding an exact service-only capability sentinel, complete per-item source fingerprints (Assignment, document, structured artifacts and workflow history), Assignment-only `internal_failure`, and lease-fenced durable Gradex run/item correlation. Admission and settlement now reject artifact deletion/replacement races; Gradex polling admits and fetches only live local items, survives pseudonym-salt rotation, and waits for all sibling terminal persistence before surfacing a failure. Validation used a disposable full migration replay because the earlier M204 shape was already applied to the normal local database; no local data was reset.
-
-## 2026-09-22 — Daily Log attendance-save reliability
-
-- Student Today now sends the first nonblank Daily Log immediately, retains per-student/classroom/Toronto-date device drafts, retries an unsent prior-day draft under its original date, and offers an explicit conflict choice when a saved log already exists. No separate check-in action was added; later edits retain throttled autosave, and page exit makes a best-effort save without treating it as confirmed.
-- Client saves are serialized; the PATCH route accepts duplicate content idempotently, rejects a missing or stale entry identity, and uses version-conditional updates to prevent stale overwrites. Log-derived attendance remains tied to the entry's class date; QR attendance is unchanged. No migration or production database change.
-- Focused checks pass 244 tests/16 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit passes. Student recovery reviewed on desktop/mobile light/dark and teacher Daily on desktop/mobile dark. Composite-widget checklist reviewed: existing buttons retain keyboard behavior, status and conflicts have textual labels, and component tests assert accessible status/actions; no manual follow-up identified. PR review pending.
-- Independent review remediation: remove unscoped legacy session draft restore, clear pending saves after Reload latest, preserve blank edits to an existing log, keep old-day recovery from delaying today's save, and carry first post-midnight typing into a new-date draft rather than dropping it. Empty old-day drafts with no known entry are skipped; attendance itself already requires nonblank text. Focused checks now pass 249 tests/16 files plus the same policy/type/lint gates. Targeted re-review pending.
-- Targeted review found a same-date classroom-switch queue collision and a lost-response/blank-clear recovery gap. Second batch binds queued saves to student/classroom/date and rereads that exact draft after switching, while blank older drafts first reconcile against server state before clearing or discarding. Regression tests cover both; focused checks pass 251 tests/16 files plus architecture, UI/design policy, TypeScript and lint. Final integration review pending.
-- Final integration review found no blocker but identified storage-unavailable loss on stale-tab date rollover. Third batch retains the new-date keystroke in scoped memory when device storage rejects it, keeps the warning visible, and schedules a server save after the new-date load even if loading state was batched. Storage-failure regression added; focused checks pass 252 tests/16 files plus all policy/type/lint gates. Exact-head re-review and CI pending.
-- User-approved fourth review batch addresses the remaining P1: later edits now supersede or clear the rollover-only memory draft, so a load cannot prefer first-typed A over newer durable AB. A deferred-first-save/reload regression covers the exact sequence. Focused checks pass 253 tests/16 files plus architecture, UI/design policy, TypeScript and lint; pre-commit audit passes. Current student Today and teacher Daily Playwright captures loaded and inspected at mobile/desktop; prior light/dark recovery-state captures remain valid because no visual treatment changed. Exact-head targeted review and CI pending.
-- Cumulative review found a storage-failure rollover conflict gap: an in-memory draft could auto-save over a new-day log from another device. Fifth batch treats in-memory and durable drafts equally for conflict detection and waits for the fresh entry read before auto-saving a cached restore. A blocked-storage/existing-log regression confirms visible conflict and no PATCH. Focused checks pass 254 tests/16 files plus policy/type/lint gates; pre-commit audit passes. Final exact-head review and CI pending.
-
-## 2026-09-22 — Production student Grades
-
-- Owner `codex/student-grades-production`, based on merged Classroom Grades patterns. Added a default-off `student_grades` classroom preference, a teacher Gradebook visibility switch, and a student Classroom Grades tab backed by a private no-store server projection.
-- The student projection includes only fully graded, returned work from currently visible Classwork/Test sources, honors per-assessment overrides, keeps excluded or non-contributing returned items visible as `Not counted`, and calculates the current grade with the teacher Gradebook category/assessment-weight rules. Final-grade overrides remain teacher-only.
-- Migration202 is authored with default-off backfill, shape enforcement, and the latest cold-archive restore adapters, but was not applied to any database. Focused full verification passes 160 files/1,816 tests plus architecture, UI/design policy, TypeScript and lint; Pika audit passes. Playwright verified teacher/student desktop/mobile in light/dark, default-off/visible states, and the local classroom was restored to off. Composite checklist reviewed: native switch and links have keyboard coverage, checked/active state is semantic, and no manual follow-up remains. Independent PR review follows.
-- PR1320 security review found migration202 would have replaced the top-level archive normalizer and bypassed the wrappers added by migrations147/150/164. Remediation batch1 now renames and delegates to the current adapter before adding only `student_grades`, preserves service-role-only execution, and ratchets the chain in a focused migration test; the full 161-file/1,823-test gate remains green.
-- Cumulative review cleared the archive correction but found fractional scores were rounded before aggregate calculation, causing teacher/student current-grade drift. Remediation batch2 preserves raw earned/possible values through `calculateCategorizedFinalPercent`, rounds only the public response fields, adds a fractional rubric regression, and removes stale prototype copy.
-- Final integration review found the teacher aggregate still consumed rounded assignment display cells. Remediation batch3 now carries raw rubric-earned values into both legacy and categorized teacher calculations while retaining rounded display fields, with an API regression asserting teacher/student parity at 3.33%.
-- User-authorized extended review found returned assessment overrides were omitted from student Grades when underlying rubric/responses were incomplete. Remediation batch4 now evaluates assignment/test overrides before base-score completeness, preserves omission for incomplete work without overrides, and covers zero assignment and response-free closed-test overrides.
-- Teacher Gradebook visibility refinement moves the control from a standalone settings card into the existing action bar immediately before More actions. The slightly enlarged settings-style switch is neutral and icon-free when hidden; when shown, its track is solid green and its right thumb contains the Lucide Users icon. The optimistic checked treatment now remains visible while the background save disables the switch, with failure rollback covered. Concise “Show grades to students” / “Hide grades from students” tooltips remain, and save errors stay in the Gradebook feedback area. Targeted component and Pattern Lab tests, TypeScript, UI/design policy checks, and desktop/mobile light/dark visual verification pass; the student Grades surface is unchanged.
-
-## 2026-09-22 — Persistent students icon in Gradebook visibility switch
-
-- The teacher Gradebook switch now shows a neutral Users icon at the right end of its track while off; when on, the icon moves with the thumb and the track remains green. The shared switch gained an optional off-state icon without changing switches that omit it. The full focused gate passes 166 files/1,904 tests plus architecture, TypeScript, lint and UI/design policy; Pika audit passes. Playwright confirms off/on at teacher desktop/mobile in light/dark, the live teacher off state, and the unchanged student Grades view at desktop/mobile. Risk profile: none. Model recommendation: GPT-6 — narrow shared-control styling change with role and state verification.
-
-## 2026-09-22 — Student Grades merge preparation
-
-- PR1320 was rebased onto current main after an AI-log archive conflict was resolved without dropping either existing archived entry. Main now owns migrations202–204, so the unapplied student Grades migration was resequenced to205 and its private archive-adapter name and regression updated. The first exact-head CI replay applied205 in its ephemeral database, then found the generated types lacked the new private adapter; the checked-in types were synchronized to CI's exact generated diff. The user requested merge; final CI and merge gates follow. No migration was applied to a persistent environment.
-- The next exact-head CI passed build and database contracts but exposed two stale Pattern Lab selectors after production-component reuse and four outdated icon-catalog screenshots following the new student Grades navigation item. Browser tests now target the production switch name and `student-grades-view`; Linux screenshots come from the failed CI artifacts and Mac screenshots were regenerated locally. Targeted teacher/student desktop/mobile light/dark browser checks pass (12/12), as do the full focused gate (166 files/1,905 tests), TypeScript, lint, architecture, and UI/design policy. The normal local dev server was restored at port3001. PR1320 remains draft pending a fresh exact-head CI and merge.
-
-## 2026-09-22 — Daily Log PR main synchronization
-
-- PR1329 was brought up to date with main after its exact-head CI passed. The sole textual conflict was in the AI archive; both batch markers and all distinct history were retained. Classroom page and test changes merged automatically without altering the Daily Log implementation. Combined-tree focused checks pass 166 files/1,922 tests plus architecture, UI/design policy, TypeScript and lint. PR remains draft for the updated-head gate; no merge to main was performed.
-
-## 2026-09-22 — Daily Log PR final review and up-to-date gate
-
-- User authorized additional review. An exact-head integration review of 14d6f387 found no blocker, with 112 targeted tests passing. Ready CI run35803112343 passed Test & Build, browser, database and PR Gate on that head. The squash merge was rejected solely because main advanced during CI and the branch-up-to-date rule applies; no admin override was used.
-- Main's two new commits affect only test-grading calibration and rubric scoring, with no Daily Log path overlap. They merged into the feature branch without a textual conflict. Fresh integration review and exact-head CI are required before the merge retry; no persistent database migration was applied.
-- Exact-head 722c9e9e targeted re-review found no blocker (142 tests), and CI run35804835394 passed all lanes. During that run main advanced again via a session-log-only PR. The strict up-to-date gate requires another branch sync; the archive batch-marker conflict retains both markers and unique history, with duplicate rolling-log entries omitted. No Daily Log source changed.
-
-## 2026-09-22 — Test grading calibrated against adjudicated work
-
-Continuation of the earlier entry today; that one stopped before the second rule and the
-harness landed. Shipped after it: PR1321 (request timeout 25s to 60s), PR1324 (retry at
-reduced reasoning effort instead of failing when both token budgets truncate, plus
-`reasoningEffortUsed` in assignment and test provenance), PR1330 (score itemized rubrics as
-a checklist) and PR1331 (the calibration harness itself).
-
-PR1330 came from adjudicating real responses with the teacher. On a ten-criterion key worth
-ten marks, submissions satisfying six and seven criteria scored four; the teacher set both
-at 6-8 and 7-8. Failures were being charged more than once. Measured on a fixed benchmark —
-all 48 ten-point responses, five with verified targets — both adjudicated cases moved from
-4 into band (8 and 7), cell harshness fell from 36/48 to 21/44, and weak submissions held
-their low scores rather than floating up, which was the specific failure mode worth checking.
-Generalisation was then measured by re-running the same 80 responses from the earlier seed-7
-run: overall agreement 42 to 47, mean absolute disagreement 0.145 to 0.132, with the 10-point
-cell improving on a different draw than the rule was derived from.
-
-I dismissed this finding once before. A sweep of a second ten-point question graded
-accurately and read as a refutation, but those submissions failed on concepts rather than
-transcription and had fewer satisfied criteria, so the effect had little room to show. Two
-non-comparable questions treated as if one disproved the other; it cost several rounds and
-only resurfaced once PR1319 removed the masking noise.
-
-Reasoning effort was tested and ruled out as the cause of 10-point harshness: low and medium
-are harsh at an identical 36/48, and medium is marginally less harsh and more accurate for
-1.5x the tokens. Keep medium; stop looking there.
-
-OPEN, and the reason to keep the benchmark. The 9-point cell drifted more lenient under
-PR1330 (+0.239 to +0.248). This was predicted before the run — a floor rule raises scores by
-construction and that cell was already the most lenient — and it is NOT resolved. It cannot
-be resolved by another run: that cell is scored against the marks with the strongest evidence
-of being wrong, including the response recorded 2/9 which the teacher adjudicated at 8/9. It
-needs a human to adjudicate a handful of 9-point cases. Also open: peak output reached 16,386
-tokens after PR1330, so the 60s timeout binds again on the heaviest responses; four of 48 and
-one of 80 responses failed on timeout or invalid output in the last two runs.
-
-The benchmark is repeatable: `pnpm calibrate:test-grading --max-points 10 --all` over the 48
-ten-point responses, with verified targets for student-21 (6-8), student-16 (7-8), student-20
-(~10), student-12 (8-9) and student-06 (9). De-identified snapshots for both archived
-classrooms sit gitignored in the repo root.
-
-Process: this session again worked in the hub checkout rather than a feature worktree, and
-pushed twice to ready PRs, which PR Gate correctly rejected both times. Risk profile:
-async-grading.
-
-## 2026-09-22 — Assignment AI metering canary gate
-
-- Owner `codex/assignment-ai-metering-canary`; risk profiles async-grading and runtime-platform. Production and local ledgers were verified at migrations001–205. The production classroom-creation cutover remains disabled with181 accounts unclassified, Assignment metering has zero reservations, service-only privileges are intact, and migration205 has no malformed student Grades settings.
-- Assignment AI metering now requires both the exact-`true` server master switch and the authenticated teacher's exact account ID in a bounded comma-separated cohort. Every Assignment request uses the existing durable coordinator: missing, malformed, oversized or unmatched cohorts create unmetered version0 runs, while exact matches create metered version1 runs. Persisted version1 runs remain resumable independently of later gate changes. No flag, cohort, entitlement, quota or active production rollout changed.
-- Targeted Assignment usage/run/API coverage passes91 tests plus TypeScript. The focused gate passes309 tests across24 files plus architecture, UI/design policy, TypeScript and lint; Pika audit is clean. Model recommendation: GPT-6 — financial-usage admission and resumable async grading rollout boundary.
-- Independent security and architecture review found that a single-student retry could leave the durable path after a teacher was removed from the cohort, bypassing an active version1 reservation. A standalone active-run check still had a creation race, so remediation removes the split entirely: all Assignment AI requests now enter the atomic durable coordinator, where matching work resumes and conflicting work remains blocked. The metered Gradex smoke also requires its stable teacher ID in the cohort and verifies a version1 run with exactly one settled `grading.ai` reservation.
-
-## 2026-09-22 — Daily Log PR final merge window
-
-- PR1329 reviewed head1d8a9d11 passed all required CI lanes, but main advanced to d09b8ec4 during the browser run, so strict up-to-date rules prevented merge. User paused other main merges for a quiet window. The Assignment AI metering commit merged into this branch without conflict or Daily Log source edits; refreshed checks, exact-head review and CI precede the normal squash merge. No admin bypass or persistent database migration.
-
-## 2026-09-23 — Future classroom retention roadmap
-
-- Owner `codex/classroom-retention-roadmap`; risk profile none. Documented a proposed, plan-independent archived-classroom retention sequence and advance notices in the lifecycle roadmap, with a pointer from the product roadmap. It remains future work; no email, timer, automatic cold transition, deletion worker, database migration, or rollout gate was enabled.
-
-## 2026-09-23 — Dormant account plan foundation
-
-- Owner `codex/account-plan-foundation`. Migration206 adds service-only, revisioned account plans and an audited writer that derives the `classrooms.create` snapshot from Free0, Basic2, Plus5 or Pro10 in one transaction. No caller-supplied quota, existing-account backfill, strict-cutover activation, billing, AI allowance, production configuration or UI change is included. Future signups acquire Free only after the existing strict cutover is activated.
-- With exact authorization, migration206 SHA256 `bc29eefb4b074c4bbad5f43f9755edb5b80c0f91ff157e009784c742d35bd4b8` applied to the local Pika database only; local history is001–206, production remains001–205. The rollback-only contract passes plan mapping, post-cutover Free signup, operation replay/conflict, stale revisions, browser-role isolation and existing-class preservation on downgrade. Generated types match the local schema. The focused gate passes94 tests plus architecture, TypeScript and lint. Local advisors report no new account-plan warnings; hosted application and production data remain unchanged.
-- Rebased onto `f6716e39` after the retention-roadmap merge. The only conflict was an archive-batch marker for identical session-history content; retained main's marker. Migration 206 stayed sequential and unchanged. Fresh local checks and exact-head review/CI are required before this PR is ready again.
-
-## 2026-09-23 — Gradebook zero assessment weight
-
-- Owner `codex/gradebook-zero-assessment-weight`; risk profile none. Gradebook assessment weights now accept 0–999 across teacher controls, APIs, blueprints, and stored constraints. Zero is preserved on reload and excluded from final-grade math; all-zero categories remain ungraded. Migration207 is prepared but not applied to any database.
-- Focused checks passed 733 tests plus architecture, UI/design policy, TypeScript, and lint. Pattern Lab teacher Gradebook verified at desktop light/dark and mobile; a zero entry displayed 0% course weight. Local type check is blocked because migration207 has not been applied to the shared local database; final database replay remains a CI gate. Model recommendation: GPT-6 Sol — multi-layer gradebook contract and migration change.
-- Independent review found two follow-ups: dropping assignment/test defaults would change generated Insert types, and returned zero-weight work would still appear counted in student views. The remediation uses a -1 insert-only default sentinel that the existing before-insert trigger resolves to the category default, and labels zero-weight assignment, test, and standalone marks as not counted. Route and server regressions cover those projections; final checks and targeted re-review follow.
-
-## 2026-09-23 — Bulk test grading execution fix and provenance hotfix
-
-- Owner `claude/fix-bulk-grading-limits` (PR1340, draft); risk profile async-grading. #1324 added `reasoningEffortUsed` to stored AI grading provenance, but migrations 101–104 whitelist provenance keys exactly, so every AI grade save failed. PR1342 (merged to main as `e31dcfc5`) removes the key from storage and adds `tests/lib/grading/provenance-db-contract.test.ts`, which reads the whitelists from the migrations. Anything new in stored provenance now needs a migration first. Production still runs the broken code until draft PR1344 (`claude/promote-grading-hotfix`: #1336, #1338, #1342; excludes #1339) merges; it must first take production after Codex's PR1343 lands.
-- PR1340 makes "Grade all" for tests safe at any batch size without changing grades: attempts are recorded before each provider call, items whose attempts were all interrupted fail instead of restarting (previously an unbounded billed loop), no call starts unless it can finish and save inside a 270s tick budget, tick `maxDuration` 300s, request timeout 60s, lease 240s. Batch output budget grows with the call and caps batches at 4, which is production's size. The DeepSeek adapter captures cache and reasoning tokens in memory only; the stored schema strips them. Focused gate: 513 tests plus architecture, UI/design policy, TypeScript and lint; the contract test fails when a cost field is added to the stored schema.
-- Next: independent review of PR1340, then ready and merge on a green PR Gate with owner approval. Then PR 2, a comparison harness in `scripts/calibrate-test-grading.ts`: batch size 1, 2 or 4 chunked like production, a shuffled-order seed, manual or bulk profile, per-answer latency and cost, scored against the verified targets; align its `MAX_BATCH_SIZE` of 20 with the cap of 4. Independent calls are a hypothesis until that harness measures them. Teacher calibration decisions and de-identified snapshots stay outside the repo (public): snapshots gitignored in the hub root, adjudication notes in the owner's local handoff folder. Open and unowned: the sanitizer turns common-word names into initials, DeepSeek errors reach teachers untranslated, and the middleware logs 25s timeouts.
-
-## 2026-09-24 — Bulk test grading independent review
+PR #1377 rebased onto main ede9b218; preserved main owner-precedence migration214. Renamed reviewed billing214/215/216 to215/216/217 byte for byte and made lifecycle harness prerequisites check names as well as versions. Saved private local backup/history/checksum evidence; prepared a guarded metadata-only local reconciliation helper whose default check rolls back. No history repair/application performed. Owner approved fourth correction batch and eighth/final review (30minutes); exact local history repair and owner214 --include-all application still need separate approval. Existing local data and disabled billing gate preserved. Next: final independent review, exact local repair approval, verification and stable-SHA CI.
+
+## 2026-09-27 — Resume Chrome PDF reference fix PR1353
+
+- User explicitly authorized merging PR1353 when ready. Rebased the previously reviewed PDF fix onto current main, preserving image-viewer routing and combining PDF MIME metadata with image metadata. Prior 853-test gate and Sol/Terra reviews cleared original head89ab04a8; updated integration checks and independent review required before merge. Risk profile: exam-mode.
+
+## 2026-09-27 — Titlebar clock visibility
+- Task branch `codex/titlebar-clock-visibility`: show the existing Toronto date/time only in fullscreen, maximized windows, or exam mode. Keep exam compliance enforcement and mobile clock treatment unchanged. Reuse AppHeader clock/useFullscreen; extend visibility with a resize/focus-aware maximize hook. Risk: exam-mode presentation only; no compliance changes or new composite widget.
+- Shared app header is the approved shell reference; Pattern Lab now renders normal/exam production owners for both roles. Visual verification passed16 Playwright captures: teacher/student, light/dark, restored/maximized/fullscreen/mobile. Screenshots and reproducible capture script remain local under artifacts/titlebar-clock and /tmp/pika-titlebar-visual.cjs.
+- Initial focused checks passed203 tests, architecture, UI/design policy, TypeScript and lint. Header tests passed17, including resizing, initial fullscreen/exit and exam recovery. Draft-first publication and independent fixed-SHA review follow; no merge or production rollout authorized.
+
+- Independent Terra review identified near-full restored windows being mistaken for maximized. Replaced the viewport ratios with outer-window/screen bounds; added near-full and one-dimension restored regressions plus Pattern Lab header accessibility coverage. Targeted review flagged the8px boundary too; removed tolerance and added within8px restored regressions. Final review follows strict screen-bounds matching.
+
+## 2026-09-27 — Correct titlebar fullscreen interpretation
+- User clarified that the date/time must stay hidden whenever Pika is not fullscreen, for both teacher and student. Removed the OS-window size inference, which could re-enable the clock after hydration; visibility now uses only the existing Fullscreen API state or exam header state. Exam enforcement is unchanged.
+- Reuse AppHeader/useFullscreen and existing clock styling; shared shell/Pattern Lab remain the reference. Verify both roles, light/dark, windowed (including screen-sized browser), fullscreen entry/exit, reload, mobile and exam header. No new components or composite-widget behavior.
+- Focused checks passed206 tests plus type/lint/architecture/UI/design gates;18 header tests cover screen-sized normal windows after effects/resize/focus and real fullscreen events. Browser verification and fixed-SHA review follow before returning PR1374 to ready.
+
+## 2026-09-27 — Titlebar clock merge preparation
+- User approved the fullscreen-only result and authorized PR1374 merge to main. Synced main85e8a2bf; the sole conflict was a duplicate archive-batch marker, resolved in favor of main's marker. Application and test files match reviewed687b3469; no product behavior changed during sync.
+- Required focused checks and targeted sync review precede stable-SHA CI and squash merge. Local server3107 remains the preview; no production promotion requested.
+
+## 2026-09-27 — Titlebar mobile CI stabilization
+- Owner extended the review budget to resolve PR1374's mobile Pattern Lab tooltip failure and complete merge. CI passed Test & Build but failed the student mobile attendance tooltip checks. Reproduced the scroll/focus race locally; scrolling the absent chip into view before focus preserves the tooltip assertion and avoids the tooltip being dismissed by focus-induced scrolling.
+- Synced main ede9b218; conflicts were confined to duplicate archive history, preserving main's entries. Titlebar application/component-test files are byte-identical to reviewed632136b0. One-line browser-test correction, focused checks, bounded independent review and final-SHA CI precede merge.
+
+## 2026-09-27 — Test-mode pane layout
+
+Removed the redundant separator line from the shared student/teacher-preview document workspace. One 30/70-default width state now survives reference opening, Back, and switching documents; the resize control is available in the list too. Kept answer forms mounted and existing pointer/keyboard controls. Verification: 245 focused tests plus architecture/UI/design/typecheck/lint; student and teacher Playwright desktop/mobile light/dark captures and pane-width regressions. Composite accessibility checklist reviewed; keyboard and semantic state tested; no manual follow-up. Branch: codex/test-mode-pane-layout.
+
+## 2026-09-27 — Test reference image scrollbar stability
+
+Fixed image resize feedback by measuring fractional border-box viewport dimensions and using CSS minimum canvas dimensions instead of previous content-box measurements. Preserves zoom, Fit, scrolling, and mounted answers. Unit regression covers scrollbar-area changes and real pane resizing; browser regressions reserve scrollbar space and sample image geometry across 40 frames. Teacher/student desktop/mobile light/dark verification passed (8 scenarios); focused suite 250 tests plus architecture/UI/design/typecheck/lint passed. Also verified the local seeded Markdown/PNG test. PR1375 returned to draft before this correction.
+
+User chose image-specific maximum pane width. Opening an image now expands documents to the existing 50% limit, allows manual resizing while open, and restores the previous list width on Back; text and link references keep the user-selected width. Shared workspace state owns the behavior. Unit regression covers expand/manual resize/restore; eight teacher/student desktop/mobile light/dark browser scenarios pass, and all screenshots were inspected. Four affected component suites pass (76 tests); architecture/UI/design/TypeScript/lint and Pika audit pass. A broad focused rerun hit Vitest worker/test timeouts under local load, so final CI remains the full-suite gate. PR1375 correction review/CI pending.
+
+Checked whether divider dragging could record an exam exit. The divider changes only its CSS pane width, and its pointer interactions mark an allowed document interaction; window-compliance telemetry observes browser-window resize, fullscreen, visibility, focus, and navigation instead. Added a desktop student browser drag through the actual divider, then explicitly dispatched a transient window blur and asserted no focus-event request after the 600ms blur grace period. Light and dark variants pass. No product-code change was needed.
+
+Main advanced while PR1375 was open. Rebasing onto cdc48bc3 retained the new PDF-reference handling; the only conflicts were duplicate archived continuity entries, so main's copies were kept. On the rebased source, focused checks pass 255 tests plus architecture/UI/design/TypeScript/lint; all eight teacher/student image browser scenarios pass across desktop/mobile light/dark, and screenshots show the intended layout. The local dev server was relaunched with the repository launcher. Targeted sync review and exact-head CI follow.
+
+Exact-head CI passed Test & Build but failed two desktop long-test browser scenarios because their older text-reference assertion expected a 50% open pane. Updated the assertion to verify the new 30% preserved width and keyboard expansion to 35%; all four long-test desktop/mobile light/dark scenarios now pass locally, as do 255 focused tests and static gates. Seven unrelated browser scenarios were flaky but passed on retry in that CI run. PR returned to draft before this test correction; final review and fresh CI follow.
+
+## 2026-09-27 — Pause Pal UI CI
+
+Owner confirmed Pal is disabled until further notice. Recorded the pause in the current-state summary and Pal operations guide. Required CI now excludes the two Pal learner-component suites and dedicated Pal classroom browser scenario; backend, API, feature-gate, and theme-contract checks remain. Full component suites remain available through `pnpm test:coverage`, and the browser scenario can still be run directly before reactivation. PR1375 returned to draft before this correction. The CI test-selection check confirms the UI suites are absent and backend checks remain; workflow and focused validation follow.
+
+Independent review confirmed the CI exclusion scope and found the reactivation guide still named widget alpha.4 while the pinned dependency is alpha.6. Updated both guide references to alpha.6. Focused checks passed 255 tests and architecture/UI/design/TypeScript/lint; full CI coverage run follows.
+
+Full CI coverage command passed 885 files / 8,438 tests with coverage thresholds met. A first run exposed that the compact CURRENT note had changed exact phrases used by the Bara attendance documentation contract; restored those phrases while staying under the startup size budget. Both targeted contracts and the full coverage rerun passed. Targeted re-review reported no remaining blockers.
+
+## 2026-09-27 — Owner-authorized local database reset
+
+Owner explicitly requested resetting local DB to resolve migration numbering. From reviewed source0a2c1c2d, one local-only reset through217 with no seed succeeded after a fresh private custom-format database backup and archive-list verification. All217 history versions/names match source; dry-run reports up to date. Classroom owner-precedence and billing foundation/checkout/lifecycle/validation rollback contracts pass. Post-check: zero local users/classrooms; billing sandboxfalse/test. Production untouched. Prior metadata-repair proposal is superseded and must not run. Billing215–217 remain PR1377 source, not yet merged main. Backup and logs: /Users/stew/.codex/backups/pika-local-reset-217.efCeer. No accounts restored or test data seeded.
+
+## 2026-09-27 — Authorized local reseed
+
+Owner subsequently requested local reseeding. Standard pnpm seed (seed.ts plus planned-course fixtures) succeeded using in-memory credentials from the running local stack, guarded API127.0.0.1:54321 and ENV_FILE=/dev/null. Verified3users,1classroom,2enrollments,3assignments,2tests,3blueprints; planned-course idempotency check passed. Migration214–217 names unchanged, billing sandboxfalse/test. No second reset, hosted access, real account restore or gate activation.
+
+## 2026-09-27 — Billing documentation sync after local reset
+
+Owner approved one documentation-only fifth correction batch and CI, with no additional reviewer, database changes or merge. Merged main4d0c4474 into PR1377; the sole archive conflict contained branch entries already present verbatim in main, so retained main archive without losing history. Consolidated reset/reseed receipts and superseded the old history-repair plan. Billing source/migration bytes stay identical to independently reviewed0a2c1c2d. Verified local001–217,3demo users/1classroom,sandboxfalse/test; generated types match and warning lint is clean. Focused checks and stable-commit CI follow. Review count remains8 (hard cap); no new launch.
+
+## 2026-09-27 — Billing final documentation-format correction
+
+Owner approved the sixth/final documentation-only correction and CI rerun. Restored CURRENT’s required `Prod DB 001–214` prefix after the prior shortening failed the rollout-format contract; no billing code, tests, migration SQL or database state changed. Prior CI passed8524tests plus billing DB contracts and warning lint; remaining jobs were incomplete at the failure checkpoint. Verify both startup size and rollout-format tests, focused checks, then fixed-commit CI. No additional reviewer or merge authority.
+
+## 2026-09-28 — Selected assessment label size
+
+Enlarged the teacher assignment and test edit labels above their student tables to 18px mobile and 20px desktop. Follow-up: each existing ghost edit button now fills the available left section of the context bar, stopping before the centered action cluster. Student-facing pages and composite behavior are unchanged. Local seeded teacher Playwright captures covered both workspaces at desktop/mobile in light/dark, measured full-width click targets with no page overflow, verified keyboard focus, and confirmed each label opens its editor. PR1382's first final-SHA CI passed Test & Build but failed unrelated mobile Pattern Lab attendance-tooltip checks. The test now uses a real keyboard focus transition; all eight focused Pattern Lab cases pass across teacher/student, desktop/mobile, light/dark. Focused checks pass 275 tests plus architecture, UI/design policy, TypeScript, and lint. Risk: none. Model recommendation: GPT-6 Sol for the localized UI adjustment. Final review and CI follow.
+
+## 2026-09-28 — Coding-test reference authoring conventions
+
+- Documented the reusable student-facing reference order: general `Instructions` first, language or subject reference second, and question visuals afterward. Added a general Markdown outline, concise question guidance, assessment-specific marking policy, and copy/adaptation checks based on the Unit 1 Karel quiz authoring work.
+- Documentation only; no product, grading, database, or published-test changes. Risk profile: none. Model recommendation: GPT-6 Sol for the focused documentation update. Focused checks, independent documentation review, and draft-first PR gate precede merge.
+
+## 2026-09-28 — Image reference first-load measurement
+
+Inspected the teacher/student private image route and measured it on a temporary seeded local Test using 787,252-byte and 7,081,652-byte PNGs. The first small request took 428ms to authorize/redirect and 10ms to transfer; repeat requests took 38–41ms plus 8–21ms. The large image took 33–40ms to authorize and 61–70ms to transfer. The temporary Test was deleted through the teacher API; its two managed objects entered normal cleanup_pending state. No application code, migration or hosted data changed. Live production timing and the actual reference-file size remain unknown because browser control timed out and the connected Supabase app was unavailable. A 1MB cap is not justified by this local evidence alone.
+
+## 2026-09-28 — Image reference first-open preload
+
+Mounted the first image reference when the teacher preview or started student test workspace appears, and kept the same image instance for first open and return. Other images continue to load on demand. The viewer resets zoom on close and keeps the existing authenticated route, full-resolution image, and retry behavior. Component tests and targeted Playwright teacher/student cases passed across desktop/mobile and light/dark; the browser case observed one image file request before first click and no second request on open. Visual screenshots were reviewed. Hosted latency and file size remain unmeasured.
+
+## 2026-09-28 — Teacher Tests list access status
 
 - Resumed PR #1340 after the Claude handoff. Initial Sol/Terra review found uncached reference generation ran before durable attempt accounting and missing-question recovery could exceed the attempt cap. One correction batch places preparation inside the counted microbatch attempt, checks the deadline again afterward, and caps missing-question recovery. Four new regressions fail before the correction and pass after it; runner suite passes 20 tests. No migration or grading-strategy change. Focused verification, targeted re-review, and owner merge approval remain required.
 - Owner approved a final bounded review, merge on green PR Gate, and production promotion. Final review found database writes or lease renewals could consume the admission window after its check; recheck immediately before reference preparation and single/batch provider calls. Four additional regressions failed before this correction and pass afterward; runner suite now passes 24 tests. Final focused verification and independent confirmation remain required before ready.
@@ -345,3 +303,7 @@ async-grading.
 
 - Continue the grading handoff with an offline comparison mode for identical sampled answers at batch sizes 1/2/4, seeded order, one profile and production-default effort. Reuse production adapters and singleton-tail behavior; keep exact question/rubric/coding groups separate. Count HTTP retries and allowlisted token usage once per operation, keep unknown cost unknown, and evaluate quality only against external privately verified intervals. Private checkpoints retain failures and paired/order sensitivity evidence; no grade writes, new dependency or application behavior change. Added synthetic tests for grouping, identity, accounting, failures and file safety. Focused verification and independent review required before ready.
 - Independent Terra review found unanswered whitespace-only work could enter comparisons. Exclude it before sampling/planning/target matching and trim adapter input like production; retain original text in identity hashes. Added a red-before/green-after regression covering eligibility, target rejection and the singleton path. No paid comparisons have run yet.
+The Tests list now displays Open when any enrolled student has effective open access, including a test whose stored status is closed; active tests with every student's access closed still display Closed. Drafts remain Draft. Added unit/component and browser regression coverage. Focused checks passed 1,031 tests plus architecture, UI/design policy, TypeScript, and lint; the browser scenario passed desktop/mobile in light/dark, and screenshots were reviewed. Risk profile: none. Model recommendation: GPT-6 Sol for the localized status correction.
+## 2026-09-28 — Markdown code in Karel multiple choice
+
+Updated the teacher test authoring guide to require inline Markdown code for short snippets in multiple-choice prompts and one-line options, and fenced language-labeled blocks for multiline snippets in prompts. In production P5 ICS3U Unit 1 Java Karel quiz, formatted Q3 command options and Q4/Q5 prompt snippets; saved and re-read the test. In P3 ICS3U, formatted and saved Q4/Q5 prompt snippets; Q3 options remain plain because a student has started and Pika locks answer-choice edits. Preserved question IDs, point values, keys, documents, and release settings. Preview was blocked by the exam-mode maximized-window requirement in browser control; persistent Markdown was verified instead. Documentation risk profile: none. Model recommendation: GPT-6 Sol for focused documentation update.

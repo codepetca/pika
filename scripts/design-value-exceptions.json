@@ -763,21 +763,9 @@
         },
         {
           "kind": "raw-z-index",
-          "count": 7,
-          "fingerprint": "29ea700c0adba061",
+          "count": 6,
+          "fingerprint": "9e98a891f5a40b7a",
           "reason": "special-layer"
-        }
-      ]
-    },
-    {
-      "file": "src/components/test-workspace/TeacherTestAuthoringDialog.tsx",
-      "reviewBy": "phase-3-tests",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "090f0fcf6022696d",
-          "reason": "layout-geometry"
         }
       ]
     },

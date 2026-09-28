@@ -164,6 +164,17 @@ describe('POST /api/teacher/tests/[id]/auto-grade', () => {
     )
   })
 
+  it('does not start grading for a draft test', async () => {
+    assertTeacherOwnsTest.mockResolvedValueOnce({ ok: true, test: { status: 'draft' } })
+    const request = new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade', {
+      method: 'POST',
+      body: JSON.stringify({ student_ids: ['student-1'] }),
+    })
+    const response = await POST(request, { params: Promise.resolve({ id: 'test-1' }) })
+    expect(response.status).toBe(400)
+    expect(createOrResumeTestAiGradingRun).not.toHaveBeenCalled()
+  })
+
   it('rejects selected students outside the test classroom before creating a run', async () => {
     validateSelectedTestStudentEnrollment.mockResolvedValueOnce({
       ok: true,

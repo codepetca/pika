@@ -1,6 +1,7 @@
-import { startTransition, Suspense } from 'react'
+import { startTransition, Suspense, useState } from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { DialogPanel, TooltipProvider } from '@/ui'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 
@@ -154,6 +155,55 @@ describe('TeacherTestPreviewPage', () => {
     } else {
       delete (window as Window & { screen?: Window['screen'] }).screen
     }
+  })
+
+  it('keeps maximize and close usable while the preview request is pending', async () => {
+    fullscreenElement = null
+    const pending = deferred<ReturnType<typeof previewResponse>>()
+    vi.mocked(fetch).mockReturnValue(pending.promise as ReturnType<typeof fetch>)
+    const onClose = vi.fn()
+
+    render(<TeacherTestPreviewPage classroomId="classroom-1" testId="test-1" embedded onClose={onClose} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Maximize Window' }))
+    await waitFor(() => expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce())
+    expect(screen.getByRole('status')).toHaveTextContent('Loading preview')
+    fireEvent.click(screen.getByRole('button', { name: 'Close Preview' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('owns focus above an open editor and restores the editor on close', async () => {
+    fullscreenElement = null
+    vi.mocked(fetch).mockResolvedValue(previewResponse({}) as Awaited<ReturnType<typeof fetch>>)
+    const editorClosed = vi.fn()
+    function EditorWithPreview() {
+      const [previewOpen, setPreviewOpen] = useState(false)
+      return <>
+        <DialogPanel isOpen onClose={editorClosed} ariaLabelledBy="editor-title">
+          <h2 id="editor-title">Edit test</h2>
+          <button onClick={() => setPreviewOpen(true)}>Preview test</button>
+        </DialogPanel>
+        {previewOpen && <TeacherTestPreviewPage classroomId="classroom-1" testId="test-1" embedded onClose={() => setPreviewOpen(false)} />}
+      </>
+    }
+    render(<EditorWithPreview />)
+    const opener = screen.getByRole('button', { name: 'Preview test' })
+    opener.focus()
+    fireEvent.click(opener)
+
+    const maximize = await screen.findByRole('button', { name: 'Maximize Window' })
+    expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+    fireEvent.click(maximize)
+    await waitFor(() => expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce())
+    fireEvent.click(screen.getByRole('button', { name: 'Close Preview' }))
+    expect(screen.getByRole('dialog', { name: 'Edit test' })).toBeInTheDocument()
+    expect(opener).toHaveFocus()
+    expect(editorClosed).not.toHaveBeenCalled()
+    fireEvent.click(opener)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: 'Teacher test preview' })).not.toBeInTheDocument()
+    expect(editorClosed).not.toHaveBeenCalled()
+    expect(opener).toHaveFocus()
   })
 
   it('does not let an older test request repaint a newly selected preview', async () => {
@@ -437,7 +487,7 @@ describe('TeacherTestPreviewPage', () => {
     expect(screen.getByRole('heading', { name: 'Reference sheet' })).toBeInTheDocument()
     expect(screen.getByRole('separator', {
       name: 'Resize documents and questions panes',
-    })).toHaveAttribute('aria-valuenow', '50')
+    })).toHaveAttribute('aria-valuenow', '30')
     expect(screen.getByTestId('text-document-viewer')).toHaveTextContent(
       'Reference content',
     )
@@ -449,7 +499,8 @@ describe('TeacherTestPreviewPage', () => {
     })
   })
 
-  it('opens uploaded test documents through the authenticated teacher route', async () => {
+  it.each([{ extension: 'png', image: true, restored: true }, { extension: 'jpeg', image: true, restored: true }, { extension: 'png', image: true, copied: true }, { extension: 'jpeg', image: true, copied: true }, { extension: 'pdf', image: false }, { extension: 'png', image: true }, { extension: 'jpeg', image: true }, { extension: 'png', image: false }, { extension: 'jpeg', image: false }])('opens uploaded $extension (image=$image) through the authenticated teacher route', async ({ extension, image, copied = false, restored = false }) => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
     vi.mocked(fetch).mockResolvedValue(
       previewResponse({
         documents: [
@@ -458,7 +509,16 @@ describe('TeacherTestPreviewPage', () => {
             title: 'Teacher reference PDF',
             source: 'upload',
             storage_bucket: 'test-documents',
-            storage_path: 'classroom-1/tests/test-1/doc-upload/reference.pdf',
+            storage_path: restored ? `restores/classroom/operation/images/reference.${extension}` : copied ? `managed-copies/operation/images/reference.${extension}` : `classrooms/classroom-1/tests/test-1/documents/doc-upload/${image ? 'images/' : ''}reference.${extension}`,
+            upload_content_type: extension === 'pdf' ? 'application/pdf' : undefined,
+          },
+          {
+            id: 'doc-text',
+            title: 'Teacher text reference',
+            source: 'upload',
+            storage_bucket: 'test-documents',
+            storage_path: 'classroom-1/tests/test-1/doc-text/reference.pdf',
+            upload_content_type: 'text/plain',
           },
         ],
       }) as Awaited<ReturnType<typeof fetch>>,
@@ -470,15 +530,25 @@ describe('TeacherTestPreviewPage', () => {
         testId="test-1"
         embedded
       />,
+      { wrapper: TooltipProvider },
     )
 
     fireEvent.click(await screen.findByRole('button', {
       name: 'Teacher reference PDF',
     }))
 
-    expect(screen.getByTitle('Teacher reference PDF')).toHaveAttribute(
+    expect(image ? screen.getByAltText('Teacher reference PDF') : screen.getByTitle('Teacher reference PDF')).toHaveAttribute(
       'src',
       '/api/teacher/tests/test-1/documents/doc-upload/file',
+    )
+    if (extension === 'pdf') {
+      expect(screen.getByTitle('Teacher reference PDF')).not.toHaveAttribute('sandbox')
+    } else if (!image) {
+      expect(screen.getByTitle('Teacher reference PDF')).toHaveAttribute('sandbox')
+    }
+    expect(screen.getByTitle('Teacher text reference')).toHaveAttribute(
+      'sandbox',
+      'allow-same-origin allow-scripts allow-forms',
     )
   })
 
@@ -565,6 +635,29 @@ describe('TeacherTestPreviewPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close Preview' }))
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('renders every unsaved draft question without requesting saved test data', async () => {
+    render(
+      <TeacherTestPreviewPage
+        classroomId="pattern-lab"
+        testId="prototype-test"
+        embedded
+        draftPreview={{
+          title: 'Draft wetland test',
+          questions: [
+            { id: 'question-1', test_id: 'prototype-test', question_text: 'Wetland MC', question_type: 'multiple_choice', options: ['A', 'B'], position: 0, created_at: '', updated_at: '' },
+            { id: 'question-2', test_id: 'prototype-test', question_text: 'Wetland open', question_type: 'open_response', options: [], position: 1, created_at: '', updated_at: '' },
+          ],
+          documents: [{ id: 'reference-1', title: 'Reference notes', source: 'text', content: 'Wetland notes' }],
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Draft wetland test' })).toBeVisible()
+    expect(screen.getByTestId('student-test-form')).toHaveTextContent('Wetland MC|Wetland open')
+    expect(screen.getByRole('button', { name: 'Reference notes' })).toBeVisible()
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('keeps preview content locked when fullscreen and window resize are blocked', async () => {

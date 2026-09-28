@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
 import { clearTestOpenResponseGrades } from '@/lib/server/test-grades'
+import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { clearTestOpenGradesSchema } from '@/lib/validations/test-grading'
 
 export const dynamic = 'force-dynamic'
@@ -24,6 +25,14 @@ export const POST = withErrorHandler('ClearTestOpenResponseGrades', async (reque
       { error: parsed.error.issues[0]?.message ?? 'Invalid clear payload' },
       { status: 400 },
     )
+  }
+
+  const access = await assertTeacherOwnsTest(user.id, testId, { checkArchived: true })
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
+  }
+  if (access.test.status === 'draft') {
+    return NextResponse.json({ error: 'Cannot grade a draft test' }, { status: 400 })
   }
 
   const result = await clearTestOpenResponseGrades({

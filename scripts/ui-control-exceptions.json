@@ -2,6 +2,17 @@
   "version": 1,
   "entries": [
     {
+      "file": "src/app/__ui/TestEditSplitPattern.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 4,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
       "file": "src/app/classrooms/[classroomId]/ClassroomPageClient.tsx",
       "reviewBy": "phase-3-dashboard-roster",
       "controls": [

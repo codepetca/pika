@@ -18,6 +18,9 @@ export const POST = withErrorHandler('PostTeacherTestAutoGradeRunTick', async (r
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
+  if (access.test.status === 'draft') {
+    return NextResponse.json({ error: 'Cannot grade a draft test' }, { status: 400 })
+  }
 
   const result = await tickTestAiGradingRun({ testId, runId })
   return NextResponse.json({

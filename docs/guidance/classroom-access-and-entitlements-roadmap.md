@@ -28,38 +28,49 @@ join policy. Closed enrollment and roster-only restrictions remain meaningful.
 
 ### Monetization strategy
 
+The [subscription policy](subscription-policy.md) is canonical for automated
+tier assignment and prorated upgrades. It distinguishes agreed product rules
+from provisional AI quantities and remaining launch prerequisites. This roadmap
+continues to own classroom limits, role separation, and phased rollout.
+
 - Start teacher-first: Free accounts can join and complete assigned work without buying a
   plan, but cannot create a classroom. Classroom capabilities are funded by the owner,
   not by each student's plan.
 - The original **Access** capability (one active owned classroom) was an initial
   rollout grant, not the eventual subscription model. The approved account-plan
-  direction is Free, Basic, Plus and Pro; no account is a permanent teacher or
+  direction is Free, Basic, Pro and Max; no account is a permanent teacher or
   student based on its plan.
 - Charge for demonstrated teacher value: advanced workflows and higher allowances for
-  expensive features such as AI grading. Set actual prices, included features and quotas
-  after measuring usage and delivery costs; none are hardcoded by this foundation.
+  expensive features such as AI grading. Launch prices and core features are approved
+  in the subscription policy;
+  candidate AI quantities still require measured delivery-cost validation.
 - Model trial/active/expired/canceled/grace states separately from plan names. An
   "expired free plan" should normally mean an expired trial or promotional grant; a
   baseline Free tier need not expire. Cancellation need not imply immediate expiry.
 - Expiry must not change ownership, delete classwork, or make students purchase access.
   Preserve access to existing work and a workable submission path. Restrict paid/new
-  consumption rather than abruptly interrupting an active class. Exact grace periods,
-  downgrade behavior for over-limit classrooms, exports and retention need explicit
-  approval before enforcement; this is not a promise of indefinite free storage.
+  consumption rather than abruptly interrupting an active class. The approved
+  subscription policy now defines grace periods,
+  over-limit automatic archiving and existing-work protections; enforcement still
+  requires implementation and verification. This is not a promise of indefinite
+  free storage.
 - Manual/school-sponsored grants can fit the same capability contract later. Defer school
   sales, organization administration, co-teachers, and a general billing framework.
 
 ### Account-plan classroom limits
 
-Migration 206 introduces a dormant account-level plan assignment that
-atomically derives `classrooms.create`:
+Approved launch limits are below. Migration 206 introduced the original fixed
+plan assignment; legacy `pro` (now marketed as Max) has a current limit of 10,
+not Max's new launch limit of 12. Legacy `plus` maps to the new Pro product.
+A future version-aware implementation must apply the new terms without rewriting
+historical migrations or existing purchases:
 
 | Account plan | Active owned classrooms | Other agreed direction |
 | --- | ---: | --- |
 | Free | 0 | May join classrooms |
 | Basic | 2 | Core teaching tools; no included AI grading |
-| Plus | 5 | Smaller monthly AI grading allowance, amount TBD |
-| Pro | 10 | Larger monthly AI grading allowance, amount TBD |
+| Pro | 5 | Candidate 300 AI grading runs/month; validate costs |
+| Max | 12 | Candidate 1,000 AI grading runs/month; validate costs |
 
 Applying migration 206 alone does not classify existing accounts, change their
 effective grants, activate strict enforcement, charge anyone, or enable AI
@@ -67,10 +78,17 @@ metering. Plan assignment is service-only and derives the classroom limit; the
 operator does not enter a per-user classroom quota. A separate, reviewed rollout
 must reconcile existing accounts (including current owner classes), replace the
 Access pilot assignments, and verify snapshots before any UI or billing change.
-Existing classrooms are not archived or deleted when a lower plan is assigned;
-further creation/restore is blocked while the account is at or over its new limit.
-Cancellation, grace periods, trial eligibility, payments, AI quantities and
-over-limit owner experience still require separate product decisions.
+The [account-plan rollout runbook](account-plan-rollout.md) defines the
+read-only inventory, separately approved account batches and later strict
+activation without using the old Access/Free mapping as a plan default.
+Current assignment code does not archive existing classrooms; it blocks further
+creation/restore at the lower limit. The newly approved launch policy instead
+keeps the teacher-selected classrooms, or those with most recent activity if no
+selection was made, and archives the rest at downgrade. This needs new integration
+that preserves existing assignments, started tests, grading and exports, and
+prevents subscription archiving from triggering deletion. See SUB-05/SUB-12.
+Pricing, 30-day Pro trials, grace and cancellation are now decided in the
+subscription policy; AI quantities remain provisional pending cost validation.
 
 #### Superseded Access-pilot policy
 
@@ -86,8 +104,10 @@ subscription policy above.
 
 The one-trial-per-account ledger, billing synchronization, upgrade purchase flow and
 Plus/Pro limits were not part of the original Access enforcement slice. Their
-approved classroom limits are now defined above; AI allowances and pricing
-remain undecided. An archived classroom did not consume Access capacity.
+approved launch limits are now defined above; pricing is in the subscription
+policy and AI quantities remain provisional. The following describes only the
+superseded pilot behavior, not the new downgrade policy. An archived classroom
+did not consume Access capacity.
 Downgrade or expiry never deletes, archives, or changes ownership of existing
 classrooms; it blocks new active-classroom consumption.
 
@@ -322,6 +342,92 @@ actual integration findings; this roadmap is not a delivery-date commitment.
 
 ## Safe rollout while real classes continue
 
+### Completion sequence — 2026-09-27
+
+The owner requested the full rollout and orchestration of the remaining work.
+PR #1371 is merged and its image boundary passed independent review, focused
+checks, database races and CI. A fresh source audit confirms that the live home
+still uses global account roles, and the ordinary classroom shell exposes
+unmigrated Tests, Surveys, Daily, Grades and owner mutations. The full rollout
+therefore requires the remaining integrations below; enabling the existing page
+gate alone is not sufficient. Preserve the current classroom UI and functionality.
+Do not substitute an Assignment-only product for this goal.
+
+The immediate integration checkpoint is a real local manual Assignment lifecycle
+rehearsal using synthetic mixed-role identities. The first run exposed an
+owner-precedence defect: an admitted owner with historical self-enrollment can
+open a learner document (200 rather than 403). PR #1376 corrected the learner
+transaction boundaries and passed all seven real route/database scenarios,
+the database contract suite and browser CI before merging as `7758ed44`.
+Migration 214 is applied and catalog-verified in production. Local application
+is blocked by separately applied billing migrations using 214–216; do not repair
+or reset that shared history without a coordinated, explicitly authorized plan.
+The remaining full-experience work follows these five batches:
+
+| Batch | Scope | Exit evidence |
+| --- | --- | --- |
+| 1. Shared access and everyday classroom work | One server-owned complete-experience admission contract; Daily, lesson plans, announcements, materials and roster | Both account-role values can perform their actual owner/member operations; resource binding, archive/removal races, revision semantics and Pal atomicity remain enforced |
+| 2. Assessments and grades | Existing Assignment adapters, Tests, Surveys, Gradebook/Grades and their files/history; preserve current grading entrypoints | Create/release/start/save/submit/inspect/grade/return/results work through existing screens, including cross-role identities and denied cross-class access |
+| 3. Lifecycle and attached services | Archive/restore, reorder/reuse/blueprints, recovery/export/purge boundaries, attendance and Pal/Bara adapters | Existing owner operations and jobs remain tenant-bound; creation/restore retain entitlement enforcement; connected services use the current classroom relationship |
+| 4. Product entry and navigation | Approved Teaching/Joined home, classroom page/shell, shared menu, join/create, ordering and persisted hide/unhide | One account teaches A and joins B; owner archive differs from member hide; Hidden appears below Archived; desktop/mobile light/dark verification passes |
+| 5. Integrated release | Full teacher/student/mixed-role rehearsal, production canaries, compatible release floor and stop-new-admission procedure | Complete reachable experience works, including existing classes, with concrete recovery evidence before cohort activation |
+
+Batch 2 consumes the shared contract from batch 1. Batch 3 may be implemented
+independently once that contract is stable. Batch 4 remains dormant until batches
+1–3 are complete. Batch 5 verifies their integrated result. Each implementation
+batch may contain bounded reviewable PRs; do not add unrelated infrastructure or
+a new per-feature rollout switch for each route family.
+
+The first bounded batch-1 implementation is the
+[retained shared admission contract](classroom-experience-admission.md) and its
+material-list read consumer. It uses one strict server-managed actor cohort;
+current owner/member/resource checks remain authoritative. Absent configuration
+preserves legacy/pair-pilot behavior. No live cohort is configured; writes, Daily,
+other domains and product entry remain unfinished. Cohort retention and compatible
+recovery versions are operator obligations, not guarantees of the stateless reader.
+
+The shared cohort grants admission to the compatible experience, never classroom
+ownership or enrollment. Resource-specific authorization remains mandatory.
+Stopping new admission must not strand people already teaching or learning: retain
+their compatible access configuration and minimum application version. Entitlements
+continue to govern creation and expensive operations independently. Members may
+complete assigned work on Free. Billing and subscription implementation remain owned
+by the separate billing task.
+
+Use the existing owner and enrollment records. New schema is justified only for
+missing transaction boundaries or persistence requirements: Daily's existing atomic
+writer lacks a transaction-time classroom/enrollment check, the ordered lesson-plan
+writer lacks an actor check, and resource/roster writes require actor-bound owner
+checks. Add service-only wrappers/versioned functions rather than rewriting applied
+migrations. Hidden joined classrooms need an actor-scoped preference that never
+changes membership or the classroom's archived state. Exact migration application
+permissions still follow the schema rollout checklist.
+
+The design reference remains `src/app/__ui/OwnedJoinedHomeMockup.tsx`: Teaching and
+Joined without count badges or an All/Teaching/Joined filter; one top-right menu;
+owner archive/restore and member hide/unhide, with Hidden below Archived. Apply the
+UI-change and visual-verification workflow when implementing its live consumer.
+
+### Current bounded integration slice — Assignment inline images
+
+The 2026-09-27 source audit found that private inline-image delivery still branches
+on the global account role, despite the gated contextual Assignment foundation.
+The authorized next slice is relationship-aware image delivery and upload/finalization
+lifecycle authorization. Implementation lives on `codex/contextual-assignment-images`;
+this task coordinates integration and review, separately from billing.
+
+Exit evidence: default-off exact-pair admission; unchanged unmatched legacy behavior;
+complete managed object/document/assignment/classroom binding; mixed-role owner/member
+tests; visibility, archive, enrollment-revocation and retry checks; transaction-time
+authorization for writes; focused checks and independent security/compatibility review.
+Any required migration application remains a separate exact-target authorization.
+
+After the image boundary is verified, rehearse a restricted synthetic manual Assignment
+flow (author/release, open/save/images, submit, inspect/manual grade/return, feedback).
+Do not enable the unrestricted classroom page or Teaching/Joined home for that rehearsal:
+their other reachable domains are not yet contextual. No cohort activation, production
+deployment, AI enablement, signup change or billing work is included in this slice.
+
 1. Establish baseline login, open-class, submission, grading and attendance canaries;
    capture the exact app/database versions and active rollout settings before each release.
 2. Ship additive code and any separately reviewed additive schema first. Existing accounts,
@@ -368,8 +474,9 @@ treat a migration status copied into this roadmap as authority.
 
 ## Decisions still required before monetization enforcement
 
-Pricing and measured unit costs; Plus/Pro feature matrices and creation limits; trial length
-and nonpayment/cancellation/grace behavior; the once-per-account trial eligibility ledger;
-over-limit downgrade handling and archive/export/retention promises; school/manual grant
-precedence and revocation; abuse limits and support override authority. Keep these out of
-hardcoded role checks and do not infer approval from the phase 0 implementation.
+Prices, launch classroom limits, trial length and lifecycle rules are approved
+in [subscription policy](subscription-policy.md). Remaining gates include measured
+AI unit costs, once-per-teacher trial enforcement, deterministic activity ranking,
+archive/completion/retention compatibility, tax configuration, refund entitlement
+and dispute contracts, abuse limits and support authority. School/manual grant
+precedence remains deferred. Product approval does not activate enforcement.

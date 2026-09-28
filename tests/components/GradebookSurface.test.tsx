@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { GradebookCompactPattern } from '@/app/__ui/GradebookCompactPattern'
 import { GradebookStudentPanel } from '@/components/gradebook/GradebookStudentPanel'
 import { GradebookTable, type GradebookTableProps } from '@/components/gradebook/GradebookTable'
 import { GradebookToolbar } from '@/components/gradebook/GradebookToolbar'
@@ -28,6 +29,101 @@ function makeTableProps(overrides: Partial<GradebookTableProps> = {}): Gradebook
 }
 
 describe('Gradebook surface owners', () => {
+  it('exposes restoration-only maximum controls in the paused GradebookCompactPattern fixture', async () => {
+    const user = userEvent.setup()
+    render(<TooltipProvider><GradebookCompactPattern /></TooltipProvider>)
+    await user.click(screen.getByRole('button', { name: 'Show %' }))
+    await user.click(screen.getByRole('button', { name: 'Maximum mark for Research assignment 1', exact: true }))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Max mark' }), { target: { value: '50' } })
+    await user.click(screen.getByRole('button', { name: 'Save max mark' }))
+    await user.click(screen.getByRole('button', { name: 'Pause maximum changes (fixture)' }))
+    expect(screen.getByRole('button', { name: 'Maximum mark for Unit test 1', exact: true })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Maximum mark for Research assignment 1, overridden' }))
+    expect(screen.getByRole('button', { name: 'Save max mark' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Undo override' }))
+    expect(screen.getByRole('spinbutton', { name: 'Max mark' })).toHaveValue(100)
+  })
+
+  it('toggles ultra-compact mode through a checked More actions item', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<TooltipProvider><GradebookToolbar preferences={{ ...DEFAULT_GRADEBOOK_PREFERENCES, ultraCompact: true }} onChange={onChange} selectedCount={0} isReadOnly={false} onEditCategories={vi.fn()} onCopyEmails={vi.fn()} onExport={vi.fn()} studentGradesVisible={false} onStudentGradesVisibilityChange={vi.fn()} /></TooltipProvider>)
+    await user.click(screen.getByRole('button', { name: 'Gradebook more actions' }))
+    const item = screen.getByRole('menuitemcheckbox', { name: 'Ultra-compact gradebook' })
+    expect(item).toHaveAttribute('aria-checked', 'true')
+    await user.click(item)
+    expect(onChange).toHaveBeenCalledWith({ ultraCompact: false })
+  })
+
+  it('compacts codes, categories and percentages while keeping full editing information and final precision', () => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true, category_id: 'term', category_name: 'Term Work', category_percentage: 20.6 }
+    const scored = { ...student, final_percent: 80.6, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 100, earned: 20.6, percent: 20.6, is_graded: true }] }
+    const props = makeTableProps({ students: [scored], columns: [column], ultraCompact: true, showWeights: true, onScoreOpen: vi.fn() })
+    const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
+    expect(screen.queryByRole('columnheader', { name: 'Last' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^A1$/)
+    expect(screen.getByRole('button', { name: 'Edit category for A1: Essay' })).toHaveTextContent(/^Term$/)
+    expect(screen.getByRole('spinbutton', { name: 'Category weight for Essay' })).toHaveValue(10)
+    expect(screen.getByLabelText('Course weight for Essay')).toHaveTextContent(/^21%$/)
+    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 20.6%' })).toHaveTextContent('21%')
+    expect(screen.getByRole('row', { name: 'Class average' })).toHaveTextContent('21%')
+    expect(screen.getByRole('button', { name: 'Edit Demo Student final mark: 80.6%' })).toHaveTextContent('80.6%')
+    view.rerender(<TooltipProvider><GradebookTable {...props} ultraCompact={false} /></TooltipProvider>)
+    expect(screen.getByRole('columnheader', { name: 'Last' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent('Essay')
+    expect(screen.getByLabelText('Course weight for Essay')).toHaveTextContent('20.6%')
+  })
+
+  it.each([{ ultraCompact: false, displayMode: 'percent' as const }, { ultraCompact: true, displayMode: 'percent' as const }, { ultraCompact: false, displayMode: 'raw' as const }, { ultraCompact: true, displayMode: 'raw' as const }])('flags above-maximum marks and summaries in $displayMode compact=$ultraCompact', ({ ultraCompact, displayMode }) => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 50, weight: 10, include_in_final: true }
+    const scored = { ...student, final_percent: 110.5, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 50, earned: 55.25, percent: 110.5, is_graded: true, is_manual_override: true }] }
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scored], columns: [column], ultraCompact, displayMode, onScoreOpen: vi.fn(), onFinalScoreOpen: vi.fn() })} /></TooltipProvider>)
+    const mark = screen.getByRole('button', { name: /Edit Demo Student mark for Essay:.*overridden, above maximum/ })
+    expect(mark).toHaveAttribute('data-above-maximum', 'true')
+    expect(mark).toHaveAttribute('title', 'Above maximum (110.5%): 55.3/50')
+    expect(mark.querySelectorAll('svg')).toHaveLength(0)
+    expect(mark).toHaveClass('bg-warning-bg', 'border-warning')
+    expect(screen.getByRole('button', { name: /final mark: 110.5%.*above 100%/ })).toHaveAttribute('data-above-maximum', 'true')
+    expect(within(screen.getByRole('row', { name: 'Class average' })).getAllByText('Above maximum (110.5%):')).toHaveLength(2)
+  })
+
+  it.each([100, 75])('does not flag a mark at %s percent even when earned exceeds 100', (percent) => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 200, weight: 10, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 200, earned: percent * 2, percent, is_graded: true }] }
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scored], columns: [column], displayMode: 'raw', isReadOnly: true })} /></TooltipProvider>)
+    expect(screen.getByRole('button', { name: /Edit Demo Student mark/ })).not.toHaveAttribute('data-above-maximum')
+    expect(screen.queryByRole('img', { name: 'Above maximum' })).not.toBeInTheDocument()
+  })
+
+  it('hides the second name in either name order and keeps raw marks aligned with their assessment', () => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 100, earned: 20.6, percent: 20.6, is_graded: true }] }
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ ultraCompact: true, lastNameFirst: true, showWeights: true, showStudentIds: true, displayMode: 'raw', students: [scored], columns: [column], onScoreOpen: vi.fn() })} /></TooltipProvider>)
+    expect(screen.queryByRole('columnheader', { name: 'First' })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Last/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 20.6/100' })).toHaveTextContent(/^20.6$/)
+    for (const name of ['Category', 'Max mark', 'Weight', 'Course %', 'Class average']) {
+      expect(screen.getByRole('row', { name }).children).toHaveLength(6)
+    }
+  })
+
+  it.each([false, true])('shows raw maximums before Weight and earned-only marks (compact=%s)', (ultraCompact) => {
+    const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 12.5, weight: 10, include_in_final: true }
+    const scored = { ...student, assessment_scores: [{ assessment_id: 'a1', assessment_type: 'assignment' as const, possible: 12.5, earned: 0, percent: 0, is_graded: true }] }
+    const props = makeTableProps({ ultraCompact, displayMode: 'raw', students: [scored], columns: [column], showWeights: true, onScoreOpen: vi.fn() })
+    const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
+    expect(screen.getByLabelText('Maximum mark for Essay')).toHaveTextContent(/^12.5$/)
+    const maxRow = screen.getByRole('row', { name: 'Max mark' })
+    expect(maxRow.nextElementSibling).toBe(screen.getByRole('row', { name: 'Weight' }))
+    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 0/12.5' })).toHaveTextContent(/^0$/)
+    expect(screen.getByRole('row', { name: 'Class average' })).not.toHaveTextContent('/')
+    view.rerender(<TooltipProvider><GradebookTable {...props} showWeights={false} /></TooltipProvider>)
+    expect(screen.getByRole('row', { name: 'Max mark' })).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: 'Weight' })).not.toBeInTheDocument()
+    view.rerender(<TooltipProvider><GradebookTable {...props} displayMode="percent" /></TooltipProvider>)
+    expect(screen.queryByRole('row', { name: 'Max mark' })).not.toBeInTheDocument()
+  })
+
   it('names the student inspector and provides a working close control', () => {
     const onClose = vi.fn()
     render(<TooltipProvider><GradebookStudentPanel student={student} columns={[]} displayMode="percent" onClose={onClose} /></TooltipProvider>)
@@ -80,7 +176,7 @@ describe('Gradebook surface owners', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent(/^Essay$/)
   })
 
-  it('opens mark editing and marks an override with an undo symbol while retaining its grade-band color', () => {
+  it('opens overridden mark editing without icons while retaining its grade-band color', () => {
     const onScoreOpen = vi.fn()
     const column = {
       assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay',
@@ -97,14 +193,14 @@ describe('Gradebook surface owners', () => {
 
     const manualMark = screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 80%, overridden' })
     expect(manualMark).not.toHaveClass('text-primary')
-    expect(manualMark.querySelector('svg')).toHaveClass('text-primary', 'h-3', 'w-3')
+    expect(manualMark.querySelector('svg')).toBeNull()
     expect(manualMark.querySelector('span:last-child')).toHaveClass('text-text-default')
-    fireEvent.click(manualMark.querySelector('svg')!)
+    fireEvent.click(manualMark)
     expect(onScoreOpen).toHaveBeenCalledWith(studentWithManualMark, column)
     expect(screen.queryByRole('button', { name: /Undo override for Demo Student/ })).not.toBeInTheDocument()
   })
 
-  it('opens final mark editing and preserves final grade color with an override symbol', () => {
+  it('opens overridden final mark editing without icons while retaining its grade-band color', () => {
     const onFinalScoreOpen = vi.fn()
     const overriddenStudent: GradebookStudentSummary = {
       ...student,
@@ -114,7 +210,7 @@ describe('Gradebook surface owners', () => {
     render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [overriddenStudent], onFinalScoreOpen })} /></TooltipProvider>)
 
     const finalMark = screen.getByRole('button', { name: 'Edit Demo Student final mark: 49.0%, overridden' })
-    expect(finalMark.querySelector('svg')).toHaveClass('text-primary', 'h-3', 'w-3')
+    expect(finalMark.querySelector('svg')).toBeNull()
     expect(finalMark.querySelector('span:last-child')).toHaveClass('text-danger')
     fireEvent.click(finalMark)
     expect(onFinalScoreOpen).toHaveBeenCalledWith(overriddenStudent)

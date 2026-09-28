@@ -279,6 +279,16 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  set_gradebook_maximum_override: FunctionContract<
+    'set_gradebook_maximum_override',
+    Json,
+    Replace<GeneratedFunctions['set_gradebook_maximum_override']['Args'], { p_maximum: number | null }>
+  >
+  save_gradebook_effective_mark: FunctionContract<
+    'save_gradebook_effective_mark',
+    Json,
+    Replace<GeneratedFunctions['save_gradebook_effective_mark']['Args'], { p_earned: number | null }>
+  >
   // PostgreSQL function metadata does not encode nullable input contracts.
   authorize_attendance_generation_delivery: FunctionContract<
     'authorize_attendance_generation_delivery', boolean,

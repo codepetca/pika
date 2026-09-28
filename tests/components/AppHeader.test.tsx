@@ -21,6 +21,17 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('AppHeader home navigation', () => {
+  it('names a non-classroom sidebar trigger for its destination', () => {
+    const onOpenSidebar = vi.fn()
+    render(
+      <AppHeader onOpenSidebar={onOpenSidebar} sidebarTriggerLabel="Open admin navigation" />,
+      { wrapper: Wrapper },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open admin navigation' }))
+    expect(onOpenSidebar).toHaveBeenCalledOnce()
+  })
+
   it('announces a primary Pika logo selection to the current classrooms page', () => {
     const handleHomeSelected = vi.fn()
     window.addEventListener(APP_HOME_SELECTED_EVENT, handleHomeSelected)
@@ -214,4 +225,73 @@ describe('AppHeader classroom theme', () => {
     expect(cardRule).not.toContain('border-color')
     expect(cardRule).not.toContain('border-left-color')
   })
+})
+
+
+describe('AppHeader date and time visibility', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  function setWindowSize(width: number, height: number) {
+    vi.stubGlobal('innerWidth', width)
+    vi.stubGlobal('innerHeight', height)
+    vi.stubGlobal('outerWidth', width)
+    vi.stubGlobal('outerHeight', height)
+    vi.spyOn(window.screen, 'availWidth', 'get').mockReturnValue(1440)
+    vi.spyOn(window.screen, 'availHeight', 'get').mockReturnValue(900)
+  }
+
+  it.each(['teacher', 'student'] as const)('keeps the clock hidden after loading and resizing a screen-sized browser for %s', (role) => {
+    // A normal browser can report screen-sized outer bounds without Pika fullscreen.
+    setWindowSize(1440, 900)
+    render(<AppHeader user={{ email: 'user@example.com', role }} />, { wrapper: Wrapper })
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+
+    fireEvent(window, new Event('resize'))
+    fireEvent(window, new Event('focus'))
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it('shows in fullscreen and hides on exit in a restored window', () => {
+    setWindowSize(1000, 700)
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
+    const fullscreen = vi.spyOn(document, 'fullscreenElement', 'get').mockReturnValue(document.documentElement)
+    render(<AppHeader />, { wrapper: Wrapper })
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+
+    fullscreen.mockReturnValue(null)
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('shows only while Pika fullscreen is active for %s', (role) => {
+    setWindowSize(1440, 900)
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
+    const fullscreen = vi.spyOn(document, 'fullscreenElement', 'get').mockReturnValue(null)
+    render(<AppHeader user={{ email: 'user@example.com', role }} />, { wrapper: Wrapper })
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+
+    fullscreen.mockReturnValue(document.documentElement)
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+
+    fullscreen.mockReturnValue(null)
+    fireEvent(document, new Event('fullscreenchange'))
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+  it('keeps the clock in exam mode while window compliance is restored', () => {
+    setWindowSize(1000, 700)
+    const { rerender } = render(
+      <AppHeader examModeHeader={{ testTitle: 'Unit Test', exitsCount: 0, awayTotalSeconds: 0 }} />,
+      { wrapper: Wrapper },
+    )
+    expect(screen.getByTestId('header-date-time')).toBeInTheDocument()
+    rerender(<AppHeader />)
+    expect(screen.queryByTestId('header-date-time')).not.toBeInTheDocument()
+  })
+
+
 })

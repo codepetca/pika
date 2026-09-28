@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AssignmentEditSplitPattern } from '@/app/__ui/AssignmentEditSplitPattern'
+import { TestEditSplitPattern } from '@/app/__ui/TestEditSplitPattern'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { AssignmentCreationPattern } from '@/app/__ui/AssignmentCreationPattern'
 import { MaterialCreationPattern } from '@/app/__ui/MaterialCreationPattern'
@@ -67,8 +68,10 @@ describe('UiGallery history preview fixture', () => {
   it('demonstrates full-size QR rendering through the shared accessible dialog', async () => {
     renderGallery('teacher')
     expect(AssignmentEditSplitPattern).toBeTypeOf('function')
+    expect(TestEditSplitPattern).toBeTypeOf('function')
     const navigation = screen.getByRole('navigation', { name: 'Pattern Lab sections' })
     expect(within(navigation).getByRole('link', { name: 'Assignment edit' })).toBeInTheDocument()
+    expect(within(navigation).getByRole('link', { name: 'Test edit' })).toBeInTheDocument()
     const user = userEvent.setup()
     const opener = screen.getByRole('button', { name: 'Open QR example' })
     await user.click(opener)
@@ -78,6 +81,7 @@ describe('UiGallery history preview fixture', () => {
     await waitFor(() => expect(opener).toHaveFocus())
   })
   beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
       json: async () => ({ classrooms: [] }),
@@ -125,6 +129,22 @@ describe('UiGallery history preview fixture', () => {
     expect(addRequirement).toHaveFocus()
   })
 
+  it('supports keyboard reordering in the Test edit prototype reference list', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><TestEditSplitPattern /></TooltipProvider></ThemeProvider>)
+    await user.click(screen.getByRole('button', { name: 'Open test edit prototype' }))
+
+    const references = within(screen.getByRole('dialog', { name: 'Edit Test' })).getByRole('group', { name: 'Reference Docs' })
+    await user.click(within(references).getByRole('button', { name: 'Add reference' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Link' }))
+    expect(within(references).getByText('Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.')).toBeVisible()
+    const handle = within(references).getByRole('button', { name: /Reorder Wetland field notes/ })
+    handle.focus()
+    await user.keyboard('{ArrowDown}')
+    await waitFor(() => expect(within(references.querySelector('[draggable]')!).getByRole('textbox', { name: 'link reference label' })).toBeVisible())
+    await waitFor(() => expect(handle).toHaveFocus())
+  })
+
   it('centers the Daily date when relative context is hidden', async () => {
     const user = userEvent.setup()
     render(<ThemeProvider><TooltipProvider><TeacherPatterns /></TooltipProvider></ThemeProvider>)
@@ -154,14 +174,15 @@ describe('UiGallery history preview fixture', () => {
   it('demonstrates teacher hover, pin, and exit states', async () => {
     const user = userEvent.setup()
     renderGallery('teacher')
+    const preview = within(screen.getByTestId('history-preview-gallery'))
 
     expect(screen.getByText(/additions and deletions across the actual activity days/i)).toBeInTheDocument()
-    const [previewPoint, latestPreviewPoint] = screen.getAllByRole('button', {
+    const [previewPoint, latestPreviewPoint] = preview.getAllByRole('button', {
       name: 'History point',
     })
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '23')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '14')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '23')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '14')
     expect(previewPoint).toHaveAttribute('data-show-heading', 'no')
     expect(previewPoint).toHaveAttribute('data-entry-count', '5')
     expect(screen.getByText(/six-week project/i)).toBeInTheDocument()
@@ -169,25 +190,25 @@ describe('UiGallery history preview fixture', () => {
     expect(screen.getByText(/final-day crunch/i)).toBeInTheDocument()
 
     fireEvent.mouseEnter(previewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '9')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '9')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('focused')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '9')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '9')
 
     fireEvent.mouseEnter(latestPreviewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '42')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '20')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '42')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '20')
 
     await user.click(latestPreviewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
     expect(latestPreviewPoint).toHaveAttribute('data-hover-enabled', 'no')
 
     fireEvent.mouseEnter(previewPoint)
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('locked')
 
-    await user.click(screen.getByRole('button', { name: 'Exit preview' }))
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
-    expect(screen.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '0')
+    await user.click(preview.getByRole('button', { name: 'Exit preview' }))
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveTextContent('current')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-content-blocks', '41')
+    expect(preview.getByTestId('teacher-preview-mode')).toHaveAttribute('data-changed-blocks', '0')
   })
 
   it('uses the same preview lifecycle for the student surface', () => {

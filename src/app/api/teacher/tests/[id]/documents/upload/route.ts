@@ -11,6 +11,7 @@ import {
   reserveManagedStorageUpload,
   verifyManagedStorageUpload,
 } from '@/lib/server/managed-storage'
+import { validateStoredTestDocumentImage } from '@/lib/server/test-document-image-validation'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
@@ -41,6 +42,16 @@ function safeExtension(filename: string): string {
   return ext.replace(/[^a-z0-9]/g, '') || 'pdf'
 }
 
+function storageExtension(contentType: string, filename: string): string {
+  if (contentType === 'image/png') return 'png'
+  if (contentType === 'image/jpeg') return 'jpeg'
+  return safeExtension(filename)
+}
+
+function isTestDocumentImageType(contentType: string): contentType is 'image/png' | 'image/jpeg' {
+  return contentType === 'image/png' || contentType === 'image/jpeg'
+}
+
 export const POST = withErrorHandler('ReserveTeacherTestDocument', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
@@ -51,7 +62,7 @@ export const POST = withErrorHandler('ReserveTeacherTestDocument', async (reques
   const input = testDocumentReservationSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
   const objectId = crypto.randomUUID()
-  const storagePath = `classrooms/${access.test.classroom_id}/tests/${testId}/documents/${input.document_id}/${objectId}.${safeExtension(input.file_name)}`
+  const storagePath = `classrooms/${access.test.classroom_id}/tests/${testId}/documents/${input.document_id}/${isTestDocumentImageType(input.content_type) ? 'images/' : ''}${objectId}.${storageExtension(input.content_type, input.file_name)}`
   const reservation = await reserveManagedStorageUpload({
     supabase,
     objectId,
@@ -115,20 +126,35 @@ export const PATCH = withErrorHandler('FinalizeTeacherTestDocument', async (requ
   }
 
   try {
-    await assertDirectUploadMatchesReservation({
-      supabase,
-      bucket: 'test-documents',
-      path: object.storage_path,
-      expectedByteSize: object.byte_size,
-      expectedContentType: object.content_type,
-    })
-    await verifyManagedStorageUpload({ supabase, objectId: object.id })
+    // Verification is durable; retries must not reread or invalidate this object.
+    if (object.status === 'reserved') {
+      await assertDirectUploadMatchesReservation({
+        supabase,
+        bucket: 'test-documents',
+        path: object.storage_path,
+        expectedByteSize: object.byte_size,
+        expectedContentType: object.content_type,
+      })
+      if (isTestDocumentImageType(object.content_type)) {
+        await validateStoredTestDocumentImage({
+          supabase,
+          path: object.storage_path,
+          contentType: object.content_type,
+        })
+      }
+      await verifyManagedStorageUpload({ supabase, objectId: object.id })
+    }
   } catch (finalizeError) {
-    await queueManagedStorageCleanupBestEffort({
-      supabase,
-      objectId: object.id,
-      errorCode: 'test_document_verification_failed',
-    })
+    // A concurrent request may already have verified this image. Eager cleanup
+    // has no expected-state guard, so retain its one-hour reservation for the
+    // existing manually operated expiry cleanup instead of invalidating success.
+    if (!isTestDocumentImageType(object.content_type)) {
+      await queueManagedStorageCleanupBestEffort({
+        supabase,
+        objectId: object.id,
+        errorCode: 'test_document_verification_failed',
+      })
+    }
     throw finalizeError
   }
 
@@ -146,11 +172,12 @@ export const DELETE = withErrorHandler('CancelTeacherTestDocument', async (reque
   const supabase = getServiceRoleClient()
   const { data: object } = await supabase
     .from('managed_storage_objects')
-    .select('id,created_by_user_id,purpose,status')
+    .select('id,created_by_user_id,purpose,status,content_type')
     .eq('id', input.managed_object_id)
     .maybeSingle()
   if (object?.created_by_user_id === user.id && object.purpose === 'teacher_test_material'
-    && object.status === 'reserved') {
+    // The reserved snapshot can be stale; image cancellation uses expiry too.
+    && object.status === 'reserved' && !isTestDocumentImageType(object.content_type || '')) {
     await queueManagedStorageCleanupBestEffort({
       supabase,
       objectId: object.id,

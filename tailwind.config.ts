@@ -41,6 +41,7 @@ const config: Config = {
       colors: {
         // Semantic background colors
         page: 'var(--color-page)',
+        'reference-image-canvas': 'var(--color-reference-image-canvas)',
         qr: {
           background: 'var(--color-qr-background)',
           foreground: 'var(--color-qr-foreground)',

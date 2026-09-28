@@ -897,6 +897,7 @@ export interface TestDocument {
   storage_bucket?: 'test-documents'
   storage_path?: string
   managed_object_id?: string
+  upload_content_type?: string
   content?: string
   snapshot_path?: string
   snapshot_managed_object_id?: string
@@ -1308,6 +1309,9 @@ export type GradebookAssessmentStatus =
   | 'resubmitted'
 
 export interface GradebookAssessmentColumn {
+  is_maximum_override?: boolean
+  source_possible?: number
+  maximum_scale?: number
   assessment_id: string
   assessment_type: GradebookAssessmentType
   code: string

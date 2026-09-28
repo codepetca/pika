@@ -28,6 +28,7 @@ interface AppHeaderProps {
   }>
   currentClassroomId?: string
   onOpenSidebar?: () => void
+  sidebarTriggerLabel?: string
   onNavigateHome?: (href: string) => boolean
   examModeHeader?: {
     testTitle: string
@@ -54,6 +55,7 @@ export function AppHeader({
   classrooms,
   currentClassroomId,
   onOpenSidebar,
+  sidebarTriggerLabel = 'Open classroom navigation',
   onNavigateHome,
   examModeHeader,
   pageTitle,
@@ -146,7 +148,7 @@ export function AppHeader({
               type="button"
               onClick={onOpenSidebar}
               className="-ml-2 flex min-h-11 min-w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default lg:hidden"
-              aria-label="Open classroom navigation"
+              aria-label={sidebarTriggerLabel}
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -244,10 +246,12 @@ export function AppHeader({
             </button>
           </Tooltip>
         )}
-        <span className="mr-2 hidden whitespace-nowrap text-base font-semibold tabular-nums text-text-default sm:inline-flex">
-          <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
-          <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
-        </span>
+        {(isFullscreen || isExamMode) && (
+          <span data-testid="header-date-time" className="mr-2 hidden whitespace-nowrap text-base font-semibold tabular-nums text-text-default sm:inline-flex">
+            <span>{formatInTimeZone(now, 'America/Toronto', 'EEE MMM d')}</span>
+            <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
+          </span>
+        )}
         <UserMenu user={user} />
       </div>
     </header>

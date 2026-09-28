@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -10,6 +10,7 @@ vi.mock('@/components/HistoryGraph', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
+  MarkdownContentEditor: () => <div />,
   RichTextEditor: () => <div />,
   RichTextViewer: () => <div />,
 }))
@@ -25,6 +26,22 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('demonstrates normal and exam header navigation for %s', (role) => {
+    renderGallery(role)
+    const references = within(screen.getByRole('region', { name: 'Application header references' }))
+    const headers = references.getAllByRole('banner')
+    expect(within(headers[0]).getByRole('heading', { name: 'Classrooms' })).toBeInTheDocument()
+    expect(within(headers[0]).getByRole('button', { name: 'Enter fullscreen' })).toBeInTheDocument()
+    expect(within(headers[1]).getByText('Exam header reference')).toBeInTheDocument()
+    expect(within(headers[1]).getByLabelText('Exits 0')).toBeInTheDocument()
+    expect(within(headers[1]).queryByRole('button', { name: 'Enter fullscreen' })).not.toBeInTheDocument()
+    for (const header of headers) {
+      expect(within(header).getByRole('link', { name: 'Home' })).toBeInTheDocument()
+    }
+  })
+
+  beforeEach(() => { vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} }) })
+  afterEach(() => { vi.unstubAllGlobals() })
   it('demonstrates explicitly activated formatted help', async () => {
     renderGallery()
     const help = screen.getByRole('button', { name: 'Formatting help' })
@@ -252,12 +269,12 @@ describe('UiGallery accessibility contracts', () => {
   it('opens and dismisses the canonical alert dialog', () => {
     renderGallery()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open alert dialog' }))
+    fireEvent.click(within(screen.getByTestId('pattern-section-controls')).getByRole('button', { name: 'Open alert dialog' }))
     const dialog = screen.getByRole('alertdialog', { name: 'Pattern confirmed' })
     expect(dialog).toHaveAccessibleDescription('This dialog is rendered by the canonical shared owner.')
     expect(within(dialog).getByRole('button', { name: 'Close example' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close example' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close example' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 })

@@ -1,6 +1,7 @@
 import {
   expect,
   test,
+  type Locator,
   type Page,
   type TestInfo,
 } from '@playwright/test'
@@ -14,6 +15,10 @@ const ATTENDANCE_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000001'
 const TEST_GRADING_FIXTURE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000011'
 const TEST_GRADING_FIXTURE_TEST_ID = '30000000-0000-4000-8000-000000000013'
 const PUBLIC_ACTUAL_COURSE_SLUG = 'e2e-test-course-guide'
+const IMAGE_REFERENCE_CLASSROOM_ID = '30000000-0000-4000-8000-000000000031'
+const IMAGE_REFERENCE_TEST_ID = '30000000-0000-4000-8000-000000000032'
+const IMAGE_REFERENCE_PNG_ID = '30000000-0000-4000-8000-000000000033'
+const IMAGE_REFERENCE_PNG_PATH = `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/images/karel-grid.png`
 
 const rolloverBlueprint = {
   id: BLUEPRINT_ID,
@@ -63,6 +68,115 @@ async function applyProjectTheme(page: Page, testInfo: TestInfo) {
   await page.addInitScript((projectTheme) => {
     localStorage.setItem('theme', projectTheme)
   }, theme)
+}
+
+async function createKarelGridRaster(page: Page, mimeType: 'image/png' | 'image/jpeg') {
+  // Generate a deterministic raster in the browser so image behavior is tested
+  // with real PNG/JPEG bytes without storing binary test files in the repo.
+  const encoded = await page.evaluate((type) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 480
+    canvas.height = 360
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas 2D context is unavailable')
+
+    context.fillStyle = '#f8fafc'
+    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.fillStyle = '#0f172a'
+    context.font = '600 24px system-ui'
+    context.fillText('Karel world', 28, 38)
+    context.strokeStyle = '#94a3b8'
+    context.lineWidth = 2
+    for (let column = 0; column <= 8; column += 1) {
+      const x = 28 + column * 50
+      context.beginPath()
+      context.moveTo(x, 64)
+      context.lineTo(x, 314)
+      context.stroke()
+    }
+    for (let row = 0; row <= 5; row += 1) {
+      const y = 64 + row * 50
+      context.beginPath()
+      context.moveTo(28, y)
+      context.lineTo(428, y)
+      context.stroke()
+    }
+    context.fillStyle = '#2563eb'
+    context.fillRect(242, 228, 36, 36)
+    context.fillStyle = '#f59e0b'
+    context.beginPath()
+    context.arc(353, 139, 13, 0, Math.PI * 2)
+    context.fill()
+    return canvas.toDataURL(type, 0.92).split(',')[1]
+  }, mimeType)
+  return Buffer.from(encoded, 'base64')
+}
+
+async function waitForKarelRasterPaint(image: Locator) {
+  const decoded = await image.evaluate(async (element) => {
+    const raster = element as HTMLImageElement
+    await raster.decode()
+
+    const canvas = document.createElement('canvas')
+    canvas.width = raster.naturalWidth
+    canvas.height = raster.naturalHeight
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Canvas 2D context is unavailable')
+    context.drawImage(raster, 0, 0)
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data
+    let hasKarelBlue = false
+    for (let index = 0; index < pixels.length; index += 4) {
+      if (pixels[index] < 80 && pixels[index + 1] > 70 && pixels[index + 1] < 140 && pixels[index + 2] > 180) {
+        hasKarelBlue = true
+        break
+      }
+    }
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    )
+    return { width: raster.naturalWidth, height: raster.naturalHeight, hasKarelBlue }
+  })
+
+  expect(decoded.width).toBeGreaterThan(1)
+  expect(decoded.height).toBeGreaterThan(1)
+  expect(decoded.hasKarelBlue).toBe(true)
+}
+
+async function verifyStableImageGeometry(image: Locator) {
+  await waitForKarelRasterPaint(image)
+  const samples = await image.evaluate(async (element) => {
+    const viewport = element.parentElement!.parentElement!
+    const before = element.getBoundingClientRect()
+    const originalGutter = viewport.style.scrollbarGutter
+    const samples = [{ width: before.width, height: before.height }]
+    // Exercise reserved scrollbar space even on systems with overlay scrollbars.
+    viewport.style.scrollbarGutter = 'stable both-edges'
+    try {
+      for (let frame = 0; frame < 40; frame += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+        const rect = element.getBoundingClientRect()
+        samples.push({ width: rect.width, height: rect.height })
+      }
+    } finally {
+      viewport.style.scrollbarGutter = originalGutter
+    }
+    return samples
+  })
+  for (const sample of samples) {
+    expect(sample.width).toBeCloseTo(samples[0].width, 2)
+    expect(sample.height).toBeCloseTo(samples[0].height, 2)
+  }
+}
+
+function installExamWindowFixture(page: Page) {
+  return page.addInitScript(() => {
+    Object.defineProperty(window.screen, 'availWidth', { configurable: true, get: () => window.innerWidth })
+    Object.defineProperty(window.screen, 'availHeight', { configurable: true, get: () => window.innerHeight })
+    Object.defineProperty(Element.prototype, 'requestFullscreen', {
+      configurable: true,
+      value: () => Promise.resolve(),
+    })
+  })
 }
 
 async function detachSharedAuthFixture(page: Page) {
@@ -1970,6 +2084,64 @@ test('shows publication language only at the publish transition', async ({ page 
   })
 })
 
+test('shows teacher test list status from effective student access', async ({ page }, testInfo) => {
+  const { viewport, theme } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  await page.route('**/api/teacher/tests?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tests: [
+          {
+            id: '30000000-0000-4000-8000-000000000013',
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Reopened for one student',
+            status: 'closed',
+            position: 1,
+            documents: [],
+            stats: {
+              total_students: 2,
+              responded: 1,
+              submitted: 1,
+              open_access: 1,
+              closed_access: 1,
+              questions_count: 1,
+            },
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000014',
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Closed for everyone',
+            status: 'active',
+            position: 0,
+            documents: [],
+            stats: {
+              total_students: 2,
+              responded: 1,
+              submitted: 1,
+              open_access: 0,
+              closed_access: 2,
+              questions_count: 1,
+            },
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-test-grading?view=list', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('Reopened for one student')).toBeVisible()
+  await expect(page.getByText('Closed for everyone')).toBeVisible()
+  await expect(page.getByText('Open', { exact: true })).toBeVisible()
+  await expect(page.getByText('Closed', { exact: true })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`teacher-test-list-access-${viewport}-${theme}.png`),
+    animations: 'disabled',
+  })
+})
+
 test('shows published closed Tests to students without opening them', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   await applyProjectTheme(page, testInfo)
@@ -2117,6 +2289,254 @@ test('shows published closed Tests to students without opening them', async ({ p
   await expect(submittedClosed).toBeFocused()
   await page.screenshot({ path: testInfo.outputPath(`student-test-${viewport}-return-focus.png`), animations: 'disabled' })
 
+})
+
+test('keeps a student answer while viewing and zooming a PNG reference image', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  const png = await createKarelGridRaster(page, 'image/png')
+  const jpeg = await createKarelGridRaster(page, 'image/jpeg')
+  let focusEventRequests = 0
+  let pngFileRequests = 0
+  await applyProjectTheme(page, testInfo)
+  await installExamWindowFixture(page)
+
+  const documents = [
+    { id: IMAGE_REFERENCE_PNG_ID, title: 'Karel grid PNG', source: 'upload', storage_bucket: 'test-documents', storage_path: IMAGE_REFERENCE_PNG_PATH },
+    { id: '30000000-0000-4000-8000-000000000034', title: 'Karel grid JPEG', source: 'upload', storage_bucket: 'test-documents', storage_path: `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/30000000-0000-4000-8000-000000000034/images/karel-grid.jpeg` },
+  ]
+  const assessment = {
+    id: IMAGE_REFERENCE_TEST_ID, classroom_id: IMAGE_REFERENCE_CLASSROOM_ID, title: 'Karel image references',
+    assessment_type: 'test', status: 'active', student_status: 'not_started', effective_access: 'open',
+    show_results: false, position: 0, documents,
+  }
+  const questions = [{
+    id: '30000000-0000-4000-8000-000000000035', test_id: IMAGE_REFERENCE_TEST_ID,
+    question_type: 'open_response', question_text: 'Write Karel\'s route to the beeper.',
+    options: [], correct_option: null, answer_key: null, sample_solution: null, points: 1,
+    response_max_chars: 500, response_monospace: true, position: 0,
+    created_at: '2026-09-24T12:00:00.000Z', updated_at: '2026-09-24T12:00:00.000Z',
+  }]
+  const focusSummary = { away_count: 0, away_total_seconds: 0, route_exit_attempts: 0, window_unmaximize_attempts: 0, last_away_started_at: null, last_away_ended_at: null }
+
+  await page.route('**/api/student/notifications**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hasTodayEntry: true, unviewedAssignmentsCount: 0, activeTestsCount: 1, unreadAnnouncementsCount: 0 }) })
+  })
+  await page.route('**/api/student/tests?**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tests: [assessment] }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ test: assessment, questions, student_status: 'not_started', student_responses: {}, focus_summary: focusSummary }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/start`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ questions }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/attempt`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ responses: {} }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/session-status`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ can_continue: true }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/focus-events`, async (route) => {
+    focusEventRequests += 1
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ focus_summary: focusSummary }) })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/file`, async (route) => {
+    pngFileRequests += 1
+    await route.fulfill({ status: 200, contentType: 'image/png', body: png })
+  })
+  await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/documents/30000000-0000-4000-8000-000000000034/file`, async (route) => {
+    await route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg })
+  })
+
+  await page.goto('/e2e-fixtures/student-test-list', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Karel image references' }).click()
+  await page.getByRole('button', { name: 'Start the Test', exact: true }).click()
+  await page.getByRole('button', { name: 'Start test', exact: true }).click()
+  await expect.poll(() => pngFileRequests).toBe(1)
+  await expect.poll(() => page.locator('img[alt="Karel grid PNG"]').evaluate((image: HTMLImageElement) => image.complete)).toBe(true)
+
+  const answer = page.getByLabel('Response for question 1', { exact: true })
+  const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
+  await answer.fill('move()\nmove()\npick_beeper()')
+  const documentsPane = page.getByTestId('student-test-documents-pane')
+  const questionsPane = page.getByTestId('student-test-detail-pane')
+  const separator = page.getByRole('separator', { name: 'Resize documents and questions panes' })
+  if (viewport === 'desktop') {
+    await separator.focus()
+    await separator.press('ArrowRight')
+    await separator.press('ArrowRight')
+    await expect(separator).toHaveAttribute('aria-valuenow', '40')
+  }
+  const bounds = async () => {
+    const panes = [await documentsPane.boundingBox(), await questionsPane.boundingBox()]
+    // Mobile stacks panes; image references already reserve additional reading height.
+    return viewport === 'desktop' ? panes : panes.map((pane) => pane?.width)
+  }
+  await page.waitForTimeout(350)
+  const before = await bounds()
+  const listDocumentWidth = (await documentsPane.boundingBox())!.width
+  await page.screenshot({ path: testInfo.outputPath(`student-test-list-${viewport}.png`), animations: 'disabled' })
+  await page.getByRole('button', { name: 'Karel grid PNG', exact: true }).click()
+  expect(pngFileRequests).toBe(1)
+  const image = page.getByRole('img', { name: 'Karel grid PNG' })
+  await expect(image).toBeVisible()
+  await page.waitForTimeout(350)
+  if (viewport === 'desktop') {
+    await expect(separator).toHaveAttribute('aria-valuenow', '50')
+    expect((await documentsPane.boundingBox())!.width).toBeGreaterThan(listDocumentWidth)
+  } else {
+    expect(await bounds()).toEqual(before)
+  }
+  await expect(page.getByRole('region', { name: 'Karel grid PNG image' })).toHaveCount(1)
+  await expect(imageZoomStatus).toHaveText('Fit')
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await expect(imageZoomStatus).toHaveText('125%')
+  await verifyStableImageGeometry(image)
+  await page.getByRole('button', { name: 'Fit image' }).click()
+  await expect(imageZoomStatus).toHaveText('Fit')
+  await expect(answer).toHaveValue('move()\nmove()\npick_beeper()')
+  expect(focusEventRequests).toBe(0)
+  await verifyProjectContract(page, testInfo)
+  await waitForKarelRasterPaint(image)
+  await page.screenshot({ path: testInfo.outputPath(`student-test-image-${viewport}.png`), animations: 'disabled' })
+  if (viewport === 'desktop') {
+    const divider = await separator.boundingBox()
+    expect(divider).not.toBeNull()
+    const dragX = divider!.x + divider!.width / 2
+    const dragY = divider!.y + divider!.height / 2
+    await page.mouse.move(dragX, dragY)
+    await page.mouse.down()
+    await page.mouse.move(dragX - 100, dragY, { steps: 5 })
+    await page.mouse.up()
+    expect(Number(await separator.getAttribute('aria-valuenow'))).toBeLessThan(50)
+    expect(focusEventRequests).toBe(0)
+    // Browser chrome can briefly take focus at pointer release; the drag marks
+    // this as a document interaction, so it must not become a delayed exit.
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+    await page.waitForTimeout(700)
+    expect(focusEventRequests).toBe(0)
+  }
+  await page.getByRole('button', { name: 'Back to documents list' }).click()
+  await page.waitForTimeout(350)
+  expect(await bounds()).toEqual(before)
+  await expect(answer).toHaveValue('move()\nmove()\npick_beeper()')
+  await page.screenshot({ path: testInfo.outputPath(`student-test-back-${viewport}.png`), animations: 'disabled' })
+
+})
+
+test('uploads PNG and JPEG references, projects them into teacher preview, and retries a failed image', async ({ page }, testInfo) => {
+  const { viewport } = getExperienceMetadata(testInfo)
+  const png = await createKarelGridRaster(page, 'image/png')
+  const jpeg = await createKarelGridRaster(page, 'image/jpeg')
+  let pngFileRequests = 0
+  await applyProjectTheme(page, testInfo)
+
+  let nextDocumentNumber = 34
+  let remainingJpegFailures = 1
+  const reservationPaths = new Map<string, string>()
+  let documents = [{ id: IMAGE_REFERENCE_PNG_ID, title: 'Karel grid PNG', source: 'upload', storage_bucket: 'test-documents', storage_path: IMAGE_REFERENCE_PNG_PATH }]
+  const previewPayload = () => ({
+    test: { id: IMAGE_REFERENCE_TEST_ID, classroom_id: IMAGE_REFERENCE_CLASSROOM_ID, title: 'Karel image references', status: 'draft', show_results: false, documents },
+    questions: [{
+      id: '30000000-0000-4000-8000-000000000035', test_id: IMAGE_REFERENCE_TEST_ID,
+      question_type: 'open_response', question_text: 'Use the Karel world to answer this question.',
+      options: [], correct_option: null, answer_key: null, sample_solution: null, points: 1,
+      response_max_chars: 500, response_monospace: true, position: 0,
+      created_at: '2026-09-24T12:00:00.000Z', updated_at: '2026-09-24T12:00:00.000Z',
+    }],
+  })
+
+  await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}`, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(previewPayload()) })
+      return
+    }
+    if (route.request().method() === 'PATCH') {
+      const payload = route.request().postDataJSON() as { documents: typeof documents }
+      documents = payload.documents
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(previewPayload()) })
+      return
+    }
+    await route.fallback()
+  })
+  await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}/documents/upload`, async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST') {
+      const payload = request.postDataJSON() as { document_id: string; content_type: string }
+      const extension = payload.content_type === 'image/png' ? 'png' : 'jpeg'
+      const path = `classrooms/${IMAGE_REFERENCE_CLASSROOM_ID}/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${payload.document_id}/images/image-${nextDocumentNumber}.${extension}`
+      nextDocumentNumber += 1
+      reservationPaths.set(payload.document_id, path)
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ bucket: 'test-documents', storage_path: path, upload_url: `/mock-storage/${payload.document_id}`, managed_object_id: payload.document_id }) })
+      return
+    }
+    if (request.method() === 'PATCH') {
+      const payload = request.postDataJSON() as { document_id: string; managed_object_id: string }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ document_id: payload.document_id, storage_bucket: 'test-documents', storage_path: reservationPaths.get(payload.document_id), managed_object_id: payload.managed_object_id }) })
+      return
+    }
+    await route.fallback()
+  })
+  await page.route('**/mock-storage/**', async (route) => { await route.fulfill({ status: 200 }) })
+  await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}/documents/*/file*`, async (route) => {
+    if (route.request().url().includes(`/${IMAGE_REFERENCE_PNG_ID}/file`)) {
+      pngFileRequests += 1
+      await route.fulfill({ status: 200, contentType: 'image/png', body: png })
+      return
+    }
+    if (remainingJpegFailures > 0) {
+      remainingJpegFailures -= 1
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'temporary image delivery failure' }) })
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'image/jpeg', body: jpeg })
+  })
+
+  await page.goto('/e2e-fixtures/test-reference-images', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByTestId('test-reference-images-ready')).toBeVisible()
+  const authoring = page.getByRole('region', { name: 'Test document authoring' })
+  await page.getByRole('button', { name: 'Add Document' }).click()
+  const addDialog = page.getByRole('dialog', { name: 'Add Document' })
+  await expect(addDialog.getByRole('tab', { name: 'Upload' })).toBeVisible()
+  await addDialog.getByRole('tab', { name: 'Upload' }).click()
+  await addDialog.locator('input[type="file"]').setInputFiles({ name: 'karel-grid.png', mimeType: 'image/png', buffer: png })
+  await expect(addDialog.getByText('Selected: karel-grid.png')).toBeVisible()
+  await addDialog.getByRole('button', { name: 'Upload document' }).click()
+  await expect(authoring.getByText('karel-grid.png', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Add Document' }).click()
+  await page.getByRole('dialog', { name: 'Add Document' }).getByRole('tab', { name: 'Upload' }).click()
+  await page.locator('input[type="file"]').setInputFiles({ name: 'karel-grid.jpeg', mimeType: 'image/jpeg', buffer: jpeg })
+  await page.getByRole('button', { name: 'Upload document' }).click()
+  await expect(authoring.getByText('karel-grid.jpeg', { exact: true })).toBeVisible()
+
+  await page.goto('/e2e-fixtures/test-reference-images', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByTestId('test-reference-images-ready')).toBeVisible()
+  await page.getByRole('button', { name: 'Open teacher preview' }).click()
+  await expect(page.getByRole('button', { name: 'Maximize Window' })).toBeVisible()
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => document.documentElement })
+  })
+  await page.getByRole('button', { name: 'Maximize Window' }).click()
+  await expect.poll(() => pngFileRequests).toBe(1)
+  await expect.poll(() => page.locator('img[alt="Karel grid PNG"]').evaluate((image: HTMLImageElement) => image.complete)).toBe(true)
+  await page.getByRole('button', { name: 'karel-grid.jpeg', exact: true }).click()
+  if (viewport === 'desktop') {
+    await expect(page.getByRole('separator', { name: 'Resize documents and questions panes' })).toHaveAttribute('aria-valuenow', '50')
+  }
+  await expect(page.getByText('Image unavailable', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Try again' }).click()
+  const image = page.getByRole('img', { name: 'karel-grid.jpeg' })
+  await expect(image).toBeVisible()
+  const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await expect(imageZoomStatus).toHaveText('125%')
+  await verifyStableImageGeometry(image)
+  await page.getByRole('button', { name: 'Fit image' }).click()
+  await expect(imageZoomStatus).toHaveText('Fit')
+  await verifyProjectContract(page, testInfo)
+  await waitForKarelRasterPaint(image)
+  await page.screenshot({ path: testInfo.outputPath(`teacher-test-image-${viewport}.png`), animations: 'disabled' })
 })
 
 test.describe('teacher experience matrix', () => {
@@ -2677,4 +3097,91 @@ test.describe('public Course Guide experience matrix', () => {
     await verifyProjectContract(page, testInfo)
     await captureCourseGuideState(page, testInfo, 'public-not-found')
   })
+})
+
+
+test('student long test scroll reaches final questions and submit', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  // Simulate a maximized window for this local, fully mocked exam fixture.
+  await page.addInitScript(() => {
+    Object.defineProperty(window.screen, 'availWidth', { configurable: true, get: () => window.innerWidth })
+    Object.defineProperty(window.screen, 'availHeight', { configurable: true, get: () => window.innerHeight })
+    Object.defineProperty(Element.prototype, 'requestFullscreen', { configurable: true, value: () => Promise.resolve() })
+  })
+  const testId = '30000000-0000-4000-8000-000000000023'
+  const assessment = {
+    id: testId, classroom_id: '30000000-0000-4000-8000-000000000021',
+    title: 'Long Karel test', status: 'active', student_status: 'not_started',
+    show_results: false, effective_access: 'open',
+    documents: [{ id: 'reference', title: 'Karel reference', source: 'text', content: 'move()\nturn_left()' }],
+  }
+  const questions = Array.from({ length: 5 }, (_, index) => ({
+    id: `scroll-question-${index + 1}`, test_id: testId, position: index,
+    question_text: index < 2
+      ? `Coding question ${index + 1}\n\n${'Karel must complete the task for every valid world. Explain and implement your reusable helper. '.repeat(15)}`
+      : `Multiple choice question ${index + 1}`,
+    question_type: index < 2 ? 'open_response' : 'multiple_choice',
+    options: index < 2 ? [] : [`First answer for Q${index + 1}`, 'Second answer', 'Third answer'],
+    points: 1, response_max_chars: 5000, response_monospace: index < 2,
+  }))
+  const focusSummary = {
+    away_count: 0, away_total_seconds: 0, route_exit_attempts: 0,
+    window_unmaximize_attempts: 0, last_away_started_at: null, last_away_ended_at: null,
+  }
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    let body: unknown
+    if (path === '/api/student/tests') body = { tests: [assessment] }
+    else if (path === `/api/student/tests/${testId}`) {
+      body = { test: assessment, questions, student_responses: {}, focus_summary: focusSummary }
+    } else if (path.endsWith('/start')) body = { started: true }
+    else if (path.endsWith('/session-status')) body = { can_continue: true, student_status: 'not_started' }
+    else if (path.endsWith('/focus-events')) body = { success: true, focus_summary: focusSummary }
+    else if (path.includes('/draft')) body = { draft: null }
+    else if (path.includes('notifications')) {
+      body = { hasTodayEntry: true, unviewedAssignmentsCount: 0, activeTestsCount: 1, unreadAnnouncementsCount: 0 }
+    } else {
+      await route.abort()
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/e2e-fixtures/student-test-list')
+  await page.getByRole('button', { name: /Long Karel test/ }).click()
+  await page.getByRole('button', { name: 'Start the Test', exact: true }).click()
+  await page.getByRole('button', { name: 'Start test', exact: true }).click()
+
+  const pane = page.getByTestId('student-test-detail-pane')
+  const firstAnswer = page.getByLabel('Response for question 1', { exact: true })
+  const answer = 'def solve():\n    move()'
+  await firstAnswer.fill(answer)
+  const { viewport } = getExperienceMetadata(testInfo)
+  if (viewport === 'desktop') {
+    await expect.poll(() => pane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  }
+  const bounds = await pane.boundingBox()
+  expect(bounds).not.toBeNull()
+  // Wheel scrolling must reach the bottom without locator auto-scrolling hiding a layout bug.
+  await page.mouse.move(bounds!.x + bounds!.width - 30, Math.min(bounds!.y + 100, 600))
+  await page.mouse.wheel(0, 10_000)
+  const submit = page.getByRole('button', { name: 'Submit', exact: true })
+  await expect(submit).toBeInViewport()
+  await expect(page.getByText('Multiple choice question 5', { exact: true })).toBeInViewport()
+  await page.getByRole('radio', { name: 'First answer for Q5', exact: true }).check()
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('student-test-scroll-bottom.png'), animations: 'disabled' })
+
+  await page.mouse.wheel(0, -10_000)
+  if (viewport === 'desktop') await expect(firstAnswer).toBeInViewport()
+  await expect(firstAnswer).toHaveValue(answer)
+  await page.getByRole('button', { name: 'Karel reference', exact: true }).click()
+  await expect(firstAnswer).toHaveValue(answer)
+  if (viewport === 'desktop') {
+    const divider = page.getByRole('separator', { name: 'Resize documents and questions panes' })
+    await expect(divider).toHaveAttribute('aria-valuenow', '30')
+    await divider.focus()
+    await divider.press('ArrowRight')
+    await expect(divider).toHaveAttribute('aria-valuenow', '35')
+  }
+  await page.screenshot({ path: testInfo.outputPath('student-test-scroll-reference.png'), animations: 'disabled' })
 })

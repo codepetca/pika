@@ -1,3 +1,3 @@
-Prod DB 001–205;local206. Ent181;Plan206/off. A:open/Pal182–183,save184–185,sub186–187,hist188–189,art190,owner191,create192–193,grade194–195,ret196/order197/bulk198–199/repo200;off. M201–204;Assignment AI/off. V205 Grades/off. P:classroom-pal-and-student-cleanup-plan.md,attendance-decommission.md.
-Attendance timing released;Bara OK;teacher_entitlements smoke 4/4 passed 2026-08-28. CI authority;student purge on;others off.
+Prod DB 001–214/local001–217 verified09-27;local reset+seed;billing OFF. Ent181/Plan206 strict+autoFree ON09-26. A182–200/image213 OFF. Shared admission/material reads dormant. M201–204 AI/OFF;V205 Grades/OFF. Plan:classroom-access-and-entitlements-roadmap.md.
+Attendance timing released;teacher_entitlements smoke 4/4 passed 2026-08-28. CI authority;student purge ON;others OFF. Pal OFF;UI CI off. See docs/integrations/pal-achievements-pilot.md.
 WT:$HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika. Env:$HOME/Repos/.env/pika/.env.local;collaborators:.env.example.

@@ -56,27 +56,40 @@ export type Database = {
       }
       account_plans: {
         Row: {
+          billing_offering_version_id: string | null
           created_at: string
+          management_source: string
           plan_key: string
           revision: number
           subject_user_id: string
           updated_at: string
         }
         Insert: {
+          billing_offering_version_id?: string | null
           created_at?: string
+          management_source?: string
           plan_key: string
           revision: number
           subject_user_id: string
           updated_at?: string
         }
         Update: {
+          billing_offering_version_id?: string | null
           created_at?: string
+          management_source?: string
           plan_key?: string
           revision?: number
           subject_user_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "account_plans_billing_offering_version_id_fkey"
+            columns: ["billing_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "account_plans_subject_user_id_fkey"
             columns: ["subject_user_id"]
@@ -1144,6 +1157,8 @@ export type Database = {
           description: string
           due_at: string
           gradebook_category_id: string | null
+          gradebook_maximum_override: number | null
+          gradebook_score_scale: number
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -1168,6 +1183,8 @@ export type Database = {
           description?: string
           due_at: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -1192,6 +1209,8 @@ export type Database = {
           description?: string
           due_at?: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -2401,6 +2420,209 @@ export type Database = {
             foreignKeyName: "auth_sessions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_account_access: {
+        Row: {
+          access_ends_at: string
+          account_plan_revision: number
+          end_reason: string
+          entitlement_revision: number | null
+          expiry_applied_at: string | null
+          failed_renewal_invoice_id: string | null
+          last_paid_invoice_id: string | null
+          last_provider_verified_at: string | null
+          offering_version_id: string | null
+          paid_period_start: string | null
+          paid_through: string | null
+          revision: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          subscription_id: string | null
+          trial_subject_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_ends_at: string
+          account_plan_revision: number
+          end_reason: string
+          entitlement_revision?: number | null
+          expiry_applied_at?: string | null
+          failed_renewal_invoice_id?: string | null
+          last_paid_invoice_id?: string | null
+          last_provider_verified_at?: string | null
+          offering_version_id?: string | null
+          paid_period_start?: string | null
+          paid_through?: string | null
+          revision?: number
+          source: string
+          starts_at: string
+          subject_user_id: string
+          subscription_id?: string | null
+          trial_subject_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_ends_at?: string
+          account_plan_revision?: number
+          end_reason?: string
+          entitlement_revision?: number | null
+          expiry_applied_at?: string | null
+          failed_renewal_invoice_id?: string | null
+          last_paid_invoice_id?: string | null
+          last_provider_verified_at?: string | null
+          offering_version_id?: string | null
+          paid_period_start?: string | null
+          paid_through?: string | null
+          revision?: number
+          source?: string
+          starts_at?: string
+          subject_user_id?: string
+          subscription_id?: string | null
+          trial_subject_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_account_access_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_account_access_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_account_access_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_account_access_trial_subject_user_id_fkey"
+            columns: ["trial_subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "billing_trials"
+            referencedColumns: ["subject_user_id"]
+          },
+        ]
+      }
+      billing_lifecycle_audit: {
+        Row: {
+          created_at: string
+          id: string
+          next_state: Json
+          operation_id: string
+          previous_state: Json | null
+          reason: string
+          subject_user_id: string
+          subscription_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          next_state: Json
+          operation_id: string
+          previous_state?: Json | null
+          reason: string
+          subject_user_id: string
+          subscription_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          next_state?: Json
+          operation_id?: string
+          previous_state?: Json | null
+          reason?: string
+          subject_user_id?: string
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_lifecycle_audit_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_lifecycle_audit_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_trial_definitions: {
+        Row: {
+          classroom_limit: number
+          duration_seconds: number
+          id: string
+          plan_key: string
+        }
+        Insert: {
+          classroom_limit: number
+          duration_seconds: number
+          id: string
+          plan_key: string
+        }
+        Update: {
+          classroom_limit?: number
+          duration_seconds?: number
+          id?: string
+          plan_key?: string
+        }
+        Relationships: []
+      }
+      billing_trials: {
+        Row: {
+          converted_to_paid_at: string | null
+          definition_id: string
+          ends_at: string
+          operation_id: string
+          started_at: string
+          subject_user_id: string
+        }
+        Insert: {
+          converted_to_paid_at?: string | null
+          definition_id: string
+          ends_at: string
+          operation_id: string
+          started_at: string
+          subject_user_id: string
+        }
+        Update: {
+          converted_to_paid_at?: string | null
+          definition_id?: string
+          ends_at?: string
+          operation_id?: string
+          started_at?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_trials_definition_id_fkey"
+            columns: ["definition_id"]
+            isOneToOne: false
+            referencedRelation: "billing_trial_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_trials_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -5653,6 +5875,8 @@ export type Database = {
           created_at: string
           created_by: string
           gradebook_category_id: string | null
+          gradebook_maximum_override: number | null
+          gradebook_score_scale: number
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -5665,6 +5889,8 @@ export type Database = {
           created_at?: string
           created_by: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -5677,6 +5903,8 @@ export type Database = {
           created_at?: string
           created_by?: string
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -6526,6 +6754,546 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_customers: {
+        Row: {
+          created_at: string
+          provider_mode: string
+          stripe_account: string
+          stripe_customer_id: string
+          subject_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          provider_mode?: string
+          stripe_account: string
+          stripe_customer_id: string
+          subject_user_id: string
+        }
+        Update: {
+          created_at?: string
+          provider_mode?: string
+          stripe_account?: string
+          stripe_customer_id?: string
+          subject_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_customers_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_event_inbox: {
+        Row: {
+          attempt_count: number
+          attention_at: string | null
+          completed_at: string | null
+          event_created_at: string | null
+          event_type: string
+          exception_code: string | null
+          id: string
+          next_attempt_at: string | null
+          payload_hash: string
+          provider_mode: string
+          received_at: string
+          status: string
+          stripe_account: string
+          stripe_customer_id: string | null
+          stripe_event_id: string
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
+          subscription_id: string | null
+        }
+        Insert: {
+          attempt_count?: number
+          attention_at?: string | null
+          completed_at?: string | null
+          event_created_at?: string | null
+          event_type: string
+          exception_code?: string | null
+          id?: string
+          next_attempt_at?: string | null
+          payload_hash: string
+          provider_mode?: string
+          received_at?: string
+          status?: string
+          stripe_account: string
+          stripe_customer_id?: string | null
+          stripe_event_id: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_id?: string | null
+        }
+        Update: {
+          attempt_count?: number
+          attention_at?: string | null
+          completed_at?: string | null
+          event_created_at?: string | null
+          event_type?: string
+          exception_code?: string | null
+          id?: string
+          next_attempt_at?: string | null
+          payload_hash?: string
+          provider_mode?: string
+          received_at?: string
+          status?: string
+          stripe_account?: string
+          stripe_customer_id?: string | null
+          stripe_event_id?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_event_inbox_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_invoice_effects: {
+        Row: {
+          account_plan_revision: number
+          created_at: string
+          event_inbox_id: string | null
+          id: string
+          offering_version_id: string
+          period_end: string
+          period_start: string
+          stripe_account: string
+          stripe_invoice_id: string
+          subscription_id: string
+        }
+        Insert: {
+          account_plan_revision: number
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id: string
+          period_end: string
+          period_start: string
+          stripe_account: string
+          stripe_invoice_id: string
+          subscription_id: string
+        }
+        Update: {
+          account_plan_revision?: number
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id?: string
+          period_end?: string
+          period_start?: string
+          stripe_account?: string
+          stripe_invoice_id?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_invoice_effects_event_inbox_id_fkey"
+            columns: ["event_inbox_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_event_inbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_billing_invoice_effects_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_billing_invoice_effects_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_offering_availability: {
+        Row: {
+          available_from: string | null
+          available_until: string | null
+          is_available: boolean
+          offering_version_id: string
+          updated_at: string
+        }
+        Insert: {
+          available_from?: string | null
+          available_until?: string | null
+          is_available?: boolean
+          offering_version_id: string
+          updated_at?: string
+        }
+        Update: {
+          available_from?: string | null
+          available_until?: string | null
+          is_available?: boolean
+          offering_version_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_offering_availability_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: true
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_offering_versions: {
+        Row: {
+          ai_definition: Json | null
+          classroom_limit: number
+          created_at: string
+          currency: string
+          features: Json
+          id: string
+          interval: string
+          offering_id: string
+          provider_mode: string
+          stripe_account: string
+          stripe_price_id: string
+          stripe_product_id: string
+          unit_amount: number
+          version: number
+        }
+        Insert: {
+          ai_definition?: Json | null
+          classroom_limit: number
+          created_at?: string
+          currency: string
+          features: Json
+          id?: string
+          interval: string
+          offering_id: string
+          provider_mode?: string
+          stripe_account: string
+          stripe_price_id: string
+          stripe_product_id: string
+          unit_amount: number
+          version: number
+        }
+        Update: {
+          ai_definition?: Json | null
+          classroom_limit?: number
+          created_at?: string
+          currency?: string
+          features?: Json
+          id?: string
+          interval?: string
+          offering_id?: string
+          provider_mode?: string
+          stripe_account?: string
+          stripe_price_id?: string
+          stripe_product_id?: string
+          unit_amount?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_offering_versions_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offerings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_billing_offerings: {
+        Row: {
+          created_at: string
+          id: string
+          plan_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_key?: string
+        }
+        Relationships: []
+      }
+      stripe_billing_subscription_audit: {
+        Row: {
+          account_plan_revision: number | null
+          actor_ref: string | null
+          created_at: string
+          event_inbox_id: string | null
+          id: string
+          offering_version_id: string | null
+          outcome: string
+          reason_code: string | null
+          subscription_id: string
+          subscription_revision: number
+        }
+        Insert: {
+          account_plan_revision?: number | null
+          actor_ref?: string | null
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id?: string | null
+          outcome: string
+          reason_code?: string | null
+          subscription_id: string
+          subscription_revision: number
+        }
+        Update: {
+          account_plan_revision?: number | null
+          actor_ref?: string | null
+          created_at?: string
+          event_inbox_id?: string | null
+          id?: string
+          offering_version_id?: string | null
+          outcome?: string
+          reason_code?: string | null
+          subscription_id?: string
+          subscription_revision?: number
+        }
+        Relationships: []
+      }
+      stripe_billing_subscription_bindings: {
+        Row: {
+          created_at: string
+          fencing_token: number
+          id: string
+          is_current: boolean
+          last_exception_code: string | null
+          last_period_end: string | null
+          last_period_start: string | null
+          last_provider_status: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          next_reconcile_at: string | null
+          obligations_cleared_at: string | null
+          offering_version_id: string
+          provider_mode: string
+          reconcile_attempt_count: number
+          reconcile_attention_at: string | null
+          reconcile_state: string
+          revision: number
+          stripe_account: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          subject_user_id: string
+          terminal_confirmed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fencing_token?: number
+          id?: string
+          is_current?: boolean
+          last_exception_code?: string | null
+          last_period_end?: string | null
+          last_period_start?: string | null
+          last_provider_status?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_reconcile_at?: string | null
+          obligations_cleared_at?: string | null
+          offering_version_id: string
+          provider_mode?: string
+          reconcile_attempt_count?: number
+          reconcile_attention_at?: string | null
+          reconcile_state?: string
+          revision?: number
+          stripe_account: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          subject_user_id: string
+          terminal_confirmed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fencing_token?: number
+          id?: string
+          is_current?: boolean
+          last_exception_code?: string | null
+          last_period_end?: string | null
+          last_period_start?: string | null
+          last_provider_status?: string | null
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          next_reconcile_at?: string | null
+          obligations_cleared_at?: string | null
+          offering_version_id?: string
+          provider_mode?: string
+          reconcile_attempt_count?: number
+          reconcile_attention_at?: string | null
+          reconcile_state?: string
+          revision?: number
+          stripe_account?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          subject_user_id?: string
+          terminal_confirmed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_billing_subscription_bindings_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_billing_subscription_bindings_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_checkout_attempts: {
+        Row: {
+          cancel_url: string
+          checkout_url: string | null
+          created_at: string
+          fencing_token: number
+          id: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          lookup_key: string
+          next_attempt_at: string
+          offering_version_id: string
+          reason_code: string | null
+          request_fingerprint: string
+          reserved_plan_revision: number | null
+          retry_count: number
+          status: string
+          stripe_customer_id: string | null
+          stripe_session_id: string | null
+          subject_user_id: string
+          subscription_id: string | null
+          success_url: string
+          write_deadline: string
+        }
+        Insert: {
+          cancel_url: string
+          checkout_url?: string | null
+          created_at?: string
+          fencing_token?: number
+          id: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          lookup_key: string
+          next_attempt_at?: string
+          offering_version_id: string
+          reason_code?: string | null
+          request_fingerprint: string
+          reserved_plan_revision?: number | null
+          retry_count?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_session_id?: string | null
+          subject_user_id: string
+          subscription_id?: string | null
+          success_url: string
+          write_deadline?: string
+        }
+        Update: {
+          cancel_url?: string
+          checkout_url?: string | null
+          created_at?: string
+          fencing_token?: number
+          id?: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          lookup_key?: string
+          next_attempt_at?: string
+          offering_version_id?: string
+          reason_code?: string | null
+          request_fingerprint?: string
+          reserved_plan_revision?: number | null
+          retry_count?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_session_id?: string | null
+          subject_user_id?: string
+          subscription_id?: string | null
+          success_url?: string
+          write_deadline?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_checkout_attempts_offering_version_id_fkey"
+            columns: ["offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_checkout_attempts_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_checkout_attempts_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_checkout_audit: {
+        Row: {
+          action: string
+          attempt_id: string
+          created_at: string
+          fencing_token: number
+          id: number
+          reason_code: string | null
+        }
+        Insert: {
+          action: string
+          attempt_id: string
+          created_at?: string
+          fencing_token: number
+          id?: never
+          reason_code?: string | null
+        }
+        Update: {
+          action?: string
+          attempt_id?: string
+          created_at?: string
+          fencing_token?: number
+          id?: never
+          reason_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_checkout_audit_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_checkout_attempts"
             referencedColumns: ["id"]
           },
         ]
@@ -7699,6 +8467,8 @@ export type Database = {
           created_by: string
           documents: Json
           gradebook_category_id: string | null
+          gradebook_maximum_override: number | null
+          gradebook_score_scale: number
           gradebook_weight: number
           id: string
           include_in_final: boolean
@@ -7720,6 +8490,8 @@ export type Database = {
           created_by: string
           documents?: Json
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -7741,6 +8513,8 @@ export type Database = {
           created_by?: string
           documents?: Json
           gradebook_category_id?: string | null
+          gradebook_maximum_override?: number | null
+          gradebook_score_scale?: number
           gradebook_weight?: number
           id?: string
           include_in_final?: boolean
@@ -8459,6 +9233,47 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_apply_due_access_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_claim_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_claim_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_get_access_status_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_checkout_offering_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_get_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_list_checkout_offerings_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_list_checkout_work_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_requeue_subscription_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_reserve_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_save_checkout_progress_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_start_trial_v1: { Args: { p_request: Json }; Returns: Json }
       bind_classroom_archive_restore_managed_object: {
         Args: {
           p_managed_object_id: string
@@ -10273,6 +11088,15 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_assignment_inline_image_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_doc_id: string
+          p_expected_classroom_id: string
+          p_managed_object_id: string
+        }
+        Returns: Json
+      }
       finalize_cold_archived_classroom_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -10735,6 +11559,10 @@ export type Database = {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
+      normalize_classroom_archive_restore_row_pre_v210: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
       normalize_classroom_archive_restore_row_v143: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
@@ -10872,6 +11700,19 @@ export type Database = {
       queue_managed_storage_cleanup: {
         Args: { p_error_code?: string; p_object_id: string }
         Returns: boolean
+      }
+      read_assignment_inline_image_for_context_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_doc_id: string
+          p_expected_classroom_id: string
+          p_managed_object_id: string
+        }
+        Returns: Json
+      }
+      read_gradebook_maximum_state: {
+        Args: { p_classroom_id: string }
+        Returns: Json
       }
       reconcile_managed_storage_json_references: {
         Args: never
@@ -11200,6 +12041,18 @@ export type Database = {
       }
       reserve_assignment_ai_grading_item_usage_with_lease_v1: {
         Args: { p_item_id: string; p_lease_token: string }
+        Returns: Json
+      }
+      reserve_assignment_inline_image_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_doc_id: string
+          p_byte_size: number
+          p_content_type: string
+          p_expected_classroom_id: string
+          p_extension: string
+          p_object_id: string
+        }
         Returns: Json
       }
       reserve_feature_usage_v1: {
@@ -11567,6 +12420,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_gradebook_effective_mark: {
+        Args: {
+          p_assessment_id: string
+          p_assessment_type: string
+          p_classroom_id: string
+          p_earned: number
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
         Returns: Json
@@ -11688,6 +12552,19 @@ export type Database = {
           p_earned: number
           p_item_id: string
           p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      set_gradebook_maximum_override: {
+        Args: {
+          p_assessment_id: string
+          p_assessment_type: string
+          p_classroom_id: string
+          p_expected_maximum: number
+          p_expected_scale: number
+          p_maximum: number
+          p_mode: string
           p_teacher_id: string
         }
         Returns: Json

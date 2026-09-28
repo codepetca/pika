@@ -2,16 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Maximize, X } from 'lucide-react'
-import { Button } from '@/ui'
+import { Button, ModalLayer, PageState } from '@/ui'
 import {
   ExamDocumentWorkspace,
   type ExamDocumentItem,
 } from '@/components/ExamDocumentWorkspace'
-import { Spinner } from '@/components/Spinner'
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { fetchJSON } from '@/lib/request-cache'
-import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
+import { getTestDocumentImageType, isPdfTestDocument, isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import type { TestAssessmentQuestion, TestDocument } from '@/types'
 
@@ -21,6 +20,11 @@ interface Props {
   embedded?: boolean
   listenForUpdates?: boolean
   onClose?: () => void
+  draftPreview?: {
+    title: string
+    questions: TestAssessmentQuestion[]
+    documents: ExamDocumentItem[]
+  }
 }
 
 function isFullscreenActive(): boolean {
@@ -70,6 +74,7 @@ export function TeacherTestPreviewPage({
   embedded = false,
   listenForUpdates = false,
   onClose,
+  draftPreview,
 }: Props) {
   const [title, setTitle] = useState('Test Preview')
   const [questions, setQuestions] = useState<TestAssessmentQuestion[]>([])
@@ -86,6 +91,7 @@ export function TeacherTestPreviewPage({
   const previewRequestIdRef = useRef(0)
 
   const allowedDocs = useMemo(() => {
+    if (draftPreview) return draftPreview.documents
     const teacherManagedDocs = normalizeTestDocuments(documents).map((doc) => ({
       id: doc.id,
       title: doc.title,
@@ -99,10 +105,12 @@ export function TeacherTestPreviewPage({
             ? `/api/teacher/tests/${testId}/documents/${doc.id}/file`
             : undefined,
       content: doc.content,
+      imageType: getTestDocumentImageType(doc),
+      isPdf: isPdfTestDocument(doc),
     }))
     if (teacherManagedDocs.length > 0) return teacherManagedDocs
     return extractAllowedDocLinks(questions)
-  }, [documents, questions, testId])
+  }, [documents, draftPreview, questions, testId])
 
   useEffect(() => {
     setActiveDoc((previous) => {
@@ -177,20 +185,21 @@ export function TeacherTestPreviewPage({
   // Lock body scroll so the page-level container never scrolls in preview mode.
   // The root layout sets body.min-h-screen which allows body growth; this overrides it.
   useEffect(() => {
+    if (embedded) return
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = previous
     }
-  }, [])
+  }, [embedded])
 
   useEffect(() => {
-    if (loading || error) return
+    if ((!draftPreview && loading) || error) return
     if (!embedded) {
       maximizePreviewWindow()
       void requestExamFullscreen({ allowWindowFallback: true })
     }
-  }, [embedded, error, loading, maximizePreviewWindow, requestExamFullscreen])
+  }, [draftPreview, embedded, error, loading, maximizePreviewWindow, requestExamFullscreen])
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -260,12 +269,13 @@ export function TeacherTestPreviewPage({
   }, [testId])
 
   useEffect(() => {
+    if (draftPreview) return
     previewOwnerRef.current = testId
     void loadPreviewData()
     return () => {
       previewRequestIdRef.current += 1
     }
-  }, [loadPreviewData, testId])
+  }, [draftPreview, loadPreviewData, testId])
 
   useEffect(() => {
     autoSyncAttemptedRef.current.clear()
@@ -273,7 +283,7 @@ export function TeacherTestPreviewPage({
   }, [testId])
 
   useEffect(() => {
-    if (!listenForUpdates) return
+    if (!listenForUpdates || draftPreview) return
 
     const handleTestsUpdated = (event: Event) => {
       const detail = (event as CustomEvent<{ classroomId?: string }>).detail
@@ -285,9 +295,10 @@ export function TeacherTestPreviewPage({
     return () => {
       window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
     }
-  }, [classroomId, listenForUpdates, loadPreviewData])
+  }, [classroomId, draftPreview, listenForUpdates, loadPreviewData])
 
   useEffect(() => {
+    if (draftPreview) return
     if (loadedTestId !== testId) return
 
     const staleDoc = normalizeTestDocuments(documents).find((doc) => {
@@ -328,7 +339,7 @@ export function TeacherTestPreviewPage({
     return () => {
       isCancelled = true
     }
-  }, [documents, loadedTestId, testId])
+  }, [documents, draftPreview, loadedTestId, testId])
 
   function handleClosePreview() {
     if (onClose) {
@@ -344,41 +355,18 @@ export function TeacherTestPreviewPage({
     }, 150)
   }
 
-  const isLoadingCurrentPreview = loading || loadedTestId !== testId
-
-  if (isLoadingCurrentPreview) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-page px-4">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-page px-4 py-6">
-        <div className="mx-auto max-w-3xl rounded-xl border border-danger bg-danger-bg p-4 text-danger">
-          <p>{error}</p>
-          <Button type="button" variant="secondary" className="mt-3 gap-1.5" onClick={handleClosePreview}>
-            <X className="h-4 w-4" />
-            Close Preview
-          </Button>
-        </div>
-      </div>
-    )
-  }
+  const isLoadingCurrentPreview = !draftPreview && (loading || loadedTestId !== testId)
+  const previewTitle = draftPreview?.title ?? title
+  const previewQuestions = draftPreview?.questions ?? questions
 
   const isPreviewMaximized = isFullscreen || allowWindowMaximizedFallback
-  const showNotMaximizedWarning = !isPreviewMaximized
-  const rootClassName = embedded
-    ? 'fixed inset-0 z-[90] h-dvh overflow-hidden bg-page'
-    : 'h-dvh overflow-hidden bg-page'
+  const showNotMaximizedWarning = !isPreviewMaximized && !error
 
-  return (
+  const content = (
     <div
       role="region"
       aria-label="Teacher test preview"
-      className={`${rootClassName} flex flex-col`}
+      className="h-dvh overflow-hidden bg-page flex flex-col"
     >
       {showNotMaximizedWarning && (
         <div
@@ -445,7 +433,15 @@ export function TeacherTestPreviewPage({
         </div>
       </div>
 
-      {showNotMaximizedWarning ? (
+      {isLoadingCurrentPreview || error ? (
+        <div className={`relative flex-1 min-h-0 overflow-y-auto ${showNotMaximizedWarning ? 'sr-only' : ''}`}>
+          <PageState
+            kind={error ? 'error' : 'loading'}
+            title={error ? 'Could not load preview' : 'Loading preview'}
+            description={error || undefined}
+          />
+        </div>
+      ) : showNotMaximizedWarning ? (
         <div
           aria-hidden="true"
           className="pointer-events-none relative z-[66] flex flex-1 items-center justify-center px-3 pb-3 sm:px-4"
@@ -465,11 +461,11 @@ export function TeacherTestPreviewPage({
                 aria-label="Test questions"
                 className="h-full overflow-y-auto rounded-xl border border-border bg-surface p-3 scrollbar-none sm:p-4"
               >
-                <h2 className="text-xl font-bold text-text-default">{title}</h2>
-                {questions.length > 0 ? (
+                <h2 className="text-xl font-bold text-text-default">{previewTitle}</h2>
+                {previewQuestions.length > 0 ? (
                   <StudentTestForm
                     testId={testId}
-                    questions={questions}
+                    questions={previewQuestions}
                     previewMode
                     onSubmitted={() => {}}
                   />
@@ -482,5 +478,20 @@ export function TeacherTestPreviewPage({
         </div>
       )}
     </div>
+  )
+
+  if (!embedded) return content
+
+  return (
+    <ModalLayer
+      isOpen
+      onClose={handleClosePreview}
+      ariaLabel="Test preview"
+      closeOnBackdrop={false}
+      rootClassName=""
+      panelClassName="relative h-dvh w-full"
+    >
+      {content}
+    </ModalLayer>
   )
 }

@@ -1,3 +1,4 @@
+import { loadGradebookMaximumState } from '@/lib/server/gradebook-maximum'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
@@ -14,6 +15,7 @@ export async function getStudentReturnedGradebookItems(
   }
 
   const supabase = getServiceRoleClient()
+  const maximumState = await loadGradebookMaximumState(classroomId)
   const items: ReturnedGradebookItem[] = []
   const pageSize = 1000
   for (let offset = 0; ; offset += pageSize) {
@@ -39,12 +41,15 @@ export async function getStudentReturnedGradebookItems(
 
     items.push(...(data ?? []).map(score => {
       const item = score.gradebook_items
+      const state = maximumState.states.get(`item:${item.id}`)
+      const earned = Number(score.earned) * (state?.score_scale ?? 1)
+      const possible = state?.maximum ?? Number(item.points_possible)
       return {
         id: item.id,
         title: item.title,
-        earned: score.earned,
-        possible: item.points_possible,
-        percent: Math.round((score.earned / item.points_possible) * 10_000) / 100,
+        earned,
+        possible,
+        percent: Math.round((earned / possible) * 10_000) / 100,
         categoryName: item.gradebook_categories?.name ?? null,
         included: item.include_in_final && item.gradebook_weight > 0
           && (item.gradebook_categories?.percentage ?? 0) > 0,

@@ -7,7 +7,7 @@ import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/
 import { TeacherWorkSurfaceModeBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
 import { addDaysToDateString, getPastRelativeDateLabel } from '@/lib/date-string'
-import { Button, Card, TabPanel } from '@/ui'
+import { Button, Card, TableSelectionCheckbox, TabPanel } from '@/ui'
 
 // Fixed calendar context keeps examples reproducible without browser preferences or APIs.
 const REFERENCE_TODAY = '2026-08-30'
@@ -120,6 +120,20 @@ export function TeacherPatterns() {
           Only use modes after an item is selected and when they represent different work. Keep both
           panel targets mounted; the shared mode bar owns arrow-key navigation and selection.
         </p>
+      </Card>
+
+      <Card tone="muted" padding="sm">
+        <h3 className="text-sm font-semibold">Disabled selection guidance</h3>
+        <div className="mt-2 flex items-center gap-2 text-sm text-text-muted">
+          <TableSelectionCheckbox
+            checked={false}
+            onChange={() => {}}
+            ariaLabel="Select example student"
+            disabled
+            disabledTooltip="Publish the test first to select students."
+          />
+          <span>Draft test selection</span>
+        </div>
       </Card>
 
       <Card tone="muted" padding="sm">

@@ -42,11 +42,15 @@ export function getTeacherTestListDisplayStatus(
     stats?: Partial<TestAssessmentWithStats['stats']> | null
   }
 ): TestAssessmentStatus {
-  if (test.status !== 'active') return test.status
+  if (test.status === 'draft') return 'draft'
 
   const totalStudents = toNonNegativeCount(test.stats?.total_students)
   const openAccess = toNonNegativeCount(test.stats?.open_access)
   const closedAccess = toNonNegativeCount(test.stats?.closed_access)
+
+  // Individual access can be reopened after the test itself is closed.
+  if (openAccess !== null && openAccess > 0) return 'active'
+  if (test.status === 'closed') return 'closed'
 
   if (
     openAccess === 0 &&

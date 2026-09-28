@@ -7,6 +7,11 @@ describe('gradebook editor helpers', () => {
     expect(normalizeGradebookPreferences(null)).toEqual(DEFAULT_GRADEBOOK_PREFERENCES)
     expect(normalizeGradebookPreferences({ scoreDisplayMode: 'html', summaryKind: 2, showWeights: 'yes', lastNameFirst: true })).toEqual({ ...DEFAULT_GRADEBOOK_PREFERENCES, lastNameFirst: true })
   })
+  it('restores the compact setting and defaults older or invalid settings to off', () => {
+    expect(normalizeGradebookPreferences({ ultraCompact: true }).ultraCompact).toBe(true)
+    expect(normalizeGradebookPreferences({ ultraCompact: 'true' }).ultraCompact).toBe(false)
+    expect(normalizeGradebookPreferences({ showWeights: true }).ultraCompact).toBe(false)
+  })
   it.each([0, 1, 999])('accepts item weight %s', (weight) => {
     expect(isValidGradebookWeight(weight)).toBe(true)
   })

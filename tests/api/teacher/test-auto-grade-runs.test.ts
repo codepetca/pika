@@ -149,4 +149,14 @@ describe('test auto-grade run routes', () => {
     expect(assertTeacherOwnsTest).toHaveBeenCalledWith('teacher-1', 'test-1', { checkArchived: true })
     expect(tickTestAiGradingRun).not.toHaveBeenCalled()
   })
+
+  it('does not tick a queued run for a draft test', async () => {
+    assertTeacherOwnsTest.mockResolvedValueOnce({ ok: true, test: { status: 'draft' } })
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/auto-grade-runs/run-1/tick', { method: 'POST' }),
+      { params: Promise.resolve({ id: 'test-1', runId: 'run-1' }) },
+    )
+    expect(response.status).toBe(400)
+    expect(tickTestAiGradingRun).not.toHaveBeenCalled()
+  })
 })

@@ -133,8 +133,18 @@ jobs:
       - name: Verify classroom creation entitlements and active-limit concurrency
         run: bash scripts/check-classroom-creation-entitlements-database.sh
 
+      - name: Verify account plans and isolated Stripe billing contracts
+        run: |
+          bash scripts/check-account-plan-foundation-database.sh
+          bash scripts/check-stripe-billing-foundation-database.sh
+          bash scripts/check-stripe-checkout-database.sh
+          bash scripts/check-subscription-lifecycle-database.sh
+
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
+
+      - name: Verify Gradebook maximum override calculations and ownership
+        run: bash scripts/check-gradebook-maximum-overrides-database.sh
 
       - name: Standalone Gradebook item database contracts
         run: bash scripts/check-standalone-gradebook-items-database.sh
@@ -228,6 +238,15 @@ jobs:
 
       - name: Verify contextual learner assignment artifact atomicity
         run: bash scripts/check-contextual-assignment-artifacts-database.sh
+
+      - name: Verify contextual Assignment inline-image authorization contracts
+        run: bash scripts/check-contextual-assignment-inline-images-database.sh
+
+      - name: Verify contextual Assignment owner precedence
+        run: bash scripts/check-contextual-assignment-owner-precedence-database.sh
+
+      - name: Rehearse contextual Assignment routes against local Supabase
+        run: bash scripts/rehearse-local-contextual-assignment-lifecycle.sh
 
       - name: Verify contextual Assignment owner mutation atomicity
         run: bash scripts/check-contextual-assignment-owner-mutations-database.sh
@@ -370,6 +389,9 @@ jobs:
       - name: Rehearse full classroom archive recovery on local Supabase
         run: pnpm verify:classroom-archive-recovery
 
+      - name: Verify concurrent Stripe subscription binding and webhook intake
+        run: bash scripts/check-stripe-billing-binding-race.sh
+
       - name: Stop ephemeral database
         if: always()
         run: supabase stop --no-backup
@@ -455,7 +477,8 @@ jobs:
 
       - name: Run tests with coverage
         if: needs.classify-changes.outputs.run_test_build == 'true'
-        run: pnpm run test:coverage
+        # Pal's learner UI is paused; keep its API and data safety suites in CI.
+        run: pnpm run test:coverage:ci
 
       - name: Check TypeScript
         if: needs.classify-changes.outputs.run_test_build == 'true'

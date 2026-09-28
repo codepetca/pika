@@ -93,6 +93,16 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
     })
   })
 
+  it('does not suggest grades for a draft test', async () => {
+    mockAssertTeacherOwnsTest.mockResolvedValueOnce({ ok: true, test: { status: 'draft' } })
+    const response = await POST(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/responses/response-1/ai-suggest', { method: 'POST' }),
+      { params: Promise.resolve({ id: 'test-1', responseId: 'response-1' }) },
+    )
+    expect(response.status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
   function setupResponseRow(cacheError: unknown = null) {
     const questionUpdateChain = {
       eq: vi.fn(),

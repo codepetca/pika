@@ -2,6 +2,10 @@
 
 This schema defines the markdown format used by Pika's teacher test editor (`Markdown` tab) for creating/updating a single test.
 
+For prompt design, rubrics, sample solutions, diagrams, and readiness checks, see
+[Teacher Test Authoring](teacher-test-authoring.md). This page remains the format
+reference; subject-specific conventions belong in the course repository.
+
 ## Top-level Structure
 
 <!-- GENERATED:TEST_MARKDOWN_TOP_LEVEL_STRUCTURE:start -->

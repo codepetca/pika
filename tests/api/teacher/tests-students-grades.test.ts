@@ -3,12 +3,13 @@ import { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-handler'
 import { PATCH } from '@/app/api/teacher/tests/[id]/students/[studentId]/grades/route'
 
-const { saveStudentTestGrades } = vi.hoisted(() => ({ saveStudentTestGrades: vi.fn() }))
+const { saveStudentTestGrades, assertTeacherOwnsTest } = vi.hoisted(() => ({ saveStudentTestGrades: vi.fn(), assertTeacherOwnsTest: vi.fn() }))
 
 vi.mock('@/lib/auth', () => ({
   requireRole: vi.fn(async () => ({ id: 'teacher-1', role: 'teacher' })),
 }))
 vi.mock('@/lib/server/test-grades', () => ({ saveStudentTestGrades }))
+vi.mock('@/lib/server/tests', () => ({ assertTeacherOwnsTest }))
 
 const context = { params: Promise.resolve({ id: 'test-1', studentId: 'student-1' }) }
 const validGrade = {
@@ -29,6 +30,7 @@ function request(body: string | object) {
 describe('PATCH teacher student test grades', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    assertTeacherOwnsTest.mockResolvedValue({ ok: true, test: { status: 'closed' } })
     saveStudentTestGrades.mockResolvedValue({
       savedCount: 1,
       clearedCount: 0,
@@ -72,5 +74,12 @@ describe('PATCH teacher student test grades', () => {
     saveStudentTestGrades.mockRejectedValueOnce(new ApiError(409, 'Test response grade changed; reload and retry'))
     const response = await PATCH(request({ grades: [validGrade] }), context)
     expect(response.status).toBe(409)
+  })
+
+  it('does not save grades for a draft test', async () => {
+    assertTeacherOwnsTest.mockResolvedValueOnce({ ok: true, test: { status: 'draft' } })
+    const response = await PATCH(request({ grades: [validGrade] }), context)
+    expect(response.status).toBe(400)
+    expect(saveStudentTestGrades).not.toHaveBeenCalled()
   })
 })

@@ -15,10 +15,22 @@ const draftPristineCheck = vi.hoisted(() => vi.fn(() => ({
 vi.mock('@/components/TestDetailPanel', () => ({
   TestDetailPanel: ({
     testQuestionLayout,
+    initialSplitView,
+    onRequestClose,
+    onRequestPublish,
+    publicationError,
+    isClosing,
+    test: assessment,
     onDraftFlushReady,
     onDraftPristineCheckReady,
   }: {
     testQuestionLayout?: string
+    initialSplitView?: string
+    onRequestClose?: () => void
+    onRequestPublish?: () => void
+    publicationError?: string
+    isClosing?: boolean
+    test: TestAssessmentWithStats
     onDraftFlushReady?: (flush: (() => Promise<boolean>) | null) => void
     onDraftPristineCheckReady?: (
       check: (() => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }) | null
@@ -26,7 +38,11 @@ vi.mock('@/components/TestDetailPanel', () => ({
   }) => {
     onDraftFlushReady?.(draftFlush)
     onDraftPristineCheckReady?.(draftPristineCheck)
-    return <div data-testid="test-authoring-detail" data-question-layout={testQuestionLayout} />
+    return <div data-testid="test-authoring-detail" data-question-layout={testQuestionLayout} data-editor-view={initialSplitView}>
+      <button onClick={onRequestClose} disabled={isClosing}>{isClosing ? 'Saving...' : 'Close'}</button>
+      {assessment.status === 'draft' && <button onClick={onRequestPublish}>Publish</button>}
+      {publicationError && <div role="alert">{publicationError}</div>}
+    </div>
   },
 }))
 
@@ -91,50 +107,21 @@ function renderDialog({
 }
 
 describe('TeacherTestAuthoringDialog', () => {
-  it('names the authoring surface and exposes visual and markdown editor modes', () => {
-    const { onRequestPreview } = renderDialog()
+  it('names the authoring surface and delegates the split editor controls', () => {
+    renderDialog()
     const dialog = screen.getByRole('dialog', { name: 'Edit test' })
-    const codeButton = within(dialog).getByRole('button', { name: 'Code' })
-
-    expect(within(dialog).getByText('Edit test')).toBeVisible()
+    expect(within(dialog).getByText('Edit test')).toBeInTheDocument()
     expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute(
       'data-question-layout',
-      'editor-only',
+      'split',
     )
-    expect(codeButton).toHaveAttribute('aria-pressed', 'false')
-
-    fireEvent.click(codeButton)
-
-    expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute(
-      'data-question-layout',
-      'markdown-only',
-    )
-    expect(codeButton).toHaveAttribute('aria-pressed', 'true')
-
-    const preview = within(dialog).getByRole('button', { name: 'Preview' })
-    expect(preview).toHaveTextContent(/^$/)
-    fireEvent.click(preview)
-    expect(onRequestPreview).toHaveBeenCalledWith({
-      testId: 'test-1',
-      title: 'Unit Test',
-    })
+    expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute('data-editor-view', 'edit')
   })
 
-  it('starts in Markdown when requested while allowing the visual mode', () => {
+  it('passes the requested Markdown mode to the split editor', () => {
     renderDialog({ initialView: 'markdown' })
-    expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute('data-question-layout', 'markdown-only')
-    fireEvent.click(screen.getByRole('button', { name: 'Code' }))
-    expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute('data-question-layout', 'editor-only')
-  })
-
-  it('locks preview while markdown changes are pending', () => {
-    renderDialog({ hasPendingMarkdownImport: true })
-
-    expect(
-      within(screen.getByRole('dialog', { name: 'Edit test' })).getByRole('button', {
-        name: 'Preview',
-      }),
-    ).toBeDisabled()
+    expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute('data-question-layout', 'split')
+    expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute('data-editor-view', 'markdown')
   })
 
   it('publishes only from draft authoring after flushing the latest save', async () => {
