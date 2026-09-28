@@ -476,7 +476,8 @@ jobs:
 
       - name: Run tests with coverage
         if: needs.classify-changes.outputs.run_test_build == 'true'
-        run: pnpm run test:coverage
+        # Pal's learner UI is paused; keep its API and data safety suites in CI.
+        run: pnpm run test:coverage:ci
 
       - name: Check TypeScript
         if: needs.classify-changes.outputs.run_test_build == 'true'
