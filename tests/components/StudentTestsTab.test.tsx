@@ -1294,7 +1294,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(within(leftPane).getByLabelText(/Away time/)).toBeInTheDocument()
   })
 
-  it('opens docs at 50/50 with a resizer and restores 30/70 on back', async () => {
+  it('preserves the user pane width when opening reference documents and returning', async () => {
     mockFullscreenSuccess()
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
 
@@ -1438,6 +1438,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(leftPaneScroller).toBeInTheDocument()
     expect(leftPaneScroller?.className || '').toContain('overflow-y-auto')
 
+    fireEvent.keyDown(screen.getByRole('separator', { name: 'Resize documents and questions panes' }), { key: 'ArrowRight' })
     fireEvent.click(screen.getByRole('button', { name: 'Node.js API' }))
 
     await waitFor(() => {
@@ -1453,11 +1454,11 @@ describe('StudentTestsTab exam mode', () => {
     expect(container.querySelector('.z-\\[1\\].w-3.bg-white')).not.toBeInTheDocument()
     const splitContainerDocOpen = getSplitContainer(container)
     expect(splitContainerDocOpen.parentElement).toHaveStyle({
-      '--exam-documents-grow': '50',
-      '--exam-questions-grow': '50',
+      '--exam-documents-grow': '35',
+      '--exam-questions-grow': '65',
     })
     expect(screen.getByRole('separator', { name: 'Resize documents and questions panes' }))
-      .toHaveAttribute('aria-valuenow', '50')
+      .toHaveAttribute('aria-valuenow', '35')
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to documents list' }))
 
@@ -1466,8 +1467,8 @@ describe('StudentTestsTab exam mode', () => {
     })
     const splitContainerBack = getSplitContainer(container)
     expect(splitContainerBack.parentElement).toHaveStyle({
-      '--exam-documents-grow': '30',
-      '--exam-questions-grow': '70',
+      '--exam-documents-grow': '35',
+      '--exam-questions-grow': '65',
     })
     fireEvent.click(screen.getByRole('button', { name: 'Teacher reference PDF' }))
     await waitFor(() => {

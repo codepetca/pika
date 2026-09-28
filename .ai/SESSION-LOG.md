@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-25 — Subscription policy source of truth
-
-- Owner: `codex/platform-administration-design`, PR #1360. Added `docs/guidance/subscription-policy.md` for automated tier assignment, verified payment/account mapping, immediate same-interval upgrade proration, unchanged renewal dates, clear quotes, and existing-class protection. Linked it from the AI router, decision log, access roadmap, plan foundation, and operations proposal.
-- Explicitly separated agreed rules from proposed cancellation/grace/downgrade defaults and open provider, pricing, refund, grant-precedence, and AI-metering decisions. Billing is not implemented or activated by this documentation. Risk profile: none (documentation only). Model recommendation: GPT-6 Sol — bounded policy documentation.
-
-## 2026-09-25 — Strict creation activation readiness
-
-- User delegated final production checks and activation if gates pass. Subagent refreshed 182 classified accounts (180 Free, 1 Plus, 1 Pro), zero plan/grant/dual-audit mismatches, reviewed live database functions/triggers, and prepared guarded activation privately. Strict creation and automatic Free signup remain OFF; no hosted writes occurred.
-- Parent verified production alias at app SHA `213b2787`, authenticated owner classroom/Daily attendance/Classwork/Gradebook read access, 69 focused tests, and local rollback-only plan database contracts. Production student join/submission and remaining synthetic/write-flow canaries need completion using a designated disposable classroom and student session; user clarification pending. Private evidence stays outside Git. Existing work and account assignments unchanged.
-
-## 2026-09-26 — Ultra-compact Gradebook
-
-Added a remembered More actions toggle for compact assessment codes, four-letter
-categories, 44px weight inputs, and whole-number displayed percentages. First
-name/Final widths and grade calculations retain their existing behavior. Raw
-scores remain readable; production-owner Pattern Lab evidence added. Focused
-component/helper tests and desktop/mobile light/dark Playwright checks passed,
-including toggle persistence, editing, scroll, override marks and role isolation.
-
-## 2026-09-26 — Ultra-compact name-column refinement
-
-Hide the second displayed student name in ultra-compact mode, including metadata
-and summary rows. Detailed mode restores both names. Regression checks cover
-both name orders, ID visibility and raw-score alignment. Fresh raw screenshots
-show full earned/possible marks on desktop/mobile in light/dark themes.
-
 ## 2026-09-26 — Raw Gradebook maximum row
 
 Raw mode now shows a Max mark row before Weight in compact and regular layouts,
@@ -353,6 +327,7 @@ Main sync: resolved only continuity-document overlap after PR1368 landed; review
 ## 2026-09-27 — Resume Chrome PDF reference fix PR1353
 
 - User explicitly authorized merging PR1353 when ready. Rebased the previously reviewed PDF fix onto current main, preserving image-viewer routing and combining PDF MIME metadata with image metadata. Prior 853-test gate and Sol/Terra reviews cleared original head89ab04a8; updated integration checks and independent review required before merge. Risk profile: exam-mode.
+
 ## 2026-09-27 — Titlebar clock visibility
 - Task branch `codex/titlebar-clock-visibility`: show the existing Toronto date/time only in fullscreen, maximized windows, or exam mode. Keep exam compliance enforcement and mobile clock treatment unchanged. Reuse AppHeader clock/useFullscreen; extend visibility with a resize/focus-aware maximize hook. Risk: exam-mode presentation only; no compliance changes or new composite widget.
 - Shared app header is the approved shell reference; Pattern Lab now renders normal/exam production owners for both roles. Visual verification passed16 Playwright captures: teacher/student, light/dark, restored/maximized/fullscreen/mobile. Screenshots and reproducible capture script remain local under artifacts/titlebar-clock and /tmp/pika-titlebar-visual.cjs.
@@ -372,3 +347,27 @@ Main sync: resolved only continuity-document overlap after PR1368 landed; review
 ## 2026-09-27 — Titlebar mobile CI stabilization
 - Owner extended the review budget to resolve PR1374's mobile Pattern Lab tooltip failure and complete merge. CI passed Test & Build but failed the student mobile attendance tooltip checks. Reproduced the scroll/focus race locally; scrolling the absent chip into view before focus preserves the tooltip assertion and avoids the tooltip being dismissed by focus-induced scrolling.
 - Synced main ede9b218; conflicts were confined to duplicate archive history, preserving main's entries. Titlebar application/component-test files are byte-identical to reviewed632136b0. One-line browser-test correction, focused checks, bounded independent review and final-SHA CI precede merge.
+
+## 2026-09-27 — Test-mode pane layout
+
+Removed the redundant separator line from the shared student/teacher-preview document workspace. One 30/70-default width state now survives reference opening, Back, and switching documents; the resize control is available in the list too. Kept answer forms mounted and existing pointer/keyboard controls. Verification: 245 focused tests plus architecture/UI/design/typecheck/lint; student and teacher Playwright desktop/mobile light/dark captures and pane-width regressions. Composite accessibility checklist reviewed; keyboard and semantic state tested; no manual follow-up. Branch: codex/test-mode-pane-layout.
+
+## 2026-09-27 — Test reference image scrollbar stability
+
+Fixed image resize feedback by measuring fractional border-box viewport dimensions and using CSS minimum canvas dimensions instead of previous content-box measurements. Preserves zoom, Fit, scrolling, and mounted answers. Unit regression covers scrollbar-area changes and real pane resizing; browser regressions reserve scrollbar space and sample image geometry across 40 frames. Teacher/student desktop/mobile light/dark verification passed (8 scenarios); focused suite 250 tests plus architecture/UI/design/typecheck/lint passed. Also verified the local seeded Markdown/PNG test. PR1375 returned to draft before this correction.
+
+User chose image-specific maximum pane width. Opening an image now expands documents to the existing 50% limit, allows manual resizing while open, and restores the previous list width on Back; text and link references keep the user-selected width. Shared workspace state owns the behavior. Unit regression covers expand/manual resize/restore; eight teacher/student desktop/mobile light/dark browser scenarios pass, and all screenshots were inspected. Four affected component suites pass (76 tests); architecture/UI/design/TypeScript/lint and Pika audit pass. A broad focused rerun hit Vitest worker/test timeouts under local load, so final CI remains the full-suite gate. PR1375 correction review/CI pending.
+
+Checked whether divider dragging could record an exam exit. The divider changes only its CSS pane width, and its pointer interactions mark an allowed document interaction; window-compliance telemetry observes browser-window resize, fullscreen, visibility, focus, and navigation instead. Added a desktop student browser drag through the actual divider, then explicitly dispatched a transient window blur and asserted no focus-event request after the 600ms blur grace period. Light and dark variants pass. No product-code change was needed.
+
+Main advanced while PR1375 was open. Rebasing onto cdc48bc3 retained the new PDF-reference handling; the only conflicts were duplicate archived continuity entries, so main's copies were kept. On the rebased source, focused checks pass 255 tests plus architecture/UI/design/TypeScript/lint; all eight teacher/student image browser scenarios pass across desktop/mobile light/dark, and screenshots show the intended layout. The local dev server was relaunched with the repository launcher. Targeted sync review and exact-head CI follow.
+
+Exact-head CI passed Test & Build but failed two desktop long-test browser scenarios because their older text-reference assertion expected a 50% open pane. Updated the assertion to verify the new 30% preserved width and keyboard expansion to 35%; all four long-test desktop/mobile light/dark scenarios now pass locally, as do 255 focused tests and static gates. Seven unrelated browser scenarios were flaky but passed on retry in that CI run. PR returned to draft before this test correction; final review and fresh CI follow.
+
+## 2026-09-27 — Pause Pal UI CI
+
+Owner confirmed Pal is disabled until further notice. Recorded the pause in the current-state summary and Pal operations guide. Required CI now excludes the two Pal learner-component suites and dedicated Pal classroom browser scenario; backend, API, feature-gate, and theme-contract checks remain. Full component suites remain available through `pnpm test:coverage`, and the browser scenario can still be run directly before reactivation. PR1375 returned to draft before this correction. The CI test-selection check confirms the UI suites are absent and backend checks remain; workflow and focused validation follow.
+
+Independent review confirmed the CI exclusion scope and found the reactivation guide still named widget alpha.4 while the pinned dependency is alpha.6. Updated both guide references to alpha.6. Focused checks passed 255 tests and architecture/UI/design/TypeScript/lint; full CI coverage run follows.
+
+Full CI coverage command passed 885 files / 8,438 tests with coverage thresholds met. A first run exposed that the compact CURRENT note had changed exact phrases used by the Bara attendance documentation contract; restored those phrases while staying under the startup size budget. Both targeted contracts and the full coverage rerun passed. Targeted re-review reported no remaining blockers.

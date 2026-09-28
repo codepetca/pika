@@ -39,10 +39,17 @@ function ImageDocument({ title, url }: Props) {
   useEffect(() => {
     const element = viewportRef.current
     if (!element) return
-    const measure = () => setViewport({ width: element.clientWidth, height: element.clientHeight })
+    // The border box stays stable when scrollbars change the content box.
+    // Preserve fractional pixels so Fit never rounds beyond the pane's bounds.
+    const measure = () => {
+      const { width, height } = element.getBoundingClientRect()
+      setViewport((previous) => previous.width === width && previous.height === height
+        ? previous
+        : { width, height })
+    }
     measure()
     const observer = new ResizeObserver(measure)
-    observer.observe(element)
+    observer.observe(element, { box: 'border-box' })
     return () => observer.disconnect()
   }, [])
 
@@ -85,8 +92,8 @@ function ImageDocument({ title, url }: Props) {
           />
         ) : null}
         <div
-          className={loaded ? 'flex items-center justify-center' : 'hidden'}
-          style={loaded ? { width: Math.max(viewport.width, width), height: Math.max(viewport.height, height) } : undefined}
+          className={loaded ? 'flex min-h-full min-w-full items-center justify-center' : 'hidden'}
+          style={loaded ? { width, height } : undefined}
         >
           {/* Keep private delivery on the authenticated file route; image optimization cannot forward its session. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
