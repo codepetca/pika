@@ -11,54 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Raw Gradebook maximum row
-
-Raw mode now shows a Max mark row before Weight in compact and regular layouts,
-including when weights are hidden. Student and average cells show earned marks
-only; precise earned/possible information remains in editing labels. Compact raw
-columns are 64px. Tests cover zero/fractional values, row order and display-mode
-switching; production-owner desktop/mobile light/dark screenshots verified.
-
-## 2026-09-26 — Maximum override modal and calculation choices
-
-Prepared the maximum editor with Keep existing marks / Preserve percentages,
-refresh-to-original, persisted per-assessment maximum/scale, serialized normalized
-mark writes, and matching returned-only student calculation. Production-owner
-modal/table screenshots verified desktop/mobile light/dark. Migration 209 and a
-rollback-only database contract are authored; application/types verification
-requires one-time permission for local migration 209. No database changes applied.
-
-Independent Sol/Terra review found and remediation fixed cold-archive defaults,
-returned Classwork item scaling, fractional precision, manual input rounding,
-and bounded cumulative scales. App-first activation and rollback gate documented.
-Database harness now covers normalized fractions, historical archive keys,
-repeated scale rejection and reset. Local application approval remains pending.
-
-Second targeted review found an effective-maximum gate for empty/zero-point Tests.
-Manual marks now count with a positive override in teacher cells, final/summary,
-and returned student projection. Empty and zero-point tests have regressions.
-Migration 209 still awaits local approval; PR1365 remains draft.
-
-Final correction also handles fully scored zero-point Test questions without a
-manual mark against a positive effective maximum. Empty/unscored Tests stay
-omitted in both roles. Third fix batch; final integration review remains bounded.
-
-Local preflight found an external task had applied migration209
-stripe_billing_foundation (PR1366), which is absent from origin/main. Reserved
-210_gradebook_maximum_overrides.sql and added harness name checking; did not
-apply/repair/remove any migration. Local DB/types verification is additionally
-blocked until this checkout includes the approved billing baseline. The earlier
-209 approval request is obsolete; gradebook application would require local210.
-
-## 2026-09-26 — Above-maximum Gradebook warning
-
-Added amber border/background and warning triangle for assessment, final and
-average marks above 100%; raw mode compares earned to maximum. Compact warning
-and override icons coexist without clipping. Exact 100% and 150/200 stay normal.
-Verified 16 Pattern Lab screenshots across density, raw/percent, viewport and
-theme plus student-role isolation; focused checks and independent display review
-recorded in PR1365. Existing migration210/type/harness gates keep PR draft.
-
 ## 2026-09-26 — Simplify Gradebook mark cells
 
 Removed warning and refresh/override status icons from assessment, final, max
@@ -371,3 +323,17 @@ Owner confirmed Pal is disabled until further notice. Recorded the pause in the 
 Independent review confirmed the CI exclusion scope and found the reactivation guide still named widget alpha.4 while the pinned dependency is alpha.6. Updated both guide references to alpha.6. Focused checks passed 255 tests and architecture/UI/design/TypeScript/lint; full CI coverage run follows.
 
 Full CI coverage command passed 885 files / 8,438 tests with coverage thresholds met. A first run exposed that the compact CURRENT note had changed exact phrases used by the Bara attendance documentation contract; restored those phrases while staying under the startup size budget. Both targeted contracts and the full coverage rerun passed. Targeted re-review reported no remaining blockers.
+
+## 2026-09-27 — Main production promotion
+
+- Owner authorized main-to-production release PR1369. Batch main402f8028 contains admin prototype, local-only Stripe foundation, subscription policy and compact Gradebook changes. Reconciled only CURRENT and journal history conflicts, preserving both histories. Fresh production read confirms migrations206–210 and strict automatic Free signup active for183 classified accounts. No migration or feature switch changed.
+- Risk runtime-platform. One independent Sol security and Terra compatibility wave; local focused verification and final reviewed-head CI precede merge. Billing/admin and maximum-edit activation remain separate gates.
+
+## 2026-09-27 — Deploy reference-preservation fix
+
+User authorized production release of the merged fix. PR1373 promotes reviewed main6650e76a, including default-off checkout foundation PR1368 and reference-preservation PR1370. Independent Sol safety and Terra compatibility reviews found no application blockers; resolved continuity archive conflict by retaining both histories, with application/schema blobs unchanged. No migrations, billing flags, provider configuration, or worker scheduling are authorized or performed. Exact-head release CI and Vercel readiness precede completion.
+
+## 2026-09-27 — Promote seven main PRs to production
+
+- Owner authorized PR1379 to promote main4d0c4474 over production6904c2ed. The batch includes contextual Assignment image/owner safeguards, billing webhook scope checks, dormant classroom admission, PDF references, fullscreen clock, Test reference pane fixes, and paused Pal UI CI.
+- Production diverged only in continuity notes. Resolved CURRENT to the newer main status and retained four unique production promotion records in the journal; application and migration files match main. No migration, account, feature-flag, or provider configuration is changed by the PR. Risk profile: runtime-platform. Model recommendation: GPT-6 Sol — release coordination and conflict reconciliation. Independent cumulative review and full CI gate are required before merge.
