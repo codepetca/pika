@@ -135,6 +135,8 @@ export const courseBlueprintAiApplySchema = z.object({
     'grading',
   ]),
   content: z.string(),
+  original_content: z.string().max(250_000).optional(),
+  draft_provenance_token: z.string().max(4096).optional(),
   expected_blueprint_revision: z.number().int().positive().optional(),
   unit_exception_id: z.string().uuid().nullable().optional(),
 })

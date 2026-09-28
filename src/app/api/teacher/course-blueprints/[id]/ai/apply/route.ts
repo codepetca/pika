@@ -9,6 +9,7 @@ import {
   submitCourseBlueprintProposal,
 } from '@/lib/server/course-blueprint-proposals'
 import { resolveCourseBlueprintAuthoringContext } from '@/lib/course-blueprint-authoring-context'
+import { verifyCourseBlueprintDraftProvenanceToken } from '@/lib/server/course-blueprint-draft-provenance'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,7 +17,7 @@ export const revalidate = 0
 export const POST = withErrorHandler('PostTeacherCourseBlueprintAiApply', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
-  const { target, content, expected_blueprint_revision, unit_exception_id } = courseBlueprintAiApplySchema.parse(await request.json())
+  const { target, content, original_content, draft_provenance_token, expected_blueprint_revision, unit_exception_id } = courseBlueprintAiApplySchema.parse(await request.json())
   const detailResult = await getCourseBlueprintDetail(user.id, id)
 
   if (!detailResult.detail) {
@@ -44,6 +45,27 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintAiApply', async 
   )) {
     return NextResponse.json({ error: 'The selected unit guidance is no longer available' }, { status: 409 })
   }
+  const guidanceProvenance = guided ? {
+    blueprint_revision: detailResult.detail.content_revision,
+    ...resolveCourseBlueprintAuthoringContext({
+      guidance: detailResult.detail.authoring_guidance,
+      target,
+      unitExceptionId: unit_exception_id,
+    }),
+  } : undefined
+  if (guidanceProvenance && (!draft_provenance_token || original_content === undefined
+    || !verifyCourseBlueprintDraftProvenanceToken({
+      token: draft_provenance_token,
+      teacherId: user.id,
+      blueprintId: id,
+      provenance: guidanceProvenance,
+      generatedContent: original_content,
+    }))) {
+    return NextResponse.json(
+      { error: 'This draft preview is invalid or expired. Generate a new draft from saved guidance.' },
+      { status: 409 },
+    )
+  }
 
   const candidate = buildCourseBlueprintAiCandidate(detailResult.detail, target, content)
   if (!candidate.ok) {
@@ -59,14 +81,7 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintAiApply', async 
     candidate: candidate.candidate,
     source: 'ai',
     idempotencyKey: crypto.randomUUID(),
-    guidanceProvenance: guided ? {
-      blueprint_revision: detailResult.detail.content_revision,
-      ...resolveCourseBlueprintAuthoringContext({
-        guidance: detailResult.detail.authoring_guidance,
-        target,
-        unitExceptionId: unit_exception_id,
-      }),
-    } : undefined,
+    guidanceProvenance,
   })
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status })

@@ -261,6 +261,8 @@ export default function TeacherBlueprintsPage() {
   const [aiPreview, setAiPreview] = useState<{
     target: CopilotTarget
     content: string
+    originalContent: string
+    draftProvenanceToken?: string
     guidance?: {
       blueprint_revision: number
       unit_exception_id: string | null
@@ -1104,6 +1106,8 @@ export default function TeacherBlueprintsPage() {
         setAiPreview({
           target,
           content: data.suggestion.content || '',
+          originalContent: data.suggestion.content || '',
+          draftProvenanceToken: data.suggestion.draft_provenance_token,
           guidance: data.suggestion.guidance,
         })
       }
@@ -1125,6 +1129,8 @@ export default function TeacherBlueprintsPage() {
         body: JSON.stringify({
           target: aiPreview.target,
           content: aiPreview.content,
+          original_content: aiPreview.originalContent,
+          draft_provenance_token: aiPreview.draftProvenanceToken,
           expected_blueprint_revision: aiPreview.guidance?.blueprint_revision,
           unit_exception_id: aiPreview.guidance?.unit_exception_id,
         }),
@@ -1850,7 +1856,7 @@ export default function TeacherBlueprintsPage() {
                             className="max-w-sm"
                             options={[
                               { value: '', label: 'Course rules only' },
-                              ...(detail?.authoring_guidance.unit_exceptions.map((unit) => ({
+                              ...(detail?.authoring_guidance?.unit_exceptions.map((unit) => ({
                                 value: unit.id,
                                 label: unit.unit_label,
                               })) ?? []),
@@ -1904,6 +1910,7 @@ export default function TeacherBlueprintsPage() {
                           </details>
                         ) : null}
                         <textarea
+                          aria-label="Draft preview Markdown"
                           value={aiPreview.content}
                           onChange={(e) => setAiPreview((current) => (current ? { ...current, content: e.target.value } : current))}
                           className="min-h-[420px] w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"

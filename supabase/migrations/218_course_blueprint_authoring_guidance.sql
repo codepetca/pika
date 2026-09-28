@@ -276,3 +276,139 @@ revoke all on function public.apply_course_blueprint_proposal_with_guidance_atom
 grant execute on function public.apply_course_blueprint_proposal_with_guidance_atomic(
   uuid, uuid, jsonb, text
 ) to service_role;
+
+-- Provider-backed Blueprint drafts need one shared per-teacher lease and a
+-- bounded rolling attempt budget across every application instance. The
+-- reservation is made before the provider call and retained when it fails.
+create table public.course_blueprint_draft_admissions (
+  teacher_id uuid primary key references public.users (id) on delete cascade,
+  attempt_timestamps timestamptz[] not null,
+  active_lease_token uuid,
+  active_lease_expires_at timestamptz,
+  updated_at timestamptz not null default clock_timestamp(),
+  constraint course_blueprint_draft_admissions_attempts_valid check (
+    cardinality(attempt_timestamps) between 1 and 3
+  ),
+  constraint course_blueprint_draft_admissions_lease_pair check (
+    (active_lease_token is null and active_lease_expires_at is null)
+    or (active_lease_token is not null and active_lease_expires_at is not null)
+  )
+);
+
+alter table public.course_blueprint_draft_admissions enable row level security;
+revoke all on public.course_blueprint_draft_admissions
+  from public, anon, authenticated, service_role;
+
+create function public.acquire_course_blueprint_draft_slot(p_teacher_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_now timestamptz := clock_timestamp();
+  v_lease_token uuid := gen_random_uuid();
+  v_recent_attempts timestamptz[];
+  v_admission public.course_blueprint_draft_admissions%rowtype;
+begin
+  if p_teacher_id is null or not exists (
+    select 1 from public.users
+    where id = p_teacher_id and role = 'teacher'
+  ) then
+    raise exception using errcode = '42501', message = 'course_blueprint_draft_teacher_required';
+  end if;
+
+  insert into public.course_blueprint_draft_admissions (
+    teacher_id, attempt_timestamps, active_lease_token,
+    active_lease_expires_at, updated_at
+  ) values (
+    p_teacher_id, array[v_now], v_lease_token,
+    v_now + interval '90 seconds', v_now
+  )
+  on conflict (teacher_id) do nothing
+  returning * into v_admission;
+
+  if found then
+    return jsonb_build_object(
+      'ok', true,
+      'lease_token', v_admission.active_lease_token,
+      'lease_expires_at', v_admission.active_lease_expires_at
+    );
+  end if;
+
+  select * into v_admission
+  from public.course_blueprint_draft_admissions
+  where teacher_id = p_teacher_id
+  for update;
+
+  if not found then
+    raise exception using errcode = '55000', message = 'course_blueprint_draft_admission_missing';
+  end if;
+
+  if v_admission.active_lease_token is not null
+    and v_admission.active_lease_expires_at > v_now then
+    return jsonb_build_object('ok', false, 'reason', 'active');
+  end if;
+
+  v_recent_attempts := array(
+    select attempted_at
+    from unnest(v_admission.attempt_timestamps) as attempted_at
+    where attempted_at > v_now - interval '10 minutes'
+    order by attempted_at
+  );
+
+  if cardinality(v_recent_attempts) >= 3 then
+    update public.course_blueprint_draft_admissions
+    set attempt_timestamps = v_recent_attempts,
+        active_lease_token = null,
+        active_lease_expires_at = null,
+        updated_at = v_now
+    where teacher_id = p_teacher_id;
+    return jsonb_build_object('ok', false, 'reason', 'rate_limited');
+  end if;
+
+  v_recent_attempts := array_append(v_recent_attempts, v_now);
+  update public.course_blueprint_draft_admissions
+  set attempt_timestamps = v_recent_attempts,
+      active_lease_token = v_lease_token,
+      active_lease_expires_at = v_now + interval '90 seconds',
+      updated_at = v_now
+  where teacher_id = p_teacher_id
+  returning * into v_admission;
+
+  return jsonb_build_object(
+    'ok', true,
+    'lease_token', v_admission.active_lease_token,
+    'lease_expires_at', v_admission.active_lease_expires_at
+  );
+end;
+$$;
+
+create function public.release_course_blueprint_draft_slot(
+  p_teacher_id uuid,
+  p_lease_token uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.course_blueprint_draft_admissions
+  set active_lease_token = null,
+      active_lease_expires_at = null,
+      updated_at = clock_timestamp()
+  where teacher_id = p_teacher_id
+    and active_lease_token = p_lease_token;
+  return found;
+end;
+$$;
+
+revoke all on function public.acquire_course_blueprint_draft_slot(uuid)
+  from public, anon, authenticated, service_role;
+revoke all on function public.release_course_blueprint_draft_slot(uuid, uuid)
+  from public, anon, authenticated, service_role;
+grant execute on function public.acquire_course_blueprint_draft_slot(uuid)
+  to service_role;
+grant execute on function public.release_course_blueprint_draft_slot(uuid, uuid)
+  to service_role;

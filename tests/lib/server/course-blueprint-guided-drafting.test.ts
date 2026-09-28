@@ -113,4 +113,31 @@ describe('guided Blueprint drafting', () => {
     expect(result.guidance.trial).toBe(true)
     expect(detail.authoring_guidance.course_expectations_markdown).toBe('Use the taught vocabulary.')
   })
+
+  it('bounds the final provider input when rules exceed the request budget', async () => {
+    const fetchMock = mockModel({
+      title: 'Unused', instructions_markdown: 'Unused', points_possible: 1,
+    })
+    await expect(generateCourseBlueprintGuidedDraft({
+      detail: {
+        ...detail,
+        authoring_guidance: {
+          ...detail.authoring_guidance,
+          course_expectations_markdown: '🔥'.repeat(10_000),
+          assignment_guidance_markdown: '🔥'.repeat(10_000),
+          unit_exceptions: Array.from({ length: 3 }, (_, index) => ({
+            id: `11111111-1111-4111-8111-11111111111${index}`,
+            unit_label: `Unit ${index}`,
+            assignment_guidance_markdown: '🔥'.repeat(10_000),
+            test_guidance_markdown: '',
+          })),
+        },
+        outline_markdown: 'D'.repeat(12_000),
+      } as CourseBlueprintDetail,
+      target: 'assignments',
+      prompt: 'E'.repeat(4_000),
+      unitExceptionId: '11111111-1111-4111-8111-111111111110',
+    })).rejects.toThrow('too long')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

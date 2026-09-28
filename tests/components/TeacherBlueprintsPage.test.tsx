@@ -336,6 +336,54 @@ describe('TeacherBlueprintsPage', () => {
     expect(screen.getByRole('button', { name: 'Review changes' })).toBeDisabled()
   })
 
+  it('carries the signed saved-guidance preview into a proposal after teacher edits', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url === '/api/teacher/course-blueprints/b-2/ai/suggest' && init?.method === 'POST') {
+        return Promise.resolve(jsonResponse({ suggestion: {
+          target: 'tests', content: 'Original test draft', draft_provenance_token: 'signed-token',
+          guidance: {
+            blueprint_revision: 4, unit_exception_id: null, unit_label: null,
+            rules_markdown: 'Saved course rules', trial: false,
+          },
+        } }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2/ai/apply' && init?.method === 'POST') {
+        return Promise.resolve(jsonResponse({ proposal: proposalFixture('ai', 4) }))
+      }
+      if (url === '/api/teacher/course-blueprints/b-2/proposals') {
+        return Promise.resolve(jsonResponse({ proposals: [] }))
+      }
+      return defaultFetch!(input, init)
+    })
+
+    render(<TeacherBlueprintsPage />)
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Blueprint Two' })).toBeInTheDocument())
+    openSection('Content', 'AI Drafting')
+    fireEvent.change(screen.getByRole('combobox', { name: 'Draft Section' }), { target: { value: 'tests' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draft Preview' }))
+    await waitFor(() => expect(screen.getByText('Preview: Tests')).toBeInTheDocument())
+    fireEvent.change(screen.getByRole('textbox', { name: 'Draft preview Markdown' }), {
+      target: { value: 'Teacher-edited test draft' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Propose Change' }))
+    await waitFor(() => expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      '/api/teacher/course-blueprints/b-2/ai/apply',
+      expect.objectContaining({ method: 'POST' }),
+    ))
+    const applyCall = vi.mocked(fetch).mock.calls.find(([input]) =>
+      String(input) === '/api/teacher/course-blueprints/b-2/ai/apply')
+    const payload = JSON.parse(String(applyCall?.[1]?.body))
+    expect(payload).toEqual(expect.objectContaining({
+      target: 'tests',
+      content: 'Teacher-edited test draft',
+      original_content: 'Original test draft',
+      draft_provenance_token: 'signed-token',
+      expected_blueprint_revision: 4,
+    }))
+  })
+
   it('reuses one import key when the same course package is retried', async () => {
     const view = render(<TeacherBlueprintsPage />)
 

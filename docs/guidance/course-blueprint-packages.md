@@ -149,6 +149,7 @@ pnpm test tests/lib/course-blueprint-package-contract.test.ts
 - Ungraded classwork materials
 - Survey definitions and questions
 - Gradebook mode and assignment/test category weights
+- Teacher-only course, assignment, Test, and unit authoring guidance
 
 ## Excluded
 
@@ -192,8 +193,14 @@ Successful and failed API responses include `operation_id` when a ledger-backed 
 
 Apply `081_atomic_blueprint_round_trips.sql` and
 `112_versioned_course_blueprint_identity.sql` before deploying the
-identity-aware application code. The application deliberately fails closed
-with HTTP `503` when a required migration is absent.
+identity-aware application code. Apply
+`218_course_blueprint_authoring_guidance.sql` before deploying package version
+`6` and guidance-aware Blueprint code. Migration `218` adds the private guidance
+column and revision history, updates the content revision trigger, and adds
+atomic import and proposal wrappers that preserve guidance. Import and proposal
+application fail closed with HTTP `503` when their required RPC is absent;
+missing guidance schema must be treated as a rollout failure, never as empty
+teacher guidance.
 
 The migration is additive, so the previous application version can run while it is being applied. If the application deployment must be rolled back, leave the migration and ledger in place. Do not drop the functions, triggers, revision columns, or ledger until all deployed application versions no longer reference them.
 
