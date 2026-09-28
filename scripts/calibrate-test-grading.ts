@@ -30,16 +30,29 @@
  *   pnpm calibrate:test-grading --effort low,medium
  *   pnpm calibrate:test-grading --allocation proportional
  *   pnpm calibrate:test-grading --all --profiles both
+ *   pnpm calibrate:test-grading --all --max-points 10 --batch-size 1,2,4 --order-seed 1,2 --profile bulk --dry-run
  *   pnpm calibrate:test-grading a.grading-snapshot.json b.grading-snapshot.json
+ *
+ * Comparison options, private verified targets and reference-rate pricing:
+ * docs/guidance/test-grading-comparison.md
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, renameSync, statSync } from 'node:fs'
 import { basename } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import {
   suggestTestOpenResponseGrade,
+  getTestOpenResponseGradingModel,
   type TestOpenResponsePromptProfile,
 } from '@/lib/ai-test-grading'
 import type { StructuredOutputRequest } from '@/lib/grading/providers/types'
+import {
+  answerId, assertPrivateOutput, buildComparisonPlan, COMPARISON_GRADING_SOURCE_PATHS,
+  eligibleComparisonCandidates, pricingSchema, runComparison, summarizeComparison,
+  validateComparisonResume, validateResumeProvenance,
+  summarizeOrderSensitivity, validateTargets, type ComparisonResult,
+} from './lib/test-grading-comparison'
 
 type EffortLevel = StructuredOutputRequest['reasoningEffort']
 const EFFORT_LEVELS: EffortLevel[] = ['minimal', 'low', 'medium', 'high']
@@ -489,6 +502,7 @@ async function main(): Promise<void> {
     return index >= 0 && index + 1 < argv.length ? argv[index + 1] : null
   }
   const dryRun = argv.includes('--dry-run')
+  const resume = argv.includes('--resume')
   const useAll = argv.includes('--all')
   const bothProfiles = flag('--profiles') === 'both'
   const sampleSize = Number(flag('--sample') ?? DEFAULT_SAMPLE)
@@ -497,9 +511,16 @@ async function main(): Promise<void> {
   const allocationArg = flag('--allocation') ?? 'balanced'
   const effortArg = flag('--effort')
   const maxPointsArg = flag('--max-points')
+  const comparisonFlags = ['--batch-size', '--order-seed', '--profile', '--verified-targets', '--pricing']
+  const comparison = resume || comparisonFlags.some((name) => argv.includes(name))
   const valueFlags = new Set([
     '--sample', '--seed', '--profiles', '--out', '--allocation', '--effort', '--max-points',
+    ...comparisonFlags,
   ])
+  for (const [index, arg] of argv.entries()) {
+    if (arg.startsWith('--') && !valueFlags.has(arg) && !['--all', '--dry-run', '--resume'].includes(arg)) throw new Error(`Unknown option: ${arg}`)
+    if (valueFlags.has(arg) && (argv[index + 1] == null || argv[index + 1].startsWith('--'))) throw new Error(`Missing value for ${arg}`)
+  }
   const snapshotPaths = argv.filter((arg, index) => {
     if (arg.startsWith('--')) return false
     const previous = argv[index - 1]
@@ -507,7 +528,7 @@ async function main(): Promise<void> {
   })
   const paths = snapshotPaths.length > 0 ? snapshotPaths : DEFAULT_SNAPSHOTS
 
-  if (!Number.isFinite(sampleSize) || sampleSize < 1) {
+  if (!Number.isInteger(sampleSize) || sampleSize < 1) {
     console.error('--sample must be a positive number.')
     process.exitCode = 1
     return
@@ -551,7 +572,11 @@ async function main(): Promise<void> {
     return
   }
 
-  const allCandidates = loadCandidates(paths)
+  const loadedCandidates = loadCandidates(paths)
+  // Match production eligibility before sampling, so blanks cannot consume sample slots
+  // or change a real answer's batch membership. Exact snapshot identity stays unchanged.
+  const allCandidates = comparison ? eligibleComparisonCandidates(loadedCandidates) : loadedCandidates
+  const excludedUnanswered = loadedCandidates.length - allCandidates.length
   // Narrowing to one point scale lets a question-shaped hypothesis be tested against that
   // whole population rather than the handful a balanced sample would reach.
   const candidates = maxPointsFilter == null
@@ -573,6 +598,7 @@ async function main(): Promise<void> {
   }
 
   const profiles: TestOpenResponsePromptProfile[] = bothProfiles ? ['bulk', 'manual'] : ['bulk']
+  if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff) throw new Error('--seed must be an unsigned 32-bit integer')
   const random = mulberry32(seed)
   const sample = useAll
     ? stratify(candidates, candidates.length, random, allocation)
@@ -581,6 +607,83 @@ async function main(): Promise<void> {
   console.log(
     `Loaded ${candidates.length} teacher-scored responses from ${paths.length} snapshot${paths.length > 1 ? 's' : ''}; sampling ${sample.length} (seed ${seed}).`,
   )
+  if (comparison) {
+    if (argv.includes('--profiles') || argv.includes('--effort')) throw new Error('Comparison uses one --profile and the production-default effort; omit --profiles and --effort')
+    const profile = flag('--profile') ?? 'bulk'
+    if (profile !== 'manual' && profile !== 'bulk') throw new Error('--profile must be manual or bulk')
+    const numberList = (value: string) => {
+      if (value.split(',').some((part) => !part.trim())) throw new Error('Comparison lists cannot have empty entries')
+      return value.split(',').map(Number)
+    }
+    const batchSizes = numberList(flag('--batch-size') ?? '1,2,4')
+    const orderSeeds = numberList(flag('--order-seed') ?? '1')
+    const targetPath = flag('--verified-targets')
+    const pricingPath = flag('--pricing')
+    assertPrivateOutput(outPath, [...paths, ...[targetPath, pricingPath].filter((path): path is string => path != null)])
+    const targets = targetPath ? validateTargets(JSON.parse(readFileSync(targetPath, 'utf8')), allCandidates) : new Map()
+    const pricing = pricingPath ? pricingSchema.parse(JSON.parse(readFileSync(pricingPath, 'utf8'))) : undefined
+    const plans = buildComparisonPlan(sample, batchSizes, orderSeeds)
+    const currentCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+    const sourceDirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim().length > 0
+    const digest = (value: Buffer | string) => createHash('sha256').update(value).digest('hex')
+    const model = getTestOpenResponseGradingModel()
+    const snapshotHashes = paths.map((path) => digest(readFileSync(path)))
+    const targetDocumentHash = targetPath ? digest(readFileSync(targetPath)) : null
+    const gradingSourceDigest = (commit: string) => digest(execFileSync('git', [
+      'ls-tree', '-r', commit, '--', ...COMPARISON_GRADING_SOURCE_PATHS,
+    ]))
+    const currentGradingSourceDigest = gradingSourceDigest(currentCommit)
+    let resumed: ComparisonResult | undefined
+    let saved: Record<string, unknown> | undefined
+    if (resume) {
+      if (!existsSync(outPath)) throw new Error('--resume requires an existing private output checkpoint')
+      saved = JSON.parse(readFileSync(outPath, 'utf8')) as Record<string, unknown>
+      if (saved.schemaVersion !== 'test-grading-comparison-v1' || saved.sourceDirty !== false
+        || !Array.isArray(saved.snapshots) || JSON.stringify(saved.snapshots) !== JSON.stringify(paths)
+        || saved.sampleSeed !== seed || saved.allocation !== allocation || saved.excludedUnanswered !== excludedUnanswered
+        || typeof saved.sourceCommit !== 'string' || !/^[a-f0-9]{40}$/.test(saved.sourceCommit)
+        || typeof saved.startedAt !== 'string' || sourceDirty) throw new Error('Comparison checkpoint metadata or source worktree changed')
+      validateResumeProvenance(saved, {
+        model, snapshotHashes, snapshotModifiedAtMs: paths.map((path) => statSync(path).mtimeMs),
+        allEligibleSampled: sample.length === candidates.length,
+        targetDocumentHash, allTargetsSampled: sample.filter((row) => targets.has(answerId(row))).length === targets.size,
+        gradingSourceDigest: currentGradingSourceDigest,
+        originalGradingSourceDigest: gradingSourceDigest(saved.sourceCommit),
+      })
+      resumed = validateComparisonResume(saved, sample, { profile, batchSizes, orderSeeds, targets, pricing })
+    }
+    console.table(plans.map((plan) => ({ batchSize: plan.batchSize, orderSeed: plan.orderSeed, answers: sample.length,
+      singleCalls: plan.chunks.filter((chunk) => chunk.length === 1).length, batchCalls: plan.chunks.filter((chunk) => chunk.length > 1).length })))
+    process.stdout.write(`One fixed ${profile} profile; production-default effort. ${sample.filter((row) => targets.has(answerId(row))).length}/${targets.size} verified targets sampled. ${plans.reduce((sum, plan) => sum + plan.chunks.length, 0)} grading operations; references prepared once per exact question; HTTP retries may add calls.\n`)
+    if (dryRun) { process.stdout.write(`${resume ? '--resume preflight passed. ' : ''}--dry-run: no provider calls made, no file written.\n`); return }
+    if (!process.env.DEEPSEEK_API_KEY?.trim()) throw new Error('DEEPSEEK_API_KEY is not configured')
+    const startedAt = saved?.startedAt ?? new Date().toISOString()
+    const sourceCommit = saved?.sourceCommit ?? currentCommit
+    const resumes = resume ? [...(Array.isArray(saved?.resumes) ? saved.resumes : []), {
+      resumedAt: new Date().toISOString(), sourceCommit: currentCommit,
+      completedOperations: resumed!.scenarios.reduce((sum, scenario) => sum + scenario.operations.length, 0),
+      interruptedAttemptCostUnknown: true,
+    }] : []
+    let lastReported = 0
+    const checkpoint = (result: ComparisonResult) => {
+      const temporary = `${outPath}.${process.pid}.tmp.grading-analysis.json`
+      writeFileSync(temporary, JSON.stringify({ schemaVersion: 'test-grading-comparison-v1', startedAt, resumes,
+        updatedAt: new Date().toISOString(), sourceCommit, sourceDirty, snapshots: paths, snapshotHashes,
+        targetDocumentHash, model, gradingSourceDigest: currentGradingSourceDigest,
+        sampleSeed: seed, allocation, excludedUnanswered,
+        note: 'Verified target intervals are adjudications; recorded marks are second opinions. Costs use supplied reference rates, not billed charges. Shared preparation spend is separate. Per-answer cost is allocated equally within its call; latency is the whole call. Missing usage remains unknown. Sequential execution, cache state, and the pause gap can affect comparisons. A request interrupted by a prior run may have unmeasured cost.',
+        ...result, summary: summarizeComparison(result), orderSensitivity: summarizeOrderSensitivity(result) }, null, 2) + '\n', { flag: 'wx', mode: 0o600 })
+      renameSync(temporary, outPath)
+      const operations = result.preparation.length + result.scenarios.reduce((sum, scenario) => sum + scenario.operations.length, 0)
+      if (operations >= lastReported + 5 || result.complete) { process.stdout.write(`Completed ${operations} comparison operations${result.complete ? ' (finished)' : ''}.\n`); lastReported = operations }
+    }
+    const result = await runComparison(sample, { profile, batchSizes, orderSeeds, targets, pricing, resume: resumed, checkpoint })
+    console.table(summarizeComparison(result))
+    console.table(summarizeOrderSensitivity(result))
+    process.stdout.write(`Private comparison saved to ${outPath}\n`)
+    if (result.scenarios.some((scenario) => scenario.rows.some((row) => row.failure))) process.exitCode = 1
+    return
+  }
   describePlan(sample, candidates, profiles, efforts, allocation)
 
   if (dryRun) {
