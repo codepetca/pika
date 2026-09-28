@@ -343,6 +343,7 @@ describe('TeacherBlueprintsPage', () => {
       if (url === '/api/teacher/course-blueprints/b-2/ai/suggest' && init?.method === 'POST') {
         return Promise.resolve(jsonResponse({ suggestion: {
           target: 'tests', content: 'Original test draft', draft_provenance_token: 'signed-token',
+          original_content_sha256: 'a'.repeat(64),
           guidance: {
             blueprint_revision: 4, unit_exception_id: null, unit_label: null,
             rules_markdown: 'Saved course rules', trial: false,
@@ -378,7 +379,7 @@ describe('TeacherBlueprintsPage', () => {
     expect(payload).toEqual(expect.objectContaining({
       target: 'tests',
       content: 'Teacher-edited test draft',
-      original_content: 'Original test draft',
+      original_content_sha256: 'a'.repeat(64),
       draft_provenance_token: 'signed-token',
       expected_blueprint_revision: 4,
     }))

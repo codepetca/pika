@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { acquireCourseBlueprintDraftSlot } from '@/lib/server/course-blueprint-draft-admission'
+import { getServiceRoleClient } from '@/lib/supabase'
+
+type AdmissionClient = Pick<ReturnType<typeof getServiceRoleClient>, 'rpc'>
 
 function client(results: Array<{ data: unknown; error: { message: string } | null }>) {
   return { rpc: vi.fn().mockImplementation(() => Promise.resolve(results.shift())) }
@@ -20,7 +23,7 @@ describe('Blueprint guided draft shared admission', () => {
     ])
 
     const release = await acquireCourseBlueprintDraftSlot({
-      teacherId: 'teacher-1', supabase,
+      teacherId: 'teacher-1', supabase: supabase as unknown as AdmissionClient,
     })
     await release()
 
@@ -39,7 +42,7 @@ describe('Blueprint guided draft shared admission', () => {
   ] as const)('returns 429 for %s before the provider can be called', async (reason, message) => {
     const supabase = client([{ data: { ok: false, reason }, error: null }])
     await expect(acquireCourseBlueprintDraftSlot({
-      teacherId: 'teacher-1', supabase,
+      teacherId: 'teacher-1', supabase: supabase as unknown as AdmissionClient,
     })).rejects.toMatchObject({ statusCode: 429, message })
   })
 
@@ -49,7 +52,7 @@ describe('Blueprint guided draft shared admission', () => {
   ])('fails closed when the database admission response is unavailable or invalid', async (result) => {
     const supabase = client([result])
     await expect(acquireCourseBlueprintDraftSlot({
-      teacherId: 'teacher-1', supabase,
+      teacherId: 'teacher-1', supabase: supabase as unknown as AdmissionClient,
     })).rejects.toMatchObject({ statusCode: 503 })
   })
 })

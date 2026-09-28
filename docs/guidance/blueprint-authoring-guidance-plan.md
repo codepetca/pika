@@ -63,7 +63,8 @@ equally first-class.
 - Identify the real drafting entry points and whether existing AI Drafting can
   truthfully apply guidance or needs a new teacher-reviewed draft flow.
 - Classroom drafting reads the frozen source Blueprint Version through a
-  teacher-only endpoint. A draft should record that version and chosen unit
+  teacher-only endpoint. Its AI draft request must use that Version's rules,
+  not the live Blueprint Draft. A draft records the Version and chosen unit
   separately from student-facing instructions/questions.
 
 ## Implementation notes
@@ -92,10 +93,16 @@ equally first-class.
   instruction for the exact file was requested under the rollout checklist.
 - Run the full focused check after updating all package-version test fixtures.
   Publish a draft PR, obtain independent fixed-SHA review, and complete PR Gate.
-- Connect classroom Test and Assignment creation to the frozen source Version
-  guidance. The teacher-only Version reader is present, but the classroom
-  creation UI currently opens an empty draft. The Blueprint AI Drafting path is
-  the first working consumer of the guidance.
+- Follow-up PR: connect classroom Test and Assignment creation to the frozen
+  source Version guidance. The teacher-only Version reader is present, but the
+  classroom creation UI currently opens an empty draft. The Blueprint AI
+  Drafting path is the first working consumer. The classroom flow needs a unit
+  picker, model request containing the frozen rules, an editable preview, and
+  server-verified provenance on creation. Store provenance in a private sidecar
+  row; existing `source_blueprint_version_id` tracks copied artifact lineage
+  and must not be repurposed. Create the artifact, initial content, and
+  provenance atomically. A read-only guidance notice alone does not establish
+  that the rules shaped the draft.
 
 Resolve these from the current source and migration contracts before changing
 the schema. Record decisions and verification evidence here as phases land.

@@ -6,7 +6,10 @@ import { getCourseBlueprintDetail } from '@/lib/server/course-blueprints'
 import { suggestCourseBlueprintDraft } from '@/lib/course-blueprint-copilot'
 import { generateCourseBlueprintGuidedDraft } from '@/lib/server/course-blueprint-guided-drafting'
 import { acquireCourseBlueprintDraftSlot } from '@/lib/server/course-blueprint-draft-admission'
-import { createCourseBlueprintDraftProvenanceToken } from '@/lib/server/course-blueprint-draft-provenance'
+import {
+  createCourseBlueprintDraftProvenanceToken,
+  hashCourseBlueprintDraftContent,
+} from '@/lib/server/course-blueprint-draft-provenance'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -37,13 +40,15 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintAiSuggest', asyn
         trialGuidance: trial_guidance,
       })
       const { trial, ...provenance } = suggestion.guidance
+      const originalContentSha256 = hashCourseBlueprintDraftContent(suggestion.content)
       return NextResponse.json({ suggestion: {
         ...suggestion,
+        original_content_sha256: originalContentSha256,
         draft_provenance_token: createCourseBlueprintDraftProvenanceToken({
           teacherId: user.id,
           blueprintId: id,
           provenance,
-          generatedContent: suggestion.content,
+          generatedContentSha256: originalContentSha256,
           trial,
         }),
       } })

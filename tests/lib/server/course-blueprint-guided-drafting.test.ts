@@ -140,4 +140,30 @@ describe('guided Blueprint drafting', () => {
     })).rejects.toThrow('too long')
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('limits existing titles passed to the model even for a very large collection', async () => {
+    const fetchMock = mockModel({
+      title: 'New practice', instructions_markdown: 'Submit the program.', points_possible: 10,
+    })
+    const assignments = Array.from({ length: 100 }, (_, position) => ({
+      title: `Existing ${position} ${'X'.repeat(1000)}`,
+      instructions_markdown: '',
+      default_due_days: 7,
+      default_due_time: '23:59',
+      points_possible: 10,
+      include_in_final: true,
+      is_draft: true,
+      position,
+    }))
+    await generateCourseBlueprintGuidedDraft({
+      detail: { ...detail, assignments } as CourseBlueprintDetail,
+      target: 'assignments',
+      prompt: '',
+    })
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    const modelInput = request.input[1].content[0].text as string
+    expect(modelInput).toContain('Existing 0')
+    expect(modelInput).not.toContain('Existing 99')
+    expect(Buffer.byteLength(modelInput, 'utf8')).toBeLessThan(20_000)
+  })
 })

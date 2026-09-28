@@ -261,7 +261,7 @@ export default function TeacherBlueprintsPage() {
   const [aiPreview, setAiPreview] = useState<{
     target: CopilotTarget
     content: string
-    originalContent: string
+    originalContentSha256?: string
     draftProvenanceToken?: string
     guidance?: {
       blueprint_revision: number
@@ -1106,7 +1106,7 @@ export default function TeacherBlueprintsPage() {
         setAiPreview({
           target,
           content: data.suggestion.content || '',
-          originalContent: data.suggestion.content || '',
+          originalContentSha256: data.suggestion.original_content_sha256,
           draftProvenanceToken: data.suggestion.draft_provenance_token,
           guidance: data.suggestion.guidance,
         })
@@ -1129,7 +1129,7 @@ export default function TeacherBlueprintsPage() {
         body: JSON.stringify({
           target: aiPreview.target,
           content: aiPreview.content,
-          original_content: aiPreview.originalContent,
+          original_content_sha256: aiPreview.originalContentSha256,
           draft_provenance_token: aiPreview.draftProvenanceToken,
           expected_blueprint_revision: aiPreview.guidance?.blueprint_revision,
           unit_exception_id: aiPreview.guidance?.unit_exception_id,

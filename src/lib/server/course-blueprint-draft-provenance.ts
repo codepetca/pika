@@ -27,6 +27,10 @@ function sha256(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
+export function hashCourseBlueprintDraftContent(content: string): string {
+  return sha256(content)
+}
+
 function sign(encoded: string): Buffer {
   return createHmac('sha256', secret()).update(encoded).digest()
 }
@@ -35,7 +39,7 @@ export function createCourseBlueprintDraftProvenanceToken(args: {
   teacherId: string
   blueprintId: string
   provenance: CourseBlueprintDraftGuidanceProvenance
-  generatedContent: string
+  generatedContentSha256: string
   trial: boolean
   nowMs?: number
 }): string {
@@ -48,7 +52,7 @@ export function createCourseBlueprintDraftProvenanceToken(args: {
     blueprint_revision: args.provenance.blueprint_revision,
     unit_exception_id: args.provenance.unit_exception_id,
     context_sha256: sha256(args.provenance),
-    generated_content_sha256: sha256(args.generatedContent),
+    generated_content_sha256: args.generatedContentSha256,
     trial: args.trial,
     issued_at_ms: nowMs,
     expires_at_ms: nowMs + TTL_MS,
@@ -62,7 +66,7 @@ export function verifyCourseBlueprintDraftProvenanceToken(args: {
   teacherId: string
   blueprintId: string
   provenance: CourseBlueprintDraftGuidanceProvenance
-  generatedContent: string
+  generatedContentSha256: string
   nowMs?: number
 }): boolean {
   if (!args.token || args.token.length > 4096) return false
@@ -85,7 +89,7 @@ export function verifyCourseBlueprintDraftProvenanceToken(args: {
       && payload.blueprint_revision === args.provenance.blueprint_revision
       && payload.unit_exception_id === args.provenance.unit_exception_id
       && payload.context_sha256 === sha256(args.provenance)
-      && payload.generated_content_sha256 === sha256(args.generatedContent)
+      && payload.generated_content_sha256 === args.generatedContentSha256
   } catch {
     return false
   }

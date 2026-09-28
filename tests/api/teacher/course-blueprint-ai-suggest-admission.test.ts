@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   generate: vi.fn(),
   acquire: vi.fn(),
   createToken: vi.fn(),
+  hashContent: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.requireRole }))
@@ -21,6 +22,7 @@ vi.mock('@/lib/server/course-blueprint-draft-admission', () => ({
 }))
 vi.mock('@/lib/server/course-blueprint-draft-provenance', () => ({
   createCourseBlueprintDraftProvenanceToken: mocks.createToken,
+  hashCourseBlueprintDraftContent: mocks.hashContent,
 }))
 
 function request(target: 'tests' | 'assignments' = 'tests') {
@@ -44,6 +46,7 @@ beforeEach(() => {
     },
   })
   mocks.createToken.mockReturnValue('signed-draft-token')
+  mocks.hashContent.mockReturnValue('a'.repeat(64))
   mocks.generate.mockResolvedValue({
     content: 'A guided draft',
     guidance: { blueprint_revision: 7, trial: false },

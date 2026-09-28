@@ -14,21 +14,14 @@ const acquisitionResultSchema = z.discriminatedUnion('ok', [
   }),
 ])
 
-// Keep the new RPC boundary typed until the migration can be replayed against
-// an isolated database and database.generated.ts can be regenerated from it.
-interface AdmissionClient {
-  rpc(name: string, args: Record<string, unknown>): PromiseLike<{
-    data: unknown
-    error: { code?: string; message?: string } | null
-  }>
-}
+type AdmissionClient = Pick<ReturnType<typeof getServiceRoleClient>, 'rpc'>
 
 /** Reserve a paid provider call in the database before invoking the model. */
 export async function acquireCourseBlueprintDraftSlot(args: {
   teacherId: string
   supabase?: AdmissionClient
 }): Promise<() => Promise<void>> {
-  const supabase = args.supabase ?? getServiceRoleClient() as unknown as AdmissionClient
+  const supabase = args.supabase ?? getServiceRoleClient()
   const { data, error } = await supabase.rpc('acquire_course_blueprint_draft_slot', {
     p_teacher_id: args.teacherId,
   })

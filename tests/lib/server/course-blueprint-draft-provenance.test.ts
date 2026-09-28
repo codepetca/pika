@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createCourseBlueprintDraftProvenanceToken,
+  hashCourseBlueprintDraftContent,
   verifyCourseBlueprintDraftProvenanceToken,
 } from '@/lib/server/course-blueprint-draft-provenance'
 import type { CourseBlueprintDraftGuidanceProvenance } from '@/lib/course-blueprint-authoring-context'
@@ -16,7 +17,7 @@ const identity = {
   teacherId: 'teacher-1',
   blueprintId: 'blueprint-1',
   provenance,
-  generatedContent: 'Original model draft',
+  generatedContentSha256: hashCourseBlueprintDraftContent('Original model draft'),
 }
 
 afterEach(() => vi.unstubAllEnvs())
@@ -27,7 +28,10 @@ describe('guided Blueprint draft provenance', () => {
     const token = createCourseBlueprintDraftProvenanceToken({ ...identity, trial: false, nowMs: 1000 })
     expect(verifyCourseBlueprintDraftProvenanceToken({ ...identity, token, nowMs: 1001 })).toBe(true)
     expect(verifyCourseBlueprintDraftProvenanceToken({ ...identity, token, teacherId: 'another', nowMs: 1001 })).toBe(false)
-    expect(verifyCourseBlueprintDraftProvenanceToken({ ...identity, token, generatedContent: 'changed seed', nowMs: 1001 })).toBe(false)
+    expect(verifyCourseBlueprintDraftProvenanceToken({
+      ...identity, token,
+      generatedContentSha256: hashCourseBlueprintDraftContent('changed seed'), nowMs: 1001,
+    })).toBe(false)
     expect(verifyCourseBlueprintDraftProvenanceToken({ ...identity, token, nowMs: 31 * 60 * 1000 })).toBe(false)
   })
 

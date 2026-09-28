@@ -17,7 +17,7 @@ export const revalidate = 0
 export const POST = withErrorHandler('PostTeacherCourseBlueprintAiApply', async (request, context) => {
   const user = await requireRole('teacher')
   const { id } = await context.params
-  const { target, content, original_content, draft_provenance_token, expected_blueprint_revision, unit_exception_id } = courseBlueprintAiApplySchema.parse(await request.json())
+  const { target, content, original_content_sha256, draft_provenance_token, expected_blueprint_revision, unit_exception_id } = courseBlueprintAiApplySchema.parse(await request.json())
   const detailResult = await getCourseBlueprintDetail(user.id, id)
 
   if (!detailResult.detail) {
@@ -53,13 +53,13 @@ export const POST = withErrorHandler('PostTeacherCourseBlueprintAiApply', async 
       unitExceptionId: unit_exception_id,
     }),
   } : undefined
-  if (guidanceProvenance && (!draft_provenance_token || original_content === undefined
+  if (guidanceProvenance && (!draft_provenance_token || !original_content_sha256
     || !verifyCourseBlueprintDraftProvenanceToken({
       token: draft_provenance_token,
       teacherId: user.id,
       blueprintId: id,
       provenance: guidanceProvenance,
-      generatedContent: original_content,
+      generatedContentSha256: original_content_sha256,
     }))) {
     return NextResponse.json(
       { error: 'This draft preview is invalid or expired. Generate a new draft from saved guidance.' },

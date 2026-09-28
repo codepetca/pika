@@ -73,7 +73,7 @@ describe('guided Blueprint draft routes', () => {
     const preview = (await suggested.json()).suggestion
     const submitted = await apply(post('apply', {
       target: 'tests', content: preview.content,
-      original_content: preview.content,
+      original_content_sha256: preview.original_content_sha256,
       draft_provenance_token: preview.draft_provenance_token,
       expected_blueprint_revision: 7,
     }), routeContext)
@@ -94,7 +94,7 @@ describe('guided Blueprint draft routes', () => {
     const preview = (await suggested.json()).suggestion
     const submitted = await apply(post('apply', {
       target: 'assignments', content: 'Teacher-edited assignment',
-      original_content: preview.content,
+      original_content_sha256: preview.original_content_sha256,
       draft_provenance_token: preview.draft_provenance_token,
       expected_blueprint_revision: 7,
     }), routeContext)
@@ -105,5 +105,28 @@ describe('guided Blueprint draft routes', () => {
         rules_markdown: '## Course expectations\n\nSaved rule A',
       }),
     }))
+  })
+
+  it('accepts a preview larger than 250,000 characters through its signed hash', async () => {
+    const largeContent = 'Long valid Blueprint content\n'.repeat(10_000)
+    expect(largeContent.length).toBeGreaterThan(250_000)
+    mockGenerate.mockResolvedValue({
+      target: 'assignments', content: largeContent,
+      guidance: {
+        blueprint_revision: 7, target: 'assignments', unit_exception_id: null,
+        unit_label: null, rules_markdown: '## Course expectations\n\nSaved rule A', trial: false,
+      },
+    })
+    const suggested = await suggest(post('suggest', { target: 'assignments' }), routeContext)
+    const preview = (await suggested.json()).suggestion
+    expect(preview.original_content_sha256).toMatch(/^[a-f0-9]{64}$/)
+    const submitted = await apply(post('apply', {
+      target: 'assignments', content: largeContent,
+      original_content_sha256: preview.original_content_sha256,
+      draft_provenance_token: preview.draft_provenance_token,
+      expected_blueprint_revision: 7,
+    }), routeContext)
+    expect(submitted.status).toBe(201)
+    expect(mockSubmit).toHaveBeenCalledTimes(1)
   })
 })
