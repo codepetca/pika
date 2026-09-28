@@ -33457,3 +33457,9 @@ is still unconsumed; exact-head targeted review and CI precede application/merge
 
 - PR #1360 CI passed the browser matrix but failed one of 8,088 tests because the compact production migration note no longer matched the established `Prod DB 001–NNN` format. Restored that format and removed a redundant undated health shorthand to retain the startup size limit. Runtime activation facts and application code are unchanged.
 - Returned the PR to draft before correction. Verify the attendance rollout-note contract together with startup guidance and the focused gate, then independently review the fixed commit before requesting CI again. No production changes or merge performed. Risk profile: none; model recommendation: GPT-6 Sol for this documentation correction.
+
+<!-- pika-session-log-archive-batch:6084cd808d11680a71b6087ce6c41fd48dd941588591ab924a7beaee442e52dd -->
+## 2026-09-26 — Stripe provider decision
+
+- Owner selected Stripe for paid subscriptions. Added SUB-06 to the canonical subscription policy, recorded the decision, and removed provider selection from open decisions. Tier caps remain Free0/Basic2/Plus5/Pro10; paid prices and AI quantities remain undecided. This records provider selection only, without billing implementation or live charges.
+- Corrected the plan-foundation status to point to the verified production strict/default-Free rollout. No runtime behavior changed. Risk profile: none; model recommendation: GPT-6 Sol for policy documentation. Validate focused checks and independent documentation review before marking the updated PR ready.
