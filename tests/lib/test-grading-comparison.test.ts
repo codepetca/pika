@@ -11,7 +11,7 @@ vi.mock('@/lib/ai-test-grading', () => ({
 }))
 
 import {
-  answerId, assertPrivateOutput, buildComparisonPlan, measureOperation, questionKey, runComparison, validateTargets,
+  answerId, assertPrivateOutput, buildComparisonPlan, measureOperation, questionKey, runComparison, validateComparisonResume, validateTargets,
   type ComparisonCandidate,
 } from '../../scripts/lib/test-grading-comparison'
 
@@ -167,5 +167,66 @@ describe('test grading comparison', () => {
     expect(single).toHaveBeenCalledTimes(1)
     expect(single.mock.calls[0][1]).toBe('Repeats work.')
     expect(batch).not.toHaveBeenCalled()
+  })
+
+  it('resumes the exact completed prefix without repeating grading calls or losing prior scores', async () => {
+    const rows = Array.from({ length: 3 }, (_, i) => candidate(String(i)))
+    const options = { profile: 'bulk' as const, batchSizes: [1, 2], orderSeeds: [1], targets: new Map() }
+    prepare.mockResolvedValue({ reference_answers: ['reference'] })
+    single.mockResolvedValue({ score: 4, feedback: 'Earlier score', provenance: {} })
+    batch.mockImplementation(async (_context, requests) => requests.map((request: { responseId: string }) => ({
+      responseId: request.responseId, score: 3, feedback: 'Later score', provenance: {},
+    })))
+    let saved: Awaited<ReturnType<typeof runComparison>> | undefined
+    await expect(runComparison(rows, { ...options, checkpoint: (result) => {
+      if (result.scenarios[0]?.operations.length === 2) {
+        saved = structuredClone(result)
+        throw new Error('Synthetic interruption')
+      }
+    } })).rejects.toThrow('Synthetic interruption')
+    expect(saved?.scenarios[0].rows).toHaveLength(2)
+    expect(single).toHaveBeenCalledTimes(2)
+    const restored = validateComparisonResume({ ...saved, updatedAt: 'old checkpoint time' }, rows, options)
+    expect('updatedAt' in restored).toBe(false)
+    single.mockClear()
+    prepare.mockClear()
+    const resumed = await runComparison(rows, { ...options, resume: saved })
+    expect(resumed.complete).toBe(true)
+    expect(resumed.scenarios.map((scenario) => scenario.rows.length)).toEqual([3, 3])
+    expect(resumed.scenarios[0].rows.slice(0, 2).map((row) => row.feedback)).toEqual(['Earlier score', 'Earlier score'])
+    expect(resumed.scenarios.flatMap((scenario) => scenario.operations.map((operation) => operation.id))).toEqual([1, 2, 3, 4, 5])
+    expect(prepare).toHaveBeenCalledTimes(1)
+    expect(single).toHaveBeenCalledTimes(2) // one remaining independent call and one singleton tail
+    expect(batch).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects changed work, targets, pricing, order, and corrupted progress before provider calls', async () => {
+    const rows = [candidate('a'), candidate('b')]
+    const target = { answerId: answerId(rows[0]), minimum: 3, maximum: 4 }
+    const options = { profile: 'bulk' as const, batchSizes: [1, 2], orderSeeds: [1],
+      targets: new Map([[target.answerId, target]]), pricing: prices }
+    prepare.mockResolvedValue({ reference_answers: ['reference'] })
+    single.mockResolvedValue({ score: 4, feedback: 'Synthetic feedback', provenance: {} })
+    let saved: Awaited<ReturnType<typeof runComparison>> | undefined
+    await expect(runComparison(rows, { ...options, checkpoint: (result) => {
+      if (result.scenarios[0]?.operations.length === 1) {
+        saved = structuredClone(result)
+        throw new Error('Synthetic interruption')
+      }
+    } })).rejects.toThrow('Synthetic interruption')
+    prepare.mockClear()
+    single.mockClear()
+    expect(() => validateComparisonResume(saved, [rows[0], candidate('b', { responseText: 'Changed' })], options)).toThrow(/checkpoint/)
+    expect(() => validateComparisonResume(saved, rows, { ...options, pricing: { ...prices, output: 99 } })).toThrow(/checkpoint/)
+    expect(() => validateComparisonResume(saved, rows, { ...options, orderSeeds: [2] })).toThrow(/checkpoint/)
+    expect(() => validateComparisonResume(saved, rows, { ...options, targets: new Map() })).toThrow(/checkpoint/)
+    const corrupted = structuredClone(saved)!
+    corrupted.scenarios[0].operations[0].answerIds[0] = 'incorrect-answer-id'
+    expect(() => validateComparisonResume(corrupted, rows, options)).toThrow(/checkpoint/)
+    await expect(runComparison(rows, { ...options, resume: corrupted })).rejects.toThrow(/checkpoint/)
+    expect(prepare).not.toHaveBeenCalled()
+    expect(single).not.toHaveBeenCalled()
+    const unkeyed = rows.map((row) => ({ ...row, answerKey: null }))
+    expect(() => validateComparisonResume(saved, unkeyed, options)).toThrow(/checkpoint/)
   })
 })

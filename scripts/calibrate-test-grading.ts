@@ -47,6 +47,7 @@ import {
 import type { StructuredOutputRequest } from '@/lib/grading/providers/types'
 import {
   answerId, assertPrivateOutput, buildComparisonPlan, eligibleComparisonCandidates, pricingSchema, runComparison, summarizeComparison,
+  validateComparisonResume,
   summarizeOrderSensitivity, validateTargets, type ComparisonResult,
 } from './lib/test-grading-comparison'
 
@@ -498,6 +499,7 @@ async function main(): Promise<void> {
     return index >= 0 && index + 1 < argv.length ? argv[index + 1] : null
   }
   const dryRun = argv.includes('--dry-run')
+  const resume = argv.includes('--resume')
   const useAll = argv.includes('--all')
   const bothProfiles = flag('--profiles') === 'both'
   const sampleSize = Number(flag('--sample') ?? DEFAULT_SAMPLE)
@@ -507,13 +509,13 @@ async function main(): Promise<void> {
   const effortArg = flag('--effort')
   const maxPointsArg = flag('--max-points')
   const comparisonFlags = ['--batch-size', '--order-seed', '--profile', '--verified-targets', '--pricing']
-  const comparison = comparisonFlags.some((name) => argv.includes(name))
+  const comparison = resume || comparisonFlags.some((name) => argv.includes(name))
   const valueFlags = new Set([
     '--sample', '--seed', '--profiles', '--out', '--allocation', '--effort', '--max-points',
     ...comparisonFlags,
   ])
   for (const [index, arg] of argv.entries()) {
-    if (arg.startsWith('--') && !valueFlags.has(arg) && !['--all', '--dry-run'].includes(arg)) throw new Error(`Unknown option: ${arg}`)
+    if (arg.startsWith('--') && !valueFlags.has(arg) && !['--all', '--dry-run', '--resume'].includes(arg)) throw new Error(`Unknown option: ${arg}`)
     if (valueFlags.has(arg) && (argv[index + 1] == null || argv[index + 1].startsWith('--'))) throw new Error(`Missing value for ${arg}`)
   }
   const snapshotPaths = argv.filter((arg, index) => {
@@ -618,26 +620,47 @@ async function main(): Promise<void> {
     const targets = targetPath ? validateTargets(JSON.parse(readFileSync(targetPath, 'utf8')), allCandidates) : new Map()
     const pricing = pricingPath ? pricingSchema.parse(JSON.parse(readFileSync(pricingPath, 'utf8'))) : undefined
     const plans = buildComparisonPlan(sample, batchSizes, orderSeeds)
+    const currentCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+    const sourceDirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim().length > 0
+    let resumed: ComparisonResult | undefined
+    let saved: Record<string, unknown> | undefined
+    if (resume) {
+      if (!existsSync(outPath)) throw new Error('--resume requires an existing private output checkpoint')
+      saved = JSON.parse(readFileSync(outPath, 'utf8')) as Record<string, unknown>
+      if (saved.schemaVersion !== 'test-grading-comparison-v1' || saved.sourceDirty !== false
+        || !Array.isArray(saved.snapshots) || JSON.stringify(saved.snapshots) !== JSON.stringify(paths)
+        || saved.sampleSeed !== seed || saved.allocation !== allocation || saved.excludedUnanswered !== excludedUnanswered
+        || typeof saved.sourceCommit !== 'string' || !/^[a-f0-9]{40}$/.test(saved.sourceCommit)
+        || typeof saved.startedAt !== 'string' || sourceDirty) throw new Error('Comparison checkpoint metadata or source worktree changed')
+      const gradingChanges = execFileSync('git', ['diff', '--name-only', saved.sourceCommit, currentCommit, '--',
+        'src/lib/ai-test-grading.ts', 'src/lib/grading'], { encoding: 'utf8' }).trim()
+      if (gradingChanges) throw new Error('Grading implementation changed since the checkpoint; comparison cannot safely resume')
+      resumed = validateComparisonResume(saved, sample, { profile, batchSizes, orderSeeds, targets, pricing })
+    }
     console.table(plans.map((plan) => ({ batchSize: plan.batchSize, orderSeed: plan.orderSeed, answers: sample.length,
       singleCalls: plan.chunks.filter((chunk) => chunk.length === 1).length, batchCalls: plan.chunks.filter((chunk) => chunk.length > 1).length })))
     process.stdout.write(`One fixed ${profile} profile; production-default effort. ${sample.filter((row) => targets.has(answerId(row))).length}/${targets.size} verified targets sampled. ${plans.reduce((sum, plan) => sum + plan.chunks.length, 0)} grading operations; references prepared once per exact question; HTTP retries may add calls.\n`)
-    if (dryRun) { process.stdout.write('--dry-run: no provider calls made, no file written.\n'); return }
+    if (dryRun) { process.stdout.write(`${resume ? '--resume preflight passed. ' : ''}--dry-run: no provider calls made, no file written.\n`); return }
     if (!process.env.DEEPSEEK_API_KEY?.trim()) throw new Error('DEEPSEEK_API_KEY is not configured')
-    const startedAt = new Date().toISOString()
-    const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
-    const sourceDirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim().length > 0
+    const startedAt = saved?.startedAt ?? new Date().toISOString()
+    const sourceCommit = saved?.sourceCommit ?? currentCommit
+    const resumes = resume ? [...(Array.isArray(saved?.resumes) ? saved.resumes : []), {
+      resumedAt: new Date().toISOString(), sourceCommit: currentCommit,
+      completedOperations: resumed!.scenarios.reduce((sum, scenario) => sum + scenario.operations.length, 0),
+      interruptedAttemptCostUnknown: true,
+    }] : []
     let lastReported = 0
     const checkpoint = (result: ComparisonResult) => {
       const temporary = `${outPath}.${process.pid}.tmp.grading-analysis.json`
-      writeFileSync(temporary, JSON.stringify({ schemaVersion: 'test-grading-comparison-v1', startedAt,
+      writeFileSync(temporary, JSON.stringify({ schemaVersion: 'test-grading-comparison-v1', startedAt, resumes,
         updatedAt: new Date().toISOString(), sourceCommit, sourceDirty, snapshots: paths, sampleSeed: seed, allocation, excludedUnanswered,
-        note: 'Verified target intervals are adjudications; recorded marks are second opinions. Costs use supplied reference rates, not billed charges. Shared preparation spend is separate. Per-answer cost is allocated equally within its call; latency is the whole call. Missing usage remains unknown. Sequential execution and cache state can affect comparisons.',
+        note: 'Verified target intervals are adjudications; recorded marks are second opinions. Costs use supplied reference rates, not billed charges. Shared preparation spend is separate. Per-answer cost is allocated equally within its call; latency is the whole call. Missing usage remains unknown. Sequential execution, cache state, and the pause gap can affect comparisons. A request interrupted by a prior run may have unmeasured cost.',
         ...result, summary: summarizeComparison(result), orderSensitivity: summarizeOrderSensitivity(result) }, null, 2) + '\n', { flag: 'wx', mode: 0o600 })
       renameSync(temporary, outPath)
       const operations = result.preparation.length + result.scenarios.reduce((sum, scenario) => sum + scenario.operations.length, 0)
       if (operations >= lastReported + 5 || result.complete) { process.stdout.write(`Completed ${operations} comparison operations${result.complete ? ' (finished)' : ''}.\n`); lastReported = operations }
     }
-    const result = await runComparison(sample, { profile, batchSizes, orderSeeds, targets, pricing, checkpoint })
+    const result = await runComparison(sample, { profile, batchSizes, orderSeeds, targets, pricing, resume: resumed, checkpoint })
     console.table(summarizeComparison(result))
     console.table(summarizeOrderSensitivity(result))
     process.stdout.write(`Private comparison saved to ${outPath}\n`)

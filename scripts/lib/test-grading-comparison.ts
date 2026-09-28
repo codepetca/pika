@@ -32,7 +32,7 @@ export const questionKey = (row: ComparisonCandidate) => hash([
   row.questionType ?? null,
 ])
 export const answerId = (row: ComparisonCandidate) => hash([questionKey(row), row.studentLabel, row.responseText])
-export const eligibleComparisonCandidates = (rows: ComparisonCandidate[]) => rows.filter((row) => row.responseText.trim().length > 0)
+export const eligibleComparisonCandidates = <T extends ComparisonCandidate>(rows: T[]): T[] => rows.filter((row) => row.responseText.trim().length > 0)
 
 function randomFor(seed: number) {
   let a = seed >>> 0
@@ -224,30 +224,99 @@ export interface ComparisonResult {
   scenarios: Scenario[]
 }
 
+const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
+
+/** Validate the entire completed prefix before another provider call. Prepared contexts are
+ * rebuilt only for keyed questions, where preparation is local and repeatable. */
+export function validateComparisonResume(stored: unknown, rows: ComparisonCandidate[], opts: {
+  profile: TestOpenResponsePromptProfile
+  batchSizes: number[]
+  orderSeeds: number[]
+  targets: Map<string, VerifiedTarget>
+  pricing?: ComparisonPricing
+}): ComparisonResult {
+  rows = eligibleComparisonCandidates(rows)
+  const plans = buildComparisonPlan(rows, opts.batchSizes, opts.orderSeeds)
+  const groups = groupsOf(rows)
+  const fail = (): never => { throw new Error('Comparison checkpoint does not match the unchanged input and completed operation prefix') }
+  if (!stored || typeof stored !== 'object') fail()
+  const saved = stored as Partial<ComparisonResult>
+  const preparation = Array.isArray(saved.preparation) ? saved.preparation : fail()
+  const scenarios = Array.isArray(saved.scenarios) ? saved.scenarios : fail()
+  const answers = rows.map((row) => ({ answerId: answerId(row), classroom: row.classroom, studentLabel: row.studentLabel,
+    testTitle: row.testTitle, maxPoints: row.maxPoints, teacherScore: row.teacherScore,
+    target: opts.targets.get(answerId(row)) ?? null }))
+  if (saved.complete !== false || saved.profile !== opts.profile || saved.effort !== 'production-default'
+    || !same(saved.pricing, opts.pricing ?? null) || !same(saved.answers, answers)
+    || preparation.length !== groups.length || scenarios.length > plans.length) fail()
+  for (const [index, [, group]] of groups.entries()) {
+    const operation = preparation[index]
+    // An interrupted generated-reference context cannot be recreated without repeating paid work.
+    if (!group[0].answerKey?.trim() || !operation || operation.id !== index || operation.kind !== 'prepare'
+      || operation.failed || !Array.isArray(operation.requests) || operation.requests.length !== 0
+      || !same(operation.answerIds, group.map(answerId))) fail()
+  }
+  let nextOperationId = groups.length
+  for (const [index, scenario] of scenarios.entries()) {
+    const plan = plans[index]
+    const manifest = plan.chunks.map((chunk) => chunk.map(answerId))
+    if (!scenario || scenario.batchSize !== plan.batchSize || scenario.orderSeed !== plan.orderSeed
+      || !same(scenario.manifest, manifest) || !Array.isArray(scenario.operations)
+      || !Array.isArray(scenario.rows) || scenario.operations.length > manifest.length) fail()
+    const completedChunks = manifest.slice(0, scenario.operations.length)
+    const completedIds = completedChunks.flat()
+    if (!same(scenario.rows.map((row) => row.answerId), completedIds)
+      || (index < scenarios.length - 1 && completedChunks.length !== manifest.length)) fail()
+    for (const [chunkIndex, chunk] of completedChunks.entries()) {
+      const operation = scenario.operations[chunkIndex]
+      if (!operation || operation.id !== nextOperationId++ || operation.kind !== (chunk.length === 1 ? 'single' : 'batch')
+        || !same(operation.answerIds, chunk)
+        || scenario.rows.filter((row) => row.operationId === operation.id).length !== chunk.length) fail()
+    }
+  }
+  return structuredClone({
+    complete: false, profile: saved.profile!, effort: 'production-default' as const, pricing: saved.pricing!,
+    answers: saved.answers!, preparation, scenarios,
+  })
+}
+
 export async function runComparison(rows: ComparisonCandidate[], opts: {
   profile: TestOpenResponsePromptProfile
   batchSizes: number[]
   orderSeeds: number[]
   targets: Map<string, VerifiedTarget>
   pricing?: ComparisonPricing
+  resume?: ComparisonResult
   checkpoint?: (result: ComparisonResult) => void
 }): Promise<ComparisonResult> {
   rows = eligibleComparisonCandidates(rows)
   const plans = buildComparisonPlan(rows, opts.batchSizes, opts.orderSeeds)
-  const result: ComparisonResult = {
+  const fresh: ComparisonResult = {
     complete: false, profile: opts.profile, effort: 'production-default', pricing: opts.pricing ?? null,
     answers: rows.map((row) => ({ answerId: answerId(row), classroom: row.classroom, studentLabel: row.studentLabel,
       testTitle: row.testTitle, maxPoints: row.maxPoints, teacherScore: row.teacherScore, target: opts.targets.get(answerId(row)) ?? null })),
     preparation: [], scenarios: [],
   }
+  const result = opts.resume ? validateComparisonResume(opts.resume, rows, opts) : fresh
   // Fail unwritable output before the first paid request, and preserve a crash checkpoint.
   opts.checkpoint?.(result)
   type Prepared = Awaited<ReturnType<typeof prepareTestOpenResponseGradingContext>>
   const prepared = new Map<string, Prepared>()
   const preparationByQuestion = new Map<string, Operation>()
   let operationId = 0
-  for (const [key, group] of groupsOf(rows)) {
+  for (const [groupIndex, [key, group]] of groupsOf(rows).entries()) {
     const row = group[0]
+    if (opts.resume) {
+      // Validation above proved every question is keyed; rebuilding this context makes no paid call.
+      const value = await prepareTestOpenResponseGradingContext({
+        testTitle: row.testTitle, questionText: row.questionText, maxPoints: row.maxPoints,
+        answerKey: row.answerKey, sampleSolution: row.sampleSolution, responseMonospace: row.responseMonospace,
+        promptProfile: opts.profile,
+      })
+      prepared.set(key, value)
+      preparationByQuestion.set(key, result.preparation[groupIndex])
+      continue
+    }
     const { value, ...measurement } = await measureOperation(() => prepareTestOpenResponseGradingContext({
       testTitle: row.testTitle, questionText: row.questionText, maxPoints: row.maxPoints,
       answerKey: row.answerKey, sampleSolution: row.sampleSolution, responseMonospace: row.responseMonospace,
@@ -259,10 +328,12 @@ export async function runComparison(rows: ComparisonCandidate[], opts: {
     if (value) prepared.set(key, value)
     opts.checkpoint?.(result)
   }
-  for (const plan of plans) {
-    const scenario: Scenario = { batchSize: plan.batchSize, orderSeed: plan.orderSeed, manifest: plan.chunks.map((chunk) => chunk.map(answerId)), operations: [], rows: [] }
-    result.scenarios.push(scenario)
-    for (const chunk of plan.chunks) {
+  operationId = result.preparation.length + result.scenarios.reduce((sum, scenario) => sum + scenario.operations.length, 0)
+  for (const [planIndex, plan] of plans.entries()) {
+    const scenario: Scenario = result.scenarios[planIndex] ?? { batchSize: plan.batchSize, orderSeed: plan.orderSeed,
+      manifest: plan.chunks.map((chunk) => chunk.map(answerId)), operations: [], rows: [] }
+    if (!result.scenarios[planIndex]) result.scenarios.push(scenario)
+    for (const chunk of plan.chunks.slice(scenario.operations.length)) {
       const key = questionKey(chunk[0])
       const context = prepared.get(key)
       if (!context) {

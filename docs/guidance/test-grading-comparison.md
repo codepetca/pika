@@ -16,11 +16,21 @@ pnpm calibrate:test-grading /private/example.grading-snapshot.json \
 
 Remove `--dry-run` for an authorized paid run. The dry run validates inputs and
 reports target coverage and grading-operation counts without calls or file writes.
+To continue an interrupted comparison, repeat the exact command with `--resume` and the
+same `--out` path. Add `--dry-run` first to validate the saved checkpoint without
+provider calls or file writes. Resume requires the same snapshot paths, sample,
+order, profile, verified targets, pricing, and unchanged grading implementation.
+It checks the completed operation prefix before calling the provider, retains saved
+scores, and grades only unfinished chunks. Existing checkpoints are resumable only
+when every question has an answer key: generated references cannot be rebuilt without
+repeating paid preparation. A request interrupted mid-call may have unmeasured cost;
+the checkpoint records the resume event and keeps the pause gap out of operation timing.
+
 Snapshots and results must stay outside public Git history. Comparison output must
 end in the gitignored `.grading-analysis.json` suffix and cannot overwrite an input
 or point through a symlink. Output is checkpointed after each operation, with
 `complete: false` until all scenarios finish; a failed answer causes a nonzero exit
-while retaining partial results. Re-running starts a new paid comparison, not a resume.
+while retaining partial results. Re-running without `--resume` starts a new paid comparison.
 
 `--seed` selects the stratified sample. `--order-seed` shuffles the same answers
 within their exact question groups. Both accept unsigned 32-bit seeds; order seeds
