@@ -72,6 +72,16 @@ not assume they remain teacher-only: for coding responses, `Sample Solution` is
 shown to students on the results page when results become available. Student
 preview checks the prompt and references, not post-release results disclosure.
 
+Format code in multiple-choice prompts and options as Markdown so students can
+distinguish it from prose. Use inline backticks for commands, identifiers, and
+short expressions or statements in prompts and options. Use a fenced code block
+with a language label for a multiline snippet in a prompt. Each answer option
+must occupy one Markdown list line; put longer shared code in the prompt and
+keep code options inline. Preserve the code's exact syntax and the correct
+option when revising an existing question. Check the student preview to confirm
+that code renders correctly in both the prompt and answer options. Format answer
+options before students start; Pika locks option edits after an attempt begins.
+
 ## Calibrate difficulty and workload
 
 Judge difficulty by the reasoning required: novelty, number of coordinated
