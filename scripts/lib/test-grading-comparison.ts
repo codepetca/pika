@@ -34,6 +34,12 @@ export const questionKey = (row: ComparisonCandidate) => hash([
 export const answerId = (row: ComparisonCandidate) => hash([questionKey(row), row.studentLabel, row.responseText])
 export const eligibleComparisonCandidates = <T extends ComparisonCandidate>(rows: T[]): T[] => rows.filter((row) => row.responseText.trim().length > 0)
 
+// Runtime imports used to build and sanitize test-grading prompts and parse provider output.
+export const COMPARISON_GRADING_SOURCE_PATHS = [
+  'src/lib/ai-test-grading.ts', 'src/lib/ai-sanitization.ts',
+  'src/lib/ai-prompt-metrics.ts', 'src/lib/grading',
+] as const
+
 function randomFor(seed: number) {
   let a = seed >>> 0
   return () => {
@@ -225,6 +231,40 @@ export interface ComparisonResult {
 }
 
 const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
+
+/** New checkpoints carry full-input fingerprints. A pre-fingerprint checkpoint is recoverable
+ * only when it sampled the whole relevant population and every target, and the snapshot files
+ * have not been modified since that run started. All subsequent checkpoints gain fingerprints. */
+export function validateResumeProvenance(stored: unknown, current: {
+  model: string
+  snapshotHashes: string[]
+  snapshotModifiedAtMs: number[]
+  allEligibleSampled: boolean
+  targetDocumentHash: string | null
+  allTargetsSampled: boolean
+  gradingSourceDigest: string
+  originalGradingSourceDigest: string
+}) {
+  const fail = (): never => { throw new Error('Comparison checkpoint provenance changed; refusing paid resume') }
+  if (!stored || typeof stored !== 'object') fail()
+  const saved = stored as Record<string, unknown>
+  const requests = Array.isArray(saved.scenarios) ? saved.scenarios.flatMap((scenario: Scenario) =>
+    scenario.operations.flatMap((operation) => operation.requests)) as ProviderRequest[] : []
+  const observedModels = [...new Set(requests.map((request) => request.model))]
+  const priorModel = saved.model ?? (observedModels.length === 1 ? observedModels[0] : null)
+  if (priorModel !== current.model || (observedModels.length && !same(observedModels, [current.model]))) fail()
+  if (saved.snapshotHashes != null) {
+    if (!same(saved.snapshotHashes, current.snapshotHashes)) fail()
+  } else if (!current.allEligibleSampled || !Number.isFinite(Date.parse(String(saved.startedAt)))
+    || current.snapshotModifiedAtMs.length !== current.snapshotHashes.length
+    || current.snapshotModifiedAtMs.some((mtime) => mtime > Date.parse(String(saved.startedAt)))) fail()
+  if (saved.targetDocumentHash != null) {
+    if (saved.targetDocumentHash !== current.targetDocumentHash) fail()
+  } else if (!current.allTargetsSampled) fail()
+  if (saved.gradingSourceDigest != null) {
+    if (saved.gradingSourceDigest !== current.gradingSourceDigest) fail()
+  } else if (current.originalGradingSourceDigest !== current.gradingSourceDigest) fail()
+}
 
 /** Validate the entire completed prefix before another provider call. Prepared contexts are
  * rebuilt only for keyed questions, where preparation is local and repeatable. */

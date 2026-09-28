@@ -19,12 +19,16 @@ reports target coverage and grading-operation counts without calls or file write
 To continue an interrupted comparison, repeat the exact command with `--resume` and the
 same `--out` path. Add `--dry-run` first to validate the saved checkpoint without
 provider calls or file writes. Resume requires the same snapshot paths, sample,
-order, profile, verified targets, pricing, and unchanged grading implementation.
+order, profile, verified targets, pricing, resolved provider model, and unchanged grading implementation.
 It checks the completed operation prefix before calling the provider, retains saved
 scores, and grades only unfinished chunks. Existing checkpoints are resumable only
 when every question has an answer key: generated references cannot be rebuilt without
 repeating paid preparation. A request interrupted mid-call may have unmeasured cost;
 the checkpoint records the resume event and keeps the pause gap out of operation timing.
+New checkpoints fingerprint each raw snapshot and the complete verified-target file,
+including answers outside the current sample. Older checkpoints without fingerprints
+require the entire eligible answer and target populations in the sample, snapshot
+modification times before the original run, and matching grading-source Git trees.
 
 Snapshots and results must stay outside public Git history. Comparison output must
 end in the gitignored `.grading-analysis.json` suffix and cannot overwrite an input

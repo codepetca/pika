@@ -36,18 +36,21 @@
  * Comparison options, private verified targets and reference-rate pricing:
  * docs/guidance/test-grading-comparison.md
  */
-import { readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, renameSync, statSync } from 'node:fs'
 import { basename } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import {
   suggestTestOpenResponseGrade,
+  getTestOpenResponseGradingModel,
   type TestOpenResponsePromptProfile,
 } from '@/lib/ai-test-grading'
 import type { StructuredOutputRequest } from '@/lib/grading/providers/types'
 import {
-  answerId, assertPrivateOutput, buildComparisonPlan, eligibleComparisonCandidates, pricingSchema, runComparison, summarizeComparison,
-  validateComparisonResume,
+  answerId, assertPrivateOutput, buildComparisonPlan, COMPARISON_GRADING_SOURCE_PATHS,
+  eligibleComparisonCandidates, pricingSchema, runComparison, summarizeComparison,
+  validateComparisonResume, validateResumeProvenance,
   summarizeOrderSensitivity, validateTargets, type ComparisonResult,
 } from './lib/test-grading-comparison'
 
@@ -622,6 +625,14 @@ async function main(): Promise<void> {
     const plans = buildComparisonPlan(sample, batchSizes, orderSeeds)
     const currentCommit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
     const sourceDirty = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim().length > 0
+    const digest = (value: Buffer | string) => createHash('sha256').update(value).digest('hex')
+    const model = getTestOpenResponseGradingModel()
+    const snapshotHashes = paths.map((path) => digest(readFileSync(path)))
+    const targetDocumentHash = targetPath ? digest(readFileSync(targetPath)) : null
+    const gradingSourceDigest = (commit: string) => digest(execFileSync('git', [
+      'ls-tree', '-r', commit, '--', ...COMPARISON_GRADING_SOURCE_PATHS,
+    ]))
+    const currentGradingSourceDigest = gradingSourceDigest(currentCommit)
     let resumed: ComparisonResult | undefined
     let saved: Record<string, unknown> | undefined
     if (resume) {
@@ -632,9 +643,13 @@ async function main(): Promise<void> {
         || saved.sampleSeed !== seed || saved.allocation !== allocation || saved.excludedUnanswered !== excludedUnanswered
         || typeof saved.sourceCommit !== 'string' || !/^[a-f0-9]{40}$/.test(saved.sourceCommit)
         || typeof saved.startedAt !== 'string' || sourceDirty) throw new Error('Comparison checkpoint metadata or source worktree changed')
-      const gradingChanges = execFileSync('git', ['diff', '--name-only', saved.sourceCommit, currentCommit, '--',
-        'src/lib/ai-test-grading.ts', 'src/lib/grading'], { encoding: 'utf8' }).trim()
-      if (gradingChanges) throw new Error('Grading implementation changed since the checkpoint; comparison cannot safely resume')
+      validateResumeProvenance(saved, {
+        model, snapshotHashes, snapshotModifiedAtMs: paths.map((path) => statSync(path).mtimeMs),
+        allEligibleSampled: sample.length === candidates.length,
+        targetDocumentHash, allTargetsSampled: sample.filter((row) => targets.has(answerId(row))).length === targets.size,
+        gradingSourceDigest: currentGradingSourceDigest,
+        originalGradingSourceDigest: gradingSourceDigest(saved.sourceCommit),
+      })
       resumed = validateComparisonResume(saved, sample, { profile, batchSizes, orderSeeds, targets, pricing })
     }
     console.table(plans.map((plan) => ({ batchSize: plan.batchSize, orderSeed: plan.orderSeed, answers: sample.length,
@@ -653,7 +668,9 @@ async function main(): Promise<void> {
     const checkpoint = (result: ComparisonResult) => {
       const temporary = `${outPath}.${process.pid}.tmp.grading-analysis.json`
       writeFileSync(temporary, JSON.stringify({ schemaVersion: 'test-grading-comparison-v1', startedAt, resumes,
-        updatedAt: new Date().toISOString(), sourceCommit, sourceDirty, snapshots: paths, sampleSeed: seed, allocation, excludedUnanswered,
+        updatedAt: new Date().toISOString(), sourceCommit, sourceDirty, snapshots: paths, snapshotHashes,
+        targetDocumentHash, model, gradingSourceDigest: currentGradingSourceDigest,
+        sampleSeed: seed, allocation, excludedUnanswered,
         note: 'Verified target intervals are adjudications; recorded marks are second opinions. Costs use supplied reference rates, not billed charges. Shared preparation spend is separate. Per-answer cost is allocated equally within its call; latency is the whole call. Missing usage remains unknown. Sequential execution, cache state, and the pause gap can affect comparisons. A request interrupted by a prior run may have unmeasured cost.',
         ...result, summary: summarizeComparison(result), orderSensitivity: summarizeOrderSensitivity(result) }, null, 2) + '\n', { flag: 'wx', mode: 0o600 })
       renameSync(temporary, outPath)

@@ -11,7 +11,8 @@ vi.mock('@/lib/ai-test-grading', () => ({
 }))
 
 import {
-  answerId, assertPrivateOutput, buildComparisonPlan, measureOperation, questionKey, runComparison, validateComparisonResume, validateTargets,
+  answerId, assertPrivateOutput, buildComparisonPlan, measureOperation, questionKey, runComparison,
+  validateComparisonResume, validateResumeProvenance, validateTargets,
   type ComparisonCandidate,
 } from '../../scripts/lib/test-grading-comparison'
 
@@ -228,5 +229,37 @@ describe('test grading comparison', () => {
     expect(single).not.toHaveBeenCalled()
     const unkeyed = rows.map((row) => ({ ...row, answerKey: null }))
     expect(() => validateComparisonResume(saved, unkeyed, options)).toThrow(/checkpoint/)
+  })
+
+  it('binds model, full snapshots, full target document and transitive grading source before paid resume', () => {
+    const saved = { startedAt: '2026-09-24T13:11:00.753Z', model: 'deepseek-flash',
+      snapshotHashes: ['snapshot-hash'], targetDocumentHash: 'all-targets-hash', gradingSourceDigest: 'source-hash',
+      scenarios: [{ operations: [{ requests: [{ model: 'deepseek-flash' }] }] }] }
+    const current = { model: 'deepseek-flash', snapshotHashes: ['snapshot-hash'],
+      snapshotModifiedAtMs: [Date.parse(saved.startedAt) - 1000], allEligibleSampled: true,
+      targetDocumentHash: 'all-targets-hash', allTargetsSampled: true,
+      gradingSourceDigest: 'source-hash', originalGradingSourceDigest: 'source-hash' }
+    expect(() => validateResumeProvenance(saved, current)).not.toThrow()
+    expect(() => validateResumeProvenance(saved, { ...current, model: 'different-model' })).toThrow(/provenance/)
+    expect(() => validateResumeProvenance(saved, { ...current, snapshotHashes: ['changed-unselected-row'] })).toThrow(/provenance/)
+    expect(() => validateResumeProvenance(saved, { ...current, targetDocumentHash: 'changed-unsampled-target' })).toThrow(/provenance/)
+    expect(() => validateResumeProvenance(saved, { ...current, gradingSourceDigest: 'changed-sanitizer' })).toThrow(/provenance/)
+    expect(prepare).not.toHaveBeenCalled()
+    expect(single).not.toHaveBeenCalled()
+    expect(batch).not.toHaveBeenCalled()
+  })
+
+  it('recovers an older checkpoint only for a fully sampled, unmodified keyed population', () => {
+    const startedAt = '2026-09-24T13:11:00.753Z'
+    const legacy = { startedAt, scenarios: [{ operations: [{ requests: [{ model: 'deepseek-flash' }] }] }] }
+    const current = { model: 'deepseek-flash', snapshotHashes: ['current-hash'],
+      snapshotModifiedAtMs: [Date.parse(startedAt) - 1000], allEligibleSampled: true,
+      targetDocumentHash: 'current-targets', allTargetsSampled: true,
+      gradingSourceDigest: 'same-source', originalGradingSourceDigest: 'same-source' }
+    expect(() => validateResumeProvenance(legacy, current)).not.toThrow()
+    expect(() => validateResumeProvenance(legacy, { ...current, snapshotModifiedAtMs: [Date.parse(startedAt) + 1000] })).toThrow(/provenance/)
+    expect(() => validateResumeProvenance(legacy, { ...current, allEligibleSampled: false })).toThrow(/provenance/)
+    expect(() => validateResumeProvenance(legacy, { ...current, allTargetsSampled: false })).toThrow(/provenance/)
+    expect(() => validateResumeProvenance(legacy, { ...current, originalGradingSourceDigest: 'changed-sanitizer' })).toThrow(/provenance/)
   })
 })
