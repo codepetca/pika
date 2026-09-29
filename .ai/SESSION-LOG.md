@@ -253,3 +253,6 @@ A paired offline high-only trial raised individual grading budgets to 12K/16K an
 ## 2026-09-29 — Teacher work-list hover distinction
 
 Changed the shared teacher work-item card so ordinary Classwork and Tests cards use the semantic info tint on hover, distinct from muted draft cards. Focused checks passed 338 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright verified teacher Classwork and Tests at desktop/mobile widths in light/dark themes, including actual hover and draft comparison. Risk profile: none. Model recommendation: GPT-6 Sol for the localized shared UI change.
+## 2026-09-29 — Teacher Test split-pane scrollbar parity
+
+Applied the existing assignment `scrollbar-hover` utility to the teacher Test grading student table and selected-student inspector. Both panes retain independent scrolling; the visible inspector scrollbar is hidden at rest, matching assignments. Local seeded teacher browser verification covered selected desktop light/dark and mobile light/dark, with the student mobile route checked for regression. The desktop page stayed at viewport height while the inspector scrolled; no horizontal overflow appeared on mobile. Focused checks passed 221 tests plus architecture, UI/design policy, TypeScript, and lint. Risk profile: none. Model recommendation: GPT-6 Sol for this localized UI change.
