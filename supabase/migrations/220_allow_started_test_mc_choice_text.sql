@@ -133,54 +133,63 @@ begin
     return new;
   end if;
 
-  if tg_table_name = 'test_questions'
-    and exists (
+  -- This trigger also runs for attempt and availability rows. Keep field-specific
+  -- references inside a procedural table/operation guard: SQL boolean clauses
+  -- do not guarantee that new.options is skipped for other record shapes.
+  if tg_table_name = 'test_questions' then
+    if exists (
       select 1
       from public.tests test
       where test.id = any(v_test_ids)
         and test.questions_locked_at is not null
-    )
-    and not (
-      tg_op = 'UPDATE'
-      and (to_jsonb(new) - array['question_text', 'options', 'updated_at',
-        'ai_reference_cache_key', 'ai_reference_cache_answers',
-        'ai_reference_cache_model', 'ai_reference_cache_generated_at']::text[])
-        is not distinct from
+    ) then
+      if tg_op <> 'UPDATE' then
+        raise exception using
+          errcode = '55000',
+          message = 'test_questions_locked: Only question wording and existing choice text can change after a student starts';
+      end if;
+
+      if not (
+        (to_jsonb(new) - array['question_text', 'options', 'updated_at',
+          'ai_reference_cache_key', 'ai_reference_cache_answers',
+          'ai_reference_cache_model', 'ai_reference_cache_generated_at']::text[])
+          is not distinct from
         (to_jsonb(old) - array['question_text', 'options', 'updated_at',
-        'ai_reference_cache_key', 'ai_reference_cache_answers',
-        'ai_reference_cache_model', 'ai_reference_cache_generated_at']::text[])
-      and (
-        new.options is not distinct from old.options
-        or (
-          old.question_type = 'multiple_choice'
-          and new.question_type = 'multiple_choice'
-          and case
-            when jsonb_typeof(old.options) = 'array'
-              and jsonb_typeof(new.options) = 'array'
-            then jsonb_array_length(new.options) = jsonb_array_length(old.options)
-              and not exists (
-                select 1
-                from jsonb_array_elements(new.options) as new_choice(value)
-                where jsonb_typeof(new_choice.value) <> 'string'
-              )
-              and (
-                select count(*)
-                from jsonb_array_elements_text(old.options)
-                  with ordinality as old_choice(value, position)
-                join jsonb_array_elements_text(new.options)
-                  with ordinality as new_choice(value, position)
-                  using (position)
-                where old_choice.value is distinct from new_choice.value
-              ) <= 1
-            else false
-          end
+          'ai_reference_cache_key', 'ai_reference_cache_answers',
+          'ai_reference_cache_model', 'ai_reference_cache_generated_at']::text[])
+        and (
+          new.options is not distinct from old.options
+          or (
+            old.question_type = 'multiple_choice'
+            and new.question_type = 'multiple_choice'
+            and case
+              when jsonb_typeof(old.options) = 'array'
+                and jsonb_typeof(new.options) = 'array'
+              then jsonb_array_length(new.options) = jsonb_array_length(old.options)
+                and not exists (
+                  select 1
+                  from jsonb_array_elements(new.options) as new_choice(value)
+                  where jsonb_typeof(new_choice.value) <> 'string'
+                )
+                and (
+                  select count(*)
+                  from jsonb_array_elements_text(old.options)
+                    with ordinality as old_choice(value, position)
+                  join jsonb_array_elements_text(new.options)
+                    with ordinality as new_choice(value, position)
+                    using (position)
+                  where old_choice.value is distinct from new_choice.value
+                ) <= 1
+              else false
+            end
+          )
         )
-      )
-    )
-  then
-    raise exception using
-      errcode = '55000',
-      message = 'test_questions_locked: Only question wording and existing choice text can change after a student starts';
+      ) then
+        raise exception using
+          errcode = '55000',
+          message = 'test_questions_locked: Only question wording and existing choice text can change after a student starts';
+      end if;
+    end if;
   end if;
 
   if tg_op = 'DELETE' then

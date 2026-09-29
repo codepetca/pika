@@ -344,6 +344,17 @@ begin
   -- A started Test can correct one existing MC choice without rebinding the
   -- selected_option index to another position. Direct SQL must enforce the
   -- same boundary as the teacher editor and draft API.
+  -- The shared trigger also handles availability rows, which have no options
+  -- column. Their writes must not evaluate the question-only choice guard.
+  insert into public.test_student_availability (
+    id, test_id, student_id, state, updated_by
+  ) values (
+    '14200000-0000-4000-8000-000000000098',
+    '14200000-0000-4000-8000-000000000011',
+    '14200000-0000-4000-8000-000000000002',
+    'closed', v_teacher_id
+  );
+
   update public.test_questions
   set options = '["First corrected","Second"]'::jsonb
   where id = '14200000-0000-4000-8000-000000000021';
