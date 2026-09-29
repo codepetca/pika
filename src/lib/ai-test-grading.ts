@@ -849,6 +849,7 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
   responses: TestOpenResponseBatchRequest[],
   telemetryContext?: TestOpenResponseTelemetryContext,
   requestTimeoutMs?: number,
+  reasoningEffort?: StructuredOutputRequest['reasoningEffort'],
 ): Promise<TestOpenResponseBatchSuggestion[]> {
   const apiKey = getDeepSeekKey()
   if (!apiKey) {
@@ -892,6 +893,7 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
     output: pikaTestBatchGradeOutput(responses.length),
     parseOutput: parsePikaTestBatchGradeOutput,
     requestTimeoutMs,
+    reasoningEffort,
   })
 
   if (telemetryContext) {

@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Consolidated billing209 and rebuilt local database
-
-- User explicitly approved combining unreleased209/210, erasing/resetting local and reseeding. Consolidated the reviewed final functions and table definitions into209; removed210 and its upgrade-only backfill. Verified local target/history; one `supabase db reset --local --no-seed` replayed001–209 successfully. Reseeded via local runtime credentials with shared hosted env excluded. Local fixtures: three users and one classroom; billing sandbox off and no billing inbox records. Reset restores migration defaults, including local creation/Free-provisioning gates; production is unchanged.
-- Generated types match the rebuilt schema. Billing recovery/payment, account-plan and classroom-creation rollback harnesses pass. Corrected SQL harness evaluation ordering by capturing the mutation result before inspecting persisted state. Focused checks pass342 tests plus TypeScript/lint/policy checks; final integration review and CI remain pending. Earlier209/reset authorization is consumed. No live Stripe payment rehearsal, production change or merge.
-
 ## 2026-09-26 — Billing binding/webhook race correction
 
 - Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
@@ -293,3 +288,7 @@ Updated the teacher test authoring guide to require inline Markdown code for sho
 
 - Continued draft PR1347 after the owner resumed the paused experiment. Synced current main with both archive histories retained; grading adapters/profiles are unchanged since the saved 33-operation checkpoint. Added strict comparison checkpoint resume for unchanged keyed questions, with exact answer/manifest, target, pricing, source and completed-prefix checks before provider work. The pause gap and possible interrupted request remain explicit in private accounting.
 - Initial independent Terra review found four resume-preflight gaps: model selection, unsampled snapshot and target content, and transitive sanitization source. One batch adds full private input and source fingerprints for new checkpoints, plus a bounded legacy recovery rule for this all-selected, unmodified saved run. Thirteen harness tests, explicit script/test TypeScript, lint, Pika audit and real private dry-run preflight pass. Focused recheck and targeted review precede ready/CI and paid continuation. Risk profile: none (offline developer tooling); model recommendation: GPT-5.6 Terra high for checkpoint correctness and accounting.
+
+## 2026-09-28 — Offline low-reasoning test grading trial
+
+- Added an optional low-reasoning override to prepared batch grading and the offline comparison harness. Production calls still use their existing default. Comparison checkpoints now bind to effort so an interrupted low trial cannot resume as default. Private dry run selects the same 48 ten-point answers, two order seeds, batch size two, and five verified targets as the earlier comparison. Local and PR checks precede the authorized paid run; the result will remain private. Risk profile: async-grading adapter with no production behavior change. Model recommendation: GPT-6 Sol for this bounded adapter and harness change.

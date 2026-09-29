@@ -728,6 +728,27 @@ describe('suggestTestOpenResponseGradesBatch', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(suggestions).toHaveLength(2)
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).reasoning_effort).toBe('high')
+  })
+
+  it('passes an offline low-reasoning override through prepared batch grading', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '{"results":[{"response_id":"response_1","score":4,"feedback":"Clear answer."}]}' }, finish_reason: 'stop' }],
+      }),
+    })
+    const prepared = buildTestOpenResponsePreparedContext({
+      testTitle: 'Unit 3 Test', questionText: 'Explain what a method does.', maxPoints: 5,
+      answerKey: 'A method groups reusable instructions.', promptProfile: 'bulk',
+    })
+    const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
+      prepared, [{ responseId: 'response-1', responseText: 'A method is reusable code.' }],
+      undefined, undefined, 'low',
+    )
+    expect(suggestions).toHaveLength(1)
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body ?? '{}')).reasoning_effort).toBe('low')
   })
 
   it('uses pseudonymous provider refs instead of local response ids in batch prompts', async () => {

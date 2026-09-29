@@ -31,6 +31,7 @@
  *   pnpm calibrate:test-grading --allocation proportional
  *   pnpm calibrate:test-grading --all --profiles both
  *   pnpm calibrate:test-grading --all --max-points 10 --batch-size 1,2,4 --order-seed 1,2 --profile bulk --dry-run
+ *   pnpm calibrate:test-grading --all --max-points 10 --batch-size 2 --order-seed 1,2 --profile bulk --effort low --dry-run
  *   pnpm calibrate:test-grading a.grading-snapshot.json b.grading-snapshot.json
  *
  * Comparison options, private verified targets and reference-rate pricing:
@@ -608,7 +609,11 @@ async function main(): Promise<void> {
     `Loaded ${candidates.length} teacher-scored responses from ${paths.length} snapshot${paths.length > 1 ? 's' : ''}; sampling ${sample.length} (seed ${seed}).`,
   )
   if (comparison) {
-    if (argv.includes('--profiles') || argv.includes('--effort')) throw new Error('Comparison uses one --profile and the production-default effort; omit --profiles and --effort')
+    if (argv.includes('--profiles')) throw new Error('Comparison uses one --profile; omit --profiles')
+    if (effortArg != null && (efforts.length !== 1 || !['low', 'medium'].includes(efforts[0]))) {
+      throw new Error('Comparison --effort must be one level: low or medium (production default)')
+    }
+    const effort = effortArg != null && efforts[0] === 'low' ? 'low' : 'production-default'
     const profile = flag('--profile') ?? 'bulk'
     if (profile !== 'manual' && profile !== 'bulk') throw new Error('--profile must be manual or bulk')
     const numberList = (value: string) => {
@@ -650,11 +655,11 @@ async function main(): Promise<void> {
         gradingSourceDigest: currentGradingSourceDigest,
         originalGradingSourceDigest: gradingSourceDigest(saved.sourceCommit),
       })
-      resumed = validateComparisonResume(saved, sample, { profile, batchSizes, orderSeeds, targets, pricing })
+      resumed = validateComparisonResume(saved, sample, { profile, effort, batchSizes, orderSeeds, targets, pricing })
     }
     console.table(plans.map((plan) => ({ batchSize: plan.batchSize, orderSeed: plan.orderSeed, answers: sample.length,
       singleCalls: plan.chunks.filter((chunk) => chunk.length === 1).length, batchCalls: plan.chunks.filter((chunk) => chunk.length > 1).length })))
-    process.stdout.write(`One fixed ${profile} profile; production-default effort. ${sample.filter((row) => targets.has(answerId(row))).length}/${targets.size} verified targets sampled. ${plans.reduce((sum, plan) => sum + plan.chunks.length, 0)} grading operations; references prepared once per exact question; HTTP retries may add calls.\n`)
+    process.stdout.write(`One fixed ${profile} profile; ${effort} effort. ${sample.filter((row) => targets.has(answerId(row))).length}/${targets.size} verified targets sampled. ${plans.reduce((sum, plan) => sum + plan.chunks.length, 0)} grading operations; references prepared once per exact question; HTTP retries may add calls.\n`)
     if (dryRun) { process.stdout.write(`${resume ? '--resume preflight passed. ' : ''}--dry-run: no provider calls made, no file written.\n`); return }
     if (!process.env.DEEPSEEK_API_KEY?.trim()) throw new Error('DEEPSEEK_API_KEY is not configured')
     const startedAt = saved?.startedAt ?? new Date().toISOString()
@@ -677,7 +682,7 @@ async function main(): Promise<void> {
       const operations = result.preparation.length + result.scenarios.reduce((sum, scenario) => sum + scenario.operations.length, 0)
       if (operations >= lastReported + 5 || result.complete) { process.stdout.write(`Completed ${operations} comparison operations${result.complete ? ' (finished)' : ''}.\n`); lastReported = operations }
     }
-    const result = await runComparison(sample, { profile, batchSizes, orderSeeds, targets, pricing, resume: resumed, checkpoint })
+    const result = await runComparison(sample, { profile, effort, batchSizes, orderSeeds, targets, pricing, resume: resumed, checkpoint })
     console.table(summarizeComparison(result))
     console.table(summarizeOrderSensitivity(result))
     process.stdout.write(`Private comparison saved to ${outPath}\n`)

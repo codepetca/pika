@@ -136,6 +136,29 @@ describe('test grading comparison', () => {
     expect(result.scenarios[0].rows.find((r) => r.answerId === target.answerId)?.targetDistance).toBe(0)
   })
 
+  it('applies low reasoning to pairs and singleton tails, and binds effort to resume', async () => {
+    const rows = Array.from({ length: 3 }, (_, i) => candidate(String(i)))
+    prepare.mockResolvedValue({ reference_answers: ['reference'] })
+    single.mockResolvedValue({ score: 4, feedback: 'Synthetic feedback', provenance: {} })
+    batch.mockImplementation(async (_prepared, requests) => requests.map((request: { responseId: string }) => ({
+      responseId: request.responseId, score: 4, feedback: 'Synthetic feedback', provenance: {},
+    })))
+    const options = { profile: 'bulk' as const, effort: 'low' as const, batchSizes: [2], orderSeeds: [1], targets: new Map() }
+    let saved: Awaited<ReturnType<typeof runComparison>> | undefined
+    await expect(runComparison(rows, { ...options, checkpoint: (result) => {
+      if (result.scenarios[0]?.operations.length === 1) {
+        saved = structuredClone(result)
+        throw new Error('Synthetic interruption')
+      }
+    } })).rejects.toThrow('Synthetic interruption')
+    expect(batch.mock.calls[0][4]).toBe('low')
+    expect(() => validateComparisonResume(saved, rows, { ...options, effort: 'production-default' })).toThrow(/checkpoint/)
+    const result = await runComparison(rows, { ...options, resume: saved })
+    expect(result.effort).toBe('low')
+    expect(single.mock.calls[0][4]).toBe('low')
+    expect(result.scenarios[0].rows).toHaveLength(3)
+  })
+
   it('checks writable output before any provider work and retains every answer when preparation fails', async () => {
     const rows = [candidate('a'), candidate('b')]
     const options = { profile: 'bulk' as const, batchSizes: [1, 2], orderSeeds: [1], targets: new Map() }

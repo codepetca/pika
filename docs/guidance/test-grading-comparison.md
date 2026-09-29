@@ -40,8 +40,11 @@ while retaining partial results. Re-running without `--resume` starts a new paid
 within their exact question groups. Both accept unsigned 32-bit seeds; order seeds
 and batch sizes accept comma-separated lists. The size order reverses on alternate
 order seeds to counterbalance first/last execution. `--profile manual|bulk` applies
-the same profile to every size; all use the production-default reasoning effort.
-Do not mix comparison mode with legacy `--profiles` or `--effort` options. Without
+the same profile to every size. By default all calls use production reasoning effort;
+`--effort low` applies the provider's low tier to both batch calls and singleton tails.
+`--effort medium` explicitly selects the production default. A comparison accepts
+one effort level, and its checkpoints cannot resume under a different effort.
+Do not mix comparison mode with legacy `--profiles`. Without
 comparison options, the existing single-call disagreement/effort tool is unchanged.
 
 Groups include classroom, test title, question, maximum points, answer key, sample
