@@ -38,7 +38,7 @@ Markdown saves use the same field policy. The server checks that at most one
 option string changes per question per save, along with choice count and all
 frozen fields. The database trigger enforces the same boundary for materialized
 questions and requires every replacement choice to remain text. This change
-requires migration 219; deploy the migration before the application code. Until
+requires migration 220; deploy the migration before the application code. Until
 then, the database rejects choice corrections with a conflict rather than
 silently saving them.
 

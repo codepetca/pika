@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const sql = readFileSync('supabase/migrations/219_allow_started_test_mc_choice_text.sql', 'utf8')
+const sql = readFileSync('supabase/migrations/220_allow_started_test_mc_choice_text.sql', 'utf8')
 
-describe('migration 219 post-start MC choice corrections', () => {
+describe('migration 220 post-start MC choice corrections', () => {
   it('retains the locked-question guard while allowing one MC choice correction per save', () => {
     expect(sql).toContain('create or replace function public.lock_test_parent_for_child_mutation()')
     expect(sql).toContain("array['question_text', 'options', 'updated_at'")

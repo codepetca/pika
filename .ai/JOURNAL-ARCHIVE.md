@@ -33641,3 +33641,4 @@ The Tests list now displays Open when any enrolled student has effective open ac
   a further owner checkpoint. Previously issued provider sessions may still be
   paid after an operator changes a plan; this patch prevents access overwrite,
   and provider cancellation/refund handling remains a prelaunch lifecycle task.
+
