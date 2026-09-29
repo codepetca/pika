@@ -80,7 +80,10 @@ must occupy one Markdown list line; put longer shared code in the prompt and
 keep code options inline. Preserve the code's exact syntax and the correct
 option when revising an existing question. Check the student preview to confirm
 that code renders correctly in both the prompt and answer options. Format answer
-options before students start; Pika locks option edits after an attempt begins.
+options before students start. After an attempt begins, Pika permits corrections
+to one existing choice per question at a time while keeping the choice count,
+positions and correct answer locked. Check that a correction does not change
+the intended answer.
 
 ## Calibrate difficulty and workload
 

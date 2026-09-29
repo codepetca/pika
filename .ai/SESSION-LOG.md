@@ -11,6 +11,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-26 — Preserve legacy plans during first checkout
+
+- Full review of41c75110 found a P1: legacy paid accounts could reserve first
+  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
+  unchanged legacy Free eligibility at reservation, resumption, progress save,
+  binding and first-payment claim. Changed plans become attention; existing
+  paid-finish revision fencing handles the subsequent race. Applied209/211 are
+  unchanged. API returns a safe409 for initial ineligibility.
+- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
+  legacy paid rejection and plan-change races; they remain unrun until exact
+  local212 authorization. The harness refuses a database without212. Migration
+  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
+- Targeted correction/preapplication review follows as launch5/5, remediation
+  batch1. New212 and refreshed generated types/final integration review require
+  a further owner checkpoint. Previously issued provider sessions may still be
+  paid after an operator changes a plan; this patch prevents access overwrite,
+  and provider cancellation/refund handling remains a prelaunch lifecycle task.
+
 ## 2026-09-26 — Apply checkout eligibility212 and prepare final review
 
 - Owner approved local212 and one final integration review up to20 minutes
@@ -231,3 +249,12 @@ Applied the existing assignment `scrollbar-hover` utility to the teacher Test gr
 ## 2026-09-29 — Teacher Test question review formatting
 
 Changed the selected-student Test grading question comment placeholder from `Comment (optional)` to `Comment`. Coding open responses now use the existing `response_monospace` results field to show a Code label and a monospace, indentation-preserving response block with internal horizontal scroll; prose open responses retain their styling. No scoring or autosave behavior changed. Rebasing draft PR #1391 onto the latest main resolved the session archive marker conflict while retaining both log entries. Focused checks passed 234 tests plus architecture, UI/design policy, TypeScript, and lint. The owner visually verified the selected teacher pane and accepted the result. Risk profile: none. Model recommendation: GPT-6 Sol for the localized teacher UI change.
+## 2026-09-29 — MC choice corrections after Test Start
+
+Allowed teachers to edit existing multiple-choice option text after the first student Start while keeping question identity/count, option count, marked answer, points, grading and response settings locked. Updated teacher editor, draft-save policy, database trigger migration 219, notices and authoring guidance. Focused route, component, policy and migration tests pass; teacher/student preview was inspected on desktop/mobile in light/dark, and an edited choice appeared in the student view. Draft PR #1392 received independent security and compatibility review. First remediation limited post-Start saves to one changed MC choice string per question, rejected direct reorder/multi-choice replacements, and added API plus rollback-only database contract cases to the existing CI harness. Targeted review identified a non-text JSON choice gap; second remediation rejects non-text replacements and clarifies the per-question scope. Final integration review identified a quick-edit autosave merge; third remediation immediately saves each choice correction, briefly disables the other choice inputs, and restores prior text on save failure. Targeted review then found a queued title save could revive failed choice text; the user approved a fourth batch, which rebases queued saves on the prior option text. Its targeted review found a Markdown edit to a second choice could prevent rollback; fifth batch restores only the failed option index and rebuilds queued Markdown source. Migration 219 was applied to local with one-time user authorization and its rollback-only database harness passed. Local generated-types check still fails on unrelated course blueprint/daily-log drift. Students already in the Test retain loaded wording until reload. Risk profiles: workspace-state and exam-mode, with database concurrency/rollout risk. Model recommendation: GPT-6 Sol for the feature owner and GPT-5.6 Sol/Terra for independent migration and compatibility review.
+
+Final review found that a failed-choice rollback marker persisted into a later valid retry. The owner approved a sixth correction without another independent reviewer. Rollback now applies only to saves queued during the failure, and the integration test covers retrying the same option text after the queue settles. Focused checks pass 499 tests plus architecture, UI/design policy, TypeScript, and lint. Exact-head CI and merge remain pending.
+
+After background test grading took migration number 219 on main, rebased the PR branch and renamed this feature's migration to 220. The local database had already recorded the earlier 219 choice migration; its history was not altered. The PR remains draft because CI also found a separate shared-trigger failure on student availability inserts.
+
+After the other task reset and reseeded local through main's 219, corrected migration 220's shared trigger so question-only option fields are evaluated only for question updates. Added an availability insert to the rollback-only Test editing contract and verified both it and the CI-failing removed-student contract against migration 220 inside separate rollback transactions. Local migration history and seeded data remain unchanged; exact-head CI is pending.
