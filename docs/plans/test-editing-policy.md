@@ -12,13 +12,38 @@ Before first Start, existing versioned authoring is unchanged. After Start:
 | Question ID, artifact/source identity, test_id | Frozen |
 | Question membership and position | Frozen (no add/delete/duplicate/reorder) |
 | question_type | Frozen |
-| options | Entire ordered array frozen, including strings; positions are answer identities |
+| options | Existing multiple-choice choice text editable; choice count and positions remain fixed because positions are answer identities |
 | correct_option, answer_key, sample_solution, points | Frozen; no regrading |
 | response_max_chars, response_monospace | Frozen |
 | Other current/future authored fields | Frozen by database default |
 | AI reference cache and timestamps | Existing operational exception preserved |
 | Blueprint version provenance | Existing owner-only exact-column exception preserved |
 | Test title/documents/result visibility | Existing separate policies unchanged |
+
+## First-version MC choice corrections
+
+The teacher question editor now keeps existing MC option text fields enabled
+after Start. Its add, remove, reorder and marked-answer controls stay locked.
+Markdown saves use the same field policy. The server checks the choice count and
+all frozen fields, and the database trigger enforces the same boundary for
+materialized questions. This change requires migration 219; deploy the migration
+before the application code. Until then, the database rejects choice corrections
+with a conflict rather than silently saving them.
+
+UI reference: existing teacher Test question cards and `/pattern-lab` controls.
+Surface: teacher test authoring in card, accordion, detail and split editors.
+Roles: teacher; student view is checked because corrected choice text appears
+there. Viewports: 1440×900 and 390×844. Themes: light and dark. States: before
+Start, after Start, choice edit/save, locked answer controls, student answer view.
+Primary signal: existing editable option input beside disabled answer control.
+No new icon, dialog, status color or composite widget is introduced; existing
+keyboard and focus behavior is retained.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Choice text editing | TestQuestionEditor | extend | Owns the MC option inputs |
+| Boundary notice | Existing inline lock notice | extend | Must state the revised rule |
+| Student display | StudentTestForm | reuse | Renders the updated option strings |
 
 Start must persist before questions become answerable. It uses the existing atomic
 attempt RPC with NULL responses meaning Start/Resume; existing responses are retained.
@@ -29,9 +54,12 @@ historical blank closure rows are indistinguishable from starts. Future teacher-
 closing does not itself set the boundary. Opening a list/detail or teacher preview
 is not Start. A successful Start reloads current questions before exposing the form.
 
-Only prompt corrections are mechanically enforceable: teachers remain responsible
-for keeping the meaning of the question intact. Option-text corrections are excluded
-because this schema cannot distinguish a correction from replacement of an answer.
+Prompt and choice-text corrections cannot be distinguished mechanically from a
+change in meaning. Teachers remain responsible for preserving the intended
+question and answer. The editor keeps choice positions fixed; the server and
+database enforce the choice count but cannot distinguish a same-count reorder
+from replacing choice strings. This first version does not add an audit or
+student notification flow.
 
 ## UI brief
 

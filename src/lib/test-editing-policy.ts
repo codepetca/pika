@@ -1,5 +1,5 @@
-export const TEST_WORDING_ONLY_MESSAGE =
-  'A student has started. You can correct question wording and instructions. Question order, answer choices, grading and response settings are locked.'
+export const TEST_CORRECTIONS_MESSAGE =
+  'A student has started. You can correct question wording, instructions, and existing choice text. Question order, choice count, marked answers, grading, and response settings are locked.'
 
 export type TestEditingPolicy = { structureLocked: boolean }
 
@@ -27,7 +27,9 @@ export function allowsTestQuestionChanges(
     const candidate = next[index]
     return question.id === candidate.id
       && question.question_type === candidate.question_type
-      && JSON.stringify(question.options) === JSON.stringify(candidate.options)
+      && (question.question_type === 'multiple_choice'
+        ? question.options.length === candidate.options.length
+        : JSON.stringify(question.options) === JSON.stringify(candidate.options))
       && question.correct_option === candidate.correct_option
       && question.answer_key === candidate.answer_key
       && question.sample_solution === candidate.sample_solution

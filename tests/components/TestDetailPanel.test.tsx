@@ -93,6 +93,7 @@ describe('TestDetailPanel', () => {
       title?: string
       show_results?: boolean
       version?: number
+      structureLocked?: boolean
     }
   ) {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
@@ -108,7 +109,7 @@ describe('TestDetailPanel', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        editingPolicy: { structureLocked: false },        draft: {
+        editingPolicy: { structureLocked: draftOverrides?.structureLocked ?? false }, draft: {
           version: draftOverrides?.version ?? 1,
           content: draftContent,
         },
@@ -123,6 +124,24 @@ describe('TestDetailPanel', () => {
     }
     return fetchMock
   }
+
+  it('shows the updated post-start boundary and leaves existing MC choice text editable', async () => {
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    expect(await screen.findByText(/You can correct question wording, instructions, and existing choice text/)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Mark option A correct' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Reorder option A/ })).toBeDisabled()
+  })
 
   it('uses the split authoring layout with one navigable question and real document actions', async () => {
     mockFetchForTest(sampleQuestions)

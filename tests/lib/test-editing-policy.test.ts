@@ -11,14 +11,13 @@ const question: TestDraftQuestion = {
 const locked = { structureLocked: true }
 
 describe('post-start test question policy', () => {
-  it('allows prompt wording and instructions while preserving every other field', () => {
+  it('allows prompt wording and corrections to existing multiple-choice options', () => {
     expect(allowsTestQuestionChanges([question], [{ ...question, question_text: 'Choose an answer. Explain your reasoning.' }], locked)).toBe(true)
+    expect(allowsTestQuestionChanges([question], [{ ...question, options: ['One', 'Twp', 'Three', 'Four'] }], locked)).toBe(true)
   })
   it.each([
     ['a fifth choice', { options: [...question.options, 'Five'] }],
     ['a removed choice', { options: question.options.slice(1) }],
-    ['reordered choices', { options: [...question.options].reverse() }],
-    ['same-count replacement', { options: ['Replacement', 'Two', 'Three', 'Four'] }],
     ['question identity', { id: '22222222-2222-4222-8222-222222222222' }],
     ['type', { question_type: 'open_response' }],
     ['correct answer', { correct_option: 1 }],
@@ -31,6 +30,13 @@ describe('post-start test question policy', () => {
     const next = [{ ...question, ...change }] as TestDraftQuestion[]
     expect(allowsTestQuestionChanges([question], next, locked)).toBe(false)
     expect(allowsTestQuestionChanges([question], next, { structureLocked: false })).toBe(true)
+  })
+  it('keeps open-response options frozen', () => {
+    const open = { ...question, question_type: 'open_response' as const, options: [] }
+    expect(allowsTestQuestionChanges([open], [{ ...open, options: ['unexpected'] }], locked)).toBe(false)
+  })
+  it('treats a same-count replacement as choice text because options have no separate identities', () => {
+    expect(allowsTestQuestionChanges([question], [{ ...question, options: [...question.options].reverse() }], locked)).toBe(true)
   })
   it('blocks adding, deleting and reordering questions', () => {
     const second = { ...question, id: '22222222-2222-4222-8222-222222222222' }

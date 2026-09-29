@@ -32,7 +32,7 @@ import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditTestQuestions } from '@/lib/tests'
-import { allowsTestQuestionChanges, TEST_WORDING_ONLY_MESSAGE } from '@/lib/test-editing-policy'
+import { allowsTestQuestionChanges, TEST_CORRECTIONS_MESSAGE } from '@/lib/test-editing-policy'
 import { TestQuestionEditor, type TestQuestionEditorHandle } from '@/components/TestQuestionEditor'
 import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 import { TestResultsView } from '@/components/TestResultsView'
@@ -1689,7 +1689,7 @@ export function TestDetailPanel({
     )
 
     if (!allowsTestQuestionChanges(questions, nextQuestions, { structureLocked })) {
-      setMarkdownError(TEST_WORDING_ONLY_MESSAGE)
+      setMarkdownError(TEST_CORRECTIONS_MESSAGE)
       setMarkdownSaving(false)
       return
     }
@@ -2436,7 +2436,7 @@ export function TestDetailPanel({
       {titlePortal}
       {structureLocked && !loading && (
         <p role="status" className="shrink-0 border-b border-border bg-warning-bg px-3 py-2 text-sm text-warning">
-          {TEST_WORDING_ONLY_MESSAGE}
+          {TEST_CORRECTIONS_MESSAGE}
         </p>
       )}
       {/* Tabs */}
