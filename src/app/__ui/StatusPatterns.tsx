@@ -12,6 +12,7 @@ import {
   getAssignmentWorkStatusDisplay,
   getTestGradingWorkStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
+import { AssessmentStatusIcon } from '@/components/AssessmentStatusIcon'
 import type { TeacherAttendanceStatus } from '@/lib/teacher-attendance'
 import {
   Button, Card, DataTable, DataTableBody, DataTableCell,
@@ -38,7 +39,13 @@ const ASSIGNMENT_STATES = [
   { status: 'resubmitted', meaning: 'Submitted again after return.' },
 ] as const
 
-const TEST_STATES = ['closed', 'submitted', 'returned'] as const
+const TEST_STATES = ['not_started', 'in_progress', 'closed', 'submitted', 'returned'] as const
+
+const TEST_GRADING_SORT_GROUP_EXAMPLES = [
+  { label: 'Submitted', iconState: 'submitted', count: 1, className: 'bg-success-bg text-success' },
+  { label: 'Returned', iconState: 'returned', count: 1, className: 'bg-info-bg text-primary' },
+  { label: 'Not submitted', iconState: 'not_started', count: 3, className: 'bg-surface-3 text-text-muted' },
+] as const
 
 export function StatusPatterns() {
   const [rows, setRows] = useState(SAMPLE_ROWS)
@@ -52,7 +59,7 @@ export function StatusPatterns() {
     <section id="status-colors" aria-label="Status colors and count chips" className="scroll-mt-6 space-y-4" data-testid="status-pattern-examples">
       <div>
         <h3 className="font-semibold">Status colors &amp; count chips</h3>
-        <p className="mt-1 text-sm text-text-muted">Number-only chips. Hover or focus for the status and count.</p>
+        <p className="mt-1 text-sm text-text-muted">Attendance uses number-only chips. Test grading shows the group icon beside its count.</p>
       </div>
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
         <Card tone="panel" padding="md">
@@ -129,6 +136,16 @@ export function StatusPatterns() {
               return <AssessmentStatusIndicator key={status} display={display} />
             })}
           </div>
+          <p className="mt-4 text-xs font-semibold text-text-muted">Test grading sort groups</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2" aria-label="Test grading status sort group examples">
+            {TEST_GRADING_SORT_GROUP_EXAMPLES.map(({ label, iconState, count, className }) => (
+              <span key={label} className={`inline-flex h-6 min-w-9 items-center justify-center gap-1 rounded-badge px-1.5 text-sm font-semibold ${className}`} aria-label={`${label}: ${count} student${count === 1 ? '' : 's'}`}>
+                <AssessmentStatusIcon state={iconState} className="!h-3.5 !w-3.5" />
+                {count}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-text-muted">Not submitted combines Not started, In progress, and Closed for grading for sorting. Each student row keeps its precise status.</p>
           <p className="mt-4 text-xs text-text-muted">Submit, Grade, and Return are actions. Submitted, Graded, and Returned are states. Classwork and Tests use the Reply icon for Return and Returned. Use Submitted for a student hand-in, rather than the ambiguous Sent.</p>
           <p className="mt-2 text-xs text-text-muted">A student’s Checked in confirmation is separate from the teacher’s Present/Late/Absent mark.</p>
         </Card>

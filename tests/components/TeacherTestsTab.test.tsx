@@ -2187,7 +2187,16 @@ describe('TeacherTestsTab', () => {
       (row) => row.getAttribute('data-test-grading-student-row-id'),
     )
     const submittedChip = await screen.findByRole('button', { name: 'Sort Submitted first, 1 student' })
+    const notSubmittedChip = screen.getByRole('button', { name: 'Sort Not submitted first, 3 students' })
+    const returnedChip = screen.getByRole('button', { name: 'Sort Returned first, 1 student' })
+    expect(notSubmittedChip.querySelector('svg')).toHaveClass('lucide-circle')
+    expect(submittedChip.querySelector('svg')).toHaveClass('lucide-circle')
+    expect(returnedChip.querySelector('svg')).toHaveClass('lucide-reply')
+    expect(notSubmittedChip).toHaveTextContent('3')
     const statusHeader = screen.getByRole('columnheader', { name: 'Status' })
+    fireEvent.click(notSubmittedChip)
+    expect(notSubmittedChip).toHaveAttribute('aria-pressed', 'true')
+    expect(rowIds()).toEqual(['student-1', 'student-2', 'student-3', 'student-4', 'student-5'])
     fireEvent.click(submittedChip)
     expect(submittedChip).toHaveAttribute('aria-pressed', 'true')
 
@@ -2572,7 +2581,7 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.getByText('3/5')).toBeInTheDocument()
-    expect(screen.getByTestId('assessment-status-icon-submitted')).toHaveClass('text-success')
+    expect(within(screen.getByTestId('test-grading-student-row-student-1')).getByTestId('assessment-status-icon-submitted')).toHaveClass('text-success')
     expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Access' })).toBeInTheDocument()
     expect(screen.queryByText('Submitted')).not.toBeInTheDocument()

@@ -1809,6 +1809,10 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const moreActionsButton = trailingActions.getByRole('button', { name: 'More actions' })
   await expect(moreActionsButton).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toBeVisible()
+  const notSubmittedChip = page.getByRole('button', { name: 'Sort Not submitted first, 27 students' })
+  await expect(notSubmittedChip).toContainText('27')
+  await expect(notSubmittedChip.locator('svg')).toHaveClass(/lucide-circle/)
+  await expect(page.getByRole('button', { name: 'Sort Returned first, 9 students' }).locator('svg')).toHaveClass(/lucide-reply/)
   await expect(page.getByRole('toolbar', { name: 'Test grading actions' })).toBeVisible()
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
@@ -1874,6 +1878,10 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   const statusSortButton = page.getByRole('button', { name: 'Sort by status: Submitted, Returned, Not submitted' })
   await statusSortButton.click()
   await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[3].student_id)
+  if (viewport === 'mobile') {
+    await scrollPane.evaluate((element) => { element.scrollLeft = element.scrollWidth })
+    await expect(notSubmittedChip).toBeInViewport()
+  }
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-status-submitted-first.png`),
     animations: 'disabled',
@@ -1886,6 +1894,9 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   })
   await page.getByRole('button', { name: 'Sort Submitted first, 9 students' }).click()
   await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toHaveAttribute('aria-pressed', 'true')
+  await notSubmittedChip.click()
+  await expect(notSubmittedChip).toHaveAttribute('aria-pressed', 'true')
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[0].student_id)
 
   await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
   expect(await page.evaluate(() => window.scrollY)).toBe(0)

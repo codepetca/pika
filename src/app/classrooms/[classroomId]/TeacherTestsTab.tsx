@@ -25,6 +25,7 @@ import {
   AssessmentStatusIndicator,
   getTestGradingWorkStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
+import { AssessmentStatusIcon, type AssessmentStatusIconState } from '@/components/AssessmentStatusIcon'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TeacherTestAuthoringDialog } from '@/components/test-workspace/TeacherTestAuthoringDialog'
 import {
@@ -46,7 +47,7 @@ import {
 } from '@/lib/events'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
-import { compareTestGradingStatusGroups } from '@/lib/test-grading-status-sort'
+import { compareTestGradingStatusGroups, getTestGradingStatusGroup, type TestGradingStatusGroup } from '@/lib/test-grading-status-sort'
 import { getDisplayAssessmentTitle, isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
@@ -134,7 +135,7 @@ type TestGradingSortColumn =
   | 'exits'
   | 'away'
 type TestGradingResizableColumn = 'first' | 'last' | 'status' | 'access' | 'score' | 'last_activity'
-type TestGradingStatusSort = Extract<TestGradingStudentRow['status'], 'closed' | 'submitted' | 'returned'>
+type TestGradingStatusSort = TestGradingStatusGroup
 
 const TEST_GRADING_COLUMN_LIMITS = {
   first: { defaultWidth: 96, min: 72, max: 180 },
@@ -145,10 +146,16 @@ const TEST_GRADING_COLUMN_LIMITS = {
   last_activity: { defaultWidth: 104, min: 80, max: 160 },
 } satisfies Record<TestGradingResizableColumn, { defaultWidth: number; min: number; max: number }>
 
-const TEST_GRADING_SORTABLE_STATUSES: TestGradingStatusSort[] = ['closed', 'submitted', 'returned']
+const TEST_GRADING_SORTABLE_STATUSES: TestGradingStatusSort[] = ['submitted', 'returned', 'not_submitted']
+
+const TEST_GRADING_STATUS_CHIP_META: Record<TestGradingStatusSort, { label: string; iconState: AssessmentStatusIconState }> = {
+  not_submitted: { label: 'Not submitted', iconState: 'not_started' },
+  submitted: { label: 'Submitted', iconState: 'submitted' },
+  returned: { label: 'Returned', iconState: 'returned' },
+}
 
 const TEST_GRADING_STATUS_CHIP_CLASSES: Record<TestGradingStatusSort, string> = {
-  closed: 'bg-surface-3 text-text-muted',
+  not_submitted: 'bg-surface-3 text-text-muted',
   submitted: 'bg-success-bg text-success',
   returned: 'bg-info-bg text-primary',
 }
@@ -170,7 +177,7 @@ function TestGradingStatusSortChip({
   active: boolean
   onClick: () => void
 }) {
-  const label = getTestGradingWorkStatusDisplay(status).label
+  const { label, iconState } = TEST_GRADING_STATUS_CHIP_META[status]
   const studentLabel = count === 1 ? 'student' : 'students'
 
   return (
@@ -187,11 +194,12 @@ function TestGradingStatusSortChip({
         <span
           aria-hidden="true"
           className={cn(
-            'inline-flex h-6 min-w-6 items-center justify-center rounded-badge px-2 text-sm font-semibold',
+            'inline-flex h-6 min-w-9 items-center justify-center gap-1 rounded-badge px-1.5 text-sm font-semibold',
             TEST_GRADING_STATUS_CHIP_CLASSES[status],
             active && 'ring-foundation ring-focus ring-offset-2 ring-offset-surface',
           )}
         >
+          <AssessmentStatusIcon state={iconState} className="!h-3.5 !w-3.5" />
           {count}
         </span>
       </Button>
@@ -619,7 +627,7 @@ export function TeacherTestsTab({
         }
         if (column === 'status') {
           if (status) {
-            const statusRank = Number(b.status === status) - Number(a.status === status)
+            const statusRank = Number(getTestGradingStatusGroup(b.status) === status) - Number(getTestGradingStatusGroup(a.status) === status)
             if (statusRank !== 0) return statusRank
             return compareByNameFields(
               {
@@ -713,11 +721,9 @@ export function TeacherTestsTab({
   }, [])
 
   const gradingStatusCounts = useMemo(() => {
-    const counts: Record<TestGradingStatusSort, number> = { closed: 0, submitted: 0, returned: 0 }
+    const counts: Record<TestGradingStatusSort, number> = { not_submitted: 0, submitted: 0, returned: 0 }
     for (const student of gradingStudents) {
-      if (student.status === 'closed' || student.status === 'submitted' || student.status === 'returned') {
-        counts[student.status] += 1
-      }
+      counts[getTestGradingStatusGroup(student.status)] += 1
     }
     return counts
   }, [gradingStudents])
