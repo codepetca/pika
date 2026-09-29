@@ -112,8 +112,11 @@ it matters; do not silently expand the agreed scope or point budget.
 
 ## Use diagrams and references deliberately
 
-For transformations, show starting and ending examples side by side. For other
-subjects, choose the representation that clarifies the task. Match the course's
+When generating images with multiple diagrams or states, stack them vertically
+instead of placing them side by side. For transformations, put the starting
+state above the ending state and label both clearly. For example, a Karel world
+reference should show the starting world on top and the ending world below it.
+Keep each diagram legible in the student's reference pane. Match the course's
 notation, label each question and state, and include a legend for ambiguous
 symbols. Check that the diagram agrees with every relevant prompt condition.
 
