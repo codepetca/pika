@@ -522,6 +522,7 @@ async function main(): Promise<void> {
     if (arg.startsWith('--') && !valueFlags.has(arg) && !['--all', '--dry-run', '--resume'].includes(arg)) throw new Error(`Unknown option: ${arg}`)
     if (valueFlags.has(arg) && (argv[index + 1] == null || argv[index + 1].startsWith('--'))) throw new Error(`Missing value for ${arg}`)
   }
+  if (argv.filter((arg) => arg === '--effort').length > 1) throw new Error('Specify --effort only once')
   const snapshotPaths = argv.filter((arg, index) => {
     if (arg.startsWith('--')) return false
     const previous = argv[index - 1]

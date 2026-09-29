@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, writeFileSync, symlinkSync, linkSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
 
 const { prepare, single, batch } = vi.hoisted(() => ({ prepare: vi.fn(), single: vi.fn(), batch: vi.fn() }))
 vi.mock('@/lib/ai-test-grading', () => ({
@@ -30,6 +31,15 @@ const providerCall = () => fetch('https://api.deepseek.com/chat/completions', {
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks() })
 
 describe('test grading comparison', () => {
+  it('rejects conflicting repeated effort flags before loading private inputs or making paid calls', () => {
+    const run = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/calibrate-test-grading.ts',
+      '--batch-size', '2', '--effort', 'low', '--effort', 'medium', '--dry-run'],
+    { cwd: process.cwd(), encoding: 'utf8' })
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('Specify --effort only once')
+    expect(run.stdout).not.toContain('Loaded')
+  })
+
   it('refuses public-looking output and overwriting any input, including filesystem aliases', () => {
     const directory = mkdtempSync(join(tmpdir(), 'pika-comparison-'))
     try {
