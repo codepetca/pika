@@ -18,7 +18,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { ChevronDown, ClockAlert, Code, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, ClockAlert, Code, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import {
@@ -46,6 +46,7 @@ import {
 } from '@/lib/events'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
+import { compareTestGradingStatusGroups } from '@/lib/test-grading-status-sort'
 import { getDisplayAssessmentTitle, isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
@@ -138,7 +139,7 @@ type TestGradingStatusSort = Extract<TestGradingStudentRow['status'], 'closed' |
 const TEST_GRADING_COLUMN_LIMITS = {
   first: { defaultWidth: 96, min: 72, max: 180 },
   last: { defaultWidth: 120, min: 80, max: 220 },
-  status: { defaultWidth: 188, min: 152, max: 240 },
+  status: { defaultWidth: 232, min: 224, max: 280 },
   access: { defaultWidth: 72, min: 56, max: 112 },
   score: { defaultWidth: 80, min: 64, max: 120 },
   last_activity: { defaultWidth: 104, min: 80, max: 160 },
@@ -635,7 +636,22 @@ export function TeacherTestsTab({
               'asc',
             )
           }
-          return applyDirection(a.status.localeCompare(b.status), direction)
+          const statusGroupRank = compareTestGradingStatusGroups(a.status, b.status, direction)
+          if (statusGroupRank !== 0) return statusGroupRank
+          return compareByNameFields(
+            {
+              firstName: aNameParts.firstName,
+              lastName: aNameParts.lastName,
+              id: a.email || a.student_id,
+            },
+            {
+              firstName: bNameParts.firstName,
+              lastName: bNameParts.lastName,
+              id: b.email || b.student_id,
+            },
+            'last_name',
+            'asc',
+          )
         }
         if (column === 'access') {
           const aAccess = getEffectiveTestAccess(a, selectedTestWorkspace?.status)
@@ -682,6 +698,14 @@ export function TeacherTestsTab({
 
   const handleGradingSort = useCallback((column: TestGradingSortColumn) => {
     setGradingSortState((previous) => ({ ...toggleSort(previous, column), status: null }))
+  }, [])
+
+  const handleGradingStatusGroupSort = useCallback(() => {
+    setGradingSortState((previous) => ({
+      column: 'status',
+      direction: previous.column === 'status' && previous.status === null && previous.direction === 'asc' ? 'desc' : 'asc',
+      status: null,
+    }))
   }, [])
 
   const handleGradingStatusSort = useCallback((status: TestGradingStatusSort) => {
@@ -2040,6 +2064,11 @@ export function TeacherTestsTab({
     [selectGradingStudent, selectedStudentId]
   )
 
+  const isStatusGroupSortActive = gradingSortState.column === 'status' && gradingSortState.status === null
+  const statusGroupSortAction = isStatusGroupSortActive && gradingSortState.direction === 'asc'
+    ? 'Not submitted, Returned, Submitted'
+    : 'Submitted, Returned, Not submitted'
+
   const gradingTable = (
     <div
       className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
@@ -2210,11 +2239,29 @@ export function TeacherTestsTab({
                 <DataTableHeaderCell
                   className="group relative !p-0"
                   aria-label="Status"
-                  aria-sort={gradingSortState.column === 'status' ? 'other' : 'none'}
+                  aria-sort={isStatusGroupSortActive
+                    ? gradingSortState.direction === 'asc' ? 'ascending' : 'descending'
+                    : gradingSortState.column === 'status' ? 'other' : 'none'}
                   style={{ width: `${gradingColumnWidths.status}px`, maxWidth: `${gradingColumnWidths.status}px` }}
                 >
                   <div className="flex min-h-control items-center gap-0.5 px-1 sm:px-2">
-                    <span className="hidden shrink-0 2xl:inline">Status</span>
+                    <Tooltip content={`Sort ${statusGroupSortAction}`}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        className="min-w-0 gap-0.5 px-1"
+                        aria-label={`Sort by status: ${statusGroupSortAction}`}
+                        onClick={handleGradingStatusGroupSort}
+                      >
+                        Status
+                        {isStatusGroupSortActive
+                          ? gradingSortState.direction === 'asc'
+                            ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                            : <ChevronDown className="h-3 w-3" aria-hidden="true" />
+                          : null}
+                      </Button>
+                    </Tooltip>
                     <span
                       role="group"
                       aria-label="Sort Test grading by status"

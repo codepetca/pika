@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useEffect, useState, type ReactNode } from 'react'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
@@ -2159,6 +2160,48 @@ describe('TeacherTestsTab', () => {
       'aria-sort',
       'descending',
     )
+  })
+
+  it('toggles the Status header across all attempt states and clears chip priority', async () => {
+    const statuses = ['not_started', 'in_progress', 'closed', 'returned', 'submitted'] as const
+    const students = statuses.map((status, index) => makeGradingStudent({
+      student_id: `student-${index + 1}`,
+      name: `Student ${index + 1} Alpha${index + 1}`,
+      first_name: `Student ${index + 1}`,
+      last_name: `Alpha${index + 1}`,
+      email: `student${index + 1}@example.com`,
+      status,
+    }))
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({ students }))
+
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    const rowIds = () => Array.from(
+      screen.getByTestId('test-grading-student-scroll-pane').querySelectorAll('[data-test-grading-student-row-id]'),
+      (row) => row.getAttribute('data-test-grading-student-row-id'),
+    )
+    const submittedChip = await screen.findByRole('button', { name: 'Sort Submitted first, 1 student' })
+    const statusHeader = screen.getByRole('columnheader', { name: 'Status' })
+    fireEvent.click(submittedChip)
+    expect(submittedChip).toHaveAttribute('aria-pressed', 'true')
+
+    const statusSortButton = screen.getByRole('button', { name: 'Sort by status: Submitted, Returned, Not submitted' })
+    statusSortButton.focus()
+    expect(statusSortButton).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    expect(rowIds()).toEqual(['student-5', 'student-4', 'student-1', 'student-2', 'student-3'])
+    expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
+    expect(submittedChip).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by status: Not submitted, Returned, Submitted' }))
+    expect(rowIds()).toEqual(['student-1', 'student-2', 'student-3', 'student-4', 'student-5'])
+    expect(statusHeader).toHaveAttribute('aria-sort', 'descending')
   })
 
   it('clears the selected grading row with Escape', async () => {

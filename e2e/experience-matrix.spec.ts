@@ -1871,6 +1871,19 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     element.scrollTop = element.scrollHeight
   })
   await expect(scrollPane.locator('thead')).toBeVisible()
+  const statusSortButton = page.getByRole('button', { name: 'Sort by status: Submitted, Returned, Not submitted' })
+  await statusSortButton.click()
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[3].student_id)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-status-submitted-first.png`),
+    animations: 'disabled',
+  })
+  await page.getByRole('button', { name: 'Sort by status: Not submitted, Returned, Submitted' }).click()
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[0].student_id)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-status-not-submitted-first.png`),
+    animations: 'disabled',
+  })
   await page.getByRole('button', { name: 'Sort Submitted first, 9 students' }).click()
   await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toHaveAttribute('aria-pressed', 'true')
 
