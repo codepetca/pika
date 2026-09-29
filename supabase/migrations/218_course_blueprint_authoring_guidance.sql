@@ -9,7 +9,7 @@ as $$
 declare
   unit jsonb;
   unit_id text;
-  seen_ids text[] := '{}';
+  seen_ids text[] := array[]::text[];
   field text;
 begin
   if jsonb_typeof(value) is distinct from 'object'

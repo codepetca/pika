@@ -33527,3 +33527,15 @@ The Tests list now displays Open when any enrolled student has effective open ac
 
 - Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
 - Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
+
+<!-- pika-session-log-archive-batch:573801dd8732a8f12ba069d66fc721a8cdf63fc9c96855f453b37f62a7534b05 -->
+## 2026-09-26 — Approved subscription launch policy
+
+- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
+  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
+  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
+  Updated the access roadmap and durable decisions; distinguished approved
+  product terms from provisional AI costs and missing runtime implementation.
+- Documentation-only risk profile: none. No database, Stripe account, production
+  runtime or existing subscription changed. Next implementation milestone is an
+  isolated Stripe test checkout plus lifecycle/access verification.
