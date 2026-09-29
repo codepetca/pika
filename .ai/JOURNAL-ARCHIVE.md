@@ -33591,3 +33591,21 @@ The Tests list now displays Open when any enrolled student has effective open ac
   absent; no provider objects/payments or live billing were created. Trial,
   lifecycle/access enforcement, billing UI and provider rehearsal remain pending
   under the durable coordinator plan in `docs/guidance/stripe-billing-foundation.md`.
+
+<!-- pika-session-log-archive-batch:529f2dd912fbc2d790e390c8edbe24e50bbb6f45a9624a6ea5a6eed40b80d7d6 -->
+## 2026-09-26 — Reuse shared local database for checkout verification
+
+- Owner requested the existing local database. Rebased checkout PR1368 onto
+  main402f8028 after gradebook210 merged. Read-only comparison found exactly two
+  outdated209 billing functions; additive211 now reinstalls their canonical
+  definitions without changing209 or data. New static parity and SQL assertions
+  cover grants and identity-lock ordering. Billing tests194/18 files pass.
+- Local migration list and dry-run preview only211. No application, reset or seed
+  occurred. Updated211 SHA256 is
+  `e5c30fbb3fa0ead4d4c05ea617ed79e8a5ba3928615ece3991738e8c0d58dc03`.
+  Prior independent review covered the original211, not this compatibility delta.
+- Review checkpoint: one preapplication launch, zero remediation waves; the
+  45-minute elapsed window expired including the user-input pause. Further
+  independent reviews need explicit additional review-time approval. Local211
+  application also awaits exact authorization. PR stays draft; generated types,
+  database contracts and full implementation review remain pending.

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { logServerError } from '@/lib/server/diagnostics'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
-import { DEEPSEEK_MAX_PROVIDER_ATTEMPTS } from '@/lib/grading/providers/deepseek-chat'
+import { DEEPSEEK_MAX_PROVIDER_ATTEMPTS_NO_DOWNGRADE } from '@/lib/grading/providers/deepseek-chat'
 import {
   getTestOpenResponseGradingModel,
   isRetryableTestAiGradingError,
@@ -48,7 +48,7 @@ export const TEST_AI_GRADING_QUESTION_CONCURRENCY = 2
 export const TEST_AI_GRADING_MICROBATCH_SIZE = 4
 // These five values are one budget and must move together. A tick runs inside the route's
 // `maxDuration` (300s). One provider call can take the request timeout on EACH of the
-// adapter's attempts, so its worst case is timeout x DEEPSEEK_MAX_PROVIDER_ATTEMPTS, plus
+// adapter's attempts, so its worst case is two high-effort timeouts, plus
 // time to persist the result. A tick never starts a call that could not finish and save
 // inside TEST_AI_GRADING_TICK_BUDGET_MS; the lease outlasts the longest call, since it is
 // only renewed around calls, never during them.
@@ -59,7 +59,7 @@ export const TEST_AI_GRADING_REQUEST_TIMEOUT_MS = 60_000
 export const TEST_AI_GRADING_MAX_ATTEMPTS = 3
 const TEST_AI_GRADING_PERSIST_MARGIN_MS = 15_000
 const TEST_AI_GRADING_CALL_RESERVE_MS =
-  TEST_AI_GRADING_REQUEST_TIMEOUT_MS * DEEPSEEK_MAX_PROVIDER_ATTEMPTS + TEST_AI_GRADING_PERSIST_MARGIN_MS
+  TEST_AI_GRADING_REQUEST_TIMEOUT_MS * DEEPSEEK_MAX_PROVIDER_ATTEMPTS_NO_DOWNGRADE + TEST_AI_GRADING_PERSIST_MARGIN_MS
 // Below the route's 300s maxDuration, leaving room to refresh the run and respond.
 export const TEST_AI_GRADING_TICK_BUDGET_MS = 270_000
 export const TEST_AI_GRADING_LEASE_SECONDS = 240
@@ -628,6 +628,10 @@ function toTeacherAutoGradeErrorMessage(error: unknown): string {
     message.startsWith('OpenAI returned invalid JSON') ||
     message === 'OpenAI response missing structured output' ||
     message === 'OpenAI response incomplete: max_output_tokens' ||
+    message.startsWith('DeepSeek request failed') ||
+    message.startsWith('DeepSeek returned invalid JSON') ||
+    message === 'DeepSeek response missing structured output' ||
+    message === 'DeepSeek response incomplete: max_tokens' ||
     message === 'Failed to parse AI grade suggestion' ||
     message === 'Failed to parse AI batch grade suggestions' ||
     message === 'Failed to parse AI reference answers' ||
@@ -675,9 +679,16 @@ async function failOrRetryItem(opts: {
   leaseToken: string
   attemptCount: number
   error: unknown
+  recoverProviderOutput?: boolean
 }): Promise<void> {
   const teacherMessage = toTeacherAutoGradeErrorMessage(opts.error)
-  const retryable = isRetryableTestAiGradingError(opts.error) || isBatchOmittedResponseError(opts.error)
+  const providerErrorKind = opts.error instanceof Error && 'kind' in opts.error
+    ? opts.error.kind
+    : null
+  const providerOutputFailure = opts.recoverProviderOutput && opts.error instanceof Error && (
+    providerErrorKind === 'bad_response' || providerErrorKind === 'invalid_output' || providerErrorKind === null
+  )
+  const retryable = isRetryableTestAiGradingError(opts.error) || isBatchOmittedResponseError(opts.error) || providerOutputFailure
 
   if (retryable && opts.attemptCount < TEST_AI_GRADING_MAX_ATTEMPTS) {
     await updateRunItem(opts.item.id, opts.leaseToken, {
@@ -1014,12 +1025,23 @@ async function processQuestionBatch(opts: {
     return context
   }
 
-  for (let start = 0; start < items.length; start += TEST_AI_GRADING_MICROBATCH_SIZE) {
+  for (let start = 0; start < items.length;) {
     // Checked before anything is written, so items this tick cannot finish stay exactly as
     // they were for the next tick.
     if (!canStartProviderCall(tickStartedAt)) return
 
-    const candidates = items.slice(start, start + TEST_AI_GRADING_MICROBATCH_SIZE)
+    // A failed batch is retried one response at a time. Successful first attempts retain
+    // the fast path; an invalid or truncated batch no longer strands every sibling.
+    const firstAttemptCount = items[start].attempt_count
+    const maxSize = firstAttemptCount > 0 ? 1 : TEST_AI_GRADING_MICROBATCH_SIZE
+    const untriedCandidates = items.slice(start, start + maxSize)
+    const retryBoundary = firstAttemptCount === 0
+      ? untriedCandidates.findIndex((item) => item.attempt_count > 0)
+      : -1
+    const candidates = retryBoundary > 0
+      ? untriedCandidates.slice(0, retryBoundary)
+      : untriedCandidates
+    start += candidates.length
     // An item only reaches the attempt limit while still due if each attempt was interrupted
     // before recording an outcome; a normal failure on the last attempt marks it failed.
     for (const item of candidates) {
@@ -1077,6 +1099,7 @@ async function processQuestionBatch(opts: {
       continue
     }
 
+    let providerCallInProgress = false
     try {
       if (!prepared) {
         await renewTestAiGradingRunLease({
@@ -1103,6 +1126,7 @@ async function processQuestionBatch(opts: {
           leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
         })
         if (!canStartProviderCall(tickStartedAt)) return
+        providerCallInProgress = true
         const suggestion = await suggestTestOpenResponseGradeWithContext(
           prepared,
           only.responseText,
@@ -1116,6 +1140,7 @@ async function processQuestionBatch(opts: {
           },
           TEST_AI_GRADING_REQUEST_TIMEOUT_MS,
         )
+        providerCallInProgress = false
 
         await renewTestAiGradingRunLease({
           runId: run.id,
@@ -1139,6 +1164,7 @@ async function processQuestionBatch(opts: {
         leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
       })
       if (!canStartProviderCall(tickStartedAt)) return
+      providerCallInProgress = true
       const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
         prepared,
         activeBatchRequests.map((entry) => ({
@@ -1153,6 +1179,7 @@ async function processQuestionBatch(opts: {
         },
         TEST_AI_GRADING_REQUEST_TIMEOUT_MS,
       )
+      providerCallInProgress = false
 
       await renewTestAiGradingRunLease({
         runId: run.id,
@@ -1202,6 +1229,7 @@ async function processQuestionBatch(opts: {
           leaseToken,
           attemptCount: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
           error,
+          recoverProviderOutput: providerCallInProgress,
         })
       }
     }

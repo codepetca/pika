@@ -19,6 +19,7 @@ export interface GradingPolicy {
   model: string
   requestTimeoutMs?: number
   reasoningEffort: 'minimal' | 'low' | 'medium' | 'high'
+  allowEffortDowngrade?: boolean
 }
 
 export interface StructuredOutputSpec {
@@ -58,6 +59,7 @@ export async function executeStructuredOutput<TOutput>(opts: {
     fallbackMaxOutputTokens: opts.output.fallbackMaxOutputTokens,
     requestTimeoutMs: opts.policy.requestTimeoutMs,
     reasoningEffort: opts.policy.reasoningEffort,
+    allowEffortDowngrade: opts.policy.allowEffortDowngrade,
   })
 
   let output: TOutput

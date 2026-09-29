@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Reuse shared local database for checkout verification
-
-- Owner requested the existing local database. Rebased checkout PR1368 onto
-  main402f8028 after gradebook210 merged. Read-only comparison found exactly two
-  outdated209 billing functions; additive211 now reinstalls their canonical
-  definitions without changing209 or data. New static parity and SQL assertions
-  cover grants and identity-lock ordering. Billing tests194/18 files pass.
-- Local migration list and dry-run preview only211. No application, reset or seed
-  occurred. Updated211 SHA256 is
-  `e5c30fbb3fa0ead4d4c05ea617ed79e8a5ba3928615ece3991738e8c0d58dc03`.
-  Prior independent review covered the original211, not this compatibility delta.
-- Review checkpoint: one preapplication launch, zero remediation waves; the
-  45-minute elapsed window expired including the user-input pause. Further
-  independent reviews need explicit additional review-time approval. Local211
-  application also awaits exact authorization. PR stays draft; generated types,
-  database contracts and full implementation review remain pending.
-
 ## 2026-09-26 — Apply and verify local checkout211
 
 - Owner approved45 additional review minutes and existing-local211 application
@@ -258,6 +241,14 @@ Draft PR #1386 received independent security and architecture review. One remedi
 ## 2026-09-28 — Blueprint PR final CI corrections
 
 Owner approved one additional reviewer and time for PR #1386. Exact-head CI caught a warning-level array initializer in migration 218; the stacked classroom PR browser run also found three Blueprint experience tests still targeting the old tab and URL behavior. Corrected the migration initializer and test expectations for the Settings → Publish tab and retained section query. Focused checks pass 998 tests, architecture, UI/design policy, TypeScript, and lint. Final independent review and exact-head ready CI remain pending; no local migration or merge was performed.
+
+## 2026-09-28 — High-only test grading completion in progress
+
+The owner chose high reasoning on every attempt, background continuation after leaving the page, and a 20-minute target for 24 students with two AI-marked answers each. Added test-policy v7 to forbid effort downgrade, individual high-effort retries after failed four-answer batches, a protected bounded worker route, and migration 219 for pg_net wakeups plus a minute pg_cron watchdog. Vault settings activate dispatch after rollout; no migration or production deployment has been applied. Initial focused checks passed 2,833 tests plus architecture, UI/design policy, TypeScript and lint; both independent initial reviewers passed. Next: exact-head CI, targeted review of the retry correction, and owner approval for migration application and promotion. Risk profiles: async-grading and runtime-platform. Model recommendation: GPT-6 Sol for this cross-layer reliability change.
+
+The high-only sequential offline run took 19.2 minutes for 48 answers; 44 graded and four exhausted the 6K/8K output budgets. All four graded on one further high-only attempt in 3.5 minutes. Corrected the run coordinator to retry output-budget exhaustion for individual answers, within its existing three-attempt limit, and mapped DeepSeek provider errors to a teacher-safe message. This is evidence for the retry path, not a guarantee of a 20-minute production class run; production's adaptive batching and background dispatch still need rollout verification.
+
+A paired offline high-only trial raised individual grading budgets to 12K/16K and completed all 48 answers in 18.0 sequential grading-call minutes with 50 provider requests; the prior 6K/8K run plus rescue took 22.7 minutes and 66 requests. The fixed off-peak reference-rate estimate fell from $0.1701 to $0.1378. Seventeen scores differed across runs, so the trial does not establish a quality improvement. The draft now applies 12K/16K only to individual grading, retains 6K/8K reference generation, and records policy v8. No Pika grades were written by the trial; background class completion remains unverified.
 
 ## 2026-09-29 — Teacher work-list hover distinction
 

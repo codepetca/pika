@@ -36,6 +36,7 @@ const DEEPSEEK_EFFORT_DOWNGRADE: Partial<
  * `generate` below.
  */
 export const DEEPSEEK_MAX_PROVIDER_ATTEMPTS = 3
+export const DEEPSEEK_MAX_PROVIDER_ATTEMPTS_NO_DOWNGRADE = 2
 
 function isTimeoutError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
@@ -73,7 +74,7 @@ export function createDeepSeekChatProvider(opts: {
 
       let reasoningEffortUsed = request.reasoningEffort
       const reducedEffort = DEEPSEEK_EFFORT_DOWNGRADE[request.reasoningEffort]
-      if (isMaxOutputIncomplete(payload) && reducedEffort) {
+      if (isMaxOutputIncomplete(payload) && reducedEffort && request.allowEffortDowngrade !== false) {
         requestCount += 1
         payload = await fetchPayload(
           fetchImpl,

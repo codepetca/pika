@@ -333,7 +333,7 @@ describe('suggestTestOpenResponseGrade', () => {
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
 
     expect(gradingBody.reasoning_effort).toBe('high')
-    expect(gradingBody.max_tokens).toBe(6000)
+    expect(gradingBody.max_tokens).toBe(12000)
     expect(gradingBody.response_format).toEqual({ type: 'json_object' })
     expect(gradingBody.messages[0].content).toContain('test_single_grade')
     expect(suggestion.provenance).toMatchObject({
@@ -341,7 +341,7 @@ describe('suggestTestOpenResponseGrade', () => {
       gradingRequestId: expect.any(String),
       provider: 'deepseek',
       model: 'deepseek-flash',
-      policyVersion: 'pika-test-open-response-policy-v6',
+      policyVersion: 'pika-test-open-response-policy-v8',
       promptVersion: 'pika-test-open-response-manual-prompt-v4',
       gradingProfileVersion: 'pika-test-open-response-v1',
       rubricVersion: 'pika-test-open-response-rubric-v1',
@@ -350,6 +350,27 @@ describe('suggestTestOpenResponseGrade', () => {
       providerRequestCount: 1,
       tokenUsage: { inputTokens: 120, outputTokens: 20, totalTokens: 140 },
     })
+  })
+
+  it('never sends a low-effort rescue request for a truncated test grade', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '{"partial"' }, finish_reason: 'length' }],
+      }),
+    })
+
+    await expect(suggestTestOpenResponseGrade({
+      testTitle: 'Unit 1 Test',
+      questionText: 'Explain osmosis.',
+      responseText: 'Water moves across a membrane.',
+      maxPoints: 5,
+      answerKey: 'Water follows the concentration gradient.',
+    })).rejects.toMatchObject({ kind: 'bad_response' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init.body)).reasoning_effort))
+      .toEqual(['high', 'high'])
   })
 
   it('replaces known student names in test grading prompts', async () => {

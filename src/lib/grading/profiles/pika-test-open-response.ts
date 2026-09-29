@@ -9,7 +9,7 @@ import {
 
 export const PIKA_TEST_OPEN_RESPONSE_PROFILE_VERSION = 'pika-test-open-response-v1'
 export const PIKA_TEST_OPEN_RESPONSE_RUBRIC_VERSION = 'pika-test-open-response-rubric-v1'
-export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v6'
+export const PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION = 'pika-test-open-response-policy-v8'
 export const PIKA_TEST_OPEN_RESPONSE_MANUAL_PROMPT_VERSION =
   'pika-test-open-response-manual-prompt-v4'
 export const PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION =
@@ -107,24 +107,27 @@ const batchGradeJsonSchema = {
 } as const
 
 // DeepSeek counts reasoning against max_tokens, so these budgets are sized by
-// thinking cost rather than answer length. Measured over 12 real responses at
-// medium effort, a single grade spent 71 to 4509 output tokens; the old 220/420
-// pair truncated roughly half of them and failed outright on the rest.
-const TEST_INITIAL_MAX_OUTPUT_TOKENS = 6000
-const TEST_FALLBACK_MAX_OUTPUT_TOKENS = 8000
+// thinking cost rather than answer length. Reference generation keeps its existing
+// ceiling; the larger single-grade budget was measured on 48 deidentified answers:
+// all 48 completed in 18.0 sequential grading-call minutes at high reasoning.
+// This is not a production class-completion guarantee.
+const TEST_REFERENCE_INITIAL_MAX_OUTPUT_TOKENS = 6000
+const TEST_REFERENCE_FALLBACK_MAX_OUTPUT_TOKENS = 8000
+const TEST_SINGLE_GRADE_INITIAL_MAX_OUTPUT_TOKENS = 12_000
+const TEST_SINGLE_GRADE_FALLBACK_MAX_OUTPUT_TOKENS = 16_000
 
 export const PIKA_TEST_REFERENCE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_reference_answers',
   jsonSchema: referenceJsonSchema,
-  initialMaxOutputTokens: TEST_INITIAL_MAX_OUTPUT_TOKENS,
-  fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
+  initialMaxOutputTokens: TEST_REFERENCE_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_REFERENCE_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
 export const PIKA_TEST_SINGLE_GRADE_OUTPUT: StructuredOutputSpec = {
   schemaName: 'test_single_grade',
   jsonSchema: singleGradeJsonSchema,
-  initialMaxOutputTokens: TEST_INITIAL_MAX_OUTPUT_TOKENS,
-  fallbackMaxOutputTokens: TEST_FALLBACK_MAX_OUTPUT_TOKENS,
+  initialMaxOutputTokens: TEST_SINGLE_GRADE_INITIAL_MAX_OUTPUT_TOKENS,
+  fallbackMaxOutputTokens: TEST_SINGLE_GRADE_FALLBACK_MAX_OUTPUT_TOKENS,
 }
 
 // A batch call returns a score and feedback for every response in it and reasons about

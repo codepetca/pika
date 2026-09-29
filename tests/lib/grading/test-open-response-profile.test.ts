@@ -8,6 +8,7 @@ import {
   PIKA_TEST_MAX_BATCH_RESPONSES,
   PIKA_TEST_OPEN_RESPONSE_BULK_PROMPT_VERSION,
   PIKA_TEST_OPEN_RESPONSE_MANUAL_PROMPT_VERSION,
+  PIKA_TEST_REFERENCE_OUTPUT,
   PIKA_TEST_SINGLE_GRADE_OUTPUT,
 } from '@/lib/grading/profiles/pika-test-open-response'
 
@@ -22,9 +23,13 @@ describe('Pika test open-response profile', () => {
   })
 
   it('budgets a single grade for reasoning, not answer length', () => {
-    expect(PIKA_TEST_SINGLE_GRADE_OUTPUT).toMatchObject({
+    expect(PIKA_TEST_REFERENCE_OUTPUT).toMatchObject({
       initialMaxOutputTokens: 6000,
       fallbackMaxOutputTokens: 8000,
+    })
+    expect(PIKA_TEST_SINGLE_GRADE_OUTPUT).toMatchObject({
+      initialMaxOutputTokens: 12000,
+      fallbackMaxOutputTokens: 16000,
     })
   })
 
