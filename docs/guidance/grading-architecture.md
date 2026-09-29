@@ -236,6 +236,10 @@ that batch fails, the affected responses retry individually at high reasoning.
 This preserves the faster path for successful batches without making one malformed
 batch response fail all its answers. The policy version records the high-only
 behavior separately from earlier grades that could use a low-effort rescue attempt.
+Individual grades use a 12,000-token first budget and a 16,000-token fallback;
+reference-answer generation retains its 6,000/8,000 budgets. An offline sequential
+48-answer trial completed every grade in 18.0 grading-call minutes at high reasoning,
+but the full background class flow still needs production measurement.
 
 Migration 219 adds durable background wakeups for test runs. An item-insert
 trigger starts the first protected worker call; a lease-release trigger starts

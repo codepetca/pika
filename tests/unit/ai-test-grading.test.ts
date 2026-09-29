@@ -333,7 +333,7 @@ describe('suggestTestOpenResponseGrade', () => {
     const gradingBody = JSON.parse(String(gradingRequest?.body ?? '{}'))
 
     expect(gradingBody.reasoning_effort).toBe('high')
-    expect(gradingBody.max_tokens).toBe(6000)
+    expect(gradingBody.max_tokens).toBe(12000)
     expect(gradingBody.response_format).toEqual({ type: 'json_object' })
     expect(gradingBody.messages[0].content).toContain('test_single_grade')
     expect(suggestion.provenance).toMatchObject({
@@ -341,7 +341,7 @@ describe('suggestTestOpenResponseGrade', () => {
       gradingRequestId: expect.any(String),
       provider: 'deepseek',
       model: 'deepseek-flash',
-      policyVersion: 'pika-test-open-response-policy-v7',
+      policyVersion: 'pika-test-open-response-policy-v8',
       promptVersion: 'pika-test-open-response-manual-prompt-v4',
       gradingProfileVersion: 'pika-test-open-response-v1',
       rubricVersion: 'pika-test-open-response-rubric-v1',
