@@ -10,6 +10,7 @@ describe('migration 219 post-start MC choice corrections', () => {
     expect(sql).toContain("old.question_type = 'multiple_choice'")
     expect(sql).toContain("new.question_type = 'multiple_choice'")
     expect(sql).toContain('jsonb_array_length(new.options) = jsonb_array_length(old.options)')
+    expect(sql).toContain("jsonb_typeof(new_choice.value) <> 'string'")
     expect(sql).toContain('old_choice.value is distinct from new_choice.value')
     expect(sql).toContain('<= 1')
     expect(sql).toContain('new.options is not distinct from old.options')

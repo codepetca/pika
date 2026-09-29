@@ -1,5 +1,5 @@
 export const TEST_CORRECTIONS_MESSAGE =
-  'A student has started. You can correct question wording, instructions, and one existing choice at a time. Question order, choice count, marked answers, grading, and response settings are locked.'
+  'A student has started. You can correct question wording, instructions, and one existing choice per question at a time. Question order, choice count, marked answers, grading, and response settings are locked.'
 
 export type TestEditingPolicy = { structureLocked: boolean }
 

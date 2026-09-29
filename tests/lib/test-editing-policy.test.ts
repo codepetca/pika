@@ -43,4 +43,13 @@ describe('post-start test question policy', () => {
     expect(allowsTestQuestionChanges([question], [question, second], locked)).toBe(false)
     expect(allowsTestQuestionChanges([question, second], [second, question], locked)).toBe(false)
   })
+  it('allows one choice correction in each of two existing questions', () => {
+    const second = { ...question, id: '22222222-2222-4222-8222-222222222222' }
+    expect(allowsTestQuestionChanges(
+      [question, second],
+      [{ ...question, options: ['Won', 'Two', 'Three', 'Four'] },
+        { ...second, options: ['One', 'Twp', 'Three', 'Four'] }],
+      locked,
+    )).toBe(true)
+  })
 })

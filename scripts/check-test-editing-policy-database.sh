@@ -122,6 +122,7 @@ declare
   v_rows jsonb;
   v_resource record;
   v_mismatch_count integer;
+  v_bad_choice jsonb;
 begin
   v_result := public.begin_classroom_archive_export_v2(
     v_export_id,
@@ -367,6 +368,17 @@ begin
     raise exception 'Locked Test accepted two choice edits in one save';
   exception when sqlstate '55000' then null;
   end;
+  for v_bad_choice in
+    select value from jsonb_array_elements('[{"bad":true},42,null]'::jsonb)
+  loop
+    begin
+      update public.test_questions
+      set options = jsonb_build_array(v_bad_choice, 'Second')
+      where id = '14200000-0000-4000-8000-000000000021';
+      raise exception 'Locked Test accepted a non-text choice: %', v_bad_choice;
+    exception when sqlstate '55000' then null;
+    end;
+  end loop;
   begin
     update public.test_questions
     set correct_option = 1

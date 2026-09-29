@@ -137,7 +137,7 @@ describe('TestDetailPanel', () => {
       { wrapper: Wrapper },
     )
 
-    expect(await screen.findByText(/You can correct question wording, instructions, and one existing choice at a time/)).toBeInTheDocument()
+    expect(await screen.findByText(/You can correct question wording, instructions, and one existing choice per question at a time/)).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Mark option A correct' })).toBeDisabled()
     expect(screen.getByRole('button', { name: /Reorder option A/ })).toBeDisabled()

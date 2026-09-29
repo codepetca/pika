@@ -12,7 +12,7 @@ Before first Start, existing versioned authoring is unchanged. After Start:
 | Question ID, artifact/source identity, test_id | Frozen |
 | Question membership and position | Frozen (no add/delete/duplicate/reorder) |
 | question_type | Frozen |
-| options | One existing multiple-choice choice string editable per save; choice count and position indices remain fixed because indices are answer identities |
+| options | One existing multiple-choice choice string per question editable per save; choice count and position indices remain fixed because indices are answer identities |
 | correct_option, answer_key, sample_solution, points | Frozen; no regrading |
 | response_max_chars, response_monospace | Frozen |
 | Other current/future authored fields | Frozen by database default |
@@ -25,11 +25,12 @@ Before first Start, existing versioned authoring is unchanged. After Start:
 The teacher question editor now keeps existing MC option text fields enabled
 after Start. Its add, remove, reorder and marked-answer controls stay locked.
 Markdown saves use the same field policy. The server checks that at most one
-option string changes per save, along with choice count and all frozen fields;
-the database trigger enforces the same boundary for
-materialized questions. This change requires migration 219; deploy the migration
-before the application code. Until then, the database rejects choice corrections
-with a conflict rather than silently saving them.
+option string changes per question per save, along with choice count and all
+frozen fields. The database trigger enforces the same boundary for materialized
+questions and requires every replacement choice to remain text. This change
+requires migration 219; deploy the migration before the application code. Until
+then, the database rejects choice corrections with a conflict rather than
+silently saving them.
 
 UI reference: existing teacher Test question cards and `/pattern-lab` controls.
 Surface: teacher test authoring in card, accordion, detail and split editors.
