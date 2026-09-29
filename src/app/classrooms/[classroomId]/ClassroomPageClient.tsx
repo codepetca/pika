@@ -1951,6 +1951,13 @@ function ClassroomPageContent({
                       <TeacherBlueprintTab
                         classroom={classroom}
                         isActive={activeTab === 'blueprint'}
+                        sectionParam={sectionParam}
+                        onSectionChange={(section) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'blueprint')
+                            params.set('section', section)
+                          })
+                        }
                       />
                     </TabContentTransition>
                   )}

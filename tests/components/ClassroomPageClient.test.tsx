@@ -15,6 +15,14 @@ describe('ClassroomPageClient titlebar navigation', () => {
     // The request/refresh transition is exercised in TeacherGradebookTab.test.tsx.
   })
 
+  it('keeps teacher Blueprint section navigation in the classroom URL', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
+
+    expect(source).toMatch(/<TeacherBlueprintTab[\s\S]*?sectionParam=\{sectionParam\}[\s\S]*?onSectionChange=\{\(section\) =>[\s\S]*?params\.set\('tab', 'blueprint'\)[\s\S]*?params\.set\('section', section\)/)
+    expect(source).toContain("if (tab !== 'settings') {")
+    expect(source).toContain("params.delete('section')")
+  })
+
   it('mounts the student Grades owner only for the available Grades tab and propagates teacher visibility updates', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
 

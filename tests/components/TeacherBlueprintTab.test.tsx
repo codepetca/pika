@@ -39,17 +39,24 @@ describe('TeacherBlueprintTab', () => {
 
   it('shows the linked classroom Version in the content pane with teacher-only guidance', async () => {
     vi.mocked(fetchCachedJSON).mockResolvedValue({ context: linkedContext })
-    render(<TeacherBlueprintTab classroom={classroom} isActive />)
+    const onSectionChange = vi.fn()
+    const { rerender } = render(<TeacherBlueprintTab classroom={classroom} isActive onSectionChange={onSectionChange} />)
 
     expect(await screen.findByText('Version 3')).toBeInTheDocument()
     expect(screen.getAllByText('Computer Science 11')).toHaveLength(2)
     expect(screen.getByText(/Later edits to the source Blueprint do not change it/)).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Blueprint section' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Overview' })).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Content' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Content' }))
+    expect(onSectionChange).toHaveBeenCalledWith('content')
+    rerender(<TeacherBlueprintTab classroom={classroom} isActive sectionParam="content" onSectionChange={onSectionChange} />)
     expect(screen.getByText('Build a Karel program')).toBeInTheDocument()
     expect(screen.getByText('Unit 1 test')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Authoring Guidance' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Authoring Guidance' }))
+    expect(onSectionChange).toHaveBeenCalledWith('guidance')
+    rerender(<TeacherBlueprintTab classroom={classroom} isActive sectionParam="guidance" onSectionChange={onSectionChange} />)
     expect(screen.getByText('Teacher only · Drafts use these saved course and unit rules.')).toBeInTheDocument()
     expect(screen.getByText('Unit 1')).toBeInTheDocument()
     expect(screen.getAllByTestId('markdown-content')).toHaveLength(5)

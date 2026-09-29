@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { RichTextViewer } from '@/components/editor'
 import { markdownToTiptapContent } from '@/lib/limited-markdown'
 import { fetchCachedJSON } from '@/lib/request-cache'
 import type { CourseBlueprintAuthoringGuidance } from '@/lib/course-blueprint-authoring-guidance'
 import type { Classroom } from '@/types'
-import { Button, PageContent, PageHeading, PageLayout, PageState, TabPanel, Tabs } from '@/ui'
+import { Button, PageContent, PageHeading, PageLayout, PageState, SegmentedControl } from '@/ui'
 
 type BlueprintSection = 'overview' | 'content' | 'guidance'
 
@@ -35,6 +35,14 @@ const SECTIONS: Array<{ value: BlueprintSection; label: string }> = [
   { value: 'content', label: 'Content' },
   { value: 'guidance', label: 'Authoring Guidance' },
 ]
+
+const BLUEPRINT_SECTIONS = new Set<BlueprintSection>(SECTIONS.map((section) => section.value))
+
+function parseBlueprintSection(value: string | null | undefined): BlueprintSection {
+  return value && BLUEPRINT_SECTIONS.has(value as BlueprintSection)
+    ? value as BlueprintSection
+    : 'overview'
+}
 
 function MarkdownSection({ title, markdown, emptyText }: {
   title: string
@@ -74,14 +82,15 @@ function TitleList({ title, titles }: { title: string; titles: string[] }) {
   )
 }
 
-export function TeacherBlueprintTab({ classroom, isActive }: {
+export function TeacherBlueprintTab({ classroom, isActive, sectionParam, onSectionChange = () => {} }: {
   classroom: Classroom
   isActive: boolean
+  sectionParam?: string | null
+  onSectionChange?: (section: BlueprintSection) => void
 }) {
   const [state, setState] = useState<BlueprintState>({ status: 'loading' })
-  const [section, setSection] = useState<BlueprintSection>('overview')
   const [attempt, setAttempt] = useState(0)
-  const tabId = useId()
+  const section = parseBlueprintSection(sectionParam)
 
   useEffect(() => {
     if (!isActive) return
@@ -104,12 +113,18 @@ export function TeacherBlueprintTab({ classroom, isActive }: {
   const context = state.status === 'ready' ? state.context : null
   const course = context?.course
   const guidance = context?.guidance
-  const panelId = (value: BlueprintSection) => `${tabId}-${value}-panel`
-  const labelId = (value: BlueprintSection) => `${tabId}-${value}-tab`
-
   return (
     <PageLayout width="wide">
-      <PageContent className="space-y-5 pb-8">
+      <div className="mb-2 overflow-x-auto pb-1">
+        <SegmentedControl
+          ariaLabel="Blueprint section"
+          value={section}
+          options={SECTIONS}
+          onChange={onSectionChange}
+          className="[&_button]:min-h-11"
+        />
+      </div>
+      <PageContent className="space-y-5 pt-0 pb-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <PageHeading
             title="Blueprint"
@@ -142,15 +157,7 @@ export function TeacherBlueprintTab({ classroom, isActive }: {
             <p className="rounded-card border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
               This is the Version saved with this classroom. Later edits to the source Blueprint do not change it.
             </p>
-            <Tabs
-              ariaLabel="Classroom Blueprint"
-              items={SECTIONS}
-              value={section}
-              onValueChange={setSection}
-              getTabId={labelId}
-              getPanelId={panelId}
-            />
-            <TabPanel id={panelId(section)} labelledBy={labelId(section)}>
+            <div role="region" aria-label={`${SECTIONS.find((item) => item.value === section)?.label} Blueprint section`}>
               {section === 'overview' ? (
                 <div className="space-y-4">
                   <section className="rounded-card border border-border bg-surface p-4 sm:p-5">
@@ -190,7 +197,7 @@ export function TeacherBlueprintTab({ classroom, isActive }: {
                   ) : null}
                 </div>
               )}
-            </TabPanel>
+            </div>
           </>
         )}
       </PageContent>

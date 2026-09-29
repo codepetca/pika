@@ -97,7 +97,7 @@ describe('NavItems notification dots', () => {
 
     expect(screen.getByRole('link', { name: 'Tests' }).querySelector('svg')).toHaveClass('lucide-square-pen')
     expect(screen.getByRole('link', { name: 'Course Guide' }).querySelector('svg')).toHaveClass('lucide-compass')
-    expect(screen.getByRole('link', { name: 'Blueprint' }).querySelector('svg')).toHaveClass('lucide-book-open')
+    expect(screen.getByRole('link', { name: 'Blueprint' }).querySelector('svg')).toHaveClass('lucide-factory')
 
     rerender(
       <NavItems

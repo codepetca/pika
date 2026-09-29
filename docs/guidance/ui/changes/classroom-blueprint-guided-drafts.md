@@ -17,7 +17,9 @@
 | Entry action | Classwork and Tests work-surface actions | extend | Keep familiar blank creation while adding a guided path at its point of use. |
 | Guided draft preview | `ContentDialog`, `FormField`, `Select`, `Button`, and existing Markdown editor styling | create | One shared flow has two genuine adopters: assignments and tests. |
 | Source after creation | Existing compact editor context notices | extend | Tell the teacher which frozen Blueprint Version guided the draft without showing private rules to students. |
-| Classroom Blueprint navigation | Existing classroom sidebar, main pane, and Pattern Lab page states/tabs | extend | Keep the Version reference inside the teacher's classroom workspace. |
+| Classroom Blueprint navigation | Existing classroom sidebar and Settings segmented navigation | extend | Keep the Version reference inside the teacher's classroom workspace, with Overview, Content, and Authoring Guidance at the top of the pane. |
+
+The Blueprint sidebar entry uses the Lucide Factory icon. Its three sections use the same top control and URL-backed section selection as classroom Settings. The control remains available while the saved Version loads and when the classroom has no linked Version.
 
 ## Acceptance
 

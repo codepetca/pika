@@ -23,6 +23,7 @@ describe('Pattern Lab catalog', () => {
     expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'today')?.label).toBe('Daily')
     expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'today')?.lucideName).toBe('ClipboardCheck')
     expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'tests')?.lucideName).toBe('SquarePen')
+    expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'blueprint')?.lucideName).toBe('Factory')
     expect(CLASSROOM_NAV_ITEMS.find((item) => item.id === 'resources')?.lucideName).toBe('Compass')
     expect(CLASSROOM_NAV_ITEMS.every((item) => item.roles.length > 0)).toBe(true)
   })
