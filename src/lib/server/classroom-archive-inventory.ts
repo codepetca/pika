@@ -165,7 +165,7 @@ function expectedArchiveContract(
     CLASSROOM_RELATIONAL_RESOURCES.map((resource) => [resource.table, resource]),
   )
   const tables = getClassroomResourceOrder('export').filter((table) => v1Tables.has(table))
-  // Migration 219 appends this additive resource without renumbering deployed rows.
+  // Migration 220 appends this additive resource without renumbering deployed rows.
   if (includeGuidedDraftProvenance) tables.push('classroom_guided_draft_provenance')
   return tables
     .map((table, exportPosition) => {

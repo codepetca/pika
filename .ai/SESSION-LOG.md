@@ -224,8 +224,14 @@ The targeted seventh reviewer found two blocking gaps in PR #1387: suggest/creat
 
 Changed the shared teacher work-item card so ordinary Classwork and Tests cards use the semantic info tint on hover, distinct from muted draft cards. Focused checks passed 338 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright verified teacher Classwork and Tests at desktop/mobile widths in light/dark themes, including actual hover and draft comparison. Risk profile: none. Model recommendation: GPT-6 Sol for the localized shared UI change.
 
+## 2026-09-29 — Teacher work-list hover distinction
+
+Changed the shared teacher work-item card so ordinary Classwork and Tests cards use the semantic info tint on hover, distinct from muted draft cards. Focused checks passed 338 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright verified teacher Classwork and Tests at desktop/mobile widths in light/dark themes, including actual hover and draft comparison. Risk profile: none. Model recommendation: GPT-6 Sol for the localized shared UI change.
+
 ## 2026-09-29 — Classroom Blueprint tab
 
 Added a teacher-only Blueprint item to the existing classroom sidebar and a content pane for that classroom's saved Blueprint Version. The pane shows course outline, assignment and test titles, and private authoring guidance, with loading, retry, and unlinked-classroom states. It reads the existing ownership-checked frozen Version endpoint; later edits to the source Draft do not silently change the classroom. Student navigation excludes the tab and direct student URLs return to Daily. Teacher desktop/mobile light/dark views, a populated Version fixture, and student desktop/mobile navigation were visually checked. Focused checks passed 3,488 tests plus architecture, UI/design policy, TypeScript, and lint. PR #1387 is draft during review; migrations 218/219 remain unapplied locally.
 
 The independent cumulative review found no blockers. After a documentation-only rebase onto current main, exact-head CI passed Test & Build and database contracts but the browser gate found four outdated Pattern Lab snapshots: the shared classroom navigation catalog now includes Blueprint. Updated the four Linux baselines from deterministic CI actuals and the four Darwin baselines from the local Pattern Lab runner; all four focused visual cases pass without snapshot update mode. The three other browser retries were flaky and passed. PR remains draft for the snapshot correction and new exact-head CI.
+
+Main advanced with a separate test-grading migration numbered 219 before the snapshot correction's ready run. Rebased the classroom branch and resequenced its additive provenance migration to 220; the source SQL remains unchanged. The latest PR head must pass clean migration replay, generated type checks, browser matrix, and PR Gate. Neither feature migration has been applied to the shared local database.
