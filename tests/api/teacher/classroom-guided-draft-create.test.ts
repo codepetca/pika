@@ -121,6 +121,39 @@ describe('classroom guided draft creation', () => {
     }))
   })
 
+  it('accepts lowercase selection against uppercase frozen UUID with signed provenance', async () => {
+    const uppercaseUnitId = unitId.toUpperCase()
+    const uppercaseSource = {
+      ...source,
+      guidance: {
+        ...source.guidance,
+        unit_exceptions: [{ ...source.guidance.unit_exceptions[0], id: uppercaseUnitId }],
+      },
+    }
+    mocks.getGuidance.mockResolvedValue({ ok: true, context: uppercaseSource })
+    const preview = body('assignments', assignmentMarkdown())
+    const provenance = {
+      source_blueprint_version_id: versionId,
+      source_blueprint_version_number: source.source_blueprint_version_number,
+      source_draft_revision: source.source_draft_revision,
+      ...resolveCourseBlueprintAuthoringContext({
+        guidance: uppercaseSource.guidance,
+        target: 'assignments',
+        unitExceptionId: unitId,
+      }),
+    }
+    const response = await POST(request({
+      ...preview,
+      draft_provenance_token: createClassroomDraftProvenanceToken({
+        teacherId: 'teacher-1', classroomId: 'classroom-1', draftId,
+        provenance, seedContentSha256: preview.original_content_sha256,
+      }),
+    }), context)
+    expect(response.status).toBe(201)
+    expect(mocks.rpc).toHaveBeenCalledWith('create_guided_assignment_for_owner_v1',
+      expect.objectContaining({ p_unit_exception_id: uppercaseUnitId }))
+  })
+
   it('creates a Test with questions and reference documents from the edited Markdown', async () => {
     mocks.rpc.mockResolvedValue({ data: { ok: true, test: { id: 'test-1' } }, error: null })
     const response = await POST(request(body('tests', testMarkdown())), context)

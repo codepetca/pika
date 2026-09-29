@@ -35,7 +35,31 @@ declare
   v_test_id uuid;
   v_archive_result jsonb;
   v_archive_operation constant uuid := 'c1900000-0000-4000-8000-00000000000b';
+  v_validation_guidance jsonb;
 begin
+  v_validation_guidance := jsonb_build_object(
+    'course_expectations_markdown', '',
+    'assignment_guidance_markdown', '',
+    'test_guidance_markdown', '',
+    'unit_exceptions', jsonb_build_array(jsonb_build_object(
+      'id', v_unit::text,
+      'unit_label', 'Loops',
+      'assignment_guidance_markdown', '',
+      'test_guidance_markdown', ''
+    ))
+  );
+  if public.is_course_blueprint_authoring_guidance(jsonb_set(
+    v_validation_guidance, '{unit_exceptions,0,unit_label}', to_jsonb(E'\n\t'::text)
+  )) or not public.is_course_blueprint_authoring_guidance(jsonb_set(
+    v_validation_guidance, '{unit_exceptions,0,unit_label}',
+    to_jsonb((E'\n\t' || repeat('x', 160) || E'\r')::text)
+  )) or public.is_course_blueprint_authoring_guidance(jsonb_set(
+    v_validation_guidance, '{unit_exceptions,0,unit_label}',
+    to_jsonb((E'\n\t' || repeat('x', 161) || E'\r')::text)
+  )) then
+    raise exception 'Guidance unit label edge trimming or length contract failed';
+  end if;
+
   if public.resolve_classroom_guided_rules_v1(
     jsonb_build_object(
       'course_expectations_markdown', chr(160) || 'Course rule' || chr(160),

@@ -34,7 +34,10 @@ export const POST = withErrorHandler('PostTeacherClassroomAuthoringDraftCreate',
     return NextResponse.json({ error: 'This Classroom has no Blueprint Version guidance' }, { status: 409 })
   }
   const source = result.context
-  if (body.unit_exception_id && !source.guidance.unit_exceptions.some((unit) => unit.id === body.unit_exception_id)) {
+  const requestedUnitId = body.unit_exception_id?.toLowerCase()
+  if (requestedUnitId && !source.guidance.unit_exceptions.some(
+    (unit) => unit.id.toLowerCase() === requestedUnitId,
+  )) {
     return NextResponse.json({ error: 'The selected unit guidance is no longer available' }, { status: 409 })
   }
   const provenance = {

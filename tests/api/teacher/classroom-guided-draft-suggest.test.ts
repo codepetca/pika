@@ -111,6 +111,25 @@ describe('classroom guided draft suggestion', () => {
     expect(mocks.generate).not.toHaveBeenCalled()
   })
 
+  it('accepts an equivalent UUID spelling for a frozen unit', async () => {
+    const uppercaseSource = {
+      ...source,
+      guidance: {
+        ...source.guidance,
+        unit_exceptions: [{ ...source.guidance.unit_exceptions[0], id: unitId.toUpperCase() }],
+      },
+    }
+    mocks.getGuidance.mockResolvedValue({ ok: true, context: uppercaseSource })
+    const response = await POST(request({
+      target: 'assignments', prompt: 'Create practice', unit_exception_id: unitId,
+    }), context)
+    expect(response.status).toBe(200)
+    expect(mocks.generate).toHaveBeenCalledWith(expect.objectContaining({
+      source: uppercaseSource,
+      unitExceptionId: unitId,
+    }))
+  })
+
   it('rejects classrooms without a frozen Blueprint Version', async () => {
     mocks.getGuidance.mockResolvedValue({ ok: true, context: null })
     const response = await POST(request({ target: 'tests' }), context)

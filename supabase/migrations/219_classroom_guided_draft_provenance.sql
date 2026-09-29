@@ -5,6 +5,81 @@
 
 begin;
 
+-- Migration 218 accepted labels whose only content was tabs/newlines because
+-- its default btrim removed spaces alone. Tighten the existing CHECK function
+-- before guided drafts reconstruct frozen rules from the same guidance.
+create or replace function public.is_course_blueprint_authoring_guidance(value jsonb)
+returns boolean
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  unit jsonb;
+  unit_id text;
+  seen_ids text[] := array[]::text[];
+  field text;
+begin
+  if jsonb_typeof(value) is distinct from 'object'
+    or (select count(*) from jsonb_object_keys(value)) <> 4
+    or not (value ?& array[
+      'course_expectations_markdown', 'assignment_guidance_markdown',
+      'test_guidance_markdown', 'unit_exceptions'
+    ])
+  then
+    return false;
+  end if;
+
+  foreach field in array array[
+    'course_expectations_markdown', 'assignment_guidance_markdown',
+    'test_guidance_markdown'
+  ] loop
+    if jsonb_typeof(value->field) is distinct from 'string'
+      or length(value->>field) > 20000
+    then
+      return false;
+    end if;
+  end loop;
+
+  if jsonb_typeof(value->'unit_exceptions') is distinct from 'array'
+    or jsonb_array_length(value->'unit_exceptions') > 100
+  then
+    return false;
+  end if;
+
+  for unit in select jsonb_array_elements(value->'unit_exceptions') loop
+    if jsonb_typeof(unit) is distinct from 'object'
+      or (select count(*) from jsonb_object_keys(unit)) <> 4
+      or not (unit ?& array[
+        'id', 'unit_label', 'assignment_guidance_markdown',
+        'test_guidance_markdown'
+      ])
+    then
+      return false;
+    end if;
+    foreach field in array array[
+      'id', 'unit_label', 'assignment_guidance_markdown',
+      'test_guidance_markdown'
+    ] loop
+      if jsonb_typeof(unit->field) is distinct from 'string' then
+        return false;
+      end if;
+    end loop;
+    unit_id := lower(unit->>'id');
+    if unit_id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      or unit_id = any(seen_ids)
+      or length(btrim(unit->>'unit_label', E' \t\n\r\f')) not between 1 and 160
+      or length(unit->>'assignment_guidance_markdown') > 20000
+      or length(unit->>'test_guidance_markdown') > 20000
+    then
+      return false;
+    end if;
+    seen_ids := array_append(seen_ids, unit_id);
+  end loop;
+  return true;
+end;
+$$;
+
 create table public.classroom_guided_draft_provenance (
   id uuid primary key default gen_random_uuid(),
   draft_id uuid not null unique,
