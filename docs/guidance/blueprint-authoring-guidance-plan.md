@@ -110,7 +110,7 @@ equally first-class.
   database contract, then complete its bounded independent review and focused
   checks on the stable PR head. Teacher and student visual checks have been
   completed for the guided creation flow.
-- Replay migrations 218 through 220 from a clean isolated database, run the real
+- Replay migrations 218 through 221 from a clean isolated database, run the real
   database contract scripts and warning-level lint, and generate/check types
   in CI. Neither feature migration has been applied to the shared local stack;
   applying either to a named environment requires its own one-time permission.

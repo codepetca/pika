@@ -627,7 +627,7 @@ it('accepts the additive guided draft archive contract only with its actor and d
   expect(() => verifyRemoteClassroomContracts(contract, gradex)).toThrow()
 })
 
-it('inventories pre220 schemas without querying absent guided draft provenance', async () => {
+it('inventories pre221 schemas without querying absent guided draft provenance', async () => {
   const base = reader()
   const readResourceRows = vi.fn(base.readResourceRows)
   const document = openApiDocument()
