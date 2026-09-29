@@ -24,6 +24,10 @@ Before first Start, existing versioned authoring is unchanged. After Start:
 
 The teacher question editor now keeps existing MC option text fields enabled
 after Start. Its add, remove, reorder and marked-answer controls stay locked.
+Each choice correction saves immediately when the field loses focus. Other
+choice fields wait for that save to finish, so quick edits cannot be combined
+into a rejected multi-choice save. A failed save restores the prior choice text
+and shows an error before another correction can be attempted.
 Markdown saves use the same field policy. The server checks that at most one
 option string changes per question per save, along with choice count and all
 frozen fields. The database trigger enforces the same boundary for materialized

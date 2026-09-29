@@ -247,6 +247,7 @@ export function TestDetailPanel({
   } | null>(null)
 
   const [structureLocked, setStructureLocked] = useState(true)
+  const [choiceSavePending, setChoiceSavePending] = useState(false)
   const [editTitle, setEditTitle] = useState(testAssessment.title)
   const draftVersionRef = useRef(1)
   const testUpdatedAtRef = useRef(testAssessment.updated_at)
@@ -265,6 +266,7 @@ export function TestDetailPanel({
     | null
   >(null)
   const saveRequestPromiseRef = useRef<Promise<boolean> | null>(null)
+  const choiceSavePromiseRef = useRef<Promise<boolean> | null>(null)
   const markdownDirtyRef = useRef(false)
   const savedMarkdownRef = useRef('')
   const documentsRef = useRef(documents)
@@ -514,6 +516,8 @@ export function TestDetailPanel({
     saveTimeoutRef.current = null
     throttledSaveTimeoutRef.current = null
     pendingDraftRef.current = null
+    choiceSavePromiseRef.current = null
+    setChoiceSavePending(false)
     lastSavedDraftRef.current = ''
     draftVersionRef.current = 1
     testUpdatedAtRef.current = testAssessment.updated_at
@@ -1322,6 +1326,15 @@ export function TestDetailPanel({
   }
 
   function handleQuestionChange(updatedQuestion: TestAssessmentQuestion, options?: { force?: boolean }) {
+    const currentQuestion = questions.find((question) => question.id === updatedQuestion.id)
+    const choiceChanged = structureLocked
+      && updatedQuestion.question_type === 'multiple_choice'
+      && currentQuestion?.question_type === 'multiple_choice'
+      && JSON.stringify(currentQuestion.options) !== JSON.stringify(updatedQuestion.options)
+    if (choiceChanged && choiceSavePromiseRef.current) {
+      setError('Wait for the current choice correction to save before editing another choice.')
+      return
+    }
     const nextQuestions = normalizeQuestionPositions(
       questions.map((question) =>
         question.id === updatedQuestion.id ? { ...updatedQuestion } : question
@@ -1335,6 +1348,40 @@ export function TestDetailPanel({
       questions: nextQuestions,
     }
     emitDraftSummaryChange(nextDraft)
+
+    if (choiceChanged) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+      }
+      if (throttledSaveTimeoutRef.current) {
+        clearTimeout(throttledSaveTimeoutRef.current)
+        throttledSaveTimeoutRef.current = null
+      }
+      pendingDraftRef.current = nextDraft
+      markDraftUnsaved()
+      setError('')
+      setChoiceSavePending(true)
+      const choiceSave = saveDraft(nextDraft, { saveContext: createDraftSaveContext() })
+      choiceSavePromiseRef.current = choiceSave
+      void choiceSave.then((saved) => {
+        if (!saved && choiceSavePromiseRef.current === choiceSave) {
+          setQuestions((current) => current.map((question) =>
+            question.id === updatedQuestion.id
+              && JSON.stringify(question.options) === JSON.stringify(updatedQuestion.options)
+              ? { ...question, options: currentQuestion?.options ?? question.options }
+              : question,
+          ))
+          pendingDraftRef.current = { ...nextDraft, questions }
+        }
+      }).finally(() => {
+        if (choiceSavePromiseRef.current === choiceSave) {
+          choiceSavePromiseRef.current = null
+          setChoiceSavePending(false)
+        }
+      })
+      return
+    }
 
     if (options?.force) {
       pendingDraftRef.current = nextDraft
@@ -2096,6 +2143,7 @@ export function TestDetailPanel({
                         questionNumber={index + 1}
                         isEditable={isEditable}
                         structureLocked={structureLocked}
+                        choiceSavePending={choiceSavePending}
                         onChange={handleQuestionChange}
                         onDuplicate={handleDuplicateQuestion}
                         onDelete={handleQuestionDelete}
@@ -2400,6 +2448,7 @@ export function TestDetailPanel({
                   questionNumber={selectedQuestionIndex + 1}
                   isEditable={isEditable}
                   structureLocked={structureLocked}
+                  choiceSavePending={choiceSavePending}
                   onChange={handleQuestionChange}
                   onDelete={handleQuestionDelete}
                   variant="split"
@@ -2567,6 +2616,7 @@ export function TestDetailPanel({
                         questionNumber={index + 1}
                         isEditable={isEditable}
                         structureLocked={structureLocked}
+                        choiceSavePending={choiceSavePending}
                         onChange={handleQuestionChange}
                         onDuplicate={handleDuplicateQuestion}
                         onDelete={handleQuestionDelete}

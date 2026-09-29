@@ -90,7 +90,7 @@ it.each(['card', 'accordion', 'detail', 'split'] as const)('keeps the %s prompt 
   expect(choice).toBeEnabled()
   fireEvent.change(choice, { target: { value: 'Corrected one' } })
   fireEvent.blur(choice)
-  expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ options: ['Corrected one', 'Two', 'Three', 'Four'], correct_option: 0 }), undefined)
+  expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ options: ['Corrected one', 'Two', 'Three', 'Four'], correct_option: 0 }), { force: true })
   if (variant === 'split') {
     expect(screen.getByRole('button', { name: 'Mark option A correct' })).toBeDisabled()
     expect(screen.getByRole('button', { name: /Reorder option A/ })).toBeDisabled()

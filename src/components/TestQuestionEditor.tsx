@@ -16,6 +16,7 @@ interface Props {
   questionNumber: number
   isEditable: boolean
   structureLocked?: boolean
+  choiceSavePending?: boolean
   onChange: (question: TestAssessmentQuestion, options?: { force?: boolean }) => void
   onDelete: (questionId: string) => void
   onDuplicate?: (questionId: string) => void
@@ -80,6 +81,7 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
   questionNumber,
   isEditable,
   structureLocked = false,
+  choiceSavePending = false,
   onChange,
   onDelete,
   onDuplicate,
@@ -165,8 +167,12 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
         }
       }
       setError('')
-      if (questionText !== question.question_text || JSON.stringify(nextOptions) !== JSON.stringify(question.options)) {
-        onChange({ ...question, question_text: questionText, options: nextOptions }, options)
+      const choiceChanged = JSON.stringify(nextOptions) !== JSON.stringify(question.options)
+      if (questionText !== question.question_text || choiceChanged) {
+        onChange(
+          { ...question, question_text: questionText, options: nextOptions },
+          { force: options?.force === true || choiceChanged },
+        )
       }
       return true
     }
@@ -323,7 +329,7 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
             >
               <Input
                 value={option}
-                disabled={!isEditable || isBlankRow}
+                disabled={!isEditable || isBlankRow || (structureLocked && choiceSavePending)}
                 aria-label={`Question ${questionNumber} option ${letter}`}
                 placeholder={`Option ${letter}`}
                 onChange={(event) => {
@@ -390,6 +396,7 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
               <Input
                 type="text"
                 value={option}
+                disabled={structureLocked && choiceSavePending}
                 onChange={(event) => updateOption(index, event.target.value)}
                 onBlur={() => handleSave()}
                 aria-label={`Question ${questionNumber} option ${optionLetter}`}
