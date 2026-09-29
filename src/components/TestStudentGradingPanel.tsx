@@ -21,6 +21,7 @@ interface TestQuestionInfo {
   options: string[]
   correct_option: number | null
   points: number
+  response_monospace?: boolean
 }
 
 type TestAnswerDetail = {
@@ -759,12 +760,18 @@ export function TestStudentGradingPanel({
             return (
               <div key={question.id} className="space-y-2 py-1">
                 <p className="inline-flex items-center rounded bg-primary/10 pl-0 pr-2 py-1 text-sm font-bold text-primary">
-                  Q{index + 1} Open
+                  Q{index + 1} {question.response_monospace ? 'Code' : 'Open'}
                 </p>
                 <QuestionMarkdown content={question.question_text} />
-                <p className="whitespace-pre-wrap text-sm text-text-default bg-surface-2 rounded-md px-2 py-2 min-h-[64px]">
-                  {answer?.response_text || 'No response'}
-                </p>
+                <div className="min-h-[64px] rounded-md bg-surface-2 px-2 py-2 text-sm text-text-default">
+                  {question.response_monospace ? (
+                    <pre className="max-w-full overflow-x-auto font-mono leading-6" style={{ tabSize: 4 }}>
+                      {answer?.response_text || 'No response'}
+                    </pre>
+                  ) : (
+                    <p className="whitespace-pre-wrap">{answer?.response_text || 'No response'}</p>
+                  )}
+                </div>
 
                 {!answer ? (
                   <p className="text-sm text-text-muted">No response submitted.</p>
@@ -789,7 +796,7 @@ export function TestStudentGradingPanel({
                       onBlur={flushAutosave}
                       rows={1}
                       className="h-9 w-full overflow-hidden resize-none rounded-md border border-border bg-surface px-3 py-1 text-base leading-tight text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Comment (optional)"
+                      placeholder="Comment"
                     />
                     <SplitScoreInput
                       ariaLabel={`Q${index + 1} score`}

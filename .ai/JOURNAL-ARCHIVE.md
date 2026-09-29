@@ -33609,3 +33609,35 @@ The Tests list now displays Open when any enrolled student has effective open ac
   independent reviews need explicit additional review-time approval. Local211
   application also awaits exact authorization. PR stays draft; generated types,
   database contracts and full implementation review remain pending.
+
+<!-- pika-session-log-archive-batch:b73dcc9e475f9666899f4a81ff0b35cde23e99420d23c9e7d825823d93d27185 -->
+## 2026-09-26 — Apply and verify local checkout211
+
+- Owner approved45 additional review minutes and existing-local211 application
+  after review. Independent delta review passed frozen SHAe5c30fbb. Verified
+  local project/port/history and preview; one `supabase db push --local` applied
+  only211. That approval is consumed. No reset or reseed.
+- Billing and checkout rollback contracts pass; generated types refreshed from
+  applied schema. Security advisor reports no issues. Three users, one classroom
+  and the disabled billing sandbox are preserved. Focused checks pass207 tests,
+  TypeScript, lint and architecture/UI/design gates. Full financial/security and
+  compatibility review follows before ready CI; no provider payment performed.
+
+<!-- pika-session-log-archive-batch:560345b98aab4d6fbe58b92f642eec74960b9bf42350f1696840fad3c415ac7a -->
+## 2026-09-26 — Preserve legacy plans during first checkout
+
+- Full review of41c75110 found a P1: legacy paid accounts could reserve first
+  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
+  unchanged legacy Free eligibility at reservation, resumption, progress save,
+  binding and first-payment claim. Changed plans become attention; existing
+  paid-finish revision fencing handles the subsequent race. Applied209/211 are
+  unchanged. API returns a safe409 for initial ineligibility.
+- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
+  legacy paid rejection and plan-change races; they remain unrun until exact
+  local212 authorization. The harness refuses a database without212. Migration
+  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
+- Targeted correction/preapplication review follows as launch5/5, remediation
+  batch1. New212 and refreshed generated types/final integration review require
+  a further owner checkpoint. Previously issued provider sessions may still be
+  paid after an operator changes a plan; this patch prevents access overwrite,
+  and provider cancellation/refund handling remains a prelaunch lifecycle task.

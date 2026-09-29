@@ -155,6 +155,32 @@ describe('TestStudentGradingPanel save-all grading', () => {
     vi.restoreAllMocks()
   })
 
+  it('renders coding answers with their source formatting in teacher results', async () => {
+    const payload = makeResultsPayload(null, null)
+    const responseText = 'function greet() {\n\treturn "hello"\n}'
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ...payload,
+        questions: [{ ...payload.questions[0], response_monospace: true }],
+        students: [{
+          ...payload.students[0],
+          answers: {
+            'q-open-1': { ...payload.students[0].answers['q-open-1'], response_text: responseText },
+          },
+        }],
+      }),
+    })
+
+    const { container } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" />)
+
+    expect(await screen.findByText('Q1 Code')).toBeInTheDocument()
+    const response = container.querySelector('pre')
+    expect(response?.textContent).toBe(responseText)
+    expect(response).toHaveClass('font-mono', 'overflow-x-auto')
+    expect(response).toHaveStyle({ tabSize: 4 })
+  })
+
   it('removes per-question AI/single-save actions and saves edits via registered handler', async () => {
     let persistedScore: number | null = null
     let persistedFeedback: string | null = null
