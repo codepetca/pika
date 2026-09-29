@@ -13,12 +13,19 @@ export function restoreFailedChoiceText<T extends { id: string; options: string[
   questions: T[],
   correction: FailedChoiceCorrection,
 ): T[] {
-  return questions.map((question) =>
-    question.id === correction.questionId
-      && JSON.stringify(question.options) === JSON.stringify(correction.attemptedOptions)
-      ? { ...question, options: correction.previousOptions }
-      : question,
+  const changedIndex = correction.previousOptions.findIndex(
+    (option, index) => option !== correction.attemptedOptions[index],
   )
+  if (changedIndex < 0) return questions
+  return questions.map((question) => {
+    if (
+      question.id !== correction.questionId
+      || question.options[changedIndex] !== correction.attemptedOptions[changedIndex]
+    ) return question
+    const options = [...question.options]
+    options[changedIndex] = correction.previousOptions[changedIndex]
+    return { ...question, options }
+  })
 }
 
 type TestPolicyQuestion = {

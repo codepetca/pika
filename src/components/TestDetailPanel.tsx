@@ -922,7 +922,18 @@ export function TestDetailPanel({
           const draftToSave = failedCorrection
             ? { ...nextDraft, questions: restoreFailedChoiceText(nextDraft.questions, failedCorrection) }
             : nextDraft
-          return persistDraft(draftToSave, options)
+          const saveOptions = failedCorrection && options?.sourceMarkdown
+            ? {
+                ...options,
+                sourceMarkdown: testToMarkdown({
+                  title: draftToSave.title,
+                  show_results: draftToSave.show_results,
+                  questions: draftToSave.questions,
+                  documents: options.documents ?? documentsRef.current,
+                }),
+              }
+            : options
+          return persistDraft(draftToSave, saveOptions)
         })
       saveRequestPromiseRef.current = nextSave
       void nextSave.finally(() => {

@@ -29,7 +29,9 @@ choice fields wait for that save to finish, so quick edits cannot be combined
 into a rejected multi-choice save. A failed save restores the prior choice text
 and shows an error before another correction can be attempted. Draft saves
 queued during the failed correction also restore its prior choice text while
-preserving their own title, prompt and other allowed edits.
+preserving their own title, prompt and other allowed edits, including a separate
+choice correction made through Markdown. The queued Markdown source is rebuilt
+from the corrected draft so its text matches the saved question options.
 Markdown saves use the same field policy. The server checks that at most one
 option string changes per question per save, along with choice count and all
 frozen fields. The database trigger enforces the same boundary for materialized
