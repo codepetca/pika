@@ -2114,11 +2114,11 @@ describe('TeacherTestsTab', () => {
     )
 
     const submittedStatusSort = screen.getByRole('button', {
-      name: 'Sort Submitted first, 2 students',
+      name: 'Status: Submitted, 2 students. Sort Returned first',
     })
-    expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(submittedStatusSort)
     expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(submittedStatusSort)
+    expect(screen.getByRole('button', { name: 'Status: Returned, 0 students. Sort Not submitted first' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('columnheader', { name: 'Status' })).toHaveAttribute('aria-sort', 'other')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' }))
@@ -2150,7 +2150,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Score' }))
-    expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Status: Returned, 0 students. Sort Returned first' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('columnheader', { name: 'Score' })).toHaveAttribute(
       'aria-sort',
       'ascending',
@@ -2162,7 +2162,7 @@ describe('TeacherTestsTab', () => {
     )
   })
 
-  it('toggles the Status header across all attempt states and clears chip priority', async () => {
+  it('cycles one Status icon and count through all attempt groups', async () => {
     const statuses = ['not_started', 'in_progress', 'closed', 'returned', 'submitted'] as const
     const students = statuses.map((status, index) => makeGradingStudent({
       student_id: `student-${index + 1}`,
@@ -2186,31 +2186,33 @@ describe('TeacherTestsTab', () => {
       screen.getByTestId('test-grading-student-scroll-pane').querySelectorAll('[data-test-grading-student-row-id]'),
       (row) => row.getAttribute('data-test-grading-student-row-id'),
     )
-    const submittedChip = await screen.findByRole('button', { name: 'Sort Submitted first, 1 student' })
-    const notSubmittedChip = screen.getByRole('button', { name: 'Sort Not submitted first, 3 students' })
-    const returnedChip = screen.getByRole('button', { name: 'Sort Returned first, 1 student' })
-    expect(notSubmittedChip.querySelector('svg')).toHaveClass('lucide-circle')
-    expect(submittedChip.querySelector('svg')).toHaveClass('lucide-circle')
-    expect(returnedChip.querySelector('svg')).toHaveClass('lucide-reply')
-    expect(notSubmittedChip).toHaveTextContent('3')
-    const statusHeader = screen.getByRole('columnheader', { name: 'Status' })
-    fireEvent.click(notSubmittedChip)
-    expect(notSubmittedChip).toHaveAttribute('aria-pressed', 'true')
-    expect(rowIds()).toEqual(['student-1', 'student-2', 'student-3', 'student-4', 'student-5'])
-    fireEvent.click(submittedChip)
-    expect(submittedChip).toHaveAttribute('aria-pressed', 'true')
-
-    const statusSortButton = screen.getByRole('button', { name: 'Sort by status: Submitted, Returned, Not submitted' })
-    statusSortButton.focus()
-    expect(statusSortButton).toHaveFocus()
-    await userEvent.keyboard('{Enter}')
+    const statusHeader = await screen.findByRole('columnheader', { name: 'Status' })
+    const currentStatusButton = () => within(statusHeader).getByRole('button')
+    expect(within(statusHeader).getAllByRole('button')).toHaveLength(1)
+    expect(within(statusHeader).queryByText('Status')).not.toBeInTheDocument()
+    expect(currentStatusButton()).toHaveAccessibleName('Status: Submitted, 1 student. Sort Returned first')
+    expect(currentStatusButton()).toHaveTextContent('1')
     expect(rowIds()).toEqual(['student-5', 'student-4', 'student-1', 'student-2', 'student-3'])
     expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
-    expect(submittedChip).toHaveAttribute('aria-pressed', 'false')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sort by status: Not submitted, Returned, Submitted' }))
+    currentStatusButton().focus()
+    expect(currentStatusButton()).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    expect(currentStatusButton()).toHaveAccessibleName('Status: Returned, 1 student. Sort Not submitted first')
+    expect(currentStatusButton().querySelector('svg')).toHaveClass('lucide-reply')
+    expect(rowIds()).toEqual(['student-4', 'student-5', 'student-1', 'student-2', 'student-3'])
+    expect(statusHeader).toHaveAttribute('aria-sort', 'other')
+
+    fireEvent.click(currentStatusButton())
+    expect(currentStatusButton()).toHaveAccessibleName('Status: Not submitted, 3 students. Sort Submitted first')
+    expect(currentStatusButton()).toHaveTextContent('3')
+    expect(currentStatusButton().querySelector('svg')).toHaveClass('lucide-circle')
     expect(rowIds()).toEqual(['student-1', 'student-2', 'student-3', 'student-4', 'student-5'])
     expect(statusHeader).toHaveAttribute('aria-sort', 'descending')
+
+    fireEvent.click(currentStatusButton())
+    expect(currentStatusButton()).toHaveAccessibleName('Status: Submitted, 1 student. Sort Returned first')
+    expect(rowIds()).toEqual(['student-5', 'student-4', 'student-1', 'student-2', 'student-3'])
   })
 
   it('clears the selected grading row with Escape', async () => {

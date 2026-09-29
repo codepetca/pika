@@ -1808,11 +1808,11 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   await expect(trailingActions).toBeVisible()
   const moreActionsButton = trailingActions.getByRole('button', { name: 'More actions' })
   await expect(moreActionsButton).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toBeVisible()
-  const notSubmittedChip = page.getByRole('button', { name: 'Sort Not submitted first, 27 students' })
-  await expect(notSubmittedChip).toContainText('27')
-  await expect(notSubmittedChip.locator('svg')).toHaveClass(/lucide-circle/)
-  await expect(page.getByRole('button', { name: 'Sort Returned first, 9 students' }).locator('svg')).toHaveClass(/lucide-reply/)
+  const statusHeader = scrollPane.getByRole('columnheader', { name: 'Status' })
+  const statusSortButton = statusHeader.getByRole('button')
+  await expect(statusHeader.getByRole('button')).toHaveCount(1)
+  await expect(statusSortButton).toHaveAccessibleName('Status: Submitted, 9 students. Sort Returned first')
+  await expect(statusSortButton).toContainText('9')
   await expect(page.getByRole('toolbar', { name: 'Test grading actions' })).toBeVisible()
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
@@ -1865,6 +1865,7 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     animations: 'disabled',
   })
   await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.mouse.move(0, 0)
 
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-default.png`),
@@ -1875,28 +1876,37 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     element.scrollTop = element.scrollHeight
   })
   await expect(scrollPane.locator('thead')).toBeVisible()
-  const statusSortButton = page.getByRole('button', { name: 'Sort by status: Submitted, Returned, Not submitted' })
-  await statusSortButton.click()
   await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[3].student_id)
   if (viewport === 'mobile') {
     await scrollPane.evaluate((element) => { element.scrollLeft = element.scrollWidth })
-    await expect(notSubmittedChip).toBeInViewport()
+    await expect(statusSortButton).toBeInViewport()
   }
+  await statusSortButton.hover()
+  await expect(page.getByRole('tooltip')).toContainText('Submitted: 9 students')
+  await page.mouse.move(0, 0)
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-status-submitted-first.png`),
     animations: 'disabled',
   })
-  await page.getByRole('button', { name: 'Sort by status: Not submitted, Returned, Submitted' }).click()
+  await statusSortButton.click()
+  await expect(statusSortButton).toHaveAccessibleName('Status: Returned, 9 students. Sort Not submitted first')
+  await expect(statusSortButton.locator('svg')).toHaveClass(/lucide-reply/)
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[4].student_id)
+  await page.mouse.move(0, 0)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-status-returned-first.png`),
+    animations: 'disabled',
+  })
+  await statusSortButton.click()
+  await expect(statusSortButton).toHaveAccessibleName('Status: Not submitted, 27 students. Sort Submitted first')
+  await expect(statusSortButton).toContainText('27')
+  await expect(statusSortButton.locator('svg')).toHaveClass(/lucide-circle/)
   await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[0].student_id)
+  await page.mouse.move(0, 0)
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-status-not-submitted-first.png`),
     animations: 'disabled',
   })
-  await page.getByRole('button', { name: 'Sort Submitted first, 9 students' }).click()
-  await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toHaveAttribute('aria-pressed', 'true')
-  await notSubmittedChip.click()
-  await expect(notSubmittedChip).toHaveAttribute('aria-pressed', 'true')
-  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[0].student_id)
 
   await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
   expect(await page.evaluate(() => window.scrollY)).toBe(0)

@@ -18,7 +18,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { ChevronDown, ChevronUp, ClockAlert, Code, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
+import { ChevronDown, ClockAlert, Code, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import {
@@ -140,7 +140,7 @@ type TestGradingStatusSort = TestGradingStatusGroup
 const TEST_GRADING_COLUMN_LIMITS = {
   first: { defaultWidth: 96, min: 72, max: 180 },
   last: { defaultWidth: 120, min: 80, max: 220 },
-  status: { defaultWidth: 232, min: 224, max: 280 },
+  status: { defaultWidth: 88, min: 72, max: 160 },
   access: { defaultWidth: 72, min: 56, max: 112 },
   score: { defaultWidth: 80, min: 64, max: 120 },
   last_activity: { defaultWidth: 104, min: 80, max: 160 },
@@ -170,24 +170,27 @@ function TestGradingStatusSortChip({
   status,
   count,
   active,
+  nextStatus,
   onClick,
 }: {
   status: TestGradingStatusSort
   count: number
   active: boolean
+  nextStatus: TestGradingStatusSort
   onClick: () => void
 }) {
   const { label, iconState } = TEST_GRADING_STATUS_CHIP_META[status]
   const studentLabel = count === 1 ? 'student' : 'students'
+  const nextLabel = TEST_GRADING_STATUS_CHIP_META[nextStatus].label
 
   return (
-    <Tooltip content={`${count} ${studentLabel} ${label.toLowerCase()}. Sort ${label.toLowerCase()} first`}>
+    <Tooltip content={`${label}: ${count} ${studentLabel}. Click to sort ${nextLabel.toLowerCase()} first.`}>
       <Button
         type="button"
         variant="ghost"
         size="xs"
         className="rounded-badge px-0 py-0"
-        aria-label={`Sort ${label} first, ${count} ${studentLabel}`}
+        aria-label={`Status: ${label}, ${count} ${studentLabel}. Sort ${nextLabel} first`}
         aria-pressed={active}
         onClick={onClick}
       >
@@ -462,8 +465,8 @@ export function TeacherTestsTab({
   const [gradingSortState, setGradingSortState] = useState<{
     column: TestGradingSortColumn
     direction: 'asc' | 'desc'
-    status: TestGradingStatusSort | null
-  }>({ column: 'last_name', direction: 'asc', status: null })
+    status: TestGradingStatusSort
+  }>({ column: 'status', direction: 'asc', status: 'submitted' })
   const [gradingInspectorWidth, setGradingInspectorWidth] = useState(50)
   const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
   const [testGradingSaveState, setTestGradingSaveState] = useState<{
@@ -626,25 +629,7 @@ export function TeacherTestsTab({
           )
         }
         if (column === 'status') {
-          if (status) {
-            const statusRank = Number(getTestGradingStatusGroup(b.status) === status) - Number(getTestGradingStatusGroup(a.status) === status)
-            if (statusRank !== 0) return statusRank
-            return compareByNameFields(
-              {
-                firstName: aNameParts.firstName,
-                lastName: aNameParts.lastName,
-                id: a.email || a.student_id,
-              },
-              {
-                firstName: bNameParts.firstName,
-                lastName: bNameParts.lastName,
-                id: b.email || b.student_id,
-              },
-              'last_name',
-              'asc',
-            )
-          }
-          const statusGroupRank = compareTestGradingStatusGroups(a.status, b.status, direction)
+          const statusGroupRank = compareTestGradingStatusGroups(a.status, b.status, status)
           if (statusGroupRank !== 0) return statusGroupRank
           return compareByNameFields(
             {
@@ -700,24 +685,22 @@ export function TeacherTestsTab({
     selectedCount: batchSelectedCount,
   } = useTableSelection(gradingRowIds)
   const { columnWidths: gradingColumnWidths, setColumnWidth: setGradingColumnWidth } = useTableColumnWidths({
-    storageKey: 'teacher-test-grading:v2',
+    storageKey: 'teacher-test-grading:v3',
     columns: TEST_GRADING_COLUMN_LIMITS,
   })
 
   const handleGradingSort = useCallback((column: TestGradingSortColumn) => {
-    setGradingSortState((previous) => ({ ...toggleSort(previous, column), status: null }))
+    setGradingSortState((previous) => ({ ...toggleSort(previous, column), status: previous.status }))
   }, [])
 
   const handleGradingStatusGroupSort = useCallback(() => {
-    setGradingSortState((previous) => ({
-      column: 'status',
-      direction: previous.column === 'status' && previous.status === null && previous.direction === 'asc' ? 'desc' : 'asc',
-      status: null,
-    }))
-  }, [])
-
-  const handleGradingStatusSort = useCallback((status: TestGradingStatusSort) => {
-    setGradingSortState({ column: 'status', direction: 'asc', status })
+    setGradingSortState((previous) => {
+      const currentIndex = TEST_GRADING_SORTABLE_STATUSES.indexOf(previous.status)
+      const status = previous.column === 'status'
+        ? TEST_GRADING_SORTABLE_STATUSES[(currentIndex + 1) % TEST_GRADING_SORTABLE_STATUSES.length]
+        : previous.status
+      return { column: 'status', direction: 'asc', status }
+    })
   }, [])
 
   const gradingStatusCounts = useMemo(() => {
@@ -2070,10 +2053,11 @@ export function TeacherTestsTab({
     [selectGradingStudent, selectedStudentId]
   )
 
-  const isStatusGroupSortActive = gradingSortState.column === 'status' && gradingSortState.status === null
-  const statusGroupSortAction = isStatusGroupSortActive && gradingSortState.direction === 'asc'
-    ? 'Not submitted, Returned, Submitted'
-    : 'Submitted, Returned, Not submitted'
+  const isStatusGroupSortActive = gradingSortState.column === 'status'
+  const statusSort = gradingSortState.status
+  const nextStatusSort = isStatusGroupSortActive
+    ? TEST_GRADING_SORTABLE_STATUSES[(TEST_GRADING_SORTABLE_STATUSES.indexOf(statusSort) + 1) % TEST_GRADING_SORTABLE_STATUSES.length]
+    : statusSort
 
   const gradingTable = (
     <div
@@ -2246,43 +2230,18 @@ export function TeacherTestsTab({
                   className="group relative !p-0"
                   aria-label="Status"
                   aria-sort={isStatusGroupSortActive
-                    ? gradingSortState.direction === 'asc' ? 'ascending' : 'descending'
-                    : gradingSortState.column === 'status' ? 'other' : 'none'}
+                    ? statusSort === 'submitted' ? 'ascending' : statusSort === 'not_submitted' ? 'descending' : 'other'
+                    : 'none'}
                   style={{ width: `${gradingColumnWidths.status}px`, maxWidth: `${gradingColumnWidths.status}px` }}
                 >
-                  <div className="flex min-h-control items-center gap-0.5 px-1 sm:px-2">
-                    <Tooltip content={`Sort ${statusGroupSortAction}`}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="xs"
-                        className="min-w-0 gap-0.5 px-1"
-                        aria-label={`Sort by status: ${statusGroupSortAction}`}
-                        onClick={handleGradingStatusGroupSort}
-                      >
-                        Status
-                        {isStatusGroupSortActive
-                          ? gradingSortState.direction === 'asc'
-                            ? <ChevronUp className="h-3 w-3" aria-hidden="true" />
-                            : <ChevronDown className="h-3 w-3" aria-hidden="true" />
-                          : null}
-                      </Button>
-                    </Tooltip>
-                    <span
-                      role="group"
-                      aria-label="Sort Test grading by status"
-                      className="flex min-w-0 items-center"
-                    >
-                      {TEST_GRADING_SORTABLE_STATUSES.map((status) => (
-                        <TestGradingStatusSortChip
-                          key={status}
-                          status={status}
-                          count={gradingStatusCounts[status]}
-                          active={gradingSortState.column === 'status' && gradingSortState.status === status}
-                          onClick={() => handleGradingStatusSort(status)}
-                        />
-                      ))}
-                    </span>
+                  <div className="flex min-h-control items-center px-1 sm:px-2">
+                    <TestGradingStatusSortChip
+                      status={statusSort}
+                      count={gradingStatusCounts[statusSort]}
+                      active={isStatusGroupSortActive}
+                      nextStatus={nextStatusSort}
+                      onClick={handleGradingStatusGroupSort}
+                    />
                   </div>
                   <ColumnResizeHandle
                     label="Status"

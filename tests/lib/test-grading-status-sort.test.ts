@@ -3,15 +3,18 @@ import { compareTestGradingStatusGroups, getTestGradingStatusGroup } from '@/lib
 import type { TeacherTestGradingStudentRow } from '@/lib/test-api-contract'
 
 describe('Test grading status sort', () => {
-  it('places every attempt state in the requested group in both directions', () => {
+  it('places every attempt state in its group for each visible header status', () => {
     const statuses: TeacherTestGradingStudentRow['status'][] = [
       'in_progress', 'returned', 'not_started', 'submitted', 'closed',
     ]
 
-    expect([...statuses].sort((a, b) => compareTestGradingStatusGroups(a, b, 'asc'))).toEqual([
+    expect([...statuses].sort((a, b) => compareTestGradingStatusGroups(a, b, 'submitted'))).toEqual([
       'submitted', 'returned', 'in_progress', 'not_started', 'closed',
     ])
-    expect([...statuses].sort((a, b) => compareTestGradingStatusGroups(a, b, 'desc'))).toEqual([
+    expect([...statuses].sort((a, b) => compareTestGradingStatusGroups(a, b, 'returned'))).toEqual([
+      'returned', 'submitted', 'in_progress', 'not_started', 'closed',
+    ])
+    expect([...statuses].sort((a, b) => compareTestGradingStatusGroups(a, b, 'not_submitted'))).toEqual([
       'in_progress', 'not_started', 'closed', 'returned', 'submitted',
     ])
     expect(statuses.map(getTestGradingStatusGroup)).toEqual([

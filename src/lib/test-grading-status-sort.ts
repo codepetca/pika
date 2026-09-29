@@ -12,10 +12,10 @@ const STATUS_GROUP: Record<TestGradingStatus, TestGradingStatusGroup> = {
   closed: 'not_submitted',
 }
 
-const STATUS_GROUP_RANK: Record<TestGradingStatusGroup, number> = {
-  submitted: 0,
-  returned: 1,
-  not_submitted: 2,
+const STATUS_GROUP_RANK: Record<TestGradingStatusGroup, Record<TestGradingStatusGroup, number>> = {
+  submitted: { submitted: 0, returned: 1, not_submitted: 2 },
+  returned: { returned: 0, submitted: 1, not_submitted: 2 },
+  not_submitted: { not_submitted: 0, returned: 1, submitted: 2 },
 }
 
 export function getTestGradingStatusGroup(status: TestGradingStatus): TestGradingStatusGroup {
@@ -25,8 +25,8 @@ export function getTestGradingStatusGroup(status: TestGradingStatus): TestGradin
 export function compareTestGradingStatusGroups(
   first: TestGradingStatus,
   second: TestGradingStatus,
-  direction: 'asc' | 'desc',
+  firstGroup: TestGradingStatusGroup,
 ): number {
-  const difference = STATUS_GROUP_RANK[getTestGradingStatusGroup(first)] - STATUS_GROUP_RANK[getTestGradingStatusGroup(second)]
-  return direction === 'asc' ? difference : -difference
+  const ranks = STATUS_GROUP_RANK[firstGroup]
+  return ranks[getTestGradingStatusGroup(first)] - ranks[getTestGradingStatusGroup(second)]
 }
