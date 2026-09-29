@@ -2118,7 +2118,7 @@ describe('TeacherTestsTab', () => {
     })
     expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(submittedStatusSort)
-    expect(screen.getByRole('button', { name: 'Status: Returned, 0 students. Sort Not submitted first' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Status: Returned, 0 students. Sort Submitted first' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('columnheader', { name: 'Status' })).toHaveAttribute('aria-sort', 'other')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' }))
@@ -2162,7 +2162,7 @@ describe('TeacherTestsTab', () => {
     )
   })
 
-  it('cycles one Status icon and count through all attempt groups', async () => {
+  it('toggles one Status icon and count between Submitted and Returned', async () => {
     const statuses = ['not_started', 'in_progress', 'closed', 'returned', 'submitted'] as const
     const students = statuses.map((status, index) => makeGradingStudent({
       student_id: `student-${index + 1}`,
@@ -2198,21 +2198,16 @@ describe('TeacherTestsTab', () => {
     currentStatusButton().focus()
     expect(currentStatusButton()).toHaveFocus()
     await userEvent.keyboard('{Enter}')
-    expect(currentStatusButton()).toHaveAccessibleName('Status: Returned, 1 student. Sort Not submitted first')
+    expect(currentStatusButton()).toHaveAccessibleName('Status: Returned, 1 student. Sort Submitted first')
     expect(currentStatusButton().querySelector('svg')).toHaveClass('lucide-reply')
     expect(rowIds()).toEqual(['student-4', 'student-5', 'student-1', 'student-2', 'student-3'])
     expect(statusHeader).toHaveAttribute('aria-sort', 'other')
 
     fireEvent.click(currentStatusButton())
-    expect(currentStatusButton()).toHaveAccessibleName('Status: Not submitted, 3 students. Sort Submitted first')
-    expect(currentStatusButton()).toHaveTextContent('3')
-    expect(currentStatusButton().querySelector('svg')).toHaveClass('lucide-circle')
-    expect(rowIds()).toEqual(['student-1', 'student-2', 'student-3', 'student-4', 'student-5'])
-    expect(statusHeader).toHaveAttribute('aria-sort', 'descending')
-
-    fireEvent.click(currentStatusButton())
     expect(currentStatusButton()).toHaveAccessibleName('Status: Submitted, 1 student. Sort Returned first')
+    expect(currentStatusButton()).toHaveTextContent('1')
     expect(rowIds()).toEqual(['student-5', 'student-4', 'student-1', 'student-2', 'student-3'])
+    expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
   })
 
   it('clears the selected grading row with Escape', async () => {

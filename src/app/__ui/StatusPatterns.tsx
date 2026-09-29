@@ -44,7 +44,6 @@ const TEST_STATES = ['not_started', 'in_progress', 'closed', 'submitted', 'retur
 const TEST_GRADING_SORT_GROUP_EXAMPLES = [
   { label: 'Submitted', iconState: 'submitted', count: 1, className: 'bg-success-bg text-success' },
   { label: 'Returned', iconState: 'returned', count: 1, className: 'bg-info-bg text-primary' },
-  { label: 'Not submitted', iconState: 'not_started', count: 3, className: 'bg-surface-3 text-text-muted' },
 ] as const
 
 export function StatusPatterns() {
@@ -157,7 +156,7 @@ export function StatusPatterns() {
               </Button>
             </Tooltip>
           </div>
-          <p className="mt-2 text-xs text-text-muted">Click to cycle through Submitted, Returned, and Not submitted. The tooltip names the current group. Not submitted combines Not started, In progress, and Closed for grading. Each student row keeps its precise status.</p>
+          <p className="mt-2 text-xs text-text-muted">Click to switch between Submitted first and Returned first. The tooltip names the current group. Not started, In progress, and Closed for grading remain after those groups, and each student row keeps its precise status.</p>
           <p className="mt-4 text-xs text-text-muted">Submit, Grade, and Return are actions. Submitted, Graded, and Returned are states. Classwork and Tests use the Reply icon for Return and Returned. Use Submitted for a student hand-in, rather than the ambiguous Sent.</p>
           <p className="mt-2 text-xs text-text-muted">A student’s Checked in confirmation is separate from the teacher’s Present/Late/Absent mark.</p>
         </Card>

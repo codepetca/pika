@@ -47,7 +47,7 @@ import {
 } from '@/lib/events'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
-import { compareTestGradingStatusGroups, getTestGradingStatusGroup, type TestGradingStatusGroup } from '@/lib/test-grading-status-sort'
+import { compareTestGradingStatusGroups, getTestGradingStatusGroup, type TestGradingStatusGroup, type TestGradingStatusSort } from '@/lib/test-grading-status-sort'
 import { getDisplayAssessmentTitle, isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
@@ -135,8 +135,6 @@ type TestGradingSortColumn =
   | 'exits'
   | 'away'
 type TestGradingResizableColumn = 'first' | 'last' | 'status' | 'access' | 'score' | 'last_activity'
-type TestGradingStatusSort = TestGradingStatusGroup
-
 const TEST_GRADING_COLUMN_LIMITS = {
   first: { defaultWidth: 96, min: 72, max: 180 },
   last: { defaultWidth: 120, min: 80, max: 220 },
@@ -146,16 +144,14 @@ const TEST_GRADING_COLUMN_LIMITS = {
   last_activity: { defaultWidth: 104, min: 80, max: 160 },
 } satisfies Record<TestGradingResizableColumn, { defaultWidth: number; min: number; max: number }>
 
-const TEST_GRADING_SORTABLE_STATUSES: TestGradingStatusSort[] = ['submitted', 'returned', 'not_submitted']
+const TEST_GRADING_SORTABLE_STATUSES: TestGradingStatusSort[] = ['submitted', 'returned']
 
 const TEST_GRADING_STATUS_CHIP_META: Record<TestGradingStatusSort, { label: string; iconState: AssessmentStatusIconState }> = {
-  not_submitted: { label: 'Not submitted', iconState: 'not_started' },
   submitted: { label: 'Submitted', iconState: 'submitted' },
   returned: { label: 'Returned', iconState: 'returned' },
 }
 
 const TEST_GRADING_STATUS_CHIP_CLASSES: Record<TestGradingStatusSort, string> = {
-  not_submitted: 'bg-surface-3 text-text-muted',
   submitted: 'bg-success-bg text-success',
   returned: 'bg-info-bg text-primary',
 }
@@ -704,7 +700,7 @@ export function TeacherTestsTab({
   }, [])
 
   const gradingStatusCounts = useMemo(() => {
-    const counts: Record<TestGradingStatusSort, number> = { not_submitted: 0, submitted: 0, returned: 0 }
+    const counts: Record<TestGradingStatusGroup, number> = { not_submitted: 0, submitted: 0, returned: 0 }
     for (const student of gradingStudents) {
       counts[getTestGradingStatusGroup(student.status)] += 1
     }
@@ -2230,7 +2226,7 @@ export function TeacherTestsTab({
                   className="group relative !p-0"
                   aria-label="Status"
                   aria-sort={isStatusGroupSortActive
-                    ? statusSort === 'submitted' ? 'ascending' : statusSort === 'not_submitted' ? 'descending' : 'other'
+                    ? statusSort === 'submitted' ? 'ascending' : 'other'
                     : 'none'}
                   style={{ width: `${gradingColumnWidths.status}px`, maxWidth: `${gradingColumnWidths.status}px` }}
                 >

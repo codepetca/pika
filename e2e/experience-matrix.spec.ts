@@ -1889,7 +1889,7 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     animations: 'disabled',
   })
   await statusSortButton.click()
-  await expect(statusSortButton).toHaveAccessibleName('Status: Returned, 9 students. Sort Not submitted first')
+  await expect(statusSortButton).toHaveAccessibleName('Status: Returned, 9 students. Sort Submitted first')
   await expect(statusSortButton.locator('svg')).toHaveClass(/lucide-reply/)
   await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[4].student_id)
   await page.mouse.move(0, 0)
@@ -1898,13 +1898,13 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     animations: 'disabled',
   })
   await statusSortButton.click()
-  await expect(statusSortButton).toHaveAccessibleName('Status: Not submitted, 27 students. Sort Submitted first')
-  await expect(statusSortButton).toContainText('27')
+  await expect(statusSortButton).toHaveAccessibleName('Status: Submitted, 9 students. Sort Returned first')
+  await expect(statusSortButton).toContainText('9')
   await expect(statusSortButton.locator('svg')).toHaveClass(/lucide-circle/)
-  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[0].student_id)
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[3].student_id)
   await page.mouse.move(0, 0)
   await page.screenshot({
-    path: testInfo.outputPath(`test-grading-${viewport}-status-not-submitted-first.png`),
+    path: testInfo.outputPath(`test-grading-${viewport}-status-submitted-again.png`),
     animations: 'disabled',
   })
 

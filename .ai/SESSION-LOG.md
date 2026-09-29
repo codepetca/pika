@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Verify classroom rollout readiness
-
-- PR1371 merged as39c948e8 after final review,125 focused tests and full CI. Continued rollout in `codex/contextual-rollout-rehearsal`; startup verified. Fresh production history matches001–212; linked dry-run previews only213. Exact production213 approval requested, not yet received; no production writes or activation. Existing production PR1373 belongs to another active task and excludes1371; leave its branch untouched.
-- Read-only Terra source audit confirms live home still routes by global role; contextual home has no live consumer. Full classroom shell exposes legacy-role Tests, Daily, Grades/Gradebook, roster and content writes; owner Classwork also fetches legacy surveys. Full UI rollout therefore needs implementation, not just enabling gates. Restricted manual Assignment integration remains next; do not present an Assignment-only pilot as the completed full-classroom rollout. Private checkpoint: `/private/tmp/pika-contextual-rollout-status-20260927.md`.
-
 ## 2026-09-27 — Orchestrate full rollout and correct owner precedence
 
 - Owner authorized production213. Fresh target/history and dry-run matched only213; the single application attempt timed out connecting before reporting execution. Subsequent linked history confirms001–212,213 pending. Fresh retry approval requested, no second attempt. Production code PR1373 merged separately as6904c2ed and excludes image1371.
@@ -209,3 +204,7 @@ The selected Test grading roster now toggles its Status header between Submitted
 ## 2026-09-29 — Test grading single status header
 
 Refined the selected Test grading Status header to show one icon and student count at a time. It cycles Submitted, Returned, and Not submitted, with tooltips and accessible names identifying the current group; the Submitted and Not submitted positions retain the requested forward and reverse orders. The column is narrower, and old saved widths use a new storage key. Focused checks passed 256 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright passed the teacher roster in desktop/mobile light/dark, including the tooltip and all three sort positions. Pattern Lab's single-control example and macOS baselines were visually reviewed. Linux desktop/mobile light/dark baselines were updated from CI captures after all twelve original and retry captures matched byte-for-byte within each variant; the light desktop and dark mobile captures were inspected. Exact-head CI remains pending. Student view is n/a because the roster is teacher-only. Composite-widget checklist reviewed: keyboard and semantic state covered by tests; no manual follow-up. Risk profile: none. Model recommendation: GPT-6 Sol for a localized UI interaction.
+
+## 2026-09-29 — Test grading two-state status header
+
+Owner narrowed the selected Test grading Status sort to Submitted and Returned. The one-icon/count control now alternates between those two groups; Not started, In progress, and Closed for grading stay visible after them in both orders. Pattern Lab and semantic/browser tests cover the two states. Focused checks passed 256 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright passed the teacher roster in desktop/mobile light/dark; the changed macOS Pattern Lab references and roster screenshots were reviewed. Linux Pattern Lab baselines and exact-head CI remain pending. Student view is n/a because the roster is teacher-only. Composite-widget checklist reviewed: keyboard and semantic state covered by tests; no manual follow-up. Risk profile: none. Model recommendation: GPT-6 Sol for a localized UI interaction.
