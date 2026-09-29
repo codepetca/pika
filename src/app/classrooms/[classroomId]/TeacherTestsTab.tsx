@@ -2096,7 +2096,7 @@ export function TeacherTestsTab({
         >
           <TeacherWorkSurfaceTableFrame
             ref={gradingStudentTableScrollRef}
-            className="min-h-0 rounded-md border border-border"
+            className="min-h-0 rounded-md border border-border scrollbar-hover"
             data-testid="test-grading-student-scroll-pane"
             onScroll={preserveGradingStudentTableScrollPosition}
           >
@@ -2930,7 +2930,7 @@ export function TeacherTestsTab({
       inspector={gradingInspector ? (
         <TestWorkspacePaneFrame>
           <div
-            className="h-full min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
+            className="h-full min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto scrollbar-hover"
             data-testid="test-grading-inspector-scroll-pane"
           >
             {gradingInspector}
