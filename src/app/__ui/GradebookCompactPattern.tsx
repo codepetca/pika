@@ -8,7 +8,7 @@ import { calculateCategorizedFinalPercent } from '@/lib/gradebook'
 import { getAssessmentColumnKey } from '@/lib/gradebook-display'
 import { GradebookTable } from '@/components/gradebook/GradebookTable'
 import { GradebookToolbar } from '@/components/gradebook/GradebookToolbar'
-import { DEFAULT_GRADEBOOK_PREFERENCES } from '@/lib/gradebook-editor'
+import { DEFAULT_GRADEBOOK_PREFERENCES, visibleGradebookAssessments } from '@/lib/gradebook-editor'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
 
 const columns: GradebookAssessmentColumn[] = Array.from({ length: 12 }, (_, index) => ({
@@ -17,6 +17,7 @@ const columns: GradebookAssessmentColumn[] = Array.from({ length: 12 }, (_, inde
   title: `${index % 2 ? 'Unit test' : 'Research assignment'} ${Math.floor(index / 2) + 1}`,
   possible: 100, weight: 10, include_in_final: true,
   category_id: 'term', category_name: index === 0 ? 'Term Work' : 'Term', category_percentage: 100,
+  ...(index === 10 ? { is_draft: true } : index === 11 ? { status: 'draft' as const } : {}),
 }))
 const students: GradebookStudentSummary[] = ['Avery', 'Grace', 'Lucas'].map((name, index) => ({
   student_id: String(index), student_email: `${name.toLowerCase()}@example.test`,
@@ -26,8 +27,8 @@ const students: GradebookStudentSummary[] = ['Avery', 'Grace', 'Lucas'].map((nam
   tests_earned: null, tests_possible: null, tests_percent: null,
   assessment_scores: columns.map((column, i) => ({
     assessment_id: column.assessment_id, assessment_type: column.assessment_type,
-    earned: i === 0 ? 20.6 : i === 1 ? 110.5 + index : 80.5 + index, possible: 100,
-    percent: i === 0 ? 20.6 : i === 1 ? 110.5 + index : 80.5 + index, is_graded: true,
+    earned: i >= 10 ? null : i === 0 ? 20.6 : i === 1 ? 110.5 + index : 80.5 + index, possible: 100,
+    percent: i >= 10 ? null : i === 0 ? 20.6 : i === 1 ? 110.5 + index : 80.5 + index, is_graded: i < 10,
     is_manual_override: i === 1,
   })),
 }))
@@ -66,7 +67,7 @@ export function GradebookCompactPattern() {
       studentGradesVisible={false} onStudentGradesVisibilityChange={noop} />
     <Button variant="secondary" aria-pressed={!maximumEditsEnabled} onClick={() => setMaximumEditsEnabled((enabled) => !enabled)}>Pause maximum changes (fixture)</Button>
     <div className="h-96">
-      <GradebookTable students={displayedStudents} columns={displayedColumns} displayMode={preferences.scoreDisplayMode}
+      <GradebookTable students={displayedStudents} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments)} displayMode={preferences.scoreDisplayMode}
         ultraCompact={preferences.ultraCompact} lastNameFirst={preferences.lastNameFirst}
         showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
         keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}

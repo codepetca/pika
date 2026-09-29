@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildGradebookCsv, DEFAULT_GRADEBOOK_PREFERENCES, isValidGradebookWeight, normalizeGradebookPreferences } from '@/lib/gradebook-editor'
+import { buildGradebookCsv, DEFAULT_GRADEBOOK_PREFERENCES, isValidGradebookWeight, normalizeGradebookPreferences, visibleGradebookAssessments } from '@/lib/gradebook-editor'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
 
 describe('gradebook editor helpers', () => {
@@ -11,6 +11,23 @@ describe('gradebook editor helpers', () => {
     expect(normalizeGradebookPreferences({ ultraCompact: true }).ultraCompact).toBe(true)
     expect(normalizeGradebookPreferences({ ultraCompact: 'true' }).ultraCompact).toBe(false)
     expect(normalizeGradebookPreferences({ showWeights: true }).ultraCompact).toBe(false)
+  })
+  it('hides unreleased assessments by default while preserving a saved choice', () => {
+    expect(normalizeGradebookPreferences({}).hideUnreleasedAssessments).toBe(true)
+    expect(normalizeGradebookPreferences({ hideUnreleasedAssessments: false }).hideUnreleasedAssessments).toBe(false)
+    expect(normalizeGradebookPreferences({ hideUnreleasedAssessments: 'false' }).hideUnreleasedAssessments).toBe(true)
+  })
+  it('filters draft assignments and tests without hiding other assessments or changing the source', () => {
+    const columns = [
+      { assessment_id: 'a-draft', assessment_type: 'assignment', is_draft: true },
+      { assessment_id: 't-draft', assessment_type: 'test', status: 'draft' },
+      { assessment_id: 'a-live', assessment_type: 'assignment', is_draft: false },
+      { assessment_id: 't-live', assessment_type: 'test', status: 'active' },
+      { assessment_id: 'item', assessment_type: 'item' },
+    ] as GradebookAssessmentColumn[]
+    expect(visibleGradebookAssessments(columns, true).map((column) => column.assessment_id)).toEqual(['a-live', 't-live', 'item'])
+    expect(visibleGradebookAssessments(columns, false)).toBe(columns)
+    expect(columns).toHaveLength(5)
   })
   it.each([0, 1, 999])('accepts item weight %s', (weight) => {
     expect(isValidGradebookWeight(weight)).toBe(true)

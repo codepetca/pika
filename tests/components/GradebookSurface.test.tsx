@@ -29,6 +29,19 @@ function makeTableProps(overrides: Partial<GradebookTableProps> = {}): Gradebook
 }
 
 describe('Gradebook surface owners', () => {
+  it('shows draft assignment and test columns in the Pattern Lab when the menu setting is cleared', async () => {
+    const user = userEvent.setup()
+    render(<TooltipProvider><GradebookCompactPattern /></TooltipProvider>)
+    expect(screen.queryByRole('button', { name: 'Edit A6: Research assignment 6' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit T6: Unit test 6' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Gradebook more actions' }))
+    const toggle = screen.getByRole('menuitemcheckbox', { name: 'Hide unreleased assessments' })
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    await user.click(toggle)
+    expect(screen.getByRole('button', { name: 'Edit A6: Research assignment 6' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit T6: Unit test 6' })).toBeInTheDocument()
+  })
+
   it('exposes restoration-only maximum controls in the paused GradebookCompactPattern fixture', async () => {
     const user = userEvent.setup()
     render(<TooltipProvider><GradebookCompactPattern /></TooltipProvider>)

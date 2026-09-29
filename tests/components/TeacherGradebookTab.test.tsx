@@ -319,6 +319,35 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toHaveTextContent(/^Essay$/)
   })
 
+  it('hides draft assignments and tests by default and restores them when the saved toggle is off', async () => {
+    const response = gradebookResponse()
+    response.assessment_columns.push(
+      { ...response.assessment_columns[0], assessment_id: 'assignment-draft', code: 'A2', title: 'Draft Essay', is_draft: true },
+      { ...response.assessment_columns[1], assessment_id: 'test-draft', code: 'T2', title: 'Draft Test', status: 'draft' },
+    )
+    fetchMock.mockResolvedValue({ ok: true, json: async () => response })
+
+    const view = renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit T1: Test 1' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit A2: Draft Essay' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit T2: Draft Test' })).not.toBeInTheDocument()
+
+    const hideItem = within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide unreleased assessments' })
+    expect(hideItem).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(hideItem)
+    expect(screen.getByRole('button', { name: 'Edit A2: Draft Essay' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit T2: Draft Test' })).toBeInTheDocument()
+    expect(JSON.parse(window.localStorage.getItem('teacher-gradebook:display:v1')!)).toMatchObject({ hideUnreleasedAssessments: false })
+
+    view.unmount()
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    expect(screen.getByRole('button', { name: 'Edit A2: Draft Essay' })).toBeInTheDocument()
+    expect(within(openGradebookActions()).getByRole('menuitemcheckbox', { name: 'Hide unreleased assessments' })).toHaveAttribute('aria-checked', 'false')
+  })
+
   it('restores an existing maximum while production changes are paused and blocks other columns', async () => {
     const data = gradebookResponse()
     let restored = false
