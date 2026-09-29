@@ -3,6 +3,24 @@ export const TEST_CORRECTIONS_MESSAGE =
 
 export type TestEditingPolicy = { structureLocked: boolean }
 
+export type FailedChoiceCorrection = {
+  questionId: string
+  attemptedOptions: string[]
+  previousOptions: string[]
+}
+
+export function restoreFailedChoiceText<T extends { id: string; options: string[] }>(
+  questions: T[],
+  correction: FailedChoiceCorrection,
+): T[] {
+  return questions.map((question) =>
+    question.id === correction.questionId
+      && JSON.stringify(question.options) === JSON.stringify(correction.attemptedOptions)
+      ? { ...question, options: correction.previousOptions }
+      : question,
+  )
+}
+
 type TestPolicyQuestion = {
   id: string
   question_type?: string

@@ -218,6 +218,53 @@ describe('TestDetailPanel', () => {
     expect(screen.getByRole('textbox', { name: 'Question 1 option B' })).toBeEnabled()
   })
 
+  it('keeps a failed choice correction out of a title save queued behind it', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const firstPatch = createDeferred<Response>()
+    const patchBodies: Array<{ version: number; content: { title: string; questions: TestAssessmentQuestion[] } }> = []
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) => {
+      if (options?.method !== 'PATCH') return jsonResponse({})
+      const body = JSON.parse(String(options.body)) as typeof patchBodies[number]
+      patchBodies.push(body)
+      return patchBodies.length === 1
+        ? firstPatch.promise
+        : Promise.resolve(jsonResponse({
+            editingPolicy: { structureLocked: true },
+            draft: { version: 2, content: body.content },
+          }))
+    })
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const choice = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(choice, { target: { value: 'Reddish' } })
+    fireEvent.blur(choice)
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+
+    const title = screen.getByPlaceholderText('Untitled Test')
+    fireEvent.change(title, { target: { value: 'Retitled Test' } })
+    fireEvent.blur(title)
+    expect(patchBodies).toHaveLength(1)
+
+    await act(async () => {
+      firstPatch.resolve({ ok: false, status: 500, json: async () => ({ error: 'Save unavailable' }) } as Response)
+      await firstPatch.promise
+    })
+    await waitFor(() => expect(patchBodies).toHaveLength(2))
+    expect(patchBodies[1].content.title).toBe('Retitled Test')
+    expect(patchBodies[1].content.questions[0].options).toEqual(['Red', 'Blue', 'Green'])
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
+  })
+
   it('uses the split authoring layout with one navigable question and real document actions', async () => {
     mockFetchForTest(sampleQuestions)
     render(

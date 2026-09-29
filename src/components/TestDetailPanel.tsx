@@ -32,7 +32,12 @@ import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditTestQuestions } from '@/lib/tests'
-import { allowsTestQuestionChanges, TEST_CORRECTIONS_MESSAGE } from '@/lib/test-editing-policy'
+import {
+  allowsTestQuestionChanges,
+  restoreFailedChoiceText,
+  TEST_CORRECTIONS_MESSAGE,
+  type FailedChoiceCorrection,
+} from '@/lib/test-editing-policy'
 import { TestQuestionEditor, type TestQuestionEditorHandle } from '@/components/TestQuestionEditor'
 import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 import { TestResultsView } from '@/components/TestResultsView'
@@ -267,6 +272,8 @@ export function TestDetailPanel({
   >(null)
   const saveRequestPromiseRef = useRef<Promise<boolean> | null>(null)
   const choiceSavePromiseRef = useRef<Promise<boolean> | null>(null)
+  const pendingChoiceCorrectionRef = useRef<(FailedChoiceCorrection & { promise: Promise<boolean> }) | null>(null)
+  const failedChoiceCorrectionRef = useRef<FailedChoiceCorrection | null>(null)
   const markdownDirtyRef = useRef(false)
   const savedMarkdownRef = useRef('')
   const documentsRef = useRef(documents)
@@ -517,6 +524,8 @@ export function TestDetailPanel({
     throttledSaveTimeoutRef.current = null
     pendingDraftRef.current = null
     choiceSavePromiseRef.current = null
+    pendingChoiceCorrectionRef.current = null
+    failedChoiceCorrectionRef.current = null
     setChoiceSavePending(false)
     lastSavedDraftRef.current = ''
     draftVersionRef.current = 1
@@ -901,9 +910,20 @@ export function TestDetailPanel({
   const saveDraft = useCallback(
     (nextDraft: AssessmentEditorDraft, options?: SaveDraftOptions): Promise<boolean> => {
       const previousSave = saveRequestPromiseRef.current
+      // Queued full drafts may include a choice correction that later fails.
+      const pendingCorrection = pendingChoiceCorrectionRef.current
+      const priorFailedCorrection = failedChoiceCorrectionRef.current
       const nextSave = (previousSave ?? Promise.resolve(true))
         .catch(() => false)
-        .then(() => persistDraft(nextDraft, options))
+        .then(async () => {
+          const failedCorrection = pendingCorrection && !(await pendingCorrection.promise)
+            ? pendingCorrection
+            : priorFailedCorrection
+          const draftToSave = failedCorrection
+            ? { ...nextDraft, questions: restoreFailedChoiceText(nextDraft.questions, failedCorrection) }
+            : nextDraft
+          return persistDraft(draftToSave, options)
+        })
       saveRequestPromiseRef.current = nextSave
       void nextSave.finally(() => {
         if (saveRequestPromiseRef.current === nextSave) {
@@ -1362,21 +1382,29 @@ export function TestDetailPanel({
       markDraftUnsaved()
       setError('')
       setChoiceSavePending(true)
+      failedChoiceCorrectionRef.current = null
+      const correction: FailedChoiceCorrection = {
+        questionId: updatedQuestion.id,
+        attemptedOptions: updatedQuestion.options,
+        previousOptions: currentQuestion?.options ?? updatedQuestion.options,
+      }
       const choiceSave = saveDraft(nextDraft, { saveContext: createDraftSaveContext() })
       choiceSavePromiseRef.current = choiceSave
+      pendingChoiceCorrectionRef.current = { ...correction, promise: choiceSave }
       void choiceSave.then((saved) => {
         if (!saved && choiceSavePromiseRef.current === choiceSave) {
-          setQuestions((current) => current.map((question) =>
-            question.id === updatedQuestion.id
-              && JSON.stringify(question.options) === JSON.stringify(updatedQuestion.options)
-              ? { ...question, options: currentQuestion?.options ?? question.options }
-              : question,
-          ))
-          pendingDraftRef.current = { ...nextDraft, questions }
+          failedChoiceCorrectionRef.current = correction
+          setQuestions((current) => restoreFailedChoiceText(current, correction))
+          const pendingDraft = pendingDraftRef.current ?? nextDraft
+          pendingDraftRef.current = {
+            ...pendingDraft,
+            questions: restoreFailedChoiceText(pendingDraft.questions, correction),
+          }
         }
       }).finally(() => {
         if (choiceSavePromiseRef.current === choiceSave) {
           choiceSavePromiseRef.current = null
+          pendingChoiceCorrectionRef.current = null
           setChoiceSavePending(false)
         }
       })
