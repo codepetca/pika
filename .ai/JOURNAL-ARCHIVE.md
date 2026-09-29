@@ -33565,3 +33565,29 @@ The Tests list now displays Open when any enrolled student has effective open ac
   reassignment. Historical runtime/schema keys remain unchanged.
 - Continued policy PR1367; documentation-only verification and independent review
   cover the cumulative approved-policy change. No runtime or live billing change.
+
+<!-- pika-session-log-archive-batch:90800727a9647a728e114970344389b7c704fb9c7e329380f43aaa62aad65cb7 -->
+## 2026-09-26 — Land policy and prepare durable test checkout
+
+- Owner authorized merging the policy and orchestrating implementation. Merged
+  admin1360, foundation1366 and policy1367 into main after their final required
+  PR Gate passed. Descendant rebases preserved complete reviewed trees.
+- Coordinator owns `codex/stripe-checkout-trial`. Workers completed the immutable
+  12-variant Basic/Pro/Max USD/CAD catalog, test-price provisioning, durable
+  checkout/service/provider/schema contracts. Coordinator added authenticated
+  catalog/start/status routes, bounded worker integration and disabled-by-default
+  checkout configuration. Browser redirects cannot grant access.
+- Independent preapplication review found no blockers in migration211, checksum
+  `567b4dfe360266c1b70899e34b70a7ec388a5fdc99494162dbf524207e3c61e9`.
+  It remains unapplied. Shared local has unrelated gradebook210; do not reset it.
+  Await explicit approval for disposable local `pika_billing_checkout`, applying
+  001–209 plus211 without seed. Prior209 reset authorization was consumed.
+- Billing-focused tests192/18 files pass; focused checks passed293 tests and
+  architecture/UI/design policy checks, then stopped at TypeScript because eight
+  new RPCs await proper generated types. Changed-file ESLint, Pika audit and22 CI
+  workflow tests pass. SQL harness is wired into CI but unexecuted locally.
+- Keep the checkout PR draft until SQL tests, generated types, full focused checks
+  and independent implementation review complete. Stripe test credentials remain
+  absent; no provider objects/payments or live billing were created. Trial,
+  lifecycle/access enforcement, billing UI and provider rehearsal remain pending
+  under the durable coordinator plan in `docs/guidance/stripe-billing-foundation.md`.
