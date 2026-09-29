@@ -15,7 +15,7 @@ import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-
 import { safeLocalGetJson, safeLocalSetJson } from '@/lib/client-storage'
 import { applyDirection, compareByNameFields, toggleSort } from '@/lib/table-sort'
 import { average, formatCompactPercent, getAssessmentCell, getStudentDisplayId, getStudentName, getValidEmailList, getAssessmentColumnKey, median, type GradebookIdentityColumn } from '@/lib/gradebook-display'
-import { DEFAULT_GRADEBOOK_PREFERENCES as DEFAULT_PREFERENCES, normalizeGradebookPreferences, downloadGradebookCsv } from '@/lib/gradebook-editor'
+import { DEFAULT_GRADEBOOK_PREFERENCES as DEFAULT_PREFERENCES, normalizeGradebookPreferences, downloadGradebookCsv, visibleGradebookAssessments } from '@/lib/gradebook-editor'
 import type { MaximumChangeMode } from '@/lib/gradebook-maximum'
 import { saveGradebookAssessment } from '@/lib/gradebook-save'
 import { getGradebookEmail2Addresses } from '@/lib/gradebook-email'
@@ -94,6 +94,7 @@ export function TeacherGradebookTab({
   const [assessmentWeightDrafts, setAssessmentWeightDrafts] = useState<Record<string, string>>({})
   const [savingAssessmentKeys, setSavingAssessmentKeys] = useState<Set<string>>(() => new Set())
   const [assessmentColumns, setAssessmentColumns] = useState<GradebookAssessmentColumn[]>([])
+  const visibleAssessmentColumns = visibleGradebookAssessments(assessmentColumns, preferences.hideUnreleasedAssessments)
   const [categories, setCategories] = useState<GradebookCategory[]>([])
   const [gradebookEditorOpen, setGradebookEditorOpen] = useState(false)
   const [selectedAssessment, setSelectedAssessment] = useState<GradebookAssessmentColumn | null>(null)
@@ -828,7 +829,7 @@ export function TeacherGradebookTab({
       onCopySecondaryEmails={email2.loading || email2.error ? undefined : () => {
         void copySelectedEmailsToClipboard(getGradebookEmail2Addresses(email2.rows, selectedIds), 'Email 2 addresses')
       }}
-      onExport={() => downloadGradebookCsv(students, assessmentColumns, scoreDisplayMode)}
+      onExport={() => downloadGradebookCsv(students, visibleAssessmentColumns, scoreDisplayMode)}
       studentGradesVisible={studentGradesVisible}
       onStudentGradesVisibilityChange={(visible) => { void updateStudentGradesVisibility(visible) }}
       savingStudentGradesVisibility={savingStudentGradesVisibility}
@@ -837,7 +838,7 @@ export function TeacherGradebookTab({
 
   const gradebookTable = (
     <GradebookTable
-      students={sortedStudents} columns={assessmentColumns} displayMode={scoreDisplayMode}
+      students={sortedStudents} columns={visibleAssessmentColumns} displayMode={scoreDisplayMode}
       ultraCompact={preferences.ultraCompact}
       lastNameFirst={preferences.lastNameFirst}
       showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
@@ -874,7 +875,7 @@ export function TeacherGradebookTab({
   const studentAssessmentPanel = selectedStudent ? (
     <GradebookStudentPanel
       student={selectedStudent}
-      columns={assessmentColumns}
+      columns={visibleAssessmentColumns}
       displayMode={scoreDisplayMode}
       onClose={() => setSelectedStudentId(null)}
       onItemOpen={openAssessment}
@@ -939,7 +940,7 @@ export function TeacherGradebookTab({
         {mobileStudent ? (
           <GradebookStudentPanel
             student={mobileStudent}
-            columns={assessmentColumns}
+            columns={visibleAssessmentColumns}
             displayMode={scoreDisplayMode}
             onItemOpen={openAssessment}
             onItemScoreOpen={openScore}

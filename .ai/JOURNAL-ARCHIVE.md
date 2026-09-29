@@ -33641,3 +33641,46 @@ The Tests list now displays Open when any enrolled student has effective open ac
   a further owner checkpoint. Previously issued provider sessions may still be
   paid after an operator changes a plan; this patch prevents access overwrite,
   and provider cancellation/refund handling remains a prelaunch lifecycle task.
+
+<!-- pika-session-log-archive-batch:3f10ef6db338e16890725732724091cf5c9341d03bd6b0b81a53836c67a00aca -->
+## 2026-09-26 — Preserve legacy plans during first checkout
+
+- Full review of41c75110 found a P1: legacy paid accounts could reserve first
+  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
+  unchanged legacy Free eligibility at reservation, resumption, progress save,
+  binding and first-payment claim. Changed plans become attention; existing
+  paid-finish revision fencing handles the subsequent race. Applied209/211 are
+  unchanged. API returns a safe409 for initial ineligibility.
+- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
+  legacy paid rejection and plan-change races; they remain unrun until exact
+  local212 authorization. The harness refuses a database without212. Migration
+  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
+- Targeted correction/preapplication review follows as launch5/5, remediation
+  batch1. New212 and refreshed generated types/final integration review require
+  a further owner checkpoint. Previously issued provider sessions may still be
+  paid after an operator changes a plan; this patch prevents access overwrite,
+  and provider cancellation/refund handling remains a prelaunch lifecycle task.
+
+## 2026-09-26 — Apply checkout eligibility212 and prepare final review
+
+- Owner approved local212 and one final integration review up to20 minutes
+  (launch6). Verified the reviewed hash, local target/history and preview;
+  applied only212 once. Authorization consumed; no reset or reseed.
+- Expanded checkout SQL exposed a test-expression ordering bug: capture the
+  claim result before inspecting saved state. The test-only fix passes;
+  migration212 is unchanged. Checkout and foundation rollback contracts pass;
+  generated types refreshed. Existing three users, one classroom and disabled
+  sandbox are preserved. Final focused checks and review precede ready CI;
+  no Stripe provider purchase or live activation.
+
+## 2026-09-27 — Preserve test references during Preview saves
+
+Fixed the teacher editor resetting authoritative document state from document-free parent summaries. References now reset only on owner changes (test/classroom/API scope); detail reads and document mutations own same-test updates. Regression covers a parent summary refresh, Preview payload/source Markdown, and the save-triggered parent refresh; existing stale-response tests remain passing. No schema, API, grading, fullscreen, or visual contract changes. Reuse: existing split Tests editor and Preview/reference controls. Risk: workspace-state.
+
+Verification: TestDetailPanel 48/48; focused checks 276 tests plus architecture/UI/design/TypeScript/lint; 12 mocked Playwright contracts across teacher/student, desktop/mobile, light/dark (image uploads/preview/retry/zoom/answer retention plus Pattern Lab Markdown reference preview), with screenshots inspected at /tmp/pika-preview-browser-results. Local Supabase stopped; fixture server uses loopback-only placeholders. Production quiz content remains unchanged by this code task. Pending independent PR review and release.
+
+Independent review identified a pending document-mutation response crossing selected-test boundaries. Batched remediation guards all document callbacks and auto-sync by captured assessment scope, and keys document editors by owner so pending child state cannot carry into another test. Deferred edit regression verifies the new test's references and Preview payload survive the old response. Editor suite now 49/49; final focused checks and targeted review follow.
+Final integration review caught auto-sync attempt suppression resetting only on test ID changes. Second batch aligns suppression reset with classroom/API/test ownership, with both classroom and API transition regressions. Final focused checks and bounded correction/integration review follow.
+Third correction attaches an owner key to document state and prevents auto-sync effects from mixing prior documents with a newly selected endpoint during the transition render. Different-link API transition regression confirms only the new owner's link is synced. Final focused checks pass 280 tests plus architecture/UI/design/TypeScript/lint. Bounded final correction review pending; release remains separate.
+
+Main sync: resolved only continuity-document overlap after PR1368 landed; reviewed application/test blobs remain identical to fe74df85. Independent review complete, no blockers. Updated-base focused checks and exact-head CI precede authorized squash merge.

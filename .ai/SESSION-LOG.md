@@ -11,48 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Preserve legacy plans during first checkout
-
-- Full review of41c75110 found a P1: legacy paid accounts could reserve first
-  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
-  unchanged legacy Free eligibility at reservation, resumption, progress save,
-  binding and first-payment claim. Changed plans become attention; existing
-  paid-finish revision fencing handles the subsequent race. Applied209/211 are
-  unchanged. API returns a safe409 for initial ineligibility.
-- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
-  legacy paid rejection and plan-change races; they remain unrun until exact
-  local212 authorization. The harness refuses a database without212. Migration
-  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
-- Targeted correction/preapplication review follows as launch5/5, remediation
-  batch1. New212 and refreshed generated types/final integration review require
-  a further owner checkpoint. Previously issued provider sessions may still be
-  paid after an operator changes a plan; this patch prevents access overwrite,
-  and provider cancellation/refund handling remains a prelaunch lifecycle task.
-
-## 2026-09-26 — Apply checkout eligibility212 and prepare final review
-
-- Owner approved local212 and one final integration review up to20 minutes
-  (launch6). Verified the reviewed hash, local target/history and preview;
-  applied only212 once. Authorization consumed; no reset or reseed.
-- Expanded checkout SQL exposed a test-expression ordering bug: capture the
-  claim result before inspecting saved state. The test-only fix passes;
-  migration212 is unchanged. Checkout and foundation rollback contracts pass;
-  generated types refreshed. Existing three users, one classroom and disabled
-  sandbox are preserved. Final focused checks and review precede ready CI;
-  no Stripe provider purchase or live activation.
-
-## 2026-09-27 — Preserve test references during Preview saves
-
-Fixed the teacher editor resetting authoritative document state from document-free parent summaries. References now reset only on owner changes (test/classroom/API scope); detail reads and document mutations own same-test updates. Regression covers a parent summary refresh, Preview payload/source Markdown, and the save-triggered parent refresh; existing stale-response tests remain passing. No schema, API, grading, fullscreen, or visual contract changes. Reuse: existing split Tests editor and Preview/reference controls. Risk: workspace-state.
-
-Verification: TestDetailPanel 48/48; focused checks 276 tests plus architecture/UI/design/TypeScript/lint; 12 mocked Playwright contracts across teacher/student, desktop/mobile, light/dark (image uploads/preview/retry/zoom/answer retention plus Pattern Lab Markdown reference preview), with screenshots inspected at /tmp/pika-preview-browser-results. Local Supabase stopped; fixture server uses loopback-only placeholders. Production quiz content remains unchanged by this code task. Pending independent PR review and release.
-
-Independent review identified a pending document-mutation response crossing selected-test boundaries. Batched remediation guards all document callbacks and auto-sync by captured assessment scope, and keys document editors by owner so pending child state cannot carry into another test. Deferred edit regression verifies the new test's references and Preview payload survive the old response. Editor suite now 49/49; final focused checks and targeted review follow.
-Final integration review caught auto-sync attempt suppression resetting only on test ID changes. Second batch aligns suppression reset with classroom/API/test ownership, with both classroom and API transition regressions. Final focused checks and bounded correction/integration review follow.
-Third correction attaches an owner key to document state and prevents auto-sync effects from mixing prior documents with a newly selected endpoint during the transition render. Different-link API transition regression confirms only the new owner's link is synced. Final focused checks pass 280 tests plus architecture/UI/design/TypeScript/lint. Bounded final correction review pending; release remains separate.
-
-Main sync: resolved only continuity-document overlap after PR1368 landed; reviewed application/test blobs remain identical to fe74df85. Independent review complete, no blockers. Updated-base focused checks and exact-head CI precede authorized squash merge.
-
 ## 2026-09-27 — Stage contextual Assignment inline-image fix
 
 - User authorized orchestration of the audited image-access boundary. This task owns codex/contextual-assignment-images based on main402f8028. Terra implementation worker staged the independent default-off exact user/Classroom gate, relationship-aware delivery, transaction-fenced reservation/finalization and migration213. A separate read-only worker mapped restricted API/RPC lifecycle verification; no classroom UI or billing activation is included.
@@ -249,6 +207,7 @@ Applied the existing assignment `scrollbar-hover` utility to the teacher Test gr
 ## 2026-09-29 — Teacher Test question review formatting
 
 Changed the selected-student Test grading question comment placeholder from `Comment (optional)` to `Comment`. Coding open responses now use the existing `response_monospace` results field to show a Code label and a monospace, indentation-preserving response block with internal horizontal scroll; prose open responses retain their styling. No scoring or autosave behavior changed. Rebasing draft PR #1391 onto the latest main resolved the session archive marker conflict while retaining both log entries. Focused checks passed 234 tests plus architecture, UI/design policy, TypeScript, and lint. The owner visually verified the selected teacher pane and accepted the result. Risk profile: none. Model recommendation: GPT-6 Sol for the localized teacher UI change.
+
 ## 2026-09-29 — MC choice corrections after Test Start
 
 Allowed teachers to edit existing multiple-choice option text after the first student Start while keeping question identity/count, option count, marked answer, points, grading and response settings locked. Updated teacher editor, draft-save policy, database trigger migration 219, notices and authoring guidance. Focused route, component, policy and migration tests pass; teacher/student preview was inspected on desktop/mobile in light/dark, and an edited choice appeared in the student view. Draft PR #1392 received independent security and compatibility review. First remediation limited post-Start saves to one changed MC choice string per question, rejected direct reorder/multi-choice replacements, and added API plus rollback-only database contract cases to the existing CI harness. Targeted review identified a non-text JSON choice gap; second remediation rejects non-text replacements and clarifies the per-question scope. Final integration review identified a quick-edit autosave merge; third remediation immediately saves each choice correction, briefly disables the other choice inputs, and restores prior text on save failure. Targeted review then found a queued title save could revive failed choice text; the user approved a fourth batch, which rebases queued saves on the prior option text. Its targeted review found a Markdown edit to a second choice could prevent rollback; fifth batch restores only the failed option index and rebuilds queued Markdown source. Migration 219 was applied to local with one-time user authorization and its rollback-only database harness passed. Local generated-types check still fails on unrelated course blueprint/daily-log drift. Students already in the Test retain loaded wording until reload. Risk profiles: workspace-state and exam-mode, with database concurrency/rollout risk. Model recommendation: GPT-6 Sol for the feature owner and GPT-5.6 Sol/Terra for independent migration and compatibility review.
@@ -258,3 +217,7 @@ Final review found that a failed-choice rollback marker persisted into a later v
 After background test grading took migration number 219 on main, rebased the PR branch and renamed this feature's migration to 220. The local database had already recorded the earlier 219 choice migration; its history was not altered. The PR remains draft because CI also found a separate shared-trigger failure on student availability inserts.
 
 After the other task reset and reseeded local through main's 219, corrected migration 220's shared trigger so question-only option fields are evaluated only for question updates. Added an availability insert to the rollback-only Test editing contract and verified both it and the CI-failing removed-student contract against migration 220 inside separate rollback transactions. Local migration history and seeded data remain unchanged; exact-head CI is pending.
+
+## 2026-09-29 — Hide unreleased assessments in Gradebook
+
+Added a default-on, persisted More actions option to hide draft Assignment and Test columns from the teacher Gradebook table, student detail panel, and CSV export. The Pattern Lab fixture now includes both draft types. Focused checks passed 299 tests plus architecture, UI/design policy, TypeScript, and lint; Playwright confirmed the checked menu and draft-column toggle in desktop/mobile light/dark views. Risk profile: none. Model recommendation: GPT-6 Sol for this localized Gradebook UI change.

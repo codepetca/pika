@@ -113,6 +113,7 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
       { id: 'ultra-compact', label: 'Ultra-compact gradebook', checked: preferences.ultraCompact, onSelect: () => onChange({ ultraCompact: !preferences.ultraCompact }) },
       { id: 'student-ids', label: 'Show student IDs', checked: preferences.showStudentIds, onSelect: () => onChange({ showStudentIds: !preferences.showStudentIds }) },
       { id: 'sticky-columns', label: 'Keep key columns visible', checked: preferences.keepKeyColumnsVisible, onSelect: () => onChange({ keepKeyColumnsVisible: !preferences.keepKeyColumnsVisible }) },
+      { id: 'hide-unreleased', label: 'Hide unreleased assessments', checked: preferences.hideUnreleasedAssessments, onSelect: () => onChange({ hideUnreleasedAssessments: !preferences.hideUnreleasedAssessments }) },
       ...(hasManualChanges ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || undoingManualChanges || !onUndoManualChanges, dividerBefore: true, onSelect: () => onUndoManualChanges?.() }] : []),
       { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: onExport },
      ]} />
