@@ -151,11 +151,15 @@ export interface TestOpenResponseBatchSuggestion extends TestOpenResponseSuggest
   responseId: string
 }
 
-function getDeepSeekKey(): string | null {
+function requireDeepSeekKey(): string {
   const key = process.env.DEEPSEEK_API_KEY
-  if (!key) return null
-  const trimmed = key.trim()
-  return trimmed || null
+  const trimmed = key?.trim()
+  if (trimmed) return trimmed
+  throw new TestAiGradingError({
+    kind: 'config',
+    message: 'AI grading is not configured.',
+    retryable: false,
+  })
 }
 
 export function getTestOpenResponseGradingModel(): string {
@@ -639,10 +643,7 @@ export async function generateTestOpenResponseReferences(input: {
   maxPoints: number
   responseMonospace?: boolean
 }): Promise<TestOpenResponseReferences> {
-  const apiKey = getDeepSeekKey()
-  if (!apiKey) {
-    throw new Error('DEEPSEEK_API_KEY is not configured')
-  }
+  const apiKey = requireDeepSeekKey()
 
   const model = getTestOpenResponseGradingModel()
   const maxPoints = Math.max(0, input.maxPoints)
@@ -729,10 +730,7 @@ export async function prepareTestOpenResponseGradingContext(input: {
     })
   }
 
-  const apiKey = getDeepSeekKey()
-  if (!apiKey) {
-    throw new Error('DEEPSEEK_API_KEY is not configured')
-  }
+  const apiKey = requireDeepSeekKey()
 
   const referenceAnswers = await generateReferenceAnswers({
     apiKey,
@@ -789,10 +787,7 @@ export async function suggestTestOpenResponseGradeWithContext(
   requestTimeoutMs?: number,
   reasoningEffort?: StructuredOutputRequest['reasoningEffort'],
 ): Promise<TestOpenResponseSuggestion> {
-  const apiKey = getDeepSeekKey()
-  if (!apiKey) {
-    throw new Error('DEEPSEEK_API_KEY is not configured')
-  }
+  const apiKey = requireDeepSeekKey()
 
   const userPrompt = buildTestOpenResponseSingleUserPrompt(prepared, responseText)
   const promptMetrics = estimatePromptMetrics(prepared.systemPrompt, userPrompt)
@@ -852,10 +847,7 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
   requestTimeoutMs?: number,
   reasoningEffort?: StructuredOutputRequest['reasoningEffort'],
 ): Promise<TestOpenResponseBatchSuggestion[]> {
-  const apiKey = getDeepSeekKey()
-  if (!apiKey) {
-    throw new Error('DEEPSEEK_API_KEY is not configured')
-  }
+  const apiKey = requireDeepSeekKey()
   if (responses.length === 0) return []
   // Documented ceilings that nothing enforces are how the previous starvation happened.
   // Past this size the budget clamp gives each response less room, not more. Checked before

@@ -927,6 +927,37 @@ describe('tickTestAiGradingRun', () => {
     expect(suggestTestOpenResponseGradeWithContext).toHaveBeenCalledTimes(2)
   })
 
+  it('fails once with a safe config message when the real singleton adapter has no key', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/ai-test-grading')>('@/lib/ai-test-grading')
+    const originalApiKey = process.env.DEEPSEEK_API_KEY
+    delete process.env.DEEPSEEK_API_KEY
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const originalImplementation = suggestTestOpenResponseGradeWithContext.getMockImplementation()
+    try {
+      const { items } = buildTickHarness({
+        responseRows: [{ id: 'response-1', response_text: 'Synthetic answer' }],
+      })
+      items[1].status = 'completed'
+      suggestTestOpenResponseGradeWithContext.mockImplementation(actual.suggestTestOpenResponseGradeWithContext)
+
+      const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+      expect(result.run.status).toBe('completed_with_errors')
+      expect(items[0]).toMatchObject({
+        status: 'failed', attempt_count: 1, last_error_code: 'config',
+        last_error_message: 'AI grading is not configured.',
+      })
+      expect(JSON.stringify(result)).not.toContain('DEEPSEEK_API_KEY')
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally {
+      if (originalApiKey === undefined) delete process.env.DEEPSEEK_API_KEY
+      else process.env.DEEPSEEK_API_KEY = originalApiKey
+      suggestTestOpenResponseGradeWithContext.mockReset()
+      if (originalImplementation) suggestTestOpenResponseGradeWithContext.mockImplementation(originalImplementation)
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('fails only the last-attempt singleton without exposing the response id', async () => {
     const { items, responses } = buildTickHarness({
       responseRows: [
