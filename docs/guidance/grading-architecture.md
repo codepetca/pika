@@ -230,6 +230,34 @@ microbatches, leases, retry backoff, and at most three attempts. Manual AI
 suggestion routes use the same preparation and profile contracts without taking
 ownership of the durable bulk-run lifecycle.
 
+Test marking requests stay at DeepSeek's high reasoning tier on every provider
+attempt. The first background attempt grades up to four responses together; if
+that batch fails, the affected responses retry individually at high reasoning.
+This preserves the faster path for successful batches without making one malformed
+batch response fail all its answers. The policy version records the high-only
+behavior separately from earlier grades that could use a low-effort rescue attempt.
+
+Migration 219 adds durable background wakeups for test runs. An item-insert
+trigger starts the first protected worker call; a lease-release trigger starts
+the next bounded tick; a one-minute Supabase Cron watchdog recovers missed
+callbacks and due retries. The worker acknowledges quickly and runs the tick
+after the response, within its 300-second route limit. Its existing lease and
+item attempt limits remain the source of truth when callbacks overlap. This
+uses Supabase Cron rather than a sub-daily Vercel Hobby cron. The grading page
+can still poll and advance a run, but it no longer has to remain open for the
+run to progress after background dispatch is activated.
+
+Background dispatch activates only when Supabase Vault holds a HTTPS URL ending
+in `/api/cron/test-ai-grading` under `pika_test_ai_grading_worker_url` and the
+same bearer value as the deployed route's `CRON_SECRET` under
+`pika_test_ai_grading_worker_secret`. Apply migration 219 before configuring
+those secrets; deploy the matching worker before activation. With either Vault
+value absent, the existing teacher-driven ticks remain available. Verify a
+small test run continues after leaving the page, persists every suggestion,
+and terminates or reports individual failures before relying on the background
+path for a whole class. Migration application follows the one-time approval
+rule in the schema rollout checklist.
+
 ## Repository-Review Grading
 
 Repository review remains a Pika-owned workflow because Pika fetches repository

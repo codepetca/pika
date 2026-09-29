@@ -234,6 +234,7 @@ async function callProviderForJson(opts: {
         model: opts.model,
         requestTimeoutMs: opts.requestTimeoutMs ?? TEST_AI_REQUEST_TIMEOUT_MS,
         reasoningEffort: opts.reasoningEffort ?? TEST_AI_REASONING_EFFORT,
+        allowEffortDowngrade: false,
       },
       prompt: {
         systemPrompt: opts.systemPrompt,
