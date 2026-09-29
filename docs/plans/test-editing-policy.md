@@ -32,6 +32,8 @@ queued during the failed correction also restore its prior choice text while
 preserving their own title, prompt and other allowed edits, including a separate
 choice correction made through Markdown. The queued Markdown source is rebuilt
 from the corrected draft so its text matches the saved question options.
+The rollback applies only to saves queued during that failed correction; a
+later deliberate retry of the same option text remains valid.
 Markdown saves use the same field policy. The server checks that at most one
 option string changes per question per save, along with choice count and all
 frozen fields. The database trigger enforces the same boundary for materialized

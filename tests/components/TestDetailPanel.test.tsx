@@ -286,7 +286,7 @@ describe('TestDetailPanel', () => {
         ? firstPatch.promise
         : Promise.resolve(jsonResponse({
             editingPolicy: { structureLocked: true },
-            draft: { version: 2, content: body.content },
+            draft: { version: patchBodies.length, content: body.content },
           }))
     })
 
@@ -329,6 +329,23 @@ describe('TestDetailPanel', () => {
     expect(patchBodies[1].content.source_markdown).toContain('Bluish')
     expect(patchBodies[1].content.source_markdown).not.toContain('Reddish')
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
+
+    await waitFor(() => expect(within(markdownPane).getByRole('button', { name: 'Edit Markdown' })).toBeEnabled())
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
+    fireEvent.change(within(markdownPane).getByTestId('test-markdown-editor'), {
+      target: {
+        value: testToMarkdown({
+          title: 'Queued Markdown Test',
+          show_results: false,
+          questions: [{ ...question, options: ['Reddish', 'Bluish', 'Green'] }],
+          documents: [],
+        }),
+      },
+    })
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
+    await waitFor(() => expect(patchBodies).toHaveLength(3))
+    expect(patchBodies[2].content.questions[0].options).toEqual(['Reddish', 'Bluish', 'Green'])
+    expect(patchBodies[2].content.source_markdown).toContain('Reddish')
   })
 
   it('uses the split authoring layout with one navigable question and real document actions', async () => {
