@@ -900,6 +900,33 @@ describe('tickTestAiGradingRun', () => {
     expect(items.map((item) => item.attempt_count)).toEqual([2, 2])
   })
 
+  it('retries a high-reasoning singleton after its output budget is exhausted', async () => {
+    const { items } = buildTickHarness({
+      responseRows: [{ id: 'response-1', response_text: 'Answer one' }],
+    })
+    items[1].status = 'completed'
+    suggestTestOpenResponseGradeWithContext.mockRejectedValueOnce(
+      Object.assign(new Error('DeepSeek response incomplete: max_tokens'), { kind: 'bad_response' }),
+    ).mockResolvedValueOnce({
+      score: 5, feedback: 'Correct.', model: 'gpt-5-nano', grading_basis: 'teacher_key',
+      reference_answers: ['Use a hash map.'], provenance: gradingProvenance,
+    })
+
+    const first = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+    expect(first.run.status).toBe('running')
+    expect(items[0]).toMatchObject({
+      status: 'queued', attempt_count: 1, last_error_code: 'bad_response',
+      last_error_message: 'AI grading service failed for this response. Try again.',
+    })
+
+    items[0].next_retry_at = new Date(Date.now() - 1000).toISOString()
+    const second = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+    expect(items[0]).toMatchObject({ status: 'completed', attempt_count: 2 })
+    expect(second.run.status).toBe('completed')
+    expect(second.run.completed_count).toBe(2)
+    expect(suggestTestOpenResponseGradeWithContext).toHaveBeenCalledTimes(2)
+  })
+
   it('fails only the last-attempt singleton without exposing the response id', async () => {
     const { items, responses } = buildTickHarness({
       responseRows: [

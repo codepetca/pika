@@ -628,6 +628,10 @@ function toTeacherAutoGradeErrorMessage(error: unknown): string {
     message.startsWith('OpenAI returned invalid JSON') ||
     message === 'OpenAI response missing structured output' ||
     message === 'OpenAI response incomplete: max_output_tokens' ||
+    message.startsWith('DeepSeek request failed') ||
+    message.startsWith('DeepSeek returned invalid JSON') ||
+    message === 'DeepSeek response missing structured output' ||
+    message === 'DeepSeek response incomplete: max_tokens' ||
     message === 'Failed to parse AI grade suggestion' ||
     message === 'Failed to parse AI batch grade suggestions' ||
     message === 'Failed to parse AI reference answers' ||
@@ -675,16 +679,16 @@ async function failOrRetryItem(opts: {
   leaseToken: string
   attemptCount: number
   error: unknown
-  recoverBatchOutput?: boolean
+  recoverProviderOutput?: boolean
 }): Promise<void> {
   const teacherMessage = toTeacherAutoGradeErrorMessage(opts.error)
-  const batchErrorKind = opts.error instanceof Error && 'kind' in opts.error
+  const providerErrorKind = opts.error instanceof Error && 'kind' in opts.error
     ? opts.error.kind
     : null
-  const batchOutputFailure = opts.recoverBatchOutput && opts.error instanceof Error && (
-    batchErrorKind === 'bad_response' || batchErrorKind === 'invalid_output' || batchErrorKind === null
+  const providerOutputFailure = opts.recoverProviderOutput && opts.error instanceof Error && (
+    providerErrorKind === 'bad_response' || providerErrorKind === 'invalid_output' || providerErrorKind === null
   )
-  const retryable = isRetryableTestAiGradingError(opts.error) || isBatchOmittedResponseError(opts.error) || batchOutputFailure
+  const retryable = isRetryableTestAiGradingError(opts.error) || isBatchOmittedResponseError(opts.error) || providerOutputFailure
 
   if (retryable && opts.attemptCount < TEST_AI_GRADING_MAX_ATTEMPTS) {
     await updateRunItem(opts.item.id, opts.leaseToken, {
@@ -1095,7 +1099,7 @@ async function processQuestionBatch(opts: {
       continue
     }
 
-    let batchProviderCallInProgress = false
+    let providerCallInProgress = false
     try {
       if (!prepared) {
         await renewTestAiGradingRunLease({
@@ -1122,6 +1126,7 @@ async function processQuestionBatch(opts: {
           leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
         })
         if (!canStartProviderCall(tickStartedAt)) return
+        providerCallInProgress = true
         const suggestion = await suggestTestOpenResponseGradeWithContext(
           prepared,
           only.responseText,
@@ -1135,6 +1140,7 @@ async function processQuestionBatch(opts: {
           },
           TEST_AI_GRADING_REQUEST_TIMEOUT_MS,
         )
+        providerCallInProgress = false
 
         await renewTestAiGradingRunLease({
           runId: run.id,
@@ -1158,7 +1164,7 @@ async function processQuestionBatch(opts: {
         leaseSeconds: TEST_AI_GRADING_LEASE_SECONDS,
       })
       if (!canStartProviderCall(tickStartedAt)) return
-      batchProviderCallInProgress = true
+      providerCallInProgress = true
       const suggestions = await suggestTestOpenResponseGradesBatchWithContext(
         prepared,
         activeBatchRequests.map((entry) => ({
@@ -1173,7 +1179,7 @@ async function processQuestionBatch(opts: {
         },
         TEST_AI_GRADING_REQUEST_TIMEOUT_MS,
       )
-      batchProviderCallInProgress = false
+      providerCallInProgress = false
 
       await renewTestAiGradingRunLease({
         runId: run.id,
@@ -1223,7 +1229,7 @@ async function processQuestionBatch(opts: {
           leaseToken,
           attemptCount: attempts.get(entry.item.id) ?? entry.item.attempt_count + 1,
           error,
-          recoverBatchOutput: batchProviderCallInProgress,
+          recoverProviderOutput: providerCallInProgress,
         })
       }
     }
