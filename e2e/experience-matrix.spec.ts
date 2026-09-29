@@ -2618,7 +2618,7 @@ test.describe('teacher experience matrix', () => {
 
     await expect(page).toHaveURL((url) => (
       url.pathname === '/login' &&
-      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('next') === '/teacher/blueprints?section=overview' &&
       url.searchParams.get('reason') === 'session-expired'
     ))
     await expect(page.getByRole('status')).toContainText('Your session expired')
@@ -2630,7 +2630,7 @@ test.describe('teacher experience matrix', () => {
     await page.getByLabel('Password').fill('test1234')
     await page.getByRole('button', { name: 'Login' }).click()
 
-    await expect(page).toHaveURL(/\/teacher\/blueprints$/)
+    await expect(page).toHaveURL(/\/teacher\/blueprints\?section=overview$/)
     await expect(page.getByRole('navigation', { name: 'Teacher tools' })).toBeVisible()
     await verifyProjectContract(page, testInfo)
   })
@@ -2651,7 +2651,7 @@ test.describe('teacher experience matrix', () => {
 
     await expect(page).toHaveURL((url) => (
       url.pathname === '/login' &&
-      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('next') === '/teacher/blueprints?section=overview' &&
       url.searchParams.get('reason') === 'session-changed'
     ))
     await expect(page.getByRole('status')).toContainText('signed-in account changed')
@@ -2770,7 +2770,8 @@ test.describe('teacher experience matrix', () => {
 
     await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
     await page.locator('aside').getByRole('button', { name: /Publication Lifecycle Fixture/ }).click()
-    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await page.getByRole('tab', { name: 'Settings' }).click()
+    await page.getByRole('tab', { name: 'Publish' }).click()
 
     const publishCheckbox = page.getByRole('checkbox', {
       name: 'Publish this planned course site',

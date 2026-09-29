@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Consolidated billing209 and rebuilt local database
-
-- User explicitly approved combining unreleased209/210, erasing/resetting local and reseeding. Consolidated the reviewed final functions and table definitions into209; removed210 and its upgrade-only backfill. Verified local target/history; one `supabase db reset --local --no-seed` replayed001–209 successfully. Reseeded via local runtime credentials with shared hosted env excluded. Local fixtures: three users and one classroom; billing sandbox off and no billing inbox records. Reset restores migration defaults, including local creation/Free-provisioning gates; production is unchanged.
-- Generated types match the rebuilt schema. Billing recovery/payment, account-plan and classroom-creation rollback harnesses pass. Corrected SQL harness evaluation ordering by capturing the mutation result before inspecting persisted state. Focused checks pass342 tests plus TypeScript/lint/policy checks; final integration review and CI remain pending. Earlier209/reset authorization is consumed. No live Stripe payment rehearsal, production change or merge.
-
-## 2026-09-26 — Billing binding/webhook race correction
-
-- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
-- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
-
-## 2026-09-26 — Approved subscription launch policy
-
-- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
-  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
-  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
-  Updated the access roadmap and durable decisions; distinguished approved
-  product terms from provisional AI costs and missing runtime implementation.
-- Documentation-only risk profile: none. No database, Stripe account, production
-  runtime or existing subscription changed. Next implementation milestone is an
-  isolated Stripe test checkout plus lifecycle/access verification.
-
 ## 2026-09-26 — Rename launch plans to Basic, Pro and Max
 
 - Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,
@@ -284,6 +263,7 @@ Mounted the first image reference when the teacher preview or started student te
 
 - Resumed PR #1340 after the Claude handoff. Initial Sol/Terra review found uncached reference generation ran before durable attempt accounting and missing-question recovery could exceed the attempt cap. One correction batch places preparation inside the counted microbatch attempt, checks the deadline again afterward, and caps missing-question recovery. Four new regressions fail before the correction and pass after it; runner suite passes 20 tests. No migration or grading-strategy change. Focused verification, targeted re-review, and owner merge approval remain required.
 - Owner approved a final bounded review, merge on green PR Gate, and production promotion. Final review found database writes or lease renewals could consume the admission window after its check; recheck immediately before reference preparation and single/batch provider calls. Four additional regressions failed before this correction and pass afterward; runner suite now passes 24 tests. Final focused verification and independent confirmation remain required before ready.
+The Tests list now displays Open when any enrolled student has effective open access, including a test whose stored status is closed; active tests with every student's access closed still display Closed. Drafts remain Draft. Added unit/component and browser regression coverage. Focused checks passed 1,031 tests plus architecture, UI/design policy, TypeScript, and lint; the browser scenario passed desktop/mobile in light/dark, and screenshots were reviewed. Risk profile: none. Model recommendation: GPT-6 Sol for the localized status correction.
 
 ## 2026-09-28 — Markdown code in Karel multiple choice
 
@@ -293,3 +273,17 @@ Updated the teacher test authoring guide to require inline Markdown code for sho
 
 - Continued draft PR1347 after the owner resumed the paused experiment. Synced current main with both archive histories retained; grading adapters/profiles are unchanged since the saved 33-operation checkpoint. Added strict comparison checkpoint resume for unchanged keyed questions, with exact answer/manifest, target, pricing, source and completed-prefix checks before provider work. The pause gap and possible interrupted request remain explicit in private accounting.
 - Initial independent Terra review found four resume-preflight gaps: model selection, unsampled snapshot and target content, and transitive sanitization source. One batch adds full private input and source fingerprints for new checkpoints, plus a bounded legacy recovery rule for this all-selected, unmodified saved run. Thirteen harness tests, explicit script/test TypeScript, lint, Pika audit and real private dry-run preflight pass. Focused recheck and targeted review precede ready/CI and paid continuation. Risk profile: none (offline developer tooling); model recommendation: GPT-5.6 Terra high for checkpoint correctness and accounting.
+
+## 2026-09-28 — Blueprint authoring workspace inspection
+
+Inspected production `/teacher/blueprints` and selected ICS3U-4; reviewed desktop dark screenshot, Tests/AI Drafting controls, current source, and the existing product-experience audit. Confirmed Blueprints already has main navigation, while its editor still has 13 wrapping custom tab buttons, metadata and repository/package explanations above content, local-only section state, and no Authoring Guidance tab. Recorded an unimplemented proposal in `docs/guidance/ui/changes/blueprint-authoring-workspace-audit.md`: dedicated teacher-only guidance tab, simpler workspace grouping, existing shared editor/tab primitives, and persistence/context work before claiming remembered rules. No production content or product code changed. Read-only investigation risk: none; no implementation verification claimed.
+
+## 2026-09-28 — Living Blueprint authoring implementation in progress
+
+Created five workspace tabs, a teacher-only Authoring Guidance editor with course/unit rules, staged comparison, history, and temporary draft trials. Added revision-safe storage, schema-3 Version snapshots and proposals, package v6 guidance, frozen classroom guidance reads, and a model-backed Blueprint test/assignment draft preview that consumes selected rules. Coding test drafts receive a first general Instructions reference; code options are requested as Markdown. Focused unit suites and teacher desktop/mobile browser review pass; student route redirect was checked. Migration 218 is not applied, generated database types remain pending, and the shared local stack contains a different unmerged 218. Classroom create flows do not yet consume the frozen guidance. Draft PR, independent review, PR Gate, and merge remain pending.
+
+Draft PR #1386 received independent security and architecture review. One remediation batch added database-backed per-teacher AI draft admission, signed saved-guidance preview proof, a provider input budget, legacy Version reuse normalization, and package v6 rollout corrections. A clean CI database replay accepted migration 218 and supplied machine-generated type diffs; the local shared database remains untouched. Targeted re-review found a large-preview boundary mismatch, corrected by signing the original content hash instead of resending the full preview. The follow-up classroom creation flow must consume the frozen Version through actual model drafting and store private provenance atomically; a passive guidance notice alone is insufficient. Focused checks pass 998 tests plus architecture, UI/design policy, TypeScript, and lint. Final database admission contract, exact-head CI, cumulative review, and merge authority remain pending.
+
+## 2026-09-28 — Blueprint PR final CI corrections
+
+Owner approved one additional reviewer and time for PR #1386. Exact-head CI caught a warning-level array initializer in migration 218; the stacked classroom PR browser run also found three Blueprint experience tests still targeting the old tab and URL behavior. Corrected the migration initializer and test expectations for the Settings → Publish tab and retained section query. Focused checks pass 998 tests, architecture, UI/design policy, TypeScript, and lint. Final independent review and exact-head ready CI remain pending; no local migration or merge was performed.

@@ -3,6 +3,7 @@ import {
   getCourseBlueprintDirtySections,
   type CourseBlueprintEditorState,
 } from '@/lib/course-blueprint-editor-state'
+import { EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE } from '@/lib/course-blueprint-authoring-guidance'
 
 function editorState(): CourseBlueprintEditorState {
   return {
@@ -30,6 +31,7 @@ function editorState(): CourseBlueprintEditorState {
       assignments_weight: 65,
       tests_weight: 35,
     },
+    guidance: structuredClone(EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE),
     drafts: {
       overview: 'Overview',
       outline: 'Outline',
@@ -56,6 +58,7 @@ describe('course blueprint editor dirty state', () => {
     current.metadata.title = 'Computer Science 12'
     current.plannedSite.config.tests = false
     current.grading.tests_weight = 40
+    current.guidance.test_guidance_markdown = 'Use Markdown code.'
     current.drafts.outline = 'Revised outline'
     current.drafts.assignments = 'Revised assignments'
 
@@ -63,6 +66,7 @@ describe('course blueprint editor dirty state', () => {
       'metadata',
       'planned-site',
       'grading',
+      'guidance',
       'outline',
       'assignments',
     ])

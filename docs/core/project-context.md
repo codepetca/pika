@@ -128,8 +128,9 @@ cleanup-disabled procedure in `docs/guidance/classroom-lifecycle-archives.md`.
 - `CRON_SECRET` (required for protected cron endpoints; Vercel sends `Authorization: Bearer <CRON_SECRET>`; cron schedules are configured in `vercel.json` or the Vercel dashboard; on the Hobby plan, schedules must run at most once per day)
 - `DEEPSEEK_API_KEY` (optional; required for assignment, test, and repository-review AI grading)
 - `DEEPSEEK_GRADING_MODEL` (optional grading model override; defaults to `deepseek-flash`)
-- `OPENAI_API_KEY` (optional; required for nightly log summaries, developer feedback extraction, and curriculum import)
+- `OPENAI_API_KEY` (optional; required for nightly log summaries, developer feedback extraction, curriculum import, and Blueprint test/assignment drafting)
 - `OPENAI_SUMMARY_MODEL` / `OPENAI_DEVELOPER_FEEDBACK_MODEL` (optional model overrides)
+- `OPENAI_BLUEPRINT_DRAFT_MODEL` (optional Blueprint drafting model override; defaults to `gpt-5-mini`)
 - `SUPABASE_ACCESS_TOKEN` (operator-only; required by the named production archive canary for
   read-only pre/post database-size evidence)
 

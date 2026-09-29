@@ -31,13 +31,19 @@ import {
   COURSE_BLUEPRINT_PACKAGE_VERSION,
   coursePackageBundleSchema,
   type CoursePackageManifest,
-  type CoursePackageManifestV5,
+  type CoursePackageManifestV6,
   type CoursePackageRawBundle,
   type CoursePackageRawV2,
   type CoursePackageRawV3,
   type CoursePackageRawV4,
   type CoursePackageRawV5,
+  type CoursePackageRawV6,
 } from '@/lib/contracts/course-blueprint-package'
+import {
+  EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
+  courseBlueprintAuthoringGuidanceSchema,
+  type CourseBlueprintAuthoringGuidance,
+} from '@/lib/course-blueprint-authoring-guidance'
 import {
   verifyCourseBlueprintPackageArchive,
   verifyCourseBlueprintPackageBundle,
@@ -58,8 +64,119 @@ import {
   createCourseBlueprintArtifactId,
   isCourseBlueprintArtifactId,
 } from '@/lib/course-blueprint-artifact-identity'
+import { parseStrictJson } from '@/lib/course-blueprint-package-json'
 
 const textEncoder = new TextEncoder()
+
+const GUIDANCE_FIELDS = [
+  ['course_expectations_markdown', 'Course expectations', '##'],
+  ['assignment_guidance_markdown', 'Assignment guidance', '##'],
+  ['test_guidance_markdown', 'Test guidance', '##'],
+] as const
+
+function guidanceFieldMarkdown(
+  token: string,
+  key: string,
+  title: string,
+  heading: string,
+  value: string,
+) {
+  return `${heading} ${title}\n<!-- pika-guidance:${token}:begin:${key} -->\n${value}\n<!-- pika-guidance:${token}:end:${key} -->\n\n`
+}
+
+/** The token makes section boundaries unambiguous even when teacher Markdown contains headings. */
+export function courseBlueprintAuthoringGuidanceToMarkdown(
+  input: CourseBlueprintAuthoringGuidance,
+): string {
+  const guidance = courseBlueprintAuthoringGuidanceSchema.parse(input)
+  const content = [
+    guidance.course_expectations_markdown,
+    guidance.assignment_guidance_markdown,
+    guidance.test_guidance_markdown,
+    ...guidance.unit_exceptions.flatMap((unit) => [
+      unit.unit_label,
+      unit.assignment_guidance_markdown,
+      unit.test_guidance_markdown,
+    ]),
+  ].join('\n')
+  let tokenNumber = 0
+  while (content.includes(`pika-${tokenNumber}`)) tokenNumber += 1
+  const token = `pika-${tokenNumber}`
+  let markdown = `# Authoring guidance\n\n<!-- pika-guidance:v1:${token} -->\n\n`
+  for (const [key, title, heading] of GUIDANCE_FIELDS) {
+    markdown += guidanceFieldMarkdown(token, key, title, heading, guidance[key])
+  }
+  for (const unit of guidance.unit_exceptions) {
+    const label = unit.unit_label.replace(/\s+/g, ' ').trim()
+    const metadata = encodeURIComponent(JSON.stringify({ id: unit.id, unit_label: unit.unit_label }))
+    markdown += `## Unit: ${label}\n<!-- pika-guidance:${token}:unit:${metadata} -->\n\n`
+    markdown += guidanceFieldMarkdown(token, 'assignment_guidance_markdown', 'Assignment guidance', '###', unit.assignment_guidance_markdown)
+    markdown += guidanceFieldMarkdown(token, 'test_guidance_markdown', 'Test guidance', '###', unit.test_guidance_markdown)
+  }
+  return `${markdown}<!-- pika-guidance:${token}:end -->`
+}
+
+export function markdownToCourseBlueprintAuthoringGuidance(markdown: string): {
+  guidance: CourseBlueprintAuthoringGuidance
+  errors: string[]
+} {
+  const invalid = {
+    guidance: structuredClone(EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE),
+    errors: ['authoring-guidance.md has invalid section structure or guidance values'],
+  }
+  const header = markdown.match(/^# Authoring guidance\n\n<!-- pika-guidance:v1:(pika-\d+) -->\n\n/)
+  if (!header) return invalid
+  const token = header[1]
+  let cursor = header[0].length
+  const read = (expected: string) => {
+    if (!markdown.startsWith(expected, cursor)) throw new Error('invalid guidance marker')
+    cursor += expected.length
+  }
+  const readField = (key: string, title: string, heading: string) => {
+    read(`${heading} ${title}\n<!-- pika-guidance:${token}:begin:${key} -->\n`)
+    const end = `\n<!-- pika-guidance:${token}:end:${key} -->\n\n`
+    const endIndex = markdown.indexOf(end, cursor)
+    if (endIndex < 0) throw new Error('missing guidance end marker')
+    const value = markdown.slice(cursor, endIndex)
+    cursor = endIndex + end.length
+    return value
+  }
+  try {
+    const course_expectations_markdown = readField('course_expectations_markdown', 'Course expectations', '##')
+    const assignment_guidance_markdown = readField('assignment_guidance_markdown', 'Assignment guidance', '##')
+    const test_guidance_markdown = readField('test_guidance_markdown', 'Test guidance', '##')
+    const unit_exceptions: CourseBlueprintAuthoringGuidance['unit_exceptions'] = []
+    while (markdown.startsWith('## Unit: ', cursor)) {
+      const start = markdown.slice(cursor).match(/^## Unit: ([^\n]*)\n<!-- pika-guidance:pika-\d+:unit:([^\n]*) -->\n\n/)
+      if (!start) return invalid
+      const metadataPrefix = `## Unit: ${start[1]}\n<!-- pika-guidance:${token}:unit:`
+      if (!start[0].startsWith(metadataPrefix)) return invalid
+      const metadata = parseStrictJson(decodeURIComponent(start[2])).value
+      if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return invalid
+      const { id, unit_label, ...unknownFields } = metadata as Record<string, unknown>
+      if (Object.keys(unknownFields).length || typeof id !== 'string' || typeof unit_label !== 'string') return invalid
+      if (start[1] !== unit_label.replace(/\s+/g, ' ').trim()) return invalid
+      cursor += start[0].length
+      unit_exceptions.push({
+        id,
+        unit_label,
+        assignment_guidance_markdown: readField('assignment_guidance_markdown', 'Assignment guidance', '###'),
+        test_guidance_markdown: readField('test_guidance_markdown', 'Test guidance', '###'),
+      })
+    }
+    read(`<!-- pika-guidance:${token}:end -->`)
+    if (cursor !== markdown.length && markdown.slice(cursor) !== '\n') return invalid
+    const parsed = courseBlueprintAuthoringGuidanceSchema.safeParse({
+      course_expectations_markdown,
+      assignment_guidance_markdown,
+      test_guidance_markdown,
+      unit_exceptions,
+    })
+    return parsed.success ? { guidance: parsed.data, errors: [] } : invalid
+  } catch {
+    return invalid
+  }
+}
 
 export { COURSE_BLUEPRINT_PACKAGE_VERSION } from '@/lib/contracts/course-blueprint-package'
 
@@ -96,6 +213,7 @@ export type CourseBlueprintImportResult = {
     | 'planned_site_slug'
     | 'planned_site_published'
     | 'planned_site_config'
+    | 'authoring_guidance'
   >
   assignments: Array<{
     artifact_id?: string
@@ -265,7 +383,7 @@ export function buildCoursePackageManifest(
     blueprintVersionNumber?: number | null
     editingSessionId?: string
   }
-): CoursePackageManifestV5 {
+): CoursePackageManifestV6 {
   return {
     version: COURSE_BLUEPRINT_PACKAGE_VERSION,
     exported_at: new Date().toISOString(),
@@ -377,7 +495,7 @@ export function decodeCourseBlueprintPackageArchive(
 export function buildCourseBlueprintExportBundle(
   detail: CourseBlueprintDetail,
   source?: Parameters<typeof buildCoursePackageManifest>[1]
-): CoursePackageRawV5 {
+): CoursePackageRawV6 {
   const assignments = detail.assignments.map((assignment) => ({
     id: assignment.id,
     artifact_id: assignment.artifact_id,
@@ -454,6 +572,9 @@ export function buildCourseBlueprintExportBundle(
       'lesson-plans.md': courseBlueprintLessonTemplatesToMarkdown(lessonTemplates),
       'classwork-materials.md': courseBlueprintMaterialsToMarkdown(materials),
       'surveys.md': courseBlueprintSurveysToMarkdown(surveys),
+      'authoring-guidance.md': courseBlueprintAuthoringGuidanceToMarkdown(
+        detail.authoring_guidance ?? EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE
+      ),
     },
   }
 }
@@ -484,6 +605,7 @@ function adaptLegacyFiles(files: Record<string, string>) {
     'lesson-plans.md': files['lesson-plans.md'],
     'classwork-materials.md': '',
     'surveys.md': '',
+    'authoring-guidance.md': '',
   }
 }
 
@@ -509,10 +631,10 @@ function adaptLegacyPackage(
   }
 }
 
-function adaptV5Package(bundle: CoursePackageRawV5): CanonicalPortableCoursePackage {
+function adaptV5Package(bundle: CoursePackageRawV5 | CoursePackageRawV6): CanonicalPortableCoursePackage {
   return {
     sourceManifest: bundle.manifest,
-    files: bundle.files,
+    files: { ...bundle.files, 'authoring-guidance.md': '' },
     identityAware: true,
     grading: {
       useWeights: bundle.manifest.grading.use_weights,
@@ -529,6 +651,13 @@ function adaptV5Package(bundle: CoursePackageRawV5): CanonicalPortableCoursePack
   }
 }
 
+function adaptV6Package(bundle: CoursePackageRawV6): CanonicalPortableCoursePackage {
+  return {
+    ...adaptV5Package(bundle),
+    files: bundle.files,
+  }
+}
+
 export function adaptVerifiedCoursePackage(
   verified: VerifiedCoursePackage,
 ): CanonicalPortableCoursePackage {
@@ -541,6 +670,8 @@ export function adaptVerifiedCoursePackage(
       return adaptLegacyPackage(verified.bundle as CoursePackageRawV4)
     case '5':
       return adaptV5Package(verified.bundle as CoursePackageRawV5)
+    case '6':
+      return adaptV6Package(verified.bundle as CoursePackageRawV6)
   }
 }
 
@@ -564,6 +695,7 @@ function invalidImportResult(
       planned_site_slug: null,
       planned_site_published: false,
       planned_site_config: DEFAULT_PLANNED_COURSE_SITE_CONFIG,
+      authoring_guidance: structuredClone(EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE),
     },
     assignments: [],
     assessments: [],
@@ -608,6 +740,9 @@ function parseVerifiedCoursePackage(verified: VerifiedCoursePackage): CourseBlue
     [],
     parseOptions
   )
+  const guidanceResult = manifest.version === '6'
+    ? markdownToCourseBlueprintAuthoringGuidance(files['authoring-guidance.md'])
+    : { guidance: structuredClone(EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE), errors: [] }
   const parsedContent = {
     assignments: assignmentResult.assignments.map((assignment) => ({
       ...assignment,
@@ -680,6 +815,7 @@ function parseVerifiedCoursePackage(verified: VerifiedCoursePackage): CourseBlue
       planned_site_slug: portable.plannedSite.slug,
       planned_site_published: portable.plannedSite.published,
       planned_site_config: portable.plannedSite.config,
+      authoring_guidance: guidanceResult.guidance,
     },
     assignments: parsedContent.assignments,
     assessments: parsedContent.assessments,
@@ -692,6 +828,7 @@ function parseVerifiedCoursePackage(verified: VerifiedCoursePackage): CourseBlue
       ...lessonResult.errors,
       ...materialResult.errors,
       ...surveyResult.errors,
+      ...guidanceResult.errors,
       ...identityErrors,
       ...positionErrors,
       ...packageStorageErrors,

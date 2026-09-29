@@ -5,11 +5,13 @@ import { describe, expect, it } from 'vitest'
 import {
   analyzeCourseBlueprintCompleteness,
   buildCourseBlueprintExportBundle,
+  courseBlueprintAuthoringGuidanceToMarkdown,
   decodeCourseBlueprintPackageArchive,
   encodeCourseBlueprintPackageArchive,
   parseCourseBlueprintImportArchive,
   parseCourseBlueprintImportBundle,
   parseCourseBlueprintImportJson,
+  markdownToCourseBlueprintAuthoringGuidance,
 } from '@/lib/course-blueprint-package'
 import {
   COURSE_BLUEPRINT_PACKAGE_MAX_BYTES,
@@ -169,7 +171,50 @@ const DETAIL: CourseBlueprintDetail = {
   linked_classrooms: [],
 }
 
+const GUIDANCE = {
+  course_expectations_markdown: 'Follow the rubric.\n\n## A heading inside guidance\n\npika-0',
+  assignment_guidance_markdown: 'Use examples and explain sources.\n',
+  test_guidance_markdown: 'Allow a formula sheet.',
+  unit_exceptions: [{
+    id: '81000000-0000-4000-8000-000000000006',
+    unit_label: 'Unit 1: Foundations',
+    assignment_guidance_markdown: 'Show pseudocode first.',
+    test_guidance_markdown: 'Include a short coding question.',
+  }],
+}
+
 describe('course blueprint package', () => {
+  it('round-trips version 6 authoring guidance through Markdown, JSON, and TAR', () => {
+    const detail = { ...DETAIL, authoring_guidance: GUIDANCE }
+    const bundle = buildCourseBlueprintExportBundle(detail)
+    const markdown = bundle.files['authoring-guidance.md']
+    expect(bundle.manifest.version).toBe('6')
+    expect(markdown).toContain('## Course expectations')
+    expect(markdown).toContain('## Unit: Unit 1: Foundations')
+    expect(markdown).toContain('pika-guidance:v1:pika-1')
+    expect(markdownToCourseBlueprintAuthoringGuidance(markdown)).toEqual({
+      guidance: GUIDANCE,
+      errors: [],
+    })
+    expect(parseCourseBlueprintImportBundle(bundle).blueprint.authoring_guidance).toEqual(GUIDANCE)
+    expect(parseCourseBlueprintImportJson(JSON.stringify(bundle)).blueprint.authoring_guidance)
+      .toEqual(GUIDANCE)
+    expect(parseCourseBlueprintImportArchive(encodeCourseBlueprintPackageArchive(bundle))
+      .blueprint.authoring_guidance).toEqual(GUIDANCE)
+  })
+
+  it('fails closed on malformed guidance and duplicate unit IDs', () => {
+    const bundle = buildCourseBlueprintExportBundle({ ...DETAIL, authoring_guidance: GUIDANCE })
+    bundle.files['authoring-guidance.md'] += '\nUnknown tail'
+    expect(parseCourseBlueprintImportBundle(bundle).errors)
+      .toContain('authoring-guidance.md has invalid section structure or guidance values')
+
+    expect(() => courseBlueprintAuthoringGuidanceToMarkdown({
+      ...GUIDANCE,
+      unit_exceptions: [GUIDANCE.unit_exceptions[0], GUIDANCE.unit_exceptions[0]],
+    })).toThrow()
+  })
+
   it('exports and re-imports the portable package bundle', () => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle(bundle)
@@ -452,7 +497,7 @@ describe('course blueprint package', () => {
 
     expect(decoded).not.toBeNull()
     expect(decoded?.manifest.title).toBe('Computer Science 11')
-    expect(decoded?.manifest.version).toBe('5')
+    expect(decoded?.manifest.version).toBe('6')
     expect(decoded?.manifest).toEqual(expect.objectContaining({
       blueprint_id: '10000000-0000-4000-8000-000000000000',
       source_draft_revision: 7,
@@ -499,7 +544,7 @@ describe('course blueprint package', () => {
     expect(parsed.assessments[0].title).toBe('Legacy Foundations Test')
   })
 
-  it.each(['1', '6'])('rejects unsupported package version %s', (version) => {
+  it.each(['1', '7'])('rejects unsupported package version %s', (version) => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle({
       ...bundle,
@@ -509,7 +554,7 @@ describe('course blueprint package', () => {
     expect(parsed.errors).toEqual(['Unsupported course package version'])
   })
 
-  it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 5 file %s', (fileName) => {
+  it.each(['quizzes.md', 'notes.md'])('rejects undeclared version 6 file %s', (fileName) => {
     const bundle = buildCourseBlueprintExportBundle(DETAIL)
     const parsed = parseCourseBlueprintImportBundle({
       ...bundle,
@@ -575,12 +620,12 @@ describe('course blueprint package', () => {
 
   it('rejects an archive with an unsupported manifest version', () => {
     const archive = encodeCourseBlueprintPackageArchive(buildCourseBlueprintExportBundle(DETAIL))
-    const versionMarker = new TextEncoder().encode('"version": "5"')
+    const versionMarker = new TextEncoder().encode('"version": "6"')
     const markerOffset = archive.findIndex((byte, index) =>
       versionMarker.every((markerByte, markerIndex) => archive[index + markerIndex] === markerByte)
     )
     expect(markerOffset).toBeGreaterThanOrEqual(0)
-    archive[markerOffset + versionMarker.length - 2] = '6'.charCodeAt(0)
+    archive[markerOffset + versionMarker.length - 2] = '7'.charCodeAt(0)
 
     expect(decodeCourseBlueprintPackageArchive(archive)).toBeNull()
     expect(parseCourseBlueprintImportArchive(archive).errors).toEqual([
