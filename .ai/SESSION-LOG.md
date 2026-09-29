@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Land policy and prepare durable test checkout
-
-- Owner authorized merging the policy and orchestrating implementation. Merged
-  admin1360, foundation1366 and policy1367 into main after their final required
-  PR Gate passed. Descendant rebases preserved complete reviewed trees.
-- Coordinator owns `codex/stripe-checkout-trial`. Workers completed the immutable
-  12-variant Basic/Pro/Max USD/CAD catalog, test-price provisioning, durable
-  checkout/service/provider/schema contracts. Coordinator added authenticated
-  catalog/start/status routes, bounded worker integration and disabled-by-default
-  checkout configuration. Browser redirects cannot grant access.
-- Independent preapplication review found no blockers in migration211, checksum
-  `567b4dfe360266c1b70899e34b70a7ec388a5fdc99494162dbf524207e3c61e9`.
-  It remains unapplied. Shared local has unrelated gradebook210; do not reset it.
-  Await explicit approval for disposable local `pika_billing_checkout`, applying
-  001–209 plus211 without seed. Prior209 reset authorization was consumed.
-- Billing-focused tests192/18 files pass; focused checks passed293 tests and
-  architecture/UI/design policy checks, then stopped at TypeScript because eight
-  new RPCs await proper generated types. Changed-file ESLint, Pika audit and22 CI
-  workflow tests pass. SQL harness is wired into CI but unexecuted locally.
-- Keep the checkout PR draft until SQL tests, generated types, full focused checks
-  and independent implementation review complete. Stripe test credentials remain
-  absent; no provider objects/payments or live billing were created. Trial,
-  lifecycle/access enforcement, billing UI and provider rehearsal remain pending
-  under the durable coordinator plan in `docs/guidance/stripe-billing-foundation.md`.
-
 ## 2026-09-26 — Reuse shared local database for checkout verification
 
 - Owner requested the existing local database. Rebased checkout PR1368 onto
@@ -283,3 +258,7 @@ Draft PR #1386 received independent security and architecture review. One remedi
 ## 2026-09-28 — Blueprint PR final CI corrections
 
 Owner approved one additional reviewer and time for PR #1386. Exact-head CI caught a warning-level array initializer in migration 218; the stacked classroom PR browser run also found three Blueprint experience tests still targeting the old tab and URL behavior. Corrected the migration initializer and test expectations for the Settings → Publish tab and retained section query. Focused checks pass 998 tests, architecture, UI/design policy, TypeScript, and lint. Final independent review and exact-head ready CI remain pending; no local migration or merge was performed.
+
+## 2026-09-29 — Teacher work-list hover distinction
+
+Changed the shared teacher work-item card so ordinary Classwork and Tests cards use the semantic info tint on hover, distinct from muted draft cards. Focused checks passed 338 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright verified teacher Classwork and Tests at desktop/mobile widths in light/dark themes, including actual hover and draft comparison. Risk profile: none. Model recommendation: GPT-6 Sol for the localized shared UI change.
