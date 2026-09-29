@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtempSync, writeFileSync, symlinkSync, linkSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 
 const { prepare, single, batch } = vi.hoisted(() => ({ prepare: vi.fn(), single: vi.fn(), batch: vi.fn() }))
 vi.mock('@/lib/ai-test-grading', () => ({
@@ -12,7 +13,7 @@ vi.mock('@/lib/ai-test-grading', () => ({
 }))
 
 import {
-  answerId, assertPrivateOutput, buildComparisonPlan, measureOperation, questionKey, runComparison,
+  answerId, assertPrivateOutput, buildComparisonPlan, COMPARISON_GRADING_SOURCE_PATHS, measureOperation, questionKey, runComparison,
   validateComparisonResume, validateResumeProvenance, validateTargets,
   type ComparisonCandidate,
 } from '../../scripts/lib/test-grading-comparison'
@@ -277,6 +278,16 @@ describe('test grading comparison', () => {
     expect(() => validateResumeProvenance(saved, { ...current, snapshotHashes: ['changed-unselected-row'] })).toThrow(/provenance/)
     expect(() => validateResumeProvenance(saved, { ...current, targetDocumentHash: 'changed-unsampled-target' })).toThrow(/provenance/)
     expect(() => validateResumeProvenance(saved, { ...current, gradingSourceDigest: 'changed-sanitizer' })).toThrow(/provenance/)
+    const tree = execFileSync('git', ['ls-tree', '-r', 'HEAD', '--', ...COMPARISON_GRADING_SOURCE_PATHS], { encoding: 'utf8' })
+    const digest = (value: string) => createHash('sha256').update(value).digest('hex')
+    for (const path of ['scripts/lib/test-grading-comparison.ts', 'scripts/calibrate-test-grading.ts']) {
+      const modifiedTree = tree.split('\n').map((line) => line.endsWith(`\t${path}`)
+        ? line.replace(/blob [a-f0-9]{40}/, `blob ${'0'.repeat(40)}`) : line).join('\n')
+      expect(modifiedTree).not.toBe(tree)
+      expect(() => validateResumeProvenance({ ...saved, gradingSourceDigest: digest(tree) }, {
+        ...current, gradingSourceDigest: digest(modifiedTree), originalGradingSourceDigest: digest(tree),
+      })).toThrow(/provenance/)
+    }
     expect(prepare).not.toHaveBeenCalled()
     expect(single).not.toHaveBeenCalled()
     expect(batch).not.toHaveBeenCalled()

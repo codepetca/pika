@@ -34,10 +34,12 @@ export const questionKey = (row: ComparisonCandidate) => hash([
 export const answerId = (row: ComparisonCandidate) => hash([questionKey(row), row.studentLabel, row.responseText])
 export const eligibleComparisonCandidates = <T extends ComparisonCandidate>(rows: T[]): T[] => rows.filter((row) => row.responseText.trim().length > 0)
 
-// Runtime imports used to build and sanitize test-grading prompts and parse provider output.
+// Bind paid resume to both the grading implementation and the offline orchestration
+// that chooses effort, builds batches and writes checkpoints.
 export const COMPARISON_GRADING_SOURCE_PATHS = [
   'src/lib/ai-test-grading.ts', 'src/lib/ai-sanitization.ts',
   'src/lib/ai-prompt-metrics.ts', 'src/lib/grading',
+  'scripts/lib/test-grading-comparison.ts', 'scripts/calibrate-test-grading.ts',
 ] as const
 
 function randomFor(seed: number) {

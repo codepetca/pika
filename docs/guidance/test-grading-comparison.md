@@ -19,7 +19,8 @@ reports target coverage and grading-operation counts without calls or file write
 To continue an interrupted comparison, repeat the exact command with `--resume` and the
 same `--out` path. Add `--dry-run` first to validate the saved checkpoint without
 provider calls or file writes. Resume requires the same snapshot paths, sample,
-order, profile, verified targets, pricing, resolved provider model, and unchanged grading implementation.
+order, profile, effort, verified targets, pricing, resolved provider model, and unchanged
+grading implementation and comparison harness.
 It checks the completed operation prefix before calling the provider, retains saved
 scores, and grades only unfinished chunks. Existing checkpoints are resumable only
 when every question has an answer key: generated references cannot be rebuilt without
