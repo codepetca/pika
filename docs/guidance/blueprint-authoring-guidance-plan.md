@@ -1,9 +1,8 @@
 # Living blueprint authoring guidance
 
-Status: implementation in progress, 2026-09-28. The Blueprint workspace is in
-PR #1386 (`codex/blueprint-authoring-ux`); classroom drafting is in the
-follow-up branch `codex/blueprint-classroom-drafts`. This plan tracks the
-complete goal.
+Status: implementation in progress, 2026-09-28. The Blueprint workspace was
+merged to main in PR #1386. Classroom drafting is in draft PR #1387
+(`codex/blueprint-classroom-drafts`). This plan tracks the complete goal.
 
 ## Goal
 
@@ -102,14 +101,13 @@ equally first-class.
 
 ## Remaining release gates
 
-- PR #1386 remains in draft after a database lint warning. Its one-line typed
-  array initialization fix passed focused local checks; another review and
-  exact-head CI require the current review-budget checkpoint.
+- Reverify the classroom drafting correction against the frozen guidance
+  database contract, then complete its bounded independent review and focused
+  checks on the stable PR head. Teacher and student visual checks have been
+  completed for the guided creation flow.
 - Replay migrations 218 and 219 from a clean isolated database, run the real
-  database contract scripts and warning-level lint, and generate/check types.
-  The shared local stack has an unrelated migration 218; no feature migration
-  has been applied there. One-time permission for exact-file local application
-  was requested under the schema rollout checklist.
-- Complete focused checks, teacher/student visual verification, independent
-  review, a draft-first PR, and a stable-SHA ready PR Gate for the classroom
-  change. Merge each PR only after the repository's normal authority gate.
+  database contract scripts and warning-level lint, and generate/check types
+  in CI. Neither feature migration has been applied to the shared local stack;
+  applying either to a named environment requires its own one-time permission.
+- Mark PR #1387 ready only after review, wait for the exact-head PR Gate, and
+  merge only after the repository's normal authority gate.

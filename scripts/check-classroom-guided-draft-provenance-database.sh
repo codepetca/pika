@@ -36,6 +36,19 @@ declare
   v_archive_result jsonb;
   v_archive_operation constant uuid := 'c1900000-0000-4000-8000-00000000000b';
 begin
+  if public.resolve_classroom_guided_rules_v1(
+    jsonb_build_object(
+      'course_expectations_markdown', chr(160) || 'Course rule' || chr(160),
+      'assignment_guidance_markdown', '',
+      'test_guidance_markdown', '',
+      'unit_exceptions', '[]'::jsonb
+    ), 'assignments', null
+  )->>'rules_markdown' is distinct from
+    '## Course expectations' || E'\n\n' || chr(160) || 'Course rule' || chr(160)
+  then
+    raise exception 'Unicode edge spaces changed the frozen rules contract';
+  end if;
+
   if not exists (
     select 1 from pg_class where oid = 'public.classroom_guided_draft_provenance'::regclass
       and relrowsecurity
@@ -76,12 +89,12 @@ begin
   ) values (
     v_version, v_blueprint, 2, 7, 3,
     jsonb_build_object('authoring_guidance', jsonb_build_object(
-      'course_expectations_markdown', 'Use taught vocabulary.',
+      'course_expectations_markdown', E'\nUse taught vocabulary.\t',
       'assignment_guidance_markdown', 'State a deliverable.',
       'test_guidance_markdown', 'Short prompts.',
       'unit_exceptions', jsonb_build_array(jsonb_build_object(
-        'id', v_unit::text,
-        'unit_label', 'Loops',
+        'id', upper(v_unit::text),
+        'unit_label', E'\nLoops\t',
         'assignment_guidance_markdown', 'Use a loop.',
         'test_guidance_markdown', 'Use iteration.'
       ))

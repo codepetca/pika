@@ -33540,23 +33540,7 @@ The Tests list now displays Open when any enrolled student has effective open ac
   runtime or existing subscription changed. Next implementation milestone is an
   isolated Stripe test checkout plus lifecycle/access verification.
 
-<!-- pika-session-log-archive-batch:945a1f05aff8b3440f6546d9cb41a37752a00421a7d40fcdfd19b3b0097ad336 -->
-## 2026-09-26 — Billing binding/webhook race correction
-
-- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
-- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
-
-## 2026-09-26 — Approved subscription launch policy
-
-- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
-  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
-  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
-  Updated the access roadmap and durable decisions; distinguished approved
-  product terms from provisional AI costs and missing runtime implementation.
-- Documentation-only risk profile: none. No database, Stripe account, production
-  runtime or existing subscription changed. Next implementation milestone is an
-  isolated Stripe test checkout plus lifecycle/access verification.
-
+<!-- pika-session-log-archive-batch:7063cb80d282e11cf507c3c5520e31404407aa71934d412c3974e1d6b935a101 -->
 ## 2026-09-26 — Rename launch plans to Basic, Pro and Max
 
 - Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,

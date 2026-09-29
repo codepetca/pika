@@ -100,22 +100,23 @@ begin
   if p_unit_exception_id is not null then
     select unit.value into v_unit
     from jsonb_array_elements(v_guidance->'unit_exceptions') as unit(value)
-    where unit.value->>'id' = p_unit_exception_id::text;
+    where (unit.value->>'id')::uuid = p_unit_exception_id;
     if not found then
       raise exception using errcode = '22023', message = 'Selected unit is not in the frozen Blueprint Version';
     end if;
-    v_unit_label := v_unit->>'unit_label';
+    v_unit_label := btrim(v_unit->>'unit_label', E' \t\n\r\f');
   end if;
 
   v_target_key := case p_target
     when 'tests' then 'test_guidance_markdown'
     else 'assignment_guidance_markdown'
   end;
-  v_body := btrim(v_guidance->>'course_expectations_markdown');
+  -- Match the application's explicit edge-character set exactly.
+  v_body := btrim(v_guidance->>'course_expectations_markdown', E' \t\n\r\f');
   if v_body <> '' then
     v_sections := array_append(v_sections, '## Course expectations' || E'\n\n' || v_body);
   end if;
-  v_body := btrim(v_guidance->>v_target_key);
+  v_body := btrim(v_guidance->>v_target_key, E' \t\n\r\f');
   if v_body <> '' then
     v_sections := array_append(
       v_sections,
@@ -124,7 +125,7 @@ begin
     );
   end if;
   if v_unit is not null then
-    v_body := btrim(v_unit->>v_target_key);
+    v_body := btrim(v_unit->>v_target_key, E' \t\n\r\f');
     if v_body <> '' then
       v_sections := array_append(v_sections, '## Unit: ' || v_unit_label || E'\n\n' || v_body);
     end if;
