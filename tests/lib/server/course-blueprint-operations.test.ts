@@ -214,7 +214,7 @@ describe('atomic blueprint operation contracts', () => {
       JSON.stringify({
         operation_id: operationId,
         operation_type: 'capture',
-        rpc_name: 'create_course_blueprint_atomic_v2',
+        rpc_name: 'create_course_blueprint_atomic_v3',
         database_error_code: '23514',
       }),
     )
@@ -297,7 +297,7 @@ describe('atomic blueprint operation contracts', () => {
     })
 
     expect(supabase.rpc).toHaveBeenCalledWith(
-      'create_course_blueprint_atomic_v2',
+      'create_course_blueprint_atomic_v3',
       expect.objectContaining({
         p_source_classroom_id: '40000000-0000-4000-8000-000000000020',
         p_expected_source_revision: 12,

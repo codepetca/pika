@@ -4656,6 +4656,51 @@ export type Database = {
           },
         ]
       }
+      course_blueprint_authoring_guidance_revisions: {
+        Row: {
+          content_revision: number
+          course_blueprint_id: string
+          created_at: string
+          created_by: string
+          guidance: Json
+          id: string
+          source_kind: string
+        }
+        Insert: {
+          content_revision: number
+          course_blueprint_id: string
+          created_at?: string
+          created_by: string
+          guidance: Json
+          id?: string
+          source_kind: string
+        }
+        Update: {
+          content_revision?: number
+          course_blueprint_id?: string
+          created_at?: string
+          created_by?: string
+          guidance?: Json
+          id?: string
+          source_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_authoring_guidance_re_course_blueprint_id_fkey"
+            columns: ["course_blueprint_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_blueprint_authoring_guidance_revisions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_blueprint_change_proposals: {
         Row: {
           applied_at: string | null
@@ -4765,6 +4810,38 @@ export type Database = {
             foreignKeyName: "course_blueprint_change_proposals_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_blueprint_draft_admissions: {
+        Row: {
+          active_lease_expires_at: string | null
+          active_lease_token: string | null
+          attempt_timestamps: string[]
+          teacher_id: string
+          updated_at: string
+        }
+        Insert: {
+          active_lease_expires_at?: string | null
+          active_lease_token?: string | null
+          attempt_timestamps: string[]
+          teacher_id: string
+          updated_at?: string
+        }
+        Update: {
+          active_lease_expires_at?: string | null
+          active_lease_token?: string | null
+          attempt_timestamps?: string[]
+          teacher_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_blueprint_draft_admissions_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -5294,6 +5371,7 @@ export type Database = {
       }
       course_blueprints: {
         Row: {
+          authoring_guidance: Json
           authority_mode: string
           content_revision: number
           course_code: string
@@ -5318,6 +5396,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          authoring_guidance?: Json
           authority_mode?: string
           content_revision?: number
           course_code?: string
@@ -5342,6 +5421,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          authoring_guidance?: Json
           authority_mode?: string
           content_revision?: number
           course_code?: string
@@ -8691,6 +8771,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_course_blueprint_draft_slot: {
+        Args: { p_teacher_id: string }
+        Returns: Json
+      }
       acquire_course_guide_import_extraction_slot: {
         Args: { p_teacher_id: string }
         Returns: Json
@@ -8842,6 +8926,45 @@ export type Database = {
         }
       }
       apply_course_blueprint_proposal_atomic: {
+        Args: {
+          p_candidate_sha256: string
+          p_candidate_snapshot: Json
+          p_proposal_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          applied_at: string | null
+          applied_blueprint_revision: number | null
+          applied_classroom_revision: number | null
+          base_blueprint_revision: number
+          base_blueprint_version_id: string | null
+          base_classroom_revision: number | null
+          course_blueprint_id: string
+          created_at: string
+          diff_json: Json
+          id: string
+          idempotency_key: string
+          operations_json: Json
+          payload_schema_version: number
+          rejected_at: string | null
+          request_sha256: string
+          source_classroom_id: string | null
+          source_kind: string
+          status: string
+          target_classroom_id: string | null
+          target_kind: string
+          teacher_id: string
+          updated_at: string
+          validation_errors: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "course_blueprint_change_proposals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      apply_course_blueprint_proposal_with_guidance_atomic: {
         Args: {
           p_candidate_sha256: string
           p_candidate_snapshot: Json
@@ -10414,6 +10537,18 @@ export type Database = {
         }
         Returns: Json
       }
+      create_course_blueprint_atomic_v3: {
+        Args: {
+          p_expected_source_revision: number
+          p_operation_id: string
+          p_operation_type: string
+          p_plan: Json
+          p_request_sha256: string
+          p_source_classroom_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       create_course_blueprint_classroom_proposal_atomic: {
         Args: {
           p_blueprint_id: string
@@ -11375,6 +11510,10 @@ export type Database = {
         Args: { p_mode: string }
         Returns: boolean
       }
+      is_course_blueprint_authoring_guidance: {
+        Args: { value: Json }
+        Returns: boolean
+      }
       is_valid_grading_review: { Args: { p_review: Json }; Returns: boolean }
       issue_auth_session: {
         Args: {
@@ -11898,6 +12037,10 @@ export type Database = {
           p_scheduled: boolean
         }
         Returns: Json
+      }
+      release_course_blueprint_draft_slot: {
+        Args: { p_lease_token: string; p_teacher_id: string }
+        Returns: boolean
       }
       release_course_guide_import_extraction_slot: {
         Args: { p_lease_token: string; p_teacher_id: string }

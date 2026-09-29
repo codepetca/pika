@@ -718,6 +718,7 @@ export interface CourseBlueprint {
   overview_markdown: string
   outline_markdown: string
   resources_markdown: string
+  authoring_guidance: import('@/lib/course-blueprint-authoring-guidance').CourseBlueprintAuthoringGuidance
   gradebook_use_weights: boolean
   gradebook_assignments_weight: number
   gradebook_tests_weight: number

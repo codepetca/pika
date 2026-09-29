@@ -264,6 +264,52 @@ describe('archived classroom reuse', () => {
     )).toEqual(['overview'])
   })
 
+  it('compares a version 2 snapshot to version 3 by content, including new guidance', () => {
+    const oldVersion = snapshot()
+    const current = snapshot({
+      schema_version: 3,
+      authoring_guidance: {
+        course_expectations_markdown: '',
+        assignment_guidance_markdown: '',
+        test_guidance_markdown: '',
+        unit_exceptions: [],
+      },
+    })
+
+    const unchanged = classifyArchivedClassroomReuseSnapshots({
+      baseVersion: oldVersion,
+      currentBlueprint: current,
+      currentClassroom: current,
+      appliedLessonArtifactIds: new Set(),
+    })
+    expect(unchanged).toEqual(expect.objectContaining({
+      blueprintChanged: false,
+      classroomChanged: false,
+    }))
+    expect(unchanged.classroomBaseline).toEqual(expect.objectContaining({
+      schema_version: 3,
+      authoring_guidance: current.authoring_guidance,
+    }))
+    expect(oldVersion).not.toHaveProperty('authoring_guidance')
+
+    const withGuidance = snapshot({
+      ...current,
+      authoring_guidance: {
+        ...current.authoring_guidance,
+        test_guidance_markdown: 'Ask for clear reasoning.',
+      },
+    })
+    expect(classifyArchivedClassroomReuseSnapshots({
+      baseVersion: oldVersion,
+      currentBlueprint: withGuidance,
+      currentClassroom: current,
+      appliedLessonArtifactIds: new Set(),
+    })).toEqual(expect.objectContaining({
+      blueprintChanged: true,
+      classroomChanged: false,
+    }))
+  })
+
   it('distinguishes Blueprint-only and classroom-only changes', () => {
     const base = snapshot()
     const blueprintChanged = snapshot({

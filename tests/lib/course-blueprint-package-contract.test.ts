@@ -18,6 +18,7 @@ import {
   type CoursePackageRawV3,
   type CoursePackageRawV4,
   type CoursePackageRawV5,
+  type CoursePackageRawV6,
   type CoursePackageVersion,
 } from '@/lib/contracts/course-blueprint-package'
 import {
@@ -71,6 +72,10 @@ const fixtureDigests: Record<CoursePackageVersion, { json: string; tar: string }
     json: 'd2af8d10cdf90b8ff249daea7aa1c1c4aa3a195a852e383dc9c897ad7b0bfb24',
     tar: 'c63c2a21f799beb0067af11cb7f310d7bd43980d01431fd4c9e254fa80ef35cb',
   },
+  '6': {
+    json: '76c04a08c2a7817e1c215becc9eec376a35a6b6bb0eda0caef9a6400a963f70e',
+    tar: '2865c4bd92e6bf7c1c53b27fe15062c92e662021e052d503c1ce73a24dcef25b',
+  },
 }
 
 function issueCodes(result: CoursePackageVerificationResult) {
@@ -112,6 +117,8 @@ describe('versioned Course Package contract', () => {
     expectTypeOf<CoursePackageRawV5['files']>().toHaveProperty('classwork-materials.md')
     expectTypeOf<CoursePackageRawV5['files']>().toHaveProperty('surveys.md')
     expectTypeOf<CoursePackageRawV5['files']>().not.toHaveProperty('quizzes.md')
+    expectTypeOf<CoursePackageRawV5['files']>().not.toHaveProperty('authoring-guidance.md')
+    expectTypeOf<CoursePackageRawV6['files']>().toHaveProperty('authoring-guidance.md')
   })
 
   it('freezes the required and allowed root files for every supported version', () => {
@@ -139,6 +146,12 @@ describe('versioned Course Package contract', () => {
     ])
     expect(COURSE_BLUEPRINT_PACKAGE_CONTRACTS['5'].allowedFiles)
       .toEqual(COURSE_BLUEPRINT_PACKAGE_CONTRACTS['5'].requiredFiles)
+    expect(COURSE_BLUEPRINT_PACKAGE_CONTRACTS['6'].requiredFiles).toEqual([
+      ...COURSE_BLUEPRINT_PACKAGE_CONTRACTS['5'].requiredFiles,
+      'authoring-guidance.md',
+    ])
+    expect(COURSE_BLUEPRINT_PACKAGE_CONTRACTS['6'].allowedFiles)
+      .toEqual(COURSE_BLUEPRINT_PACKAGE_CONTRACTS['6'].requiredFiles)
   })
 
   it.each(versions)('locks immutable JSON and binary TAR evidence for version %s', (version) => {
@@ -175,6 +188,7 @@ describe('versioned Course Package contract', () => {
     ['3', 'Version 3 Computer Science', 0, 0],
     ['4', 'Version 4 Computer Science', 0, 0],
     ['5', 'Version 5 Computer Science', 1, 1],
+    ['6', 'Version 5 Computer Science', 1, 1],
   ] as const)(
     'adapts version %s fixture content into the current portable domain',
     (version, title, materialCount, surveyCount) => {
@@ -193,6 +207,8 @@ describe('versioned Course Package contract', () => {
       expect(parsed.lesson_templates).toHaveLength(1)
       expect(parsed.materials).toHaveLength(materialCount)
       expect(parsed.surveys).toHaveLength(surveyCount)
+      expect(parsed.blueprint.authoring_guidance.unit_exceptions)
+        .toHaveLength(version === '6' ? 1 : 0)
     },
   )
 
@@ -237,6 +253,31 @@ describe('versioned Course Package contract', () => {
       .toBe('81000000-0000-4000-8000-000000000005')
     expect(parsed.surveys[0].questions_json[0].id)
       .toBe('82000000-0000-4000-8000-000000000005')
+  })
+
+  it('preserves version 6 teacher authoring guidance and gives older versions empty guidance', () => {
+    const parsed = parseCourseBlueprintImportArchive(fixtureArchives['6'])
+    expect(parsed.errors).toEqual([])
+    expect(parsed.blueprint.authoring_guidance).toEqual({
+      course_expectations_markdown: 'Use clear success criteria for each unit.',
+      assignment_guidance_markdown: 'Offer a choice of formats where feasible.',
+      test_guidance_markdown: 'Include a short reflection after each test.',
+      unit_exceptions: [{
+        id: '81000000-0000-4000-8000-000000000006',
+        unit_label: 'Unit 1: Foundations',
+        assignment_guidance_markdown: 'Let students cite a worked example.',
+        test_guidance_markdown: 'Check vocabulary before reasoning questions.',
+      }],
+    })
+    for (const version of ['2', '3', '4', '5'] as const) {
+      expect(parseCourseBlueprintImportBundle(fixtures[version]).blueprint.authoring_guidance)
+        .toEqual({
+          course_expectations_markdown: '',
+          assignment_guidance_markdown: '',
+          test_guidance_markdown: '',
+          unit_exceptions: [],
+        })
+    }
   })
 
   it('rejects non-zero TAR entry padding', () => {

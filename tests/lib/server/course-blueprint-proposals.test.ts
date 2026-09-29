@@ -15,11 +15,15 @@ import {
   planCourseBlueprintPackageBundle,
 } from '@/lib/course-blueprint-package'
 import type { CourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
-import { hashCourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
+import {
+  COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION,
+  hashCourseBlueprintSnapshot,
+} from '@/lib/server/course-blueprint-versions'
+import { EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE } from '@/lib/course-blueprint-authoring-guidance'
 import type { CourseBlueprintDetail } from '@/types'
 
 const base: CourseBlueprintSnapshot = {
-  schema_version: 2,
+  schema_version: COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION,
   blueprint_id: '10000000-0000-4000-8000-000000000000',
   draft_revision: 4,
   metadata: {
@@ -51,6 +55,7 @@ const base: CourseBlueprintSnapshot = {
       lesson_plans: true,
     },
   },
+  authoring_guidance: EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
   assignments: [],
   assessments: [],
   lesson_templates: [],
@@ -100,6 +105,7 @@ describe('persisted course blueprint proposals', () => {
       planned_site_slug: null,
       planned_site_published: false,
       planned_site_config: base.planned_site.config,
+      authoring_guidance: base.authoring_guidance,
       position: 0,
       created_at: proposalRow.created_at,
       updated_at: proposalRow.updated_at,
@@ -182,6 +188,7 @@ describe('persisted course blueprint proposals', () => {
       planned_site_slug: 'published-course',
       planned_site_published: true,
       planned_site_config: base.planned_site.config,
+      authoring_guidance: base.authoring_guidance,
       position: 0,
       created_at: proposalRow.created_at,
       updated_at: proposalRow.updated_at,
@@ -236,6 +243,34 @@ describe('persisted course blueprint proposals', () => {
     )
   })
 
+  it('retains the exact guidance used for an AI draft in its review proposal', async () => {
+    const candidate = structuredClone(base)
+    candidate.sections.overview_markdown = 'Drafted content'
+    const rpc = vi.fn().mockResolvedValue({ data: proposalRow, error: null })
+    const guidanceProvenance = {
+      blueprint_revision: 4,
+      target: 'tests' as const,
+      unit_exception_id: null,
+      unit_label: null,
+      rules_markdown: '## Test rules\n\nUse concise questions.',
+    }
+    await submitCourseBlueprintProposal({
+      supabase: { rpc } as any,
+      teacherId: proposalRow.teacher_id,
+      base,
+      candidate,
+      source: 'ai',
+      idempotencyKey: proposalRow.idempotency_key,
+      guidanceProvenance,
+    })
+    expect(rpc).toHaveBeenCalledWith(
+      'create_course_blueprint_proposal_atomic',
+      expect.objectContaining({
+        p_diff: expect.objectContaining({ guidance_provenance: guidanceProvenance }),
+      }),
+    )
+  })
+
   it('applies the exact reviewed candidate digest through one atomic RPC', async () => {
     const candidate = structuredClone(base)
     candidate.sections.overview_markdown = 'Changed'
@@ -262,7 +297,7 @@ describe('persisted course blueprint proposals', () => {
       }),
     }))
     expect(rpc).toHaveBeenCalledWith(
-      'apply_course_blueprint_proposal_atomic',
+      'apply_course_blueprint_proposal_with_guidance_atomic',
       expect.objectContaining({
         p_proposal_id: proposalRow.id,
         p_candidate_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),

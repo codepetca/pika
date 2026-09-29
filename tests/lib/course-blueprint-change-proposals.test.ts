@@ -5,9 +5,11 @@ import {
   StaleCourseBlueprintProposalError,
 } from '@/lib/course-blueprint-change-proposals'
 import type { CourseBlueprintSnapshot } from '@/lib/server/course-blueprint-versions'
+import { COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION } from '@/lib/server/course-blueprint-versions'
+import { EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE } from '@/lib/course-blueprint-authoring-guidance'
 
 const base: CourseBlueprintSnapshot = {
-  schema_version: 2,
+  schema_version: COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION,
   blueprint_id: '10000000-0000-4000-8000-000000000000',
   draft_revision: 7,
   metadata: {
@@ -39,6 +41,7 @@ const base: CourseBlueprintSnapshot = {
       lesson_plans: true,
     },
   },
+  authoring_guidance: EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
   assignments: [{
     artifact_id: '30000000-0000-4000-8000-000000000000',
     title: 'Assignment',
@@ -114,5 +117,19 @@ describe('course blueprint change proposals', () => {
     expect(applied.lesson_templates).toHaveLength(1)
     expect(base.assignments[0]?.title).toBe('Assignment')
     expect(base.lesson_templates).toEqual([])
+  })
+
+  it('reviews guidance changes as a single versioned proposal operation', () => {
+    const candidate = structuredClone(base)
+    candidate.authoring_guidance.test_guidance_markdown = 'Use concise prompts.'
+
+    const proposal = buildCourseBlueprintChangeProposal(base, candidate, 'repository')
+    expect(proposal.operations).toEqual([
+      expect.objectContaining({ action: 'singleton', key: 'authoring_guidance' }),
+    ])
+
+    const applied = applyCourseBlueprintChangeProposal(base, proposal)
+    expect(applied.authoring_guidance.test_guidance_markdown).toBe('Use concise prompts.')
+    expect(base.authoring_guidance.test_guidance_markdown).toBe('')
   })
 })

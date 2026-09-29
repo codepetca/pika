@@ -33517,8 +33517,51 @@ The Tests list now displays Open when any enrolled student has effective open ac
 
 - Targeted Sol review found a missing nullable-schedule alteration, non-isolated retry fixtures, and early-event adoption compatibility. Batch2 fixes all three in unapplied210 and its harness, adding explicit claimed-state assertions and an early-event binding regression. No further schema application is authorized yet.
 
-<!-- pika-session-log-archive-batch:e20f68cb81e9d71eeb49b0ff870299740e9f7d0c37bd392db62d7f0c308b4022 -->
+<!-- pika-session-log-archive-batch:051edf4aa017165f9807819c94fe5d6b53b1d33f155b989ee0293e10101cbeaa -->
 ## 2026-09-26 — Consolidated billing209 and rebuilt local database
 
 - User explicitly approved combining unreleased209/210, erasing/resetting local and reseeding. Consolidated the reviewed final functions and table definitions into209; removed210 and its upgrade-only backfill. Verified local target/history; one `supabase db reset --local --no-seed` replayed001–209 successfully. Reseeded via local runtime credentials with shared hosted env excluded. Local fixtures: three users and one classroom; billing sandbox off and no billing inbox records. Reset restores migration defaults, including local creation/Free-provisioning gates; production is unchanged.
 - Generated types match the rebuilt schema. Billing recovery/payment, account-plan and classroom-creation rollback harnesses pass. Corrected SQL harness evaluation ordering by capturing the mutation result before inspecting persisted state. Focused checks pass342 tests plus TypeScript/lint/policy checks; final integration review and CI remain pending. Earlier209/reset authorization is consumed. No live Stripe payment rehearsal, production change or merge.
+
+## 2026-09-26 — Billing binding/webhook race correction
+
+- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
+- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
+
+<!-- pika-session-log-archive-batch:573801dd8732a8f12ba069d66fc721a8cdf63fc9c96855f453b37f62a7534b05 -->
+## 2026-09-26 — Approved subscription launch policy
+
+- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
+  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
+  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
+  Updated the access roadmap and durable decisions; distinguished approved
+  product terms from provisional AI costs and missing runtime implementation.
+- Documentation-only risk profile: none. No database, Stripe account, production
+  runtime or existing subscription changed. Next implementation milestone is an
+  isolated Stripe test checkout plus lifecycle/access verification.
+
+<!-- pika-session-log-archive-batch:945a1f05aff8b3440f6546d9cb41a37752a00421a7d40fcdfd19b3b0097ad336 -->
+## 2026-09-26 — Billing binding/webhook race correction
+
+- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
+- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
+
+## 2026-09-26 — Approved subscription launch policy
+
+- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
+  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
+  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
+  Updated the access roadmap and durable decisions; distinguished approved
+  product terms from provisional AI costs and missing runtime implementation.
+- Documentation-only risk profile: none. No database, Stripe account, production
+  runtime or existing subscription changed. Next implementation milestone is an
+  isolated Stripe test checkout plus lifecycle/access verification.
+
+## 2026-09-26 — Rename launch plans to Basic, Pro and Max
+
+- Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,
+  launch limits, trial/AI labels and decision log while retaining prices/benefits.
+  Documented legacy `plus` → Pro and `pro` → Max to avoid accidental entitlement
+  reassignment. Historical runtime/schema keys remain unchanged.
+- Continued policy PR1367; documentation-only verification and independent review
+  cover the cumulative approved-policy change. No runtime or live billing change.
