@@ -34,10 +34,12 @@ export const questionKey = (row: ComparisonCandidate) => hash([
 export const answerId = (row: ComparisonCandidate) => hash([questionKey(row), row.studentLabel, row.responseText])
 export const eligibleComparisonCandidates = <T extends ComparisonCandidate>(rows: T[]): T[] => rows.filter((row) => row.responseText.trim().length > 0)
 
-// Runtime imports used to build and sanitize test-grading prompts and parse provider output.
+// Bind paid resume to both the grading implementation and the offline orchestration
+// that chooses effort, builds batches and writes checkpoints.
 export const COMPARISON_GRADING_SOURCE_PATHS = [
   'src/lib/ai-test-grading.ts', 'src/lib/ai-sanitization.ts',
   'src/lib/ai-prompt-metrics.ts', 'src/lib/grading',
+  'scripts/lib/test-grading-comparison.ts', 'scripts/calibrate-test-grading.ts',
 ] as const
 
 function randomFor(seed: number) {
@@ -223,7 +225,7 @@ interface Scenario {
 export interface ComparisonResult {
   complete: boolean
   profile: TestOpenResponsePromptProfile
-  effort: 'production-default'
+  effort: 'production-default' | 'low'
   pricing: ComparisonPricing | null
   answers: Array<{ answerId: string; classroom: string; studentLabel: string; testTitle: string; maxPoints: number; teacherScore: number | null; target: VerifiedTarget | null }>
   preparation: Operation[]
@@ -270,6 +272,7 @@ export function validateResumeProvenance(stored: unknown, current: {
  * rebuilt only for keyed questions, where preparation is local and repeatable. */
 export function validateComparisonResume(stored: unknown, rows: ComparisonCandidate[], opts: {
   profile: TestOpenResponsePromptProfile
+  effort?: ComparisonResult['effort']
   batchSizes: number[]
   orderSeeds: number[]
   targets: Map<string, VerifiedTarget>
@@ -286,7 +289,7 @@ export function validateComparisonResume(stored: unknown, rows: ComparisonCandid
   const answers = rows.map((row) => ({ answerId: answerId(row), classroom: row.classroom, studentLabel: row.studentLabel,
     testTitle: row.testTitle, maxPoints: row.maxPoints, teacherScore: row.teacherScore,
     target: opts.targets.get(answerId(row)) ?? null }))
-  if (saved.complete !== false || saved.profile !== opts.profile || saved.effort !== 'production-default'
+  if (saved.complete !== false || saved.profile !== opts.profile || saved.effort !== (opts.effort ?? 'production-default')
     || !same(saved.pricing, opts.pricing ?? null) || !same(saved.answers, answers)
     || preparation.length !== groups.length || scenarios.length > plans.length) fail()
   for (const [index, [, group]] of groups.entries()) {
@@ -315,13 +318,14 @@ export function validateComparisonResume(stored: unknown, rows: ComparisonCandid
     }
   }
   return structuredClone({
-    complete: false, profile: saved.profile!, effort: 'production-default' as const, pricing: saved.pricing!,
+    complete: false, profile: saved.profile!, effort: saved.effort!, pricing: saved.pricing!,
     answers: saved.answers!, preparation, scenarios,
   })
 }
 
 export async function runComparison(rows: ComparisonCandidate[], opts: {
   profile: TestOpenResponsePromptProfile
+  effort?: ComparisonResult['effort']
   batchSizes: number[]
   orderSeeds: number[]
   targets: Map<string, VerifiedTarget>
@@ -332,12 +336,13 @@ export async function runComparison(rows: ComparisonCandidate[], opts: {
   rows = eligibleComparisonCandidates(rows)
   const plans = buildComparisonPlan(rows, opts.batchSizes, opts.orderSeeds)
   const fresh: ComparisonResult = {
-    complete: false, profile: opts.profile, effort: 'production-default', pricing: opts.pricing ?? null,
+    complete: false, profile: opts.profile, effort: opts.effort ?? 'production-default', pricing: opts.pricing ?? null,
     answers: rows.map((row) => ({ answerId: answerId(row), classroom: row.classroom, studentLabel: row.studentLabel,
       testTitle: row.testTitle, maxPoints: row.maxPoints, teacherScore: row.teacherScore, target: opts.targets.get(answerId(row)) ?? null })),
     preparation: [], scenarios: [],
   }
   const result = opts.resume ? validateComparisonResume(opts.resume, rows, opts) : fresh
+  const reasoningEffort = result.effort === 'low' ? 'low' : undefined
   // Fail unwritable output before the first paid request, and preserve a crash checkpoint.
   opts.checkpoint?.(result)
   type Prepared = Awaited<ReturnType<typeof prepareTestOpenResponseGradingContext>>
@@ -386,10 +391,10 @@ export async function runComparison(rows: ComparisonCandidate[], opts: {
       }
       const { value, ...measurement } = await measureOperation(async () => {
         if (chunk.length === 1) {
-          const suggestion = await suggestTestOpenResponseGradeWithContext(context, chunk[0].responseText.trim())
+          const suggestion = await suggestTestOpenResponseGradeWithContext(context, chunk[0].responseText.trim(), undefined, undefined, reasoningEffort)
           return [{ ...suggestion, responseId: answerId(chunk[0]) }]
         }
-        return suggestTestOpenResponseGradesBatchWithContext(context, chunk.map((row) => ({ responseId: answerId(row), responseText: row.responseText.trim() })))
+        return suggestTestOpenResponseGradesBatchWithContext(context, chunk.map((row) => ({ responseId: answerId(row), responseText: row.responseText.trim() })), undefined, undefined, reasoningEffort)
       }, opts.pricing)
       const operation: Operation = { ...measurement, id: operationId++, kind: chunk.length === 1 ? 'single' : 'batch', answerIds: chunk.map(answerId) }
       scenario.operations.push(operation)

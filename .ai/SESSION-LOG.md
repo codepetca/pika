@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-26 — Rename launch plans to Basic, Pro and Max
-
-- Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,
-  launch limits, trial/AI labels and decision log while retaining prices/benefits.
-  Documented legacy `plus` → Pro and `pro` → Max to avoid accidental entitlement
-  reassignment. Historical runtime/schema keys remain unchanged.
-- Continued policy PR1367; documentation-only verification and independent review
-  cover the cumulative approved-policy change. No runtime or live billing change.
-
 ## 2026-09-26 — Land policy and prepare durable test checkout
 
 - Owner authorized merging the policy and orchestrating implementation. Merged
@@ -273,6 +264,11 @@ Updated the teacher test authoring guide to require inline Markdown code for sho
 
 - Continued draft PR1347 after the owner resumed the paused experiment. Synced current main with both archive histories retained; grading adapters/profiles are unchanged since the saved 33-operation checkpoint. Added strict comparison checkpoint resume for unchanged keyed questions, with exact answer/manifest, target, pricing, source and completed-prefix checks before provider work. The pause gap and possible interrupted request remain explicit in private accounting.
 - Initial independent Terra review found four resume-preflight gaps: model selection, unsampled snapshot and target content, and transitive sanitization source. One batch adds full private input and source fingerprints for new checkpoints, plus a bounded legacy recovery rule for this all-selected, unmodified saved run. Thirteen harness tests, explicit script/test TypeScript, lint, Pika audit and real private dry-run preflight pass. Focused recheck and targeted review precede ready/CI and paid continuation. Risk profile: none (offline developer tooling); model recommendation: GPT-5.6 Terra high for checkpoint correctness and accounting.
+
+## 2026-09-28 — Offline low-reasoning test grading trial
+
+- Added an optional low-reasoning override to prepared batch grading and the offline comparison harness. Production calls still use their existing default. Comparison checkpoints bind to effort so an interrupted low trial cannot resume as default. The paid private trial matched the earlier 48 ten-point answers, two order seeds, batch size two, and five verified targets: 96/96 low-effort grades versus 92/96 default, 8.65 versus 14.48 mean grading minutes per 48, and $0.0682 versus at least $0.1149 reference-rate cost per 48. Verified scores were unchanged but 34/92 other paired scores differed; do not switch production without broader adjudication. Independent PR review found a duplicate `--effort` CLI validation gap; one correction and regression test now reject conflicting flags before paid calls. Risk profile: async-grading adapter with no production behavior change. Model recommendation: GPT-6 Sol for this bounded adapter and harness change.
+- Final cumulative review found the paid-resume source digest omitted the two offline harness files that choose and forward effort. Added both files to the fingerprint and tested that changing either Git tree entry invalidates a checkpoint before paid work.
 
 ## 2026-09-28 — Blueprint authoring workspace inspection
 
