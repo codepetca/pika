@@ -162,10 +162,12 @@ create schema public;
 SQL
 
 for migration in "$ROOT"/supabase/migrations/*.sql; do
-  if [[ "$(basename "$migration")" == "176_automatic_removed_student_cleanup.sql" ]]; then
+  if [[ "$(basename "$migration")" == "176_automatic_removed_student_cleanup.sql" ||
+        "$(basename "$migration")" == "219_test_ai_grading_background.sql" ]]; then
     # pg_cron can only be installed and scheduled from its configured database
     # (postgres locally). This disposable database still replays every schema and
     # function change from the migration, but omits those host-specific statements.
+    # Migration 219's test-grading scheduler needs the same treatment.
     sed \
       -e '/^create extension if not exists pg_cron;$/d' \
       -e '/^select cron\.schedule(/,/^);$/d' \

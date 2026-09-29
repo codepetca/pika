@@ -73,7 +73,10 @@ create schema public;
 SQL
 
 for migration in "$ROOT"/supabase/migrations/*.sql; do
-  if [[ "$(basename "$migration")" == '176_automatic_removed_student_cleanup.sql' ]]; then
+  if [[ "$(basename "$migration")" == '176_automatic_removed_student_cleanup.sql' ||
+        "$(basename "$migration")" == '219_test_ai_grading_background.sql' ]]; then
+    # pg_cron is bound to the host database, not this disposable concurrency database.
+    # Keep migration 219's schema, functions, and triggers while omitting its scheduler.
     sed -e '/^create extension if not exists pg_cron;$/d' \
       -e '/^select cron\.schedule(/,/^);$/d' "$migration" \
       | docker exec -e PGOPTIONS='-c client_min_messages=warning' -i "$DB_CONTAINER" \
