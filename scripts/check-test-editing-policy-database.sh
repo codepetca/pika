@@ -340,6 +340,68 @@ begin
     end if;
   end loop;
 
+  -- A started Test can correct one existing MC choice without rebinding the
+  -- selected_option index to another position. Direct SQL must enforce the
+  -- same boundary as the teacher editor and draft API.
+  update public.test_questions
+  set options = '["First corrected","Second"]'::jsonb
+  where id = '14200000-0000-4000-8000-000000000021';
+  if (
+    select options from public.test_questions
+    where id = '14200000-0000-4000-8000-000000000021'
+  ) is distinct from '["First corrected","Second"]'::jsonb then
+    raise exception 'Locked Test did not persist a single choice correction';
+  end if;
+
+  begin
+    update public.test_questions
+    set options = '["Second","First corrected"]'::jsonb
+    where id = '14200000-0000-4000-8000-000000000021';
+    raise exception 'Locked Test accepted a choice reorder';
+  exception when sqlstate '55000' then null;
+  end;
+  begin
+    update public.test_questions
+    set options = '["One","Two"]'::jsonb
+    where id = '14200000-0000-4000-8000-000000000021';
+    raise exception 'Locked Test accepted two choice edits in one save';
+  exception when sqlstate '55000' then null;
+  end;
+  begin
+    update public.test_questions
+    set correct_option = 1
+    where id = '14200000-0000-4000-8000-000000000021';
+    raise exception 'Locked Test accepted a marked-answer change';
+  exception when sqlstate '55000' then null;
+  end;
+  begin
+    update public.test_questions
+    set points = 3
+    where id = '14200000-0000-4000-8000-000000000021';
+    raise exception 'Locked Test accepted a point change';
+  exception when sqlstate '55000' then null;
+  end;
+  begin
+    update public.test_questions
+    set response_max_chars = 100
+    where id = '14200000-0000-4000-8000-000000000021';
+    raise exception 'Locked Test accepted a response-setting change';
+  exception when sqlstate '55000' then null;
+  end;
+  begin
+    update public.test_questions
+    set position = 1
+    where id = '14200000-0000-4000-8000-000000000021';
+    raise exception 'Locked Test accepted a question reorder';
+  exception when sqlstate '55000' then null;
+  end;
+  begin
+    delete from public.test_questions
+    where id = '14200000-0000-4000-8000-000000000021';
+    raise exception 'Locked Test accepted a question delete';
+  exception when sqlstate '55000' then null;
+  end;
+
   begin
     insert into public.test_questions (
       id, test_id, question_type, question_text, points, position

@@ -12,7 +12,7 @@ Before first Start, existing versioned authoring is unchanged. After Start:
 | Question ID, artifact/source identity, test_id | Frozen |
 | Question membership and position | Frozen (no add/delete/duplicate/reorder) |
 | question_type | Frozen |
-| options | Existing multiple-choice choice text editable; choice count and positions remain fixed because positions are answer identities |
+| options | One existing multiple-choice choice string editable per save; choice count and position indices remain fixed because indices are answer identities |
 | correct_option, answer_key, sample_solution, points | Frozen; no regrading |
 | response_max_chars, response_monospace | Frozen |
 | Other current/future authored fields | Frozen by database default |
@@ -24,8 +24,9 @@ Before first Start, existing versioned authoring is unchanged. After Start:
 
 The teacher question editor now keeps existing MC option text fields enabled
 after Start. Its add, remove, reorder and marked-answer controls stay locked.
-Markdown saves use the same field policy. The server checks the choice count and
-all frozen fields, and the database trigger enforces the same boundary for
+Markdown saves use the same field policy. The server checks that at most one
+option string changes per save, along with choice count and all frozen fields;
+the database trigger enforces the same boundary for
 materialized questions. This change requires migration 219; deploy the migration
 before the application code. Until then, the database rejects choice corrections
 with a conflict rather than silently saving them.
@@ -57,9 +58,10 @@ is not Start. A successful Start reloads current questions before exposing the f
 Prompt and choice-text corrections cannot be distinguished mechanically from a
 change in meaning. Teachers remain responsible for preserving the intended
 question and answer. The editor keeps choice positions fixed; the server and
-database enforce the choice count but cannot distinguish a same-count reorder
-from replacing choice strings. This first version does not add an audit or
-student notification flow.
+database reject multi-position replacements, including a direct reorder. With
+strings alone, sequential edits could still change meaning or reorder text.
+Students already taking the Test retain their loaded wording until they reload.
+This first version does not add an audit or student notification flow.
 
 ## UI brief
 

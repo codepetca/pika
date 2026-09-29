@@ -117,7 +117,7 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
     } as any)
   })
 
-  it('saves a same-count MC choice correction after a student starts', async () => {
+  it('saves one MC choice correction but rejects a reordered list after Start', async () => {
     const question = {
       id: '11111111-1111-4111-8111-111111111111',
       question_type: 'multiple_choice',
@@ -158,6 +158,27 @@ describe('PATCH /api/teacher/tests/[id]/draft', () => {
       mockSupabaseClient,
       expect.objectContaining({ content: nextContent }),
     )
+
+    vi.mocked(saveTestDraftAtomic).mockClear()
+    vi.mocked(ensureAssessmentDraft).mockResolvedValueOnce({
+      ok: true,
+      draft: { id: 'draft-1', version: 3, content: currentContent },
+    } as any)
+    const reorderedContent = {
+      ...currentContent,
+      questions: [{ ...question, options: ['Distractor', 'Correct'] }],
+    }
+    vi.mocked(buildNextDraftContent).mockReturnValueOnce({ ok: true, content: reorderedContent } as any)
+
+    const reordered = await PATCH(
+      new NextRequest('http://localhost:3000/api/teacher/tests/test-1/draft', {
+        method: 'PATCH',
+        body: JSON.stringify({ version: 3, content: reorderedContent }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+    expect(reordered.status).toBe(409)
+    expect(saveTestDraftAtomic).not.toHaveBeenCalled()
   })
 
   it('loads the draft through the shared assessment draft helper', async () => {

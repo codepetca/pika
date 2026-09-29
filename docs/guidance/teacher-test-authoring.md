@@ -81,7 +81,7 @@ keep code options inline. Preserve the code's exact syntax and the correct
 option when revising an existing question. Check the student preview to confirm
 that code renders correctly in both the prompt and answer options. Format answer
 options before students start. After an attempt begins, Pika permits corrections
-to existing choice text while keeping the choice count, positions and correct
+to one existing choice at a time while keeping the choice count, positions and correct
 answer locked. Check that a correction does not change the intended answer.
 
 ## Calibrate difficulty and workload

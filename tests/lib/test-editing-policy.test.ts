@@ -18,6 +18,8 @@ describe('post-start test question policy', () => {
   it.each([
     ['a fifth choice', { options: [...question.options, 'Five'] }],
     ['a removed choice', { options: question.options.slice(1) }],
+    ['reordered choices', { options: [...question.options].reverse() }],
+    ['two choice corrections in one save', { options: ['Won', 'Twp', 'Three', 'Four'] }],
     ['question identity', { id: '22222222-2222-4222-8222-222222222222' }],
     ['type', { question_type: 'open_response' }],
     ['correct answer', { correct_option: 1 }],
@@ -34,9 +36,6 @@ describe('post-start test question policy', () => {
   it('keeps open-response options frozen', () => {
     const open = { ...question, question_type: 'open_response' as const, options: [] }
     expect(allowsTestQuestionChanges([open], [{ ...open, options: ['unexpected'] }], locked)).toBe(false)
-  })
-  it('treats a same-count replacement as choice text because options have no separate identities', () => {
-    expect(allowsTestQuestionChanges([question], [{ ...question, options: [...question.options].reverse() }], locked)).toBe(true)
   })
   it('blocks adding, deleting and reordering questions', () => {
     const second = { ...question, id: '22222222-2222-4222-8222-222222222222' }

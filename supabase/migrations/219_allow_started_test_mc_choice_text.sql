@@ -1,4 +1,4 @@
--- Keep the first-Start boundary. Existing MC option text may be corrected in place,
+-- Keep the first-Start boundary. One MC option string may be corrected per save,
 -- while the choice count, question identity, grading fields and all other authored
 -- fields remain frozen. The parent locks still serialize this write with attempts.
 create or replace function public.lock_test_parent_for_child_mutation()
@@ -154,9 +154,21 @@ begin
         or (
           old.question_type = 'multiple_choice'
           and new.question_type = 'multiple_choice'
-          and jsonb_typeof(old.options) = 'array'
-          and jsonb_typeof(new.options) = 'array'
-          and jsonb_array_length(new.options) = jsonb_array_length(old.options)
+          and case
+            when jsonb_typeof(old.options) = 'array'
+              and jsonb_typeof(new.options) = 'array'
+            then jsonb_array_length(new.options) = jsonb_array_length(old.options)
+              and (
+                select count(*)
+                from jsonb_array_elements_text(old.options)
+                  with ordinality as old_choice(value, position)
+                join jsonb_array_elements_text(new.options)
+                  with ordinality as new_choice(value, position)
+                  using (position)
+                where old_choice.value is distinct from new_choice.value
+              ) <= 1
+            else false
+          end
         )
       )
     )
