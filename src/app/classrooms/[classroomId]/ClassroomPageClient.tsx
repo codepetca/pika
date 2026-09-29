@@ -19,6 +19,7 @@ import { StudentResourcesTab } from './StudentResourcesTab'
 import { TeacherAnnouncementsTab } from './TeacherAnnouncementsTab'
 import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
+import { TeacherBlueprintTab } from './TeacherBlueprintTab'
 import { StudentTestsTab } from './StudentTestsTab'
 import { StudentGradesTab } from './StudentGradesTab'
 import { StudentPalAmbientSurfaces } from '@/integrations/pal'
@@ -1942,6 +1943,14 @@ function ClassroomPageContent({
                         onRequestDelete={() => {
                           void handleRequestAssessmentDelete()
                         }}
+                      />
+                    </TabContentTransition>
+                  )}
+                  {mountedTabs.blueprint && (
+                    <TabContentTransition isActive={activeTab === 'blueprint'}>
+                      <TeacherBlueprintTab
+                        classroom={classroom}
+                        isActive={activeTab === 'blueprint'}
                       />
                     </TabContentTransition>
                   )}

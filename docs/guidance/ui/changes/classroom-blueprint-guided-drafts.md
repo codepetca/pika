@@ -2,14 +2,14 @@
 
 ## UI change brief
 
-- Surface: teacher Classwork and Tests actions, a shared guided draft dialog, and a small source notice in each editor.
+- Surface: teacher Classwork and Tests actions, a shared guided draft dialog, a small source notice in each editor, and a Blueprint tab in the teacher classroom shell.
 - Reference: development `/pattern-lab` Assignment dialog and Test edit surfaces, plus current teacher Classwork and Tests action bars.
 - Affected roles: teacher. Student views must continue to display only the resulting assignment or test content.
 - Viewports: desktop and mobile.
 - Themes: light and dark.
-- Key states: no saved Blueprint Version, choosing an assessment and unit, writing a request, generating, previewing and editing Markdown, creation in progress, recoverable error, and returned to the editor.
+- Key states: no saved Blueprint Version, linked Version overview/content/guidance, choosing an assessment and unit, writing a request, generating, previewing and editing Markdown, creation in progress, recoverable error, and returned to the editor.
 - Primary signal: the existing primary create action and a secondary "Draft with Blueprint" action. The dialog uses the existing form and preview hierarchy.
-- Must not add: a new top-level classroom tab, student-facing guidance or source information, a second visual design language, or automatic publication.
+- Must not add: student-facing guidance or source information, a second visual design language, or automatic publication.
 - Composite widget accessibility review: yes. Check dialog focus and keyboard close, the unit selector, and editable preview.
 
 | Need | Existing candidate | Decision | Reason |
@@ -17,6 +17,7 @@
 | Entry action | Classwork and Tests work-surface actions | extend | Keep familiar blank creation while adding a guided path at its point of use. |
 | Guided draft preview | `ContentDialog`, `FormField`, `Select`, `Button`, and existing Markdown editor styling | create | One shared flow has two genuine adopters: assignments and tests. |
 | Source after creation | Existing compact editor context notices | extend | Tell the teacher which frozen Blueprint Version guided the draft without showing private rules to students. |
+| Classroom Blueprint navigation | Existing classroom sidebar, main pane, and Pattern Lab page states/tabs | extend | Keep the Version reference inside the teacher's classroom workspace. |
 
 ## Acceptance
 

@@ -62,6 +62,11 @@ equally first-class.
   the Blueprint's guidance; instantiation does not copy it to classroom rows.
 - Classroom Classwork and Tests keep their existing blank creation actions and
   add a shared teacher-reviewed guided draft flow at those entry points.
+- The teacher classroom sidebar has a Blueprint tab. Its content pane shows
+  the frozen Version linked to that classroom, including its course outline,
+  assessment titles, and private authoring guidance. The source Blueprint Draft
+  remains the separately edited object; changes to it do not rewrite a saved
+  classroom Version. Classrooms without lineage show an explicit empty state.
 - Classroom drafting reads the frozen source Blueprint Version through a
   teacher-only endpoint. Its AI draft request must use that Version's rules,
   not the live Blueprint Draft. A draft records the Version and chosen unit
