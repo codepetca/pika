@@ -13,11 +13,13 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
 import { TestImageDocumentViewer } from '@/components/TestImageDocumentViewer'
 import { WorkspaceSplitPane } from '@/components/WorkspaceSplitPane'
-import { Button, cn } from '@/ui'
+import { Button, IconButton, cn } from '@/ui'
+import { ExamTextFindBar } from '@/components/ExamTextFindBar'
+import { useExamTextFind } from '@/hooks/use-exam-text-find'
 
 export interface ExamDocumentItem {
   id: string
@@ -31,6 +33,8 @@ export interface ExamDocumentItem {
 
 interface ExamDocumentWorkspaceProps {
   activeDocument: ExamDocumentItem | null
+  enableTextFind?: boolean
+  textFindLocked?: boolean
   documents: ExamDocumentItem[]
   questionsPane: ReactNode
   onCloseDocument: () => void
@@ -62,6 +66,8 @@ function clampDocumentsWidth(value: number): number {
 
 export function ExamDocumentWorkspace({
   activeDocument,
+  enableTextFind = false,
+  textFindLocked = false,
   documents,
   questionsPane,
   onCloseDocument,
@@ -101,6 +107,20 @@ export function ExamDocumentWorkspace({
     : firstImageDocument
   const imageDocumentIsVisible = Boolean(activeDocument?.imageType && activeDocument.id === displayedImageDocument?.id)
 
+  const revealSearchDocument = useCallback((id: string) => {
+    const document = documents.find((item) => item.id === id && item.source === 'text')
+    if (!document || activeDocument?.id === id) return
+    if (widthBeforeImageRef.current !== null) {
+      setDocumentsWidth(widthBeforeImageRef.current)
+      widthBeforeImageRef.current = null
+    }
+    onOpenDocument(document)
+  }, [activeDocument?.id, documents, onOpenDocument])
+  const find = useExamTextFind({
+    rootRef: splitRef, enabled: enableTextFind, locked: textFindLocked, resetKey,
+    onRevealDocument: revealSearchDocument,
+  })
+
   useEffect(() => {
     removePointerResizeListenersRef.current?.()
     setDocumentsWidth(DOCUMENTS_DEFAULT_WIDTH_PERCENT)
@@ -115,6 +135,7 @@ export function ExamDocumentWorkspace({
 
   useEffect(() => {
     if (activeDocument) {
+      if (document.activeElement?.closest('[data-exam-find-controls]')) return
       backButtonRef.current?.focus()
       return
     }
@@ -227,11 +248,12 @@ export function ExamDocumentWorkspace({
     : 'lg:transition-[flex-grow] lg:duration-standard lg:ease-standard motion-reduce:transition-none'
 
   return (
-    <div ref={splitRef} className={cn('h-full min-h-0', className)} style={splitStyle}>
+    <div ref={splitRef} className={cn('flex h-full min-h-0 flex-col gap-2', className)} style={splitStyle}>
+      {enableTextFind && find.isOpen && !textFindLocked ? <ExamTextFindBar find={find} /> : null}
       <WorkspaceSplitPane
         data-testid={splitTestId}
         orientation="responsive"
-        className="gap-2"
+        className="min-h-0 flex-1 gap-2"
         leftPaneClassName={cn(
           'min-w-0 flex-1 lg:flex-none lg:basis-0 lg:grow-[var(--exam-documents-grow)]',
           paneTransitionClass,
@@ -269,9 +291,10 @@ export function ExamDocumentWorkspace({
                 'grid min-h-control shrink-0 items-center border-b border-border bg-surface-2 px-2 sm:px-3',
                 documentIsOpen
                   ? 'grid-cols-[auto_minmax(0,1fr)_auto]'
-                  : 'grid-cols-[minmax(0,1fr)]',
+                  : enableTextFind ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)]',
               )}
             >
+              {enableTextFind && !documentIsOpen ? <span aria-hidden="true" className="min-w-control" /> : null}
               {documentIsOpen ? (
                 <Button
                   ref={backButtonRef}
@@ -315,7 +338,9 @@ export function ExamDocumentWorkspace({
                 </span>
               </h2>
 
-              {documentIsOpen ? (
+              {enableTextFind ? (
+                <IconButton icon={Search} label="Find in exam" variant="ghost" disabled={textFindLocked} onClick={find.open} />
+              ) : documentIsOpen ? (
                 <span aria-hidden="true" className="invisible min-h-control min-w-control px-2 text-xs">
                   Back
                 </span>
@@ -368,16 +393,18 @@ export function ExamDocumentWorkspace({
                   documentIsOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
                 )}
               >
-                {activeDocument?.source === 'text' ? (
-                  <div className="absolute inset-0 flex min-h-0">
+                {(enableTextFind ? documents.filter((item) => item.source === 'text') : activeDocument?.source === 'text' ? [activeDocument] : []).map((item) => (
+                  <div key={item.id} data-exam-find-document={item.id} data-exam-find-label={item.title}
+                    aria-hidden={activeDocument?.id !== item.id}
+                    className={cn('absolute inset-0 min-h-0', activeDocument?.id === item.id ? 'flex' : 'hidden')}>
                     <TestTextDocumentViewer
                       className={textViewerClassName}
-                      content={activeDocument.content || ''}
+                      content={item.content || ''}
                       onKeyUp={onTextDocumentKeyUp}
                       onMouseUp={onTextDocumentMouseUp}
                     />
                   </div>
-                ) : null}
+                ))}
 
                 {displayedImageDocument?.url ? (
                   <div aria-hidden={!imageDocumentIsVisible} className={cn('absolute inset-0', !imageDocumentIsVisible && 'hidden')}>

@@ -73,6 +73,7 @@ import { GradebookCompactPattern } from './GradebookCompactPattern'
 import { PageMockups } from './PageMockups'
 import { OwnedJoinedHomeMockup } from './OwnedJoinedHomeMockup'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
+import { ExamTextFindPattern } from './ExamTextFindPattern'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 
@@ -610,6 +611,7 @@ export function UiGallery({ role }: Props) {
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <TestReferenceImagePattern />
+            {role === 'student' && <ExamTextFindPattern />}
             <StudentGradesPattern />
             <PatternSection
               id="student-tests"

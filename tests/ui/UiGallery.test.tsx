@@ -26,6 +26,17 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it('renders the student-only exam Find composition with canonical controls', async () => {
+    renderGallery('student')
+    const example = within(screen.getByTestId('exam-text-find-example'))
+    fireEvent.click(example.getByRole('button', { name: 'Find in exam' }))
+    fireEvent.change(example.getByRole('textbox', { name: 'Find in exam' }), { target: { value: 'loop' } })
+    expect(await example.findByRole('status')).toHaveTextContent('1 of 7 · Exam')
+    expect(example.getByRole('button', { name: 'Next match' })).toBeEnabled()
+    fireEvent.click(example.getByRole('button', { name: 'Close find' }))
+    expect(example.queryByRole('search')).not.toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('demonstrates normal and exam header navigation for %s', (role) => {
     renderGallery(role)
     const references = within(screen.getByRole('region', { name: 'Application header references' }))
