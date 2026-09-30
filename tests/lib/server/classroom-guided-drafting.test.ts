@@ -47,13 +47,17 @@ describe('frozen classroom guided drafting', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const result = await generateClassroomGuidedDraft({
-      source, target: 'assignments', prompt: 'Create practice', unitExceptionId: unitId,
+      source: { ...source, course: { ...source.course,
+        assignment_titles: Array.from({ length: 41 }, (_, index) => `Assignment ${index + 1}`),
+      } }, target: 'assignments', prompt: 'Create practice', unitExceptionId: unitId,
     })
     const request = JSON.parse(String(fetchMock.mock.calls[0][1].body))
     const input = request.input[1].content[0].text as string
     expect(input).toContain('Frozen course guidance')
     expect(input).toContain('Frozen unit assignment')
     expect(input).toContain('Frozen outline')
+    expect(input).toContain('Assignment 40')
+    expect(input).not.toContain('Assignment 41')
     expect(input).toContain('Content Version 1, Guidance Version 2, Draft revision 7')
     expect(input).not.toContain('Live Draft')
     expect(result.guidance).toEqual(expect.objectContaining({

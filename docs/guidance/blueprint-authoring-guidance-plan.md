@@ -1,8 +1,28 @@
 # Living blueprint authoring guidance
 
-Status: release and existing-classroom adoption in progress, 2026-09-29. The Blueprint workspace was
+Status: release and existing-classroom adoption in progress, 2026-09-30. The Blueprint workspace was
 merged to main in PR #1386. Classroom drafting merged to main in PR #1387 (`50cbbc5a`). Guidance adoption
-is in draft PR #1396 (`codex/classroom-blueprint-guidance-updates`). This plan tracks the complete goal.
+merged to main in PR #1396 (`b754bd69`). Production promotion is draft PR #1398.
+The agreed ICS3U-4 rules are saved in production Blueprint Draft revision 4;
+P3/P5 classroom adoption remains pending the release and separately approved
+production migrations 221/222. This plan tracks the complete goal.
+
+## Release correction: complete Content lists
+
+Surface: teacher classroom Blueprint Content tab. Reuse the approved
+`TeacherBlueprintTab` title lists, Settings-style sections and classroom shell;
+Pattern Lab remains the executable shared navigation/Card reference. Display
+all structural Version titles, retaining the separate 40-title model-input cap.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Complete content inventory | `TeacherBlueprintTab` / `TitleList` | reuse | Existing list already supports the full array and normal pane scrolling. |
+
+Verify teacher Content selected, end-of-list visible, desktop/mobile and
+light/dark. Student is n/a: this teacher-only reader is not exposed to students;
+the prior release privacy checks remain applicable. Primary signal is existing
+section headings and title text. No new controls, styling or shared component
+contract; composite-widget review is not required.
 
 ## Goal
 
@@ -116,9 +136,11 @@ equally first-class.
   run on a separate ephemeral database; shared local and production databases
   have not been migrated by this implementation task.
 - Adoption security, compatibility, correction and final integration reviews passed
-  at `5b399e3b`; the rebased application/test/migration patch is unchanged. Complete
-  final PR Gate, then follow the authorized release
-  lifecycle. Applying migrations 221/222 requires exact target/filename approval.
+  at `5b399e3b`; the rebased application/test/migration patch is unchanged. PR #1396
+  merged as `b754bd69` after exact-head CI36702895411 passed all lanes and PR Gate.
+  Production PR #1398 remains draft. Its security review passed; compatibility
+  identified the complete Content-list correction above. Applying migrations
+  221/222 requires exact target/filename approval before deployment.
 
 ## Independent guidance adoption implementation
 
