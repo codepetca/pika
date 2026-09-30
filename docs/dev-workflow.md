@@ -418,3 +418,10 @@ rmdir "$PROMO_TMP"
   - Expected; open/merge PR instead of direct push.
 - `gh pr create` body errors due to backticks:
   - Use single-quoted body text (or escape backticks).
+
+## Manual hosted migration rollout
+
+The owner can preview and apply reviewed, merged SQL from a browser using the manually dispatched
+[hosted migration workflow](./guidance/hosted-migrations.md). It reuses successful replay/test CI
+evidence and requires exact one-time source, target and complete-set approval. It does not run on
+push, promote the app, or replace the schema rollout authorization contract.

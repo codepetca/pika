@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-28 — Teacher Tests list access status
-
-- Resumed PR #1340 after the Claude handoff. Initial Sol/Terra review found uncached reference generation ran before durable attempt accounting and missing-question recovery could exceed the attempt cap. One correction batch places preparation inside the counted microbatch attempt, checks the deadline again afterward, and caps missing-question recovery. Four new regressions fail before the correction and pass after it; runner suite passes 20 tests. No migration or grading-strategy change. Focused verification, targeted re-review, and owner merge approval remain required.
-- Owner approved a final bounded review, merge on green PR Gate, and production promotion. Final review found database writes or lease renewals could consume the admission window after its check; recheck immediately before reference preparation and single/batch provider calls. Four additional regressions failed before this correction and pass afterward; runner suite now passes 24 tests. Final focused verification and independent confirmation remain required before ready.
-The Tests list now displays Open when any enrolled student has effective open access, including a test whose stored status is closed; active tests with every student's access closed still display Closed. Drafts remain Draft. Added unit/component and browser regression coverage. Focused checks passed 1,031 tests plus architecture, UI/design policy, TypeScript, and lint; the browser scenario passed desktop/mobile in light/dark, and screenshots were reviewed. Risk profile: none. Model recommendation: GPT-6 Sol for the localized status correction.
-
 ## 2026-09-28 — Markdown code in Karel multiple choice
 
 Updated the teacher test authoring guide to require inline Markdown code for short snippets in multiple-choice prompts and one-line options, and fenced language-labeled blocks for multiline snippets in prompts. In production P5 ICS3U Unit 1 Java Karel quiz, formatted Q3 command options and Q4/Q5 prompt snippets; saved and re-read the test. In P3 ICS3U, formatted and saved Q4/Q5 prompt snippets; Q3 options remain plain because a student has started and Pika locks answer-choice edits. Preserved question IDs, point values, keys, documents, and release settings. Preview was blocked by the exam-mode maximized-window requirement in browser control; persistent Markdown was verified instead. Documentation risk profile: none. Model recommendation: GPT-6 Sol for focused documentation update.
@@ -205,3 +199,7 @@ Student actions now names the selected count (AI Grade 1 student / AI Grade 2 st
 ## 2026-09-30 — Test references stay inside the assessment
 
 Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.
+
+## 2026-09-30 — Hosted migration workflow (in progress)
+
+Goal: lightweight manual GitHub migration preview/application with exact source, target and migration approval; no live migration or billing change authorized. Coordinator owns codex/school-migration-workflow in /Users/stew/.codex/worktrees/school-migration-workflow/pika. One GPT-6.1 Sol implementation worker owns new workflow/tooling/tests/runbook. Startup verified after frozen dependency install; base32ad59f5. Next: behavioral verification, draft PR and bounded high-risk independent review. New environment credentials remain setup work; existing Vercel environments will be kept separate.
