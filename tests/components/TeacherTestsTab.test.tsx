@@ -3624,6 +3624,9 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'AI Grade' }))
     expect(await screen.findByRole('button', { name: 'Only ungraded' })).toBeEnabled()
+    expect(screen.getByRole('dialog', { name: 'AI Grade selected students' })).toHaveTextContent(
+      'Regrade all will overwrite existing grades and comments, including teacher edits.',
+    )
     expect(screen.getByRole('button', { name: 'Regrade all' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Only ungraded' }))
 

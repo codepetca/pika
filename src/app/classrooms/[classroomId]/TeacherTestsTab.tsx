@@ -3069,6 +3069,9 @@ export function TeacherTestsTab({
         <p className="mt-2 text-sm text-text-muted">
           Choose whether to grade only responses without a grade or regrade every eligible response for the {batchAutoGradePreflight.selectedCount} selected student{batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}.
         </p>
+        <p className="mt-2 text-sm text-text-default">
+          Regrade all will overwrite existing grades and comments, including teacher edits.
+        </p>
         <div className="mt-5 flex justify-end gap-2">
           <Button
             type="button"

@@ -33870,3 +33870,8 @@ Owner subsequently requested local reseeding. Standard pnpm seed (seed.ts plus p
 ## 2026-09-27 — Billing documentation sync after local reset
 
 Owner approved one documentation-only fifth correction batch and CI, with no additional reviewer, database changes or merge. Merged main4d0c4474 into PR1377; the sole archive conflict contained branch entries already present verbatim in main, so retained main archive without losing history. Consolidated reset/reseed receipts and superseded the old history-repair plan. Billing source/migration bytes stay identical to independently reviewed0a2c1c2d. Verified local001–217,3demo users/1classroom,sandboxfalse/test; generated types match and warning lint is clean. Focused checks and stable-commit CI follow. Review count remains8 (hard cap); no new launch.
+
+<!-- pika-session-log-archive-batch:53a565c08fced3e129cc754ea78e31b43f9801685472167140ef954ef4252ac7 -->
+## 2026-09-27 — Billing final documentation-format correction
+
+Owner approved the sixth/final documentation-only correction and CI rerun. Restored CURRENT’s required `Prod DB 001–214` prefix after the prior shortening failed the rollout-format contract; no billing code, tests, migration SQL or database state changed. Prior CI passed8524tests plus billing DB contracts and warning lint; remaining jobs were incomplete at the failure checkpoint. Verify both startup size and rollout-format tests, focused checks, then fixed-commit CI. No additional reviewer or merge authority.
