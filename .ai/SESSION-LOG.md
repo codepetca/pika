@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Apply migration 213 to production
-
-- Fresh exact owner authorization allowed one retry. Verified production binding zhioqbapgfcrronyuidm, merged1371 migration bytes, passing CI36335825410, matching history001–212 and dry-run containing only213. Linked push succeeded; post-apply history matches001–213 with no drift.
-- Read-only catalog check confirms all four image functions, empty search paths, service-only public entrypoints and no direct application-role access to the private helper. No214 application, deployment, rollout activation or account changes. Continuity-only edits remain uncommitted in the existing draft1376 worktree; PR review checkpoint is not resumed by this migration-only request.
-
-## 2026-09-27 — Merge owner precedence and begin shared admission
-
-- Resumed with explicit approval. PR1376/f3c00147 passed fullCI36344942279, including7realroute scenarios and browsermatrix; merged as7758ed44 and hubfastforwarded. Five reviewer passes, one formatting correction; final CI22m50s. User authorized214 for both targets. Production preflight previewed only214; apply succeeded and history001–214 plus8function ownerchecks/privileges were verified. No feature activation.
-- Local preflight instead found214 subscription_lifecycle,215 subscription_lifecycle_validation,216 subscription_lifecycle_warning_cleanup. No owner214 local apply or history repair attempted. Notified billing task Admin dashboard with exact collision and main/prod precedence; preserve all data and obtain coordinated repair authorization.
-- Began independent batch1 in codex/classroom-shared-admission: strict optional manual actorcohort consumed by materialGET authorization, preserving relationships/projections/legacy pairpilots. No migration, env activation, role/plan rewrite, home/page/signup or materialwrite change. Astra bounded design and Terra implementation; coordinator corrected absent-config behavior and strengthened sameactorA/B/C and archived-member tests.69targeted tests/types pass; focused checks and independent review follow.
-
-## 2026-09-27 Subscription automation implementation in progress
-
-Owner requested remaining lifecycle, classroom enforcement, billing screens and full sandbox testing after #1372 merged. Worktree `codex/subscription-automation`, base `85e8a2bf`; active coordinator plan in `docs/guidance/stripe-billing-foundation.md`. Phase 2 lifecycle storage/runtime and authenticated trial/effective-status endpoints are being implemented, with provider unpaid-invoice decoding. Migration214 is being authored, not applied; existing local database remains unchanged. New merge, production rollout, live billing and real email remain outside authorization. Phase 3 must cover timestamp-based scheduled assignments and subscription-specific archive protections before exposing launch UI. Preserve the separate dirty `subscription-lifecycle` prototype; it is not the runtime implementation.
-
-## 2026-09-27 Subscription lifecycle draft and first review
-
-Draft PR #1377 adds gated once-only Pro trials, finite version-bound paid access, renewal/grace/cancellation observations, due expiry, authenticated status/trial APIs, and rollback-only SQL contracts. Initial Sol/high security and Terra/high compatibility reviews completed; batch 1 fixes grace truncation by cancellation/original-invoice replay and missed uncollectible renewal recovery. Billing tests pass 285; SQL harness and generated RPC types remain pending exact local migration 214 approval. Existing local DB is still at 213 and unchanged. Further lifecycle commands/financial closeout, classroom restrictions, UI/notices and full sandbox rehearsal remain in the coordinator plan. No new merge, production, live billing or real email authority.
-
 ## 2026-09-27 Local subscription schema verification
 
 Owner approved local214; one reviewed push applied only214 successfully. Generated types refreshed; focused248tests/architecture/UI/design/TypeScript/lint pass. Lifecycle and checkout SQL contracts pass after a harness-only CASE parenthesis correction. Foundation SQL contract exposed changed malformed-fence responses; forward215 restores original22023 validation for both entrypoints and adds rollback-only validation coverage.214 remains immutable.215 passed targeted security/compatibility review, then owner approved local215 and one push applied only215 successfully. Foundation, checkout, lifecycle and validation rollback database contracts all pass; generated types match. Local9users/1classroom/billingsandboxfalse preserved. PR1377 remains draft pending final cumulative review and required CI; reviewbudget4launches and2fixbatches (45minute cap19:57UTC).
@@ -105,6 +86,20 @@ Owner approved one documentation-only fifth correction batch and CI, with no add
 ## 2026-09-27 — Billing final documentation-format correction
 
 Owner approved the sixth/final documentation-only correction and CI rerun. Restored CURRENT’s required `Prod DB 001–214` prefix after the prior shortening failed the rollout-format contract; no billing code, tests, migration SQL or database state changed. Prior CI passed8524tests plus billing DB contracts and warning lint; remaining jobs were incomplete at the failure checkpoint. Verify both startup size and rollout-format tests, focused checks, then fixed-commit CI. No additional reviewer or merge authority.
+
+## 2026-09-27 — Main production promotion
+
+- Owner authorized main-to-production release PR1369. Batch main402f8028 contains admin prototype, local-only Stripe foundation, subscription policy and compact Gradebook changes. Reconciled only CURRENT and journal history conflicts, preserving both histories. Fresh production read confirms migrations206–210 and strict automatic Free signup active for183 classified accounts. No migration or feature switch changed.
+- Risk runtime-platform. One independent Sol security and Terra compatibility wave; local focused verification and final reviewed-head CI precede merge. Billing/admin and maximum-edit activation remain separate gates.
+
+## 2026-09-27 — Deploy reference-preservation fix
+
+User authorized production release of the merged fix. PR1373 promotes reviewed main6650e76a, including default-off checkout foundation PR1368 and reference-preservation PR1370. Independent Sol safety and Terra compatibility reviews found no application blockers; resolved continuity archive conflict by retaining both histories, with application/schema blobs unchanged. No migrations, billing flags, provider configuration, or worker scheduling are authorized or performed. Exact-head release CI and Vercel readiness precede completion.
+
+## 2026-09-27 — Promote seven main PRs to production
+
+- Owner authorized PR1379 to promote main4d0c4474 over production6904c2ed. The batch includes contextual Assignment image/owner safeguards, billing webhook scope checks, dormant classroom admission, PDF references, fullscreen clock, Test reference pane fixes, and paused Pal UI CI.
+- Production diverged only in continuity notes. Resolved CURRENT to the newer main status and retained four unique production promotion records in the journal; application and migration files match main. No migration, account, feature-flag, or provider configuration is changed by the PR. Risk profile: runtime-platform. Model recommendation: GPT-6 Sol — release coordination and conflict reconciliation. Independent cumulative review and full CI gate are required before merge.
 
 ## 2026-09-28 — Selected assessment label size
 
@@ -206,3 +201,8 @@ Owner narrowed the selected Test grading Status sort to Submitted and Returned. 
 ## 2026-09-29 — Pause hidden authentication and attendance polling
 
 Added browser visibility guards and Today activity wiring while preserving the mounted student workspace. Returning forces one current-identity read; stale pre-hide responses are ignored, including batched visibility events. Visible attendance and auth cadences, server authorization and Toronto expiry contracts remain unchanged. Risk: workspace-state and client authentication lifecycle. Focused regressions cover hidden timers/retries, return coalescing, identity changes, expiry and Today activity. Reused existing attendance rendering and Pattern Lab page-state reference; teacher/student desktop/mobile light/dark verification and independent stable-SHA review required before merge. Production promotion and subsequent savings remain separate.
+
+## 2026-09-29 — Promote polling and pending main changes
+
+- Owner authorized production PR1397 after polling PR1395 merged main. Batch main de7a629d includes16 pending PRs. Independent security and compatibility reviews passed runtime interactions; corrected stale production schema summary and retained both production/main continuity histories. Application, migration, dependency and test bytes remain identical to reviewed main.
+- Production migrations215–220 already applied and verified; no schema/reset, billing activation, Vault configuration, benchmark grades or paid provider calls are part of this release. Background grading dispatch still requires separate URL/secret activation and a small canary; class completion target and CPU savings remain unmeasured. Final reviewed SHA, green PR Gate and production deployment readiness are required before completion.
