@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-28 — Blueprint authoring workspace inspection
-
-Inspected production `/teacher/blueprints` and selected ICS3U-4; reviewed desktop dark screenshot, Tests/AI Drafting controls, current source, and the existing product-experience audit. Confirmed Blueprints already has main navigation, while its editor still has 13 wrapping custom tab buttons, metadata and repository/package explanations above content, local-only section state, and no Authoring Guidance tab. Recorded an unimplemented proposal in `docs/guidance/ui/changes/blueprint-authoring-workspace-audit.md`: dedicated teacher-only guidance tab, simpler workspace grouping, existing shared editor/tab primitives, and persistence/context work before claiming remembered rules. No production content or product code changed. Read-only investigation risk: none; no implementation verification claimed.
-
-## 2026-09-28 — Living Blueprint authoring implementation in progress
-
-Created five workspace tabs, a teacher-only Authoring Guidance editor with course/unit rules, staged comparison, history, and temporary draft trials. Added revision-safe storage, schema-3 Version snapshots and proposals, package v6 guidance, frozen classroom guidance reads, and a model-backed Blueprint test/assignment draft preview that consumes selected rules. Coding test drafts receive a first general Instructions reference; code options are requested as Markdown. Focused unit suites and teacher desktop/mobile browser review pass; student route redirect was checked. Migration 218 is not applied, generated database types remain pending, and the shared local stack contains a different unmerged 218. Classroom create flows do not yet consume the frozen guidance. Draft PR, independent review, PR Gate, and merge remain pending.
-
-Draft PR #1386 received independent security and architecture review. One remediation batch added database-backed per-teacher AI draft admission, signed saved-guidance preview proof, a provider input budget, legacy Version reuse normalization, and package v6 rollout corrections. A clean CI database replay accepted migration 218 and supplied machine-generated type diffs; the local shared database remains untouched. Targeted re-review found a large-preview boundary mismatch, corrected by signing the original content hash instead of resending the full preview. The follow-up classroom creation flow must consume the frozen Version through actual model drafting and store private provenance atomically; a passive guidance notice alone is insufficient. Focused checks pass 998 tests plus architecture, UI/design policy, TypeScript, and lint. Final database admission contract, exact-head CI, cumulative review, and merge authority remain pending.
-
-## 2026-09-28 — Blueprint PR final CI corrections
-
-Owner approved one additional reviewer and time for PR #1386. Exact-head CI caught a warning-level array initializer in migration 218; the stacked classroom PR browser run also found three Blueprint experience tests still targeting the old tab and URL behavior. Corrected the migration initializer and test expectations for the Settings → Publish tab and retained section query. Focused checks pass 998 tests, architecture, UI/design policy, TypeScript, and lint. Final independent review and exact-head ready CI remain pending; no local migration or merge was performed.
-
 ## 2026-09-28 — High-only test grading completion in progress
 
 The owner chose high reasoning on every attempt, background continuation after leaving the page, and a 20-minute target for 24 students with two AI-marked answers each. Added test-policy v7 to forbid effort downgrade, individual high-effort retries after failed four-answer batches, a protected bounded worker route, and migration 219 for pg_net wakeups plus a minute pg_cron watchdog. Vault settings activate dispatch after rollout; no migration or production deployment has been applied. Initial focused checks passed 2,833 tests plus architecture, UI/design policy, TypeScript and lint; both independent initial reviewers passed. Next: exact-head CI, targeted review of the retry correction, and owner approval for migration application and promotion. Risk profiles: async-grading and runtime-platform. Model recommendation: GPT-6 Sol for this cross-layer reliability change.
@@ -195,6 +181,12 @@ Student actions now names the selected count (AI Grade 1 student / AI Grade 2 st
 
 Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.
 
+## 2026-09-30 — Hosted migration workflow (PR1404)
+
+Implemented the manual school-accessible GitHub migration workflow, portable runner, exact source/target/migration/hash approval, CI replay evidence binding, history drift checks, one-attempt failure handling, and minimal trusted CLI configuration. Production is the default target; preview is the default mode. No live migration or billing change is authorized or performed. PR1404 received independent security and operations review; one correction batch pinned actions and verified CLI download checksums before execution, and explicitly reports unknown durable state. The 128-test focused gate and all required CI lanes/PR Gate passed on reviewed d7120d73; four reviewer launches completed with no unresolved findings.
+
+Main advanced during CI. The owner approved one archive-only sync, one focused review, fresh CI and merge on green. Both archive batch markers and current main changes are retained. The dedicated migrations-production environment permits only branch main and is bound to verified Pika/zhioqbapgfcrronyuidm; credentials await secure owner entry. Staging remains deferred; existing Vercel environments are unchanged. Final sync review, exact-head CI and merge are pending; this authorization does not allow hosted SQL application or app promotion.
+
 ## 2026-09-30 Allow today's Class Days correction
 
 - User approved same-day edits: Settings now allows adding today immediately, confirms before excluding today, and disables all past dates to match the API. Existing logs remain stored; Toronto-midnight and archived-classroom guards are retained.
@@ -205,6 +197,14 @@ Added the repository test-authoring rule prohibiting hyperlinks and link-type re
 
 - Initial/targeted/final independent review completed (three launches, one code correction batch); exact-head CI36737461379 passed Test & Build, Browser Experience Matrix and PR Gate on5c6de421. Main then advanced with unrelated authoring docs; second synchronization batch retains both continuity histories and leaves the three implementation/test files byte-identical. Focused recheck and bounded synchronization review precede fresh candidate CI.
 
+## 2026-09-30 — Supabase grading conflict I/O incident
+
+Read the Disk IO Budget warning and production catalog/log evidence. Confirmed a PostgREST internal retry storm on manual Assignment grading SQLSTATE40001; stopped the exact matched runaway backend. Follow-up shows no runaway process and essentially flat rollbacks. Stored database size remains below the free quota. Prepared migration223 changing only the manual stale-revision error to PT409, dual-code legacy/contextual adapter support, regressions and recovery guidance. Isolated disposable-database replay verifies stale rejection, complete batch rollback, nonowner rejection, fresh save and unchanged grants/security. Production migration and application rollout remain pending explicit authorization; other current custom40001 RPCs need a separate audit.
+
 ## 2026-09-30 — Production release after migrations 221/222
 
 Owner authorized production deployment. Production migrations221/222 applied once successfully from reviewed8b317736; linked postflight222history entries aligned, no drift. Read-only columns/RLS/service-only grants and guidance triggers verified. Updating existing releasePR1398 with reviewed main3eed5324 (AI grade confirmation, test-reference policy, same-day Class Days corrections). Only merge conflict is archived continuity; both sides preserved. Migration/application source matches current main. Cumulative integration review and exact-head CI precede merge.
+
+## 2026-09-30 — Production disk I/O fix rollout (PR1408)
+
+Owner authorized migration223 on production followed by application promotion. Linked history and dry-run confirmed221/222 already applied and only223 pending. Applied223 once successfully; the live function source hash matches the reviewed migration exactly, with PT409 and unchanged service-only ACL, security definer and empty search path. Main fixPR1406 merged as112c1c73 after independent review and green CI36771557844. PromotionPR1408 batches reviewed hosted toolingPR1404 and the grading compatibility fix. Resolved archive continuity by retaining the production narrative (which contains every main narrative line) and all main-only batch markers; runtime and Supabase files remain identical to main. Cumulative review and final CI precede the authorized production merge.
