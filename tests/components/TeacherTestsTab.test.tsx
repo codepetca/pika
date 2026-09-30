@@ -9,6 +9,10 @@ import { createMockClassroom, createMockTest } from '../helpers/mocks'
 import { invalidateCachedJSON } from '@/lib/request-cache'
 import type { Classroom, TestAssessmentWithStats } from '@/types'
 
+vi.mock('@/components/ClassroomBlueprintDraftSource', () => ({
+  ClassroomBlueprintDraftSource: () => null,
+}))
+
 const { setOpenMock, gradingSaveCallbacks } = vi.hoisted(() => ({
   setOpenMock: vi.fn(),
   gradingSaveCallbacks: new Map<string, ((state: {

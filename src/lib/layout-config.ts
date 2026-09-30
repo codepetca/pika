@@ -49,6 +49,7 @@ export type RouteKey =
   | 'assignments-teacher-list'
   | 'assignments-teacher-viewing'
   | 'tests-teacher'
+  | 'blueprint-teacher'
   | 'tests-student'
   | 'calendar-teacher'
   | 'calendar-student'
@@ -134,6 +135,10 @@ export const ROUTE_CONFIGS: Record<RouteKey, LayoutConfig> = {
   'tests-teacher': {
     rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: '60%' },
     mainContent: { maxWidth: 'full' },
+  },
+  'blueprint-teacher': {
+    rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 320 },
+    mainContent: { maxWidth: 'wide' },
   },
   'tests-student': {
     rightSidebar: { enabled: false, defaultOpen: false, defaultWidth: 320 },
@@ -234,6 +239,7 @@ export function getRouteKeyFromTab(
   if (tab === 'attendance') return 'daily'
   if (tab === 'roster') return 'roster'
   if (tab === 'gradebook') return 'gradebook'
+  if (tab === 'blueprint' && role === 'teacher') return 'blueprint-teacher'
   if (tab === 'grades' && role === 'student') return 'grades-student'
   if (tab === 'today') return 'today'
   if (tab === 'achievements' && role === 'student') return 'achievements-student'

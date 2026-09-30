@@ -8,7 +8,9 @@ import {
 } from '@/lib/course-blueprint-assessments-markdown'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { DEFAULT_OPEN_RESPONSE_MAX_CHARS } from '@/lib/test-attempts'
+import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-identity'
 import type { CourseBlueprintAuthoringGuidance } from '@/lib/course-blueprint-authoring-guidance'
+import type { ClassroomAuthoringGuidance } from '@/lib/server/classroom-authoring-guidance'
 
 const DEFAULT_MODEL = 'gpt-5-mini'
 const TIMEOUT_MS = 45_000
@@ -50,6 +52,9 @@ const testDraftSchema = z.object({
   }).strict()).max(5),
   questions: z.array(questionDraftSchema).min(1).max(15),
 }).strict()
+
+type AssignmentDraft = z.infer<typeof assignmentDraftSchema>
+type TestDraft = z.infer<typeof testDraftSchema>
 
 const CODING_TEST_INSTRUCTIONS = `# Instructions
 
@@ -129,35 +134,72 @@ function outputText(payload: unknown): string | null {
   return null
 }
 
-export async function generateCourseBlueprintGuidedDraft(args: {
-  detail: CourseBlueprintDetail
+function buildTestRecord(draft: TestDraft, position: number): CourseBlueprintAssessmentMarkdownRecord {
+  const questions = draft.questions.map((question) => ({
+    ...question,
+    id: crypto.randomUUID(),
+    response_max_chars: DEFAULT_OPEN_RESPONSE_MAX_CHARS,
+    response_monospace: draft.is_coding_test && question.question_type === 'open_response',
+  }))
+  const testContent: TestDraftContent = {
+    title: draft.title,
+    show_results: false,
+    question_identity_version: PORTABLE_TEST_QUESTION_IDENTITY_VERSION,
+    questions,
+  }
+  const validated = validateTestDraftContent(testContent)
+  if (!validated.valid) throw new Error(`AI drafting returned an invalid test: ${validated.error}`)
+  if (draft.reference_documents.some((document) => document.title.toLowerCase() === 'instructions')) {
+    throw new Error('AI drafting returned an invalid reference document')
+  }
+  const documents = [
+    ...(draft.is_coding_test ? [{ title: 'Instructions', content: CODING_TEST_INSTRUCTIONS }] : []),
+    ...draft.reference_documents.map((document) => ({
+      title: document.title,
+      content: document.content_markdown,
+    })),
+  ].map((document) => ({
+    id: crypto.randomUUID(),
+    title: document.title,
+    source: 'text' as const,
+    content: document.content,
+  }))
+  return { assessment_type: 'test', title: draft.title, content: validated.value, documents, position }
+}
+
+function buildAssignmentRecord(draft: AssignmentDraft, position: number) {
+  return {
+    ...draft,
+    default_due_days: 7,
+    default_due_time: '23:59',
+    include_in_final: true,
+    is_draft: true,
+    position,
+  }
+}
+
+async function requestGuidedDraft(args: {
   target: 'assignments' | 'tests'
   prompt: string
-  unitExceptionId?: string | null
-  trialGuidance?: CourseBlueprintAuthoringGuidance
-}) {
+  course: ClassroomAuthoringGuidance['course']
+  rulesMarkdown: string
+  sourceLabel: string
+}): Promise<unknown> {
   const apiKey = process.env.OPENAI_API_KEY?.trim()
   if (!apiKey) throw new Error('AI drafting is not configured')
-  const context = resolveCourseBlueprintAuthoringContext({
-    guidance: args.trialGuidance ?? args.detail.authoring_guidance,
-    target: args.target,
-    unitExceptionId: args.unitExceptionId,
-  })
-  const existing = args.target === 'tests'
-    ? args.detail.assessments.filter((item) => item.assessment_type === 'test')
-    : args.detail.assignments
-  const existingTitles = existing.slice(0, 40)
-    .map((item) => item.title.slice(0, 200))
+  const existingTitles = (args.target === 'tests'
+    ? args.course.test_titles : args.course.assignment_titles).slice(0, 40)
+    .map((title) => title.slice(0, 200))
     .join('; ')
     .slice(0, 4000)
   const input = [
-    `Course: ${args.detail.title.slice(0, 200)}`,
-    `Subject: ${args.detail.subject?.slice(0, 200) || 'unspecified'}`,
-    `Grade: ${args.detail.grade_level?.slice(0, 200) || 'unspecified'}`,
-    `Outline:\n${args.detail.outline_markdown.slice(0, 12000) || '(none)'}`,
+    `Course: ${args.course.title.slice(0, 200)}`,
+    `Subject: ${args.course.subject.slice(0, 200) || 'unspecified'}`,
+    `Grade: ${args.course.grade_level.slice(0, 200) || 'unspecified'}`,
+    `Outline:\n${args.course.outline_markdown.slice(0, 12000) || '(none)'}`,
     `Existing ${args.target} titles: ${existingTitles || '(none)'}`,
     `Teacher direction:\n${args.prompt.trim() || '(Create one useful draft for this course.)'}`,
-    `Approved authoring guidance (Blueprint revision ${args.detail.content_revision}):\n${context.rules_markdown || '(none saved)'}`,
+    `Approved authoring guidance (${args.sourceLabel}):\n${args.rulesMarkdown || '(none saved)'}`,
   ].join('\n\n')
   const taskInstruction = args.target === 'tests'
     ? `Create one new teacher-reviewable test draft. Follow the approved authoring guidance and teacher direction. Keep student prompts concise and self-contained. Set is_coding_test true when students must write or reason about code. A generic Instructions reference is added automatically for coding tests; do not repeat those shared directions or add navigation hints in questions. Add only language or subject references in reference_documents, with Markdown headings and fenced syntax examples; never include solutions or a document titled Instructions. Format code in multiple-choice prompts and options as Markdown. Give open responses an explicit answer key and matching sample solution. Verify exactly one correct multiple-choice option. Return only the requested JSON.`
@@ -208,8 +250,38 @@ export async function generateCourseBlueprintGuidedDraft(args: {
   }
   const raw = outputText(payload)
   if (!raw) throw new Error('AI drafting returned no usable draft')
-  let parsed: unknown
-  try { parsed = JSON.parse(raw) } catch { throw new Error('AI drafting returned invalid JSON') }
+  try { return JSON.parse(raw) as unknown } catch { throw new Error('AI drafting returned invalid JSON') }
+}
+
+export async function generateCourseBlueprintGuidedDraft(args: {
+  detail: CourseBlueprintDetail
+  target: 'assignments' | 'tests'
+  prompt: string
+  unitExceptionId?: string | null
+  trialGuidance?: CourseBlueprintAuthoringGuidance
+}) {
+  const context = resolveCourseBlueprintAuthoringContext({
+    guidance: args.trialGuidance ?? args.detail.authoring_guidance,
+    target: args.target,
+    unitExceptionId: args.unitExceptionId,
+  })
+  const existing = args.target === 'tests'
+    ? args.detail.assessments.filter((item) => item.assessment_type === 'test')
+    : args.detail.assignments
+  const parsed = await requestGuidedDraft({
+    target: args.target,
+    prompt: args.prompt,
+    course: {
+      title: args.detail.title,
+      subject: args.detail.subject,
+      grade_level: args.detail.grade_level,
+      outline_markdown: args.detail.outline_markdown,
+      assignment_titles: args.detail.assignments.map((item) => item.title),
+      test_titles: args.detail.assessments.filter((item) => item.assessment_type === 'test').map((item) => item.title),
+    },
+    rulesMarkdown: context.rules_markdown,
+    sourceLabel: `Blueprint revision ${args.detail.content_revision}`,
+  })
 
   let content: string
   if (args.target === 'assignments') {
@@ -217,54 +289,13 @@ export async function generateCourseBlueprintGuidedDraft(args: {
     const nextPosition = existing.reduce((max, item) => Math.max(max, item.position), -1) + 1
     content = courseBlueprintAssignmentsToMarkdown([
       ...args.detail.assignments,
-      {
-        ...draft,
-        default_due_days: 7,
-        default_due_time: '23:59',
-        include_in_final: true,
-        is_draft: true,
-        position: nextPosition,
-      },
+      buildAssignmentRecord(draft, nextPosition),
     ])
   } else {
     const draft = testDraftSchema.parse(parsed)
-    const questions = draft.questions.map((question) => ({
-      ...question,
-      id: crypto.randomUUID(),
-      response_max_chars: DEFAULT_OPEN_RESPONSE_MAX_CHARS,
-      response_monospace: draft.is_coding_test && question.question_type === 'open_response',
-    }))
-    const testContent: TestDraftContent = {
-      title: draft.title,
-      show_results: false,
-      questions,
-    }
-    const validated = validateTestDraftContent(testContent)
-    if (!validated.valid) throw new Error(`AI drafting returned an invalid test: ${validated.error}`)
-    if (draft.reference_documents.some((document) => document.title.toLowerCase() === 'instructions')) {
-      throw new Error('AI drafting returned an invalid reference document')
-    }
-    const documents = [
-      ...(draft.is_coding_test ? [{ title: 'Instructions', content: CODING_TEST_INSTRUCTIONS }] : []),
-      ...draft.reference_documents.map((document) => ({
-        title: document.title,
-        content: document.content_markdown,
-      })),
-    ].map((document) => ({
-      id: crypto.randomUUID(),
-      title: document.title,
-      source: 'text' as const,
-      content: document.content,
-    }))
     content = courseBlueprintAssessmentsToMarkdown([
       ...args.detail.assessments as unknown as CourseBlueprintAssessmentMarkdownRecord[],
-      {
-        assessment_type: 'test',
-        title: draft.title,
-        content: validated.value,
-        documents,
-        position: existing.reduce((max, item) => Math.max(max, item.position), -1) + 1,
-      },
+      buildTestRecord(draft, existing.reduce((max, item) => Math.max(max, item.position), -1) + 1),
     ], 'test')
   }
   return {
@@ -274,6 +305,60 @@ export async function generateCourseBlueprintGuidedDraft(args: {
       blueprint_revision: args.detail.content_revision,
       trial: Boolean(args.trialGuidance),
       ...context,
+    },
+  }
+}
+
+/** A standalone classroom preview based only on the classroom's frozen Version. */
+export async function generateClassroomGuidedDraft(args: {
+  source: ClassroomAuthoringGuidance
+  target: 'assignments' | 'tests'
+  prompt: string
+  unitExceptionId?: string | null
+}) {
+  const context = resolveCourseBlueprintAuthoringContext({
+    guidance: args.source.guidance,
+    target: args.target,
+    unitExceptionId: args.unitExceptionId,
+  })
+  const parsed = await requestGuidedDraft({
+    target: args.target,
+    prompt: args.prompt,
+    course: args.source.course,
+    rulesMarkdown: context.rules_markdown,
+    sourceLabel: `classroom Blueprint Version ${args.source.source_blueprint_version_number}, Draft revision ${args.source.source_draft_revision}`,
+  })
+  if (args.target === 'assignments') {
+    const draft = assignmentDraftSchema.parse(parsed)
+    if (draft.points_possible <= 0) {
+      throw new Error('AI drafting returned an assignment without positive points')
+    }
+    const record = buildAssignmentRecord(draft, 0)
+    return {
+      target: args.target,
+      content: courseBlueprintAssignmentsToMarkdown([record]),
+      draft: record,
+      guidance: {
+        source_blueprint_version_id: args.source.source_blueprint_version_id,
+        source_blueprint_version_number: args.source.source_blueprint_version_number,
+        source_draft_revision: args.source.source_draft_revision,
+        ...context,
+        trial: false,
+      },
+    }
+  }
+  const draft = testDraftSchema.parse(parsed)
+  const record = buildTestRecord(draft, 0)
+  return {
+    target: args.target,
+    content: courseBlueprintAssessmentsToMarkdown([record], 'test'),
+    draft: record,
+    guidance: {
+      source_blueprint_version_id: args.source.source_blueprint_version_id,
+      source_blueprint_version_number: args.source.source_blueprint_version_number,
+      source_draft_revision: args.source.source_draft_revision,
+      ...context,
+      trial: false,
     },
   }
 }

@@ -31,6 +31,20 @@ describe('Blueprint authoring guidance', () => {
     })
   })
 
+  it('uses the same label edge characters as frozen-rule reconstruction', () => {
+    const parsed = courseBlueprintAuthoringGuidanceSchema.parse({
+      ...EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
+      unit_exceptions: [{ ...unit, unit_label: '\n\tUnit 1\r\n' }],
+    })
+    expect(parsed.unit_exceptions[0].unit_label).toBe('Unit 1')
+
+    const unicode = courseBlueprintAuthoringGuidanceSchema.parse({
+      ...EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE,
+      unit_exceptions: [{ ...unit, unit_label: '\u00a0Unit 1\u00a0' }],
+    })
+    expect(unicode.unit_exceptions[0].unit_label).toBe('\u00a0Unit 1\u00a0')
+  })
+
   it('rejects extra fields, non-v4 IDs, duplicate unit IDs, and malformed stored values', () => {
     const guidance = { ...EMPTY_COURSE_BLUEPRINT_AUTHORING_GUIDANCE, unit_exceptions: [unit] }
     expect(courseBlueprintAuthoringGuidanceSchema.safeParse({ ...guidance, exposed_to_students: true }).success).toBe(false)

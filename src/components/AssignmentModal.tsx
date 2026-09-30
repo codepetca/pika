@@ -11,6 +11,7 @@ import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions
 import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
 import { Button, ConfirmDialog, ContentDialog, DialogPanel, SaveStatus, SplitButton } from '@/ui'
+import { ClassroomBlueprintDraftSource } from '@/components/ClassroomBlueprintDraftSource'
 import { formatDateInToronto, getTodayInToronto, toTorontoEndOfDayIso, nowInToronto } from '@/lib/timezone'
 import { format, isValid, parse } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
@@ -831,11 +832,19 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           onBlur={flushAutosave}
           markdownWarning={markdownWarning}
           extraFields={(
-            <AssignmentSubmissionRequirementsEditor
-              requirements={submissionRequirements}
-              onChange={handleSubmissionRequirementsChange}
-              disabled={saving || releasing || creating}
-            />
+            <div className="space-y-3">
+              <ClassroomBlueprintDraftSource
+                classroomId={classroomId}
+                target="assignments"
+                artifactId={assignment?.id}
+                isOpen={isOpen}
+              />
+              <AssignmentSubmissionRequirementsEditor
+                requirements={submissionRequirements}
+                onChange={handleSubmissionRequirementsChange}
+                disabled={saving || releasing || creating}
+              />
+            </div>
           )}
           statusContent={currentAssignment && isScheduled && currentAssignment.released_at ? (
             <span className="text-xs font-medium text-warning">

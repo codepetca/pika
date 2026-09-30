@@ -1,8 +1,8 @@
 # Living blueprint authoring guidance
 
-Status: implementation in progress, 2026-09-28. Owner: the Blueprint authoring task on
-`codex/blueprint-authoring-ux`. This plan tracks the complete goal; a polished
-workspace alone does not satisfy it.
+Status: release and existing-classroom adoption in progress, 2026-09-29. The Blueprint workspace was
+merged to main in PR #1386. Classroom drafting is in draft PR #1387
+(`codex/blueprint-classroom-drafts`). This plan tracks the complete goal.
 
 ## Goal
 
@@ -60,8 +60,13 @@ equally first-class.
   Proposals, and export it as `authoring-guidance.md` in package v6. Legacy
   packages import with empty guidance. A classroom-derived proposal preserves
   the Blueprint's guidance; instantiation does not copy it to classroom rows.
-- Identify the real drafting entry points and whether existing AI Drafting can
-  truthfully apply guidance or needs a new teacher-reviewed draft flow.
+- Classroom Classwork and Tests keep their existing blank creation actions and
+  add a shared teacher-reviewed guided draft flow at those entry points.
+- The teacher classroom sidebar has a Blueprint tab. Its content pane shows
+  the frozen Version linked to that classroom, including its course outline,
+  assessment titles, and private authoring guidance. The source Blueprint Draft
+  remains the separately edited object; changes to it do not rewrite a saved
+  classroom Version. Classrooms without lineage show an explicit empty state.
 - Classroom drafting reads the frozen source Blueprint Version through a
   teacher-only endpoint. Its AI draft request must use that Version's rules,
   not the live Blueprint Draft. A draft records the Version and chosen unit
@@ -84,25 +89,65 @@ equally first-class.
   then explicitly applied or rejected. A prior history entry can be restored as
   a new staged change; history remains immutable.
 
+## Classroom drafting implementation
+
+- The teacher chooses a target, unit, and request, then edits the generated
+  standalone Markdown before creating an unpublished draft. The model receives
+  the classroom's frozen Version rules. A trial of unsaved Blueprint rules
+  cannot create a classroom artifact.
+- A signed preview proof binds the teacher, classroom, Version, unit, rules,
+  and original generated draft. Edited Markdown is parsed and validated before
+  creation. One-use `draft_id` prevents the same preview from creating twice.
+- A private sidecar stores the frozen Version and exact rules used. Existing
+  `source_blueprint_version_id` on Assignment and Test remains direct copied
+  artifact lineage. Atomic database functions create the artifact, initial
+  content, and sidecar in one transaction. The teacher editor shows a compact
+  source note after reload; students only receive the assessment content.
+
 ## Remaining release gates
 
-- Verify the SQL migration and generate the database contract from a clean
-  local stack. The shared local stack currently has an unrelated migration 218;
-  this branch's new migration is also numbered 218 from current `origin/main`.
-  Never treat a matching number as proof that its SQL has run. A one-time local
-  instruction for the exact file was requested under the rollout checklist.
-- Run the full focused check after updating all package-version test fixtures.
-  Publish a draft PR, obtain independent fixed-SHA review, and complete PR Gate.
-- Follow-up PR: connect classroom Test and Assignment creation to the frozen
-  source Version guidance. The teacher-only Version reader is present, but the
-  classroom creation UI currently opens an empty draft. The Blueprint AI
-  Drafting path is the first working consumer. The classroom flow needs a unit
-  picker, model request containing the frozen rules, an editable preview, and
-  server-verified provenance on creation. Store provenance in a private sidecar
-  row; existing `source_blueprint_version_id` tracks copied artifact lineage
-  and must not be repurposed. Create the artifact, initial content, and
-  provenance atomically. A read-only guidance notice alone does not establish
-  that the rules shaped the draft.
+- Reverify the classroom drafting correction against the frozen guidance
+  database contract, then complete its bounded independent review and focused
+  checks on the stable PR head. Teacher and student visual checks have been
+  completed for the guided creation flow.
+- Replay migrations 218 through 221 from a clean isolated database, run the real
+  database contract scripts and warning-level lint, and generate/check types
+  in CI. Neither feature migration has been applied to the shared local stack;
+  applying either to a named environment requires its own one-time permission.
+- Mark PR #1387 ready only after review, wait for the exact-head PR Gate, and
+  merge only after the repository's normal authority gate.
 
-Resolve these from the current source and migration contracts before changing
-the schema. Record decisions and verification evidence here as phases land.
+## Existing ICS3U rollout
+
+Read-only production checks on 2026-09-29 confirmed database migrations through
+220. ICS3U-4 is Pika-managed at Draft revision 3 and its authoring guidance is
+empty. P3 and P5 ICS3U both use saved Version 3, whose legacy snapshot has no
+guidance. P5 has one untracked test; P3 has one untracked test and one untracked
+lesson. The existing full classroom update proposal rejects those classrooms.
+
+- Finish PR #1387 after the remaining review and exact-head CI. The previous
+  review session reached its eight-launch cap; a specific additional-review
+  approval is pending. Rebase onto main `27ddf09a` preserves the Blueprint
+  implementation while incorporating the Test grading header update. Darwin
+  and Linux Pattern Lab baselines must show both changes together.
+- Implement a separate, explicit guidance-only adoption path for existing
+  classrooms. Preserve the classroom's content-copy Version and every
+  assessment's lineage. Repointing `source_blueprint_version_id` by itself is
+  insufficient: legacy tracked tests use equality with that Version to
+  establish their lineage. Adopt an independently saved, teacher-owned guidance
+  Version and keep each generated draft's private provenance immutable.
+- Review, test, and release that adoption path. Any new migration requires
+  exact target/filename approval, as does migration 221 from PR #1387. The
+  production promotion must include a cumulative review and its own PR Gate.
+- Save the agreed Markdown rules to the actual ICS3U-4 Draft, with course,
+  assignment, test, and Unit 1 Java Karel sections. Include Instructions first,
+  concise prompts, no navigation/solution hints, Markdown MC code, and vertically
+  stacked world diagrams. Use revision-safe saves and verify persisted text.
+- Explicitly adopt the new saved guidance for P3 and P5; verify unchanged
+  assessment content and lineage, then generate teacher-reviewed test and
+  assignment previews. Verify the rules reach model input and private
+  provenance, and inspect the student-facing Markdown. Do not publish the
+  verification drafts to students.
+
+Completion requires production evidence for the actual course and both
+classrooms. Earlier populated classroom screenshots used sample fixture data.

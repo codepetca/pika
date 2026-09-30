@@ -1,6 +1,10 @@
 import { z } from 'zod'
 
 const guidanceMarkdownSchema = z.string().max(20_000)
+// Keep this edge-character set identical to resolve_classroom_guided_rules_v1.
+export function trimCourseBlueprintGuidanceEdgeWhitespace(value: string): string {
+  return value.replace(/^[ \t\n\r\f]+|[ \t\n\r\f]+$/g, '')
+}
 const uuidV4Schema = z.string().regex(
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
   'A UUIDv4 is required',
@@ -8,7 +12,8 @@ const uuidV4Schema = z.string().regex(
 
 export const courseBlueprintUnitExceptionSchema = z.object({
   id: uuidV4Schema,
-  unit_label: z.string().trim().min(1).max(160),
+  unit_label: z.string().transform(trimCourseBlueprintGuidanceEdgeWhitespace)
+    .pipe(z.string().min(1).max(160)),
   assignment_guidance_markdown: guidanceMarkdownSchema,
   test_guidance_markdown: guidanceMarkdownSchema,
 }).strict()

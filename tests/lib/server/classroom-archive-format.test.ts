@@ -16,6 +16,8 @@ import { CLASSROOM_ARCHIVE_V1_RESOURCES } from '@/lib/contracts/classroom-archiv
 import type { ClassroomArchiveManifest } from '@/lib/contracts/classroom-artifacts'
 import {
   buildClassroomArchiveV2Fixture,
+  V2_CLASSROOM_ID,
+  V2_TEACHER_ID,
 } from '../../fixtures/classroom-archive-v2'
 
 const ARCHIVE_ID = '00000000-0000-4000-8000-000000000001'
@@ -163,10 +165,11 @@ describe('classroom archive format', () => {
     expect(verification.ok && verification.manifest.version).toBe(2)
   })
 
-  it('decodes legacy v2 archives without newer Gradebook resources as empty rows', () => {
+  it('decodes legacy v2 archives without newer resources as empty rows', () => {
     const fixture = buildClassroomArchiveV2Fixture({
       omitGradebookCategories: true,
       omitGradebookScoreOverrides: true,
+      omitGuidedDraftProvenance: true,
     })
     const verification = verifyClassroomArchiveBundle(fixture.archive)
 
@@ -176,6 +179,26 @@ describe('classroom archive format', () => {
     expect(decodeClassroomArchiveData(verification).resources.gradebook_score_overrides).toEqual([])
     expect(decodeClassroomArchiveData(verification).resources.gradebook_items).toEqual([])
     expect(decodeClassroomArchiveData(verification).resources.gradebook_item_scores).toEqual([])
+    expect(decodeClassroomArchiveData(verification).resources.classroom_guided_draft_provenance).toEqual([])
+  })
+
+  it('preserves private guided Assignment and Test provenance in a v2 archive', () => {
+    const provenance = [
+      { id: '71000000-0000-4000-8000-000000000031', classroom_id: V2_CLASSROOM_ID,
+        assignment_id: '71000000-0000-4000-8000-000000000032', test_id: null,
+        created_by: V2_TEACHER_ID, rules_markdown: 'Assignment rules' },
+      { id: '71000000-0000-4000-8000-000000000033', classroom_id: V2_CLASSROOM_ID,
+        assignment_id: null, test_id: '71000000-0000-4000-8000-000000000034',
+        created_by: V2_TEACHER_ID, rules_markdown: 'Test rules' },
+    ]
+    const fixture = buildClassroomArchiveV2Fixture({
+      resources: { classroom_guided_draft_provenance: provenance },
+    })
+    const verification = verifyClassroomArchiveBundle(fixture.archive)
+    expect(verification.ok).toBe(true)
+    if (!verification.ok) throw new Error(verification.error)
+    expect(decodeClassroomArchiveData(verification).resources.classroom_guided_draft_provenance)
+      .toEqual(provenance)
   })
 
   it('canonicalizes object keys recursively while retaining array order', () => {

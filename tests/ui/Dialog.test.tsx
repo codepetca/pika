@@ -304,6 +304,24 @@ describe('ContentDialog', () => {
     expect(footer.className).toContain('flex-shrink-0')
   })
 
+  it('keeps custom draft actions visible outside the scrollable content', () => {
+    render(
+      <ContentDialog
+        {...defaultProps}
+        footer={<button type="button">Create draft</button>}
+      >
+        <div data-testid="draft-content">Editable Markdown</div>
+      </ContentDialog>,
+    )
+
+    const scrollArea = screen.getByTestId('draft-content').parentElement!
+    const createButton = screen.getByRole('button', { name: 'Create draft' })
+    expect(scrollArea).toHaveClass('overflow-y-auto')
+    expect(createButton.parentElement).toHaveClass('flex-shrink-0')
+    expect(scrollArea).not.toContainElement(createButton)
+    expect(screen.queryByRole('button', { name: 'Close', exact: true })).toBeInTheDocument()
+  })
+
   it('keeps focus and Escape behavior with custom panel sizing and no footer', async () => {
     render(<ContentDialog {...defaultProps} panelClassName="h-full" showFooterClose={false} />)
     const dialog = screen.getByRole('dialog')

@@ -299,6 +299,8 @@ export interface ContentDialogProps {
   showHeaderClose?: boolean
   showFooterClose?: boolean
   panelClassName?: string
+  /** Actions kept visible while the dialog content scrolls. */
+  footer?: ReactNode
 }
 
 /**
@@ -328,6 +330,7 @@ export function ContentDialog({
   showHeaderClose = true,
   showFooterClose = true,
   panelClassName,
+  footer,
 }: ContentDialogProps) {
   const titleId = useId()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -358,7 +361,11 @@ export function ContentDialog({
         <div className="mt-4 flex-1 min-h-0 overflow-y-auto">
           {children}
         </div>
-        {showFooterClose && (
+        {footer ? (
+          <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-border pt-4 flex-shrink-0">
+            {footer}
+          </div>
+        ) : showFooterClose && (
           <div className="mt-6 flex justify-end flex-shrink-0">
             <Button variant="secondary" onClick={onClose}>
               Close

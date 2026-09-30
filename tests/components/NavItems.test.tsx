@@ -97,6 +97,7 @@ describe('NavItems notification dots', () => {
 
     expect(screen.getByRole('link', { name: 'Tests' }).querySelector('svg')).toHaveClass('lucide-square-pen')
     expect(screen.getByRole('link', { name: 'Course Guide' }).querySelector('svg')).toHaveClass('lucide-compass')
+    expect(screen.getByRole('link', { name: 'Blueprint' }).querySelector('svg')).toHaveClass('lucide-factory')
 
     rerender(
       <NavItems
@@ -111,6 +112,15 @@ describe('NavItems notification dots', () => {
     expect(screen.getByRole('link', { name: 'Daily' }).querySelector('svg')).toHaveClass('lucide-clipboard-check')
     expect(screen.getByRole('link', { name: 'Tests' }).querySelector('svg')).toHaveClass('lucide-square-pen')
     expect(screen.getByRole('link', { name: 'Course Guide' }).querySelector('svg')).toHaveClass('lucide-compass')
+    expect(screen.queryByRole('link', { name: 'Blueprint' })).toBeNull()
+  })
+
+  it('keeps the Blueprint destination inside the teacher classroom', () => {
+    renderNav('teacher', 'blueprint')
+
+    const link = screen.getByRole('link', { name: 'Blueprint' })
+    expect(link).toHaveAttribute('href', '/classrooms/classroom-1?tab=blueprint')
+    expect(link).toHaveAttribute('aria-current', 'page')
   })
 
   it('shows the learner achievements destination only when the Pal pilot is enabled', () => {

@@ -10,6 +10,26 @@ export type ClassroomAuthoringGuidance = {
   source_blueprint_version_number: number
   source_draft_revision: number
   guidance: CourseBlueprintAuthoringGuidance
+  course: {
+    title: string
+    subject: string
+    grade_level: string
+    outline_markdown: string
+    assignment_titles: string[]
+    test_titles: string[]
+  }
+}
+
+function textField(record: unknown, key: string): string {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return ''
+  const value = (record as Record<string, unknown>)[key]
+  return typeof value === 'string' ? value : ''
+}
+
+function titles(snapshot: Record<string, unknown>, key: string): string[] {
+  const items = snapshot[key]
+  if (!Array.isArray(items)) return []
+  return items.slice(0, 40).map((item) => textField(item, 'title')).filter(Boolean)
 }
 
 /** Resolve the immutable version used to create this classroom, never the live Draft. */
@@ -61,6 +81,14 @@ export async function getClassroomAuthoringGuidance(
         guidance: normalizeCourseBlueprintAuthoringGuidance(
           'authoring_guidance' in snapshot ? snapshot.authoring_guidance : null,
         ),
+        course: {
+          title: textField(snapshot.metadata, 'title'),
+          subject: textField(snapshot.metadata, 'subject'),
+          grade_level: textField(snapshot.metadata, 'grade_level'),
+          outline_markdown: textField(snapshot.sections, 'outline_markdown'),
+          assignment_titles: titles(snapshot as Record<string, unknown>, 'assignments'),
+          test_titles: titles(snapshot as Record<string, unknown>, 'assessments'),
+        },
       },
     }
   } catch {

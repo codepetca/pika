@@ -1,9 +1,15 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TeacherTestAuthoringDialog } from '@/components/test-workspace/TeacherTestAuthoringDialog'
 import { TooltipProvider } from '@/ui'
 import { createMockTest } from '../helpers/mocks'
 import type { TestAssessmentWithStats } from '@/types'
+import { invalidateCachedJSONMatching } from '@/lib/request-cache'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  invalidateCachedJSONMatching('classroom-draft-source:')
+})
 
 const draftFlush = vi.hoisted(() => vi.fn(async () => true))
 const draftPristineCheck = vi.hoisted(() => vi.fn(() => ({
@@ -107,6 +113,17 @@ function renderDialog({
 }
 
 describe('TeacherTestAuthoringDialog', () => {
+  it('shows private Blueprint provenance above the test editor', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ provenance: { source_blueprint_version_number: 2, unit_label: 'Unit 1' } }),
+    } as Response)
+    renderDialog()
+    const dialog = screen.getByRole('dialog', { name: 'Edit test' })
+    expect(await within(dialog).findByText('Drafted with Blueprint Version 2 · Unit 1')).toBeInTheDocument()
+    expect(within(dialog).getByTestId('test-authoring-detail')).toBeInTheDocument()
+  })
+
   it('names the authoring surface and delegates the split editor controls', () => {
     renderDialog()
     const dialog = screen.getByRole('dialog', { name: 'Edit test' })

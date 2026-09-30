@@ -125,6 +125,7 @@ export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
   ...CLASSROOM_ARCHIVE_V1_RESOURCES.slice(4, 17).filter((resource) =>
     !legacyQuizTables.has(resource.table),
   ),
+  archiveResource('classroom_guided_draft_provenance', ['created_by']),
   archiveResource('gradebook_score_overrides', ['student_id', 'created_by']),
   archiveResource('gradebook_items', ['created_by']),
   archiveResource('gradebook_item_scores', ['student_id']),
@@ -153,12 +154,14 @@ export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
   ),
   'classroom_retired_assessment_records',
   'classroom_retired_assessment_record_actors',
+  'classroom_guided_draft_provenance',
 ] as const
 
 // Additive migrations may be absent on older deployed schemas. Historical archive
 // manifests may omit these resources and decode them as empty collections.
 export const ADDITIVE_CLASSROOM_ARCHIVE_TABLES: readonly string[] = [
   'gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores',
+  'classroom_guided_draft_provenance',
 ]
 export function resolveClassroomArchiveV2Resources(tableNames: readonly string[]) {
   const actual = new Set(tableNames)

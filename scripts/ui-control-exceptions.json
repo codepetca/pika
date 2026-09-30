@@ -257,6 +257,17 @@
       ]
     },
     {
+      "file": "src/components/ClassroomBlueprintDraftDialog.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 2,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
       "file": "src/app/teacher/calendar/page.tsx",
       "reviewBy": "phase-3-calendar-announcements",
       "controls": [
