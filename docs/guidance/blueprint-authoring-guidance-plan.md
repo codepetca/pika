@@ -107,8 +107,11 @@ equally first-class.
 ## Remaining release gates
 
 - PR #1387 completed its specifically approved ninth independent review with no
-  blockers on the stable head; exact-head CI is running. Its coordinator owns
-  readiness, merge, and production promotion.
+  blockers. Final CI passed Test & Build and Database contracts, but four Linux
+  Pattern Lab goldens failed because the Docker and CI font environments differ.
+  The coordinator returned the PR to draft and identified the canonical CI capture
+  correction; snapshots have not been changed. A tenth parent review requires a
+  checkpoint. The coordinator owns the remaining correction and release gates.
 - Guidance adoption implementation uses migration 222. Replay and type generation
   run on a separate ephemeral database; shared local and production databases
   have not been migrated by this implementation task.
@@ -163,8 +166,10 @@ empty. P3 and P5 ICS3U both use saved Version 3, whose legacy snapshot has no
 guidance. P5 has one untracked test; P3 has one untracked test and one untracked
 lesson. The existing full classroom update proposal rejects those classrooms.
 
-- Finish PR #1387 after its clean, specifically approved ninth review and
-  exact-head CI. Its coordinator owns the final merge and production batch.
+- Finish PR #1387 after resolving its four Linux Pattern Lab golden failures
+  and exact-head CI. It is back in draft; Test & Build and Database contracts
+  passed. The coordinator owns that correction, the review checkpoint, final
+  merge, and production batch.
 - Implement a separate, explicit guidance-only adoption path for existing
   classrooms. Preserve the classroom's content-copy Version and every
   assessment's lineage. Repointing `source_blueprint_version_id` by itself is

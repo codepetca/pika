@@ -5,6 +5,9 @@ import type { ClassroomAuthoringGuidance } from '@/lib/server/classroom-authorin
 
 const unitId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const source: ClassroomAuthoringGuidance = {
+  blueprint_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  content_version_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  content_version_number: 1,
   source_blueprint_version_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
   source_blueprint_version_number: 2,
   source_draft_revision: 7,
@@ -51,10 +54,13 @@ describe('frozen classroom guided drafting', () => {
     expect(input).toContain('Frozen course guidance')
     expect(input).toContain('Frozen unit assignment')
     expect(input).toContain('Frozen outline')
-    expect(input).toContain('Blueprint Version 2, Draft revision 7')
+    expect(input).toContain('Content Version 1, Guidance Version 2, Draft revision 7')
     expect(input).not.toContain('Live Draft')
     expect(result.guidance).toEqual(expect.objectContaining({
+      content_version_id: source.content_version_id,
       source_blueprint_version_id: source.source_blueprint_version_id,
+      source_blueprint_version_number: 2,
+      source_draft_revision: 7,
       unit_exception_id: unitId, trial: false,
     }))
     const parsed = parseClassroomGuidedDraft('assignments', result.content)
