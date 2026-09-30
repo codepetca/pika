@@ -85,7 +85,8 @@ function parseExactOrigin(value: string, code: string): URL {
     throw new AttendanceScanLoadConfigurationError(code)
   }
   if (
-    parsed.protocol !== 'https:'
+    !['http:', 'https:'].includes(parsed.protocol)
+    || !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
     || parsed.username
     || parsed.password
     || (parsed.pathname !== '/' && parsed.pathname !== '')
@@ -104,8 +105,8 @@ export function validateAttendanceScanLoadTarget(input: {
   concurrency: number
   caseCount: number
 }): string {
-  if (input.stage !== 'preview') {
-    throw new AttendanceScanLoadConfigurationError('preview_only')
+  if (input.stage !== 'local') {
+    throw new AttendanceScanLoadConfigurationError('local_only')
   }
   if (
     !Number.isInteger(input.concurrency)
@@ -142,6 +143,7 @@ export async function runAttendanceScanLoad(input: {
   fetchImpl?: typeof fetch
   now?: () => number
 }): Promise<AttendanceScanLoadResult> {
+  const baseOrigin = parseExactOrigin(input.baseOrigin, 'invalid_base_url').origin
   const fetchImpl = input.fetchImpl ?? fetch
   const now = input.now ?? performance.now.bind(performance)
   const timeoutMs = input.timeoutMs ?? 15_000
@@ -153,7 +155,7 @@ export async function runAttendanceScanLoad(input: {
   const outcomes = await Promise.all(input.cases.map(async (scanCase) => {
     const requestStartedAt = now()
     try {
-      const response = await fetchImpl(`${input.baseOrigin}/api/student/attendance/check-in`, {
+      const response = await fetchImpl(`${baseOrigin}/api/student/attendance/check-in`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

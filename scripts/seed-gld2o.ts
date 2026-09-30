@@ -1,5 +1,5 @@
 /**
- * Seed script: creates the 'GLD2O Staging' classroom for the test teacher
+ * Seed script: creates the 'GLD2O Local' classroom for the test teacher
  * and enrolls student1 and student2.
  *
  * Usage: npx tsx scripts/seed-gld2o.ts
@@ -62,7 +62,7 @@ function getGLD2OClassDays() {
 }
 
 async function seed() {
-  console.log('🌱 Seeding GLD2O Staging classroom...\n')
+  process.stdout.write('🌱 Seeding GLD2O Local classroom...\n\n')
 
   // 1. Look up existing teacher
   const { data: teacher, error: teacherErr } = await supabase
@@ -89,7 +89,7 @@ async function seed() {
 
   console.log(`✓ Found teacher and ${students.length} students\n`)
 
-  // 3. Create the GLD2O Staging classroom
+  // 3. Create the GLD2O Local classroom
   const calendar = getGLD2OClassDays()
 
   // Remove existing classroom and dependents to allow re-running
@@ -112,7 +112,7 @@ async function seed() {
     .from('classrooms')
     .insert({
       teacher_id: teacher.id,
-      title: 'GLD2O Staging',
+      title: 'GLD2O Local',
       class_code: 'GLD2O1',
       term_label: 'Semester 2 2025-2026',
       start_date: format(calendar.rangeStart, 'yyyy-MM-dd'),
@@ -775,7 +775,7 @@ async function seed() {
   console.log(`✓ Created ${lessonPlanRows.length} lesson plans\n`)
 
   // Summary
-  console.log('✅ GLD2O Staging seed complete!\n')
+  process.stdout.write('✅ GLD2O Local seed complete!\n\n')
   console.log(`  Classroom: ${classroom.title} (${classroom.class_code})`)
   console.log(`  Teacher:   ${teacher.email}`)
   console.log(`  Students:  ${studentEmails.join(', ')}`)

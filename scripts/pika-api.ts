@@ -32,7 +32,7 @@ export function cliName(): 'pika' | 'pnpm pika' {
   return process.env.PIKA_ORIGIN_PWD ? 'pika' : 'pnpm pika'
 }
 
-/** Where the CLI talks to. Local dev by default; override for staging. */
+/** Where the CLI talks to. Local dev by default; production use requires an explicit override. */
 export function getBaseUrl(): string {
   return process.env.PIKA_BASE_URL || process.env.E2E_BASE_URL || 'http://localhost:3000'
 }

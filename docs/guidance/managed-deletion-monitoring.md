@@ -172,9 +172,9 @@ rollout.
    migration 122, the cold safety net is a no-op until its table exists and the
    hot status/safety-net readers treat pre-122 rows as hot while rejecting
    cross-scope operations after the column exists.
-4. With fresh authorization naming staging and migration 121, apply it and
-   observe at least two daily runs. Investigate every nonzero critical count and
-   establish a warning baseline before production.
+4. Use the local rollback-only harness to exercise scheduled-run behavior and
+   investigate every synthetic nonzero critical count. Establish expected
+   warning/degraded behavior before the reviewed PR is merged to `main`.
 5. With separate fresh authorization naming production and migration 121,
    apply the read-only RPC. Migration application is the production activation;
    the aggregate query has no safe per-object canary. Observe the first

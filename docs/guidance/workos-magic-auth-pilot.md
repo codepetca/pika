@@ -1,5 +1,13 @@
 # WorkOS Magic Auth pilot
 
+## Environment scope
+
+Pika development and smoke tests use the local app and local Supabase, followed
+by a reviewed `main` PR and production promotion. “WorkOS Staging” below names
+the provider test environment used by local authentication, not a hosted Pika
+environment. Dated pilot results and rollback notes are historical evidence;
+they are not current rollout prerequisites. See [Workflow](../dev-workflow.md#environments-and-release-flow).
+
 ## Goal
 
 Prove that Pika can keep its existing `/login` and `/signup` surfaces while
@@ -54,8 +62,8 @@ six-digit passcode flow.
 6. A legacy or mismatched Pika-only cookie fails closed while the pilot is on,
    preventing a cross-app attendance request from causing a second login.
 7. Automated API, identity, and component tests pass before dashboard changes.
-8. A real school-board account receives and submits the code in a local or
-   preview smoke test before the pilot is considered viable.
+8. A real school-board account receives and submits the code in a local
+   smoke test before the pilot is considered viable.
 
 ## Remembered-session contract
 
@@ -93,9 +101,10 @@ The two cookies have different authority:
   before reporting success. Configure the WorkOS application's default Logout
   URI to Pika's `/login` URL.
 
-### Preview and Production verification
+### Local and Production verification
 
-For each environment, verify all of the following before promotion:
+Verify locally before the `main` PR, then verify the authorized production
+release. Hosted Preview verification is not a prerequisite:
 
 1. Set `WORKOS_COOKIE_MAX_AGE=15552000`. Record evidence that the Dashboard
    absolute maximum session lifetime is exactly 180 days and the inactivity
@@ -124,7 +133,7 @@ rollback. Ambiguous legacy sessions without explicit provenance also require a
 new password login; neither may become an independent credential. Do not weaken
 the exact-subject check or restore by email.
 
-## Brevo delivery staging slice
+## Brevo delivery with the WorkOS test environment
 
 ### Decision
 
@@ -157,15 +166,15 @@ only as the transport:
   users will receive a fast Brevo message followed by a confusing duplicate
   WorkOS message.
 
-### Staging gate
+### Local canary with WorkOS test credentials
 
 1. Keep Production's WorkOS email configuration and Pika deployment unchanged.
-2. Confirm the Pika Staging WorkOS client and an expiring Pika-scoped API key.
+2. Confirm the Pika application in the WorkOS test environment and an expiring Pika-scoped API key.
 3. Confirm Brevo credentials and the verified `notify.codepet.ca` sender in the
-   local or preview runtime without printing secrets.
+   local runtime without printing secrets.
 4. Disable WorkOS's default Magic Auth email only in Codepet Platform Staging.
-5. Set the two delivery variables to `brevo` and `true` only in the isolated
-   Staging canary runtime.
+5. Set the two delivery variables to `brevo` and `true` only in the local
+   canary runtime.
 6. Request a board-account code from Pika's existing `/login` screen.
 7. Require visible inbox arrival within the ten-minute WorkOS expiry, successful
    WorkOS verification, both sessions, and exactly one linked Pika UUID.
@@ -198,8 +207,8 @@ other repositories.
   was changed by this Brevo canary.
 
 This proves the board-compatible delivery and authentication mechanism. It does
-not authorize Production rollout. Before enabling Brevo in a hosted Preview,
-replace or re-enable its disabled Preview API key. Before Production, choose an
+not authorize Production rollout. The disabled Preview credential is historical;
+local tests use active local credentials. Before Production, choose an
 environment-wide delivery design that preserves Bara's Hosted UI flow as well
 as Pika's self-hosted flow.
 
@@ -320,7 +329,7 @@ Magic Auth email switch is environment-wide.
 
 If the board message does not arrive or verification fails:
 
-1. Stop the local canary process. The shared Pika env remains on the staging
+1. Stop the local canary process. The shared Pika env remains on the WorkOS test
    Client ID/key with `WORKOS_MAGIC_AUTH_PILOT=false`.
 2. Revoke the one-hour Pika production API key immediately rather than waiting
    for expiry.

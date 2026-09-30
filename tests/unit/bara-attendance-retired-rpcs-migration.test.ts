@@ -95,7 +95,7 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(roadmap).toContain('production migrations through 132 are\nrecorded as applied')
     expect(completionAudit).toContain('enabled `teacher_entitlements` gate passed 4/4 in production')
     expect(roadmap).toContain('deployed bidirectional smoke passed 4/4 in that mode')
-    expect(scanRunbook).toContain('full Pika migration history through migration\n   132')
+    expect(scanRunbook).toContain('local schema matches the worktree migrations')
     expect(scanRunbook).not.toContain('Supabase migration 127 is applied only')
     expect(v1Guide).toContain('Status: pre-release contract authority.')
     expect(v1Guide).toContain('`attendance.marks` is intentionally absent')
