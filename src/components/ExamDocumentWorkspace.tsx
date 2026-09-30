@@ -12,6 +12,7 @@ import {
   type MouseEventHandler,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type SyntheticEvent,
 } from 'react'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { TestTextDocumentViewer } from '@/components/TestTextDocumentViewer'
@@ -239,6 +240,12 @@ export function ExamDocumentWorkspace({
     onCloseDocument()
   }, [activeDocument, onCloseDocument, onDocumentInteraction])
 
+  const handleDocumentInteraction = useCallback((event: SyntheticEvent) => {
+    // Find is an in-app control, not an interaction with an embedded reference.
+    if (event.target instanceof Element && event.target.closest('[data-exam-find-controls]')) return
+    onDocumentInteraction?.()
+  }, [onDocumentInteraction])
+
   const splitStyle = {
     '--exam-documents-grow': documentsWidth,
     '--exam-questions-grow': questionsWidth,
@@ -280,11 +287,11 @@ export function ExamDocumentWorkspace({
               'relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-surface',
               activeDocument?.imageType && 'min-h-96 lg:min-h-0',
             )}
-            onPointerDown={onDocumentInteraction}
-            onPointerMove={onDocumentInteraction}
-            onWheel={onDocumentInteraction}
-            onFocusCapture={onDocumentInteraction}
-            onKeyDown={onDocumentInteraction}
+            onPointerDown={handleDocumentInteraction}
+            onPointerMove={handleDocumentInteraction}
+            onWheel={handleDocumentInteraction}
+            onFocusCapture={handleDocumentInteraction}
+            onKeyDown={handleDocumentInteraction}
           >
             <div
               className={cn(
@@ -339,7 +346,7 @@ export function ExamDocumentWorkspace({
               </h2>
 
               {enableTextFind ? (
-                <IconButton icon={Search} label="Find in exam" variant="ghost" disabled={textFindLocked} onClick={find.open} />
+                <IconButton data-exam-find-controls icon={Search} label="Find in exam" variant="ghost" disabled={textFindLocked} onClick={find.open} />
               ) : documentIsOpen ? (
                 <span aria-hidden="true" className="invisible min-h-control min-w-control px-2 text-xs">
                   Back

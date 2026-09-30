@@ -10,10 +10,10 @@ const documents: ExamDocumentItem[] = [
   { id: 'text-2', title: 'Other reference', source: 'text', content: 'Second loop.' },
   { id: 'pdf', title: 'PDF loop', source: 'upload', url: '/loop.pdf', isPdf: true },
 ]
-function Harness({ locked = false, resetKey = 'exam-1' }: { locked?: boolean; resetKey?: string }) {
+function Harness({ locked = false, resetKey = 'exam-1', onDocumentInteraction }: { locked?: boolean; resetKey?: string; onDocumentInteraction?: () => void }) {
   const [active, setActive] = useState<ExamDocumentItem | null>(null)
   return <TooltipProvider><ExamDocumentWorkspace enableTextFind textFindLocked={locked} resetKey={resetKey}
-    activeDocument={active} documents={documents} onOpenDocument={setActive} onCloseDocument={() => setActive(null)}
+    activeDocument={active} documents={documents} onDocumentInteraction={onDocumentInteraction} onOpenDocument={setActive} onCloseDocument={() => setActive(null)}
     questionsPane={<section><QuestionMarkdown content="Explain a loop." /><label>Your answer<textarea aria-label="Your answer" /></label></section>}
   /></TooltipProvider>
 }
@@ -25,6 +25,22 @@ beforeEach(() => {
 })
 
 describe('exam text find', () => {
+  it('does not grant document-interaction suppression when Find is clicked or focused', async () => {
+    const interaction = vi.fn()
+    render(<Harness onDocumentInteraction={interaction} />)
+    const trigger = screen.getByRole('button', { name: 'Find in exam' })
+    fireEvent.pointerDown(trigger)
+    fireEvent.pointerMove(trigger)
+    fireEvent.focus(trigger)
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    fireEvent.click(trigger)
+    await screen.findByRole('textbox', { name: 'Find in exam' })
+    expect(interaction).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Close find' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Loop reference' }))
+    expect(interaction).toHaveBeenCalled()
+  })
+
   it('intercepts Ctrl/Cmd+F, cycles question and unopened reference matches, and preserves drafts and focus', async () => {
     render(<Harness />)
     const answer = screen.getByRole('textbox', { name: 'Your answer' })

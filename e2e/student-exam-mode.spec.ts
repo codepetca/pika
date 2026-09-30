@@ -623,6 +623,16 @@ test.describe('student exam mode', () => {
         return record.focus_summary?.away_count ?? 0
       }).toBe(1)
       await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await page.keyboard.press('Escape')
+      await page.getByRole('button', { name: 'Find in exam' }).click()
+      await expect(page.getByRole('textbox', { name: 'Find in exam' })).toBeFocused()
+      // The pointer-triggered Find button must not inherit reference interaction suppression.
+      await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+      await expect.poll(async () => {
+        const record = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return record.focus_summary?.away_count ?? 0
+      }).toBe(2)
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
       await expect(response).toHaveValue('Unsaved draft kept through Find.')
     } finally {
       await cleanupTest(browser, testId)
