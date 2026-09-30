@@ -14,15 +14,19 @@ fails. See [the schema rollout checklist](./schema-rollout-checklist.md).
 
 ## One-time owner setup
 
-After this workflow is reviewed and merged into `main`, create two GitHub Actions environments:
-`migrations-staging` and `migrations-production`. These are separate from Vercel environments.
-Set each environment's deployment branch policy to **selected branches and tags**, with exactly
+Configure **production first** after this workflow is reviewed and merged into `main`: create
+the GitHub Actions environment `migrations-production`, separate from Vercel environments.
+Staging can wait; create and configure `migrations-staging` later when needed. The target defaults
+to production and the mode always defaults to read-only preview. The staging choice stays available
+but fails closed until its target binding, project reference and credentials are configured.
+Set the production environment's deployment branch policy to **selected branches and tags**, with exactly
 one allowed **branch** rule: `main` (no tag rule or wildcard). This server-enforced restriction is
 required before storing credentials: a branch can edit its own workflow YAML and bypass a YAML
 `if` guard. Add required reviewers when the repository plan supports them. GitHub Team supports
 private environment secrets and branch restrictions; required reviewers are unavailable for private
 Team repositories, so the workflow does not rely on them. The script also rejects branch execution.
-In **each** environment configure:
+In **production** configure these settings; repeat the same protected setup with staging values
+only when staging is needed:
 
 | Setting | Value |
 | --- | --- |
@@ -31,13 +35,22 @@ In **each** environment configure:
 | Secret `SUPABASE_ACCESS_TOKEN` | CLI management token authorized for that project, with the narrowest practical project/organization access |
 | Secret `SUPABASE_DB_PASSWORD` | That project's database password |
 
-Keep credentials scoped to these environments, rather than repository-wide. Verify the project
+For production, set `ROLLOUT_TARGET` to `production` and verify the production project reference.
+Keep credentials scoped to the configured migration environment, rather than repository-wide. Verify the project
 reference against the intended Supabase Dashboard project before saving it. GitHub's read-only token
 reads repository contents and CI evidence; it does not provide database access. Supabase CLI linking
 must produce the same environment-bound project reference before any database history is read.
 Do not put credentials into workflow inputs, source, SQL, output, or approval messages.
 
-The workflow uses Ubuntu, Node 24 and pinned Supabase CLI 2.103.0. It installs no app dependencies and
+The hosted workflow requires **Linux x86_64** (Ubuntu), Node 24 and pinned Supabase CLI 2.103.0.
+Checkout and Node setup actions use reviewed immutable commit SHAs. The Supabase installation
+step downloads the fixed Linux amd64 release archive and verifies its reviewed SHA-256
+`1eaeee74576b2b296c9731ed729c38ec91f48096be7c10290e324888a310ded7` **before extraction
+or execution** and before the rollout step receives database credentials. CLI upgrades, archive
+checksum changes, action pin changes or another hosted runner architecture require explicit review
+and renewed installation/parser/prompt verification. Direct local tooling can still use the pinned
+CLI's native platform binary; this hosted archive check does not change macOS execution.
+It installs no app dependencies and
 starts no Docker database. Existing successful CI provides migration replay and test evidence.
 For a public repository, standard GitHub-hosted runners are free. Private repositories use the
 account's shared included Actions minutes and any configured spending policy. GitHub environment

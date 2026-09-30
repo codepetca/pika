@@ -29,6 +29,11 @@ export async function executeRollout(rawInput, io) {
   const verified = JSON.stringify(durableHistory) === JSON.stringify(expected)
   const result = { status: failed ? 'apply-failed' : verified ? 'applied-verified' : 'verification-failed', plan, durableHistory }
   await io.report(result)
+  if (durableHistory === null) {
+    throw new Error(failed
+      ? 'Application failed; durable state is unknown. Obtain new approval before another attempt.'
+      : 'Application command completed; durable state is unknown. Obtain new approval before another attempt.')
+  }
   if (failed) throw new Error('Application failed; durable history recorded. Obtain new approval before another attempt.')
   if (!verified) throw new Error('Application state could not be verified; obtain new approval before another attempt.')
   return result

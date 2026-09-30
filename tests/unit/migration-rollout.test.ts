@@ -97,6 +97,13 @@ describe('private CLI and CI evidence parsers', () => {
 })
 
 describe('rollout with fake CLI and API, never a live database', () => {
+  it('refuses an unconfigured staging environment before any preparation or target contact', async () => {
+    const io = fakeIo()
+    await expect(executeRollout({ ...inputs, boundTarget: '', projectRef: '' }, io)).rejects.toThrow('Environment target binding mismatch.')
+    expect(io.prepare).not.toHaveBeenCalled()
+    expect(io.link).not.toHaveBeenCalled()
+    expect(io.apply).not.toHaveBeenCalled()
+  })
   it('previews without applying', async () => {
     const io = fakeIo()
     expect((await executeRollout(inputs, io)).digest).toBe(plan().digest)
@@ -133,6 +140,18 @@ describe('rollout with fake CLI and API, never a live database', () => {
     expect(io.apply).toHaveBeenCalledTimes(1)
     expect(io.history).toHaveBeenCalledTimes(3)
     expect(io.report).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'apply-failed', durableHistory: history }))
+  })
+  it.each([true, false])('reports unknown durable state after an unreadable post-history without retrying (apply failed: %s)', async (failed) => {
+    const io = fakeIo()
+    if (failed) io.apply.mockRejectedValue(new Error('private SQL data'))
+    io.history.mockResolvedValueOnce(history).mockResolvedValueOnce(history).mockRejectedValueOnce(new Error('private database error'))
+    const expected = failed
+      ? 'Application failed; durable state is unknown. Obtain new approval before another attempt.'
+      : 'Application command completed; durable state is unknown. Obtain new approval before another attempt.'
+    await expect(executeRollout(approved(), io)).rejects.toThrow(expected)
+    expect(io.apply).toHaveBeenCalledTimes(1)
+    expect(io.history).toHaveBeenCalledTimes(3)
+    expect(io.report).toHaveBeenLastCalledWith(expect.objectContaining({ status: failed ? 'apply-failed' : 'verification-failed', durableHistory: null }))
   })
   it('fails verification after apparent CLI success with incomplete durable history', async () => {
     const io = fakeIo()
