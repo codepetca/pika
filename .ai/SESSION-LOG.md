@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Orchestrate full rollout and correct owner precedence
-
-- Owner authorized production213. Fresh target/history and dry-run matched only213; the single application attempt timed out connecting before reporting execution. Subsequent linked history confirms001–212,213 pending. Fresh retry approval requested, no second attempt. Production code PR1373 merged separately as6904c2ed and excludes image1371.
-- Terra built a real local route-handler/DB manual Assignment rehearsal with mocked request identity only, exact-loopback/demo-JWT validation, outbound transport containment and tracked synthetic cleanup. Coordinator strengthened negative cases: six scenarios pass, but admitted owner with historical self-enrollment can open/create learner work (200 vs403). Pre-return saved grades/feedback remain correctly hidden. No browser/session or image-byte round trip claimed; exact-object byte cleanup is unavailable on the shared local stack.
-- Astra mapped five finite full-experience batches into the existing roadmap, then implemented forward migration214: eight contextual learner definitions reject the owner from locked classroom evidence while preserving signatures, locks, prior bodies and owner-history inspection. Added18 passing static regressions plus a rollback-only behavioral harness; migration214 not applied. Added both the harness and real route rehearsal to ephemeral-database CI. Focused checks and independent review follow; keep all product gates off.
-
 ## 2026-09-27 — Apply migration 213 to production
 
 - Fresh exact owner authorization allowed one retry. Verified production binding zhioqbapgfcrronyuidm, merged1371 migration bytes, passing CI36335825410, matching history001–212 and dry-run containing only213. Linked push succeeded; post-apply history matches001–213 with no drift.
@@ -208,3 +202,7 @@ Refined the selected Test grading Status header to show one icon and student cou
 ## 2026-09-29 — Test grading two-state status header
 
 Owner narrowed the selected Test grading Status sort to Submitted and Returned. The one-icon/count control now alternates between those two groups; Not started, In progress, and Closed for grading stay visible after them in both orders. Pattern Lab and semantic/browser tests cover the two states. Focused checks passed 256 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright passed the teacher roster in desktop/mobile light/dark; the changed macOS Pattern Lab references and roster screenshots were reviewed. Linux Pattern Lab desktop/mobile light/dark references were inspected and updated from twelve stable CI captures; their differences are confined to the revised example copy. Independent review found no blockers in the two-state behavior. Final CI remains pending. Student view is n/a because the roster is teacher-only. Composite-widget checklist reviewed: keyboard and semantic state covered by tests; no manual follow-up. Risk profile: none. Model recommendation: GPT-6 Sol for a localized UI interaction.
+
+## 2026-09-29 — Pause hidden authentication and attendance polling
+
+Added browser visibility guards and Today activity wiring while preserving the mounted student workspace. Returning forces one current-identity read; stale pre-hide responses are ignored, including batched visibility events. Visible attendance and auth cadences, server authorization and Toronto expiry contracts remain unchanged. Risk: workspace-state and client authentication lifecycle. Focused regressions cover hidden timers/retries, return coalescing, identity changes, expiry and Today activity. Reused existing attendance rendering and Pattern Lab page-state reference; teacher/student desktop/mobile light/dark verification and independent stable-SHA review required before merge. Production promotion and subsequent savings remain separate.

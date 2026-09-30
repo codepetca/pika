@@ -57,16 +57,52 @@ export function resolveVisibleStudentAttendanceState(
   return state.state === 'open' || state.state === 'confirmed' ? state : null
 }
 
-export function useStudentAttendanceStatusView(studentId?: string) {
+export function useStudentAttendanceStatusView(studentId?: string, isActive = true) {
   const [view, setView] = useState<StudentAttendanceStatusView | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [nowMs, setNowMs] = useState(() => Date.now())
   const [refreshCycle, setRefreshCycle] = useState(0)
   const [retryWithoutView, setRetryWithoutView] = useState(false)
+  const [documentVisible, setDocumentVisible] = useState(
+    () => typeof document === 'undefined' || document.visibilityState !== 'hidden',
+  )
+  const documentVisibleRef = useRef(documentVisible)
+  const isPollingActive = isActive && documentVisible
   const mountedRef = useRef(true)
+  const isActiveRef = useRef(isActive)
   const activeStudentIdRef = useRef(studentId)
+  const viewStudentIdRef = useRef<string | undefined>(undefined)
+  const activityGenerationRef = useRef(0)
+  const identityGenerationRef = useRef(0)
+  const previousActivityRef = useRef(isPollingActive)
+  const inFlightRef = useRef<{
+    studentId: string
+    activityGeneration: number
+    identityGeneration: number
+  } | null>(null)
+  const loadRef = useRef<((isRefresh: boolean) => Promise<void>) | null>(null)
   const handledBoundaryTimesRef = useRef(new Set<number>())
   const serverClockRef = useRef<ServerClockAnchor | null>(null)
+  isActiveRef.current = isActive
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const visible = document.visibilityState !== 'hidden'
+      const wasVisible = documentVisibleRef.current
+      documentVisibleRef.current = visible
+      setDocumentVisible(visible)
+      if (!visible) {
+        if (wasVisible) activityGenerationRef.current += 1
+        previousActivityRef.current = false
+      } else if (!wasVisible && isActiveRef.current) {
+        previousActivityRef.current = true
+        setNowMs(anchoredServerNow(serverClockRef.current))
+        void loadRef.current?.(true)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
 
   const currentServerNow = useCallback(
     () => anchoredServerNow(serverClockRef.current),
@@ -74,13 +110,28 @@ export function useStudentAttendanceStatusView(studentId?: string) {
   )
 
   const load = useCallback(async (isRefresh: boolean) => {
-    if (!studentId) return
+    if (!studentId || !isActiveRef.current || document.visibilityState === 'hidden') return
+    const activityGeneration = activityGenerationRef.current
+    const identityGeneration = identityGenerationRef.current
+    if (
+      inFlightRef.current?.studentId === studentId
+      && inFlightRef.current.activityGeneration === activityGeneration
+      && inFlightRef.current.identityGeneration === identityGeneration
+    ) return
+    const request = { studentId, activityGeneration, identityGeneration }
+    inFlightRef.current = request
     if (isRefresh) setRefreshing(true)
     try {
       const next = await fetchStudentAttendanceStatus(studentId, { forceNetwork: isRefresh })
-      if (mountedRef.current && activeStudentIdRef.current === studentId) {
+      if (
+        mountedRef.current
+        && activeStudentIdRef.current === studentId
+        && activityGenerationRef.current === activityGeneration
+        && identityGenerationRef.current === identityGeneration
+      ) {
         const serverEpochMs = Date.parse(next.serverNow)
         serverClockRef.current = { serverEpochMs, monotonicEpochMs: monotonicNow() }
+        viewStudentIdRef.current = studentId
         setNowMs(serverEpochMs)
         setView(next)
         setRetryWithoutView(false)
@@ -90,46 +141,76 @@ export function useStudentAttendanceStatusView(studentId?: string) {
         error instanceof StudentAttendanceIdentityMismatchError
         && mountedRef.current
         && activeStudentIdRef.current === studentId
+        && activityGenerationRef.current === activityGeneration
+        && identityGenerationRef.current === identityGeneration
       ) {
         serverClockRef.current = null
+        viewStudentIdRef.current = undefined
         setView(null)
         setNowMs(Date.now())
         setRetryWithoutView(false)
-      } else if (mountedRef.current && activeStudentIdRef.current === studentId) {
+      } else if (
+        mountedRef.current
+        && activeStudentIdRef.current === studentId
+        && activityGenerationRef.current === activityGeneration
+        && identityGenerationRef.current === identityGeneration
+      ) {
         setRetryWithoutView(true)
       }
       // Keep the last safe snapshot. A failed attendance read must not become
       // an empty state or an unearned confirmation.
     } finally {
-      if (mountedRef.current && activeStudentIdRef.current === studentId) {
+      if (inFlightRef.current === request) inFlightRef.current = null
+      if (
+        mountedRef.current
+        && activeStudentIdRef.current === studentId
+        && activityGenerationRef.current === activityGeneration
+        && identityGenerationRef.current === identityGeneration
+      ) {
         setRefreshing(false)
         if (isRefresh) setRefreshCycle((cycle) => cycle + 1)
       }
     }
   }, [studentId])
+  loadRef.current = load
 
   useEffect(() => {
     mountedRef.current = true
+    identityGenerationRef.current += 1
     activeStudentIdRef.current = studentId
+    viewStudentIdRef.current = undefined
     handledBoundaryTimesRef.current.clear()
     serverClockRef.current = null
     setView(null)
     setNowMs(Date.now())
     setRetryWithoutView(false)
-    if (studentId) void load(false)
+    if (studentId && isActiveRef.current && document.visibilityState !== 'hidden') void load(false)
     return () => { mountedRef.current = false }
   }, [load, studentId])
 
   useEffect(() => {
-    if (!studentId || view || !retryWithoutView) return
+    if (!isPollingActive) {
+      if (previousActivityRef.current) activityGenerationRef.current += 1
+      previousActivityRef.current = false
+      return
+    }
+    if (!previousActivityRef.current) {
+      previousActivityRef.current = true
+      setNowMs(currentServerNow())
+      void load(true)
+    }
+  }, [currentServerNow, isPollingActive, load])
+
+  useEffect(() => {
+    if (!isPollingActive || !studentId || view || !retryWithoutView) return
     const timer = window.setTimeout(() => {
       void load(true)
     }, FAILED_REFRESH_RETRY_MS)
     return () => window.clearTimeout(timer)
-  }, [load, refreshCycle, retryWithoutView, studentId, view])
+  }, [isPollingActive, load, refreshCycle, retryWithoutView, studentId, view])
 
   useEffect(() => {
-    if (!view) return
+    if (!isPollingActive || !view) return
     const nextRefreshTime = view.nextRefreshAt ? Date.parse(view.nextRefreshAt) : Number.NaN
     const localBoundaryTimes = view.classrooms.flatMap((state) => {
       const boundary = state.state === 'open'
@@ -157,10 +238,10 @@ export function useStudentAttendanceStatusView(studentId?: string) {
       void load(true)
     }, delay)
     return () => window.clearTimeout(timer)
-  }, [currentServerNow, load, refreshCycle, view])
+  }, [currentServerNow, isPollingActive, load, refreshCycle, view])
 
   useEffect(() => {
-    if (!view) return
+    if (!isPollingActive || !view) return
     const nextUnhandledBoundary = view.classrooms.reduce((earliest, state) => {
       const boundary = state.state === 'open'
         ? state.closesAt
@@ -185,9 +266,13 @@ export function useStudentAttendanceStatusView(studentId?: string) {
       void load(true)
     }, Math.min(MAX_REFRESH_DELAY_MS, remaining))
     return () => window.clearTimeout(timer)
-  }, [currentServerNow, load, nowMs, refreshCycle, view])
+  }, [currentServerNow, isPollingActive, load, nowMs, refreshCycle, view])
 
-  return { view, refreshing, now: new Date(nowMs) }
+  return {
+    view: viewStudentIdRef.current === studentId ? view : null,
+    refreshing,
+    now: new Date(Math.max(nowMs, currentServerNow())),
+  }
 }
 
 export function StudentAttendanceStatus({
