@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Pause Pal UI CI
-
-Owner confirmed Pal is disabled until further notice. Recorded the pause in the current-state summary and Pal operations guide. Required CI now excludes the two Pal learner-component suites and dedicated Pal classroom browser scenario; backend, API, feature-gate, and theme-contract checks remain. Full component suites remain available through `pnpm test:coverage`, and the browser scenario can still be run directly before reactivation. PR1375 returned to draft before this correction. The CI test-selection check confirms the UI suites are absent and backend checks remain; workflow and focused validation follow.
-
-Independent review confirmed the CI exclusion scope and found the reactivation guide still named widget alpha.4 while the pinned dependency is alpha.6. Updated both guide references to alpha.6. Focused checks passed 255 tests and architecture/UI/design/TypeScript/lint; full CI coverage run follows.
-
-Full CI coverage command passed 885 files / 8,438 tests with coverage thresholds met. A first run exposed that the compact CURRENT note had changed exact phrases used by the Bara attendance documentation contract; restored those phrases while staying under the startup size budget. Both targeted contracts and the full coverage rerun passed. Targeted re-review reported no remaining blockers.
-
-## 2026-09-27 — Owner-authorized local database reset
-
-Owner explicitly requested resetting local DB to resolve migration numbering. From reviewed source0a2c1c2d, one local-only reset through217 with no seed succeeded after a fresh private custom-format database backup and archive-list verification. All217 history versions/names match source; dry-run reports up to date. Classroom owner-precedence and billing foundation/checkout/lifecycle/validation rollback contracts pass. Post-check: zero local users/classrooms; billing sandboxfalse/test. Production untouched. Prior metadata-repair proposal is superseded and must not run. Billing215–217 remain PR1377 source, not yet merged main. Backup and logs: /Users/stew/.codex/backups/pika-local-reset-217.efCeer. No accounts restored or test data seeded.
-
-## 2026-09-27 — Authorized local reseed
-
-Owner subsequently requested local reseeding. Standard pnpm seed (seed.ts plus planned-course fixtures) succeeded using in-memory credentials from the running local stack, guarded API127.0.0.1:54321 and ENV_FILE=/dev/null. Verified3users,1classroom,2enrollments,3assignments,2tests,3blueprints; planned-course idempotency check passed. Migration214–217 names unchanged, billing sandboxfalse/test. No second reset, hosted access, real account restore or gate activation.
-
 ## 2026-09-27 — Billing documentation sync after local reset
 
 Owner approved one documentation-only fifth correction batch and CI, with no additional reviewer, database changes or merge. Merged main4d0c4474 into PR1377; the sole archive conflict contained branch entries already present verbatim in main, so retained main archive without losing history. Consolidated reset/reseed receipts and superseded the old history-repair plan. Billing source/migration bytes stay identical to independently reviewed0a2c1c2d. Verified local001–217,3demo users/1classroom,sandboxfalse/test; generated types match and warning lint is clean. Focused checks and stable-commit CI follow. Review count remains8 (hard cap); no new launch.
@@ -199,6 +183,7 @@ Owner explicitly approved one correction batch and one additional targeted scree
 ## 2026-09-29 — Pause hidden authentication and attendance polling
 
 Added browser visibility guards and Today activity wiring while preserving the mounted student workspace. Returning forces one current-identity read; stale pre-hide responses are ignored, including batched visibility events. Visible attendance and auth cadences, server authorization and Toronto expiry contracts remain unchanged. Risk: workspace-state and client authentication lifecycle. Focused regressions cover hidden timers/retries, return coalescing, identity changes, expiry and Today activity. Reused existing attendance rendering and Pattern Lab page-state reference; teacher/student desktop/mobile light/dark verification and independent stable-SHA review required before merge. Production promotion and subsequent savings remain separate.
+
 ## 2026-09-29 — Independent classroom guidance adoption
 
 - Implemented explicit teacher guidance preview/adoption on `codex/classroom-blueprint-guidance-updates`; Content Version and copied artifacts retain structural lineage while a separate immutable Guidance Version supplies future drafts. Signed proof and atomic sidecar creation bind both context identities.
@@ -215,3 +200,7 @@ Added browser visibility guards and Today activity wiring while preserving the m
 - Batched both accepted findings: removed the private guidance Version pointer from legacy/contextual student detail responses and server-rendered student detail/list props; labelled comparison rules with the fresh preview's Version. Teacher records and access gates retain their behavior. Audited explicit student list/join and nested assessment classroom shapes.
 - Regressions cover distinct content/guidance IDs, legacy/contextual API and page serialization, teacher preservation, and stale tab Version 3 with fresh preview Version 4. Targeted checks passed 116 tests; final focused gate passed 3,554 tests (7 skipped), architecture, UI/design policy, TypeScript and lint. Desktop/mobile light/dark fresh-preview screenshots inspected in the existing temporary evidence directory.
 - Migration and generated schema unchanged; frozen database contracts reused. No parent PR1387 source/snapshot change, PR lifecycle action, shared database mutation, or production write.
+
+## 2026-09-29 — Merge classroom Blueprint and complete adoption review
+
+PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-approved tenth targeted review and exact-head CI36659661703. One existing assignment-editor test load-timing race passed on the unchanged-candidate rerun; all final lanes and PR Gate passed. Adoption PR1396 security/compatibility review accepted two findings, corrected together; targeted security and final integration passed at5b399e3b. Rebased its three adoption commits onto merged main; conflicts were duplicate archive entries already preserved verbatim. Source/test/migration patch ID remains397b1e4f. Required focused checks and final CI follow. Production preflight through220 previews exactly221/222; direct named migration approval requested but not received. Actual course guidance remains unsaved/unadopted.

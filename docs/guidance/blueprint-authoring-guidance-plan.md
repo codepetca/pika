@@ -1,8 +1,8 @@
 # Living blueprint authoring guidance
 
 Status: release and existing-classroom adoption in progress, 2026-09-29. The Blueprint workspace was
-merged to main in PR #1386. Classroom drafting is in draft PR #1387
-(`codex/blueprint-classroom-drafts`). This plan tracks the complete goal.
+merged to main in PR #1386. Classroom drafting merged to main in PR #1387 (`50cbbc5a`). Guidance adoption
+is in draft PR #1396 (`codex/classroom-blueprint-guidance-updates`). This plan tracks the complete goal.
 
 ## Goal
 
@@ -106,16 +106,18 @@ equally first-class.
 
 ## Remaining release gates
 
-- PR #1387 completed its specifically approved ninth independent review with no
-  blockers. Final CI passed Test & Build and Database contracts, but four Linux
-  Pattern Lab goldens failed because the Docker and CI font environments differ.
-  The coordinator returned the PR to draft and identified the canonical CI capture
-  correction; snapshots have not been changed. A tenth parent review requires a
-  checkpoint. The coordinator owns the remaining correction and release gates.
+- PR #1387 merged as `50cbbc5a` after the owner-approved canonical screenshot
+  correction and tenth targeted review. Exact-head run36659661703 passed Build,
+  Database contracts, Browser matrix and PR Gate. One unchanged-candidate rerun
+  resolved an existing assignment-editor test load-timing failure; no assertion
+  or application changes were made. The Blueprint patch and canonical PNGs were
+  unchanged by the main sync.
 - Guidance adoption implementation uses migration 222. Replay and type generation
   run on a separate ephemeral database; shared local and production databases
   have not been migrated by this implementation task.
-- Complete adoption review and final PR Gate, then follow the authorized release
+- Adoption security, compatibility, correction and final integration reviews passed
+  at `5b399e3b`; the rebased application/test/migration patch is unchanged. Complete
+  final PR Gate, then follow the authorized release
   lifecycle. Applying migrations 221/222 requires exact target/filename approval.
 
 ## Independent guidance adoption implementation
@@ -183,10 +185,8 @@ empty. P3 and P5 ICS3U both use saved Version 3, whose legacy snapshot has no
 guidance. P5 has one untracked test; P3 has one untracked test and one untracked
 lesson. The existing full classroom update proposal rejects those classrooms.
 
-- Finish PR #1387 after resolving its four Linux Pattern Lab golden failures
-  and exact-head CI. It is back in draft; Test & Build and Database contracts
-  passed. The coordinator owns that correction, the review checkpoint, final
-  merge, and production batch.
+- PR #1387 is merged on main with its exact-head gate passed. Finish adoption
+  PR #1396, then prepare one reviewed production promotion.
 - Implement a separate, explicit guidance-only adoption path for existing
   classrooms. Preserve the classroom's content-copy Version and every
   assessment's lineage. Repointing `source_blueprint_version_id` by itself is

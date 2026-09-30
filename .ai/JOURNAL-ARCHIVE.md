@@ -33848,3 +33848,20 @@ Checked whether divider dragging could record an exam exit. The divider changes 
 Main advanced while PR1375 was open. Rebasing onto cdc48bc3 retained the new PDF-reference handling; the only conflicts were duplicate archived continuity entries, so main's copies were kept. On the rebased source, focused checks pass 255 tests plus architecture/UI/design/TypeScript/lint; all eight teacher/student image browser scenarios pass across desktop/mobile light/dark, and screenshots show the intended layout. The local dev server was relaunched with the repository launcher. Targeted sync review and exact-head CI follow.
 
 Exact-head CI passed Test & Build but failed two desktop long-test browser scenarios because their older text-reference assertion expected a 50% open pane. Updated the assertion to verify the new 30% preserved width and keyboard expansion to 35%; all four long-test desktop/mobile light/dark scenarios now pass locally, as do 255 focused tests and static gates. Seven unrelated browser scenarios were flaky but passed on retry in that CI run. PR returned to draft before this test correction; final review and fresh CI follow.
+
+<!-- pika-session-log-archive-batch:29125d10a09182be49ba06ad5d9a956f3cd66049ed9d79733357b0e7f2431c5e -->
+## 2026-09-27 — Pause Pal UI CI
+
+Owner confirmed Pal is disabled until further notice. Recorded the pause in the current-state summary and Pal operations guide. Required CI now excludes the two Pal learner-component suites and dedicated Pal classroom browser scenario; backend, API, feature-gate, and theme-contract checks remain. Full component suites remain available through `pnpm test:coverage`, and the browser scenario can still be run directly before reactivation. PR1375 returned to draft before this correction. The CI test-selection check confirms the UI suites are absent and backend checks remain; workflow and focused validation follow.
+
+Independent review confirmed the CI exclusion scope and found the reactivation guide still named widget alpha.4 while the pinned dependency is alpha.6. Updated both guide references to alpha.6. Focused checks passed 255 tests and architecture/UI/design/TypeScript/lint; full CI coverage run follows.
+
+Full CI coverage command passed 885 files / 8,438 tests with coverage thresholds met. A first run exposed that the compact CURRENT note had changed exact phrases used by the Bara attendance documentation contract; restored those phrases while staying under the startup size budget. Both targeted contracts and the full coverage rerun passed. Targeted re-review reported no remaining blockers.
+
+## 2026-09-27 — Owner-authorized local database reset
+
+Owner explicitly requested resetting local DB to resolve migration numbering. From reviewed source0a2c1c2d, one local-only reset through217 with no seed succeeded after a fresh private custom-format database backup and archive-list verification. All217 history versions/names match source; dry-run reports up to date. Classroom owner-precedence and billing foundation/checkout/lifecycle/validation rollback contracts pass. Post-check: zero local users/classrooms; billing sandboxfalse/test. Production untouched. Prior metadata-repair proposal is superseded and must not run. Billing215–217 remain PR1377 source, not yet merged main. Backup and logs: /Users/stew/.codex/backups/pika-local-reset-217.efCeer. No accounts restored or test data seeded.
+
+## 2026-09-27 — Authorized local reseed
+
+Owner subsequently requested local reseeding. Standard pnpm seed (seed.ts plus planned-course fixtures) succeeded using in-memory credentials from the running local stack, guarded API127.0.0.1:54321 and ENV_FILE=/dev/null. Verified3users,1classroom,2enrollments,3assignments,2tests,3blueprints; planned-course idempotency check passed. Migration214–217 names unchanged, billing sandboxfalse/test. No second reset, hosted access, real account restore or gate activation.
