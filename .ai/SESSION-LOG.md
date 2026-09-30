@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-28 — Classroom drafts guided by frozen Blueprint Versions
-
-Added teacher Classwork and Tests entry actions for a shared unit-aware AI draft dialog. The teacher can review exact Version rules, edit standalone Markdown, then create an unpublished Assignment or Test and continue in its editor. The server uses the classroom's frozen Version for model input, validates a signed preview and edited draft, and calls atomic SQL functions that store private provenance in a sidecar. Teacher editors load a compact source note; students receive only assessment content. New migration 219 and rollback-only database contracts await clean CI replay; no local migration was applied because the shared local database has an unrelated 218. Teacher desktop/mobile light/dark dialog and student Classwork screenshots were reviewed. The full focused check passed 2,547 tests plus architecture, UI/design policy, TypeScript, and lint before the final cached-read and accessibility-test refinements; an exact final check is pending. PR #1386's CI found a PL/pgSQL typed-array lint warning in migration 218; that one-line correction passed focused checks, but its review budget checkpoint is pending.
-
-## 2026-09-28 — Blueprint phase-one merge and classroom review correction
-
-PR #1386 passed independent review and exact-head CI, then merged into main at `ab6cb6e5`. Rebased draft PR #1387 onto that main commit. Its final integration review found a real signed-rule mismatch: JavaScript and PostgreSQL trimmed different edge whitespace, and uppercase stored UUIDs failed text comparison. Aligned frozen-rule reconstruction for rule text, unit labels, and UUID identity, with focused app and database contract fixtures. The fourth correction batch passed 2,573 focused tests across 243 files plus architecture, UI/design policy, TypeScript, and lint. The shared local database remains untouched. Targeted and final independent review, exact-head CI, and the classroom PR merge gate remain pending.
-
-## 2026-09-28 — Classroom frozen-guidance boundary correction
-
-The targeted seventh reviewer found two blocking gaps in PR #1387: suggest/create routes compared equivalent UUID spellings case sensitively, and migration 218's original validator still accepted whitespace-only unit labels that migration 219 and the app reject. The owner approved a fifth correction batch. Updated both route guards and replaced the validator in migration 219, leaving historical migration 218 unchanged. Added API regressions for a lowercase request against an uppercase frozen ID and database contract cases for empty, 160-character, and 161-character post-trim labels. The affected 22 tests and shell syntax pass; final focused checks, cumulative review, CI, and merge remain pending. Shared local and production migrations remain unapplied.
-
-## 2026-09-29 — Teacher work-list hover distinction
-
-Changed the shared teacher work-item card so ordinary Classwork and Tests cards use the semantic info tint on hover, distinct from muted draft cards. Focused checks passed 338 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright verified teacher Classwork and Tests at desktop/mobile widths in light/dark themes, including actual hover and draft comparison. Risk profile: none. Model recommendation: GPT-6 Sol for the localized shared UI change.
-
-## 2026-09-29 — Teacher Test split-pane scrollbar parity
-
-Applied the existing assignment `scrollbar-hover` utility to the teacher Test grading student table and selected-student inspector. Both panes retain independent scrolling; the visible inspector scrollbar is hidden at rest, matching assignments. Local seeded teacher browser verification covered selected desktop light/dark and mobile light/dark, with the student mobile route checked for regression. The desktop page stayed at viewport height while the inspector scrolled; no horizontal overflow appeared on mobile. Focused checks passed 221 tests plus architecture, UI/design policy, TypeScript, and lint. Risk profile: none. Model recommendation: GPT-6 Sol for this localized UI change.
-
 ## 2026-09-29 — Teacher Test question review formatting
 
 Changed the selected-student Test grading question comment placeholder from `Comment (optional)` to `Comment`. Coding open responses now use the existing `response_monospace` results field to show a Code label and a monospace, indentation-preserving response block with internal horizontal scroll; prose open responses retain their styling. No scoring or autosave behavior changed. Rebasing draft PR #1391 onto the latest main resolved the session archive marker conflict while retaining both log entries. Focused checks passed 234 tests plus architecture, UI/design policy, TypeScript, and lint. The owner visually verified the selected teacher pane and accepted the result. Risk profile: none. Model recommendation: GPT-6 Sol for the localized teacher UI change.
@@ -138,6 +118,15 @@ Added browser visibility guards and Today activity wiring while preserving the m
 
 PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-approved tenth targeted review and exact-head CI36659661703. One existing assignment-editor test load-timing race passed on the unchanged-candidate rerun; all final lanes and PR Gate passed. Adoption PR1396 security/compatibility review accepted two findings, corrected together; targeted security and final integration passed at5b399e3b. Rebased its three adoption commits onto merged main; conflicts were duplicate archive entries already preserved verbatim. Source/test/migration patch ID remains397b1e4f. Required focused checks and final CI follow. Production preflight through220 previews exactly221/222; direct named migration approval requested but not received. Actual course guidance remains unsaved/unadopted.
 
+## 2026-09-29 — Promote polling and pending main changes
+
+- Owner authorized production PR1397 after polling PR1395 merged main. Batch main de7a629d includes16 pending PRs. Independent security and compatibility reviews passed runtime interactions; corrected stale production schema summary and retained both production/main continuity histories. Application, migration, dependency and test bytes remain identical to reviewed main.
+- Production migrations215–220 already applied and verified; no schema/reset, billing activation, Vault configuration, benchmark grades or paid provider calls are part of this release. Background grading dispatch still requires separate URL/secret activation and a small canary; class completion target and CPU savings remain unmeasured. Final reviewed SHA, green PR Gate and production deployment readiness are required before completion.
+
+## 2026-09-30 — Prepare Blueprint production release
+
+PR1396 merged asb754bd69 after fixed-head CI36702895411 passed every lane and PR Gate. Production advanced via1397 while the release was preparing; promotion1398 now combines only classroom Blueprint drafting and guidance adoption. Production's current-state summary is preserved. Conflict resolution removes only duplicate historical archive entries already present verbatim; application/test/migration tree remains identical to reviewed main. Cumulative release review and final CI follow; production migrations221/222 now have direct one-time owner approval after checks. Actual ICS3U guidance was saved/read-verified at Draft4; P3/P5 adoption remains pending. Fresh linked DB preflight currently cannot connect; no application attempted.
+
 ## 2026-09-30 — Retire remaining hosted staging workflow
 
 - Replaced obsolete staging/Preview rollout prerequisites with local app + local Supabase checks → reviewed main PR → production; updated startup/setup/rollout guidance and documented retirement evidence.
@@ -207,3 +196,15 @@ Second targeted review found that spaced field labels, indented reserved section
 ## 2026-09-30 — Guided assignment documentation checkpoint
 
 Owner approved one documentation correction/main sync and one brief review after the review-budget checkpoint. Restored the missing space in CURRENT migration history while retaining verified production 222 and the new main deployment flow. Application changes remain unchanged; exact-head checks and main merge remain gated.
+
+## 2026-09-30 — Production release after migrations 221/222
+
+Owner authorized production deployment. Production migrations221/222 applied once successfully from reviewed8b317736; linked postflight222history entries aligned, no drift. Read-only columns/RLS/service-only grants and guidance triggers verified. Updating existing releasePR1398 with reviewed main3eed5324 (AI grade confirmation, test-reference policy, same-day Class Days corrections). Only merge conflict is archived continuity; both sides preserved. Migration/application source matches current main. Cumulative integration review and exact-head CI precede merge.
+
+## 2026-09-30 — Production disk I/O fix rollout (PR1408)
+
+Owner authorized migration223 on production followed by application promotion. Linked history and dry-run confirmed221/222 already applied and only223 pending. Applied223 once successfully; the live function source hash matches the reviewed migration exactly, with PT409 and unchanged service-only ACL, security definer and empty search path. Main fixPR1406 merged as112c1c73 after independent review and green CI36771557844. PromotionPR1408 batches reviewed hosted toolingPR1404 and the grading compatibility fix. Resolved archive continuity by retaining the production narrative (which contains every main narrative line) and all main-only batch markers; runtime and Supabase files remain identical to main. Cumulative review and final CI precede the authorized production merge.
+
+## 2026-09-30 — Guided assignment production promotion (PR1410)
+
+Promoting reviewed main1b5430b3 after PR1407 passed8758 CI tests, database/browser contracts and PR Gate. One continuity conflict batch retains production verified223 and both historical narratives; application, tests, schema and configuration stay byte-identical to reviewed main. Production223 was applied by its separately authorized owner; this task applies no migrations. One cumulative promotion review and exact-head CI precede release. Final teacher guided-assignment proof remains pending sign-in.
