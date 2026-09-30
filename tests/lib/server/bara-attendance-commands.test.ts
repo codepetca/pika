@@ -18,7 +18,7 @@ const requestId = '40000000-0000-4000-8000-000000000004'
 function store(): AttendanceCommandStore {
   return {
     loadContext: vi.fn().mockResolvedValue({
-      installationRef: 'installation_staging',
+      installationRef: 'installation_local',
       rosterRef: 'roster_private',
       occurrenceRef: 'occurrence_private',
       actorPrincipalRef: 'principal_teacher',
@@ -35,7 +35,7 @@ describe('teacher Bara attendance commands', () => {
   afterEach(() => vi.unstubAllEnvs())
 
   it('keeps local WorkOS verification separate from the outbound Pika principal', async () => {
-    vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'installation_staging')
+    vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'installation_local')
     const rows: Record<string, unknown> = {
       users: { workos_user_id: 'user_teacher' },
       attendance_principal_mappings: { principal_ref: 'principal_teacher' },
@@ -93,7 +93,7 @@ describe('teacher Bara attendance commands', () => {
       message_type: 'session.command',
       idempotency_key: 'session:occurrence_private:40000000000040008000000000000004',
       correlation_ref: 'correlation_40000000000040008000000000000004',
-      installation_ref: 'installation_staging',
+      installation_ref: 'installation_local',
       roster_ref: 'roster_private',
       occurrence_ref: 'occurrence_private',
       command: 'open',
@@ -190,7 +190,7 @@ describe('teacher Bara attendance commands', () => {
     expect(send).toHaveBeenCalledWith(expect.objectContaining({
       schema_version: 1,
       message_type: 'check_in.invalidate',
-      installation_ref: 'installation_staging',
+      installation_ref: 'installation_local',
       roster_ref: 'roster_private',
       occurrence_ref: 'occurrence_private',
       invalidations: [

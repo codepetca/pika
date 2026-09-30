@@ -73,5 +73,7 @@ Phase 0 adds dormant contracts only; neutral onboarding and paid-plan enforcemen
 ## Deployment
 
 - Target: Vercel + Supabase
-- Steps: apply migrations, configure env vars, deploy on push to `main`
+- Steps: local app/DB checks → reviewed `main` PR → protected `production`
+  promotion; Vercel deploys `production`. Production migrations/canaries require
+  exact-target authorization. See the [canonical flow](../dev-workflow.md#environments-and-release-flow).
 - Email: mock in dev; wire provider before production

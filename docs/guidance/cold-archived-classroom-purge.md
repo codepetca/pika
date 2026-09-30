@@ -98,16 +98,17 @@ object merely by being applied.
 3. Deploy compatible application code and keep the new gate disabled. Verify
    normal hot and Blueprint purge safety nets remain scope-isolated and the
    aggregate health snapshot stays healthy.
-4. With fresh authorization naming staging and migration 122, apply it with the
-   gate disabled. Exercise one synthetic/staging cold archive and observe retry,
-   fence, Storage, audit, and monitoring postconditions.
+4. Validate a synthetic cold archive locally with the rollback-only database
+   harness, including retry, fence, Storage, audit, and monitoring postconditions.
+   With fresh authorization naming production and migration 122, apply it with
+   the gate disabled and verify the deployed contract before any canary.
 5. With separate fresh authorization, set one exact teacher/Classroom canary.
    Confirm the recovery-loss acknowledgement, archive-last ordering, preserved
    users/Blueprints/other Classrooms, and zero managed-storage drift.
 6. Broad rollout requires a further explicit gate change after the canary and
    at least two scheduled monitoring runs remain healthy.
 
-Every local, staging, or production migration application and every gate
+Every local or production migration application and every gate
 change or purge requires fresh authorization naming its exact target and
 operation. Generic orphan cleanup remains disabled; exact owned-object
 processing makes it unnecessary for this scope.

@@ -62,7 +62,7 @@ reads treat only a missing new table as no standalone records. Mutation calls
 return a migration-required conflict; unexpected read errors fail visibly.
 There are no browser-side database writes or schema fallbacks that fabricate
 assignments. Apply the migration before deploying the item capability. Applying
-it to an existing local, staging, or production database requires the normal
+it to an existing local or production database requires the normal
 one-time target-and-migration authorization.
 
 ## UI change brief

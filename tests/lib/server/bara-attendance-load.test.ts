@@ -32,23 +32,47 @@ describe('Bara attendance scan load measurement', () => {
       .toThrow(AttendanceScanLoadConfigurationError)
   })
 
-  it('refuses production, non-HTTPS targets, origin drift, and count drift', () => {
+  it('accepts exact loopback origins and refuses hosted stages, origin drift, and count drift', () => {
     const valid = {
-      stage: 'preview',
-      baseUrl: 'https://pika-preview.example.test',
-      expectedOrigin: 'https://pika-preview.example.test/',
+      stage: 'local',
+      baseUrl: 'http://localhost:3000',
+      expectedOrigin: 'http://localhost:3000/',
       concurrency: 30,
       caseCount: 30,
     }
-    expect(validateAttendanceScanLoadTarget(valid)).toBe('https://pika-preview.example.test')
-    expect(() => validateAttendanceScanLoadTarget({ ...valid, stage: 'production' }))
-      .toThrowError('preview_only')
-    expect(() => validateAttendanceScanLoadTarget({ ...valid, baseUrl: 'http://pika-preview.example.test' }))
-      .toThrowError('invalid_base_url')
-    expect(() => validateAttendanceScanLoadTarget({ ...valid, expectedOrigin: 'https://other.example.test' }))
+    expect(validateAttendanceScanLoadTarget(valid)).toBe('http://localhost:3000')
+    for (const origin of ['http://127.0.0.1:3000', 'http://[::1]:3000', 'https://localhost:3000']) {
+      expect(validateAttendanceScanLoadTarget({ ...valid, baseUrl: origin, expectedOrigin: origin }))
+        .toBe(origin)
+    }
+    for (const stage of ['production', 'preview']) {
+      expect(() => validateAttendanceScanLoadTarget({ ...valid, stage }))
+        .toThrowError('local_only')
+    }
+    for (const origin of [
+      'https://pika.codepet.ca', 'http://remote.example.test', 'http://localhost.example.test',
+      'ftp://localhost', 'http://user:password@localhost:3000',
+      'http://localhost:3000/path', 'http://localhost:3000?query=1', 'http://localhost:3000#fragment',
+    ]) {
+      expect(() => validateAttendanceScanLoadTarget({ ...valid, baseUrl: origin }))
+        .toThrowError('invalid_base_url')
+      expect(() => validateAttendanceScanLoadTarget({ ...valid, expectedOrigin: origin }))
+        .toThrowError('invalid_expected_origin')
+    }
+    expect(() => validateAttendanceScanLoadTarget({ ...valid, expectedOrigin: 'http://localhost:3001' }))
       .toThrowError('origin_mismatch')
     expect(() => validateAttendanceScanLoadTarget({ ...valid, caseCount: 31 }))
       .toThrowError('invalid_concurrency')
+  })
+
+  it('rejects a direct hosted runner call before sending session credentials', async () => {
+    const fetchImpl = vi.fn<typeof fetch>()
+    await expect(runAttendanceScanLoad({
+      cases: loadCases(),
+      baseOrigin: 'https://pika.codepet.ca',
+      fetchImpl,
+    })).rejects.toThrowError('invalid_base_url')
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('uses nearest-rank percentiles', () => {
@@ -86,7 +110,7 @@ describe('Bara attendance scan load measurement', () => {
 
     const result = await runAttendanceScanLoad({
       cases: loadCases(),
-      baseOrigin: 'https://pika-preview.example.test',
+      baseOrigin: 'http://localhost:3000',
       fetchImpl,
       now,
     })

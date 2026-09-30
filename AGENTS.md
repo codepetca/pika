@@ -7,6 +7,10 @@
 - **`docs/dev-workflow.md` is the authoritative source** for worktree usage and shared `.env.local` setup.
 - Follow the startup contract in `.ai/START-HERE.md` before modifying code.
 
+## Environment flow
+
+Local app + local Supabase → local smoke/database checks → reviewed `main` PR → `production`. No hosted staging database or staging/Preview prerequisite. See `docs/dev-workflow.md`.
+
 ## UI/UX Changes: MUST Verify Visually (MANDATORY)
 
 Before any user-visible UI/UX implementation, use `.codex/skills/pika-ui-change` to name the

@@ -14,23 +14,22 @@ fails. See [the schema rollout checklist](./schema-rollout-checklist.md).
 
 ## One-time owner setup
 
-Configure **production first** after this workflow is reviewed and merged into `main`: create
+Configure **production only** after this workflow is reviewed and merged into `main`: create
 the GitHub Actions environment `migrations-production`, separate from Vercel environments.
-Staging can wait; create and configure `migrations-staging` later when needed. The target defaults
-to production and the mode always defaults to read-only preview. The staging choice stays available
-but fails closed until its target binding, project reference and credentials are configured.
+The target is restricted to production; the mode defaults to read-only preview (a dry run,
+not a hosted test environment). Development and smoke tests use local Supabase. Do not create
+an additional hosted migration target; see [the environment flow](../dev-workflow.md#environments-and-release-flow).
 Set the production environment's deployment branch policy to **selected branches and tags**, with exactly
 one allowed **branch** rule: `main` (no tag rule or wildcard). This server-enforced restriction is
 required before storing credentials: a branch can edit its own workflow YAML and bypass a YAML
 `if` guard. Add required reviewers when the repository plan supports them. GitHub Team supports
 private environment secrets and branch restrictions; required reviewers are unavailable for private
 Team repositories, so the workflow does not rely on them. The script also rejects branch execution.
-In **production** configure these settings; repeat the same protected setup with staging values
-only when staging is needed:
+In **production** configure these settings:
 
 | Setting | Value |
 | --- | --- |
-| Variable `ROLLOUT_TARGET` | `staging` or `production`, matching the environment |
+| Variable `ROLLOUT_TARGET` | `production`, matching the environment |
 | Variable `SUPABASE_PROJECT_REF` | Exact 20-letter project reference for that target |
 | Secret `SUPABASE_ACCESS_TOKEN` | CLI management token authorized for that project, with the narrowest practical project/organization access |
 | Secret `SUPABASE_DB_PASSWORD` | That project's database password |

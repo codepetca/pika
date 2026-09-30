@@ -67,11 +67,12 @@ change flags, or requeue hosted events.
    explicit authorization and must follow
    `pika-bara-attendance-entitlement-rollout.md`.
 
-## Preview rule when no staging database exists
+## Production-only deployed smoke
 
+Development and rehearsal run locally; no hosted test environment is required.
 Preview must never point at or probe the production Supabase database. Running
 the deployed smoke command with `--mode pre-enable --stage preview` records
-`production_only_no_staging_database` and performs no database or network call.
+`production_only` and performs no database or network call.
 The reverse callback also rejects before configuration or database access in
 Preview.
 That skip is expected for preview build evidence but never satisfies a

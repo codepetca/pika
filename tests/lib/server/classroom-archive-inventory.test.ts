@@ -382,7 +382,7 @@ describe('classroom archive production inventory', () => {
       'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
     )).toMatchObject({ PGHOST: '127.0.0.1', PGPORT: '54322', PGSSLMODE: 'disable' })
     expect(() => localSupabasePsqlEnvironment(
-      'postgresql://postgres:postgres@staging.example.com:5432/postgres',
+      'postgresql://postgres:postgres@remote.example.com:5432/postgres',
     )).toThrow('loopback')
   })
 

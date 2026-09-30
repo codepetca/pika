@@ -27,7 +27,7 @@ Bara worktree.
 |---|---|---|
 | Audit, brief, and retire cross-application browser handoff | Complete for native attendance. Bara `docs/features/briefs/bara-attendance-engine-boundary.md` and both native-attendance roadmaps define one Pika login and separate WorkOS Applications. Pika's runtime handoff routes are removed. Historical Bara handoff endpoints remain gated off, and both rollout checks require the legacy flag to stay false. | No hosted mutation required. |
 | Provider-neutral authoritative Bara engine | Complete. Bara `convex/attendanceEngine.ts` owns lifecycle, marks/corrections, and student check-in with explicit actors. `convex/attendance-engine-equivalence.test.ts` proves standalone and signed-integration adapters use the same rules. | Standalone hosted regression remains part of pilot proof. |
-| Transport/auth outside engine | Complete. Bara separates signed request authentication, tenant/installation mapping, identity linking, roster/schedule mapping, commands, event translation, outbox, and retention. Standalone AuthKit resolves Bara `app_users`; Pika requests map verified external principals before engine calls. | Matching preview credentials/origins are not configured. |
+| Transport/auth outside engine | Complete. Bara separates signed request authentication, tenant/installation mapping, identity linking, roster/schedule mapping, commands, event translation, outbox, and retention. Standalone AuthKit resolves Bara `app_users`; Pika requests map verified external principals before engine calls. | Matching local credentials/origins are required for rehearsal; production uses the separately authorized deployed gate. |
 | Preserve Bara internal identity and roster ownership | Complete in code. Bara retains `app_users` + `auth_identities`; `rosters.ownerAppUserId` is the domain owner. Pika sends only random installation-scoped principals, so the adapter cannot reuse a standalone WorkOS identity or organization. | The Bara roster-owner backfill has not been run against a hosted deployment. |
 | Controlled Pika-only provisioning/linking | Complete. Tenant-bound staff/student provisioning is narrow, cannot create integration admins, and rejects tenant moves, role conflict, participant relinking, and identity relinking. Bara integration tests cover these fences. | Real unmatched and newly provisioned teacher/student flows remain unproved. |
 | Versioned idempotent student check-in | Complete. The closed v1 `student_check_in` response is synchronous and includes authoritative revisions. Each logical scan has a fresh attempt ID; only transport retries reuse its key. Pika never queues student scans. Invalid, closed, duplicate, unmatched, independent-attempt, lost-response, and contract cases have local tests. | Real timeout/lost-response behavior remains unproved. |
@@ -41,7 +41,7 @@ Bara worktree.
 | Versioned contract fixtures and isolation | Complete. Bara is the v1 source and Pika vendors byte-identical closed types, validators, signing, and fixtures. Tests cover replay, idempotency conflicts, revision ordering, opaque mappings, tenant fences, and forbidden internal identifiers. A deployed bidirectional smoke gate is implemented with exact-canary database binding, separate HMAC legs, replay/rate bounds, and aggregate-only output. | The enabled `teacher_entitlements` gate passed 4/4 in production on 2026-08-24. Future deployments and scope-sensitive changes still require the authorized deployed gate; local tests are not hosted evidence. |
 | Archive/purge containment | Complete as a fail-closed interim boundary. Soft archive/restore retains attendance state. Every attendance row family, compaction start, purge start, final classroom delete, and individual-student purge begin/finalization is guarded until a versioned Bara decommission/reseed/erase protocol exists. Inbox/projections carry local classroom lineage and record projections carry student lineage. | Destructive archive/purge and attendance-linked student erasure remain intentionally unavailable until coordinated provider decommissioning exists. |
 | Local verification and UI evidence | Complete at the last recorded gate: both repositories passed their complete tests, type checks, builds, and prescribed guards. Pika Playwright evidence covers native success and uncertain student states on desktop/mobile without leaving Pika. | Hosted full state-family browser evidence remains open. |
-| Hosted scan latency/load | Harness complete at `scripts/measure-bara-attendance-scans.ts`, with validation tests and the runbook in `docs/integrations/bara-attendance-scan-load.md`. It requires 30–100 distinct sessions, refuses production, and emits only aggregate p50/p95/p99 metrics. | No hosted p50/p95/p99 measurement has been run. |
+| Local scan latency/load | Harness complete at `scripts/measure-bara-attendance-scans.ts`, with validation tests and the runbook in `docs/integrations/bara-attendance-scan-load.md`. It requires 30–100 distinct local sessions, rejects hosted targets, and emits only aggregate p50/p95/p99 metrics. | Hosted load testing is retired; bounded production latency evidence requires separate approval. |
 
 ## Remaining verification sequence
 
@@ -57,9 +57,10 @@ Bara worktree.
 2. Prove real teacher and student roster/schedule/lifecycle/mark/correction/QR,
    duplicate/lost-response, tenant-isolation, reordered-event, and snapshot
    flows under the enabled entitlement boundary.
-3. Run a non-production load rehearsal only after an isolated staging database
-   is explicitly provisioned; never point preview at production. Production receives
-   only the bounded real-flow latency measurements approved for the pilot.
+3. Run the load rehearsal against the local app, local Supabase, and local Bara
+   using `attendance:load:local-engine` and the loopback-only `attendance:load:scans`
+   harness. Production receives only separately approved bounded real-flow latency
+   measurements; do not provision a hosted test database as a prerequisite.
 4. Verify the complete UI state family and rollback behavior. Grant additional
    teacher entitlements only through the audited operator flow under separate
    authorization.

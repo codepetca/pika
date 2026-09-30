@@ -32,7 +32,7 @@ export async function runDeployedBaraAttendanceSmoke(input: {
       exitCode: 1,
       output: {
         status: 'skipped',
-        reason: 'production_only_no_staging_database',
+        reason: 'production_only',
         rolloutGateSatisfied: false,
       },
     }

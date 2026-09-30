@@ -1,7 +1,9 @@
-# Hosted native attendance scan measurement
+# Local native attendance scan measurement
 
-Status: harness implemented and locally tested; no hosted measurement has been
-run by this branch.
+Status: local load harnesses implemented. Hosted load rehearsal is retired;
+Pika development uses local Supabase and local services, followed by a reviewed
+`main` PR and production promotion. Production accepts only separately approved,
+bounded real-flow latency measurements.
 
 ## Local signed-adapter evidence
 
@@ -33,23 +35,19 @@ into the process. The runner prints aggregate results only.
 The local procedure measures Pika's signed-adapter/server-helper path through
 the server-to-server Bara call. It bypasses the HTTP route, role/session
 middleware, and WorkOS actor resolution, so its timings are engine-path
-evidence only. It does not replace the hosted HTTP harness below or a browser
+evidence only. It does not replace the local HTTP harness below or a browser
 journey check.
 
 ## Preconditions
 
 Run this only after all of these are true:
 
-1. The target is an explicitly authorized, isolated Pika Preview deployment.
-2. The preview database has the full Pika migration history through migration
-   132. There is currently no isolated preview database, so this hosted harness
-   remains blocked and must not be pointed at production.
-3. Matching Pika and Bara previews pass `attendance:rollout:preflight` and the
-   signed roster, schedule, session, event, and reconciliation smoke.
-4. A test attendance occurrence is open and allowlisted for the exercise.
-5. There are 30–100 distinct test students with valid Pika Preview sessions.
-6. The operator has confirmed rate limits and has a rollback contact. Never run
-   this harness against production.
+1. The target is the local Pika app, backed by the local Supabase stack and local Bara.
+2. The local schema matches the worktree migrations under the normal exact-target authorization procedure.
+3. Matching local Pika and Bara credentials pass signed roster, schedule, session, event, and reconciliation smoke checks.
+4. A synthetic attendance occurrence is open and allowlisted for the exercise.
+5. There are 30–100 distinct test students with valid local Pika and WorkOS sessions.
+6. The operator has confirmed rate limits and fixture cleanup. The HTTP target must be loopback; never bind the local app to production data or credentials.
 
 ## Secret manifest
 
@@ -74,7 +72,7 @@ same current classroom entry token may be reused. Do not commit, upload, paste,
 or log the manifest. Restrict it before use:
 
 ```bash
-chmod 600 /absolute/path/pika-preview.attendance-load.json
+chmod 600 /absolute/path/pika-local.attendance-load.json
 ```
 
 The harness rejects group/world-accessible manifests, malformed tokens,
@@ -88,17 +86,17 @@ a manifest with exactly that many distinct sessions.
 
 ```bash
 pnpm attendance:load:scans -- \
-  --stage preview \
-  --manifest /absolute/path/pika-preview.attendance-load.json \
-  --base-url https://exact-pika-preview.example \
-  --expected-origin https://exact-pika-preview.example \
+  --stage local \
+  --manifest /absolute/path/pika-local.attendance-load.json \
+  --base-url http://localhost:3000 \
+  --expected-origin http://localhost:3000 \
   --concurrency 30
 ```
 
 An optional `--timeout-ms` accepts 1,000–60,000 milliseconds and defaults to
 15,000. The base URL and separately supplied expected origin must be identical
-HTTPS origins without paths, credentials, queries, or fragments. The tool
-refuses every stage except `preview`.
+HTTP or HTTPS loopback origins (`localhost`, `127.0.0.1`, or `[::1]`) without paths, credentials, queries, or fragments. The tool
+refuses every stage except `local`.
 
 Output is aggregate-only: attempted, confirmed, rejected, transport failures,
 state counts, duration, requests per second, and min/p50/p95/p99/max latency.
@@ -107,6 +105,6 @@ target configuration are never printed. `checked_in` and
 `already_checked_in` are authoritative confirmations. Any rejection,
 transport failure, or contract-invalid response makes the command fail.
 
-Retain only the aggregate JSON and deployment/commit identifiers in the pilot
+Retain only the aggregate JSON and local commit identifiers in the pilot
 evidence. Destroy the secret manifest and revoke the test sessions when the
 exercise ends.
