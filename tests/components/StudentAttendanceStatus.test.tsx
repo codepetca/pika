@@ -25,12 +25,17 @@ describe('StudentAttendanceStatus', () => {
     clearAuthoritativeStudentAttendanceConfirmation()
     vi.clearAllMocks()
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
-  function HookHarness() {
+  function HookHarness({
+    studentId = studentOne,
+    isActive = true,
+  }: { studentId?: string; isActive?: boolean }) {
     const { view, refreshing, now } = useStudentAttendanceStatusView(
-      studentOne,
+      studentId,
+      isActive,
     )
     return <StudentAttendanceStatus
       state={view?.classrooms.find((item) => item.classroomId === classroomOne)}
@@ -185,6 +190,188 @@ describe('StudentAttendanceStatus', () => {
     })
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+  })
+
+  it('makes no hidden scheduled reads and refreshes once when the document returns', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-23T13:00:00.000Z'))
+    let visibility: DocumentVisibilityState = 'visible'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    const fetchMock = vi.fn().mockResolvedValue(statusResponse({
+      classrooms: [{ classroomId: classroomOne, state: 'open', opensAt: null, closesAt: '2026-08-23T14:00:00.000Z' }],
+      nextRefreshAt: '2026-08-23T13:00:15.000Z',
+      serverNow: '2026-08-23T13:00:00.000Z',
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    await flushAsyncState()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    visibility = 'hidden'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    visibility = 'visible'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await flushAsyncState()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('refreshes exactly once for a hide and return batched into one render', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-23T13:00:00.000Z'))
+    let visibility: DocumentVisibilityState = 'visible'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    const fetchMock = vi.fn().mockResolvedValue(statusResponse({
+      classrooms: [{ classroomId: classroomOne, state: 'open', opensAt: null, closesAt: null }],
+      nextRefreshAt: '2026-08-23T13:00:15.000Z',
+      serverNow: '2026-08-23T13:00:00.000Z',
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    await flushAsyncState()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      visibility = 'hidden'
+      document.dispatchEvent(new Event('visibilitychange'))
+      visibility = 'visible'
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await flushAsyncState()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000) })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('refreshes on a batched return while an old read is pending and ignores the late result', async () => {
+    let visibility: DocumentVisibilityState = 'visible'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    let finishFirst!: (response: Response) => void
+    const first = new Promise<Response>((resolve) => { finishFirst = resolve })
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(first)
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{ classroomId: classroomOne, state: 'open', opensAt: null, closesAt: null }],
+        nextRefreshAt: null,
+        serverNow: '2026-08-23T13:00:01.000Z',
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    act(() => {
+      visibility = 'hidden'
+      document.dispatchEvent(new Event('visibilitychange'))
+      visibility = 'visible'
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await flushAsyncState()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+
+    finishFirst(statusResponse({
+      classrooms: [{
+        classroomId: classroomOne, state: 'confirmed', opensAt: null, closesAt: null,
+        attendanceStatus: 'present', confirmedAt: '2026-08-23T13:00:00.000Z',
+      }],
+      nextRefreshAt: null,
+      serverNow: '2026-08-23T13:00:00.000Z',
+    }))
+    await flushAsyncState()
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+    expect(screen.queryByText(/^Checked in at /)).not.toBeInTheDocument()
+  })
+
+  it('pauses retained Today attendance and hides an expired confirmation on reactivation', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-24T03:59:59.900Z'))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{
+          classroomId: classroomOne, state: 'confirmed', opensAt: null,
+          closesAt: '2026-08-24T05:00:00.000Z', attendanceStatus: 'present',
+          confirmedAt: '2026-08-23T13:07:00.000Z', validUntil: '2026-08-24T04:00:00.000Z',
+        }],
+        nextRefreshAt: '2026-08-24T04:00:00.000Z',
+        serverNow: '2026-08-24T03:59:59.900Z',
+      }))
+      .mockRejectedValue(new Error('service unavailable'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const screenView = render(<HookHarness />)
+    await flushAsyncState()
+    expect(screen.getByText(/^Checked in at /)).toBeInTheDocument()
+    screenView.rerender(<HookHarness isActive={false} />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    screenView.rerender(<HookHarness isActive />)
+    expect(screen.queryByText(/^Checked in at /)).not.toBeInTheDocument()
+    await flushAsyncState()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('defers a failed first read retry while hidden, then retries once on return', async () => {
+    vi.useFakeTimers()
+    let visibility: DocumentVisibilityState = 'visible'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error('service unavailable'))
+      .mockResolvedValueOnce(statusResponse({
+        classrooms: [{ classroomId: classroomOne, state: 'open', opensAt: null, closesAt: null }],
+        nextRefreshAt: null,
+        serverNow: '2026-08-23T13:00:00.000Z',
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<HookHarness />)
+    await flushAsyncState()
+    visibility = 'hidden'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(30_000) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    visibility = 'visible'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await flushAsyncState()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+  })
+
+  it('ignores an earlier student response after the active student changes', async () => {
+    let finishFirst!: (response: Response) => void
+    const first = new Promise<Response>((resolve) => { finishFirst = resolve })
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(first)
+      .mockResolvedValueOnce(statusResponse({
+        studentId: studentTwo,
+        classrooms: [{ classroomId: classroomOne, state: 'open', opensAt: null, closesAt: null }],
+        nextRefreshAt: null,
+        serverNow: '2026-08-23T13:00:00.000Z',
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const screenView = render(<HookHarness studentId={studentOne} />)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    screenView.rerender(<HookHarness studentId={studentTwo} />)
+    await flushAsyncState()
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+
+    finishFirst(statusResponse({
+      classrooms: [{
+        classroomId: classroomOne, state: 'confirmed', opensAt: null, closesAt: null,
+        attendanceStatus: 'present', confirmedAt: '2026-08-23T13:07:00.000Z',
+      }],
+      nextRefreshAt: null,
+      serverNow: '2026-08-23T13:08:00.000Z',
+    }))
+    await flushAsyncState()
+    expect(screen.getByText('Scan QR for Attendance')).toBeInTheDocument()
+    expect(screen.queryByText(/^Checked in at /)).not.toBeInTheDocument()
   })
 
   it('hides at a sub-second exact close and retries a failed refresh without stale QR copy', async () => {

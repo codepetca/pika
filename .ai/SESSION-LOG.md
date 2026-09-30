@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Test-mode pane layout
-
-Removed the redundant separator line from the shared student/teacher-preview document workspace. One 30/70-default width state now survives reference opening, Back, and switching documents; the resize control is available in the list too. Kept answer forms mounted and existing pointer/keyboard controls. Verification: 245 focused tests plus architecture/UI/design/typecheck/lint; student and teacher Playwright desktop/mobile light/dark captures and pane-width regressions. Composite accessibility checklist reviewed; keyboard and semantic state tested; no manual follow-up. Branch: codex/test-mode-pane-layout.
-
 ## 2026-09-27 — Test reference image scrollbar stability
 
 Fixed image resize feedback by measuring fractional border-box viewport dimensions and using CSS minimum canvas dimensions instead of previous content-box measurements. Preserves zoom, Fit, scrolling, and mounted answers. Unit regression covers scrollbar-area changes and real pane resizing; browser regressions reserve scrollbar space and sample image geometry across 40 frames. Teacher/student desktop/mobile light/dark verification passed (8 scenarios); focused suite 250 tests plus architecture/UI/design/typecheck/lint passed. Also verified the local seeded Markdown/PNG test. PR1375 returned to draft before this correction.
@@ -211,3 +207,7 @@ User authorized completion through release and actual ICS3U guidance. Rebased PR
 ## 2026-09-29 — Blueprint canonical CI screenshot correction
 
 Owner explicitly approved one correction batch and one additional targeted screenshot review after the ninth parent review passed. PR1387 exact-head run36653542032 passed Test & Build and Database contracts, but four Linux Pattern Lab references used different Docker fonts. Replaced only those references with the canonical GitHub CI captures; each original attempt and both retries produced the same image hash. Desktop/mobile light/dark captures preserve Factory and the current Test status-sort examples. Application, test assertions and migration221 are unchanged. Required focused checks and the approved screenshot review precede a fresh exact-head CI; production guidance and migrations remain untouched.
+
+## 2026-09-29 — Pause hidden authentication and attendance polling
+
+Added browser visibility guards and Today activity wiring while preserving the mounted student workspace. Returning forces one current-identity read; stale pre-hide responses are ignored, including batched visibility events. Visible attendance and auth cadences, server authorization and Toronto expiry contracts remain unchanged. Risk: workspace-state and client authentication lifecycle. Focused regressions cover hidden timers/retries, return coalescing, identity changes, expiry and Today activity. Reused existing attendance rendering and Pattern Lab page-state reference; teacher/student desktop/mobile light/dark verification and independent stable-SHA review required before merge. Production promotion and subsequent savings remain separate.

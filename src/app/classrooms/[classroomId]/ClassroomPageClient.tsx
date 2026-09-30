@@ -457,6 +457,7 @@ function StudentTodayPlanSidebar({
 function StudentTodayWorkspace({
   classroom,
   studentId,
+  isActive,
   todayDate,
   todayLessonPlan,
   lastClassLessonPlan,
@@ -476,6 +477,7 @@ function StudentTodayWorkspace({
 }: {
   classroom: Classroom
   studentId: string
+  isActive: boolean
   todayDate: string
   todayLessonPlan: LessonPlan | null
   lastClassLessonPlan: LessonPlan | null
@@ -495,7 +497,7 @@ function StudentTodayWorkspace({
 }) {
   const [planPaneWidth, setPlanPaneWidth] = useState(34)
   const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
-    useStudentAttendanceStatusView(studentId)
+    useStudentAttendanceStatusView(studentId, isActive)
   const attendanceState = attendanceView?.classrooms.find(
     (item) => item.classroomId === classroom.id,
   )
@@ -2036,6 +2038,7 @@ function ClassroomPageContent({
                       <StudentTodayWorkspace
                         classroom={classroom}
                         studentId={user.id}
+                        isActive={activeTab === 'today'}
                         todayDate={currentTorontoDate}
                         todayLessonPlan={todayLessonPlan}
                         lastClassLessonPlan={lastClassLessonPlan}
