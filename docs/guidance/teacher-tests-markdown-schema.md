@@ -70,6 +70,12 @@ Validation:
 
 ## Documents Block Schema
 
+Authoring policy: test references must contain no hyperlinks or clickable exits.
+Use `Source: text` or an uploaded file without clickable links; do not author
+`Source: link` references. The supported fields below describe the existing
+format, including legacy link documents; they do not override the
+[reference authoring policy](teacher-test-authoring.md#keep-reference-documents-inside-the-test).
+
 `## Documents` is optional:
 - If omitted entirely, existing documents are preserved.
 - To clear all documents, include:
@@ -178,9 +184,10 @@ Any accurate explanation of one interface with multiple implementations.
 
 ## Documents
 ### Document 1
-Source: link
-Title: Java API
-URL: https://docs.oracle.com/en/java/
+Source: text
+Title: Java syntax
+Content:
+Use System.out.println(value) to print a value followed by a newline.
 
 ### Document 2
 Source: text
