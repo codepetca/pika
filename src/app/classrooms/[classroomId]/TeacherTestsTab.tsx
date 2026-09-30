@@ -2514,7 +2514,7 @@ export function TeacherTestsTab({
   const selectedStudentUtilityActions: Array<TeacherWorkSurfaceActionItem & { label: string }> = [
     {
       id: 'ai-grade-selected',
-      label: 'AI Grade',
+      label: `AI Grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`,
       icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
       disabled: areStudentActionsUnavailable,
       onSelect: () => setShowBatchGradeModal(true),
@@ -3056,50 +3056,19 @@ export function TeacherTestsTab({
         onRequestPublish={handleRequestSelectedTestPublish}
       />
 
-      <DialogPanel
+      <ConfirmDialog
         isOpen={showBatchGradeModal}
-        onClose={() => setShowBatchGradeModal(false)}
-        ariaLabelledBy="test-ai-grade-title"
-        maxWidth="max-w-lg"
-        className="p-6"
-      >
-        <h2 id="test-ai-grade-title" className="text-lg font-semibold text-text-default">
-          AI Grade selected students
-        </h2>
-        <p className="mt-2 text-sm text-text-muted">
-          Choose whether to grade only responses without a grade or regrade every eligible response for the {batchAutoGradePreflight.selectedCount} selected student{batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setShowBatchGradeModal(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={isBatchAutoGrading || hasActiveTestAiRun}
-            onClick={() => {
-              setShowBatchGradeModal(false)
-              void handleBatchAutoGrade('ungraded')
-            }}
-          >
-            Only ungraded
-          </Button>
-          <Button
-            type="button"
-            disabled={isBatchAutoGrading || hasActiveTestAiRun}
-            onClick={() => {
-              setShowBatchGradeModal(false)
-              void handleBatchAutoGrade('all')
-            }}
-          >
-            Regrade all
-          </Button>
-        </div>
-      </DialogPanel>
+        title={`AI grade ${batchAutoGradePreflight.selectedCount} student${batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}`}
+        description="This will overwrite existing grade, comments and teacher edits."
+        confirmLabel="AI grade"
+        confirmVariant="danger"
+        isConfirmDisabled={isBatchAutoGrading || hasActiveTestAiRun}
+        onCancel={() => setShowBatchGradeModal(false)}
+        onConfirm={() => {
+          setShowBatchGradeModal(false)
+          void handleBatchAutoGrade('all')
+        }}
+      />
 
       <ConfirmDialog
         isOpen={!!pendingDeleteTest}

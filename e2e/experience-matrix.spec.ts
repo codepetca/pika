@@ -1925,7 +1925,7 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   expect(selectionBarBox!.y + selectionBarBox!.height).toBeLessThan(selectedScrollPaneBox!.y)
   await studentActionsButton.click()
   const studentActionsMenu = page.getByRole('menu', { name: 'Selected student actions' })
-  for (const action of ['AI Grade', 'Unsubmit', 'Return', 'Delete Work']) {
+  for (const action of ['AI Grade 1 student', 'Unsubmit', 'Return', 'Delete Work']) {
     await expect(studentActionsMenu.getByRole('menuitem', { name: action })).toBeVisible()
   }
   await expect(studentActionsMenu.getByRole('menuitem', { name: /Open selected/i })).toHaveCount(0)
@@ -1947,15 +1947,29 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     path: testInfo.outputPath(`test-grading-${viewport}-menu.png`),
     animations: 'disabled',
   })
-  await studentActionsMenu.getByRole('menuitem', { name: 'AI Grade' }).click()
-  await expect(page.getByRole('dialog')).toContainText('AI Grade selected students')
-  await expect(page.getByRole('button', { name: 'Only ungraded' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Regrade all' })).toBeVisible()
+  await studentActionsMenu.getByRole('menuitem', { name: 'AI Grade 1 student' }).click()
+  await expect(page.getByRole('dialog', { name: 'AI grade 1 student' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+  await expect(page.getByRole('dialog')).toContainText('This will overwrite existing grade, comments and teacher edits.')
+  await expect(page.getByRole('button', { name: 'AI grade', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Only ungraded' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Regrade all' })).toHaveCount(0)
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-ai-grade-scope.png`),
     animations: 'disabled',
   })
   await page.getByRole('button', { name: 'Cancel' }).click()
+
+  await page.getByRole('checkbox', { name: 'Select Student 02 Alpha02' }).click()
+  await gradingToolbar.getByRole('button', { name: 'Student actions for 2 selected' }).click()
+  await page.getByRole('menu', { name: 'Selected student actions' }).getByRole('menuitem', { name: 'AI Grade 2 students' }).click()
+  await expect(page.getByRole('dialog', { name: 'AI grade 2 students' })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-ai-grade-two-students.png`),
+    animations: 'disabled',
+  })
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.getByRole('checkbox', { name: 'Select Student 02 Alpha02' }).click()
 
   await verifyProjectContract(page, testInfo)
   await page.screenshot({
