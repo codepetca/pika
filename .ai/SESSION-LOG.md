@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Billing final documentation-format correction
-
-Owner approved the sixth/final documentation-only correction and CI rerun. Restored CURRENT’s required `Prod DB 001–214` prefix after the prior shortening failed the rollout-format contract; no billing code, tests, migration SQL or database state changed. Prior CI passed8524tests plus billing DB contracts and warning lint; remaining jobs were incomplete at the failure checkpoint. Verify both startup size and rollout-format tests, focused checks, then fixed-commit CI. No additional reviewer or merge authority.
-
-## 2026-09-28 — Selected assessment label size
-
-Enlarged the teacher assignment and test edit labels above their student tables to 18px mobile and 20px desktop. Follow-up: each existing ghost edit button now fills the available left section of the context bar, stopping before the centered action cluster. Student-facing pages and composite behavior are unchanged. Local seeded teacher Playwright captures covered both workspaces at desktop/mobile in light/dark, measured full-width click targets with no page overflow, verified keyboard focus, and confirmed each label opens its editor. PR1382's first final-SHA CI passed Test & Build but failed unrelated mobile Pattern Lab attendance-tooltip checks. The test now uses a real keyboard focus transition; all eight focused Pattern Lab cases pass across teacher/student, desktop/mobile, light/dark. Focused checks pass 275 tests plus architecture, UI/design policy, TypeScript, and lint. Risk: none. Model recommendation: GPT-6 Sol for the localized UI adjustment. Final review and CI follow.
-
-## 2026-09-28 — Coding-test reference authoring conventions
-
-- Documented the reusable student-facing reference order: general `Instructions` first, language or subject reference second, and question visuals afterward. Added a general Markdown outline, concise question guidance, assessment-specific marking policy, and copy/adaptation checks based on the Unit 1 Karel quiz authoring work.
-- Documentation only; no product, grading, database, or published-test changes. Risk profile: none. Model recommendation: GPT-6 Sol for the focused documentation update. Focused checks, independent documentation review, and draft-first PR gate precede merge.
-
-## 2026-09-28 — Image reference first-load measurement
-
-Inspected the teacher/student private image route and measured it on a temporary seeded local Test using 787,252-byte and 7,081,652-byte PNGs. The first small request took 428ms to authorize/redirect and 10ms to transfer; repeat requests took 38–41ms plus 8–21ms. The large image took 33–40ms to authorize and 61–70ms to transfer. The temporary Test was deleted through the teacher API; its two managed objects entered normal cleanup_pending state. No application code, migration or hosted data changed. Live production timing and the actual reference-file size remain unknown because browser control timed out and the connected Supabase app was unavailable. A 1MB cap is not justified by this local evidence alone.
-
 ## 2026-09-28 — Image reference first-open preload
 
 Mounted the first image reference when the teacher preview or started student test workspace appears, and kept the same image instance for first open and return. Other images continue to load on demand. The viewer resets zoom on close and keeps the existing authenticated route, full-resolution image, and retry behavior. Component tests and targeted Playwright teacher/student cases passed across desktop/mobile and light/dark; the browser case observed one image file request before first click and no second request on open. Visual screenshots were reviewed. Hosted latency and file size remain unmeasured.
@@ -206,3 +189,19 @@ PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-app
 Adoption PR1396 merged as b754bd69 after all exact-head CI36702895411 gates passed. Production PR1398 is draft at6fc43e4a; security review clean, compatibility found the teacher Content reader's 40-title truncation. Removed that presentation limit, covering all500assignment/200test titles from the structural Version; AI input retains its separate40-title cap. Updated the canonical plan. Actual ICS3U-4 guidance saved and read-verified through the production teacher editor at Draft revision4; classroom adoption and migrations remain pending. Production review consumed2launches/0fixbatches and reached45minutes; the correction and final release review need an explicit time extension. Focused checks passed121tests; Playwright desktop/mobile light/dark Content captures show item41 and no overflow. No production migration or classroom content changes occurred.
 
 Owner approved the45-minute correction/final-release review extension and one production221/222 application after checks on2026-09-30. Correction reviewer found stale instructions later in the canonical plan; marked the historical Draft3 baseline and completed main merges/Draft4 save explicitly, retaining release/class adoption pending. Runtime and regression review clean; final integration will confirm the documentation correction.
+
+## 2026-09-30 — AI regrade overwrite warning
+
+Added explicit copy to the existing teacher AI Grade scope dialog: Regrade all overwrites existing grades and comments, including teacher edits. Grading behavior and scope buttons remain unchanged. Reused DialogPanel/Button and existing semantic text styles; reference: selected Test grading actions and Pattern Lab shared dialog. Teacher desktop/mobile in light/dark verified with four passing Playwright cases and reviewed screenshots; student n/a because its interface is unchanged. Focused checks pass 224 tests plus architecture, UI/design policy, TypeScript and lint; Pika audit passes. Risk profile: none. Independent low-risk review and ready PR Gate remain pending. Model recommendation: GPT-6 Sol for this localized wording change.
+
+## 2026-09-30 — Simplify AI grading confirmation
+
+Owner replaced the two grade-scope choices with one AI grade confirmation. Reused the existing teacher DialogPanel and buttons; Cancel plus AI grade now requests all eligible answers for selected students and explicitly warns that existing grades/comments, including teacher edits, are overwritten. The existing component test asserts all scope and absence of the old options; four desktop/mobile light/dark Playwright cases pass and screenshots were reviewed. Focused224tests plus architecture/UI/design/TypeScript/lint and audit pass. Student interface and backend grading contracts unchanged; no paid grading calls or schema changes. PR1400 returned to draft before correction; independent review of new stable SHA pending. Risk profile: none. Model recommendation: GPT-6 Sol for the localized grading confirmation change.
+
+## 2026-09-30 — Open local single-action grading preview
+
+Started reviewed PR1400 worktree fedf1824 locally on port3117 using the canonical local Supabase launcher. Local login HTTP200; signed into seeded teacher account via Dev Quick Login, opened Test Classroom → Seed Test - AI Grading Demo, selected Student1 Test and left AI grade confirmation open in the app browser. Verified modal has Cancel and AI grade with overwrite warning; no grading was started. Server session remains running for owner preview, URL http://127.0.0.1:3117. No application code, schema or grading data changes.
+
+## 2026-09-30 — Counted danger confirmation for AI grading
+
+Student actions now names the selected count (AI Grade 1 student / AI Grade 2 students). Reused the canonical compact danger ConfirmDialog, with the matching count in its title, the owner's exact overwrite warning, initial Cancel focus and red AI grade confirmation. Existing all-scope grading behavior and concurrency guards remain unchanged. Component coverage verifies no grading request before confirmation or after Cancel; focused224tests and architecture/UI/design/TypeScript/lint plus audit pass. Four desktop/mobile light/dark browser cases pass, with eight one/two-student dialog captures visually reviewed. Actual seeded teacher preview remains open locally on port3117; no grading was started. PR1400 remains draft for stable-SHA independent review; merge/promotion not authorized for this PR. Risk profile: none. Model recommendation: GPT-6 Sol for the localized interaction update.
