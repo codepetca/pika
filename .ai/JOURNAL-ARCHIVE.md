@@ -33769,3 +33769,8 @@ PR #1377 rebased onto main ede9b218; preserved main owner-precedence migration21
 ## 2026-09-27 — Titlebar clock merge preparation
 - User approved the fullscreen-only result and authorized PR1374 merge to main. Synced main85e8a2bf; the sole conflict was a duplicate archive-batch marker, resolved in favor of main's marker. Application and test files match reviewed687b3469; no product behavior changed during sync.
 - Required focused checks and targeted sync review precede stable-SHA CI and squash merge. Local server3107 remains the preview; no production promotion requested.
+
+<!-- pika-session-log-archive-batch:5dcb6bd410a2114c8bc3b7ef90ed3262e61f091d90910dad41e1462c40a12fb5 -->
+## 2026-09-27 — Titlebar mobile CI stabilization
+- Owner extended the review budget to resolve PR1374's mobile Pattern Lab tooltip failure and complete merge. CI passed Test & Build but failed the student mobile attendance tooltip checks. Reproduced the scroll/focus race locally; scrolling the absent chip into view before focus preserves the tooltip assertion and avoids the tooltip being dismissed by focus-induced scrolling.
+- Synced main ede9b218; conflicts were confined to duplicate archive history, preserving main's entries. Titlebar application/component-test files are byte-identical to reviewed632136b0. One-line browser-test correction, focused checks, bounded independent review and final-SHA CI precede merge.

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Titlebar mobile CI stabilization
-- Owner extended the review budget to resolve PR1374's mobile Pattern Lab tooltip failure and complete merge. CI passed Test & Build but failed the student mobile attendance tooltip checks. Reproduced the scroll/focus race locally; scrolling the absent chip into view before focus preserves the tooltip assertion and avoids the tooltip being dismissed by focus-induced scrolling.
-- Synced main ede9b218; conflicts were confined to duplicate archive history, preserving main's entries. Titlebar application/component-test files are byte-identical to reviewed632136b0. One-line browser-test correction, focused checks, bounded independent review and final-SHA CI precede merge.
-
 ## 2026-09-27 — Test-mode pane layout
 
 Removed the redundant separator line from the shared student/teacher-preview document workspace. One 30/70-default width state now survives reference opening, Back, and switching documents; the resize control is available in the list too. Kept answer forms mounted and existing pointer/keyboard controls. Verification: 245 focused tests plus architecture/UI/design/typecheck/lint; student and teacher Playwright desktop/mobile light/dark captures and pane-width regressions. Composite accessibility checklist reviewed; keyboard and semantic state tested; no manual follow-up. Branch: codex/test-mode-pane-layout.
@@ -211,3 +207,7 @@ Replaced the test-authoring guide’s side-by-side transformation rule with vert
 ## 2026-09-29 — Resume Blueprint rollout orchestration
 
 User authorized completion through release and actual ICS3U guidance. Rebased PR1387 onto main27ddf09a; resolved continuity duplicates and regenerated combined Pattern Lab snapshots on Darwin and Linux. Focused checks pass3,507tests/7skipped and all static gates; eight snapshot cases pass without update mode. Verified production through220, empty Pika-managed ICS3U-4 Draft guidance, and P3/P5 frozenVersion3 with no guidance. P5 has1untrackedtest; P3has1untrackedtest/1lesson, so existing full classroom update is blocked. Sol read-only subagent identified adoption seams; coordinator requires separate guidance binding to preserve copied-artifact Version identity. Prepared exact course rules in ignored output/rollout/ics3u-authoring-guidance.md. Updated the single roadmap with the necessary guidance-only adoption phase. Specific approval to exceed the prior eight-reviewer cap is pending; no new PR reviewer, migration, course save, or deployment ran.
+
+## 2026-09-29 — Blueprint canonical CI screenshot correction
+
+Owner explicitly approved one correction batch and one additional targeted screenshot review after the ninth parent review passed. PR1387 exact-head run36653542032 passed Test & Build and Database contracts, but four Linux Pattern Lab references used different Docker fonts. Replaced only those references with the canonical GitHub CI captures; each original attempt and both retries produced the same image hash. Desktop/mobile light/dark captures preserve Factory and the current Test status-sort examples. Application, test assertions and migration221 are unchanged. Required focused checks and the approved screenshot review precede a fresh exact-head CI; production guidance and migrations remain untouched.
