@@ -33891,3 +33891,8 @@ Enlarged the teacher assignment and test edit labels above their student tables 
 ## 2026-09-28 — Image reference first-load measurement
 
 Inspected the teacher/student private image route and measured it on a temporary seeded local Test using 787,252-byte and 7,081,652-byte PNGs. The first small request took 428ms to authorize/redirect and 10ms to transfer; repeat requests took 38–41ms plus 8–21ms. The large image took 33–40ms to authorize and 61–70ms to transfer. The temporary Test was deleted through the teacher API; its two managed objects entered normal cleanup_pending state. No application code, migration or hosted data changed. Live production timing and the actual reference-file size remain unknown because browser control timed out and the connected Supabase app was unavailable. A 1MB cap is not justified by this local evidence alone.
+
+<!-- pika-session-log-archive-batch:053ecae518b2fb989ed0b45e0dbca5fd8530d9e4f9e55095525698b688cd0662 -->
+## 2026-09-28 — Image reference first-open preload
+
+Mounted the first image reference when the teacher preview or started student test workspace appears, and kept the same image instance for first open and return. Other images continue to load on demand. The viewer resets zoom on close and keeps the existing authenticated route, full-resolution image, and retry behavior. Component tests and targeted Playwright teacher/student cases passed across desktop/mobile and light/dark; the browser case observed one image file request before first click and no second request on open. Visual screenshots were reviewed. Hosted latency and file size remain unmeasured.
