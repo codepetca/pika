@@ -6,11 +6,13 @@ import { markdownToTiptapContent } from '@/lib/limited-markdown'
 import { fetchCachedJSON } from '@/lib/request-cache'
 import type { CourseBlueprintAuthoringGuidance } from '@/lib/course-blueprint-authoring-guidance'
 import type { Classroom } from '@/types'
-import { Button, PageContent, PageHeading, PageLayout, PageState, SegmentedControl } from '@/ui'
+import { Button, ContentDialog, PageContent, PageHeading, PageLayout, PageState, SegmentedControl } from '@/ui'
 
 type BlueprintSection = 'overview' | 'content' | 'guidance'
 
 type ClassroomBlueprintContext = {
+  content_version_id: string
+  content_version_number: number
   source_blueprint_version_id: string
   source_blueprint_version_number: number
   source_draft_revision: number
@@ -23,6 +25,30 @@ type ClassroomBlueprintContext = {
     assignment_titles: string[]
     test_titles: string[]
   }
+}
+
+type GuidancePreview = {
+  blueprint_id: string
+  expected_content_version_id: string
+  expected_guidance_version_id: string
+  expected_draft_revision: number
+  current_guidance_version_number: number
+  current_guidance: CourseBlueprintAuthoringGuidance
+  guidance: CourseBlueprintAuthoringGuidance
+  changed: boolean
+}
+
+function GuidanceRules({ guidance }: { guidance: CourseBlueprintAuthoringGuidance }) {
+  return <div className="space-y-3">
+    <MarkdownSection title="Course expectations" markdown={guidance.course_expectations_markdown} emptyText="No course expectations saved." />
+    <MarkdownSection title="Assignment rules" markdown={guidance.assignment_guidance_markdown} emptyText="No assignment rules saved." />
+    <MarkdownSection title="Test rules" markdown={guidance.test_guidance_markdown} emptyText="No test rules saved." />
+    {guidance.unit_exceptions.map((unit) => <section key={unit.id} className="space-y-3">
+      <h3 className="font-semibold text-text-default">{unit.unit_label}</h3>
+      <MarkdownSection title="Assignment rules" markdown={unit.assignment_guidance_markdown} emptyText="No additional assignment rules." />
+      <MarkdownSection title="Test rules" markdown={unit.test_guidance_markdown} emptyText="No additional test rules." />
+    </section>)}
+  </div>
 }
 
 type BlueprintState =
@@ -90,6 +116,50 @@ export function TeacherBlueprintTab({ classroom, isActive, sectionParam, onSecti
 }) {
   const [state, setState] = useState<BlueprintState>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const [preview, setPreview] = useState<GuidancePreview | null>(null)
+  const [updating, setUpdating] = useState(false)
+  const [updateError, setUpdateError] = useState('')
+  const [updateMessage, setUpdateMessage] = useState('')
+
+  async function reviewGuidance() {
+    setUpdating(true)
+    setUpdateError('')
+    setUpdateMessage('')
+    try {
+      const result = await fetchCachedJSON<{ preview: GuidancePreview }>(
+        `classroom-guidance-update:${classroom.id}`,
+        `/api/teacher/classrooms/${encodeURIComponent(classroom.id)}/authoring-guidance/update`,
+        { errorMessage: 'Could not load the latest guidance.', ttlMs: 0 },
+      )
+      setPreview(result.preview)
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : 'Could not load guidance.')
+    } finally { setUpdating(false) }
+  }
+
+  async function updateGuidance() {
+    if (!preview) return
+    setUpdating(true)
+    setUpdateError('')
+    try {
+      const response = await fetch(`/api/teacher/classrooms/${encodeURIComponent(classroom.id)}/authoring-guidance/update`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          blueprint_id: preview.blueprint_id,
+          expected_content_version_id: preview.expected_content_version_id,
+          expected_guidance_version_id: preview.expected_guidance_version_id,
+          expected_draft_revision: preview.expected_draft_revision,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Could not update guidance.')
+      setPreview(null)
+      setUpdateMessage(`Guidance updated to Version ${result.version}.`)
+      setAttempt((value) => value + 1)
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : 'Could not update guidance.')
+    } finally { setUpdating(false) }
+  }
   const section = parseBlueprintSection(sectionParam)
 
   useEffect(() => {
@@ -132,7 +202,8 @@ export function TeacherBlueprintTab({ classroom, isActive, sectionParam, onSecti
           />
           {context ? (
             <span className="rounded-control border border-border bg-surface-2 px-3 py-2 text-sm text-text-muted">
-              Version {context.source_blueprint_version_number}
+              Content Version {context.content_version_number ?? context.source_blueprint_version_number}
+              <span className="ml-3">Guidance Version {context.source_blueprint_version_number}</span>
             </span>
           ) : null}
         </div>
@@ -155,7 +226,7 @@ export function TeacherBlueprintTab({ classroom, isActive, sectionParam, onSecti
         ) : (
           <>
             <p className="rounded-card border border-border bg-surface-2 px-4 py-3 text-sm text-text-muted">
-              This is the Version saved with this classroom. Later edits to the source Blueprint do not change it.
+              Content keeps the Version saved with this classroom. Guidance changes only when you review and update it.
             </p>
             <div role="region" aria-label={`${SECTIONS.find((item) => item.value === section)?.label} Blueprint section`}>
               {section === 'overview' ? (
@@ -179,28 +250,38 @@ export function TeacherBlueprintTab({ classroom, isActive, sectionParam, onSecti
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p className="text-sm text-text-muted">Teacher only · Drafts use these saved course and unit rules.</p>
-                  <MarkdownSection title="Course expectations" markdown={guidance.course_expectations_markdown} emptyText="No course expectations saved." />
-                  <MarkdownSection title="Assignment rules" markdown={guidance.assignment_guidance_markdown} emptyText="No assignment rules saved." />
-                  <MarkdownSection title="Test rules" markdown={guidance.test_guidance_markdown} emptyText="No test rules saved." />
-                  {guidance.unit_exceptions.length ? (
-                    <section className="space-y-4">
-                      <h2 className="text-base font-semibold text-text-default">Unit rules</h2>
-                      {guidance.unit_exceptions.map((unit) => (
-                        <div key={unit.id} className="space-y-3 rounded-card border border-border bg-surface-2 p-4 sm:p-5">
-                          <h3 className="font-semibold text-text-default">{unit.unit_label}</h3>
-                          <MarkdownSection title="Assignment rules" markdown={unit.assignment_guidance_markdown} emptyText="No additional assignment rules." />
-                          <MarkdownSection title="Test rules" markdown={unit.test_guidance_markdown} emptyText="No additional test rules." />
-                        </div>
-                      ))}
-                    </section>
-                  ) : null}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-text-muted">Teacher only · Future drafts use these saved rules.</p>
+                    {!classroom.archived_at && <Button type="button" variant="secondary" disabled={updating} onClick={reviewGuidance}>
+                      {updating && !preview ? 'Loading guidance…' : 'Review guidance update'}
+                    </Button>}
+                  </div>
+                  {updateMessage && <p role="status" className="text-sm text-text-muted">{updateMessage}</p>}
+                  {updateError && !preview && <p role="alert" className="text-sm text-danger">{updateError}</p>}
+                  <GuidanceRules guidance={guidance} />
                 </div>
               )}
             </div>
           </>
         )}
       </PageContent>
+      <ContentDialog isOpen={Boolean(preview)} onClose={() => { if (!updating) { setPreview(null); setUpdateError('') } }}
+        title="Update authoring guidance" subtitle="Changes apply to future drafts."
+        maxWidth="max-w-5xl" showFooterClose={false}
+        footer={<div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" disabled={updating} onClick={() => { setPreview(null); setUpdateError('') }}>Cancel</Button>
+          <Button type="button" disabled={updating || !preview?.changed} onClick={updateGuidance}>{updating ? 'Updating…' : 'Update guidance'}</Button>
+        </div>}>
+        <p className="mb-4 text-sm text-text-muted">Existing classroom content stays as it is.</p>
+        {updateError && <p role="alert" className="mb-3 text-sm text-danger">{updateError}</p>}
+        {preview && <>
+          {!preview.changed && <p role="status" className="mb-3 text-sm text-text-muted">The latest Blueprint Draft has the same guidance.</p>}
+          <div className="grid gap-5 md:grid-cols-2">
+            <section className="min-w-0 space-y-3"><h2 className="font-semibold text-text-default">Current · Guidance Version {preview.current_guidance_version_number}</h2><GuidanceRules guidance={preview.current_guidance} /></section>
+            <section className="min-w-0 space-y-3"><h2 className="font-semibold text-text-default">Proposed · Blueprint Draft {preview.expected_draft_revision}</h2><GuidanceRules guidance={preview.guidance} /></section>
+          </div>
+        </>}
+      </ContentDialog>
     </PageLayout>
   )
 }

@@ -5,6 +5,7 @@ import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-vi
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
+  clientProps: vi.fn(),
   getAttendanceAccess: vi.fn(),
   getPalApiUrl: vi.fn(),
   getUserDisplayInfo: vi.fn(),
@@ -59,9 +60,10 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/ClassroomPageClient', () => ({
-  ClassroomPageClient: ({ user, classroomRole, initialTab, classroomQrAvailable }: { user: { role: string }; classroomRole?: string; initialTab?: string; classroomQrAvailable?: boolean }) => (
-    <div data-testid="classroom-page" data-role={user.role} data-classroom-role={classroomRole || user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
-  ),
+  ClassroomPageClient: ({ classroom: classroomRecord, user, classroomRole, initialTab, classroomQrAvailable }: { classroom: unknown; user: { role: string }; classroomRole?: string; initialTab?: string; classroomQrAvailable?: boolean }) => {
+    mocks.clientProps(classroomRecord)
+    return <div data-testid="classroom-page" data-role={user.role} data-classroom-role={classroomRole || user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
+  },
 }))
 
 const classroom = (featureVisibility = DEFAULT_CLASSROOM_FEATURE_VISIBILITY) => ({
@@ -225,6 +227,21 @@ describe('ClassroomPage feature visibility redirects', () => {
 
     expect(mocks.redirect).not.toHaveBeenCalled()
     expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-role', 'student')
+  })
+
+  it.each(['legacy', 'contextual'] as const)('removes private guidance provenance before %s member client props', async (mode) => {
+    mocks.getCurrentUser.mockResolvedValue({ id: 'student-1', email: 'student@example.test', role: 'student' })
+    mocks.resolvePageAccess.mockResolvedValue(mode === 'legacy' ? { mode } : { mode, context: { relationship: 'member' } })
+    mocks.singleResults.push(
+      { data: { classroom_id: 'classroom-1' }, error: null },
+      { data: { ...classroom(), source_blueprint_version_id: 'content-v3',
+        authoring_guidance_version_id: 'private-guidance-v4' }, error: null },
+    )
+    await renderPage('today')
+    const record = mocks.clientProps.mock.lastCall?.[0]
+    expect(record.source_blueprint_version_id).toBe('content-v3')
+    expect(record).not.toHaveProperty('authoring_guidance_version_id')
+    expect(JSON.stringify(record)).not.toContain('private-guidance-v4')
   })
 
   it('renders a student-valued owner with the teacher classroom experience only', async () => {
