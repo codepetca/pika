@@ -356,13 +356,15 @@ export function TeacherCalendarTab({ classroom }: Props) {
                       const disabled = !isInRange || isBeforeToday
 
                       const isToday = dateString === todayToronto
-                      const colorClasses = disabled
+                      const colorClasses = !isInRange
                         ? 'bg-surface-2 text-text-muted'
-                        : isClassDay
-                          ? isPastClassDay
-                            ? 'bg-success-bg-muted text-success hover:bg-success-bg'
-                            : 'bg-success-bg text-success hover:bg-success-bg-hover'
-                          : 'bg-surface-2 text-text-muted hover:bg-surface-hover'
+                        : isPastClassDay
+                          ? 'bg-success-bg-muted text-success'
+                          : isClassDay
+                            ? 'bg-success-bg text-success hover:bg-success-bg-hover'
+                            : disabled
+                              ? 'bg-surface-2 text-text-muted'
+                              : 'bg-surface-2 text-text-muted hover:bg-surface-hover'
 
                       const outlineClasses = isToday ? 'ring-2 ring-primary' : ''
                       const isPending = pendingToggleDates.has(dateString)
@@ -371,7 +373,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                         <button
                           key={dateString}
                           onClick={() => {
-                            if (isToday && isClassDay) setDayToExclude(dateString)
+                            if (dateString === getTodayInToronto() && isClassDay) setDayToExclude(dateString)
                             else void toggleDay(dateString, !isClassDay)
                           }}
                           aria-pressed={isClassDay}

@@ -168,6 +168,18 @@ describe('TeacherCalendarTab class-day toggles', () => {
       expect(button).toBeDisabled()
       fireEvent.click(button)
     }
+    expect(screen.getByRole('button', { name: '3', exact: true })).toHaveClass('bg-success-bg-muted', 'text-success')
+    expect(screen.getByRole('button', { name: '3', exact: true })).not.toHaveClass('hover:bg-success-bg')
+    expect(screen.getByRole('button', { name: '2', exact: true })).toHaveClass('bg-surface-2', 'text-text-muted')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('confirms excluding a future class day that has become today while the tab stayed open', async () => {
+    render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    const button = await screen.findByRole('button', { name: '9', exact: true })
+    todayInToronto.date = '2026-09-09'
+    fireEvent.click(button)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
