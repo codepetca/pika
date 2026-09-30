@@ -70,6 +70,12 @@ Validation:
 
 ## Documents Block Schema
 
+Authoring policy: test references must contain no hyperlinks or clickable exits.
+Use `Source: text` or an uploaded file without clickable links; do not author
+`Source: link` references. The supported fields below describe the existing
+format, including legacy link documents; they do not override the
+[reference authoring policy](teacher-test-authoring.md#keep-reference-documents-inside-the-test).
+
 `## Documents` is optional:
 - If omitted entirely, existing documents are preserved.
 - To clear all documents, include:
@@ -83,7 +89,9 @@ Each document must be in its own `### Document N` block.
 
 Fields:
 - `ID` — [Optional] UUID
-- `Source` — [Optional] `link`, `upload`, `text` (default: `link`)
+- `Source` — For new references, explicitly specify `text` or `upload`. The
+  existing parser also accepts legacy `link` and defaults to it when omitted;
+  do not omit this field when authoring a new reference.
 - `Title` — [Required] non-empty string
 - `URL` — [Required for `link` and `upload`] must be `http://` or `https://`
 - `Content` — [Required for `text`] multiline text
@@ -93,7 +101,28 @@ Validation:
 - `ID` is required after normalization (existing ID fallback or generated UUID).
 - Invalid documents cause markdown apply to fail.
 
-## Copy-Paste Template
+## Reference template for new tests
+
+Use this block for new references. Put necessary documentation inside the test
+and explicitly choose `Source: text`. An uploaded attachment is also allowed
+when the file contains no clickable links; its storage URL identifies the
+attachment, not a documentation hyperlink for students.
+
+```md
+## Documents
+### Document 1
+Source: text
+Title: <Reference Notes>
+Content:
+<Paste the needed documentation here without hyperlinks>
+```
+
+## Legacy format reference (compatibility only)
+
+The generated block below documents the existing parser contract. Its `link`
+example and optional `Source` fields are for legacy compatibility, not new test
+authoring. For new references, use the template above and the no-hyperlinks
+policy.
 
 <!-- GENERATED:TEST_MARKDOWN_AI_SCHEMA:start -->
 ```md
@@ -178,9 +207,10 @@ Any accurate explanation of one interface with multiple implementations.
 
 ## Documents
 ### Document 1
-Source: link
-Title: Java API
-URL: https://docs.oracle.com/en/java/
+Source: text
+Title: Java syntax
+Content:
+Use System.out.println(value) to print a value followed by a newline.
 
 ### Document 2
 Source: text

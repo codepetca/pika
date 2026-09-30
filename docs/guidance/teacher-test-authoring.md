@@ -20,6 +20,15 @@ turn one quiz's length, point total, topic, or mix of questions into a default f
 every test. For revisions, preserve question/document IDs, unrelated content,
 point totals, and release settings unless the requested change includes them.
 
+When a classroom was created from a saved Course Blueprint Version, teachers
+can use **Draft with Blueprint** from Tests or Classwork. Choose the unit, give
+the assessment brief, and review the editable Markdown before creating a draft.
+The draft uses that classroom's frozen Version rules, including any selected
+unit rule; later edits to the Blueprint Draft do not silently change it. The
+teacher editor shows the source Version after creation. Keep guidance and
+answer keys in teacher-only fields, and check the student preview before
+publishing.
+
 ## Write the prompt, rubric, and sample together
 
 Treat each question as one coordinated package:
@@ -103,8 +112,20 @@ it matters; do not silently expand the agreed scope or point budget.
 
 ## Use diagrams and references deliberately
 
-For transformations, show starting and ending examples side by side. For other
-subjects, choose the representation that clarifies the task. Match the course's
+### Keep reference documents inside the test
+
+Test reference documents must never contain hyperlinks: they create exits from
+the test. Do not author link-type reference documents or include Markdown links,
+autolinks, HTML anchors, clickable images, or URLs that the editor turns into
+links. This applies to every reference, including `Instructions`, language or
+subject documentation, and uploaded PDFs. Put the needed documentation directly
+in a Markdown text reference or an uploaded file with no clickable links.
+
+When generating images with multiple diagrams or states, stack them vertically
+instead of placing them side by side. For transformations, put the starting
+state above the ending state and label both clearly. For example, a Karel world
+reference should show the starting world on top and the ending world below it.
+Keep each diagram legible in the student's reference pane. Match the course's
 notation, label each question and state, and include a legend for ambiguous
 symbols. Check that the diagram agrees with every relevant prompt condition.
 
@@ -115,9 +136,8 @@ essential constraints in text so the diagram is not the sole source of the task.
 An attached PDF is a supported option for a diagram reference sheet. PNG and
 JPG/JPEG images can also be uploaded through Reference Documents → Upload once
 the image storage migration is deployed; students can fit or zoom them in the
-reference pane. SVG is not supported. Link and text documents are also described
-in the markdown schema. Use a focused text
-reference for commands, formulas, or definitions when that is clearer. Verify
+reference pane. SVG is not supported. Use a focused Markdown text reference
+for commands, formulas, or definitions when that is clearer. Verify
 current editor capabilities before claiming an inline image feature is available
 or unavailable. Creating a local PDF does not attach it to a test: upload it
 through the supported workflow and verify the attachment when requested.
@@ -138,7 +158,7 @@ When a coding test needs reference documents, use this student-facing order:
    helper reuse when a question requires it. Keep this document free of question
    numbers, course names, language-specific commands, and solution hints.
 2. **Language or subject reference** — program format, allowed commands,
-   conditions, syntax examples, and useful documentation links. Use Markdown
+   conditions, syntax examples, and relevant documentation excerpts. Use Markdown
    headings and fenced code blocks. Label examples as syntax examples, not
    solutions to test questions. Keep language-specific details here instead of
    putting them in `Instructions`.
@@ -192,6 +212,8 @@ language-specific content without changing unrelated assessment content.
    intended changes persisted and that unrelated questions/settings were preserved.
 4. Inspect student preview when available, particularly formatting, code blocks,
    reference access, and whether teacher-only content is withheld as intended.
+   Open every reference and confirm it has no hyperlinks or clickable exits;
+   check uploaded PDFs as well as Markdown text.
 5. Report exactly what was saved, attached, previewed, published, or left pending.
    Follow the user's authorized publication scope; saving content does not by
    itself establish that the assessment was published.

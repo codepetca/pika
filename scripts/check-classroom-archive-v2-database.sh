@@ -114,6 +114,50 @@ insert into public.assessment_drafts (
   '12000000-0000-4000-8000-000000000001'
 );
 
+do $guided_fixture$
+begin
+if to_regclass('public.classroom_guided_draft_provenance') is not null then
+insert into public.assignments (id, classroom_id, title, description, due_at, created_by)
+values (
+  '32000000-0000-4000-8000-000000000021',
+  '22000000-0000-4000-8000-000000000001',
+  'Guided assignment', 'Archive guided provenance',
+  '2030-01-01T23:59:00Z', '12000000-0000-4000-8000-000000000001'
+);
+insert into public.tests (id, classroom_id, title, status, points_possible, created_by)
+values (
+  '32000000-0000-4000-8000-000000000022',
+  '22000000-0000-4000-8000-000000000001',
+  'Guided test', 'draft', 5, '12000000-0000-4000-8000-000000000001'
+);
+insert into public.classroom_guided_draft_provenance (
+  id, draft_id, classroom_id, assignment_id, test_id,
+  source_blueprint_version_id, source_blueprint_version_number,
+  source_draft_revision, rules_markdown, seed_sha256,
+  created_content_sha256, created_by
+) values
+  (
+    '32000000-0000-4000-8000-000000000023',
+    '32000000-0000-4000-8000-000000000024',
+    '22000000-0000-4000-8000-000000000001',
+    '32000000-0000-4000-8000-000000000021', null,
+    '32000000-0000-4000-8000-000000000027', 1, 1,
+    'Assignment guidance', repeat('a', 64), repeat('b', 64),
+    '12000000-0000-4000-8000-000000000001'
+  ),
+  (
+    '32000000-0000-4000-8000-000000000025',
+    '32000000-0000-4000-8000-000000000026',
+    '22000000-0000-4000-8000-000000000001',
+    null, '32000000-0000-4000-8000-000000000022',
+    '32000000-0000-4000-8000-000000000027', 1, 1,
+    'Test guidance', repeat('c', 64), repeat('d', 64),
+    '12000000-0000-4000-8000-000000000001'
+  );
+end if;
+end;
+$guided_fixture$;
+
 do $contract$
 declare
   v_teacher_id constant uuid := '12000000-0000-4000-8000-000000000001';
@@ -134,7 +178,8 @@ declare
 begin
   v_expected_v2_resource_count := 40
     + case when to_regclass('public.gradebook_score_overrides') is null then 0 else 1 end
-    + case when to_regclass('public.gradebook_items') is null then 0 else 2 end;
+    + case when to_regclass('public.gradebook_items') is null then 0 else 2 end
+    + case when to_regclass('public.classroom_guided_draft_provenance') is null then 0 else 1 end;
   if (
     select count(*)
     from public.classroom_archive_resource_contract_versions
@@ -195,6 +240,10 @@ begin
 
   v_archive_id := (v_result->>'archive_id')::uuid;
   v_source_counts := v_result->'resource_counts';
+  if to_regclass('public.classroom_guided_draft_provenance') is not null
+    and v_source_counts->>'classroom_guided_draft_provenance' <> '2' then
+    raise exception 'Guided draft provenance was omitted from archive snapshot';
+  end if;
   select jsonb_object_agg(
     contract.table_name,
     case contract.table_name
@@ -460,6 +509,18 @@ begin
   select 'classrooms', classroom.id, to_jsonb(classroom)
   from public.classrooms classroom
   where classroom.id = v_classroom_id;
+  if to_regclass('public.classroom_guided_draft_provenance') is not null then
+    insert into expected_archive_v2_rows (table_name, row_id, row_data)
+    select 'assignments', assignment.id, to_jsonb(assignment)
+    from public.assignments assignment where assignment.classroom_id = v_classroom_id;
+    insert into expected_archive_v2_rows (table_name, row_id, row_data)
+    select 'tests', test.id, to_jsonb(test)
+    from public.tests test where test.classroom_id = v_classroom_id;
+    insert into expected_archive_v2_rows (table_name, row_id, row_data)
+    select 'classroom_guided_draft_provenance', provenance.id, to_jsonb(provenance)
+    from public.classroom_guided_draft_provenance provenance
+    where provenance.classroom_id = v_classroom_id;
+  end if;
   insert into expected_archive_v2_rows (table_name, row_id, row_data)
   select 'classroom_retired_assessment_records', record.id, to_jsonb(record)
   from public.classroom_retired_assessment_records record
@@ -571,6 +632,19 @@ begin
     where classroom_id = v_classroom_id
   ) <> 5 then
     raise exception 'Archive-v2 restore did not preserve retired assessment records';
+  end if;
+  if to_regclass('public.classroom_guided_draft_provenance') is not null then
+  if (select count(*) from public.classroom_guided_draft_provenance
+      where classroom_id = v_classroom_id) <> 2
+    or not exists (select 1 from public.classroom_guided_draft_provenance
+      where assignment_id = '32000000-0000-4000-8000-000000000021'
+        and rules_markdown = 'Assignment guidance')
+    or not exists (select 1 from public.classroom_guided_draft_provenance
+      where test_id = '32000000-0000-4000-8000-000000000022'
+        and rules_markdown = 'Test guidance')
+  then
+    raise exception 'Archive-v2 restore lost guided draft provenance';
+  end if;
   end if;
   if exists (
     select 1 from public.quizzes where classroom_id = v_classroom_id

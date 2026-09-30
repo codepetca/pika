@@ -3,6 +3,7 @@ import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { canAccessClassroom, type ClassroomAccessContext } from '@/lib/access/classroom-policy'
+import { classroomStudentRecord } from './classrooms'
 import { classroomAccessRowSchema, resolveClassroomAccessFromRecord } from './classroom-access'
 import type { AuthenticatedUser, UserRole } from '@/types'
 import type { TableRow } from '@/types/database'
@@ -88,6 +89,6 @@ export function assertClassroomCoreWriteResponse(classroomId: string, ownerId: s
 }
 
 /** Members fetch visible guide content through the separately guarded guide endpoint. */
-export function classroomCoreMemberRecord(record: TableRow<'classrooms'>): TableRow<'classrooms'> {
-  return { ...record, course_overview_markdown: '', course_outline_markdown: '' }
+export function classroomCoreMemberRecord(record: TableRow<'classrooms'>): Omit<TableRow<'classrooms'>, 'authoring_guidance_version_id'> {
+  return { ...classroomStudentRecord(record), course_overview_markdown: '', course_outline_markdown: '' }
 }

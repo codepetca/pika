@@ -1,5 +1,6 @@
 import {
   normalizeCourseBlueprintAuthoringGuidance,
+  trimCourseBlueprintGuidanceEdgeWhitespace,
   type CourseBlueprintAuthoringGuidance,
 } from '@/lib/course-blueprint-authoring-guidance'
 
@@ -23,10 +24,11 @@ export function resolveCourseBlueprintAuthoringContext(args: {
   unitExceptionId?: string | null
 }): CourseBlueprintAuthoringContext {
   const guidance = normalizeCourseBlueprintAuthoringGuidance(args.guidance)
-  const unit = args.unitExceptionId
-    ? guidance.unit_exceptions.find((entry) => entry.id === args.unitExceptionId)
+  const requestedUnitId = args.unitExceptionId?.toLowerCase()
+  const unit = requestedUnitId
+    ? guidance.unit_exceptions.find((entry) => entry.id.toLowerCase() === requestedUnitId)
     : null
-  if (args.unitExceptionId && !unit) {
+  if (requestedUnitId && !unit) {
     throw new Error('The selected unit guidance is no longer available')
   }
   const targetKey = args.target === 'tests'
@@ -36,13 +38,13 @@ export function resolveCourseBlueprintAuthoringContext(args: {
     ['Course expectations', guidance.course_expectations_markdown],
     [args.target === 'tests' ? 'Test rules' : 'Assignment rules', guidance[targetKey]],
     ...(unit ? [[`Unit: ${unit.unit_label}`, unit[targetKey]]] : []),
-  ].filter(([, body]) => body.trim())
+  ].filter(([, body]) => trimCourseBlueprintGuidanceEdgeWhitespace(body))
   return {
     target: args.target,
     unit_exception_id: unit?.id ?? null,
     unit_label: unit?.unit_label ?? null,
     rules_markdown: sections.length
-      ? sections.map(([heading, body]) => `## ${heading}\n\n${body.trim()}`).join('\n\n')
+      ? sections.map(([heading, body]) => `## ${heading}\n\n${trimCourseBlueprintGuidanceEdgeWhitespace(body)}`).join('\n\n')
       : '',
   }
 }

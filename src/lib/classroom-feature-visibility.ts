@@ -21,6 +21,7 @@ export type ClassroomTabId =
   | 'grades'
   | 'assignments'
   | 'tests'
+  | 'blueprint'
   | 'calendar'
   | 'resources'
   | 'announcements'
@@ -47,6 +48,7 @@ const TEACHER_TABS: readonly ClassroomTabId[] = [
   'daily',
   'assignments',
   'tests',
+  'blueprint',
   'gradebook',
   'calendar',
   'resources',

@@ -41,6 +41,7 @@ describe('classroom feature visibility', () => {
 
     expect(getAvailableClassroomTabs('teacher', visibility, true)).toEqual([
       'daily',
+      'blueprint',
       'roster',
       'settings',
     ])
@@ -68,6 +69,7 @@ describe('classroom feature visibility', () => {
       'daily',
       'assignments',
       'tests',
+      'blueprint',
       'gradebook',
       'calendar',
       'resources',

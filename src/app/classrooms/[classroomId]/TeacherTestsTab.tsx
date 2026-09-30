@@ -21,6 +21,7 @@ import {
 import { ChevronDown, ClockAlert, Code, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
+import { ClassroomBlueprintDraftDialog } from '@/components/ClassroomBlueprintDraftDialog'
 import {
   AssessmentStatusIndicator,
   getTestGradingWorkStatusDisplay,
@@ -443,6 +444,7 @@ export function TeacherTestsTab({
   const [testEditorInitialView, setTestEditorInitialView] = useState<'edit' | 'markdown'>('edit')
   const [showMarkdownTestPicker, setShowMarkdownTestPicker] = useState(false)
   const [isCreatingTest, setIsCreatingTest] = useState(false)
+  const [isBlueprintDraftOpen, setIsBlueprintDraftOpen] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [newlyCreatedTestId, setNewlyCreatedTestId] = useState<string | null>(null)
   const [pendingDeleteTest, setPendingDeleteTest] = useState<TestAssessmentWithStats | null>(null)
@@ -2512,7 +2514,7 @@ export function TeacherTestsTab({
   const selectedStudentUtilityActions: Array<TeacherWorkSurfaceActionItem & { label: string }> = [
     {
       id: 'ai-grade-selected',
-      label: 'AI Grade',
+      label: `AI Grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`,
       icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
       disabled: areStudentActionsUnavailable,
       onSelect: () => setShowBatchGradeModal(true),
@@ -2739,6 +2741,16 @@ export function TeacherTestsTab({
       trailingClassName="overflow-visible"
       primary={
         <TeacherWorkSurfaceActionCluster>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => setIsBlueprintDraftOpen(true)}
+            disabled={isReadOnly || loading}
+          >
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            Draft with Blueprint
+          </Button>
           <IconButton
             icon={Plus}
             label="Create test"
@@ -3044,50 +3056,19 @@ export function TeacherTestsTab({
         onRequestPublish={handleRequestSelectedTestPublish}
       />
 
-      <DialogPanel
+      <ConfirmDialog
         isOpen={showBatchGradeModal}
-        onClose={() => setShowBatchGradeModal(false)}
-        ariaLabelledBy="test-ai-grade-title"
-        maxWidth="max-w-lg"
-        className="p-6"
-      >
-        <h2 id="test-ai-grade-title" className="text-lg font-semibold text-text-default">
-          AI Grade selected students
-        </h2>
-        <p className="mt-2 text-sm text-text-muted">
-          Choose whether to grade only responses without a grade or regrade every eligible response for the {batchAutoGradePreflight.selectedCount} selected student{batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}.
-        </p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setShowBatchGradeModal(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={isBatchAutoGrading || hasActiveTestAiRun}
-            onClick={() => {
-              setShowBatchGradeModal(false)
-              void handleBatchAutoGrade('ungraded')
-            }}
-          >
-            Only ungraded
-          </Button>
-          <Button
-            type="button"
-            disabled={isBatchAutoGrading || hasActiveTestAiRun}
-            onClick={() => {
-              setShowBatchGradeModal(false)
-              void handleBatchAutoGrade('all')
-            }}
-          >
-            Regrade all
-          </Button>
-        </div>
-      </DialogPanel>
+        title={`AI grade ${batchAutoGradePreflight.selectedCount} student${batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}`}
+        description="This will overwrite existing grade, comments and teacher edits."
+        confirmLabel="AI grade"
+        confirmVariant="danger"
+        isConfirmDisabled={isBatchAutoGrading || hasActiveTestAiRun}
+        onCancel={() => setShowBatchGradeModal(false)}
+        onConfirm={() => {
+          setShowBatchGradeModal(false)
+          void handleBatchAutoGrade('all')
+        }}
+      />
 
       <ConfirmDialog
         isOpen={!!pendingDeleteTest}
@@ -3183,6 +3164,16 @@ export function TeacherTestsTab({
         onCancel={() => setPendingDeleteStudentAttemptIds(null)}
         onConfirm={() => {
           void handleDeleteSelectedStudentAttempts()
+        }}
+      />
+
+      <ClassroomBlueprintDraftDialog
+        isOpen={isBlueprintDraftOpen}
+        classroomId={classroom.id}
+        target="tests"
+        onClose={() => setIsBlueprintDraftOpen(false)}
+        onCreated={({ test }) => {
+          if (test) handleTestCreated(test)
         }}
       />
 

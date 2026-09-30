@@ -8,6 +8,10 @@ import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
 import { TooltipProvider } from '@/ui'
 
+vi.mock('@/components/ClassroomBlueprintDraftSource', () => ({
+  ClassroomBlueprintDraftSource: () => null,
+}))
+
 function render(ui: ReactElement) {
   return renderWithProviders(ui, { wrapper: TooltipProvider })
 }

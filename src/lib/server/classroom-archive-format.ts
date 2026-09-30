@@ -627,7 +627,7 @@ export function decodeClassroomArchiveData(
     if (
       !descriptor
       && verified.manifest.version === 2
-      && ['gradebook_categories', 'gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores'].includes(resource.table)
+      && ['gradebook_categories', 'gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores', 'classroom_guided_draft_provenance'].includes(resource.table)
     ) {
       resources[resource.table] = []
       continue
