@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/classrooms/[id]/authoring-drafts/create/route'
 import { courseBlueprintAssignmentsToMarkdown } from '@/lib/course-blueprint-assignments'
+import { normalizeGeneratedAssignmentInstructions } from '@/lib/server/guided-assignment-markdown'
 import { courseBlueprintAssessmentsToMarkdown } from '@/lib/course-blueprint-assessments-markdown'
 import { resolveCourseBlueprintAuthoringContext } from '@/lib/course-blueprint-authoring-context'
 import {
@@ -105,6 +106,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe('classroom guided draft creation', () => {
+  it('creates one assignment while retaining a fenced reference with parser-like lines', async () => {
+    const instructions = normalizeGeneratedAssignmentInstructions([
+      '## Task',
+      'Write a SuperKarel method.',
+      '---',
+      '## Coding reference',
+      '````java',
+      '## This is example code',
+      '---',
+      'Points: 999',
+      '````',
+    ].join('\n'))
+    const response = await POST(request(body('assignments', assignmentMarkdown(instructions))), context)
+    expect(response.status).toBe(201)
+    expect(mocks.rpc).toHaveBeenCalledWith('create_guided_assignment_for_owner_v1',
+      expect.objectContaining({
+        p_points_possible: 20,
+        p_instructions_markdown: expect.stringContaining('````java\n## This is example code\n---\nPoints: 999\n````'),
+      }))
+    expect(mocks.rpc.mock.calls[0][1].p_instructions_markdown).toContain('### Coding reference')
+  })
+
   it('accepts teacher edits and creates exactly one draft assignment with frozen Version provenance', async () => {
     const preview = body('assignments', assignmentMarkdown())
     const response = await POST(request({ ...preview, content: assignmentMarkdown('Edited instructions.') }), context)
