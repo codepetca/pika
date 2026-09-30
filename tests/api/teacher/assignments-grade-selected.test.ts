@@ -126,12 +126,14 @@ describe('POST /api/teacher/assignments/[id]/grade-selected', () => {
 
   it.each([
     ['40001', 409],
+    ['PT409', 409],
     ['42501', 403],
     ['22023', 400],
   ])('maps database error %s to HTTP %s', async (code, expectedStatus) => {
     mockRpc.mockResolvedValue({ data: null, error: { code, message: 'Database contract error' } })
     const response = await POST(makeRequest(), { params: Promise.resolve({ id: 'a0000000-0000-4000-8000-000000000001' }) })
     expect(response.status).toBe(expectedStatus)
+    expect(mockRpc).toHaveBeenCalledTimes(1)
   })
 
   it('rejects partial RPC results', async () => {
