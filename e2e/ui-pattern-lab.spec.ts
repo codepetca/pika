@@ -3,6 +3,28 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test'
 test.setTimeout(90_000)
 
 for (const role of ['teacher', 'student'] as const) {
+  test(`${role} renders guided assignment Markdown code references`, async ({ page }, testInfo) => {
+    await openPatternLab(page, testInfo, role)
+    const reference = page.getByTestId('guided-assignment-markdown-reference')
+    await reference.scrollIntoViewIfNeeded()
+    await expect(reference.getByRole('heading', { level: 3, name: 'Task' })).toBeVisible()
+    await expect(reference.getByRole('heading', { level: 3, name: 'Instructions' })).toBeVisible()
+    const code = reference.locator('pre code')
+    await expect(code).toHaveCount(2)
+    expect(await code.nth(0).textContent()).toBe('## code heading\n```\n---')
+    expect(await code.nth(1).textContent()).toBe('## tilde example\n---')
+    expect(await code.first().evaluate((element) => getComputedStyle(element).color)).toBe('rgb(255, 255, 255)')
+    await expect(reference.getByText('After the backtick example.')).toBeVisible()
+    await expect(reference.getByText('After the tilde example.')).toBeVisible()
+    await testInfo.attach(`${role}-guided-assignment-markdown`, {
+      body: await reference.screenshot({
+        path: testInfo.outputPath(`${role}-guided-assignment-markdown.png`),
+        animations: 'disabled',
+      }),
+      contentType: 'image/png',
+    })
+  })
+
   test(`${role} previews the Owned Joined home without live writes`, async ({ page }, testInfo) => {
     const pageErrors: string[] = []
     page.on('pageerror', (error) => pageErrors.push(error.message))

@@ -1,11 +1,14 @@
 # Living blueprint authoring guidance
 
-Status: release and existing-classroom adoption in progress, 2026-09-30. The Blueprint workspace was
-merged to main in PR #1386. Classroom drafting merged to main in PR #1387 (`50cbbc5a`). Guidance adoption
-merged to main in PR #1396 (`b754bd69`). Production promotion is draft PR #1398.
-The agreed ICS3U-4 rules are saved in production Blueprint Draft revision 4;
-P3/P5 classroom adoption remains pending the release and separately approved
-production migrations 221/222. This plan tracks the complete goal.
+Status: released and adopted in production, 2026-09-30; a generated-assignment
+Markdown correction is completing review. The Blueprint workspace merged in
+PR #1386, classroom drafting in #1387 (`50cbbc5a`), and independent guidance
+adoption in #1396 (`b754bd69`). Production promotion #1398 merged as `f4d61257`
+and deployed. Migrations 221/222 were applied by a separately owner-authorized
+task; this implementation task only verified the aligned remote history.
+ICS3U-4 Draft revision 5 includes the agreed rules and the no-hyperlinks test
+reference policy. P3/P5 both use Guidance Version 4 while retaining Content
+Version 3. This plan tracks the complete goal.
 
 ## Release correction: complete Content lists
 
@@ -138,9 +141,10 @@ equally first-class.
 - Adoption security, compatibility, correction and final integration reviews passed
   at `5b399e3b`; the rebased application/test/migration patch is unchanged. PR #1396
   merged as `b754bd69` after exact-head CI36702895411 passed all lanes and PR Gate.
-  Production PR #1398 remains draft. Its security review passed; compatibility
-  identified the complete Content-list correction above. Applying migrations
-  221/222 requires exact target/filename approval before deployment.
+  Production PR #1398 subsequently merged as `f4d61257` after cumulative review
+  and exact-head CI36768427365 passed all lanes and PR Gate. The approved
+  Content-list correction merged separately in #1399. Remote migration history
+  is aligned through 222; no application remains pending for this rollout.
 
 ## Independent guidance adoption implementation
 
@@ -207,32 +211,46 @@ with empty authoring guidance. P3 and P5 ICS3U both used saved Version 3, whose 
 guidance. P5 has one untracked test; P3 has one untracked test and one untracked
 lesson. The existing full classroom update proposal rejects those classrooms.
 
-- Complete: PRs #1387 and #1396 merged on main with their exact-head gates
-  passed. Production promotion #1398 is prepared in draft and awaits final
-  review and CI.
-- Complete on main: a separate, explicit guidance-only adoption path for
-  existing classrooms preserves the classroom's content-copy Version and every
-  assessment's lineage. Repointing `source_blueprint_version_id` by itself is
-  insufficient: legacy tracked tests use equality with that Version to
-  establish their lineage. Adopt an independently saved, teacher-owned guidance
-  Version and keep each generated draft's private provenance immutable.
-- Pending: release the tested adoption path after the cumulative promotion
-  review and its own PR Gate. On 2026-09-30 the user approved one production
-  application of migrations 221/222 after all checks pass, plus a 45-minute
-  extension for the correction and final release reviews. That migration
-  permission remains unconsumed; refresh the exact target/history/dry-run
-  before application and stop on any extra migration or unexpected result.
-- Complete: the agreed Markdown rules were saved through the production
-  teacher editor to actual ICS3U-4 Draft revision 4 on 2026-09-30 and read-verified
-  against the prepared rules. Course, assignment, test and Unit 1 Java Karel
-  sections include Instructions first, concise prompts, no navigation/solution
-  hints, Markdown MC code and vertically stacked world diagrams. The UI-created
-  unit UUID is recorded in the private rollout receipt; rule text matches.
-- Explicitly adopt the new saved guidance for P3 and P5; verify unchanged
-  assessment content and lineage, then generate teacher-reviewed test and
-  assignment previews. Verify the rules reach model input and private
-  provenance, and inspect the student-facing Markdown. Do not publish the
-  verification drafts to students.
+- Complete: PRs #1387, #1396, #1399 and #1402 passed their gates and were
+  included in production promotion #1398. Live teacher/student smoke checks
+  passed on the deployed release.
+- Complete: the explicit guidance-only adoption path preserves each classroom's
+  Content Version and copied assessment lineage. Both P3 and P5 adopted Guidance
+  Version 4, saved from the owned ICS3U-4 Draft revision 5, through teacher review.
+- Complete: migrations 221/222 were applied once by the separately authorized
+  migration task. This coordinator verified remote history through 222 and the
+  installed private provenance, adoption, and atomic draft creation contracts.
+- Complete: the agreed Markdown rules were saved through the production teacher
+  editor and read-verified against the prepared rules. Course, assignment, test
+  and Unit 1 Java Karel sections include Instructions first, concise prompts,
+  no navigation/solution hints, Markdown MC code and vertically stacked worlds.
+  Revision 5 adds the no-hyperlinks/no-clickable-exits test reference policy.
+- Complete: fresh before/after adoption digests checked all 320 existing
+  artifacts in each classroom; none changed or disappeared. Structural Blueprint
+  identities and classroom content hashes are unchanged. Private receipts and
+  production screenshots remain outside Git.
+- Complete: a teacher-reviewed P3 test and P5 assignment verification draft were
+  created, each worth 10 points and unpublished. Their private provenance records
+  the exact adopted rules, Content Version 3, Guidance Version 4 and Unit 1.
+  Student previews show Markdown references/code and omit private guidance.
+- Correction in review: generated assignment headings and divider lines could
+  be interpreted as additional assignment boundaries. The P5 verification draft
+  required teacher Markdown normalization. The scoped correction normalizes
+  generated prose and protects fenced code through the classroom creation parser,
+  retaining the legacy Blueprint import contract. Regression checks cover the
+  actual Karel-shaped task/reference and preservation of code, points and draft
+  state. Finish its reviewed release and verify a generated assignment can be
+  saved without this manual formatting correction.
+- Independent review found two remaining boundaries: an edited interior `---`
+  or metadata line could silently discard instructions or change points/due
+  days, and longer backtick or tilde fences were not rendered as one code block.
+  The correction now rejects ambiguous teacher edits before the classroom RPC,
+  while accepting valid submission requirement rows. Generated reserved headings
+  use the existing three-level renderer, and both fence forms preserve code and
+  following prose. Focused tests and production-owner Pattern Lab captures cover
+  teacher/student desktop/mobile in light/dark; the final PR gate and production
+  proof are still pending.
 
-Completion requires production evidence for the actual course and both
-classrooms. Earlier populated classroom screenshots used sample fixture data.
+Completion requires the remaining correction's production proof. The course
+adoption and draft receipts above use actual production classrooms, rather than
+fixture data. Verification drafts must remain unpublished to students.
