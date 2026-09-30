@@ -22,9 +22,9 @@ vi.mock('@/lib/server/class-days', () => ({
     count: 2,
     classDays: [{ date: '2026-03-17' }, { date: '2026-03-18' }],
   })),
-  upsertClassDayForClassroom: vi.fn(async () => ({
+  upsertClassDayForClassroom: vi.fn(async ({ classroomId, date, isClassDay }: { classroomId: string; date: string; isClassDay: boolean }) => ({
     ok: true,
-    classDay: { classroom_id: 'classroom-1', date: '2026-03-17', is_class_day: true },
+    classDay: { classroom_id: classroomId, date, is_class_day: isClassDay },
   })),
 }))
 
@@ -133,17 +133,19 @@ describe('classroom class-days route', () => {
     expect(data.error).toBe('Cannot modify past class days')
   })
 
-  it('updates a future class day', async () => {
+  it.each(['2026-03-16', '2026-03-17'])('allows updating class day %s', async (date) => {
     const response = await PATCH(
       new NextRequest('http://localhost:3000/api/classrooms/classroom-1/class-days', {
         method: 'PATCH',
-        body: JSON.stringify({ date: '2026-03-17', is_class_day: true }),
+        body: JSON.stringify({ date, is_class_day: true }),
       }),
       { params: Promise.resolve({ classroomId: 'classroom-1' }) }
     )
     const data = await response.json()
 
     expect(response.status).toBe(200)
-    expect(data.class_day.date).toBe('2026-03-17')
+    expect(data.class_day.date).toBe(date)
+    const { upsertClassDayForClassroom } = await import('@/lib/server/class-days')
+    expect(upsertClassDayForClassroom).toHaveBeenCalledWith({ classroomId: 'classroom-1', date, isClassDay: true })
   })
 })

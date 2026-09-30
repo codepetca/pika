@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Copy } from 'lucide-react'
-import { Button, FormField, Input, Tooltip, useAppMessage } from '@/ui'
+import { Button, ConfirmDialog, FormField, Input, Tooltip, useAppMessage } from '@/ui'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import type { ClassDay, Classroom } from '@/types'
@@ -52,7 +52,12 @@ export function TeacherCalendarTab({ classroom }: Props) {
   const [saving, setSaving] = useState(false)
   const pendingToggleDatesRef = useRef(new Set<string>())
   const [pendingToggleDates, setPendingToggleDates] = useState<Set<string>>(() => new Set())
+  const [dayToExclude, setDayToExclude] = useState<string | null>(null)
   const { showMessage } = useAppMessage()
+
+  useEffect(() => {
+    setDayToExclude(null)
+  }, [classroom.id])
 
   // Sync from shared context (used for initial load and after event-driven refreshes)
   useEffect(() => {
@@ -144,6 +149,10 @@ export function TeacherCalendarTab({ classroom }: Props) {
 
   async function toggleDay(date: string, isClassDay: boolean) {
     if (isReadOnly || pendingToggleDatesRef.current.has(date)) return
+    if (date < getTodayInToronto()) {
+      setError('Cannot modify past class days')
+      return
+    }
 
     const previousClassDay = classDayMap.get(date)
     const optimisticClassDay: ClassDay = previousClassDay
@@ -344,7 +353,7 @@ export function TeacherCalendarTab({ classroom }: Props) {
                       const isBeforeToday = dateString < todayToronto
                       const isPastClassDay = isClassDay && isBeforeToday
                       const isInRange = dateString >= rangeStartStr && dateString <= rangeEndStr
-                      const disabled = !isInRange || (!isClassDay && isBeforeToday)
+                      const disabled = !isInRange || isBeforeToday
 
                       const isToday = dateString === todayToronto
                       const colorClasses = disabled
@@ -357,11 +366,14 @@ export function TeacherCalendarTab({ classroom }: Props) {
 
                       const outlineClasses = isToday ? 'ring-2 ring-primary' : ''
                       const isPending = pendingToggleDates.has(dateString)
-                      const toggleDisabled = disabled || isToday || isReadOnly || isPending
+                      const toggleDisabled = disabled || isReadOnly || isPending
                       return (
                         <button
                           key={dateString}
-                          onClick={() => toggleDay(dateString, !isClassDay)}
+                          onClick={() => {
+                            if (isToday && isClassDay) setDayToExclude(dateString)
+                            else void toggleDay(dateString, !isClassDay)
+                          }}
                           aria-pressed={isClassDay}
                           aria-busy={isPending || undefined}
                           className={`aspect-square p-1 rounded text-xs font-medium transition-colors ${colorClasses} ${isPending ? 'cursor-wait' : toggleDisabled ? 'cursor-not-allowed' : ''} ${outlineClasses}`}
@@ -383,6 +395,19 @@ export function TeacherCalendarTab({ classroom }: Props) {
           No class days defined yet. Generate a range above.
         </div>
       )}
+      <ConfirmDialog
+        isOpen={dayToExclude !== null}
+        title="Make today a non-class day?"
+        description="Today will be excluded from attendance, and students won't be able to submit today's daily logs. Existing logs will be kept."
+        confirmLabel="Make non-class day"
+        onCancel={() => setDayToExclude(null)}
+        onConfirm={() => {
+          if (!dayToExclude) return
+          const date = dayToExclude
+          setDayToExclude(null)
+          void toggleDay(date, false)
+        }}
+      />
     </div>
   )
 }
