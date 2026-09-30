@@ -201,27 +201,33 @@ coordinator-owned.
 
 ## Existing ICS3U rollout
 
-Read-only production checks on 2026-09-29 confirmed database migrations through
-220. ICS3U-4 is Pika-managed at Draft revision 3 and its authoring guidance is
-empty. P3 and P5 ICS3U both use saved Version 3, whose legacy snapshot has no
+Historical baseline: read-only production checks on 2026-09-29 confirmed
+database migrations through 220. ICS3U-4 was Pika-managed at Draft revision 3
+with empty authoring guidance. P3 and P5 ICS3U both used saved Version 3, whose legacy snapshot has no
 guidance. P5 has one untracked test; P3 has one untracked test and one untracked
 lesson. The existing full classroom update proposal rejects those classrooms.
 
-- PR #1387 is merged on main with its exact-head gate passed. Finish adoption
-  PR #1396, then prepare one reviewed production promotion.
-- Implement a separate, explicit guidance-only adoption path for existing
-  classrooms. Preserve the classroom's content-copy Version and every
+- Complete: PRs #1387 and #1396 merged on main with their exact-head gates
+  passed. Production promotion #1398 is prepared in draft and awaits final
+  review and CI.
+- Complete on main: a separate, explicit guidance-only adoption path for
+  existing classrooms preserves the classroom's content-copy Version and every
   assessment's lineage. Repointing `source_blueprint_version_id` by itself is
   insufficient: legacy tracked tests use equality with that Version to
   establish their lineage. Adopt an independently saved, teacher-owned guidance
   Version and keep each generated draft's private provenance immutable.
-- Review, test, and release that adoption path. Any new migration requires
-  exact target/filename approval, as does migration 221 from PR #1387. The
-  production promotion must include a cumulative review and its own PR Gate.
-- Save the agreed Markdown rules to the actual ICS3U-4 Draft, with course,
-  assignment, test, and Unit 1 Java Karel sections. Include Instructions first,
-  concise prompts, no navigation/solution hints, Markdown MC code, and vertically
-  stacked world diagrams. Use revision-safe saves and verify persisted text.
+- Pending: release the tested adoption path after the cumulative promotion
+  review and its own PR Gate. On 2026-09-30 the user approved one production
+  application of migrations 221/222 after all checks pass, plus a 45-minute
+  extension for the correction and final release reviews. That migration
+  permission remains unconsumed; refresh the exact target/history/dry-run
+  before application and stop on any extra migration or unexpected result.
+- Complete: the agreed Markdown rules were saved through the production
+  teacher editor to actual ICS3U-4 Draft revision 4 on 2026-09-30 and read-verified
+  against the prepared rules. Course, assignment, test and Unit 1 Java Karel
+  sections include Instructions first, concise prompts, no navigation/solution
+  hints, Markdown MC code and vertically stacked world diagrams. The UI-created
+  unit UUID is recorded in the private rollout receipt; rule text matches.
 - Explicitly adopt the new saved guidance for P3 and P5; verify unchanged
   assessment content and lineage, then generate teacher-reviewed test and
   assignment previews. Verify the rules reach model input and private
