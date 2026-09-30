@@ -10,6 +10,19 @@ This is **developer infrastructure**, not a product feature.
 
 ---
 
+## Environments and release flow
+
+Pika uses local development with local Supabase, local smoke/database checks, a reviewed PR to `main`, then promotion to `production`. The hosted staging database was removed; do not propose recreating it or require a staging/Preview deployment as a gate.
+
+1. Develop in a feature worktree against the local Supabase stack.
+2. Run risk-matched local tests, rollback-only database contracts, smoke tests, and required visual verification. CI uses ephemeral databases.
+3. Complete the draft-first reviewed PR lifecycle below and merge to `main`.
+4. Promote the reviewed `main` SHA to `production` through the protected promotion PR below; Vercel deploys `production`. Production migrations and canaries retain their exact-target authorization requirements.
+
+`vercel.json` enables automatic Git deployment only for `production`; `main` and feature branches run checks without a hosted deployment. Preview is not a substitute staging environment. Production-only smoke commands reject Preview before accessing credentials or services.
+
+WorkOS calls its provider test environment “Staging”; local authentication may use it without a hosted Pika database or deployment. Archive/attendance “staging” rows are temporary operation buffers, not environments. Historical records describe retired workflows and must not be used as current prerequisites.
+
 ## Why this exists
 
 Pika is developed using:

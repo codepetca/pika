@@ -16,13 +16,17 @@ Pika elsewhere.
 Follow the [README Getting Started](./README.md#getting-started). In short:
 
 1. Node 24 + `corepack enable` + `pnpm install`
-2. Create **your own** Supabase database (free cloud project or `supabase start`)
-3. Apply migrations with `supabase db push` (never by hand — there are ~80)
+2. Start local Supabase with Docker and `supabase start`
+3. For an existing local stack, apply pending migrations with `supabase db push --local`; AI application/reset/seeding requires the [exact-target authorization](./docs/guidance/schema-rollout-checklist.md)
 4. `cp .env.example .env.local` and fill in the required values
 5. `pnpm dev`
 
 You do **not** need Vercel, Brevo, or an OpenAI key for normal development.
 Never commit `.env*` files or real credentials.
+
+Development and smoke tests run locally. Merge reviewed changes to `main`, then
+promote to `production`; no hosted staging or Preview gate is required. See
+[the canonical flow](./docs/dev-workflow.md#environments-and-release-flow).
 
 ## Finding something to work on
 

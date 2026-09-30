@@ -1,7 +1,8 @@
 # Pika session start
 
-Follow this at every AI session start. Automate with `/session-start` or
-`.codex/prompts/session-start.md`.
+Run every session; use `.codex/prompts/session-start.md`.
+
+Flow: local app/DB checks → main → production; staging retired. See `docs/dev-workflow.md`.
 
 ## Checklist
 
@@ -19,9 +20,8 @@ Do not code if verification fails. For read-only work, run
 
 ## Worktree Rules (MANDATORY)
 
-- Resolve and use the git root consistently. Never edit in the hub checkout.
-- Worktree creation, shared `.env.local`, detached HEAD recovery, and cleanup
-  are canonical in `docs/dev-workflow.md`.
+- Use the resolved git root; never edit in the hub.
+- Worktrees, `.env.local`, detached HEAD recovery, cleanup: `docs/dev-workflow.md`.
 - Run hub operations as `git -C "$HOME/Repos/pika" ...`.
 
 ## End of Session (MANDATORY)
@@ -30,9 +30,9 @@ Do not code if verification fails. For read-only work, run
    Run `node scripts/trim-session-log.mjs` immediately;
    `--check` validates empty entries, heading dates, order, and the cap.
 2. Update `.ai/features.json` with `node scripts/features.mjs pass|fail <id>`
-   when evidence changes.
+   on evidence changes.
 3. Publish only when authorized. After merge, resolve the registered worktree
-   before removal (full procedure in `docs/dev-workflow.md`):
+   before removal (see `docs/dev-workflow.md`):
    ```bash
    HUB="$HOME/Repos/pika"; BRANCH="<branch-name>"
    WT_PATH="$(git -C "$HUB" worktree list --porcelain | awk -v branch="$BRANCH" '/^worktree /{p=substr($0,10)} /^branch refs\/heads\// && substr($0,19)==branch{print p; exit}')"
@@ -40,7 +40,4 @@ Do not code if verification fails. For read-only work, run
 
 ## Document Hierarchy
 
-Trust: `.ai/features.json`, `.ai/CURRENT.md`,
-`docs/core/architecture.md`, `docs/core/tests.md`, root `DESIGN.md`, then
-`docs/core/project-context.md`, `docs/core/roadmap.md`,
-`docs/core/decision-log.md`, session log, then journal archive.
+Authority/routing: `docs/ai-instructions.md`; UI: `DESIGN.md`.

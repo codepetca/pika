@@ -220,7 +220,7 @@ pnpm e2e:matrix
 
 ### UI Snapshot Runs (Playwright)
 
-For visual review (spacing/aesthetics), we also support a **manual** Playwright snapshot run against a deployed environment (e.g. a Vercel preview deployment):
+For visual review (spacing/aesthetics), we also support a **manual** Playwright snapshot run against the local app and local Supabase stack:
 - Spec: `e2e/ui-snapshots.spec.ts`
 - Output (local): `artifacts/ui-snapshots/` (screenshots) and `playwright-report/` (HTML report)
 - Pattern Lab (web): `/pattern-lab` (non-production only; gated by `ENABLE_UI_GALLERY=true`)

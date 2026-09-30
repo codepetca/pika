@@ -32,7 +32,7 @@ Use this checklist for migrations, Supabase query-shape changes, compatibility s
 
 Migration application is human-controlled by default. An AI agent may execute it only when the user
 gives a direct, one-time instruction in the current task that names both the target environment
-(`local`, `staging`, or `production`) and the exact migration number(s) or filename(s). Broad requests
+(`local` or `production`) and the exact migration number(s) or filename(s). Broad requests
 such as "apply migrations", "continue", or approval from an earlier task are not authorization.
 Permission expires after one attempted non-dry-run application command and cannot be reused for a
 retry or a different target.

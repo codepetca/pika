@@ -82,41 +82,21 @@ esac
 
 ### Safe Migration Workflow
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ 1. DEVELOP                                              │
-│    - Create worktree: docs/dev-workflow.md (migration-x)│
-│    - Write migration in supabase/migrations/            │
-│    - Test locally: supabase db reset                    │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│ 2. STAGE                                                │
-│    - Push branch to GitHub                              │
-│    - Supabase creates preview branch automatically      │
-│    - Or: Create manual preview in Supabase dashboard    │
-│    - Run smoke tests against the preview branch         │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│ 3. SCHEDULE                                             │
-│    - Pick maintenance window (evening/weekend)          │
-│    - Notify students if significant (optional)          │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│ 4. APPLY                                                │
-│    - Authorized operator applies the migration          │
-│    - Verify via quick smoke test                        │
-└─────────────────────┬───────────────────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────────────────┐
-│ 5. DEPLOY                                               │
-│    - Merge PR to main                                   │
-│    - Vercel auto-deploys                                │
-│    - Monitor for errors in Vercel logs                  │
-└─────────────────────────────────────────────────────────┘
-```
+Use the [canonical environment flow](dev-workflow.md#environments-and-release-flow)
+and [schema authorization procedure](guidance/schema-rollout-checklist.md).
+
+1. Develop the migration in a dedicated feature worktree.
+2. Validate locally against local Supabase and in ephemeral CI. Local migration
+   application, resets, and seeding need their exact-target authorization; run
+   rollback-only database contracts and local smoke tests.
+3. Publish the draft PR, complete independent review and required checks, then
+   merge to `main`. A `main` merge does not deploy the app.
+4. Plan the production maintenance window and compatible schema/code order.
+   Apply only the exact authorized production migration set and verify the
+   deployed schema contract. Retain migration, canary, and rollback approvals.
+5. Promote the reviewed `main` SHA through the protected `production` PR.
+   Vercel deploys `production`; observe the authorized bounded smoke/canary
+   and production logs. Do not create a hosted test database as a prerequisite.
 
 ### Migration Patterns
 
@@ -174,7 +154,7 @@ SELECT * FROM entries WHERE date > '2025-01-01';
 
 - [ ] Document current schema state (export via Supabase dashboard)
 - [ ] Test backup/restore procedure once
-- [ ] Set up Supabase preview branches
+- [ ] Verify local Supabase replay, rollback-only contracts, and ephemeral CI
 - [ ] Create rollback SQL for any planned migrations
 
 ---
@@ -364,4 +344,4 @@ Copy this to GitHub Issues or your task tracker:
 ---
 
 *Document created: 2025-12-31*
-*Last updated: 2025-12-31*
+*Environment/migration workflow updated: 2026-09-30; product ideas above remain historical.*

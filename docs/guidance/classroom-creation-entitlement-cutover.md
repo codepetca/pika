@@ -1,7 +1,7 @@
 # Classroom creation entitlement cutover
 
 Status: migration 181 is an additive implementation slice. Its source landing does not
-authorize local, staging or production application, account classification, strict
+authorize local or production application, account classification, strict
 activation, app deployment or neutral onboarding. Follow
 [`schema-rollout-checklist.md`](schema-rollout-checklist.md) for each environment.
 

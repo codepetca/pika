@@ -1,3 +1,5 @@
+> Historical evidence only. Hosted Pika staging was removed. Retired staging/Preview instructions below are not current prerequisites; use `docs/dev-workflow.md` (local checks → main → production). WorkOS test environments and operation buffers have separate meanings.
+
 # Pika Project Journal
 
 **Rules:**

@@ -23,7 +23,7 @@ export const hash = (value) => createHash('sha256').update(value).digest('hex')
 
 export function validateInputs(input) {
   if (!['preview', 'apply'].includes(input.mode)) fail('Choose preview or apply.')
-  if (!['staging', 'production'].includes(input.target) || input.boundTarget !== input.target) fail('Environment target binding mismatch.')
+  if (input.target !== 'production' || input.boundTarget !== input.target) fail('Environment target binding mismatch.')
   if (!/^[a-z]{20}$/.test(input.projectRef)) fail('Invalid environment-bound project reference.')
   if (!shaPattern.test(input.sourceSha)) fail('Source must be an exact lowercase 40-character commit SHA.')
   if (!/^[1-9]\d*$/.test(input.ciRunId)) fail('A successful CI run ID is required.')

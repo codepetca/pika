@@ -19,7 +19,7 @@ const message: V1SessionCommand = {
   message_type: 'session.command',
   idempotency_key: 'session:occurrence_private:request_one',
   correlation_ref: 'correlation_request_one',
-  installation_ref: 'installation_staging',
+  installation_ref: 'installation_local',
   roster_ref: 'roster_private',
   occurrence_ref: 'occurrence_private',
   command: 'open',

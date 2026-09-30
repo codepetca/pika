@@ -77,7 +77,7 @@ const baraEnvPath = realpathSync(resolve(
   argument('--bara-env') ?? '/Users/stew/Repos/bara/.env.local',
 ))
 const brevoEnvPath = realpathSync(resolve(
-  argument('--brevo-env') ?? '/Users/stew/Repos/pika/.env.staging',
+  argument('--brevo-env') ?? pikaEnvPath,
 ))
 const eventDeliveryUrl = argument('--event-delivery-url')
   ?? `${PIKA_ORIGIN}${EVENT_PATH}`

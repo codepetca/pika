@@ -76,27 +76,22 @@ corepack enable
 pnpm install
 ```
 
-3) **Set up a database (your own Supabase)**
+3) **Start local Supabase (Docker required)**
 
-Every developer runs against their own Supabase database. Pick one:
+Development and smoke tests use the local Supabase stack:
 
-**Option A — free Supabase cloud project (simplest):**
-1. Create a project at [supabase.com](https://supabase.com) (free tier is fine).
-2. From Project Settings → API, note:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (starts with `sb_publishable_`)
-   - `SUPABASE_SECRET_KEY` (starts with `sb_secret_`)
-3. Apply all migrations (there are ~80 — do **not** run them by hand in the dashboard):
 ```bash
-supabase link --project-ref <your-project-ref>
-supabase db push
+supabase start   # initializes a fresh local stack from supabase/migrations/
+supabase status  # local URL and keys for .env.local
 ```
 
-**Option B — local Supabase (Docker required):**
-```bash
-supabase start   # applies supabase/migrations/ automatically
-```
-Use the URL and keys it prints.
+For an existing local stack, apply pending migrations through the
+[exact-target migration procedure](./docs/guidance/schema-rollout-checklist.md).
+AI agents need the authorization described there before application, reset, or seeding.
+
+The release flow is local checks → reviewed PR to `main` → promotion to
+`production`. The hosted staging database was removed. See the
+[canonical environment flow](./docs/dev-workflow.md#environments-and-release-flow).
 
 4) **Environment variables**
 ```bash
@@ -180,17 +175,6 @@ E2E_BASE_URL=http://localhost:3000 pnpm run e2e:snapshots
 pnpm exec playwright show-report playwright-report
 ```
 
-**Remote workflow (e.g. a Vercel preview deployment)**:
-```bash
-E2E_BASE_URL=https://your-preview-url \
-E2E_TEACHER_EMAIL=your-seeded-teacher@example.com \
-E2E_STUDENT_EMAIL=your-seeded-student@example.com \
-E2E_PASSWORD=your-seeded-password \
-pnpm run e2e:snapshots
-
-pnpm exec playwright show-report playwright-report
-```
-
 ### Build
 ```bash
 pnpm build
@@ -247,9 +231,10 @@ pika/
 
 ## Deployment (Vercel)
 
-1. Push to GitHub and import into Vercel.
-2. Configure env vars (match `.env.local`); set `ENABLE_MOCK_EMAIL=false` and wire a real email provider in `email.ts` for production.
-3. Build command `pnpm build`; output `.next`.
+1. Merge the reviewed feature PR to `main` after local and CI checks pass.
+2. Promote that SHA to the protected `production` branch using the [production PR workflow](./docs/dev-workflow.md#merging-main-into-production-pr-required). Vercel automatically deploys only `production`.
+3. Configure production credentials in Vercel; set `ENABLE_MOCK_EMAIL=false` and configure Brevo. Keep local database credentials out of production.
+4. Build command `pnpm build`; output `.next`. Production migrations and canaries are separately authorized steps.
 
 ## Environment Variables Reference
 

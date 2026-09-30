@@ -4,7 +4,7 @@ import { executeRollout } from '../../scripts/migration-rollout.mjs'
 
 const sha = 'a'.repeat(40)
 const project = 'abcdefghijklmnopqrst'
-const inputs = { mode: 'preview', target: 'staging', sourceSha: sha, ciRunId: '123', projectRef: project, boundTarget: 'staging', runAttempt: '1', approvedDigest: '', approvedMigrations: '', confirmation: '', impact: '' }
+const inputs = { mode: 'preview', target: 'production', sourceSha: sha, ciRunId: '123', projectRef: project, boundTarget: 'production', runAttempt: '1', approvedDigest: '', approvedMigrations: '', confirmation: '', impact: '' }
 const files = [{ version: '001', name: '001_first.sql', hash: 'b'.repeat(64) }, { version: '002', name: '002_next.sql', hash: 'c'.repeat(64) }]
 const table = ' Local | Remote | Time (UTC)\n-------|--------|-----------\n 001 | 001 | 001\n 002 | | 002\n'
 const dry = 'DRY RUN: migrations will *not* be pushed to the database.\nWould push these migrations:\n • 002_next.sql\nFinished supabase db push.\n'
@@ -17,7 +17,7 @@ const jobs = [
 ]
 const checkoutLog = `2026-09-30T12:00:00.000Z [command]/usr/bin/git log -1 --format=%H\n2026-09-30T12:00:00.001Z ${sha}\n`
 const plan = () => createPlan(inputs, files, history, ['002_next.sql'], 'd'.repeat(40))
-const approved = () => ({ ...inputs, mode: 'apply', approvedDigest: plan().digest, approvedMigrations: '002', confirmation: `APPLY staging ${sha}`, impact: 'I reviewed the SQL and acknowledge all destructive or irreversible effects.' })
+const approved = () => ({ ...inputs, mode: 'apply', approvedDigest: plan().digest, approvedMigrations: '002', confirmation: `APPLY production ${sha}`, impact: 'I reviewed the SQL and acknowledge all destructive or irreversible effects.' })
 
 function fakeIo() {
   return {
@@ -36,7 +36,7 @@ describe('migration rollout authorization', () => {
     expect(() => validateInputs({ ...inputs, sourceSha })).toThrow()
   })
   it('rejects missing CI, target rebinding, unknown mode, and application reruns', () => {
-    for (const overrides of [{ ciRunId: '' }, { boundTarget: 'production' }, { target: 'local' }, { projectRef: 'url' }, { mode: 'reset' }, { ...approved(), runAttempt: '2' }]) {
+    for (const overrides of [{ ciRunId: '' }, { boundTarget: 'staging' }, { target: 'local' }, { projectRef: 'url' }, { mode: 'reset' }, { ...approved(), runAttempt: '2' }]) {
       expect(() => validateInputs({ ...inputs, ...overrides })).toThrow()
     }
     expect(validateInputs(inputs).sourceSha).toBe(sha)
@@ -49,7 +49,7 @@ describe('migration rollout authorization', () => {
   it('binds project, target, SHA, all file hashes, schema tree and full history into the digest', () => {
     for (const [candidateInputs, candidateFiles, candidateHistory, tree] of [
       [{ ...inputs, projectRef: 'z'.repeat(20) }, files, history, 'd'.repeat(40)],
-      [{ ...inputs, target: 'production' }, files, history, 'd'.repeat(40)],
+      [{ ...inputs, target: 'other' }, files, history, 'd'.repeat(40)],
       [{ ...inputs, sourceSha: 'e'.repeat(40) }, files, history, 'd'.repeat(40)],
       [inputs, [{ ...files[0], hash: 'f'.repeat(64) }, files[1]], history, 'd'.repeat(40)],
       [inputs, files, [{ local: '001', remote: '001' }, { local: '002', remote: '002' }], 'd'.repeat(40)],
@@ -97,12 +97,11 @@ describe('private CLI and CI evidence parsers', () => {
 })
 
 describe('rollout with fake CLI and API, never a live database', () => {
-  it('refuses an unconfigured staging environment before any preparation or target contact', async () => {
+  it.each(['preview', 'apply'])('refuses retired staging in %s mode before preparation or target contact', async (mode) => {
     const io = fakeIo()
-    await expect(executeRollout({ ...inputs, boundTarget: '', projectRef: '' }, io)).rejects.toThrow('Environment target binding mismatch.')
-    expect(io.prepare).not.toHaveBeenCalled()
-    expect(io.link).not.toHaveBeenCalled()
-    expect(io.apply).not.toHaveBeenCalled()
+    await expect(executeRollout({ ...inputs, mode, target: 'staging', boundTarget: 'staging' }, io))
+      .rejects.toThrow('Environment target binding mismatch.')
+    for (const operation of Object.values(io)) expect(operation).not.toHaveBeenCalled()
   })
   it('previews without applying', async () => {
     const io = fakeIo()

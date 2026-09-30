@@ -154,6 +154,13 @@ PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-app
 ## 2026-09-30 — Prepare Blueprint production release
 
 PR1396 merged asb754bd69 after fixed-head CI36702895411 passed every lane and PR Gate. Production advanced via1397 while the release was preparing; promotion1398 now combines only classroom Blueprint drafting and guidance adoption. Production's current-state summary is preserved. Conflict resolution removes only duplicate historical archive entries already present verbatim; application/test/migration tree remains identical to reviewed main. Cumulative release review and final CI follow; production migrations221/222 now have direct one-time owner approval after checks. Actual ICS3U guidance was saved/read-verified at Draft4; P3/P5 adoption remains pending. Fresh linked DB preflight currently cannot connect; no application attempted.
+## 2026-09-30 — Retire remaining hosted staging workflow
+
+- Replaced obsolete staging/Preview rollout prerequisites with local app + local Supabase checks → reviewed main PR → production; updated startup/setup/rollout guidance and documented retirement evidence.
+- Production-only Vercel Git deployment; local attendance HTTP load target guards; removed `.env.staging` setup default and renamed seed/test fixtures. WorkOS provider test configuration and archive/attendance operation buffers remain distinct contracts.
+- Confirmed staging Supabase/Vercel projects already absent; removed two empty January-era GitHub staging environment records and preserved the ignored legacy local env in a private credential backup outside the checkout.
+- Synced newly merged PR1404 and removed its staging target/creation guidance. The manual migration workflow is pinned to production; direct staging requests fail before preparation or database contact. Production approval/digest/source safeguards remain intact.
+- Risk profile runtime-platform. Model recommendation: GPT-6.1 Sol — bounded workflow/configuration cleanup. Validation and stable-SHA PR evidence recorded in the PR.
 
 ## 2026-09-30 — Blueprint rollout and complete Content lists
 

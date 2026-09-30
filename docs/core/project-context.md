@@ -38,6 +38,10 @@ Overview of **Pika**: daily journals, attendance, classrooms, and assignments fo
 
 ---
 
+## Environment flow
+
+Pika uses local development with local Supabase, local smoke/database checks, a reviewed PR to `main`, then promotion to `production`. The hosted staging database was removed; do not propose recreating it or require a staging/Preview deployment as a gate. See [Workflow](../dev-workflow.md#environments-and-release-flow).
+
 ## Getting Started
 
 ## Prerequisites

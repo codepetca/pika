@@ -13,7 +13,7 @@ on:
       target:
         description: Environment whose project binding and credentials will be used
         type: choice
-        options: [staging, production]
+        options: [production]
         default: production
         required: true
       source_sha:
@@ -42,7 +42,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: manual-migrations-${{ inputs.target }}
+  group: manual-migrations-production
   cancel-in-progress: false
 
 jobs:
@@ -50,12 +50,13 @@ jobs:
     # Never execute branch-provided tooling with migration credentials.
     if: >-
       github.event_name == 'workflow_dispatch' &&
+      inputs.target == 'production' &&
       github.ref == 'refs/heads/main' &&
       github.workflow_ref == format('{0}/.github/workflows/migrations.yml@refs/heads/main', github.repository) &&
       (inputs.mode == 'preview' || github.run_attempt == 1)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: migrations-${{ inputs.target }}
+    environment: migrations-production
     steps:
       - name: Checkout trusted workflow tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

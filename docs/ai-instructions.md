@@ -9,7 +9,7 @@ After `.ai/START-HERE.md`, use this router. Worktrees and env: [Workflow](./dev-
 3. [Features](../.ai/features.json)
 4. [Routing](./ai-instructions.md)
 
-History: `.ai/SESSION-LOG.md` for handoffs; append and trim. Archive only for investigation.
+History: append/trim `.ai/SESSION-LOG.md`; archive for investigation only.
 
 ## Load Only The Docs You Need
 
@@ -50,6 +50,7 @@ Read startup and routed docs before edits.
 - Tiptap content parsing: import `parseContentField` from `@/lib/tiptap-content`
 - UI primitives: import from `@/ui`; use semantic tokens in app code instead of raw `dark:` classes
 - Migrations: require one-time permission naming target and migration; follow the schema rollout checklist
+- Environments: local app/DB checks → main → production; staging retired. See [Workflow](./dev-workflow.md).
 - Workflow: use a worktree; automatic draft-first stable-SHA PRs per `docs/dev-workflow.md`; include `Model recommendation: <model> - <reason>`; append and trim the session log
 - Risk profile: declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform`
 
