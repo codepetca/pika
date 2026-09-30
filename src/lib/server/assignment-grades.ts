@@ -108,7 +108,7 @@ export async function saveAssignmentGradesAtomic(opts: {
     if (error.code === '42501') {
       throw new ApiError(403, error.message)
     }
-    if (error.code === '40001') {
+    if (error.code === '40001' || error.code === 'PT409') {
       throw apiErrors.conflict('Assignment grade changed; reload and retry')
     }
     if (error.code === '22023') {
@@ -181,7 +181,7 @@ export async function saveAssignmentGradesForOwner(opts: {
     if (error.code === '55000' && error.message === 'assignment_grading_archived') {
       throw new ApiError(403, 'Assignment is archived')
     }
-    if (error.code === '40001' || isRetryableDatabaseContention(error)) {
+    if (error.code === '40001' || error.code === 'PT409' || isRetryableDatabaseContention(error)) {
       throw apiErrors.conflict('Assignment grade changed; reload and retry')
     }
     if (error.code === '22023') throw apiErrors.badRequest(error.message)
