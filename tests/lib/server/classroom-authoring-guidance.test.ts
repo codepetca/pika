@@ -62,6 +62,9 @@ describe('frozen classroom authoring guidance', () => {
     expect(result).toEqual({
       ok: true,
       context: {
+        blueprint_id: 'blueprint',
+        content_version_id: 'version',
+        content_version_number: 3,
         source_blueprint_version_id: 'version',
         source_blueprint_version_number: 3,
         source_draft_revision: 9,
@@ -80,6 +83,25 @@ describe('frozen classroom authoring guidance', () => {
     })
     expect(versionQuery.eq).toHaveBeenCalledWith('course_blueprint_id', 'blueprint')
     expect(from).not.toHaveBeenCalledWith('course_blueprints')
+  })
+
+  it('adopts guidance while retaining structural course titles and outline', async () => {
+    vi.mocked(assertTeacherOwnsClassroom).mockResolvedValue({ ok: true, classroom: { id: 'classroom' } as never })
+    const contentQuery = query({ id: 'v3', version_number: 3, source_draft_revision: 3,
+      snapshot_json: { metadata: { title: 'Original course' }, sections: { outline_markdown: 'Original outline' }, assessments: [{ title: 'Original Test' }] } })
+    const guidanceQuery = query({ id: 'v4', version_number: 4, source_draft_revision: 4,
+      snapshot_json: { metadata: { title: 'Changed course' }, sections: { outline_markdown: 'Changed outline' },
+        authoring_guidance: { course_expectations_markdown: 'New rules', assignment_guidance_markdown: '', test_guidance_markdown: '', unit_exceptions: [] } } })
+    from.mockReturnValueOnce(query({ source_blueprint_id: 'blueprint', source_blueprint_version_id: 'v3', authoring_guidance_version_id: 'v4' }))
+      .mockReturnValueOnce(contentQuery).mockReturnValueOnce(guidanceQuery)
+    const result = await getClassroomAuthoringGuidance('teacher', 'classroom')
+    expect(result).toMatchObject({ ok: true, context: {
+      content_version_id: 'v3', content_version_number: 3,
+      source_blueprint_version_id: 'v4', source_blueprint_version_number: 4,
+      guidance: { course_expectations_markdown: 'New rules' },
+      course: { title: 'Original course', outline_markdown: 'Original outline', test_titles: ['Original Test'] },
+    } })
+    expect(guidanceQuery.eq).toHaveBeenCalledWith('course_blueprint_id', 'blueprint')
   })
 
   it('provides no guidance when the classroom has no Blueprint lineage', async () => {

@@ -3646,6 +3646,7 @@ export type Database = {
         Row: {
           assignment_id: string | null
           classroom_id: string
+          content_version_id: string | null
           created_at: string
           created_by: string
           created_content_sha256: string
@@ -3663,6 +3664,7 @@ export type Database = {
         Insert: {
           assignment_id?: string | null
           classroom_id: string
+          content_version_id?: string | null
           created_at?: string
           created_by: string
           created_content_sha256: string
@@ -3680,6 +3682,7 @@ export type Database = {
         Update: {
           assignment_id?: string | null
           classroom_id?: string
+          content_version_id?: string | null
           created_at?: string
           created_by?: string
           created_content_sha256?: string
@@ -4278,6 +4281,7 @@ export type Database = {
           actual_site_slug: string | null
           allow_enrollment: boolean
           archived_at: string | null
+          authoring_guidance_version_id: string | null
           blueprint_source_revision: number
           class_code: string
           course_outline_markdown: string
@@ -4309,6 +4313,7 @@ export type Database = {
           actual_site_slug?: string | null
           allow_enrollment?: boolean
           archived_at?: string | null
+          authoring_guidance_version_id?: string | null
           blueprint_source_revision?: number
           class_code: string
           course_outline_markdown?: string
@@ -4340,6 +4345,7 @@ export type Database = {
           actual_site_slug?: string | null
           allow_enrollment?: boolean
           archived_at?: string | null
+          authoring_guidance_version_id?: string | null
           blueprint_source_revision?: number
           class_code?: string
           course_outline_markdown?: string
@@ -4366,6 +4372,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "classrooms_authoring_guidance_version_id_fkey"
+            columns: ["authoring_guidance_version_id"]
+            isOneToOne: false
+            referencedRelation: "course_blueprint_versions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "classrooms_source_blueprint_id_fkey"
             columns: ["source_blueprint_id"]
@@ -8878,6 +8891,18 @@ export type Database = {
         }
         Returns: Json
       }
+      adopt_classroom_authoring_guidance_v1: {
+        Args: {
+          p_actor_id: string
+          p_blueprint_id: string
+          p_classroom_id: string
+          p_expected_content_version_id: string
+          p_expected_draft_revision: number
+          p_expected_guidance_version_id: string
+          p_guidance_version_id: string
+        }
+        Returns: Json
+      }
       advance_removed_student_academic_cleanup: {
         Args: {
           p_action: string
@@ -9115,6 +9140,7 @@ export type Database = {
           p_actor_id: string
           p_classroom_id: string
           p_expected_blueprint_version_id: string
+          p_expected_content_version_id?: string
           p_rules_markdown: string
           p_target: string
           p_unit_exception_id: string
@@ -10742,6 +10768,7 @@ export type Database = {
           p_draft_id: string
           p_due_at: string
           p_expected_blueprint_version_id: string
+          p_expected_content_version_id?: string
           p_instructions_markdown: string
           p_points_possible: number
           p_requirements: Json
@@ -10761,6 +10788,7 @@ export type Database = {
           p_draft_content: Json
           p_draft_id: string
           p_expected_blueprint_version_id: string
+          p_expected_content_version_id?: string
           p_rules_markdown: string
           p_seed_sha256: string
           p_unit_exception_id: string
@@ -11826,6 +11854,10 @@ export type Database = {
         Returns: Json
       }
       normalize_classroom_archive_restore_row_pre_v210: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      normalize_classroom_archive_restore_row_pre_v222: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }

@@ -45,4 +45,19 @@ describe('classroom draft provenance token', () => {
     expect(verifyClassroomDraftProvenanceToken({ token: `${token}x`, ...args, nowMs: 2000 })).toBe(false)
     expect(verifyClassroomDraftProvenanceToken({ token, ...args, nowMs: 31 * 60 * 1000 })).toBe(false)
   })
+  it('rejects changed structural context when effective guidance is unchanged', () => {
+    vi.stubEnv('SESSION_SECRET', 'test-session-secret-with-at-least-32-characters')
+    const split = { ...provenance, content_version_id: 'structural-v3' }
+    const token = createClassroomDraftProvenanceToken({ ...args, provenance: split })
+    expect(verifyClassroomDraftProvenanceToken({ ...args, token, provenance: split })).toBe(true)
+    expect(verifyClassroomDraftProvenanceToken({ ...args, token,
+      provenance: { ...split, content_version_id: provenance.source_blueprint_version_id },
+    })).toBe(false)
+    const legacy = createClassroomDraftProvenanceToken(args)
+    expect(verifyClassroomDraftProvenanceToken({ ...args, token: legacy,
+      provenance: { ...provenance, content_version_id: provenance.source_blueprint_version_id },
+    })).toBe(true)
+    expect(verifyClassroomDraftProvenanceToken({ ...args, token: legacy, provenance: split })).toBe(false)
+  })
+
 })

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CourseBlueprintDetail } from '@/types'
-import { generateCourseBlueprintGuidedDraft } from '@/lib/server/course-blueprint-guided-drafting'
+import { generateClassroomGuidedDraft, generateCourseBlueprintGuidedDraft } from '@/lib/server/course-blueprint-guided-drafting'
 import { markdownToCourseBlueprintAssessments } from '@/lib/course-blueprint-assessments-markdown'
 
 const detail = {
@@ -166,4 +166,21 @@ describe('guided Blueprint drafting', () => {
     expect(modelInput).not.toContain('Existing 99')
     expect(Buffer.byteLength(modelInput, 'utf8')).toBeLessThan(20_000)
   })
+  it('sends adopted guidance and original content context to the model together', async () => {
+    const fetchMock = mockModel({ title: 'New assignment', instructions_markdown: 'Write a Karel program.', points_possible: 10 })
+    const result = await generateClassroomGuidedDraft({
+      source: {
+        blueprint_id: 'blueprint', content_version_id: 'content-v3', content_version_number: 3,
+        source_blueprint_version_id: 'guidance-v4', source_blueprint_version_number: 4, source_draft_revision: 4,
+        guidance: { ...detail.authoring_guidance, assignment_guidance_markdown: 'Adopted Version 4 rule' },
+        course: { title: 'Original Version 3 course', subject: 'Computer Science', grade_level: '11', outline_markdown: 'Original Version 3 outline', assignment_titles: [], test_titles: [] },
+      }, target: 'assignments', prompt: 'Create practice.',
+    })
+    const modelInput = JSON.parse(fetchMock.mock.calls[0][1].body as string).input[1].content[0].text
+    expect(modelInput).toContain('Adopted Version 4 rule')
+    expect(modelInput).toContain('Original Version 3 outline')
+    expect(modelInput).toContain('Content Version 3, Guidance Version 4')
+    expect(result.guidance).toMatchObject({ content_version_id: 'content-v3', source_blueprint_version_id: 'guidance-v4' })
+  })
+
 })

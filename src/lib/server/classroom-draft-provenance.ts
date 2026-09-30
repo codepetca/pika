@@ -6,6 +6,7 @@ const TTL_MS = 30 * 60 * 1000
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/)
 
 export type ClassroomDraftGuidanceProvenance = CourseBlueprintAuthoringContext & {
+  content_version_id?: string
   source_blueprint_version_id: string
   source_blueprint_version_number: number
   source_draft_revision: number
@@ -16,6 +17,7 @@ const tokenSchema = z.object({
   teacher_id: z.string().min(1).max(128),
   classroom_id: z.string().min(1).max(128),
   draft_id: z.string().uuid(),
+  content_version_id: z.string().min(1).max(128).optional(),
   source_blueprint_version_id: z.string().min(1).max(128),
   source_blueprint_version_number: z.number().int().positive(),
   source_draft_revision: z.number().int().positive(),
@@ -62,6 +64,7 @@ export function createClassroomDraftProvenanceToken(args: {
     teacher_id: args.teacherId,
     classroom_id: args.classroomId,
     draft_id: args.draftId,
+    content_version_id: args.provenance.content_version_id,
     source_blueprint_version_id: args.provenance.source_blueprint_version_id,
     source_blueprint_version_number: args.provenance.source_blueprint_version_number,
     source_draft_revision: args.provenance.source_draft_revision,
@@ -96,18 +99,22 @@ export function verifyClassroomDraftProvenanceToken(args: {
     if (!parsed.success) return false
     const payload = parsed.data
     const nowMs = args.nowMs ?? Date.now()
+    const provenanceToHash = { ...args.provenance }
+    if (!payload.content_version_id) delete provenanceToHash.content_version_id
     return payload.issued_at_ms <= nowMs
       && payload.expires_at_ms >= nowMs
       && !payload.trial
       && payload.teacher_id === args.teacherId
       && payload.classroom_id === args.classroomId
       && payload.draft_id === args.draftId
+      && (payload.content_version_id ?? payload.source_blueprint_version_id)
+        === (args.provenance.content_version_id ?? args.provenance.source_blueprint_version_id)
       && payload.source_blueprint_version_id === args.provenance.source_blueprint_version_id
       && payload.source_blueprint_version_number === args.provenance.source_blueprint_version_number
       && payload.source_draft_revision === args.provenance.source_draft_revision
       && payload.target === args.provenance.target
       && payload.unit_exception_id === args.provenance.unit_exception_id
-      && payload.context_sha256 === hash(args.provenance)
+      && payload.context_sha256 === hash(provenanceToHash)
       && payload.seed_content_sha256 === args.seedContentSha256
   } catch {
     return false

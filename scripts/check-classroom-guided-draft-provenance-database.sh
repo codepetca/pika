@@ -80,7 +80,7 @@ begin
     or has_table_privilege('authenticated', 'public.classroom_guided_draft_provenance', 'SELECT')
     or not has_table_privilege('service_role', 'public.classroom_guided_draft_provenance', 'SELECT')
     or has_function_privilege('authenticated',
-      'public.create_guided_test_for_owner_v1(uuid,uuid,uuid,uuid,uuid,jsonb,jsonb,text,text)', 'EXECUTE')
+      'public.create_guided_test_for_owner_v1(uuid,uuid,uuid,uuid,uuid,jsonb,jsonb,text,text,uuid)', 'EXECUTE')
   then
     raise exception 'Guided draft provenance privacy contract failed';
   end if;
@@ -259,3 +259,6 @@ rollback;
 SQL
 
 echo "Guided classroom draft provenance contract passed."
+
+# Guidance adoption shares this private drafting transaction boundary.
+bash "$(dirname "$0")/check-classroom-guidance-adoption-database.sh"

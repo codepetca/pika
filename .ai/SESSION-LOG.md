@@ -11,6 +11,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-27 — Test-mode pane layout
+
+Removed the redundant separator line from the shared student/teacher-preview document workspace. One 30/70-default width state now survives reference opening, Back, and switching documents; the resize control is available in the list too. Kept answer forms mounted and existing pointer/keyboard controls. Verification: 245 focused tests plus architecture/UI/design/typecheck/lint; student and teacher Playwright desktop/mobile light/dark captures and pane-width regressions. Composite accessibility checklist reviewed; keyboard and semantic state tested; no manual follow-up. Branch: codex/test-mode-pane-layout.
+
 ## 2026-09-27 — Test reference image scrollbar stability
 
 Fixed image resize feedback by measuring fractional border-box viewport dimensions and using CSS minimum canvas dimensions instead of previous content-box measurements. Preserves zoom, Fit, scrolling, and mounted answers. Unit regression covers scrollbar-area changes and real pane resizing; browser regressions reserve scrollbar space and sample image geometry across 40 frames. Teacher/student desktop/mobile light/dark verification passed (8 scenarios); focused suite 250 tests plus architecture/UI/design/typecheck/lint passed. Also verified the local seeded Markdown/PNG test. PR1375 returned to draft before this correction.
@@ -211,3 +215,8 @@ Owner explicitly approved one correction batch and one additional targeted scree
 ## 2026-09-29 — Pause hidden authentication and attendance polling
 
 Added browser visibility guards and Today activity wiring while preserving the mounted student workspace. Returning forces one current-identity read; stale pre-hide responses are ignored, including batched visibility events. Visible attendance and auth cadences, server authorization and Toronto expiry contracts remain unchanged. Risk: workspace-state and client authentication lifecycle. Focused regressions cover hidden timers/retries, return coalescing, identity changes, expiry and Today activity. Reused existing attendance rendering and Pattern Lab page-state reference; teacher/student desktop/mobile light/dark verification and independent stable-SHA review required before merge. Production promotion and subsequent savings remain separate.
+## 2026-09-29 — Independent classroom guidance adoption
+
+- Implemented explicit teacher guidance preview/adoption on `codex/classroom-blueprint-guidance-updates`; Content Version and copied artifacts retain structural lineage while a separate immutable Guidance Version supplies future drafts. Signed proof and atomic sidecar creation bind both context identities.
+- Migration 222 adds pointer, ownership/revision/lifecycle guards, archive defaults, content-reset and purge protections. Isolated replay/type generation, warning lint, 273-edge schema audit, adoption/concurrency/purge contracts passed. Focused gate: 3,518 tests; final affected checks: 41 + 17 archive tests. Visual teacher desktop/mobile light/dark and student exclusion checked at localhost:3012 with deterministic guidance fixtures.
+- No shared/production migration, seed, or publication. Coordinator owns PR review, release, exact migration permission and actual ICS3U rollout. Historical standalone archive restore fixture stops on already-retired quizzes; current archive preservation/defaults have focused coverage.

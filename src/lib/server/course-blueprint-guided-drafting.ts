@@ -326,7 +326,7 @@ export async function generateClassroomGuidedDraft(args: {
     prompt: args.prompt,
     course: args.source.course,
     rulesMarkdown: context.rules_markdown,
-    sourceLabel: `classroom Blueprint Version ${args.source.source_blueprint_version_number}, Draft revision ${args.source.source_draft_revision}`,
+    sourceLabel: `classroom Content Version ${args.source.content_version_number}, Guidance Version ${args.source.source_blueprint_version_number}, Draft revision ${args.source.source_draft_revision}`,
   })
   if (args.target === 'assignments') {
     const draft = assignmentDraftSchema.parse(parsed)
@@ -339,6 +339,7 @@ export async function generateClassroomGuidedDraft(args: {
       content: courseBlueprintAssignmentsToMarkdown([record]),
       draft: record,
       guidance: {
+        content_version_id: args.source.content_version_id,
         source_blueprint_version_id: args.source.source_blueprint_version_id,
         source_blueprint_version_number: args.source.source_blueprint_version_number,
         source_draft_revision: args.source.source_draft_revision,
@@ -354,6 +355,7 @@ export async function generateClassroomGuidedDraft(args: {
     content: courseBlueprintAssessmentsToMarkdown([record], 'test'),
     draft: record,
     guidance: {
+      content_version_id: args.source.content_version_id,
       source_blueprint_version_id: args.source.source_blueprint_version_id,
       source_blueprint_version_number: args.source.source_blueprint_version_number,
       source_draft_revision: args.source.source_draft_revision,

@@ -200,4 +200,12 @@ describe('classroom guided draft creation', () => {
     expect(response.status).toBe(403)
     expect(mocks.rpc).not.toHaveBeenCalled()
   })
+  it('rejects a preview when content changes but guidance remains the same', async () => {
+    const preview = body('assignments', assignmentMarkdown())
+    mocks.getGuidance.mockResolvedValue({ ok: true, context: { ...source, content_version_id: 'new-structural-version' } })
+    const response = await POST(request(preview), context)
+    expect(response.status).toBe(409)
+    expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+
 })

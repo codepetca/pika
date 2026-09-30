@@ -283,6 +283,27 @@ describe('classroom archive restore planning', () => {
     expect(plan.adapterChain).toEqual(['classroom-archive-schema-105-to-134'])
   })
 
+  it('preserves independent content and guidance versions through archive decoding and restore planning', () => {
+    const contentVersion = '72000000-0000-4000-8000-000000000003'
+    const guidanceVersion = '72000000-0000-4000-8000-000000000004'
+    const verification = verifyClassroomArchiveBundle(buildClassroomArchiveV2Fixture({ resources: {
+      classrooms: [{ id: V2_CLASSROOM_ID, teacher_id: V2_TEACHER_ID, title: 'Linked classroom',
+        source_blueprint_version_id: contentVersion, authoring_guidance_version_id: guidanceVersion }],
+      classroom_guided_draft_provenance: [{ id: '72000000-0000-4000-8000-000000000005', classroom_id: V2_CLASSROOM_ID,
+        content_version_id: contentVersion, source_blueprint_version_id: guidanceVersion,
+        created_by: V2_TEACHER_ID, rules_markdown: 'Exact adopted rules' }],
+    } }).archive)
+    if (!verification.ok) throw new Error(verification.error)
+    const plan = buildClassroomArchiveV2RestorePlan({ verified: verification, artifactChecksumVerified: true,
+      operationId: OPERATION_ID, currentActors: [
+        { id: V2_TEACHER_ID, email: 'teacher@example.test', role: 'teacher' },
+        { id: V2_STUDENT_ID, email: 'student@example.test', role: 'student' },
+      ], supabaseUrl: 'https://project.supabase.co' })
+    expect(plan.resources.classrooms[0]).toMatchObject({ source_blueprint_version_id: contentVersion, authoring_guidance_version_id: guidanceVersion })
+    expect(plan.resources.classroom_guided_draft_provenance[0]).toMatchObject({ content_version_id: contentVersion,
+      source_blueprint_version_id: guidanceVersion, rules_markdown: 'Exact adopted rules' })
+  })
+
   it('reconciles a removed-only roster actor without restoring class enrollment', () => {
     const row = {
       id: '72000000-0000-4000-8000-000000000099', classroom_id: V2_CLASSROOM_ID,

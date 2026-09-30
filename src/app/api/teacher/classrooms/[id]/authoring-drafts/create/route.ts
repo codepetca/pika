@@ -41,6 +41,7 @@ export const POST = withErrorHandler('PostTeacherClassroomAuthoringDraftCreate',
     return NextResponse.json({ error: 'The selected unit guidance is no longer available' }, { status: 409 })
   }
   const provenance = {
+    content_version_id: source.content_version_id ?? source.source_blueprint_version_id,
     source_blueprint_version_id: source.source_blueprint_version_id,
     source_blueprint_version_number: source.source_blueprint_version_number,
     source_draft_revision: source.source_draft_revision,
@@ -70,6 +71,7 @@ export const POST = withErrorHandler('PostTeacherClassroomAuthoringDraftCreate',
     p_actor_id: user.id,
     p_classroom_id: id,
     p_expected_blueprint_version_id: source.source_blueprint_version_id,
+    p_expected_content_version_id: source.content_version_id ?? source.source_blueprint_version_id,
     // Generated RPC types do not represent nullable SQL input arguments.
     p_unit_exception_id: provenance.unit_exception_id as string,
     p_draft_id: body.draft_id,

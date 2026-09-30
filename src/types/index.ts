@@ -91,6 +91,7 @@ export interface Classroom {
   blueprint_source_revision: number
   source_blueprint_id: string | null
   source_blueprint_version_id?: string | null
+  authoring_guidance_version_id?: string | null
   source_blueprint_origin: ClassroomBlueprintOrigin | null
   actual_site_slug: string | null
   actual_site_published: boolean
