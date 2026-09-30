@@ -56,6 +56,10 @@ describe('frozen classroom guided drafting', () => {
       '## Instructions',
       'Points: 999 is an example of a metadata-looking line.',
       'Due Days: 999',
+      'Points :999',
+      'Due Days :0',
+      '  ### Instructions',
+      'The spaced labels and indented heading are student prose.',
       '',
       '````java',
       '## Code heading must stay verbatim',
@@ -93,6 +97,10 @@ describe('frozen classroom guided drafting', () => {
     expect(parsed.draft.instructionsMarkdown).toContain('### **Instructions**')
     expect(parsed.draft.instructionsMarkdown).toContain('**Points:** 999 is an example')
     expect(parsed.draft.instructionsMarkdown).toContain('**Due Days:** 999')
+    expect(parsed.draft.instructionsMarkdown).toContain('\n**Points:**999\n')
+    expect(parsed.draft.instructionsMarkdown).toContain('\n**Due Days:**0\n')
+    expect(result.content.match(/### \*\*Instructions\*\*/g)).toHaveLength(2)
+    expect(parsed.draft.instructionsMarkdown).toContain('The spaced labels and indented heading are student prose.')
     expect(parsed.draft.instructionsMarkdown).not.toContain('\n***\n')
     expect(parsed.draft.instructionsMarkdown).toContain('````java\n## Code heading must stay verbatim\n---\n### Submission Requirements\nPoints: 999\n```\n````')
     expect(parsed.draft.instructionsMarkdown).toContain('~~~java\n## A second protected fence\n---\n~~~')

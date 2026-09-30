@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-28 — Blueprint authoring workspace inspection
-
-Inspected production `/teacher/blueprints` and selected ICS3U-4; reviewed desktop dark screenshot, Tests/AI Drafting controls, current source, and the existing product-experience audit. Confirmed Blueprints already has main navigation, while its editor still has 13 wrapping custom tab buttons, metadata and repository/package explanations above content, local-only section state, and no Authoring Guidance tab. Recorded an unimplemented proposal in `docs/guidance/ui/changes/blueprint-authoring-workspace-audit.md`: dedicated teacher-only guidance tab, simpler workspace grouping, existing shared editor/tab primitives, and persistence/context work before claiming remembered rules. No production content or product code changed. Read-only investigation risk: none; no implementation verification claimed.
-
 ## 2026-09-28 — Living Blueprint authoring implementation in progress
 
 Created five workspace tabs, a teacher-only Authoring Guidance editor with course/unit rules, staged comparison, history, and temporary draft trials. Added revision-safe storage, schema-3 Version snapshots and proposals, package v6 guidance, frozen classroom guidance reads, and a model-backed Blueprint test/assignment draft preview that consumes selected rules. Coding test drafts receive a first general Instructions reference; code options are requested as Markdown. Focused unit suites and teacher desktop/mobile browser review pass; student route redirect was checked. Migration 218 is not applied, generated database types remain pending, and the shared local stack contains a different unmerged 218. Classroom create flows do not yet consume the frozen guidance. Draft PR, independent review, PR Gate, and merge remain pending.
@@ -220,3 +216,7 @@ Classroom guided assignment previews now normalize generated prose that resemble
 ## 2026-09-30 — Guided assignment correction review
 
 Remediated first review findings in classroom guided assignment previews. Ambiguous teacher edits (interior divider, body metadata, or unparseable reserved section) now fail before the create RPC; valid submission requirements remain accepted. LimitedMarkdown recognizes long backtick and tilde fences, preserves inner short markers and following prose, and gives code the existing inverse text token for contrast. The production renderer's Pattern Lab fixture passed eight teacher/student, desktop/mobile, light/dark Playwright captures; screenshots were reviewed. Focused gate, independent review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for this bounded parser/rendering correction.
+
+## 2026-09-30 — Guided assignment parser grammar follow-up
+
+Second targeted review found that spaced field labels, indented reserved section headings, and nonblank pre-title text could bypass the classroom guided preview guard and lose or mutate content. The classroom-only helper now classifies exactly the eight fields accepted by the unchanged legacy parser, recognizes sections after trim, and rejects ignored prefaces before the create RPC. Generated prose with those field and heading forms remains visible and keeps its original points. Focused checks and stable-SHA re-review remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the narrow parser boundary correction.

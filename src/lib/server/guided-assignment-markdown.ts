@@ -1,5 +1,23 @@
-/** The Blueprint format reserves headings, dividers, and metadata at the start of lines. */
-const RESERVED_FIELD = /^ *(?:Artifact ID|Classwork Position|Due Days|Due Time|Points|Gradebook Weight|Include In Final|Track Authenticity):\s*.+$/i
+/** Match the legacy parser's field grammar and its eight structural keys exactly. */
+const LEGACY_FIELD_PATTERN = /^([A-Za-z ]+):\s*(.+)$/
+const RESERVED_FIELDS = new Set([
+  'artifact id', 'classwork position', 'due days', 'due time', 'points',
+  'gradebook weight', 'include in final', 'track authenticity',
+])
+
+function reservedField(line: string): { key: string; label: string } | null {
+  const match = line.match(LEGACY_FIELD_PATTERN)
+  if (!match) return null
+  const key = match[1].trim().toLowerCase()
+  return RESERVED_FIELDS.has(key) ? { key, label: match[1] } : null
+}
+
+function reservedSection(line: string): 'requirements' | 'instructions' | null {
+  const trimmed = line.trim()
+  if (/^###\s+Submission Requirements\s*$/i.test(trimmed)) return 'requirements'
+  if (/^###\s+Instructions\s*$/i.test(trimmed)) return 'instructions'
+  return null
+}
 
 function mapFencedLines(markdown: string, mapLine: (line: string, insideFence: boolean) => string): string {
   let fence: { marker: string; length: number } | null = null
@@ -27,11 +45,15 @@ export function normalizeGeneratedAssignmentInstructions(markdown: string): stri
       return /^##\s+(?:Submission Requirements|Instructions)\s*$/i.test(line)
         ? `### **${line.replace(/^##\s+/, '').trim()}**` : `#${line}`
     }
-    if (/^###\s+(?:Submission Requirements|Instructions)\s*$/i.test(line)) {
-      return `### **${line.replace(/^###\s+/, '').trim()}**`
+    if (reservedSection(line)) {
+      return `### **${line.trim().replace(/^###\s+/, '').trim()}**`
     }
     if (line.trim() === '---') return ''
-    if (RESERVED_FIELD.test(line)) return line.replace(/^( *)([^:]+):/, '$1**$2:**')
+    const field = reservedField(line)
+    if (field) {
+      const leading = field.label.match(/^ */)?.[0] ?? ''
+      return `${leading}**${field.label.trim()}:**${line.slice(field.label.length + 1)}`
+    }
     return line
   })
 }
@@ -50,25 +72,29 @@ export function findAmbiguousGuidedAssignmentEdit(markdown: string): string | nu
   let error: string | null = null
   mapFencedLines(markdown, (line, insideFence) => {
     const index = lineNumber++
-    if (error || insideFence) return line
+    if (error) return line
     if (!seenTitle) {
-      if (/^##(?!#)/.test(line)) seenTitle = true
+      if (!insideFence && /^##(?!#)/.test(line)) seenTitle = true
+      else if (line.trim()) error = 'Text before the assignment title is not supported'
       return line
     }
+    if (insideFence) return line
+    const field = reservedField(line)
+    const section = reservedSection(line)
     if (!inBody && !line.trim()) {
       inBody = true
       return line
     }
-    if (!inBody && !RESERVED_FIELD.test(line) && line.trim() !== '---') {
+    if (!inBody && !field && line.trim() !== '---') {
       inBody = true
     }
     if (line.trim() === '---' && index !== lastContentLine) {
       error = 'An assignment divider appears before the end of the preview'
-    } else if (/^###\s+Submission Requirements\s*$/i.test(line)) {
+    } else if (section === 'requirements') {
       if (inRequirements && !hasRequirement) error = 'Submission Requirements must contain a valid requirement row'
       inRequirements = true
       hasRequirement = false
-    } else if (/^###\s+Instructions\s*$/i.test(line)) {
+    } else if (section === 'instructions') {
       if (!inRequirements || !hasRequirement) {
         error = 'A reserved assignment section heading appears inside the instructions'
       }
@@ -79,12 +105,11 @@ export function findAmbiguousGuidedAssignmentEdit(markdown: string): string | nu
       } else {
         hasRequirement = true
       }
-    } else if (RESERVED_FIELD.test(line)) {
-      const field = line.slice(0, line.indexOf(':')).trim().toLowerCase()
-      if (inBody || headerFields.has(field)) {
+    } else if (field) {
+      if (inBody || headerFields.has(field.key)) {
         error = 'Assignment metadata appears inside the instructions or is repeated'
       }
-      headerFields.add(field)
+      headerFields.add(field.key)
     }
     return line
   })

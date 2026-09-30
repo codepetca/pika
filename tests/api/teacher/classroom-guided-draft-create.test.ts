@@ -217,9 +217,16 @@ describe('classroom guided draft creation', () => {
       assignmentMarkdown('First section.\n\n---\n\nSecond section is required.'),
       assignmentMarkdown('First section.\nPoints: 999\nSecond section is required.'),
       assignmentMarkdown('First section.\nDue Days: 0\nSecond section is required.'),
+      assignmentMarkdown('First section.\nPoints :999\nSecond section is required.'),
+      assignmentMarkdown('First section.\nDue Days :0\nSecond section is required.'),
       assignmentMarkdown('First section.\n### Submission Requirements\nSecond section is required.'),
+      assignmentMarkdown('First section.\n  ### Submission Requirements\nSecond section is required.'),
+      assignmentMarkdown('First section.\n  ### Instructions\nSecond section is required.'),
       assignmentMarkdown('First section.\nArtifact ID: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
         .replace('Track Authenticity: false\n\nFirst section.', 'Track Authenticity: false\nFirst section.'),
+      `# Unit directions\n${assignmentMarkdown('First section.')}`,
+      `Teacher preface\n${assignmentMarkdown('First section.')}`,
+      `\`\`\`java\n## example\n\`\`\`\n${assignmentMarkdown('First section.')}`,
     ]
     for (const content of edits) {
       const response = await POST(request({ ...seed, content }), context)
