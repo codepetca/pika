@@ -241,6 +241,15 @@ lesson. The existing full classroom update proposal rejects those classrooms.
   actual Karel-shaped task/reference and preservation of code, points and draft
   state. Finish its reviewed release and verify a generated assignment can be
   saved without this manual formatting correction.
+- Independent review found two remaining boundaries: an edited interior `---`
+  or metadata line could silently discard instructions or change points/due
+  days, and longer backtick or tilde fences were not rendered as one code block.
+  The correction now rejects ambiguous teacher edits before the classroom RPC,
+  while accepting valid submission requirement rows. Generated reserved headings
+  use the existing three-level renderer, and both fence forms preserve code and
+  following prose. Focused tests and production-owner Pattern Lab captures cover
+  teacher/student desktop/mobile in light/dark; the final PR gate and production
+  proof are still pending.
 
 Completion requires the remaining correction's production proof. The course
 adoption and draft receipts above use actual production classrooms, rather than

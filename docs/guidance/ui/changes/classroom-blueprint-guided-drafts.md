@@ -27,6 +27,29 @@ A teacher with a saved Blueprint Version can choose a unit, describe the assessm
 
 Verify teacher desktop/mobile light/dark and the states above. Verify a student cannot see the guidance, source, or preview. Check the new dialog against the Pattern Lab references and the composite widget accessibility checklist.
 
+## Generated assignment Markdown correction (2026-09-30)
+
+- Surface/reference: teacher assignment Instructions preview and student Classwork instructions, both using production `LimitedMarkdown`; the `/pattern-lab` assignment preview is the approved teacher reference.
+- Roles and matrix: teacher and student, desktop 1440×900 and mobile 390×844, light and dark. Check the open/read state with Task, Coding reference, reserved Instructions heading, a four-backtick fence containing three backticks, a tilde fence, and prose after both code blocks.
+- Primary signal: existing heading hierarchy and monospace code blocks; no new control, colour, divider styling, or student-facing source information.
+- Composite widget review: no new interaction or ARIA behavior; the existing preview dialog focus contract remains unchanged.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Teacher and student instruction display | `LimitedMarkdown` | reuse | Both views already render through this production owner. |
+| Valid backtick and tilde fence lengths | `parseLimitedMarkdownBlocks` | extend | The existing code-block presentation can render both without new styling. |
+| Guided draft preview chrome | Pattern Lab assignment preview | reuse | The same open/read state supplies the visual reference. |
+
+No experimental pattern or new shared component is needed. Verify the exact Markdown fixture in both roles before release; the first correction review found that nested fences and reserved headings previously rendered as literal text.
+
+Local verification: the fixed Pattern Lab reference uses the production
+`LimitedMarkdown` owner in teacher and student roles. Playwright passed all
+eight desktop/mobile, light/dark captures; both roles show supported headings,
+two legible code blocks, and prose after each block. The code text uses the
+existing inverse text token on its existing dark surface. Captures are in the
+guided-assignment worktree's `test-results/ui-pattern-lab-*guided-assignment*`
+directories and were visually reviewed. No production classroom data was used.
+
 ## Explicit guidance adoption
 
 - Surface/reference: existing teacher Blueprint Authoring Guidance pane, Settings top navigation, Blueprint guidance comparison, and Pattern Lab Dialog/Form/Button owners.

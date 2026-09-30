@@ -5,7 +5,7 @@ import {
 } from '@/lib/scheduling'
 import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { markdownToCourseBlueprintAssignments } from '@/lib/course-blueprint-assignments'
-import { protectGuidedAssignmentCode } from '@/lib/server/guided-assignment-markdown'
+import { findAmbiguousGuidedAssignmentEdit, protectGuidedAssignmentCode } from '@/lib/server/guided-assignment-markdown'
 import { markdownToCourseBlueprintAssessments } from '@/lib/course-blueprint-assessments-markdown'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { markPortableTestQuestionIdentity } from '@/lib/test-question-identity'
@@ -36,6 +36,8 @@ type ParseResult =
 /** Parse an edited, standalone preview before any classroom mutation. */
 export function parseClassroomGuidedDraft(target: 'assignments' | 'tests', content: string): ParseResult {
   if (target === 'assignments') {
+    const ambiguousEdit = findAmbiguousGuidedAssignmentEdit(content)
+    if (ambiguousEdit) return { ok: false, errors: [ambiguousEdit] }
     const protectedCode = protectGuidedAssignmentCode(content)
     const parsed = markdownToCourseBlueprintAssignments(protectedCode.content, [])
     if (parsed.errors.length || parsed.assignments.length !== 1) {

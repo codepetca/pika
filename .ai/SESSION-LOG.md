@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-28 — Offline low-reasoning test grading trial
-
-- Added an optional low-reasoning override to prepared batch grading and the offline comparison harness. Production calls still use their existing default. Comparison checkpoints bind to effort so an interrupted low trial cannot resume as default. The paid private trial matched the earlier 48 ten-point answers, two order seeds, batch size two, and five verified targets: 96/96 low-effort grades versus 92/96 default, 8.65 versus 14.48 mean grading minutes per 48, and $0.0682 versus at least $0.1149 reference-rate cost per 48. Verified scores were unchanged but 34/92 other paired scores differed; do not switch production without broader adjudication. Independent PR review found a duplicate `--effort` CLI validation gap; one correction and regression test now reject conflicting flags before paid calls. Risk profile: async-grading adapter with no production behavior change. Model recommendation: GPT-6 Sol for this bounded adapter and harness change.
-- Final cumulative review found the paid-resume source digest omitted the two offline harness files that choose and forward effort. Added both files to the fingerprint and tested that changing either Git tree entry invalidates a checkpoint before paid work.
-
 ## 2026-09-28 — Blueprint authoring workspace inspection
 
 Inspected production `/teacher/blueprints` and selected ICS3U-4; reviewed desktop dark screenshot, Tests/AI Drafting controls, current source, and the existing product-experience audit. Confirmed Blueprints already has main navigation, while its editor still has 13 wrapping custom tab buttons, metadata and repository/package explanations above content, local-only section state, and no Authoring Guidance tab. Recorded an unimplemented proposal in `docs/guidance/ui/changes/blueprint-authoring-workspace-audit.md`: dedicated teacher-only guidance tab, simpler workspace grouping, existing shared editor/tab primitives, and persistence/context work before claiming remembered rules. No production content or product code changed. Read-only investigation risk: none; no implementation verification claimed.
@@ -221,3 +216,7 @@ Read the Disk IO Budget warning and production catalog/log evidence. Confirmed a
 ## 2026-09-30 — Guided assignment Markdown boundaries
 
 Classroom guided assignment previews now normalize generated prose that resembles Blueprint delimiters and protect fenced code during the existing single-assignment create parse. The Karel-shaped task/reference regression and route creation check preserve 10 points, draft status, student content, and verbatim backtick/tilde code examples. Shared Blueprint parser, migrations, and provider settings are unchanged. Affected tests and focused checks passed; PR review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the bounded server serialization fix.
+
+## 2026-09-30 — Guided assignment correction review
+
+Remediated first review findings in classroom guided assignment previews. Ambiguous teacher edits (interior divider, body metadata, or unparseable reserved section) now fail before the create RPC; valid submission requirements remain accepted. LimitedMarkdown recognizes long backtick and tilde fences, preserves inner short markers and following prose, and gives code the existing inverse text token for contrast. The production renderer's Pattern Lab fixture passed eight teacher/student, desktop/mobile, light/dark Playwright captures; screenshots were reviewed. Focused gate, independent review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for this bounded parser/rendering correction.

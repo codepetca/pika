@@ -211,6 +211,40 @@ describe('classroom guided draft creation', () => {
     expect(mocks.rpc).not.toHaveBeenCalled()
   })
 
+  it('rejects edited body delimiters and metadata before any assignment write', async () => {
+    const seed = body('assignments', assignmentMarkdown('First section.'))
+    const edits = [
+      assignmentMarkdown('First section.\n\n---\n\nSecond section is required.'),
+      assignmentMarkdown('First section.\nPoints: 999\nSecond section is required.'),
+      assignmentMarkdown('First section.\nDue Days: 0\nSecond section is required.'),
+      assignmentMarkdown('First section.\n### Submission Requirements\nSecond section is required.'),
+      assignmentMarkdown('First section.\nArtifact ID: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+        .replace('Track Authenticity: false\n\nFirst section.', 'Track Authenticity: false\nFirst section.'),
+    ]
+    for (const content of edits) {
+      const response = await POST(request({ ...seed, content }), context)
+      expect(response.status).toBe(400)
+    }
+    expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+
+  it('keeps a valid teacher-added submission requirement', async () => {
+    const content = courseBlueprintAssignmentsToMarkdown([{
+      title: 'Program assignment',
+      instructions_markdown: 'Write the Karel program.',
+      submission_requirements: [{ type: 'repo_link', label: 'Code repository', required: true }],
+      default_due_days: 7, default_due_time: '23:59', points_possible: 20,
+      include_in_final: true, is_draft: true, position: 0,
+    }])
+    const response = await POST(request(body('assignments', content)), context)
+    expect(response.status).toBe(201)
+    expect(mocks.rpc).toHaveBeenCalledWith('create_guided_assignment_for_owner_v1',
+      expect.objectContaining({
+        p_instructions_markdown: 'Write the Karel program.',
+        p_requirements: [expect.objectContaining({ type: 'repo_link', label: 'Code repository' })],
+      }))
+  })
+
   it('maps a replayed draft id to a conflict without another artifact', async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { code: '23505' } })
     const response = await POST(request(body('assignments', assignmentMarkdown())), context)
