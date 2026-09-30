@@ -1,6 +1,6 @@
 # Living blueprint authoring guidance
 
-Status: implementation in progress, 2026-09-28. The Blueprint workspace was
+Status: release and existing-classroom adoption in progress, 2026-09-29. The Blueprint workspace was
 merged to main in PR #1386. Classroom drafting is in draft PR #1387
 (`codex/blueprint-classroom-drafts`). This plan tracks the complete goal.
 
@@ -116,3 +116,38 @@ equally first-class.
   applying either to a named environment requires its own one-time permission.
 - Mark PR #1387 ready only after review, wait for the exact-head PR Gate, and
   merge only after the repository's normal authority gate.
+
+## Existing ICS3U rollout
+
+Read-only production checks on 2026-09-29 confirmed database migrations through
+220. ICS3U-4 is Pika-managed at Draft revision 3 and its authoring guidance is
+empty. P3 and P5 ICS3U both use saved Version 3, whose legacy snapshot has no
+guidance. P5 has one untracked test; P3 has one untracked test and one untracked
+lesson. The existing full classroom update proposal rejects those classrooms.
+
+- Finish PR #1387 after the remaining review and exact-head CI. The previous
+  review session reached its eight-launch cap; a specific additional-review
+  approval is pending. Rebase onto main `27ddf09a` preserves the Blueprint
+  implementation while incorporating the Test grading header update. Darwin
+  and Linux Pattern Lab baselines must show both changes together.
+- Implement a separate, explicit guidance-only adoption path for existing
+  classrooms. Preserve the classroom's content-copy Version and every
+  assessment's lineage. Repointing `source_blueprint_version_id` by itself is
+  insufficient: legacy tracked tests use equality with that Version to
+  establish their lineage. Adopt an independently saved, teacher-owned guidance
+  Version and keep each generated draft's private provenance immutable.
+- Review, test, and release that adoption path. Any new migration requires
+  exact target/filename approval, as does migration 221 from PR #1387. The
+  production promotion must include a cumulative review and its own PR Gate.
+- Save the agreed Markdown rules to the actual ICS3U-4 Draft, with course,
+  assignment, test, and Unit 1 Java Karel sections. Include Instructions first,
+  concise prompts, no navigation/solution hints, Markdown MC code, and vertically
+  stacked world diagrams. Use revision-safe saves and verify persisted text.
+- Explicitly adopt the new saved guidance for P3 and P5; verify unchanged
+  assessment content and lineage, then generate teacher-reviewed test and
+  assignment previews. Verify the rules reach model input and private
+  provenance, and inspect the student-facing Markdown. Do not publish the
+  verification drafts to students.
+
+Completion requires production evidence for the actual course and both
+classrooms. Earlier populated classroom screenshots used sample fixture data.
