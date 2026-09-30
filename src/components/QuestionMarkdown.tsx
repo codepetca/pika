@@ -8,5 +8,5 @@ interface QuestionMarkdownProps {
 }
 
 export function QuestionMarkdown({ content, className = '' }: QuestionMarkdownProps) {
-  return <LimitedMarkdown content={content} className={className} />
+  return <LimitedMarkdown content={content} className={className} searchable />
 }

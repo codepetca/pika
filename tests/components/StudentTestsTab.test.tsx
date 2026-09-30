@@ -1,6 +1,7 @@
+import type { ReactElement } from 'react'
 import { TooltipProvider } from '@/ui'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render as rtlRender, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { StudentTestsTab } from '@/app/classrooms/[classroomId]/StudentTestsTab'
@@ -11,6 +12,10 @@ import {
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { TestFocusSummary } from '@/types'
 import { createMockClassroom } from '../helpers/mocks'
+
+function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(ui, { wrapper: TooltipProvider, ...options })
+}
 
 describe('StudentTestsTab exam mode', () => {
   const classroom = createMockClassroom()
@@ -2680,7 +2685,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(screen.getByText('Submitted')).toBeInTheDocument()
   })
 
-  it('does not log exit telemetry for Cmd+F interruption bursts', async () => {
+  it('opens in-exam Find for Cmd+F and continues tracking genuine focus loss', async () => {
     const focusBodies: Array<Record<string, any>> = []
     let fullscreenElement: Element | null = null
 
@@ -2793,7 +2798,8 @@ describe('StudentTestsTab exam mode', () => {
       vi.advanceTimersByTime(800)
     })
 
-    expect(focusBodies).toEqual([])
+    expect(screen.getByRole('textbox', { name: 'Find in exam' })).toBeInTheDocument()
+    expect(focusBodies.some((body) => body.event_type === 'away_start')).toBe(true)
   })
 
   it('ignores transient noise but captures sustained blur when its timer is throttled', async () => {

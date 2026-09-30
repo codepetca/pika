@@ -6,6 +6,7 @@ import { parseLimitedMarkdownBlocks } from '@/lib/limited-markdown'
 
 interface LimitedMarkdownProps {
   content: string
+  searchable?: boolean
   className?: string
   emptyPlaceholder?: ReactNode
 }
@@ -133,17 +134,18 @@ function parseInlineWithLineBreaks(text: string, keyPrefix: string): ReactNode[]
 
 export function LimitedMarkdown({
   content,
+  searchable = false,
   className = '',
   emptyPlaceholder = <div className="text-sm text-text-muted">—</div>,
 }: LimitedMarkdownProps) {
   const blocks = parseLimitedMarkdownBlocks(content)
 
   if (blocks.length === 0) {
-    return <div className={className}>{emptyPlaceholder}</div>
+    return <div data-exam-search-text={searchable ? '' : undefined} className={className}>{emptyPlaceholder}</div>
   }
 
   return (
-    <div className={`space-y-2 ${className}`.trim()}>
+    <div data-exam-search-text={searchable ? '' : undefined} className={`space-y-2 ${className}`.trim()}>
       {blocks.map((block, index) => {
         const key = `${block.type}-${index}`
 

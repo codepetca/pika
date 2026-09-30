@@ -148,12 +148,18 @@ async function createActiveOpenResponseTest(
     ],
   }
 
-  await sendJson(teacherPage, 'PATCH', `/api/teacher/tests/${testRecord.id}/draft`, {
+  const saved = await sendJson<{ draft: AssessmentDraftRecord }>(teacherPage, 'PATCH', `/api/teacher/tests/${testRecord.id}/draft`, {
     version: draft.draft.version,
     content,
   })
   await sendJson(teacherPage, 'PATCH', `/api/teacher/tests/${testRecord.id}`, {
-    status: 'active',
+    status: 'closed',
+    draft_version: saved.draft.version,
+  })
+  const roster = await loadJson<{ students: { student_id: string }[] }>(teacherPage, `/api/teacher/tests/${testRecord.id}/results`)
+  await sendJson(teacherPage, 'POST', `/api/teacher/tests/${testRecord.id}/student-access`, {
+    state: 'open',
+    student_ids: roster.students.map((student) => student.student_id),
   })
 
   return testRecord
@@ -572,4 +578,65 @@ test.describe('student exam mode', () => {
       await cleanupTest(browser, testId)
     }
   })
+
+  test('find searches exam text without an exit and preserves a draft while real focus loss is tracked', async ({ browser, page }) => {
+    test.setTimeout(90_000)
+    let testId: string | null = null
+    try {
+      await page.goto('/classrooms', { waitUntil: 'domcontentloaded' })
+      const title = uniqueTitle()
+      const classroom = await withTeacherPage(browser, async (teacherPage) => {
+        const shared = await findSharedClassroom(page, teacherPage)
+        const created = await createActiveOpenResponseTest(teacherPage, shared.id, title)
+        testId = created.id
+        return shared
+      })
+      await page.goto(`/classrooms/${classroom.id}?tab=tests`, { waitUntil: 'domcontentloaded' })
+      await page.getByRole('button', { name: new RegExp(title) }).first().click()
+      await prepareExamWindowForViewportCompliance(page)
+      await page.getByRole('button', { name: 'Start the Test' }).click()
+      await page.getByRole('button', { name: 'Start test' }).click()
+      const response = page.locator('textarea[placeholder="Write your response..."]')
+      await expect(response).toBeVisible()
+      await response.fill('Unsaved draft kept through Find.')
+      await page.keyboard.press('Control+f')
+      const find = page.getByRole('textbox', { name: 'Find in exam' })
+      await expect(find).toBeFocused()
+      await find.fill('preserve')
+      await expect(page.getByRole('search', { name: 'Find in exam' }).getByRole('status')).toHaveText('1 of 1 · Exam')
+      // Allow the normal sustained-focus threshold to pass while Find is in use.
+      await page.waitForTimeout(900)
+      const detail = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+      expect(detail.focus_summary?.away_count ?? 0).toBe(0)
+      expect(detail.focus_summary?.window_unmaximize_attempts ?? 0).toBe(0)
+      expect(detail.focus_summary?.route_exit_attempts ?? 0).toBe(0)
+      await expect(response).toHaveValue('Unsaved draft kept through Find.')
+      await page.screenshot({ path: '/tmp/pika-exam-find-student-attempt.png', animations: 'disabled' })
+      await page.keyboard.press('Escape')
+      await expect(response).toBeFocused()
+      await page.keyboard.press('Meta+f')
+      await expect(page.getByRole('textbox', { name: 'Find in exam' })).toBeFocused()
+      // Ctrl/Cmd+F must not create any grace period that hides genuine focus loss.
+      await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+      await expect.poll(async () => {
+        const record = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return record.focus_summary?.away_count ?? 0
+      }).toBe(1)
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await page.keyboard.press('Escape')
+      await page.getByRole('button', { name: 'Find in exam' }).click()
+      await expect(page.getByRole('textbox', { name: 'Find in exam' })).toBeFocused()
+      // The pointer-triggered Find button must not inherit reference interaction suppression.
+      await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+      await expect.poll(async () => {
+        const record = await loadJson<StudentTestDetailRecord>(page, `/api/student/tests/${testId}`)
+        return record.focus_summary?.away_count ?? 0
+      }).toBe(2)
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+      await expect(response).toHaveValue('Unsaved draft kept through Find.')
+    } finally {
+      await cleanupTest(browser, testId)
+    }
+  })
+
 })
