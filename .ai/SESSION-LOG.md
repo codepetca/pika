@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-28 — Markdown code in Karel multiple choice
-
-Updated the teacher test authoring guide to require inline Markdown code for short snippets in multiple-choice prompts and one-line options, and fenced language-labeled blocks for multiline snippets in prompts. In production P5 ICS3U Unit 1 Java Karel quiz, formatted Q3 command options and Q4/Q5 prompt snippets; saved and re-read the test. In P3 ICS3U, formatted and saved Q4/Q5 prompt snippets; Q3 options remain plain because a student has started and Pika locks answer-choice edits. Preserved question IDs, point values, keys, documents, and release settings. Preview was blocked by the exam-mode maximized-window requirement in browser control; persistent Markdown was verified instead. Documentation risk profile: none. Model recommendation: GPT-6 Sol for focused documentation update.
-
 ## 2026-09-28 — Resume offline test grading comparison
 
 - Continued draft PR1347 after the owner resumed the paused experiment. Synced current main with both archive histories retained; grading adapters/profiles are unchanged since the saved 33-operation checkpoint. Added strict comparison checkpoint resume for unchanged keyed questions, with exact answer/manifest, target, pricing, source and completed-prefix checks before provider work. The pause gap and possible interrupted request remain explicit in private accounting.
@@ -179,6 +175,7 @@ PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-app
 - Replaced obsolete staging/Preview rollout prerequisites with local app + local Supabase checks → reviewed main PR → production; updated startup/setup/rollout guidance and documented retirement evidence.
 - Production-only Vercel Git deployment; local attendance HTTP load target guards; removed `.env.staging` setup default and renamed seed/test fixtures. WorkOS provider test configuration and archive/attendance operation buffers remain distinct contracts.
 - Confirmed staging Supabase/Vercel projects already absent; removed two empty January-era GitHub staging environment records and preserved the ignored legacy local env in a private credential backup outside the checkout.
+- Synced newly merged PR1404 and removed its staging target/creation guidance. The manual migration workflow is pinned to production; direct staging requests fail before preparation or database contact. Production approval/digest/source safeguards remain intact.
 - Risk profile runtime-platform. Model recommendation: GPT-6.1 Sol — bounded workflow/configuration cleanup. Validation and stable-SHA PR evidence recorded in the PR.
 
 ## 2026-09-30 — Blueprint rollout and complete Content lists
@@ -206,6 +203,12 @@ Student actions now names the selected count (AI Grade 1 student / AI Grade 2 st
 ## 2026-09-30 — Test references stay inside the assessment
 
 Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.
+
+## 2026-09-30 — Hosted migration workflow (PR1404)
+
+Implemented the manual school-accessible GitHub migration workflow, portable runner, exact source/target/migration/hash approval, CI replay evidence binding, history drift checks, one-attempt failure handling, and minimal trusted CLI configuration. Production is the default target; preview is the default mode. No live migration or billing change is authorized or performed. PR1404 received independent security and operations review; one correction batch pinned actions and verified CLI download checksums before execution, and explicitly reports unknown durable state. The 128-test focused gate and all required CI lanes/PR Gate passed on reviewed d7120d73; four reviewer launches completed with no unresolved findings.
+
+Main advanced during CI. The owner approved one archive-only sync, one focused review, fresh CI and merge on green. Both archive batch markers and current main changes are retained. The dedicated migrations-production environment permits only branch main and is bound to verified Pika/zhioqbapgfcrronyuidm; credentials await secure owner entry. Staging remains deferred; existing Vercel environments are unchanged. Final sync review, exact-head CI and merge are pending; this authorization does not allow hosted SQL application or app promotion.
 
 ## 2026-09-30 Allow today's Class Days correction
 

@@ -60,6 +60,10 @@ During and after application:
 - Re-run `supabase migration list`, verify the relevant database contract with read-only checks, and
   report the target, applied migration numbers, and verification result without exposing secrets.
 
+For browser-based owner execution, see [manual hosted migrations](./hosted-migrations.md).
+A human apply dispatch approves only that exact SHA, target, digest and complete migration set for
+one attempt. Configuring the workflow never authorizes an AI to apply migrations.
+
 ## Generated Database Contract
 
 - Do not edit `src/types/database.generated.ts` by hand
