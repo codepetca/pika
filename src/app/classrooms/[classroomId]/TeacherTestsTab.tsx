@@ -3064,13 +3064,13 @@ export function TeacherTestsTab({
         className="p-6"
       >
         <h2 id="test-ai-grade-title" className="text-lg font-semibold text-text-default">
-          AI Grade selected students
+          AI grade selected students
         </h2>
         <p className="mt-2 text-sm text-text-muted">
-          Choose whether to grade only responses without a grade or regrade every eligible response for the {batchAutoGradePreflight.selectedCount} selected student{batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}.
+          Grade all eligible answers for the {batchAutoGradePreflight.selectedCount} selected student{batchAutoGradePreflight.selectedCount === 1 ? '' : 's'}.
         </p>
         <p className="mt-2 text-sm text-text-default">
-          Regrade all will overwrite existing grades and comments, including teacher edits.
+          This will overwrite existing grades and comments, including teacher edits.
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <Button
@@ -3082,24 +3082,13 @@ export function TeacherTestsTab({
           </Button>
           <Button
             type="button"
-            variant="secondary"
-            disabled={isBatchAutoGrading || hasActiveTestAiRun}
-            onClick={() => {
-              setShowBatchGradeModal(false)
-              void handleBatchAutoGrade('ungraded')
-            }}
-          >
-            Only ungraded
-          </Button>
-          <Button
-            type="button"
             disabled={isBatchAutoGrading || hasActiveTestAiRun}
             onClick={() => {
               setShowBatchGradeModal(false)
               void handleBatchAutoGrade('all')
             }}
           >
-            Regrade all
+            AI grade
           </Button>
         </div>
       </DialogPanel>

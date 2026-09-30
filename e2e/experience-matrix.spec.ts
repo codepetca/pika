@@ -1948,10 +1948,11 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     animations: 'disabled',
   })
   await studentActionsMenu.getByRole('menuitem', { name: 'AI Grade' }).click()
-  await expect(page.getByRole('dialog')).toContainText('AI Grade selected students')
-  await expect(page.getByRole('dialog')).toContainText('Regrade all will overwrite existing grades and comments, including teacher edits.')
-  await expect(page.getByRole('button', { name: 'Only ungraded' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Regrade all' })).toBeVisible()
+  await expect(page.getByRole('dialog')).toContainText('AI grade selected students')
+  await expect(page.getByRole('dialog')).toContainText('This will overwrite existing grades and comments, including teacher edits.')
+  await expect(page.getByRole('button', { name: 'AI grade', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Only ungraded' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Regrade all' })).toHaveCount(0)
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-ai-grade-scope.png`),
     animations: 'disabled',

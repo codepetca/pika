@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-28 — Selected assessment label size
-
-Enlarged the teacher assignment and test edit labels above their student tables to 18px mobile and 20px desktop. Follow-up: each existing ghost edit button now fills the available left section of the context bar, stopping before the centered action cluster. Student-facing pages and composite behavior are unchanged. Local seeded teacher Playwright captures covered both workspaces at desktop/mobile in light/dark, measured full-width click targets with no page overflow, verified keyboard focus, and confirmed each label opens its editor. PR1382's first final-SHA CI passed Test & Build but failed unrelated mobile Pattern Lab attendance-tooltip checks. The test now uses a real keyboard focus transition; all eight focused Pattern Lab cases pass across teacher/student, desktop/mobile, light/dark. Focused checks pass 275 tests plus architecture, UI/design policy, TypeScript, and lint. Risk: none. Model recommendation: GPT-6 Sol for the localized UI adjustment. Final review and CI follow.
-
 ## 2026-09-28 — Coding-test reference authoring conventions
 
 - Documented the reusable student-facing reference order: general `Instructions` first, language or subject reference second, and question visuals afterward. Added a general Markdown outline, concise question guidance, assessment-specific marking policy, and copy/adaptation checks based on the Unit 1 Karel quiz authoring work.
@@ -206,3 +202,7 @@ Owner approved the45-minute correction/final-release review extension and one pr
 ## 2026-09-30 — AI regrade overwrite warning
 
 Added explicit copy to the existing teacher AI Grade scope dialog: Regrade all overwrites existing grades and comments, including teacher edits. Grading behavior and scope buttons remain unchanged. Reused DialogPanel/Button and existing semantic text styles; reference: selected Test grading actions and Pattern Lab shared dialog. Teacher desktop/mobile in light/dark verified with four passing Playwright cases and reviewed screenshots; student n/a because its interface is unchanged. Focused checks pass 224 tests plus architecture, UI/design policy, TypeScript and lint; Pika audit passes. Risk profile: none. Independent low-risk review and ready PR Gate remain pending. Model recommendation: GPT-6 Sol for this localized wording change.
+
+## 2026-09-30 — Simplify AI grading confirmation
+
+Owner replaced the two grade-scope choices with one AI grade confirmation. Reused the existing teacher DialogPanel and buttons; Cancel plus AI grade now requests all eligible answers for selected students and explicitly warns that existing grades/comments, including teacher edits, are overwritten. The existing component test asserts all scope and absence of the old options; four desktop/mobile light/dark Playwright cases pass and screenshots were reviewed. Focused224tests plus architecture/UI/design/TypeScript/lint and audit pass. Student interface and backend grading contracts unchanged; no paid grading calls or schema changes. PR1400 returned to draft before correction; independent review of new stable SHA pending. Risk profile: none. Model recommendation: GPT-6 Sol for the localized grading confirmation change.

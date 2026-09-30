@@ -3623,12 +3623,13 @@ describe('TeacherTestsTab', () => {
     fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
     fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'AI Grade' }))
-    expect(await screen.findByRole('button', { name: 'Only ungraded' })).toBeEnabled()
-    expect(screen.getByRole('dialog', { name: 'AI Grade selected students' })).toHaveTextContent(
-      'Regrade all will overwrite existing grades and comments, including teacher edits.',
+    expect(await screen.findByRole('button', { name: 'AI grade', exact: true })).toBeEnabled()
+    expect(screen.getByRole('dialog', { name: 'AI grade selected students' })).toHaveTextContent(
+      'This will overwrite existing grades and comments, including teacher edits.',
     )
-    expect(screen.getByRole('button', { name: 'Regrade all' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Only ungraded' }))
+    expect(screen.queryByRole('button', { name: 'Only ungraded' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Regrade all' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'AI grade', exact: true }))
 
     await waitFor(() => {
       expect(screen.getByRole('status')).toHaveTextContent(/grading/i)
@@ -3651,7 +3652,7 @@ describe('TeacherTestsTab', () => {
     )
     expect(JSON.parse(autoGradeCall?.[1]?.body as string)).toMatchObject({
       student_ids: ['student-1'],
-      grade_scope: 'ungraded',
+      grade_scope: 'all',
     })
   })
 
