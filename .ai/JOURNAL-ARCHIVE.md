@@ -33880,3 +33880,14 @@ Owner approved the sixth/final documentation-only correction and CI rerun. Resto
 ## 2026-09-28 — Selected assessment label size
 
 Enlarged the teacher assignment and test edit labels above their student tables to 18px mobile and 20px desktop. Follow-up: each existing ghost edit button now fills the available left section of the context bar, stopping before the centered action cluster. Student-facing pages and composite behavior are unchanged. Local seeded teacher Playwright captures covered both workspaces at desktop/mobile in light/dark, measured full-width click targets with no page overflow, verified keyboard focus, and confirmed each label opens its editor. PR1382's first final-SHA CI passed Test & Build but failed unrelated mobile Pattern Lab attendance-tooltip checks. The test now uses a real keyboard focus transition; all eight focused Pattern Lab cases pass across teacher/student, desktop/mobile, light/dark. Focused checks pass 275 tests plus architecture, UI/design policy, TypeScript, and lint. Risk: none. Model recommendation: GPT-6 Sol for the localized UI adjustment. Final review and CI follow.
+
+<!-- pika-session-log-archive-batch:d06f68e4451b025be561eaff7d892086bcfa06b38efac4a6241af9d413b53b24 -->
+## 2026-09-28 — Coding-test reference authoring conventions
+
+- Documented the reusable student-facing reference order: general `Instructions` first, language or subject reference second, and question visuals afterward. Added a general Markdown outline, concise question guidance, assessment-specific marking policy, and copy/adaptation checks based on the Unit 1 Karel quiz authoring work.
+- Documentation only; no product, grading, database, or published-test changes. Risk profile: none. Model recommendation: GPT-6 Sol for the focused documentation update. Focused checks, independent documentation review, and draft-first PR gate precede merge.
+
+<!-- pika-session-log-archive-batch:86b3d97ddf512d19ad98c72ea0dcb803f60de630fb4eac22e626175ded8d3b18 -->
+## 2026-09-28 — Image reference first-load measurement
+
+Inspected the teacher/student private image route and measured it on a temporary seeded local Test using 787,252-byte and 7,081,652-byte PNGs. The first small request took 428ms to authorize/redirect and 10ms to transfer; repeat requests took 38–41ms plus 8–21ms. The large image took 33–40ms to authorize and 61–70ms to transfer. The temporary Test was deleted through the teacher API; its two managed objects entered normal cleanup_pending state. No application code, migration or hosted data changed. Live production timing and the actual reference-file size remain unknown because browser control timed out and the connected Supabase app was unavailable. A 1MB cap is not justified by this local evidence alone.
