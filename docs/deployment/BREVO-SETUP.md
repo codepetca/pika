@@ -24,9 +24,9 @@ Your Brevo template should include these variables:
 
 ## ⚙️ Vercel Environment Variables
 
-Configure these in Vercel Dashboard → Settings → Environment Variables:
-
-### For Preview deployments:
+Configure these in Vercel Dashboard → Settings → Environment Variables for
+**Production** only. Development and smoke tests run locally; see the
+[canonical flow](../dev-workflow.md#environments-and-release-flow):
 
 ```bash
 # Disable mock email mode
@@ -38,10 +38,6 @@ BREVO_TEMPLATE_ID=2
 BREVO_FROM_EMAIL=noreply@notify.codepet.ca
 BREVO_FROM_NAME=Pika
 ```
-
-### For Production:
-
-Same configuration, but set for **Production** environment in Vercel.
 
 ---
 
@@ -55,7 +51,7 @@ When `ENABLE_MOCK_EMAIL=false`:
 5. User receives email with verification code
 
 When `ENABLE_MOCK_EMAIL=true`:
-1. Code is logged to console/Vercel logs instead
+1. Code is logged to the local dev server console instead
 2. No email is sent (development mode)
 
 ---
@@ -71,12 +67,20 @@ ENABLE_MOCK_EMAIL=true
 
 Codes will print to console.
 
-### Test on Vercel (Real Email)
+### Controlled Local Test (Real Email)
 
-1. **Set environment variables** (see above)
-2. **Deploy** to Vercel
-3. **Sign up** with your real email
-4. **Check inbox** for verification email
+1. Configure an active Brevo key, template, and verified sender in the local
+   runtime; set `ENABLE_MOCK_EMAIL=false` only for this canary.
+2. Run the local app against local Supabase with your chosen test account.
+3. Sign up and confirm the code arrives and verifies. Restore mock mode for
+   ordinary development after the canary.
+4. For WorkOS Magic Auth, follow the separately controlled
+   [local canary](../guidance/workos-magic-auth-pilot.md#local-canary-with-workos-test-credentials);
+   its provider delivery settings differ from password signup/reset email.
+
+Production verification follows the reviewed `main` → `production` promotion,
+with production credentials and an explicitly authorized bounded canary. A
+hosted Preview deployment is not a testing prerequisite.
 
 ---
 
@@ -105,8 +109,9 @@ Make sure your Brevo template uses:
 Failed to send email via Brevo (401): Unauthorized
 ```
 → API key is incorrect, expired, or disabled. For the local Pika/Bara pilot,
-run `pnpm attendance:local:configure`; it verifies the selected key without
-printing it. Restart Next.js after any environment repair.
+run `pnpm attendance:local:configure` with active Brevo credentials in
+`.env.local`, or provide `--brevo-env /absolute/path/local-email.env`; it verifies
+the selected key without printing it. Restart Next.js after any environment repair.
 
 ```
 Failed to send email via Brevo (400): ...
@@ -129,11 +134,11 @@ Monitor email delivery:
 
 - [ ] Brevo template created with `{{ params.code }}`, `{{ params.expires }}`
 - [ ] Sender email verified in Brevo
-- [ ] Environment variables set in Vercel
-- [ ] `ENABLE_MOCK_EMAIL=false` for preview/production
+- [ ] Production environment variables set in Vercel
+- [ ] `ENABLE_MOCK_EMAIL=false` for production; local mock mode is restored after a real-email canary
 - [ ] Test email received successfully
 - [ ] Verification code works in app
 
 ---
 
-**Ready to test!** Deploy to Vercel and try signing up with your real email.
+Test locally first; release through the reviewed `main` → `production` flow.
