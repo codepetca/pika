@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Billing documentation sync after local reset
-
-Owner approved one documentation-only fifth correction batch and CI, with no additional reviewer, database changes or merge. Merged main4d0c4474 into PR1377; the sole archive conflict contained branch entries already present verbatim in main, so retained main archive without losing history. Consolidated reset/reseed receipts and superseded the old history-repair plan. Billing source/migration bytes stay identical to independently reviewed0a2c1c2d. Verified local001–217,3demo users/1classroom,sandboxfalse/test; generated types match and warning lint is clean. Focused checks and stable-commit CI follow. Review count remains8 (hard cap); no new launch.
-
 ## 2026-09-27 — Billing final documentation-format correction
 
 Owner approved the sixth/final documentation-only correction and CI rerun. Restored CURRENT’s required `Prod DB 001–214` prefix after the prior shortening failed the rollout-format contract; no billing code, tests, migration SQL or database state changed. Prior CI passed8524tests plus billing DB contracts and warning lint; remaining jobs were incomplete at the failure checkpoint. Verify both startup size and rollout-format tests, focused checks, then fixed-commit CI. No additional reviewer or merge authority.
@@ -204,3 +200,9 @@ Added browser visibility guards and Today activity wiring while preserving the m
 ## 2026-09-29 — Merge classroom Blueprint and complete adoption review
 
 PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-approved tenth targeted review and exact-head CI36659661703. One existing assignment-editor test load-timing race passed on the unchanged-candidate rerun; all final lanes and PR Gate passed. Adoption PR1396 security/compatibility review accepted two findings, corrected together; targeted security and final integration passed at5b399e3b. Rebased its three adoption commits onto merged main; conflicts were duplicate archive entries already preserved verbatim. Source/test/migration patch ID remains397b1e4f. Required focused checks and final CI follow. Production preflight through220 previews exactly221/222; direct named migration approval requested but not received. Actual course guidance remains unsaved/unadopted.
+
+## 2026-09-30 — Blueprint rollout and complete Content lists
+
+Adoption PR1396 merged as b754bd69 after all exact-head CI36702895411 gates passed. Production PR1398 is draft at6fc43e4a; security review clean, compatibility found the teacher Content reader's 40-title truncation. Removed that presentation limit, covering all500assignment/200test titles from the structural Version; AI input retains its separate40-title cap. Updated the canonical plan. Actual ICS3U-4 guidance saved and read-verified through the production teacher editor at Draft revision4; classroom adoption and migrations remain pending. Production review consumed2launches/0fixbatches and reached45minutes; the correction and final release review need an explicit time extension. Focused checks passed121tests; Playwright desktop/mobile light/dark Content captures show item41 and no overflow. No production migration or classroom content changes occurred.
+
+Owner approved the45-minute correction/final-release review extension and one production221/222 application after checks on2026-09-30. Correction reviewer found stale instructions later in the canonical plan; marked the historical Draft3 baseline and completed main merges/Draft4 save explicitly, retaining release/class adoption pending. Runtime and regression review clean; final integration will confirm the documentation correction.

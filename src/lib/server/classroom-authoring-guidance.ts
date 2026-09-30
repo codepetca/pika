@@ -32,7 +32,7 @@ function textField(record: unknown, key: string): string {
 function titles(snapshot: Record<string, unknown>, key: string): string[] {
   const items = snapshot[key]
   if (!Array.isArray(items)) return []
-  return items.slice(0, 40).map((item) => textField(item, 'title')).filter(Boolean)
+  return items.map((item) => textField(item, 'title')).filter(Boolean)
 }
 
 /** Guidance can be explicitly adopted; course content remains on its structural Version. */

@@ -33865,3 +33865,8 @@ Owner explicitly requested resetting local DB to resolve migration numbering. Fr
 ## 2026-09-27 — Authorized local reseed
 
 Owner subsequently requested local reseeding. Standard pnpm seed (seed.ts plus planned-course fixtures) succeeded using in-memory credentials from the running local stack, guarded API127.0.0.1:54321 and ENV_FILE=/dev/null. Verified3users,1classroom,2enrollments,3assignments,2tests,3blueprints; planned-course idempotency check passed. Migration214–217 names unchanged, billing sandboxfalse/test. No second reset, hosted access, real account restore or gate activation.
+
+<!-- pika-session-log-archive-batch:ab4e333c4030531584adf24e6c0292b57ba52ba8b7e2ecf0033eef85cb8fc249 -->
+## 2026-09-27 — Billing documentation sync after local reset
+
+Owner approved one documentation-only fifth correction batch and CI, with no additional reviewer, database changes or merge. Merged main4d0c4474 into PR1377; the sole archive conflict contained branch entries already present verbatim in main, so retained main archive without losing history. Consolidated reset/reseed receipts and superseded the old history-repair plan. Billing source/migration bytes stay identical to independently reviewed0a2c1c2d. Verified local001–217,3demo users/1classroom,sandboxfalse/test; generated types match and warning lint is clean. Focused checks and stable-commit CI follow. Review count remains8 (hard cap); no new launch.

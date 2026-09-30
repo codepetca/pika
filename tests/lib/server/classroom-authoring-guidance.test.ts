@@ -104,6 +104,23 @@ describe('frozen classroom authoring guidance', () => {
     expect(guidanceQuery.eq).toHaveBeenCalledWith('course_blueprint_id', 'blueprint')
   })
 
+  it('returns complete structural title lists through the supported Blueprint limits', async () => {
+    vi.mocked(assertTeacherOwnsClassroom).mockResolvedValue({ ok: true, classroom: { id: 'classroom' } as never })
+    const assignments = Array.from({ length: 500 }, (_, index) => ({ title: `Assignment ${index + 1}` }))
+    const assessments = Array.from({ length: 200 }, (_, index) => ({ title: `Test ${index + 1}` }))
+    from.mockReturnValueOnce(query({ source_blueprint_id: 'blueprint', source_blueprint_version_id: 'v3', authoring_guidance_version_id: 'v4' }))
+      .mockReturnValueOnce(query({ id: 'v3', version_number: 3, source_draft_revision: 3,
+        snapshot_json: { assignments: [null, { title: 123 }, { title: '' }, ...assignments], assessments } }))
+      .mockReturnValueOnce(query({ id: 'v4', version_number: 4, source_draft_revision: 4,
+        snapshot_json: { assignments: [{ title: 'Guidance-only assignment' }], assessments: [{ title: 'Guidance-only test' }] } }))
+
+    const result = await getClassroomAuthoringGuidance('teacher', 'classroom')
+    expect(result).toMatchObject({ ok: true, context: { course: {
+      assignment_titles: assignments.map(({ title }) => title),
+      test_titles: assessments.map(({ title }) => title),
+    } } })
+  })
+
   it('provides no guidance when the classroom has no Blueprint lineage', async () => {
     vi.mocked(assertTeacherOwnsClassroom).mockResolvedValue({
       ok: true, classroom: { id: 'classroom' } as never,
