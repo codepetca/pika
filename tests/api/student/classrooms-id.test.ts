@@ -82,6 +82,8 @@ describe('GET /api/student/classrooms/[id]', () => {
                     class_code: 'MATH101',
                     theme_color: 'teal',
                     term_label: 'Fall 2024',
+                    source_blueprint_version_id: 'content-version-3',
+                    authoring_guidance_version_id: 'private-guidance-version-4',
                   },
                   error: null,
                 }),
@@ -97,6 +99,9 @@ describe('GET /api/student/classrooms/[id]', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
+      expect(data.classroom).not.toHaveProperty('authoring_guidance_version_id')
+      expect(JSON.stringify(data)).not.toContain('private-guidance-version-4')
+      expect(data.classroom.source_blueprint_version_id).toBe('content-version-3')
       expect(data.classroom).toMatchObject({
         id: 'classroom-1',
         title: 'Math 101',

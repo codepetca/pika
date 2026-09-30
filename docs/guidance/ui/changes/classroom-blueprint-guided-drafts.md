@@ -51,3 +51,5 @@ No new shared component is required. Guidance-card duplication is local to this 
 - Reference: `/pattern-lab` shared Dialog/Form/Button and existing teacher Blueprint pane. Mobile comparison stacks current then proposed rules within the shared scrolling dialog; footer actions remain visible.
 - Composite checklist reviewed: yes. Escape closes the comparison and returns focus to its trigger; role/name/state assertions and stale/unchanged-rule behavior have component coverage.
 - Screenshots were visually inspected. Long mobile subtitle copy was shortened and the content-preservation boundary moved into the dialog body before final captures.
+
+- Initial review correction: the current-rules comparison label now uses the freshly fetched preview Version, independently of the open pane context. Verified an open Guidance Version 3 pane comparing current Version 4 against Draft 5 on desktop/mobile in both themes; inspected `teacher-*-fresh-preview.png` in the same evidence directory. Shared components, layout and keyboard behavior are unchanged.

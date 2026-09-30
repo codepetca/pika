@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getUserDisplayInfo } from '@/lib/user-profile'
 import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
-import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
+import { classroomStudentRecord, hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
 import { getPalApiUrl, isClassroomPalRequested } from '@/lib/server/pal-config'
@@ -172,7 +172,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     ? await resolvePalClassroomContext({ studentId: user.id, classroomId }).catch(() => null)
     : null
   const palEnabled = palApiUrl !== null && (!isClassroomPalRequested() || membershipContext !== null)
-  const hydratedClassroom = hydrateClassroomRecord(classroom as Record<string, any>)
+  const hydratedClassroom = hydrateClassroomRecord(classroomStudentRecord(classroom))
   if (
     tab &&
     !isClassroomTabAvailable(

@@ -32,6 +32,7 @@ type GuidancePreview = {
   expected_content_version_id: string
   expected_guidance_version_id: string
   expected_draft_revision: number
+  current_guidance_version_number: number
   current_guidance: CourseBlueprintAuthoringGuidance
   guidance: CourseBlueprintAuthoringGuidance
   changed: boolean
@@ -276,7 +277,7 @@ export function TeacherBlueprintTab({ classroom, isActive, sectionParam, onSecti
         {preview && <>
           {!preview.changed && <p role="status" className="mb-3 text-sm text-text-muted">The latest Blueprint Draft has the same guidance.</p>}
           <div className="grid gap-5 md:grid-cols-2">
-            <section className="min-w-0 space-y-3"><h2 className="font-semibold text-text-default">Current · Guidance Version {context?.source_blueprint_version_number}</h2><GuidanceRules guidance={preview.current_guidance} /></section>
+            <section className="min-w-0 space-y-3"><h2 className="font-semibold text-text-default">Current · Guidance Version {preview.current_guidance_version_number}</h2><GuidanceRules guidance={preview.current_guidance} /></section>
             <section className="min-w-0 space-y-3"><h2 className="font-semibold text-text-default">Proposed · Blueprint Draft {preview.expected_draft_revision}</h2><GuidanceRules guidance={preview.guidance} /></section>
           </div>
         </>}

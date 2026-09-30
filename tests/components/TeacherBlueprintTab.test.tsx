@@ -83,7 +83,7 @@ describe('TeacherBlueprintTab', () => {
     const proposed = { ...linkedContext.guidance, test_guidance_markdown: 'Updated test rules' }
     const preview = { blueprint_id: 'blueprint', expected_content_version_id: 'version-1',
       expected_guidance_version_id: 'version-1', expected_draft_revision: 10,
-      current_guidance: linkedContext.guidance, guidance: proposed, changed: true }
+      current_guidance_version_number: 3, current_guidance: linkedContext.guidance, guidance: proposed, changed: true }
     vi.mocked(fetchCachedJSON).mockResolvedValueOnce({ context: linkedContext })
       .mockResolvedValueOnce({ preview }).mockResolvedValueOnce({ context: {
         ...linkedContext, source_blueprint_version_number: 4, guidance: proposed,
@@ -105,10 +105,25 @@ describe('TeacherBlueprintTab', () => {
     vi.unstubAllGlobals()
   })
 
+  it('labels freshly fetched current rules with their Version when the open tab is stale', async () => {
+    vi.mocked(fetchCachedJSON).mockResolvedValueOnce({ context: linkedContext }).mockResolvedValueOnce({ preview: {
+      blueprint_id: 'blueprint', expected_content_version_id: 'version-1', expected_guidance_version_id: 'version-4',
+      expected_draft_revision: 11, current_guidance_version_number: 4,
+      current_guidance: { ...linkedContext.guidance, test_guidance_markdown: 'Version 4 current rules' },
+      guidance: { ...linkedContext.guidance, test_guidance_markdown: 'Draft rules' }, changed: true,
+    } })
+    render(<TeacherBlueprintTab classroom={classroom} isActive sectionParam="guidance" />)
+    expect(await screen.findByText('Guidance Version 3')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Review guidance update' }))
+    expect(await screen.findByRole('heading', { name: 'Current · Guidance Version 4' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Current · Guidance Version 3' })).toBeNull()
+    expect(screen.getByText(/Version 4 current rules/)).toBeInTheDocument()
+  })
+
   it('does not offer adoption when content changed but rules are the same', async () => {
     vi.mocked(fetchCachedJSON).mockResolvedValueOnce({ context: linkedContext }).mockResolvedValueOnce({ preview: {
       blueprint_id: 'blueprint', expected_content_version_id: 'version-1', expected_guidance_version_id: 'version-1',
-      expected_draft_revision: 10, current_guidance: linkedContext.guidance, guidance: linkedContext.guidance, changed: false,
+      expected_draft_revision: 10, current_guidance_version_number: 3, current_guidance: linkedContext.guidance, guidance: linkedContext.guidance, changed: false,
     } })
     render(<TeacherBlueprintTab classroom={classroom} isActive sectionParam="guidance" />)
     fireEvent.click(await screen.findByRole('button', { name: 'Review guidance update' }))
@@ -119,7 +134,7 @@ describe('TeacherBlueprintTab', () => {
   it('keeps the reviewed rules visible when a stale update is rejected', async () => {
     vi.mocked(fetchCachedJSON).mockResolvedValueOnce({ context: linkedContext }).mockResolvedValueOnce({ preview: {
       blueprint_id: 'blueprint', expected_content_version_id: 'version-1', expected_guidance_version_id: 'version-1',
-      expected_draft_revision: 10, current_guidance: linkedContext.guidance,
+      expected_draft_revision: 10, current_guidance_version_number: 3, current_guidance: linkedContext.guidance,
       guidance: { ...linkedContext.guidance, test_guidance_markdown: 'New rules' }, changed: true,
     } })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error: 'Blueprint Draft changed; review the latest guidance' }) }))

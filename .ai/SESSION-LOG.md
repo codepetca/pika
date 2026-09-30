@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Test reference image scrollbar stability
-
-Fixed image resize feedback by measuring fractional border-box viewport dimensions and using CSS minimum canvas dimensions instead of previous content-box measurements. Preserves zoom, Fit, scrolling, and mounted answers. Unit regression covers scrollbar-area changes and real pane resizing; browser regressions reserve scrollbar space and sample image geometry across 40 frames. Teacher/student desktop/mobile light/dark verification passed (8 scenarios); focused suite 250 tests plus architecture/UI/design/typecheck/lint passed. Also verified the local seeded Markdown/PNG test. PR1375 returned to draft before this correction.
-
-User chose image-specific maximum pane width. Opening an image now expands documents to the existing 50% limit, allows manual resizing while open, and restores the previous list width on Back; text and link references keep the user-selected width. Shared workspace state owns the behavior. Unit regression covers expand/manual resize/restore; eight teacher/student desktop/mobile light/dark browser scenarios pass, and all screenshots were inspected. Four affected component suites pass (76 tests); architecture/UI/design/TypeScript/lint and Pika audit pass. A broad focused rerun hit Vitest worker/test timeouts under local load, so final CI remains the full-suite gate. PR1375 correction review/CI pending.
-
-Checked whether divider dragging could record an exam exit. The divider changes only its CSS pane width, and its pointer interactions mark an allowed document interaction; window-compliance telemetry observes browser-window resize, fullscreen, visibility, focus, and navigation instead. Added a desktop student browser drag through the actual divider, then explicitly dispatched a transient window blur and asserted no focus-event request after the 600ms blur grace period. Light and dark variants pass. No product-code change was needed.
-
-Main advanced while PR1375 was open. Rebasing onto cdc48bc3 retained the new PDF-reference handling; the only conflicts were duplicate archived continuity entries, so main's copies were kept. On the rebased source, focused checks pass 255 tests plus architecture/UI/design/TypeScript/lint; all eight teacher/student image browser scenarios pass across desktop/mobile light/dark, and screenshots show the intended layout. The local dev server was relaunched with the repository launcher. Targeted sync review and exact-head CI follow.
-
-Exact-head CI passed Test & Build but failed two desktop long-test browser scenarios because their older text-reference assertion expected a 50% open pane. Updated the assertion to verify the new 30% preserved width and keyboard expansion to 35%; all four long-test desktop/mobile light/dark scenarios now pass locally, as do 255 focused tests and static gates. Seven unrelated browser scenarios were flaky but passed on retry in that CI run. PR returned to draft before this test correction; final review and fresh CI follow.
-
 ## 2026-09-27 — Pause Pal UI CI
 
 Owner confirmed Pal is disabled until further notice. Recorded the pause in the current-state summary and Pal operations guide. Required CI now excludes the two Pal learner-component suites and dedicated Pal classroom browser scenario; backend, API, feature-gate, and theme-contract checks remain. Full component suites remain available through `pnpm test:coverage`, and the browser scenario can still be run directly before reactivation. PR1375 returned to draft before this correction. The CI test-selection check confirms the UI suites are absent and backend checks remain; workflow and focused validation follow.
@@ -221,3 +209,9 @@ Added browser visibility guards and Today activity wiring while preserving the m
 
 - Final coordinator checks found a related model-input test still expecting one Blueprint Version. Updated its typed fixture to separate Content Version 1 and Guidance Version 2, and assert both provenance identities plus the current model source label. Both affected tests pass. No runtime or snapshot changes.
 - PR1387 is back in draft: Test & Build and Database contracts passed, but four Linux Pattern Lab goldens differ because Docker and CI font environments differ. Coordinator identified the canonical capture correction without changing snapshots; a tenth parent review needs a checkpoint. Adoption remains separate, and visual samples do not define production seed rules.
+
+## 2026-09-29 — Guidance adoption initial review corrections
+
+- Batched both accepted findings: removed the private guidance Version pointer from legacy/contextual student detail responses and server-rendered student detail/list props; labelled comparison rules with the fresh preview's Version. Teacher records and access gates retain their behavior. Audited explicit student list/join and nested assessment classroom shapes.
+- Regressions cover distinct content/guidance IDs, legacy/contextual API and page serialization, teacher preservation, and stale tab Version 3 with fresh preview Version 4. Targeted checks passed 116 tests; final focused gate passed 3,554 tests (7 skipped), architecture, UI/design policy, TypeScript and lint. Desktop/mobile light/dark fresh-preview screenshots inspected in the existing temporary evidence directory.
+- Migration and generated schema unchanged; frozen database contracts reused. No parent PR1387 source/snapshot change, PR lifecycle action, shared database mutation, or production write.

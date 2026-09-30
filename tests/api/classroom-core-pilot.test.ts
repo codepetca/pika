@@ -24,7 +24,7 @@ const otherOwner = '22222222-2222-4222-8222-222222222222'
 const ownId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const joinedId = '44444444-4444-4444-8444-444444444444'
 const archivedAt = '2026-09-01T00:00:00Z'
-type Row = { id: string; teacher_id: string; archived_at: string | null; title: string; feature_visibility?: unknown; position?: number; course_overview_markdown?: string; course_outline_markdown?: string }
+type Row = { authoring_guidance_version_id?: string; source_blueprint_version_id?: string; id: string; teacher_id: string; archived_at: string | null; title: string; feature_visibility?: unknown; position?: number; course_overview_markdown?: string; course_outline_markdown?: string }
 let rows: Row[]
 let beforeWrite: (() => void) | undefined
 let responseOverride: unknown
@@ -182,10 +182,15 @@ describe('contextual classroom-core API pilot', () => {
   it('does not expose raw guide drafts through member classroom details', async () => {
     rows[1].course_overview_markdown = 'Unpublished private overview'
     rows[1].course_outline_markdown = 'Private outline'
+    rows[1].source_blueprint_version_id = 'content-version-3'
+    rows[1].authoring_guidance_version_id = 'private-guidance-version-4'
     const response = await memberGet(request(joinedId), params(joinedId))
     const result = await response.json()
     expect(result.classroom.course_overview_markdown).toBe('')
     expect(result.classroom.course_outline_markdown).toBe('')
+    expect(result.classroom.source_blueprint_version_id).toBe('content-version-3')
+    expect(result.classroom).not.toHaveProperty('authoring_guidance_version_id')
+    expect(JSON.stringify(result)).not.toContain('private-guidance-version-4')
     expect(rows[1].course_overview_markdown).toBe('Unpublished private overview')
     rows[0].course_overview_markdown = 'Owner draft'
     const owner = await ownerGet(request(ownId), params(ownId))

@@ -12,14 +12,14 @@ const input = { blueprint_id: 'bp', expected_content_version_id: 'v3', expected_
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.permission.mockResolvedValue({ ok: true })
-  mocks.context.mockResolvedValue({ ok: true, context: { blueprint_id: 'bp', content_version_id: 'v3', source_blueprint_version_id: 'v3', guidance } })
+  mocks.context.mockResolvedValue({ ok: true, context: { blueprint_id: 'bp', content_version_id: 'v3', source_blueprint_version_id: 'v3', source_blueprint_version_number: 3, guidance } })
   mocks.detail.mockResolvedValue({ detail: { id: 'bp', content_revision: 4, authoring_guidance: guidance } })
   mocks.save.mockResolvedValue({ ok: true, version: { id: 'v4', version_number: 4 } })
   mocks.rpc.mockResolvedValue({ data: {}, error: null })
 })
 describe('classroom guidance adoption', () => {
   it('uses guidance equality even when content has a newer revision', async () => {
-    expect(await previewClassroomGuidanceAdoption('owner', 'class')).toMatchObject({ ok: true, preview: { changed: false, expected_draft_revision: 4 } })
+    expect(await previewClassroomGuidanceAdoption('owner', 'class')).toMatchObject({ ok: true, preview: { changed: false, expected_draft_revision: 4, current_guidance_version_number: 3 } })
     expect(mocks.save).not.toHaveBeenCalled()
   })
   it('saves the reviewed Draft then uses atomic version and revision guards', async () => {

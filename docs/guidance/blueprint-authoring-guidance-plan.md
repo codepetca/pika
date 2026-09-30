@@ -158,6 +158,23 @@ equally first-class.
   restore-plan checks passed 17 tests. Desktop/mobile light/dark teacher screenshots
   and student exclusion evidence are recorded in the UI change brief.
 
+## Initial adoption review corrections
+
+The first independent review wave accepted two findings in one correction batch:
+student classroom serialization now removes the private guidance Version pointer
+from both legacy/contextual detail APIs and server-rendered student detail/list
+props. Student list/join APIs and nested assignment/test classroom selections
+already use explicit public fields; enrollment RPC responses also validate a
+strict classroom shape. Teacher guidance reads and access-pilot gates are unchanged.
+
+The guidance comparison now labels its current rules using the Version number
+returned in that preview, even when the open tab still shows an older Version.
+Regressions cover distinct structural/guidance IDs, legacy/contextual API and page
+serialization, teacher preservation, and the old-tab/new-preview combination.
+Migration 222 and generated types are unchanged; frozen isolated database evidence
+remains applicable. Parent PR1387's snapshot gate and review checkpoint remain
+coordinator-owned.
+
 ## Existing ICS3U rollout
 
 Read-only production checks on 2026-09-29 confirmed database migrations through

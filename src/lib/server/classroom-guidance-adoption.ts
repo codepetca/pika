@@ -23,6 +23,7 @@ export async function previewClassroomGuidanceAdoption(teacherId: string, classr
       expected_content_version_id: current.context.content_version_id,
       expected_guidance_version_id: current.context.source_blueprint_version_id,
       expected_draft_revision: detail.content_revision,
+      current_guidance_version_number: current.context.source_blueprint_version_number,
       current_guidance: current.context.guidance,
       guidance,
       changed: JSON.stringify(guidance) !== JSON.stringify(current.context.guidance),
