@@ -37,6 +37,8 @@ export interface StructuredOutputRequest {
   fallbackMaxOutputTokens: number
   requestTimeoutMs?: number
   reasoningEffort: 'minimal' | 'low' | 'medium' | 'high'
+  /** Some grading policies require every attempt to stay at the requested effort. */
+  allowEffortDowngrade?: boolean
 }
 
 export interface StructuredOutputResponse {

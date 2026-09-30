@@ -89,4 +89,19 @@ describe('TestImageDocumentViewer', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Loading image')
     expect(screen.getByAltText('End world')).toHaveAttribute('src', '/api/end/file')
   })
+
+  it('resets zoom when a preloaded image is closed without replacing the image', () => {
+    const { rerender } = render(<TestImageDocumentViewer title="Start world" url="/api/start/file" active />)
+    const image = screen.getByAltText('Start world')
+    Object.defineProperties(image, { naturalWidth: { value: 800 }, naturalHeight: { value: 600 } })
+    fireEvent.load(image)
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }))
+    expect(screen.getByText('125%')).toBeInTheDocument()
+
+    rerender(<TestImageDocumentViewer title="Start world" url="/api/start/file" active={false} />)
+    expect(screen.getByText('Fit', { selector: 'span' })).toBeInTheDocument()
+    rerender(<TestImageDocumentViewer title="Start world" url="/api/start/file" active />)
+    expect(screen.getByAltText('Start world')).toBe(image)
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled()
+  })
 })

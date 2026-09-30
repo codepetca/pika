@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createStripeBillingProvider } from '@/lib/server/billing/stripe-provider'
-import { verifyPaidSubscriptionSnapshot } from '@/lib/server/billing/synchronize'
+import { verifyBillingLifecycleSnapshot, verifyPaidSubscriptionSnapshot } from '@/lib/server/billing/synchronize'
 
 const binding = {
   subscription_id: '11111111-1111-4111-8111-111111111111',
@@ -53,11 +53,33 @@ function fixture() {
   const sdk = {
     accounts: { retrieve: vi.fn().mockResolvedValue({ id: 'acct_fixture' }) },
     subscriptions: { retrieve: vi.fn().mockResolvedValue(subscription) },
-    invoices: { retrieve: vi.fn().mockResolvedValue(invoice) },
+    invoices: {
+      retrieve: vi.fn().mockResolvedValue(invoice),
+      list: vi.fn().mockResolvedValue({ object: 'list', has_more: false, data: [] }),
+    },
     paymentIntents: { retrieve: vi.fn().mockResolvedValue(intent) },
     charges: { retrieve: vi.fn().mockResolvedValue(charge) },
   }
   return { sdk, subscription, invoice, intent, charge }
+}
+
+function makeUnpaidInvoice(
+  fixture: ReturnType<typeof fixture>,
+  status: 'draft' | 'open' | 'uncollectible' | 'void' = 'open',
+) {
+  fixture.invoice.status = status
+  fixture.invoice.amount_paid = 0
+  fixture.invoice.amount_remaining = status === 'void' ? 0 : fixture.invoice.amount_due
+  fixture.invoice.payments.data = []
+}
+
+function unpaidPayment(status: 'open' | 'canceled' = 'open', amountPaid: number | null = null) {
+  return {
+    id: 'inpay_unpaid', object: 'invoice_payment', amount_paid: amountPaid, amount_requested: 2000,
+    created: 1790812800, currency: 'usd', invoice: 'in_fixture', is_default: true, livemode: false,
+    payment: { type: 'payment_intent', payment_intent: 'pi_unpaid' }, status,
+    status_transitions: { canceled_at: status === 'canceled' ? 1790812801 : null, paid_at: null },
+  }
 }
 
 describe('Stripe current-state adapter', () => {
@@ -67,6 +89,17 @@ describe('Stripe current-state adapter', () => {
     expect(verifyPaidSubscriptionSnapshot(binding, snapshot)).toMatchObject({ invoiceId: 'in_fixture' })
     expect(sdk.subscriptions.retrieve).toHaveBeenCalledWith('sub_fixture')
     expect(sdk.paymentIntents.retrieve).toHaveBeenCalledWith('pi_fixture')
+  })
+  it('accepts a full expanded paid InvoicePayment while projecting only verified evidence', async () => {
+    const f = fixture()
+    Object.assign(f.invoice.payments.data[0], {
+      id: 'inpay_paid', object: 'invoice_payment', amount_requested: 2000, created: 1790812800,
+      currency: 'usd', is_default: true, status_transitions: { canceled_at: null, paid_at: 1790812801 },
+    })
+
+    const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+    expect(verifyPaidSubscriptionSnapshot(binding, snapshot)).toMatchObject({ invoiceId: 'in_fixture' })
   })
   it.each(['partial_refund', 'wrong_account', 'truncated_lines', 'unpaid_intent', 'live_invoice'])('rejects %s', async kind => {
     const f = fixture()
@@ -82,6 +115,231 @@ describe('Stripe current-state adapter', () => {
     const { sdk } = fixture()
     sdk.subscriptions.retrieve.mockRejectedValue(new Error('transport failure'))
     await expect(createStripeBillingProvider(sdk).retrieveSubscription(binding)).rejects.toThrow()
+  })
+  it('proves a canceled subscription has no draft, open, or uncollectible obligations', async () => {
+    const f = fixture()
+    f.subscription.status = 'canceled'
+
+    const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+    expect(snapshot).toMatchObject({ status: 'canceled', terminalObligationsCleared: true })
+    expect(f.sdk.invoices.list).toHaveBeenNthCalledWith(1, {
+      subscription: binding.stripe_subscription_id, status: 'draft', limit: 1,
+    })
+    expect(f.sdk.invoices.list).toHaveBeenNthCalledWith(2, {
+      subscription: binding.stripe_subscription_id, status: 'open', limit: 1,
+    })
+    expect(f.sdk.invoices.list).toHaveBeenNthCalledWith(3, {
+      subscription: binding.stripe_subscription_id, status: 'uncollectible', limit: 1,
+    })
+  })
+  it.each(['draft', 'open', 'uncollectible'] as const)(
+    'does not clear a canceled subscription with an outstanding %s invoice',
+    async status => {
+      const f = fixture()
+      f.subscription.status = 'canceled'
+      f.sdk.invoices.list.mockImplementation(async request => ({
+        object: 'list', has_more: false, data: request.status === status ? [{ id: 'in_outstanding' }] : [],
+      }))
+
+      const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+      expect(snapshot).toMatchObject({ terminalObligationsCleared: false })
+      expect(f.sdk.invoices.list).toHaveBeenCalledTimes(3)
+    },
+  )
+  it.each(['paid', 'void'] as const)(
+    'does not shortcut canceled obligations from a latest %s invoice',
+    async latestStatus => {
+      const f = fixture()
+      f.subscription.status = 'canceled'
+      if (latestStatus === 'void') makeUnpaidInvoice(f, 'void')
+      f.sdk.invoices.list.mockImplementation(async request => ({
+        object: 'list', has_more: false, data: request.status === 'open' ? [{ id: 'in_outstanding' }] : [],
+      }))
+
+      const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+      expect(snapshot).toMatchObject({ terminalObligationsCleared: false })
+      expect(f.sdk.invoices.list).toHaveBeenCalledTimes(3)
+    },
+  )
+  it.each([
+    ['paginated result', { object: 'list', has_more: true, data: [] }],
+    ['malformed result', { object: 'invoice_list', has_more: false, data: [] }],
+    ['missing data', { object: 'list', has_more: false }],
+  ])('does not clear a canceled subscription from a %s', async (_label, result) => {
+    const f = fixture()
+    f.subscription.status = 'canceled'
+    f.sdk.invoices.list.mockResolvedValue(result)
+
+    const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+    expect(snapshot).toMatchObject({ terminalObligationsCleared: false })
+    expect(f.sdk.invoices.list).toHaveBeenCalledTimes(3)
+  })
+  it('does not clear a canceled subscription when a complete list contains a malformed row', async () => {
+    const f = fixture()
+    f.subscription.status = 'canceled'
+    f.sdk.invoices.list.mockResolvedValue({ object: 'list', has_more: false, data: [{ unexpected: true }] })
+
+    const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+    expect(snapshot).toMatchObject({ terminalObligationsCleared: false })
+    expect(f.sdk.invoices.list).toHaveBeenCalledTimes(3)
+  })
+  it('propagates canceled-obligation list outages for retry', async () => {
+    const f = fixture()
+    f.subscription.status = 'canceled'
+    f.sdk.invoices.list.mockRejectedValue(new Error('provider outage'))
+
+    await expect(createStripeBillingProvider(f.sdk).retrieveSubscription(binding)).rejects.toThrow('provider outage')
+  })
+  it('keeps terminal clearance false when the invoice-list port is unavailable', async () => {
+    const f = fixture()
+    f.subscription.status = 'canceled'
+    const { list: _list, ...invoices } = f.sdk.invoices
+
+    const snapshot = await createStripeBillingProvider({ ...f.sdk, invoices }).retrieveSubscription(binding)
+
+    expect(snapshot).toMatchObject({ terminalObligationsCleared: false })
+  })
+  it('does not query terminal obligations for an active subscription or an unbound snapshot', async () => {
+    const active = fixture()
+    await createStripeBillingProvider(active.sdk).retrieveSubscription(binding)
+    expect(active.sdk.invoices.list).not.toHaveBeenCalled()
+
+    const unbound = fixture()
+    unbound.subscription.customer = 'cus_other'
+    await expect(createStripeBillingProvider(unbound.sdk).retrieveSubscription(binding)).resolves.toBeNull()
+    expect(unbound.sdk.invoices.list).not.toHaveBeenCalled()
+  })
+  it('normalizes a complete failed renewal without treating it as paid evidence', async () => {
+    const f = fixture()
+    f.subscription.status = 'past_due'
+    makeUnpaidInvoice(f)
+    f.invoice.payments.data = [unpaidPayment()]
+
+    const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+    expect(snapshot).toMatchObject({
+      status: 'past_due',
+      latestInvoice: { status: 'open', amountPaid: 0, payments: [] },
+    })
+    expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.charges.retrieve).not.toHaveBeenCalled()
+    expect(verifyPaidSubscriptionSnapshot(binding, snapshot)).toBe('subscription_not_active')
+  })
+  it('normalizes a canceled, zero-payment InvoicePayment without fetching its intent', async () => {
+    const f = fixture()
+    makeUnpaidInvoice(f)
+    f.invoice.payments.data = [unpaidPayment('canceled', 0)]
+
+    const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+    expect(snapshot).toMatchObject({ latestInvoice: { status: 'open', payments: [] } })
+    expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.charges.retrieve).not.toHaveBeenCalled()
+  })
+  it('keeps an incomplete first purchase ungranted when its invoice has no captured payment', async () => {
+    const f = fixture()
+    f.subscription.status = 'incomplete'
+    makeUnpaidInvoice(f)
+
+    const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+    expect(snapshot).toMatchObject({ latestInvoice: { status: 'open', payments: [] } })
+    expect(verifyPaidSubscriptionSnapshot(binding, snapshot)).toBe('subscription_not_active')
+  })
+  it.each(['draft', 'open', 'uncollectible', 'void'] as const)(
+    'retains a complete no-payment %s invoice for lifecycle evaluation',
+    async status => {
+      const f = fixture()
+      makeUnpaidInvoice(f, status)
+
+      const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+      expect(snapshot).toMatchObject({ latestInvoice: { status, amountPaid: 0, payments: [] } })
+      expect(verifyPaidSubscriptionSnapshot(binding, snapshot)).toBe('invoice_not_paid')
+      expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['active', 'past_due', 'unpaid', 'canceled'] as const)(
+    'recovers an uncollectible renewal from a complete %s provider snapshot',
+    async status => {
+      const f = fixture()
+      f.subscription.status = status
+      makeUnpaidInvoice(f, 'uncollectible')
+      f.invoice.billing_reason = 'subscription_cycle'
+      f.invoice.payments.data = [unpaidPayment('canceled', 0)]
+      f.sdk.invoices.list.mockResolvedValue({ object: 'list', has_more: false, data: [f.invoice] })
+      const paidThrough = new Date(f.subscription.items.data[0].current_period_start * 1000).toISOString()
+      const claim = {
+        status: 'claimed' as const, subscription_id: binding.subscription_id, binding,
+        lease_token: '55555555-5555-4555-8555-555555555555', fencing_token: 1,
+        lease_expires_at: '2026-10-01T00:02:00.000Z', subscription_revision: 1,
+        expected_account_plan_revision: 1,
+        lifecycle: {
+          paid_through: paidThrough, paid_period_start: '2026-09-01T00:00:00.000Z',
+          last_paid_invoice_id: 'in_prior_paid', access_ends_at: paidThrough,
+          end_reason: 'renewal_pending' as const, assignment_revision: 1, is_current: true,
+        },
+      }
+
+      const snapshot = await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)
+
+      expect(verifyBillingLifecycleSnapshot(claim, snapshot)).toMatchObject({
+        outcome: 'renewal_failed', invoice_id: 'in_fixture', period_start: paidThrough,
+        provider_status: status, obligations_cleared: false,
+      })
+      expect(verifyPaidSubscriptionSnapshot(binding, snapshot)).toBe(
+        status === 'active' ? 'invoice_not_paid' : 'subscription_not_active',
+      )
+      expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+      expect(f.sdk.charges.retrieve).not.toHaveBeenCalled()
+    },
+  )
+  it.each([
+    ['truncated payments', (f: ReturnType<typeof fixture>) => { makeUnpaidInvoice(f); f.invoice.payments.has_more = true }],
+    ['live-mode invoice', (f: ReturnType<typeof fixture>) => { makeUnpaidInvoice(f); f.invoice.livemode = true }],
+    ['mismatched invoice ID', (f: ReturnType<typeof fixture>) => { makeUnpaidInvoice(f); f.invoice.id = 'in_other' }],
+    ['a mixed paid and unpaid entry', (f: ReturnType<typeof fixture>) => {
+      const paid = structuredClone(f.invoice.payments.data[0])
+      makeUnpaidInvoice(f)
+      f.invoice.payments.data = [paid, unpaidPayment()]
+    }],
+    ['an unknown payment status', (f: ReturnType<typeof fixture>) => {
+      makeUnpaidInvoice(f)
+      f.invoice.payments.data = [{ invoice: 'in_fixture', livemode: false, status: 'unknown', amount_paid: 0,
+        payment: { type: 'payment_intent', payment_intent: 'pi_unknown' } }]
+    }],
+    ['a non-payment-intent record', (f: ReturnType<typeof fixture>) => {
+      makeUnpaidInvoice(f)
+      f.invoice.payments.data = [{ ...unpaidPayment(), payment: { type: 'payment_record', payment_record: 'pr_unpaid' } }]
+    }],
+    ['positive payment evidence', (f: ReturnType<typeof fixture>) => {
+      makeUnpaidInvoice(f)
+      f.invoice.payments.data = [unpaidPayment('open', 1)]
+    }],
+    ['a foreign invoice payment', (f: ReturnType<typeof fixture>) => {
+      makeUnpaidInvoice(f)
+      f.invoice.payments.data = [{ ...unpaidPayment(), invoice: 'in_foreign' }]
+    }],
+    ['a live-mode invoice payment', (f: ReturnType<typeof fixture>) => {
+      makeUnpaidInvoice(f)
+      f.invoice.payments.data = [{ ...unpaidPayment(), livemode: true }]
+    }],
+    ['missing payment-intent metadata', (f: ReturnType<typeof fixture>) => {
+      makeUnpaidInvoice(f)
+      f.invoice.payments.data = [{ ...unpaidPayment(), payment: { type: 'payment_intent' } }]
+    }],
+  ] as const)('fails closed for %s on a non-paid invoice', async (_label, mutate) => {
+    const f = fixture()
+    mutate(f)
+
+    await expect(createStripeBillingProvider(f.sdk).retrieveSubscription(binding)).resolves.toBeNull()
+    expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.charges.retrieve).not.toHaveBeenCalled()
   })
   it.each(['discount', 'customer_credit', 'tax', 'credit_note', 'non_card', 'manual_invoice'])('preserves the commercial facts needed to reject %s', async kind => {
     const f = fixture()

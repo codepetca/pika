@@ -17,6 +17,7 @@ export function createBillingHandlers(
   configuration: () => { stripeAccount: string; workerSecret: string } | null,
   loadRuntime: () => Promise<BillingHandlerRuntime>,
   loadPurchases?: () => Promise<{ reconcileCheckouts(input: { limit: number }): Promise<unknown> } | null>,
+  loadLifecycle?: () => Promise<{ applyDue(input: { limit: number }): Promise<{ processed: number }> } | null>,
 ) {
   function requireConfiguration() {
     const config = configuration()
@@ -47,7 +48,9 @@ export function createBillingHandlers(
       // its captured invoice before applying paid access. Neither needs a redirect.
       const purchaseRuntime = loadPurchases ? await loadPurchases() : null
       const purchases = purchaseRuntime ? await purchaseRuntime.reconcileCheckouts({ limit: 1 }) : undefined
-      return NextResponse.json(purchases ? { ...result, purchases } : result)
+      const lifecycleRuntime = loadLifecycle ? await loadLifecycle() : null
+      const lifecycle = lifecycleRuntime ? await lifecycleRuntime.applyDue({ limit: 25 }) : undefined
+      return NextResponse.json({ ...result, ...(purchases ? { purchases } : {}), ...(lifecycle ? { lifecycle } : {}) })
     }),
   }
 }

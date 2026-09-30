@@ -72,6 +72,19 @@ not assume they remain teacher-only: for coding responses, `Sample Solution` is
 shown to students on the results page when results become available. Student
 preview checks the prompt and references, not post-release results disclosure.
 
+Format code in multiple-choice prompts and options as Markdown so students can
+distinguish it from prose. Use inline backticks for commands, identifiers, and
+short expressions or statements in prompts and options. Use a fenced code block
+with a language label for a multiline snippet in a prompt. Each answer option
+must occupy one Markdown list line; put longer shared code in the prompt and
+keep code options inline. Preserve the code's exact syntax and the correct
+option when revising an existing question. Check the student preview to confirm
+that code renders correctly in both the prompt and answer options. Format answer
+options before students start. After an attempt begins, Pika permits corrections
+to one existing choice per question at a time while keeping the choice count,
+positions and correct answer locked. Check that a correction does not change
+the intended answer.
+
 ## Calibrate difficulty and workload
 
 Judge difficulty by the reasoning required: novelty, number of coordinated
@@ -113,6 +126,63 @@ Render and inspect generated diagrams before delivery, including labels, counts,
 direction, overlap, and legibility. Verify student access to an attachment. Do
 not assume the AI grader receives or understands a diagram merely because it
 is visible to students; the text prompt and answer key should be sufficient.
+
+## Organize coding-test references
+
+When a coding test needs reference documents, use this student-facing order:
+
+1. **Instructions** — a Markdown text document titled exactly `Instructions`.
+   Put directions shared by the test here: read the full question, follow its
+   language and response format, submit the requested code, and handle every
+   valid case rather than copying an example. Explain what counts as meaningful
+   helper reuse when a question requires it. Keep this document free of question
+   numbers, course names, language-specific commands, and solution hints.
+2. **Language or subject reference** — program format, allowed commands,
+   conditions, syntax examples, and useful documentation links. Use Markdown
+   headings and fenced code blocks. Label examples as syntax examples, not
+   solutions to test questions. Keep language-specific details here instead of
+   putting them in `Instructions`.
+3. **Question visuals** — separate, clearly titled image or PDF references.
+   Explain symbols and illustrative sizes in the relevant reference. Keep the
+   essential starting conditions and required result in the question text.
+
+Keep coding prompts short and self-contained: state the starting conditions,
+goal, variable-size or input requirements, and any assessed technique specific
+to that question. Do not repeat shared directions or add navigation hints such
+as “see the Question 1 image” or “follow Instructions.” If using a particular
+reference is itself assessed, state that requirement in the prompt.
+
+For an `Instructions` document, start from this general Markdown outline and
+adapt it to the assessment:
+
+```markdown
+# Instructions
+
+Read the full question and any reference material before answering. Follow the
+language, environment, restrictions, and response format specified in the
+question.
+
+## Coding responses
+
+- Submit the code the question asks for. If it requests a complete program,
+  include the needed definitions and the code that runs them.
+- Make your solution work for every valid case described. Example inputs and
+  diagrams illustrate a case; do not assume their size or values are fixed
+  unless the question says so.
+- When a question requires a helper function or method, give it a descriptive
+  name and a meaningful task. Follow the question's requirement for how often
+  to call it. Calls inside a loop count as repeated use unless the question
+  says otherwise. A helper that merely renames one built-in operation does not
+  demonstrate decomposition.
+```
+
+Add a marking-policy section only after choosing the policy for that test, and
+make its wording agree with the answer keys. For example, the Unit 1 Karel
+quizzes allow minor syntax slips when the intended logic is clear; that is not
+a default for every coding test. When copying a test to another class or
+language, check the reference order, question and document IDs, diagrams,
+points, prompts, answer keys, sample solutions, and release settings. Adapt
+language-specific content without changing unrelated assessment content.
 
 ## Save and report readiness accurately
 

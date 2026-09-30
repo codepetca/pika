@@ -32,7 +32,12 @@ import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
 import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { canEditTestQuestions } from '@/lib/tests'
-import { allowsTestQuestionChanges, TEST_WORDING_ONLY_MESSAGE } from '@/lib/test-editing-policy'
+import {
+  allowsTestQuestionChanges,
+  restoreFailedChoiceText,
+  TEST_CORRECTIONS_MESSAGE,
+  type FailedChoiceCorrection,
+} from '@/lib/test-editing-policy'
 import { TestQuestionEditor, type TestQuestionEditorHandle } from '@/components/TestQuestionEditor'
 import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 import { TestResultsView } from '@/components/TestResultsView'
@@ -247,6 +252,7 @@ export function TestDetailPanel({
   } | null>(null)
 
   const [structureLocked, setStructureLocked] = useState(true)
+  const [choiceSavePending, setChoiceSavePending] = useState(false)
   const [editTitle, setEditTitle] = useState(testAssessment.title)
   const draftVersionRef = useRef(1)
   const testUpdatedAtRef = useRef(testAssessment.updated_at)
@@ -265,6 +271,8 @@ export function TestDetailPanel({
     | null
   >(null)
   const saveRequestPromiseRef = useRef<Promise<boolean> | null>(null)
+  const choiceSavePromiseRef = useRef<Promise<boolean> | null>(null)
+  const pendingChoiceCorrectionRef = useRef<(FailedChoiceCorrection & { promise: Promise<boolean> }) | null>(null)
   const markdownDirtyRef = useRef(false)
   const savedMarkdownRef = useRef('')
   const documentsRef = useRef(documents)
@@ -514,6 +522,9 @@ export function TestDetailPanel({
     saveTimeoutRef.current = null
     throttledSaveTimeoutRef.current = null
     pendingDraftRef.current = null
+    choiceSavePromiseRef.current = null
+    pendingChoiceCorrectionRef.current = null
+    setChoiceSavePending(false)
     lastSavedDraftRef.current = ''
     draftVersionRef.current = 1
     testUpdatedAtRef.current = testAssessment.updated_at
@@ -897,9 +908,30 @@ export function TestDetailPanel({
   const saveDraft = useCallback(
     (nextDraft: AssessmentEditorDraft, options?: SaveDraftOptions): Promise<boolean> => {
       const previousSave = saveRequestPromiseRef.current
+      // Queued full drafts may include a choice correction that later fails.
+      const pendingCorrection = pendingChoiceCorrectionRef.current
       const nextSave = (previousSave ?? Promise.resolve(true))
         .catch(() => false)
-        .then(() => persistDraft(nextDraft, options))
+        .then(async () => {
+          const failedCorrection = pendingCorrection && !(await pendingCorrection.promise)
+            ? pendingCorrection
+            : null
+          const draftToSave = failedCorrection
+            ? { ...nextDraft, questions: restoreFailedChoiceText(nextDraft.questions, failedCorrection) }
+            : nextDraft
+          const saveOptions = failedCorrection && options?.sourceMarkdown
+            ? {
+                ...options,
+                sourceMarkdown: testToMarkdown({
+                  title: draftToSave.title,
+                  show_results: draftToSave.show_results,
+                  questions: draftToSave.questions,
+                  documents: options.documents ?? documentsRef.current,
+                }),
+              }
+            : options
+          return persistDraft(draftToSave, saveOptions)
+        })
       saveRequestPromiseRef.current = nextSave
       void nextSave.finally(() => {
         if (saveRequestPromiseRef.current === nextSave) {
@@ -1322,6 +1354,15 @@ export function TestDetailPanel({
   }
 
   function handleQuestionChange(updatedQuestion: TestAssessmentQuestion, options?: { force?: boolean }) {
+    const currentQuestion = questions.find((question) => question.id === updatedQuestion.id)
+    const choiceChanged = structureLocked
+      && updatedQuestion.question_type === 'multiple_choice'
+      && currentQuestion?.question_type === 'multiple_choice'
+      && JSON.stringify(currentQuestion.options) !== JSON.stringify(updatedQuestion.options)
+    if (choiceChanged && choiceSavePromiseRef.current) {
+      setError('Wait for the current choice correction to save before editing another choice.')
+      return
+    }
     const nextQuestions = normalizeQuestionPositions(
       questions.map((question) =>
         question.id === updatedQuestion.id ? { ...updatedQuestion } : question
@@ -1335,6 +1376,46 @@ export function TestDetailPanel({
       questions: nextQuestions,
     }
     emitDraftSummaryChange(nextDraft)
+
+    if (choiceChanged) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+      }
+      if (throttledSaveTimeoutRef.current) {
+        clearTimeout(throttledSaveTimeoutRef.current)
+        throttledSaveTimeoutRef.current = null
+      }
+      pendingDraftRef.current = nextDraft
+      markDraftUnsaved()
+      setError('')
+      setChoiceSavePending(true)
+      const correction: FailedChoiceCorrection = {
+        questionId: updatedQuestion.id,
+        attemptedOptions: updatedQuestion.options,
+        previousOptions: currentQuestion?.options ?? updatedQuestion.options,
+      }
+      const choiceSave = saveDraft(nextDraft, { saveContext: createDraftSaveContext() })
+      choiceSavePromiseRef.current = choiceSave
+      pendingChoiceCorrectionRef.current = { ...correction, promise: choiceSave }
+      void choiceSave.then((saved) => {
+        if (!saved && choiceSavePromiseRef.current === choiceSave) {
+          setQuestions((current) => restoreFailedChoiceText(current, correction))
+          const pendingDraft = pendingDraftRef.current ?? nextDraft
+          pendingDraftRef.current = {
+            ...pendingDraft,
+            questions: restoreFailedChoiceText(pendingDraft.questions, correction),
+          }
+        }
+      }).finally(() => {
+        if (choiceSavePromiseRef.current === choiceSave) {
+          choiceSavePromiseRef.current = null
+          pendingChoiceCorrectionRef.current = null
+          setChoiceSavePending(false)
+        }
+      })
+      return
+    }
 
     if (options?.force) {
       pendingDraftRef.current = nextDraft
@@ -1689,7 +1770,7 @@ export function TestDetailPanel({
     )
 
     if (!allowsTestQuestionChanges(questions, nextQuestions, { structureLocked })) {
-      setMarkdownError(TEST_WORDING_ONLY_MESSAGE)
+      setMarkdownError(TEST_CORRECTIONS_MESSAGE)
       setMarkdownSaving(false)
       return
     }
@@ -2096,6 +2177,7 @@ export function TestDetailPanel({
                         questionNumber={index + 1}
                         isEditable={isEditable}
                         structureLocked={structureLocked}
+                        choiceSavePending={choiceSavePending}
                         onChange={handleQuestionChange}
                         onDuplicate={handleDuplicateQuestion}
                         onDelete={handleQuestionDelete}
@@ -2400,6 +2482,7 @@ export function TestDetailPanel({
                   questionNumber={selectedQuestionIndex + 1}
                   isEditable={isEditable}
                   structureLocked={structureLocked}
+                  choiceSavePending={choiceSavePending}
                   onChange={handleQuestionChange}
                   onDelete={handleQuestionDelete}
                   variant="split"
@@ -2436,7 +2519,7 @@ export function TestDetailPanel({
       {titlePortal}
       {structureLocked && !loading && (
         <p role="status" className="shrink-0 border-b border-border bg-warning-bg px-3 py-2 text-sm text-warning">
-          {TEST_WORDING_ONLY_MESSAGE}
+          {TEST_CORRECTIONS_MESSAGE}
         </p>
       )}
       {/* Tabs */}
@@ -2567,6 +2650,7 @@ export function TestDetailPanel({
                         questionNumber={index + 1}
                         isEditable={isEditable}
                         structureLocked={structureLocked}
+                        choiceSavePending={choiceSavePending}
                         onChange={handleQuestionChange}
                         onDuplicate={handleDuplicateQuestion}
                         onDelete={handleQuestionDelete}

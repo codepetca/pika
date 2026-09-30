@@ -156,6 +156,20 @@ describe('DeepSeek structured-output request shape', () => {
       .toBe(request.fallbackMaxOutputTokens)
   })
 
+  it('keeps every attempt at high when the policy forbids a downgrade', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({
+      choices: [{ message: { content: '{"partial"' }, finish_reason: 'length' }],
+    }))
+    const error = await createDeepSeekChatProvider({ apiKey: 'synthetic-key', fetchImpl })
+      .generate({ ...request, reasoningEffort: 'medium', allowEffortDowngrade: false })
+      .catch((failure: unknown) => failure)
+
+    expect(error).toMatchObject({ kind: 'bad_response', retryable: false })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+    expect(fetchImpl.mock.calls.map(([, init]) => JSON.parse(String(init.body)).reasoning_effort))
+      .toEqual(['high', 'high'])
+  })
+
   it('records cached, uncached and reasoning tokens when the provider reports them', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({
       choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }],

@@ -33461,6 +33461,7 @@ and summary rows. Detailed mode restores both names. Regression checks cover
 both name orders, ID visibility and raw-score alignment. Fresh raw screenshots
 show full earned/possible marks on desktop/mobile in light/dark themes.
 
+<!-- pika-session-log-archive-batch:5968da861e171805102c06db44b45eaafcbfbbea7c1f277d08b6e4a1ecc865a9 -->
 <!-- pika-session-log-archive-batch:401c7b29daff33bc9107e249abcda72e926ce36cce3e9be129d35d98f3c73791 -->
 ## 2026-09-25 — Production Test split-pane authoring
 
@@ -33600,3 +33601,596 @@ and override icons coexist without clipping. Exact 100% and 150/200 stay normal.
 Verified 16 Pattern Lab screenshots across density, raw/percent, viewport and
 theme plus student-role isolation; focused checks and independent display review
 recorded in PR1365. Existing migration210/type/harness gates keep PR draft.
+
+## 2026-09-26 — Simplify Gradebook mark cells
+
+Removed warning and refresh/override status icons from assessment, final, max
+and average cells per user refinement. Amber above-maximum highlight and
+accessible/hover explanation remain; dialog reset actions remain functional.
+Raw preview retains earned-only values and Max mark before Weight. Sixteen
+layout/theme/viewport/mode screenshots plus student-role isolation passed.
+
+## 2026-09-26 — Apply Gradebook maximum migration locally
+
+Owner explicitly approved210 locally. Applied exactly once from isolated detached
+billing9b710884 baseline checkout with identical reviewed210; dry run listed only
+210, local target verified. Migration history now001–210. Database harness passes
+with rollback after fixing its question insert to canonical position column.
+Isolated generated types verification recorded in PR1365; feature-branch type
+integration awaits billing209 merge. Application permission is consumed.
+
+## 2026-09-26 — Prepare production209/210 and gradebook merge
+
+Owner explicitly authorized production209+210 then gradebook merge. Import the
+unchanged reviewed billing209 schema and generated001–210 types so gradebook
+can merge before billing application code. Remove temporary RPC cast; refine
+nullable reset/clear arguments and preserve maxima in assignment atomic parser.
+Production maximum edits default off until GRADEBOOK_MAXIMUM_EDITS_ENABLED is
+true after full mark-writer deployment; reads/normalized writes/reset stay usable.
+731 focused tests and canonical type checks pass; independent integration review,
+production application and stable-head CI remain in progress.
+
+## 2026-09-26 — Restore maximum access during paused production changes
+
+Owner authorized reset-access remediation and one extra targeted Terra review
+after the five-launch checkpoint. Separate schema availability from maximum edit
+capability. Overridden columns remain accessible; paused dialog disables input,
+behavior selection, Save and form submission while retaining reset. Integration
+and failure-recovery tests pass; eight desktop/mobile, light/dark, regular/compact
+visual matrices verify keyboard restore and student isolation. Canonical database
+types and rollback-only maximum database harness pass. Production209/210 approval
+is still unconsumed; exact-head targeted review and CI precede application/merge.
+
+## 2026-09-26 — Disposable tier activation fixtures
+
+- User authorized creating the production test classroom and Free student fixture. Created a clearly labeled disposable classroom through the authenticated owner UI and one isolated student record with an audited Free plan/zero creation limit. Private identities and execution records remain outside Git. No WorkOS identity, verified-email flag, or fabricated session was added.
+- Subagent production rollback canaries passed creation/replay, Free/at-capacity Blueprint denial, restore, transfer, and downgrade preservation; independent before/after counts and row hashes prove no synthetic data persisted. Strict creation/automatic Free signup remain OFF. Actual student sign-in/join/submission require a user-controlled test mailbox for WorkOS verification; requested without passwords. No billing/admin enablement, migration, deploy, or real-class edits.
+
+<!-- pika-session-log-archive-batch:bb78cf06726d32eb8f67ec8941bfa1ab4da0070414b2a0df1bc0b67b54c859c9 -->
+## 2026-09-26 — Strict creation and automatic Free signup activated
+
+- Owner `codex/platform-administration-design`, PR #1360. Under the user's scoped activation authorization, the subagent executed the reviewed guarded production activation RPC once at 11:54:17 UTC. Migrations 181/206 verified; strict creation and default-Free provisioning now ON. Readback: 183 accounts (181 Free, one Plus, one Pro), complete plan/grant/paired-audit parity, original nine classrooms' ownership/archive states preserved. Identity-level records and exact operation evidence remain private outside Git.
+- Normal user-controlled magic sign-in, Free student roster join, link/richtext submission, final grading and returned grade visibility passed in the disposable classroom. Teacher/student attendance views render expected non-class-day states; no fresh QR/check-in or attendance-write round trip claimed. After activation student returned work and teacher Gradebook remain accessible.
+- Postactivation rollback-only synthetic account probe passed atomic Free provisioning, disabled quota0 creation, paired system audits, and missing-grant denial. Independent before/after counts, full class hash, plans/grants/audits and settings prove no synthetic probe records persisted. No migration, app deploy, billing/admin enablement, role rewrite or real-class teaching edit. Test fixtures remain available; no destructive cleanup performed.
+- Updated current context, rollout status and administration proposal to distinguish active creation/default-Free behavior from unimplemented billing/admin. Synced latest main into the feature branch; resolved archive conflict by retaining existing unique history rather than reintroducing duplicated entries. Required documentation/prototype checks and stable-SHA review follow; no merge authorized.
+
+<!-- pika-session-log-archive-batch:de91e489a4194a73c23613c04cca81372217ffbbe357a4489e3959452cb24a49 -->
+## 2026-09-26 — Activation status-note CI correction
+
+- PR #1360 CI passed the browser matrix but failed one of 8,088 tests because the compact production migration note no longer matched the established `Prod DB 001–NNN` format. Restored that format and removed a redundant undated health shorthand to retain the startup size limit. Runtime activation facts and application code are unchanged.
+- Returned the PR to draft before correction. Verify the attendance rollout-note contract together with startup guidance and the focused gate, then independently review the fixed commit before requesting CI again. No production changes or merge performed. Risk profile: none; model recommendation: GPT-6 Sol for this documentation correction.
+
+<!-- pika-session-log-archive-batch:6084cd808d11680a71b6087ce6c41fd48dd941588591ab924a7beaee442e52dd -->
+## 2026-09-26 — Stripe provider decision
+
+- Owner selected Stripe for paid subscriptions. Added SUB-06 to the canonical subscription policy, recorded the decision, and removed provider selection from open decisions. Tier caps remain Free0/Basic2/Plus5/Pro10; paid prices and AI quantities remain undecided. This records provider selection only, without billing implementation or live charges.
+- Corrected the plan-foundation status to point to the verified production strict/default-Free rollout. No runtime behavior changed. Risk profile: none; model recommendation: GPT-6 Sol for policy documentation. Validate focused checks and independent documentation review before marking the updated PR ready.
+
+<!-- pika-session-log-archive-batch:a8efa55714fad698d5d68579e954fbc35b1b9a53d93b6d04baddc81661da7b36 -->
+## 2026-09-26 — Versioned paid offerings policy
+
+- Owner approved documenting future payment-model changes and existing-subscriber protection. Extended the existing canonical subscription policy with SUB-07/SUB-08: preserved offering versions before paid launch, exact purchase/entitlement binding, explicit grandfathering/renewal/optional migrations, annual paid-term protection, and audited idempotent transition/recovery. No universal grandfathering promise or new price, usage quantity or lifecycle default is assumed.
+- Linked the decision and current fixed-writer limitation from the decision log and plan foundation. No implementation, account or production changes. Risk profile: none; model recommendation: GPT-6 Sol for bounded policy documentation. Focused verification and independent documentation review precede updated ready-PR CI.
+
+## 2026-09-26 — Gradebook final CI test correction
+
+Targeted Terra cleared reset remediation on11dfb1dd. Synced main with both
+session histories retained; reviewed source diff was byte-identical. Final CI
+36258739324 found an outdated explicit Gradebook helper allowlist and two
+whole-gallery query timeouts. PR1365 returned to draft; production remains
+through208 and209/210 permission is unconsumed. Test-only correction names
+three reviewed helpers and scopes gallery role queries to their sections, with
+all existing assertions/timeouts preserved.24 targeted tests pass, including
+coverage instrumentation (partial-suite global coverage thresholds are not a
+full coverage gate). Final focused checks and correction review precede new CI.
+
+<!-- pika-session-log-archive-batch:716471f485c960deb3fdf0b2cab472788093f00f566ba3315113fbae78635ee2 -->
+## 2026-09-26 — Stripe test-mode foundation prepared
+
+- Owner `codex/stripe-billing-foundation`, based on the unmerged admin/policy branch at `85138d24`; risk `runtime-platform`. Astra architecture review and two bounded Terra workers prepared immutable offering versions, trusted bindings, durable event intake, fenced payment synchronization and bounded reconciliation. Coordinator integrated local-only gates, provider decoding, transport adapters and handler boundaries.
+- Migration 209 and rollback-only contracts are prepared but unapplied. Local dry run includes only 209. Test fixtures establish neither real Stripe connectivity nor deployed billing. No live or hosted changes; no HTTP route/runtime activation yet.
+- Local unit/static checks pass; exact verification and remaining gates live in `docs/guidance/stripe-billing-foundation.md`. Awaiting explicit approval for `stripe@22.6.2` and one-time application of migration 209 to local. Next: SDK/runtime wiring, authorized local DB application, generated types and database proof, draft PR and independent fixed-SHA review.
+
+<!-- pika-session-log-archive-batch:36abd506ca7b9f80ed241ff5fa3aef91c14e1ecd88ae6d98f5f6a80328aaf2b2 -->
+## 2026-09-19 — Dormant contextual individual assignment work read
+
+- Owner `codex/contextual-assignment-student-work-read`, based on merged aggregate-detail PR1292. Extended the same off-by-default exact user/assignment gate to `GET /api/teacher/assignments/[id]/students/[studentId]`. A student-valued classroom owner may read one enrolled student's existing work, including an archived classroom, without changing the account's legacy role.
+- Contextual mode canonicalizes the student identifier after assignment-pair admission, proves the exact classroom enrollment, and validates profile, document, feedback, requirement, artifact, repository-target and completed repository-review bindings. Optional single-row evidence uses bounded arrays so unavailable or duplicate service-role results cannot be normalized to absence; the already-authorized client is reused by supporting loaders. The learner document route and every assignment mutation remain legacy.
+- No UI, migration, schema, dependency, production configuration or cohort activation changed. Initial targeted contextual/legacy/helper coverage passes 48 tests plus TypeScript; focused verification and independent review follow.
+- Initial security and compatibility review found that the repository-review result was bound to the requested assignment/student but its joined run was validated only by completed status. Batch1 selects the nested run ID and assignment, proves `result.run_id` and assignment match that run, and adds helper plus route regressions for substituted cross-assignment run evidence; refreshed checks and exact-head re-review follow.
+
+<!-- pika-session-log-archive-batch:eddc9f8f49f846c470fe6ebd724e99c89de107a3bba6908c2d42f9a8f7a68cfe -->
+## 2026-09-24 — Offline test grading batch comparison
+
+- Continue the grading handoff with an offline comparison mode for identical sampled answers at batch sizes 1/2/4, seeded order, one profile and production-default effort. Reuse production adapters and singleton-tail behavior; keep exact question/rubric/coding groups separate. Count HTTP retries and allowlisted token usage once per operation, keep unknown cost unknown, and evaluate quality only against external privately verified intervals. Private checkpoints retain failures and paired/order sensitivity evidence; no grade writes, new dependency or application behavior change. Added synthetic tests for grouping, identity, accounting, failures and file safety. Focused verification and independent review required before ready.
+- Independent Terra review found unanswered whitespace-only work could enter comparisons. Exclude it before sampling/planning/target matching and trim adapter input like production; retain original text in identity hashes. Added a red-before/green-after regression covering eligibility, target rejection and the singleton path. No paid comparisons have run yet.
+The Tests list now displays Open when any enrolled student has effective open access, including a test whose stored status is closed; active tests with every student's access closed still display Closed. Drafts remain Draft. Added unit/component and browser regression coverage. Focused checks passed 1,031 tests plus architecture, UI/design policy, TypeScript, and lint; the browser scenario passed desktop/mobile in light/dark, and screenshots were reviewed. Risk profile: none. Model recommendation: GPT-6 Sol for the localized status correction.
+
+## 2026-09-26 — Approved local Stripe integration verification
+
+- Owner approved exact `stripe@22.6.2` and one-time local migration 209. Both completed; migration approval consumed. Generated database types match; Stripe and existing account-plan rollback harnesses pass, including forced partial failure rollback and lease takeover. Billing sandbox setting remains false. The older classroom harness correctly refuses the post-cutover local setting; CI runs it against fresh replay.
+- Added real SDK signature verification and local-only webhook/operator-worker routes, with pinned API version, bounded requests and shared database origin/redirect checks. New database harnesses are wired into CI. Credentials are absent, so no real Stripe payment rehearsal or live activation is claimed.
+- Proceeding with focused checks, draft publication and bounded independent fixed-SHA security/compatibility review. No merge or production authority implied.
+
+## 2026-09-26 — Stripe billing review remediation prepared
+
+- Draft PR #1366 is stacked on #1360. Initial fixed-SHA Sol/Terra review found financial-adjustment and retry-fairness blockers; architecture review found no separate blocker. Batched fixes verify immutable product/amount and exact unadjusted card payment, preserve signed event timestamps, and add migration210 for fair due selection, bounded transient retries, durable attention and audited operator requeue. Existing209 is unchanged and its local application permission is consumed.
+- Focused checks pass342 tests plus TypeScript, lint and architecture/UI/design policies; Pika audit passes. Migration210 remains unapplied pending exact local authorization, including clearing unrecoverable legacy provider-created timestamps. Its rollback database contracts and regenerated types remain pending; no real Stripe round trip, live enablement or merge is claimed. Targeted correction review follows before the application checkpoint.
+
+- Targeted Sol review found a missing nullable-schedule alteration, non-isolated retry fixtures, and early-event adoption compatibility. Batch2 fixes all three in unapplied210 and its harness, adding explicit claimed-state assertions and an early-event binding regression. No further schema application is authorized yet.
+
+<!-- pika-session-log-archive-batch:051edf4aa017165f9807819c94fe5d6b53b1d33f155b989ee0293e10101cbeaa -->
+## 2026-09-26 — Consolidated billing209 and rebuilt local database
+
+- User explicitly approved combining unreleased209/210, erasing/resetting local and reseeding. Consolidated the reviewed final functions and table definitions into209; removed210 and its upgrade-only backfill. Verified local target/history; one `supabase db reset --local --no-seed` replayed001–209 successfully. Reseeded via local runtime credentials with shared hosted env excluded. Local fixtures: three users and one classroom; billing sandbox off and no billing inbox records. Reset restores migration defaults, including local creation/Free-provisioning gates; production is unchanged.
+- Generated types match the rebuilt schema. Billing recovery/payment, account-plan and classroom-creation rollback harnesses pass. Corrected SQL harness evaluation ordering by capturing the mutation result before inspecting persisted state. Focused checks pass342 tests plus TypeScript/lint/policy checks; final integration review and CI remain pending. Earlier209/reset authorization is consumed. No live Stripe payment rehearsal, production change or merge.
+
+## 2026-09-26 — Billing binding/webhook race correction
+
+- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
+- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
+
+<!-- pika-session-log-archive-batch:573801dd8732a8f12ba069d66fc721a8cdf63fc9c96855f453b37f62a7534b05 -->
+## 2026-09-26 — Approved subscription launch policy
+
+- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
+  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
+  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
+  Updated the access roadmap and durable decisions; distinguished approved
+  product terms from provisional AI costs and missing runtime implementation.
+- Documentation-only risk profile: none. No database, Stripe account, production
+  runtime or existing subscription changed. Next implementation milestone is an
+  isolated Stripe test checkout plus lifecycle/access verification.
+
+<!-- pika-session-log-archive-batch:945a1f05aff8b3440f6546d9cb41a37752a00421a7d40fcdfd19b3b0097ad336 -->
+## 2026-09-26 — Billing binding/webhook race correction
+
+- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
+- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
+
+## 2026-09-26 — Approved subscription launch policy
+
+- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
+  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
+  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
+  Updated the access roadmap and durable decisions; distinguished approved
+  product terms from provisional AI costs and missing runtime implementation.
+- Documentation-only risk profile: none. No database, Stripe account, production
+  runtime or existing subscription changed. Next implementation milestone is an
+  isolated Stripe test checkout plus lifecycle/access verification.
+
+## 2026-09-26 — Rename launch plans to Basic, Pro and Max
+
+- Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,
+  launch limits, trial/AI labels and decision log while retaining prices/benefits.
+  Documented legacy `plus` → Pro and `pro` → Max to avoid accidental entitlement
+  reassignment. Historical runtime/schema keys remain unchanged.
+- Continued policy PR1367; documentation-only verification and independent review
+  cover the cumulative approved-policy change. No runtime or live billing change.
+
+<!-- pika-session-log-archive-batch:90800727a9647a728e114970344389b7c704fb9c7e329380f43aaa62aad65cb7 -->
+## 2026-09-26 — Land policy and prepare durable test checkout
+
+- Owner authorized merging the policy and orchestrating implementation. Merged
+  admin1360, foundation1366 and policy1367 into main after their final required
+  PR Gate passed. Descendant rebases preserved complete reviewed trees.
+- Coordinator owns `codex/stripe-checkout-trial`. Workers completed the immutable
+  12-variant Basic/Pro/Max USD/CAD catalog, test-price provisioning, durable
+  checkout/service/provider/schema contracts. Coordinator added authenticated
+  catalog/start/status routes, bounded worker integration and disabled-by-default
+  checkout configuration. Browser redirects cannot grant access.
+- Independent preapplication review found no blockers in migration211, checksum
+  `567b4dfe360266c1b70899e34b70a7ec388a5fdc99494162dbf524207e3c61e9`.
+  It remains unapplied. Shared local has unrelated gradebook210; do not reset it.
+  Await explicit approval for disposable local `pika_billing_checkout`, applying
+  001–209 plus211 without seed. Prior209 reset authorization was consumed.
+- Billing-focused tests192/18 files pass; focused checks passed293 tests and
+  architecture/UI/design policy checks, then stopped at TypeScript because eight
+  new RPCs await proper generated types. Changed-file ESLint, Pika audit and22 CI
+  workflow tests pass. SQL harness is wired into CI but unexecuted locally.
+- Keep the checkout PR draft until SQL tests, generated types, full focused checks
+  and independent implementation review complete. Stripe test credentials remain
+  absent; no provider objects/payments or live billing were created. Trial,
+  lifecycle/access enforcement, billing UI and provider rehearsal remain pending
+  under the durable coordinator plan in `docs/guidance/stripe-billing-foundation.md`.
+
+<!-- pika-session-log-archive-batch:529f2dd912fbc2d790e390c8edbe24e50bbb6f45a9624a6ea5a6eed40b80d7d6 -->
+## 2026-09-26 — Reuse shared local database for checkout verification
+
+- Owner requested the existing local database. Rebased checkout PR1368 onto
+  main402f8028 after gradebook210 merged. Read-only comparison found exactly two
+  outdated209 billing functions; additive211 now reinstalls their canonical
+  definitions without changing209 or data. New static parity and SQL assertions
+  cover grants and identity-lock ordering. Billing tests194/18 files pass.
+- Local migration list and dry-run preview only211. No application, reset or seed
+  occurred. Updated211 SHA256 is
+  `e5c30fbb3fa0ead4d4c05ea617ed79e8a5ba3928615ece3991738e8c0d58dc03`.
+  Prior independent review covered the original211, not this compatibility delta.
+- Review checkpoint: one preapplication launch, zero remediation waves; the
+  45-minute elapsed window expired including the user-input pause. Further
+  independent reviews need explicit additional review-time approval. Local211
+  application also awaits exact authorization. PR stays draft; generated types,
+  database contracts and full implementation review remain pending.
+
+<!-- pika-session-log-archive-batch:b73dcc9e475f9666899f4a81ff0b35cde23e99420d23c9e7d825823d93d27185 -->
+## 2026-09-26 — Apply and verify local checkout211
+
+- Owner approved45 additional review minutes and existing-local211 application
+  after review. Independent delta review passed frozen SHAe5c30fbb. Verified
+  local project/port/history and preview; one `supabase db push --local` applied
+  only211. That approval is consumed. No reset or reseed.
+- Billing and checkout rollback contracts pass; generated types refreshed from
+  applied schema. Security advisor reports no issues. Three users, one classroom
+  and the disabled billing sandbox are preserved. Focused checks pass207 tests,
+  TypeScript, lint and architecture/UI/design gates. Full financial/security and
+  compatibility review follows before ready CI; no provider payment performed.
+
+<!-- pika-session-log-archive-batch:560345b98aab4d6fbe58b92f642eec74960b9bf42350f1696840fad3c415ac7a -->
+## 2026-09-26 — Preserve legacy plans during first checkout
+
+- Full review of41c75110 found a P1: legacy paid accounts could reserve first
+  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
+  unchanged legacy Free eligibility at reservation, resumption, progress save,
+  binding and first-payment claim. Changed plans become attention; existing
+  paid-finish revision fencing handles the subsequent race. Applied209/211 are
+  unchanged. API returns a safe409 for initial ineligibility.
+- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
+  legacy paid rejection and plan-change races; they remain unrun until exact
+  local212 authorization. The harness refuses a database without212. Migration
+  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
+- Targeted correction/preapplication review follows as launch5/5, remediation
+  batch1. New212 and refreshed generated types/final integration review require
+  a further owner checkpoint. Previously issued provider sessions may still be
+  paid after an operator changes a plan; this patch prevents access overwrite,
+  and provider cancellation/refund handling remains a prelaunch lifecycle task.
+
+<!-- pika-session-log-archive-batch:3f10ef6db338e16890725732724091cf5c9341d03bd6b0b81a53836c67a00aca -->
+## 2026-09-26 — Preserve legacy plans during first checkout
+
+- Full review of41c75110 found a P1: legacy paid accounts could reserve first
+  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
+  unchanged legacy Free eligibility at reservation, resumption, progress save,
+  binding and first-payment claim. Changed plans become attention; existing
+  paid-finish revision fencing handles the subsequent race. Applied209/211 are
+  unchanged. API returns a safe409 for initial ineligibility.
+- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
+  legacy paid rejection and plan-change races; they remain unrun until exact
+  local212 authorization. The harness refuses a database without212. Migration
+  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
+- Targeted correction/preapplication review follows as launch5/5, remediation
+  batch1. New212 and refreshed generated types/final integration review require
+  a further owner checkpoint. Previously issued provider sessions may still be
+  paid after an operator changes a plan; this patch prevents access overwrite,
+  and provider cancellation/refund handling remains a prelaunch lifecycle task.
+
+## 2026-09-26 — Apply checkout eligibility212 and prepare final review
+
+- Owner approved local212 and one final integration review up to20 minutes
+  (launch6). Verified the reviewed hash, local target/history and preview;
+  applied only212 once. Authorization consumed; no reset or reseed.
+- Expanded checkout SQL exposed a test-expression ordering bug: capture the
+  claim result before inspecting saved state. The test-only fix passes;
+  migration212 is unchanged. Checkout and foundation rollback contracts pass;
+  generated types refreshed. Existing three users, one classroom and disabled
+  sandbox are preserved. Final focused checks and review precede ready CI;
+  no Stripe provider purchase or live activation.
+
+## 2026-09-27 — Preserve test references during Preview saves
+
+Fixed the teacher editor resetting authoritative document state from document-free parent summaries. References now reset only on owner changes (test/classroom/API scope); detail reads and document mutations own same-test updates. Regression covers a parent summary refresh, Preview payload/source Markdown, and the save-triggered parent refresh; existing stale-response tests remain passing. No schema, API, grading, fullscreen, or visual contract changes. Reuse: existing split Tests editor and Preview/reference controls. Risk: workspace-state.
+
+Verification: TestDetailPanel 48/48; focused checks 276 tests plus architecture/UI/design/TypeScript/lint; 12 mocked Playwright contracts across teacher/student, desktop/mobile, light/dark (image uploads/preview/retry/zoom/answer retention plus Pattern Lab Markdown reference preview), with screenshots inspected at /tmp/pika-preview-browser-results. Local Supabase stopped; fixture server uses loopback-only placeholders. Production quiz content remains unchanged by this code task. Pending independent PR review and release.
+
+Independent review identified a pending document-mutation response crossing selected-test boundaries. Batched remediation guards all document callbacks and auto-sync by captured assessment scope, and keys document editors by owner so pending child state cannot carry into another test. Deferred edit regression verifies the new test's references and Preview payload survive the old response. Editor suite now 49/49; final focused checks and targeted review follow.
+Final integration review caught auto-sync attempt suppression resetting only on test ID changes. Second batch aligns suppression reset with classroom/API/test ownership, with both classroom and API transition regressions. Final focused checks and bounded correction/integration review follow.
+Third correction attaches an owner key to document state and prevents auto-sync effects from mixing prior documents with a newly selected endpoint during the transition render. Different-link API transition regression confirms only the new owner's link is synced. Final focused checks pass 280 tests plus architecture/UI/design/TypeScript/lint. Bounded final correction review pending; release remains separate.
+
+Main sync: resolved only continuity-document overlap after PR1368 landed; reviewed application/test blobs remain identical to fe74df85. Independent review complete, no blockers. Updated-base focused checks and exact-head CI precede authorized squash merge.
+
+<!-- pika-session-log-archive-batch:43ec70ed7fd32af85c076a90b57ef1b1f6520c7de1632c942601ff81f91eec55 -->
+## 2026-09-27 — Stage contextual Assignment inline-image fix
+
+- User authorized orchestration of the audited image-access boundary. This task owns codex/contextual-assignment-images based on main402f8028. Terra implementation worker staged the independent default-off exact user/Classroom gate, relationship-aware delivery, transaction-fenced reservation/finalization and migration213. A separate read-only worker mapped restricted API/RPC lifecycle verification; no classroom UI or billing activation is included.
+- Image-focused tests pass33 checks and TypeScript passes after installing existing locked dependencies into this worktree. Behavioral rollback-only database fixtures and CI wiring are authored, not executed. Database types remain unchanged. Source review and final focused checks follow; concurrent removal/submission proof and persisted manual lifecycle rehearsal remain outstanding before readiness.
+- Started Docker solely for local diagnostic checks. Local database history is001–212; main source is001–210 because billing PR1368 is still open. No migration, reset, hosted data, runtime gate or production change. Sync billing migration source before the exact local213 application/type-generation checkpoint; do not import or modify the other task's work.
+- Draft PR1371 at initial head a8679dff is attached. Full focused checks pass124 tests across14 files plus TypeScript/lint/policies; staged-file Pika audit passes. Sol/Terra initial source review found a fixture revocation ordering blocker, a creator-binding gap and missing archived-owner/revocation coverage. One remediation batch fixes all three; targeted Sol review follows. Local dry-run refused missing211/212 source; no history repair attempted. Review ledger: /private/tmp/pika-assignment-images-review-ledger.json (two initial launches, one initial wave, batch1; final integration deferred until schema/types evidence).
+- Correction68632997 pushed; repeated full focused checks pass124 tests and all static gates. Targeted Sol review found no actionable issue and independently passed33 tests plus shell syntax/diff hygiene. Three reviewer launches and one fix batch consumed. PR remains draft; next is billing1368 landing/sync, then exact local migration213 authorization, generated types, database/race evidence and final integration review. This final continuity note is local/uncommitted to preserve the reviewed source SHA.
+- User reported billing1368 merged and212 applied. Verified merge43c170b5, rebased this branch onto main, resolved only duplicate historical archive notes while retaining main's history, and restored the local handoff note. No image runtime/schema/harness/test content changed from reviewed68632997; migration remains213. Local history through212 verified; dry-run previews only213. This task's temporary rebase stash is consumed; unrelated existing stashes are untouched. Post-sync checks precede updating draft1371; exact local213 application authorization is still needed. No migration or production action performed.
+- Owner approved exact local213 application. Rechecked clean feature worktree, local history and dry-run containing only213; applied213 once successfully. Rollback-only image database contracts pass and fixture users are absent afterward. Generated types add only the three image RPC signatures; generation/check pass. No production migration or gate activation. Concurrency evidence and final integration review remain pending; keep1371 draft and check the existing review deadline before any additional reviewer launch.
+- Owner approved one final integration review capped at20minutes. Terra test worker added four actual removal/submission versus image reservation/finalization races; coordinator corrected test cleanup to use the local compatibility metadata protocol, exact fixture IDs, collision preflight and bounded background sessions. All four race cases and the mixed-role image contract passed; mutable fixtures/test schema artifacts clear, immutable anonymous PAL audit evidence intentionally remains. Synced main6650e76a (#1370), resolving only duplicate archive notes. Reviewed runtime/migration213 unchanged. Final checks/review/CI precede authorized merge; restricted full Assignment rehearsal is the next separate integration phase, not claimed by these image tests. No production or gate activation.
+
+## 2026-09-27 — Billing flow and edge-case verification
+
+- Owner: `codex/billing-flow-testing`. Audited the complete subscription policy against runtime; recorded implemented coverage, missing lifecycle/customer UI, and launch blockers in `docs/guidance/billing-test-report-2026-09-27.md`. Updated stale checkout/prod-schema continuity (211/212 were previously approved and applied; no migration applied this pass).
+- Added seven billing regressions and fixed empty signed webhook account/context fields bypassing presence validation. Red tests reproduced the defect; all198 billing tests and162 focused tests plus types/lint/architecture passed. Both local billing database rollback harnesses and Pika audit passed.
+- Real isolated Stripe sandbox:12 catalog variants; Pro purchase, decline/retry, unpaid expiry, Max CAD annual 3DS failure/retry, Basic annual recovery without webhook delivery, duplicate synthetic delivery and HTTP authorization/signature checks. Exactly one invoice effect per paid fixture and correct2/5/12 effective caps. Billing return route404 remains a launch blocker. No live billing or production writes; cleanup disabled local gate and canceled test subscriptions. Independent review and final CI follow.
+
+- Final CI caught the production-history summary format expected by an existing attendance migration contract (8,369 other tests passed). Restored `Prod DB 001–212` without changing the verified schema state or billing runtime. Targeted contract and focused checks precede correction review and a new stable-SHA CI run.
+- Reviewed head1f49006a passed all8,370 CI tests, production build, database contracts, Stripe binding/webhook race and PR Gate (run36337177687). Main then advanced via1371/39c948e8, causing only a duplicate archive-marker conflict. Rebased while draft, preserving both sessions; billing runtime/test patch is unchanged. Five reviewer launches and three correction/sync batches are consumed. New-head focused checks precede an owner checkpoint for one additional bounded rebase review; no new CI or merge until that review passes.
+
+<!-- pika-session-log-archive-batch:bebc45006650516d2f0728bc41514fc255dde60f7c1066d2233e787b42d4978c -->
+## 2026-09-27 — Verify classroom rollout readiness
+
+- PR1371 merged as39c948e8 after final review,125 focused tests and full CI. Continued rollout in `codex/contextual-rollout-rehearsal`; startup verified. Fresh production history matches001–212; linked dry-run previews only213. Exact production213 approval requested, not yet received; no production writes or activation. Existing production PR1373 belongs to another active task and excludes1371; leave its branch untouched.
+- Read-only Terra source audit confirms live home still routes by global role; contextual home has no live consumer. Full classroom shell exposes legacy-role Tests, Daily, Grades/Gradebook, roster and content writes; owner Classwork also fetches legacy surveys. Full UI rollout therefore needs implementation, not just enabling gates. Restricted manual Assignment integration remains next; do not present an Assignment-only pilot as the completed full-classroom rollout. Private checkpoint: `/private/tmp/pika-contextual-rollout-status-20260927.md`.
+
+<!-- pika-session-log-archive-batch:c9055a93dae740c6bbc63e63e446573639fd4a2301cd4ee273132df5ac4a2dde -->
+## 2026-09-27 — Orchestrate full rollout and correct owner precedence
+
+- Owner authorized production213. Fresh target/history and dry-run matched only213; the single application attempt timed out connecting before reporting execution. Subsequent linked history confirms001–212,213 pending. Fresh retry approval requested, no second attempt. Production code PR1373 merged separately as6904c2ed and excludes image1371.
+- Terra built a real local route-handler/DB manual Assignment rehearsal with mocked request identity only, exact-loopback/demo-JWT validation, outbound transport containment and tracked synthetic cleanup. Coordinator strengthened negative cases: six scenarios pass, but admitted owner with historical self-enrollment can open/create learner work (200 vs403). Pre-return saved grades/feedback remain correctly hidden. No browser/session or image-byte round trip claimed; exact-object byte cleanup is unavailable on the shared local stack.
+- Astra mapped five finite full-experience batches into the existing roadmap, then implemented forward migration214: eight contextual learner definitions reject the owner from locked classroom evidence while preserving signatures, locks, prior bodies and owner-history inspection. Added18 passing static regressions plus a rollback-only behavioral harness; migration214 not applied. Added both the harness and real route rehearsal to ephemeral-database CI. Focused checks and independent review follow; keep all product gates off.
+
+<!-- pika-session-log-archive-batch:2f8eebbfd1a119bca55277acb37bc8780abda70ce846a9e370bcba7fc91237eb -->
+## 2026-09-26 — Simplify Gradebook mark cells
+
+Removed warning and refresh/override status icons from assessment, final, max
+and average cells per user refinement. Amber above-maximum highlight and
+accessible/hover explanation remain; dialog reset actions remain functional.
+Raw preview retains earned-only values and Max mark before Weight. Sixteen
+layout/theme/viewport/mode screenshots plus student-role isolation passed.
+
+## 2026-09-26 — Apply Gradebook maximum migration locally
+
+Owner explicitly approved210 locally. Applied exactly once from isolated detached
+billing9b710884 baseline checkout with identical reviewed210; dry run listed only
+210, local target verified. Migration history now001–210. Database harness passes
+with rollback after fixing its question insert to canonical position column.
+Isolated generated types verification recorded in PR1365; feature-branch type
+integration awaits billing209 merge. Application permission is consumed.
+
+## 2026-09-26 — Prepare production209/210 and gradebook merge
+
+Owner explicitly authorized production209+210 then gradebook merge. Import the
+unchanged reviewed billing209 schema and generated001–210 types so gradebook
+can merge before billing application code. Remove temporary RPC cast; refine
+nullable reset/clear arguments and preserve maxima in assignment atomic parser.
+Production maximum edits default off until GRADEBOOK_MAXIMUM_EDITS_ENABLED is
+true after full mark-writer deployment; reads/normalized writes/reset stay usable.
+731 focused tests and canonical type checks pass; independent integration review,
+production application and stable-head CI remain in progress.
+
+## 2026-09-26 — Restore maximum access during paused production changes
+
+Owner authorized reset-access remediation and one extra targeted Terra review
+after the five-launch checkpoint. Separate schema availability from maximum edit
+capability. Overridden columns remain accessible; paused dialog disables input,
+behavior selection, Save and form submission while retaining reset. Integration
+and failure-recovery tests pass; eight desktop/mobile, light/dark, regular/compact
+visual matrices verify keyboard restore and student isolation. Canonical database
+types and rollback-only maximum database harness pass. Production209/210 approval
+is still unconsumed; exact-head targeted review and CI precede application/merge.
+
+## 2026-09-26 — Disposable tier activation fixtures
+
+- User authorized creating the production test classroom and Free student fixture. Created a clearly labeled disposable classroom through the authenticated owner UI and one isolated student record with an audited Free plan/zero creation limit. Private identities and execution records remain outside Git. No WorkOS identity, verified-email flag, or fabricated session was added.
+- Subagent production rollback canaries passed creation/replay, Free/at-capacity Blueprint denial, restore, transfer, and downgrade preservation; independent before/after counts and row hashes prove no synthetic data persisted. Strict creation/automatic Free signup remain OFF. Actual student sign-in/join/submission require a user-controlled test mailbox for WorkOS verification; requested without passwords. No billing/admin enablement, migration, deploy, or real-class edits.
+
+## 2026-09-26 — Strict creation and automatic Free signup activated
+
+- Owner `codex/platform-administration-design`, PR #1360. Under the user's scoped activation authorization, the subagent executed the reviewed guarded production activation RPC once at 11:54:17 UTC. Migrations 181/206 verified; strict creation and default-Free provisioning now ON. Readback: 183 accounts (181 Free, one Plus, one Pro), complete plan/grant/paired-audit parity, original nine classrooms' ownership/archive states preserved. Identity-level records and exact operation evidence remain private outside Git.
+- Normal user-controlled magic sign-in, Free student roster join, link/richtext submission, final grading and returned grade visibility passed in the disposable classroom. Teacher/student attendance views render expected non-class-day states; no fresh QR/check-in or attendance-write round trip claimed. After activation student returned work and teacher Gradebook remain accessible.
+- Postactivation rollback-only synthetic account probe passed atomic Free provisioning, disabled quota0 creation, paired system audits, and missing-grant denial. Independent before/after counts, full class hash, plans/grants/audits and settings prove no synthetic probe records persisted. No migration, app deploy, billing/admin enablement, role rewrite or real-class teaching edit. Test fixtures remain available; no destructive cleanup performed.
+- Updated current context, rollout status and administration proposal to distinguish active creation/default-Free behavior from unimplemented billing/admin. Synced latest main into the feature branch; resolved archive conflict by retaining existing unique history rather than reintroducing duplicated entries. Required documentation/prototype checks and stable-SHA review follow; no merge authorized.
+
+## 2026-09-26 — Activation status-note CI correction
+
+- PR #1360 CI passed the browser matrix but failed one of 8,088 tests because the compact production migration note no longer matched the established `Prod DB 001–NNN` format. Restored that format and removed a redundant undated health shorthand to retain the startup size limit. Runtime activation facts and application code are unchanged.
+- Returned the PR to draft before correction. Verify the attendance rollout-note contract together with startup guidance and the focused gate, then independently review the fixed commit before requesting CI again. No production changes or merge performed. Risk profile: none; model recommendation: GPT-6 Sol for this documentation correction.
+
+## 2026-09-26 — Stripe provider decision
+
+- Owner selected Stripe for paid subscriptions. Added SUB-06 to the canonical subscription policy, recorded the decision, and removed provider selection from open decisions. Tier caps remain Free0/Basic2/Plus5/Pro10; paid prices and AI quantities remain undecided. This records provider selection only, without billing implementation or live charges.
+- Corrected the plan-foundation status to point to the verified production strict/default-Free rollout. No runtime behavior changed. Risk profile: none; model recommendation: GPT-6 Sol for policy documentation. Validate focused checks and independent documentation review before marking the updated PR ready.
+
+## 2026-09-26 — Versioned paid offerings policy
+
+- Owner approved documenting future payment-model changes and existing-subscriber protection. Extended the existing canonical subscription policy with SUB-07/SUB-08: preserved offering versions before paid launch, exact purchase/entitlement binding, explicit grandfathering/renewal/optional migrations, annual paid-term protection, and audited idempotent transition/recovery. No universal grandfathering promise or new price, usage quantity or lifecycle default is assumed.
+- Linked the decision and current fixed-writer limitation from the decision log and plan foundation. No implementation, account or production changes. Risk profile: none; model recommendation: GPT-6 Sol for bounded policy documentation. Focused verification and independent documentation review precede updated ready-PR CI.
+
+## 2026-09-26 — Gradebook final CI test correction
+
+Targeted Terra cleared reset remediation on11dfb1dd. Synced main with both
+session histories retained; reviewed source diff was byte-identical. Final CI
+36258739324 found an outdated explicit Gradebook helper allowlist and two
+whole-gallery query timeouts. PR1365 returned to draft; production remains
+through208 and209/210 permission is unconsumed. Test-only correction names
+three reviewed helpers and scopes gallery role queries to their sections, with
+all existing assertions/timeouts preserved.24 targeted tests pass, including
+coverage instrumentation (partial-suite global coverage thresholds are not a
+full coverage gate). Final focused checks and correction review precede new CI.
+
+## 2026-09-26 — Stripe test-mode foundation prepared
+
+- Owner `codex/stripe-billing-foundation`, based on the unmerged admin/policy branch at `85138d24`; risk `runtime-platform`. Astra architecture review and two bounded Terra workers prepared immutable offering versions, trusted bindings, durable event intake, fenced payment synchronization and bounded reconciliation. Coordinator integrated local-only gates, provider decoding, transport adapters and handler boundaries.
+- Migration 209 and rollback-only contracts are prepared but unapplied. Local dry run includes only 209. Test fixtures establish neither real Stripe connectivity nor deployed billing. No live or hosted changes; no HTTP route/runtime activation yet.
+- Local unit/static checks pass; exact verification and remaining gates live in `docs/guidance/stripe-billing-foundation.md`. Awaiting explicit approval for `stripe@22.6.2` and one-time application of migration 209 to local. Next: SDK/runtime wiring, authorized local DB application, generated types and database proof, draft PR and independent fixed-SHA review.
+
+## 2026-09-26 — Approved local Stripe integration verification
+
+- Owner approved exact `stripe@22.6.2` and one-time local migration 209. Both completed; migration approval consumed. Generated database types match; Stripe and existing account-plan rollback harnesses pass, including forced partial failure rollback and lease takeover. Billing sandbox setting remains false. The older classroom harness correctly refuses the post-cutover local setting; CI runs it against fresh replay.
+- Added real SDK signature verification and local-only webhook/operator-worker routes, with pinned API version, bounded requests and shared database origin/redirect checks. New database harnesses are wired into CI. Credentials are absent, so no real Stripe payment rehearsal or live activation is claimed.
+- Proceeding with focused checks, draft publication and bounded independent fixed-SHA security/compatibility review. No merge or production authority implied.
+
+## 2026-09-26 — Stripe billing review remediation prepared
+
+- Draft PR #1366 is stacked on #1360. Initial fixed-SHA Sol/Terra review found financial-adjustment and retry-fairness blockers; architecture review found no separate blocker. Batched fixes verify immutable product/amount and exact unadjusted card payment, preserve signed event timestamps, and add migration210 for fair due selection, bounded transient retries, durable attention and audited operator requeue. Existing209 is unchanged and its local application permission is consumed.
+- Focused checks pass342 tests plus TypeScript, lint and architecture/UI/design policies; Pika audit passes. Migration210 remains unapplied pending exact local authorization, including clearing unrecoverable legacy provider-created timestamps. Its rollback database contracts and regenerated types remain pending; no real Stripe round trip, live enablement or merge is claimed. Targeted correction review follows before the application checkpoint.
+
+- Targeted Sol review found a missing nullable-schedule alteration, non-isolated retry fixtures, and early-event adoption compatibility. Batch2 fixes all three in unapplied210 and its harness, adding explicit claimed-state assertions and an early-event binding regression. No further schema application is authorized yet.
+
+## 2026-09-26 — Consolidated billing209 and rebuilt local database
+
+- User explicitly approved combining unreleased209/210, erasing/resetting local and reseeding. Consolidated the reviewed final functions and table definitions into209; removed210 and its upgrade-only backfill. Verified local target/history; one `supabase db reset --local --no-seed` replayed001–209 successfully. Reseeded via local runtime credentials with shared hosted env excluded. Local fixtures: three users and one classroom; billing sandbox off and no billing inbox records. Reset restores migration defaults, including local creation/Free-provisioning gates; production is unchanged.
+- Generated types match the rebuilt schema. Billing recovery/payment, account-plan and classroom-creation rollback harnesses pass. Corrected SQL harness evaluation ordering by capturing the mutation result before inspecting persisted state. Focused checks pass342 tests plus TypeScript/lint/policy checks; final integration review and CI remain pending. Earlier209/reset authorization is consumed. No live Stripe payment rehearsal, production change or merge.
+
+## 2026-09-26 — Billing binding/webhook race correction
+
+- Owner approved one extra correction batch and targeted review after the review-budget checkpoint. Added the same transaction advisory lock before subscription identity lookup in bind and record RPCs, and locked an existing binding before adopting its inbox events. Consolidated209 remains the unreleased schema source.
+- Added a deterministic multi-session regression for CI's disposable database. No local schema mutation/reset was attempted; the reseeded local database still has the prior209 function bodies. Generated type shapes are unchanged. Focused checks pass343 tests plus type/lint/policy gates; shell syntax and refusal outside CI pass. Targeted Sol review follows before stable-head CI; no live billing or merge authorized.
+
+## 2026-09-26 — Approved subscription launch policy
+
+- This task owns `codex/subscription-launch-policy`, stacked on the unchanged
+  Stripe foundation head 9b710884. Recorded final USD/CAD prices, Pro 12, 30-day
+  Plus trial, downgrade activity-based archiving and agreed lifecycle/AI rules.
+  Updated the access roadmap and durable decisions; distinguished approved
+  product terms from provisional AI costs and missing runtime implementation.
+- Documentation-only risk profile: none. No database, Stripe account, production
+  runtime or existing subscription changed. Next implementation milestone is an
+  isolated Stripe test checkout plus lifecycle/access verification.
+
+## 2026-09-26 — Rename launch plans to Basic, Pro and Max
+
+- Owner renamed Plus to Pro and the former Pro to Max. Updated canonical policy,
+  launch limits, trial/AI labels and decision log while retaining prices/benefits.
+  Documented legacy `plus` → Pro and `pro` → Max to avoid accidental entitlement
+  reassignment. Historical runtime/schema keys remain unchanged.
+- Continued policy PR1367; documentation-only verification and independent review
+  cover the cumulative approved-policy change. No runtime or live billing change.
+
+## 2026-09-26 — Land policy and prepare durable test checkout
+
+- Owner authorized merging the policy and orchestrating implementation. Merged
+  admin1360, foundation1366 and policy1367 into main after their final required
+  PR Gate passed. Descendant rebases preserved complete reviewed trees.
+- Coordinator owns `codex/stripe-checkout-trial`. Workers completed the immutable
+  12-variant Basic/Pro/Max USD/CAD catalog, test-price provisioning, durable
+  checkout/service/provider/schema contracts. Coordinator added authenticated
+  catalog/start/status routes, bounded worker integration and disabled-by-default
+  checkout configuration. Browser redirects cannot grant access.
+- Independent preapplication review found no blockers in migration211, checksum
+  `567b4dfe360266c1b70899e34b70a7ec388a5fdc99494162dbf524207e3c61e9`.
+  It remains unapplied. Shared local has unrelated gradebook210; do not reset it.
+  Await explicit approval for disposable local `pika_billing_checkout`, applying
+  001–209 plus211 without seed. Prior209 reset authorization was consumed.
+- Billing-focused tests192/18 files pass; focused checks passed293 tests and
+  architecture/UI/design policy checks, then stopped at TypeScript because eight
+  new RPCs await proper generated types. Changed-file ESLint, Pika audit and22 CI
+  workflow tests pass. SQL harness is wired into CI but unexecuted locally.
+- Keep the checkout PR draft until SQL tests, generated types, full focused checks
+  and independent implementation review complete. Stripe test credentials remain
+  absent; no provider objects/payments or live billing were created. Trial,
+  lifecycle/access enforcement, billing UI and provider rehearsal remain pending
+  under the durable coordinator plan in `docs/guidance/stripe-billing-foundation.md`.
+
+## 2026-09-26 — Reuse shared local database for checkout verification
+
+- Owner requested the existing local database. Rebased checkout PR1368 onto
+  main402f8028 after gradebook210 merged. Read-only comparison found exactly two
+  outdated209 billing functions; additive211 now reinstalls their canonical
+  definitions without changing209 or data. New static parity and SQL assertions
+  cover grants and identity-lock ordering. Billing tests194/18 files pass.
+- Local migration list and dry-run preview only211. No application, reset or seed
+  occurred. Updated211 SHA256 is
+  `e5c30fbb3fa0ead4d4c05ea617ed79e8a5ba3928615ece3991738e8c0d58dc03`.
+  Prior independent review covered the original211, not this compatibility delta.
+- Review checkpoint: one preapplication launch, zero remediation waves; the
+  45-minute elapsed window expired including the user-input pause. Further
+  independent reviews need explicit additional review-time approval. Local211
+  application also awaits exact authorization. PR stays draft; generated types,
+  database contracts and full implementation review remain pending.
+
+## 2026-09-26 — Apply and verify local checkout211
+
+- Owner approved45 additional review minutes and existing-local211 application
+  after review. Independent delta review passed frozen SHAe5c30fbb. Verified
+  local project/port/history and preview; one `supabase db push --local` applied
+  only211. That approval is consumed. No reset or reseed.
+- Billing and checkout rollback contracts pass; generated types refreshed from
+  applied schema. Security advisor reports no issues. Three users, one classroom
+  and the disabled billing sandbox are preserved. Focused checks pass207 tests,
+  TypeScript, lint and architecture/UI/design gates. Full financial/security and
+  compatibility review follows before ready CI; no provider payment performed.
+
+## 2026-09-26 — Preserve legacy plans during first checkout
+
+- Full review of41c75110 found a P1: legacy paid accounts could reserve first
+  checkout and be implicitly migrated. Batched fix adds unapplied212 requiring
+  unchanged legacy Free eligibility at reservation, resumption, progress save,
+  binding and first-payment claim. Changed plans become attention; existing
+  paid-finish revision fencing handles the subsequent race. Applied209/211 are
+  unchanged. API returns a safe409 for initial ineligibility.
+- Focused checks pass212 tests plus types/lint/policy checks. New SQL cases cover
+  legacy paid rejection and plan-change races; they remain unrun until exact
+  local212 authorization. The harness refuses a database without212. Migration
+  SHA256 `0053ac7fd7ed9a7bc1302c18fa8eed8657f98a09749cc651bdcbac6c285d0c50`.
+- Targeted correction/preapplication review follows as launch5/5, remediation
+  batch1. New212 and refreshed generated types/final integration review require
+  a further owner checkpoint. Previously issued provider sessions may still be
+  paid after an operator changes a plan; this patch prevents access overwrite,
+  and provider cancellation/refund handling remains a prelaunch lifecycle task.
+
+## 2026-09-26 — Apply checkout eligibility212 and prepare final review
+
+- Owner approved local212 and one final integration review up to20 minutes
+  (launch6). Verified the reviewed hash, local target/history and preview;
+  applied only212 once. Authorization consumed; no reset or reseed.
+- Expanded checkout SQL exposed a test-expression ordering bug: capture the
+  claim result before inspecting saved state. The test-only fix passes;
+  migration212 is unchanged. Checkout and foundation rollback contracts pass;
+  generated types refreshed. Existing three users, one classroom and disabled
+  sandbox are preserved. Final focused checks and review precede ready CI;
+  no Stripe provider purchase or live activation.
+
+## 2026-09-27 — Preserve test references during Preview saves
+
+Fixed the teacher editor resetting authoritative document state from document-free parent summaries. References now reset only on owner changes (test/classroom/API scope); detail reads and document mutations own same-test updates. Regression covers a parent summary refresh, Preview payload/source Markdown, and the save-triggered parent refresh; existing stale-response tests remain passing. No schema, API, grading, fullscreen, or visual contract changes. Reuse: existing split Tests editor and Preview/reference controls. Risk: workspace-state.
+
+Verification: TestDetailPanel 48/48; focused checks 276 tests plus architecture/UI/design/TypeScript/lint; 12 mocked Playwright contracts across teacher/student, desktop/mobile, light/dark (image uploads/preview/retry/zoom/answer retention plus Pattern Lab Markdown reference preview), with screenshots inspected at /tmp/pika-preview-browser-results. Local Supabase stopped; fixture server uses loopback-only placeholders. Production quiz content remains unchanged by this code task. Pending independent PR review and release.
+
+Independent review identified a pending document-mutation response crossing selected-test boundaries. Batched remediation guards all document callbacks and auto-sync by captured assessment scope, and keys document editors by owner so pending child state cannot carry into another test. Deferred edit regression verifies the new test's references and Preview payload survive the old response. Editor suite now 49/49; final focused checks and targeted review follow.
+Final integration review caught auto-sync attempt suppression resetting only on test ID changes. Second batch aligns suppression reset with classroom/API/test ownership, with both classroom and API transition regressions. Final focused checks and bounded correction/integration review follow.
+Third correction attaches an owner key to document state and prevents auto-sync effects from mixing prior documents with a newly selected endpoint during the transition render. Different-link API transition regression confirms only the new owner's link is synced. Final focused checks pass 280 tests plus architecture/UI/design/TypeScript/lint. Bounded final correction review pending; release remains separate.
+
+Main sync: resolved only continuity-document overlap after PR1368 landed; reviewed application/test blobs remain identical to fe74df85. Independent review complete, no blockers. Updated-base focused checks and exact-head CI precede authorized squash merge.
+
+## 2026-09-27 — Stage contextual Assignment inline-image fix
+
+- User authorized orchestration of the audited image-access boundary. This task owns codex/contextual-assignment-images based on main402f8028. Terra implementation worker staged the independent default-off exact user/Classroom gate, relationship-aware delivery, transaction-fenced reservation/finalization and migration213. A separate read-only worker mapped restricted API/RPC lifecycle verification; no classroom UI or billing activation is included.
+- Image-focused tests pass33 checks and TypeScript passes after installing existing locked dependencies into this worktree. Behavioral rollback-only database fixtures and CI wiring are authored, not executed. Database types remain unchanged. Source review and final focused checks follow; concurrent removal/submission proof and persisted manual lifecycle rehearsal remain outstanding before readiness.
+- Started Docker solely for local diagnostic checks. Local database history is001–212; main source is001–210 because billing PR1368 is still open. No migration, reset, hosted data, runtime gate or production change. Sync billing migration source before the exact local213 application/type-generation checkpoint; do not import or modify the other task's work.
+- Draft PR1371 at initial head a8679dff is attached. Full focused checks pass124 tests across14 files plus TypeScript/lint/policies; staged-file Pika audit passes. Sol/Terra initial source review found a fixture revocation ordering blocker, a creator-binding gap and missing archived-owner/revocation coverage. One remediation batch fixes all three; targeted Sol review follows. Local dry-run refused missing211/212 source; no history repair attempted. Review ledger: /private/tmp/pika-assignment-images-review-ledger.json (two initial launches, one initial wave, batch1; final integration deferred until schema/types evidence).
+- Correction68632997 pushed; repeated full focused checks pass124 tests and all static gates. Targeted Sol review found no actionable issue and independently passed33 tests plus shell syntax/diff hygiene. Three reviewer launches and one fix batch consumed. PR remains draft; next is billing1368 landing/sync, then exact local migration213 authorization, generated types, database/race evidence and final integration review. This final continuity note is local/uncommitted to preserve the reviewed source SHA.
+- User reported billing1368 merged and212 applied. Verified merge43c170b5, rebased this branch onto main, resolved only duplicate historical archive notes while retaining main's history, and restored the local handoff note. No image runtime/schema/harness/test content changed from reviewed68632997; migration remains213. Local history through212 verified; dry-run previews only213. This task's temporary rebase stash is consumed; unrelated existing stashes are untouched. Post-sync checks precede updating draft1371; exact local213 application authorization is still needed. No migration or production action performed.
+- Owner approved exact local213 application. Rechecked clean feature worktree, local history and dry-run containing only213; applied213 once successfully. Rollback-only image database contracts pass and fixture users are absent afterward. Generated types add only the three image RPC signatures; generation/check pass. No production migration or gate activation. Concurrency evidence and final integration review remain pending; keep1371 draft and check the existing review deadline before any additional reviewer launch.
+- Owner approved one final integration review capped at20minutes. Terra test worker added four actual removal/submission versus image reservation/finalization races; coordinator corrected test cleanup to use the local compatibility metadata protocol, exact fixture IDs, collision preflight and bounded background sessions. All four race cases and the mixed-role image contract passed; mutable fixtures/test schema artifacts clear, immutable anonymous PAL audit evidence intentionally remains. Synced main6650e76a (#1370), resolving only duplicate archive notes. Reviewed runtime/migration213 unchanged. Final checks/review/CI precede authorized merge; restricted full Assignment rehearsal is the next separate integration phase, not claimed by these image tests. No production or gate activation.
+
+## 2026-09-27 — Billing flow and edge-case verification
+
+- Owner: `codex/billing-flow-testing`. Audited the complete subscription policy against runtime; recorded implemented coverage, missing lifecycle/customer UI, and launch blockers in `docs/guidance/billing-test-report-2026-09-27.md`. Updated stale checkout/prod-schema continuity (211/212 were previously approved and applied; no migration applied this pass).
+- Added seven billing regressions and fixed empty signed webhook account/context fields bypassing presence validation. Red tests reproduced the defect; all198 billing tests and162 focused tests plus types/lint/architecture passed. Both local billing database rollback harnesses and Pika audit passed.
+- Real isolated Stripe sandbox:12 catalog variants; Pro purchase, decline/retry, unpaid expiry, Max CAD annual 3DS failure/retry, Basic annual recovery without webhook delivery, duplicate synthetic delivery and HTTP authorization/signature checks. Exactly one invoice effect per paid fixture and correct2/5/12 effective caps. Billing return route404 remains a launch blocker. No live billing or production writes; cleanup disabled local gate and canceled test subscriptions. Independent review and final CI follow.
+
+- Final CI caught the production-history summary format expected by an existing attendance migration contract (8,369 other tests passed). Restored `Prod DB 001–212` without changing the verified schema state or billing runtime. Targeted contract and focused checks precede correction review and a new stable-SHA CI run.
+- Reviewed head1f49006a passed all8,370 CI tests, production build, database contracts, Stripe binding/webhook race and PR Gate (run36337177687). Main then advanced via1371/39c948e8, causing only a duplicate archive-marker conflict. Rebased while draft, preserving both sessions; billing runtime/test patch is unchanged. Five reviewer launches and three correction/sync batches are consumed. New-head focused checks precede an owner checkpoint for one additional bounded rebase review; no new CI or merge until that review passes.
+
+## 2026-09-27 — Verify classroom rollout readiness
+
+- PR1371 merged as39c948e8 after final review,125 focused tests and full CI. Continued rollout in `codex/contextual-rollout-rehearsal`; startup verified. Fresh production history matches001–212; linked dry-run previews only213. Exact production213 approval requested, not yet received; no production writes or activation. Existing production PR1373 belongs to another active task and excludes1371; leave its branch untouched.
+- Read-only Terra source audit confirms live home still routes by global role; contextual home has no live consumer. Full classroom shell exposes legacy-role Tests, Daily, Grades/Gradebook, roster and content writes; owner Classwork also fetches legacy surveys. Full UI rollout therefore needs implementation, not just enabling gates. Restricted manual Assignment integration remains next; do not present an Assignment-only pilot as the completed full-classroom rollout. Private checkpoint: `/private/tmp/pika-contextual-rollout-status-20260927.md`.
+
+## 2026-09-27 — Orchestrate full rollout and correct owner precedence
+
+- Owner authorized production213. Fresh target/history and dry-run matched only213; the single application attempt timed out connecting before reporting execution. Subsequent linked history confirms001–212,213 pending. Fresh retry approval requested, no second attempt. Production code PR1373 merged separately as6904c2ed and excludes image1371.
+- Terra built a real local route-handler/DB manual Assignment rehearsal with mocked request identity only, exact-loopback/demo-JWT validation, outbound transport containment and tracked synthetic cleanup. Coordinator strengthened negative cases: six scenarios pass, but admitted owner with historical self-enrollment can open/create learner work (200 vs403). Pre-return saved grades/feedback remain correctly hidden. No browser/session or image-byte round trip claimed; exact-object byte cleanup is unavailable on the shared local stack.
+- Astra mapped five finite full-experience batches into the existing roadmap, then implemented forward migration214: eight contextual learner definitions reject the owner from locked classroom evidence while preserving signatures, locks, prior bodies and owner-history inspection. Added18 passing static regressions plus a rollback-only behavioral harness; migration214 not applied. Added both the harness and real route rehearsal to ephemeral-database CI. Focused checks and independent review follow; keep all product gates off.
+
+## 2026-09-27 — Apply migration 213 to production
+
+- Fresh exact owner authorization allowed one retry. Verified production binding zhioqbapgfcrronyuidm, merged1371 migration bytes, passing CI36335825410, matching history001–212 and dry-run containing only213. Linked push succeeded; post-apply history matches001–213 with no drift.
+- Read-only catalog check confirms all four image functions, empty search paths, service-only public entrypoints and no direct application-role access to the private helper. No214 application, deployment, rollout activation or account changes. Continuity-only edits remain uncommitted in the existing draft1376 worktree; PR review checkpoint is not resumed by this migration-only request.
+
+## 2026-09-27 — Merge owner precedence and begin shared admission
+
+- Resumed with explicit approval. PR1376/f3c00147 passed fullCI36344942279, including7realroute scenarios and browsermatrix; merged as7758ed44 and hubfastforwarded. Five reviewer passes, one formatting correction; final CI22m50s. User authorized214 for both targets. Production preflight previewed only214; apply succeeded and history001–214 plus8function ownerchecks/privileges were verified. No feature activation.
+- Local preflight instead found214 subscription_lifecycle,215 subscription_lifecycle_validation,216 subscription_lifecycle_warning_cleanup. No owner214 local apply or history repair attempted. Notified billing task Admin dashboard with exact collision and main/prod precedence; preserve all data and obtain coordinated repair authorization.
+- Began independent batch1 in codex/classroom-shared-admission: strict optional manual actorcohort consumed by materialGET authorization, preserving relationships/projections/legacy pairpilots. No migration, env activation, role/plan rewrite, home/page/signup or materialwrite change. Astra bounded design and Terra implementation; coordinator corrected absent-config behavior and strengthened sameactorA/B/C and archived-member tests.69targeted tests/types pass; focused checks and independent review follow.
+
+## 2026-09-27 Subscription automation implementation in progress
+
+Owner requested remaining lifecycle, classroom enforcement, billing screens and full sandbox testing after #1372 merged. Worktree `codex/subscription-automation`, base `85e8a2bf`; active coordinator plan in `docs/guidance/stripe-billing-foundation.md`. Phase 2 lifecycle storage/runtime and authenticated trial/effective-status endpoints are being implemented, with provider unpaid-invoice decoding. Migration214 is being authored, not applied; existing local database remains unchanged. New merge, production rollout, live billing and real email remain outside authorization. Phase 3 must cover timestamp-based scheduled assignments and subscription-specific archive protections before exposing launch UI. Preserve the separate dirty `subscription-lifecycle` prototype; it is not the runtime implementation.
+
+## 2026-09-27 Subscription lifecycle draft and first review
+
+Draft PR #1377 adds gated once-only Pro trials, finite version-bound paid access, renewal/grace/cancellation observations, due expiry, authenticated status/trial APIs, and rollback-only SQL contracts. Initial Sol/high security and Terra/high compatibility reviews completed; batch 1 fixes grace truncation by cancellation/original-invoice replay and missed uncollectible renewal recovery. Billing tests pass 285; SQL harness and generated RPC types remain pending exact local migration 214 approval. Existing local DB is still at 213 and unchanged. Further lifecycle commands/financial closeout, classroom restrictions, UI/notices and full sandbox rehearsal remain in the coordinator plan. No new merge, production, live billing or real email authority.

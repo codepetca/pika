@@ -6,7 +6,7 @@ import type { BillingEventReceipt } from '@/lib/server/billing/webhook'
 type BillingRpcName =
   | 'billing_record_event_v1'
   | 'billing_claim_subscription_v1'
-  | 'billing_finish_subscription_v1'
+  | 'billing_finish_lifecycle_v1'
   | 'billing_list_work_v1'
 
 /** Narrow transport seam; the runtime supplies the generated Supabase client. */
@@ -33,7 +33,7 @@ export function createBillingStore(client: BillingRpcClient): BillingStore & {
   }
   return {
     claimSubscription: request => call('billing_claim_subscription_v1', request),
-    finishSubscription: request => call('billing_finish_subscription_v1', request),
+    finishSubscription: request => call('billing_finish_lifecycle_v1', request),
     listWork: request => call('billing_list_work_v1', request),
     async recordEvent(receipt) {
       const result = billingEventReceiptResultSchema.safeParse(

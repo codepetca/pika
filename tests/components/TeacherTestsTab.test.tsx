@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { useEffect, useState, type ReactNode } from 'react'
 import { TeacherTestsTab } from '@/app/classrooms/[classroomId]/TeacherTestsTab'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
@@ -1734,6 +1735,30 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByText('Open')).not.toBeInTheDocument()
   })
 
+  it('shows an open badge when a closed test has reopened student access', async () => {
+    mockTestsResponse([
+      makeTest({
+        id: 'test-1',
+        title: 'Unit Test',
+        status: 'closed',
+        stats: {
+          total_students: 2,
+          responded: 1,
+          submitted: 1,
+          open_access: 1,
+          closed_access: 1,
+          questions_count: 3,
+        },
+      }),
+    ])
+
+    renderTab()
+
+    expect(await screen.findByText('Unit Test')).toBeInTheDocument()
+    expect(screen.getByText('Open')).toBeInTheDocument()
+    expect(screen.queryByText('Closed')).not.toBeInTheDocument()
+  })
+
   it('shows card reorder controls from the list actions menu and resets reorder mode when tests is revisited', async () => {
     mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
     const view = renderTab({ testsTabClickToken: 0 })
@@ -2089,11 +2114,11 @@ describe('TeacherTestsTab', () => {
     )
 
     const submittedStatusSort = screen.getByRole('button', {
-      name: 'Sort Submitted first, 2 students',
+      name: 'Status: Submitted, 2 students. Sort Returned first',
     })
-    expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'false')
-    fireEvent.click(submittedStatusSort)
     expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(submittedStatusSort)
+    expect(screen.getByRole('button', { name: 'Status: Returned, 0 students. Sort Submitted first' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('columnheader', { name: 'Status' })).toHaveAttribute('aria-sort', 'other')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select Alice Zephyr' }))
@@ -2125,7 +2150,7 @@ describe('TeacherTestsTab', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Score' }))
-    expect(submittedStatusSort).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Status: Returned, 0 students. Sort Returned first' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('columnheader', { name: 'Score' })).toHaveAttribute(
       'aria-sort',
       'ascending',
@@ -2135,6 +2160,54 @@ describe('TeacherTestsTab', () => {
       'aria-sort',
       'descending',
     )
+  })
+
+  it('toggles one Status icon and count between Submitted and Returned', async () => {
+    const statuses = ['not_started', 'in_progress', 'closed', 'returned', 'submitted'] as const
+    const students = statuses.map((status, index) => makeGradingStudent({
+      student_id: `student-${index + 1}`,
+      name: `Student ${index + 1} Alpha${index + 1}`,
+      first_name: `Student ${index + 1}`,
+      last_name: `Alpha${index + 1}`,
+      email: `student${index + 1}@example.com`,
+      status,
+    }))
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test' })] }),
+      })
+      .mockResolvedValueOnce(makeResultsResponse({ students }))
+
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+
+    const rowIds = () => Array.from(
+      screen.getByTestId('test-grading-student-scroll-pane').querySelectorAll('[data-test-grading-student-row-id]'),
+      (row) => row.getAttribute('data-test-grading-student-row-id'),
+    )
+    const statusHeader = await screen.findByRole('columnheader', { name: 'Status' })
+    const currentStatusButton = () => within(statusHeader).getByRole('button')
+    expect(within(statusHeader).getAllByRole('button')).toHaveLength(1)
+    expect(within(statusHeader).queryByText('Status')).not.toBeInTheDocument()
+    expect(currentStatusButton()).toHaveAccessibleName('Status: Submitted, 1 student. Sort Returned first')
+    expect(currentStatusButton()).toHaveTextContent('1')
+    expect(rowIds()).toEqual(['student-5', 'student-4', 'student-1', 'student-2', 'student-3'])
+    expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
+
+    currentStatusButton().focus()
+    expect(currentStatusButton()).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    expect(currentStatusButton()).toHaveAccessibleName('Status: Returned, 1 student. Sort Submitted first')
+    expect(currentStatusButton().querySelector('svg')).toHaveClass('lucide-reply')
+    expect(rowIds()).toEqual(['student-4', 'student-5', 'student-1', 'student-2', 'student-3'])
+    expect(statusHeader).toHaveAttribute('aria-sort', 'other')
+
+    fireEvent.click(currentStatusButton())
+    expect(currentStatusButton()).toHaveAccessibleName('Status: Submitted, 1 student. Sort Returned first')
+    expect(currentStatusButton()).toHaveTextContent('1')
+    expect(rowIds()).toEqual(['student-5', 'student-4', 'student-1', 'student-2', 'student-3'])
+    expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
   })
 
   it('clears the selected grading row with Escape', async () => {
@@ -2505,7 +2578,7 @@ describe('TeacherTestsTab', () => {
 
     expect(await screen.findByText('Alice Zephyr')).toBeInTheDocument()
     expect(screen.getByText('3/5')).toBeInTheDocument()
-    expect(screen.getByTestId('assessment-status-icon-submitted')).toHaveClass('text-success')
+    expect(within(screen.getByTestId('test-grading-student-row-student-1')).getByTestId('assessment-status-icon-submitted')).toHaveClass('text-success')
     expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Access' })).toBeInTheDocument()
     expect(screen.queryByText('Submitted')).not.toBeInTheDocument()

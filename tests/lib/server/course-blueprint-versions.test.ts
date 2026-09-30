@@ -18,6 +18,12 @@ const detail = {
   overview_markdown: 'Overview',
   outline_markdown: 'Outline',
   resources_markdown: 'Resources',
+  authoring_guidance: {
+    course_expectations_markdown: 'Use course terminology.',
+    assignment_guidance_markdown: 'Require a rationale.',
+    test_guidance_markdown: 'Use self-contained prompts.',
+    unit_exceptions: [],
+  },
   gradebook_use_weights: false,
   gradebook_assignments_weight: 70,
   gradebook_tests_weight: 30,
@@ -60,6 +66,18 @@ const detail = {
 } satisfies CourseBlueprintDetail
 
 describe('immutable course blueprint versions', () => {
+  it('stores teacher guidance in schema v3 and changes the digest when rules change', () => {
+    const first = buildCourseBlueprintSnapshot(detail)
+    expect(first.schema_version).toBe(3)
+    expect(first.authoring_guidance).toEqual(detail.authoring_guidance)
+
+    const revised = structuredClone(detail)
+    revised.authoring_guidance.test_guidance_markdown = 'Use complete prompts with examples.'
+    expect(hashCourseBlueprintSnapshot(buildCourseBlueprintSnapshot(revised))).not.toBe(
+      hashCourseBlueprintSnapshot(first),
+    )
+  })
+
   it('excludes database and teacher bookkeeping from canonical snapshots', () => {
     const first = buildCourseBlueprintSnapshot(detail)
     const changedBookkeeping = structuredClone(detail)

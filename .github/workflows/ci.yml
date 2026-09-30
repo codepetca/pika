@@ -138,6 +138,7 @@ jobs:
           bash scripts/check-account-plan-foundation-database.sh
           bash scripts/check-stripe-billing-foundation-database.sh
           bash scripts/check-stripe-checkout-database.sh
+          bash scripts/check-subscription-lifecycle-database.sh
 
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
@@ -186,6 +187,9 @@ jobs:
 
       - name: Verify Course Guide import shared lease and rate window
         run: bash scripts/check-course-guide-import-rate-limit-database.sh
+
+      - name: Verify Blueprint draft admission and rolling quota
+        run: bash scripts/check-course-blueprint-draft-admission-database.sh
 
       - name: Verify Bara attendance tenancy, ordering, and deletion guards
         run: pnpm run check:bara-attendance-db

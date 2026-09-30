@@ -1808,7 +1808,11 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   await expect(trailingActions).toBeVisible()
   const moreActionsButton = trailingActions.getByRole('button', { name: 'More actions' })
   await expect(moreActionsButton).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toBeVisible()
+  const statusHeader = scrollPane.getByRole('columnheader', { name: 'Status' })
+  const statusSortButton = statusHeader.getByRole('button')
+  await expect(statusHeader.getByRole('button')).toHaveCount(1)
+  await expect(statusSortButton).toHaveAccessibleName('Status: Submitted, 9 students. Sort Returned first')
+  await expect(statusSortButton).toContainText('9')
   await expect(page.getByRole('toolbar', { name: 'Test grading actions' })).toBeVisible()
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   expect(await page.evaluate(() => document.body.scrollHeight)).toBeLessThanOrEqual(
@@ -1861,6 +1865,7 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     animations: 'disabled',
   })
   await page.getByRole('button', { name: 'Cancel' }).click()
+  await page.mouse.move(0, 0)
 
   await page.screenshot({
     path: testInfo.outputPath(`test-grading-${viewport}-default.png`),
@@ -1871,8 +1876,37 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
     element.scrollTop = element.scrollHeight
   })
   await expect(scrollPane.locator('thead')).toBeVisible()
-  await page.getByRole('button', { name: 'Sort Submitted first, 9 students' }).click()
-  await expect(page.getByRole('button', { name: 'Sort Submitted first, 9 students' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[3].student_id)
+  if (viewport === 'mobile') {
+    await scrollPane.evaluate((element) => { element.scrollLeft = element.scrollWidth })
+    await expect(statusSortButton).toBeInViewport()
+  }
+  await statusSortButton.hover()
+  await expect(page.getByRole('tooltip')).toContainText('Submitted: 9 students')
+  await page.mouse.move(0, 0)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-status-submitted-first.png`),
+    animations: 'disabled',
+  })
+  await statusSortButton.click()
+  await expect(statusSortButton).toHaveAccessibleName('Status: Returned, 9 students. Sort Submitted first')
+  await expect(statusSortButton.locator('svg')).toHaveClass(/lucide-reply/)
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[4].student_id)
+  await page.mouse.move(0, 0)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-status-returned-first.png`),
+    animations: 'disabled',
+  })
+  await statusSortButton.click()
+  await expect(statusSortButton).toHaveAccessibleName('Status: Submitted, 9 students. Sort Returned first')
+  await expect(statusSortButton).toContainText('9')
+  await expect(statusSortButton.locator('svg')).toHaveClass(/lucide-circle/)
+  await expect(scrollPane.locator('[data-test-grading-student-row]').first()).toHaveAttribute('data-test-grading-student-row-id', students[3].student_id)
+  await page.mouse.move(0, 0)
+  await page.screenshot({
+    path: testInfo.outputPath(`test-grading-${viewport}-status-submitted-again.png`),
+    animations: 'disabled',
+  })
 
   await page.getByRole('checkbox', { name: 'Select Student 01 Alpha01' }).click()
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
@@ -2084,6 +2118,64 @@ test('shows publication language only at the publish transition', async ({ page 
   })
 })
 
+test('shows teacher test list status from effective student access', async ({ page }, testInfo) => {
+  const { viewport, theme } = getExperienceMetadata(testInfo)
+  await applyProjectTheme(page, testInfo)
+
+  await page.route('**/api/teacher/tests?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tests: [
+          {
+            id: '30000000-0000-4000-8000-000000000013',
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Reopened for one student',
+            status: 'closed',
+            position: 1,
+            documents: [],
+            stats: {
+              total_students: 2,
+              responded: 1,
+              submitted: 1,
+              open_access: 1,
+              closed_access: 1,
+              questions_count: 1,
+            },
+          },
+          {
+            id: '30000000-0000-4000-8000-000000000014',
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Closed for everyone',
+            status: 'active',
+            position: 0,
+            documents: [],
+            stats: {
+              total_students: 2,
+              responded: 1,
+              submitted: 1,
+              open_access: 0,
+              closed_access: 2,
+              questions_count: 1,
+            },
+          },
+        ],
+      }),
+    })
+  })
+
+  await page.goto('/e2e-fixtures/teacher-test-grading?view=list', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('Reopened for one student')).toBeVisible()
+  await expect(page.getByText('Closed for everyone')).toBeVisible()
+  await expect(page.getByText('Open', { exact: true })).toBeVisible()
+  await expect(page.getByText('Closed', { exact: true })).toBeVisible()
+  await page.screenshot({
+    path: testInfo.outputPath(`teacher-test-list-access-${viewport}-${theme}.png`),
+    animations: 'disabled',
+  })
+})
+
 test('shows published closed Tests to students without opening them', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   await applyProjectTheme(page, testInfo)
@@ -2238,6 +2330,7 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   const png = await createKarelGridRaster(page, 'image/png')
   const jpeg = await createKarelGridRaster(page, 'image/jpeg')
   let focusEventRequests = 0
+  let pngFileRequests = 0
   await applyProjectTheme(page, testInfo)
   await installExamWindowFixture(page)
 
@@ -2282,6 +2375,7 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ focus_summary: focusSummary }) })
   })
   await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/file`, async (route) => {
+    pngFileRequests += 1
     await route.fulfill({ status: 200, contentType: 'image/png', body: png })
   })
   await page.route(`**/api/student/tests/${IMAGE_REFERENCE_TEST_ID}/documents/30000000-0000-4000-8000-000000000034/file`, async (route) => {
@@ -2292,6 +2386,8 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   await page.getByRole('button', { name: 'Karel image references' }).click()
   await page.getByRole('button', { name: 'Start the Test', exact: true }).click()
   await page.getByRole('button', { name: 'Start test', exact: true }).click()
+  await expect.poll(() => pngFileRequests).toBe(1)
+  await expect.poll(() => page.locator('img[alt="Karel grid PNG"]').evaluate((image: HTMLImageElement) => image.complete)).toBe(true)
 
   const answer = page.getByLabel('Response for question 1', { exact: true })
   const imageZoomStatus = page.getByRole('group', { name: 'Image controls' }).locator('[aria-live="polite"]')
@@ -2315,6 +2411,7 @@ test('keeps a student answer while viewing and zooming a PNG reference image', a
   const listDocumentWidth = (await documentsPane.boundingBox())!.width
   await page.screenshot({ path: testInfo.outputPath(`student-test-list-${viewport}.png`), animations: 'disabled' })
   await page.getByRole('button', { name: 'Karel grid PNG', exact: true }).click()
+  expect(pngFileRequests).toBe(1)
   const image = page.getByRole('img', { name: 'Karel grid PNG' })
   await expect(image).toBeVisible()
   await page.waitForTimeout(350)
@@ -2365,6 +2462,7 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
   const { viewport } = getExperienceMetadata(testInfo)
   const png = await createKarelGridRaster(page, 'image/png')
   const jpeg = await createKarelGridRaster(page, 'image/jpeg')
+  let pngFileRequests = 0
   await applyProjectTheme(page, testInfo)
 
   let nextDocumentNumber = 34
@@ -2414,10 +2512,12 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
     await route.fallback()
   })
   await page.route('**/mock-storage/**', async (route) => { await route.fulfill({ status: 200 }) })
-  await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}/documents/${IMAGE_REFERENCE_PNG_ID}/file`, async (route) => {
-    await route.fulfill({ status: 200, contentType: 'image/png', body: png })
-  })
   await page.route(`**/api/teacher/tests/${IMAGE_REFERENCE_TEST_ID}/documents/*/file*`, async (route) => {
+    if (route.request().url().includes(`/${IMAGE_REFERENCE_PNG_ID}/file`)) {
+      pngFileRequests += 1
+      await route.fulfill({ status: 200, contentType: 'image/png', body: png })
+      return
+    }
     if (remainingJpegFailures > 0) {
       remainingJpegFailures -= 1
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'temporary image delivery failure' }) })
@@ -2452,6 +2552,8 @@ test('uploads PNG and JPEG references, projects them into teacher preview, and r
     Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => document.documentElement })
   })
   await page.getByRole('button', { name: 'Maximize Window' }).click()
+  await expect.poll(() => pngFileRequests).toBe(1)
+  await expect.poll(() => page.locator('img[alt="Karel grid PNG"]').evaluate((image: HTMLImageElement) => image.complete)).toBe(true)
   await page.getByRole('button', { name: 'karel-grid.jpeg', exact: true }).click()
   if (viewport === 'desktop') {
     await expect(page.getByRole('separator', { name: 'Resize documents and questions panes' })).toHaveAttribute('aria-valuenow', '50')
@@ -2550,7 +2652,7 @@ test.describe('teacher experience matrix', () => {
 
     await expect(page).toHaveURL((url) => (
       url.pathname === '/login' &&
-      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('next') === '/teacher/blueprints?section=overview' &&
       url.searchParams.get('reason') === 'session-expired'
     ))
     await expect(page.getByRole('status')).toContainText('Your session expired')
@@ -2562,7 +2664,7 @@ test.describe('teacher experience matrix', () => {
     await page.getByLabel('Password').fill('test1234')
     await page.getByRole('button', { name: 'Login' }).click()
 
-    await expect(page).toHaveURL(/\/teacher\/blueprints$/)
+    await expect(page).toHaveURL(/\/teacher\/blueprints\?section=overview$/)
     await expect(page.getByRole('navigation', { name: 'Teacher tools' })).toBeVisible()
     await verifyProjectContract(page, testInfo)
   })
@@ -2583,7 +2685,7 @@ test.describe('teacher experience matrix', () => {
 
     await expect(page).toHaveURL((url) => (
       url.pathname === '/login' &&
-      url.searchParams.get('next') === '/teacher/blueprints' &&
+      url.searchParams.get('next') === '/teacher/blueprints?section=overview' &&
       url.searchParams.get('reason') === 'session-changed'
     ))
     await expect(page.getByRole('status')).toContainText('signed-in account changed')
@@ -2702,7 +2804,8 @@ test.describe('teacher experience matrix', () => {
 
     await page.goto('/teacher/blueprints', { waitUntil: 'domcontentloaded' })
     await page.locator('aside').getByRole('button', { name: /Publication Lifecycle Fixture/ }).click()
-    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await page.getByRole('tab', { name: 'Settings' }).click()
+    await page.getByRole('tab', { name: 'Publish' }).click()
 
     const publishCheckbox = page.getByRole('checkbox', {
       name: 'Publish this planned course site',

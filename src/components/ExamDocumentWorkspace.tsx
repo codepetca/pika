@@ -94,6 +94,12 @@ export function ExamDocumentWorkspace({
     () => documents.filter((document) => document.source !== 'text' && !document.imageType && Boolean(document.url)),
     [documents],
   )
+  // Warm one reference image when the workspace opens; other images load on demand.
+  const firstImageDocument = documents.find((document) => document.imageType && document.url)
+  const displayedImageDocument = activeDocument?.imageType && activeDocument.url
+    ? activeDocument
+    : firstImageDocument
+  const imageDocumentIsVisible = Boolean(activeDocument?.imageType && activeDocument.id === displayedImageDocument?.id)
 
   useEffect(() => {
     removePointerResizeListenersRef.current?.()
@@ -373,9 +379,14 @@ export function ExamDocumentWorkspace({
                   </div>
                 ) : null}
 
-                {activeDocument?.imageType && activeDocument.url ? (
-                  <div className="absolute inset-0">
-                    <TestImageDocumentViewer key={`${resetKey}:${activeDocument.id}`} title={activeDocument.title} url={activeDocument.url} />
+                {displayedImageDocument?.url ? (
+                  <div aria-hidden={!imageDocumentIsVisible} className={cn('absolute inset-0', !imageDocumentIsVisible && 'hidden')}>
+                    <TestImageDocumentViewer
+                      key={`${resetKey}:${displayedImageDocument.id}`}
+                      title={displayedImageDocument.title}
+                      url={displayedImageDocument.url}
+                      active={imageDocumentIsVisible}
+                    />
                   </div>
                 ) : null}
 

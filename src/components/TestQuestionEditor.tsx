@@ -16,6 +16,7 @@ interface Props {
   questionNumber: number
   isEditable: boolean
   structureLocked?: boolean
+  choiceSavePending?: boolean
   onChange: (question: TestAssessmentQuestion, options?: { force?: boolean }) => void
   onDelete: (questionId: string) => void
   onDuplicate?: (questionId: string) => void
@@ -80,6 +81,7 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
   questionNumber,
   isEditable,
   structureLocked = false,
+  choiceSavePending = false,
   onChange,
   onDelete,
   onDuplicate,
@@ -151,8 +153,27 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
     const questionText = state.question_text.trim()
     if (structureLocked) {
       if (!questionText) { setError('Question text is required'); return false }
+      const nextOptions = state.question_type === 'multiple_choice'
+        ? state.options.map((option) => option.trim())
+        : question.options
+      if (state.question_type === 'multiple_choice') {
+        if (nextOptions.length !== question.options.length) {
+          setError('Choice count is locked after a student starts')
+          return false
+        }
+        if (nextOptions.some((option) => !option)) {
+          setError('Options cannot be empty')
+          return false
+        }
+      }
       setError('')
-      if (questionText !== question.question_text) onChange({ ...question, question_text: questionText }, options)
+      const choiceChanged = JSON.stringify(nextOptions) !== JSON.stringify(question.options)
+      if (questionText !== question.question_text || choiceChanged) {
+        onChange(
+          { ...question, question_text: questionText, options: nextOptions },
+          { force: options?.force === true || choiceChanged },
+        )
+      }
       return true
     }
     if (!questionText && variant !== 'split') {
@@ -308,7 +329,7 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
             >
               <Input
                 value={option}
-                disabled={!isStructureEditable}
+                disabled={!isEditable || isBlankRow || (structureLocked && choiceSavePending)}
                 aria-label={`Question ${questionNumber} option ${letter}`}
                 placeholder={`Option ${letter}`}
                 onChange={(event) => {
@@ -371,10 +392,11 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
               }}
               className="h-4 w-4"
             />
-            {isStructureEditable ? (
+            {isEditable ? (
               <Input
                 type="text"
                 value={option}
+                disabled={structureLocked && choiceSavePending}
                 onChange={(event) => updateOption(index, event.target.value)}
                 onBlur={() => handleSave()}
                 aria-label={`Question ${questionNumber} option ${optionLetter}`}

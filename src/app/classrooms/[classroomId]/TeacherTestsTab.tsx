@@ -25,6 +25,7 @@ import {
   AssessmentStatusIndicator,
   getTestGradingWorkStatusDisplay,
 } from '@/components/AssessmentStatusIndicator'
+import { AssessmentStatusIcon, type AssessmentStatusIconState } from '@/components/AssessmentStatusIcon'
 import { TestStudentGradingPanel } from '@/components/TestStudentGradingPanel'
 import { TeacherTestAuthoringDialog } from '@/components/test-workspace/TeacherTestAuthoringDialog'
 import {
@@ -46,6 +47,7 @@ import {
 } from '@/lib/events'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { getTestExitCount } from '@/lib/tests'
+import { compareTestGradingStatusGroups, getTestGradingStatusGroup, type TestGradingStatusGroup, type TestGradingStatusSort } from '@/lib/test-grading-status-sort'
 import { getDisplayAssessmentTitle, isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { validateTestQuestionCreate } from '@/lib/test-questions'
@@ -133,21 +135,23 @@ type TestGradingSortColumn =
   | 'exits'
   | 'away'
 type TestGradingResizableColumn = 'first' | 'last' | 'status' | 'access' | 'score' | 'last_activity'
-type TestGradingStatusSort = Extract<TestGradingStudentRow['status'], 'closed' | 'submitted' | 'returned'>
-
 const TEST_GRADING_COLUMN_LIMITS = {
   first: { defaultWidth: 96, min: 72, max: 180 },
   last: { defaultWidth: 120, min: 80, max: 220 },
-  status: { defaultWidth: 188, min: 152, max: 240 },
+  status: { defaultWidth: 88, min: 72, max: 160 },
   access: { defaultWidth: 72, min: 56, max: 112 },
   score: { defaultWidth: 80, min: 64, max: 120 },
   last_activity: { defaultWidth: 104, min: 80, max: 160 },
 } satisfies Record<TestGradingResizableColumn, { defaultWidth: number; min: number; max: number }>
 
-const TEST_GRADING_SORTABLE_STATUSES: TestGradingStatusSort[] = ['closed', 'submitted', 'returned']
+const TEST_GRADING_SORTABLE_STATUSES: TestGradingStatusSort[] = ['submitted', 'returned']
+
+const TEST_GRADING_STATUS_CHIP_META: Record<TestGradingStatusSort, { label: string; iconState: AssessmentStatusIconState }> = {
+  submitted: { label: 'Submitted', iconState: 'submitted' },
+  returned: { label: 'Returned', iconState: 'returned' },
+}
 
 const TEST_GRADING_STATUS_CHIP_CLASSES: Record<TestGradingStatusSort, string> = {
-  closed: 'bg-surface-3 text-text-muted',
   submitted: 'bg-success-bg text-success',
   returned: 'bg-info-bg text-primary',
 }
@@ -162,35 +166,39 @@ function TestGradingStatusSortChip({
   status,
   count,
   active,
+  nextStatus,
   onClick,
 }: {
   status: TestGradingStatusSort
   count: number
   active: boolean
+  nextStatus: TestGradingStatusSort
   onClick: () => void
 }) {
-  const label = getTestGradingWorkStatusDisplay(status).label
+  const { label, iconState } = TEST_GRADING_STATUS_CHIP_META[status]
   const studentLabel = count === 1 ? 'student' : 'students'
+  const nextLabel = TEST_GRADING_STATUS_CHIP_META[nextStatus].label
 
   return (
-    <Tooltip content={`${count} ${studentLabel} ${label.toLowerCase()}. Sort ${label.toLowerCase()} first`}>
+    <Tooltip content={`${label}: ${count} ${studentLabel}. Click to sort ${nextLabel.toLowerCase()} first.`}>
       <Button
         type="button"
         variant="ghost"
         size="xs"
         className="rounded-badge px-0 py-0"
-        aria-label={`Sort ${label} first, ${count} ${studentLabel}`}
+        aria-label={`Status: ${label}, ${count} ${studentLabel}. Sort ${nextLabel} first`}
         aria-pressed={active}
         onClick={onClick}
       >
         <span
           aria-hidden="true"
           className={cn(
-            'inline-flex h-6 min-w-6 items-center justify-center rounded-badge px-2 text-sm font-semibold',
+            'inline-flex h-6 min-w-9 items-center justify-center gap-1 rounded-badge px-1.5 text-sm font-semibold',
             TEST_GRADING_STATUS_CHIP_CLASSES[status],
             active && 'ring-foundation ring-focus ring-offset-2 ring-offset-surface',
           )}
         >
+          <AssessmentStatusIcon state={iconState} className="!h-3.5 !w-3.5" />
           {count}
         </span>
       </Button>
@@ -453,8 +461,8 @@ export function TeacherTestsTab({
   const [gradingSortState, setGradingSortState] = useState<{
     column: TestGradingSortColumn
     direction: 'asc' | 'desc'
-    status: TestGradingStatusSort | null
-  }>({ column: 'last_name', direction: 'asc', status: null })
+    status: TestGradingStatusSort
+  }>({ column: 'status', direction: 'asc', status: 'submitted' })
   const [gradingInspectorWidth, setGradingInspectorWidth] = useState(50)
   const [testGradingPanelRefreshToken, setTestGradingPanelRefreshToken] = useState(0)
   const [testGradingSaveState, setTestGradingSaveState] = useState<{
@@ -617,25 +625,22 @@ export function TeacherTestsTab({
           )
         }
         if (column === 'status') {
-          if (status) {
-            const statusRank = Number(b.status === status) - Number(a.status === status)
-            if (statusRank !== 0) return statusRank
-            return compareByNameFields(
-              {
-                firstName: aNameParts.firstName,
-                lastName: aNameParts.lastName,
-                id: a.email || a.student_id,
-              },
-              {
-                firstName: bNameParts.firstName,
-                lastName: bNameParts.lastName,
-                id: b.email || b.student_id,
-              },
-              'last_name',
-              'asc',
-            )
-          }
-          return applyDirection(a.status.localeCompare(b.status), direction)
+          const statusGroupRank = compareTestGradingStatusGroups(a.status, b.status, status)
+          if (statusGroupRank !== 0) return statusGroupRank
+          return compareByNameFields(
+            {
+              firstName: aNameParts.firstName,
+              lastName: aNameParts.lastName,
+              id: a.email || a.student_id,
+            },
+            {
+              firstName: bNameParts.firstName,
+              lastName: bNameParts.lastName,
+              id: b.email || b.student_id,
+            },
+            'last_name',
+            'asc',
+          )
         }
         if (column === 'access') {
           const aAccess = getEffectiveTestAccess(a, selectedTestWorkspace?.status)
@@ -676,24 +681,28 @@ export function TeacherTestsTab({
     selectedCount: batchSelectedCount,
   } = useTableSelection(gradingRowIds)
   const { columnWidths: gradingColumnWidths, setColumnWidth: setGradingColumnWidth } = useTableColumnWidths({
-    storageKey: 'teacher-test-grading:v2',
+    storageKey: 'teacher-test-grading:v3',
     columns: TEST_GRADING_COLUMN_LIMITS,
   })
 
   const handleGradingSort = useCallback((column: TestGradingSortColumn) => {
-    setGradingSortState((previous) => ({ ...toggleSort(previous, column), status: null }))
+    setGradingSortState((previous) => ({ ...toggleSort(previous, column), status: previous.status }))
   }, [])
 
-  const handleGradingStatusSort = useCallback((status: TestGradingStatusSort) => {
-    setGradingSortState({ column: 'status', direction: 'asc', status })
+  const handleGradingStatusGroupSort = useCallback(() => {
+    setGradingSortState((previous) => {
+      const currentIndex = TEST_GRADING_SORTABLE_STATUSES.indexOf(previous.status)
+      const status = previous.column === 'status'
+        ? TEST_GRADING_SORTABLE_STATUSES[(currentIndex + 1) % TEST_GRADING_SORTABLE_STATUSES.length]
+        : previous.status
+      return { column: 'status', direction: 'asc', status }
+    })
   }, [])
 
   const gradingStatusCounts = useMemo(() => {
-    const counts: Record<TestGradingStatusSort, number> = { closed: 0, submitted: 0, returned: 0 }
+    const counts: Record<TestGradingStatusGroup, number> = { not_submitted: 0, submitted: 0, returned: 0 }
     for (const student of gradingStudents) {
-      if (student.status === 'closed' || student.status === 'submitted' || student.status === 'returned') {
-        counts[student.status] += 1
-      }
+      counts[getTestGradingStatusGroup(student.status)] += 1
     }
     return counts
   }, [gradingStudents])
@@ -2040,6 +2049,12 @@ export function TeacherTestsTab({
     [selectGradingStudent, selectedStudentId]
   )
 
+  const isStatusGroupSortActive = gradingSortState.column === 'status'
+  const statusSort = gradingSortState.status
+  const nextStatusSort = isStatusGroupSortActive
+    ? TEST_GRADING_SORTABLE_STATUSES[(TEST_GRADING_SORTABLE_STATUSES.indexOf(statusSort) + 1) % TEST_GRADING_SORTABLE_STATUSES.length]
+    : statusSort
+
   const gradingTable = (
     <div
       className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
@@ -2096,7 +2111,7 @@ export function TeacherTestsTab({
         >
           <TeacherWorkSurfaceTableFrame
             ref={gradingStudentTableScrollRef}
-            className="min-h-0 rounded-md border border-border"
+            className="min-h-0 rounded-md border border-border scrollbar-hover"
             data-testid="test-grading-student-scroll-pane"
             onScroll={preserveGradingStudentTableScrollPosition}
           >
@@ -2210,26 +2225,19 @@ export function TeacherTestsTab({
                 <DataTableHeaderCell
                   className="group relative !p-0"
                   aria-label="Status"
-                  aria-sort={gradingSortState.column === 'status' ? 'other' : 'none'}
+                  aria-sort={isStatusGroupSortActive
+                    ? statusSort === 'submitted' ? 'ascending' : 'other'
+                    : 'none'}
                   style={{ width: `${gradingColumnWidths.status}px`, maxWidth: `${gradingColumnWidths.status}px` }}
                 >
-                  <div className="flex min-h-control items-center gap-0.5 px-1 sm:px-2">
-                    <span className="hidden shrink-0 2xl:inline">Status</span>
-                    <span
-                      role="group"
-                      aria-label="Sort Test grading by status"
-                      className="flex min-w-0 items-center"
-                    >
-                      {TEST_GRADING_SORTABLE_STATUSES.map((status) => (
-                        <TestGradingStatusSortChip
-                          key={status}
-                          status={status}
-                          count={gradingStatusCounts[status]}
-                          active={gradingSortState.column === 'status' && gradingSortState.status === status}
-                          onClick={() => handleGradingStatusSort(status)}
-                        />
-                      ))}
-                    </span>
+                  <div className="flex min-h-control items-center px-1 sm:px-2">
+                    <TestGradingStatusSortChip
+                      status={statusSort}
+                      count={gradingStatusCounts[statusSort]}
+                      active={isStatusGroupSortActive}
+                      nextStatus={nextStatusSort}
+                      onClick={handleGradingStatusGroupSort}
+                    />
                   </div>
                   <ColumnResizeHandle
                     label="Status"
@@ -2613,7 +2621,7 @@ export function TeacherTestsTab({
   ) : null
 
   const selectedTestContext = selectedTestWorkspace ? (
-    <div className="flex min-w-0 max-w-full items-center gap-2">
+    <div className="flex w-full min-w-0 items-center gap-2">
       <Button
         type="button"
         variant="ghost"
@@ -2622,7 +2630,7 @@ export function TeacherTestsTab({
         title={getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}
         disabled={isReadOnly}
         onClick={() => openSelectedTestEditor()}
-        className="h-11 min-h-11 min-w-11 max-w-full flex-1 justify-start px-2 text-left font-medium text-text-default sm:flex-none sm:max-w-32 xl:max-w-64"
+        className="h-11 min-h-11 min-w-11 flex-1 justify-start px-2 text-left text-lg font-medium text-text-default sm:text-xl"
       >
         <span className="min-w-0 truncate">{getDisplayAssessmentTitle(selectedTestWorkspace.title, 'Untitled Test')}</span>
       </Button>
@@ -2692,7 +2700,7 @@ export function TeacherTestsTab({
       testId="test-grading-context-bar"
       className="py-2 sm:py-1"
       context={selectedTestContext}
-      contextClassName="col-span-3 row-start-1 max-w-full overflow-visible sm:col-span-1 sm:col-start-1 sm:row-start-1"
+      contextClassName="col-span-3 row-start-1 w-full max-w-full justify-self-stretch overflow-visible sm:col-span-1 sm:col-start-1 sm:row-start-1"
       primary={selectedTestControls}
       primaryClassName="col-start-2 row-start-2 sm:row-start-1"
       actions={selectedTestUtilities}
@@ -2930,7 +2938,7 @@ export function TeacherTestsTab({
       inspector={gradingInspector ? (
         <TestWorkspacePaneFrame>
           <div
-            className="h-full min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto"
+            className="h-full min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto scrollbar-hover"
             data-testid="test-grading-inspector-scroll-pane"
           >
             {gradingInspector}

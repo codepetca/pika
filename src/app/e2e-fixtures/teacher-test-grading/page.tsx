@@ -33,18 +33,24 @@ const classroom: Classroom = {
   updated_at: '2026-08-27T12:00:00.000Z',
 }
 
-export default function TeacherTestGradingFixturePage() {
+export default async function TeacherTestGradingFixturePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ view?: string }>
+}) {
   if (process.env.NODE_ENV === 'production' && process.env.PIKA_E2E_FIXTURES !== 'true') {
     notFound()
   }
+
+  const view = (await searchParams)?.view
 
   return (
     <main className="flex h-screen min-h-0 flex-col px-3 pb-3">
       <PageDensityProvider density="teacher">
         <TeacherTestsTab
           classroom={classroom}
-          selectedTestId="30000000-0000-4000-8000-000000000013"
-          selectedTestMode="grading"
+          selectedTestId={view === 'list' ? null : '30000000-0000-4000-8000-000000000013'}
+          selectedTestMode={view === 'list' ? null : 'grading'}
         />
       </PageDensityProvider>
     </main>

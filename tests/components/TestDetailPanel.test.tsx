@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TooltipProvider } from '@/ui'
 import { createMockTest, createMockTestQuestion } from '../helpers/mocks'
+import { testToMarkdown } from '@/lib/test-markdown'
 import type { TestAssessmentWithStats, TestAssessmentQuestion, TestResultsAggregate } from '@/types'
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -93,6 +94,7 @@ describe('TestDetailPanel', () => {
       title?: string
       show_results?: boolean
       version?: number
+      structureLocked?: boolean
     }
   ) {
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
@@ -108,7 +110,7 @@ describe('TestDetailPanel', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        editingPolicy: { structureLocked: false },        draft: {
+        editingPolicy: { structureLocked: draftOverrides?.structureLocked ?? false }, draft: {
           version: draftOverrides?.version ?? 1,
           content: draftContent,
         },
@@ -123,6 +125,228 @@ describe('TestDetailPanel', () => {
     }
     return fetchMock
   }
+
+  it('shows the updated post-start boundary and leaves existing MC choice text editable', async () => {
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    expect(await screen.findByText(/You can correct question wording, instructions, and one existing choice per question at a time/)).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Mark option A correct' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Reorder option A/ })).toBeDisabled()
+  })
+
+  it('saves started-Test choice corrections one at a time before another choice can change', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const firstPatch = createDeferred<Response>()
+    const patchBodies: Array<{ version: number; content: { questions: TestAssessmentQuestion[] } }> = []
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) => {
+      if (options?.method !== 'PATCH') return jsonResponse({})
+      const body = JSON.parse(String(options.body)) as typeof patchBodies[number]
+      patchBodies.push(body)
+      return patchBodies.length === 1
+        ? firstPatch.promise
+        : Promise.resolve(jsonResponse({
+            editingPolicy: { structureLocked: true },
+            draft: { version: 3, content: body.content },
+          }))
+    })
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const firstChoice = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(firstChoice, { target: { value: 'Reddish' } })
+    fireEvent.blur(firstChoice)
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+    expect(patchBodies[0].content.questions[0].options).toEqual(['Reddish', 'Blue', 'Green'])
+    expect(screen.getByRole('textbox', { name: 'Question 1 option B' })).toBeDisabled()
+
+    await act(async () => {
+      firstPatch.resolve(jsonResponse({
+        editingPolicy: { structureLocked: true },
+        draft: { version: 2, content: patchBodies[0].content },
+      }))
+      await firstPatch.promise
+    })
+    const secondChoice = await screen.findByRole('textbox', { name: 'Question 1 option B' })
+    await waitFor(() => expect(secondChoice).toBeEnabled())
+    fireEvent.change(secondChoice, { target: { value: 'Bluish' } })
+    fireEvent.blur(secondChoice)
+    await waitFor(() => expect(patchBodies).toHaveLength(2))
+    expect(patchBodies[1].version).toBe(2)
+    expect(patchBodies[1].content.questions[0].options).toEqual(['Reddish', 'Bluish', 'Green'])
+  })
+
+  it('restores the prior choice text when an immediate correction save fails', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) => options?.method === 'PATCH'
+      ? Promise.resolve({ ok: false, status: 500, json: async () => ({ error: 'Save unavailable' }) })
+      : jsonResponse({}))
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const choice = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(choice, { target: { value: 'Reddish' } })
+    fireEvent.blur(choice)
+    await waitFor(() => expect(screen.getByText('Save unavailable')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
+    expect(screen.getByRole('textbox', { name: 'Question 1 option B' })).toBeEnabled()
+  })
+
+  it('keeps a failed choice correction out of a title save queued behind it', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const firstPatch = createDeferred<Response>()
+    const patchBodies: Array<{ version: number; content: { title: string; questions: TestAssessmentQuestion[] } }> = []
+    mockFetchForTest([sampleQuestions[0]], undefined, { structureLocked: true })
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) => {
+      if (options?.method !== 'PATCH') return jsonResponse({})
+      const body = JSON.parse(String(options.body)) as typeof patchBodies[number]
+      patchBodies.push(body)
+      return patchBodies.length === 1
+        ? firstPatch.promise
+        : Promise.resolve(jsonResponse({
+            editingPolicy: { structureLocked: true },
+            draft: { version: 2, content: body.content },
+          }))
+    })
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="split"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const choice = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(choice, { target: { value: 'Reddish' } })
+    fireEvent.blur(choice)
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+
+    const title = screen.getByPlaceholderText('Untitled Test')
+    fireEvent.change(title, { target: { value: 'Retitled Test' } })
+    fireEvent.blur(title)
+    expect(patchBodies).toHaveLength(1)
+
+    await act(async () => {
+      firstPatch.resolve({ ok: false, status: 500, json: async () => ({ error: 'Save unavailable' }) } as Response)
+      await firstPatch.promise
+    })
+    await waitFor(() => expect(patchBodies).toHaveLength(2))
+    expect(patchBodies[1].content.title).toBe('Retitled Test')
+    expect(patchBodies[1].content.questions[0].options).toEqual(['Red', 'Blue', 'Green'])
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
+  })
+
+  it('preserves a Markdown correction to another choice when the first choice save fails', async () => {
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    const firstPatch = createDeferred<Response>()
+    const question = createMockTestQuestion({
+      id: markdownQuestionId1,
+      question_text: 'Favorite color?',
+      options: ['Red', 'Blue', 'Green'],
+      correct_option: 0,
+      position: 0,
+    })
+    const patchBodies: Array<{ content: { questions: TestAssessmentQuestion[]; source_markdown: string } }> = []
+    mockFetchForTest([question], undefined, { title: 'Queued Markdown Test', structureLocked: true })
+    fetchMock.mockImplementation((_url: string, options?: RequestInit) => {
+      if (options?.method !== 'PATCH') return jsonResponse({ test: { documents: [] } })
+      const body = JSON.parse(String(options.body)) as typeof patchBodies[number]
+      patchBodies.push(body)
+      return patchBodies.length === 1
+        ? firstPatch.promise
+        : Promise.resolve(jsonResponse({
+            editingPolicy: { structureLocked: true },
+            draft: { version: patchBodies.length, content: body.content },
+          }))
+    })
+
+    render(
+      <TestDetailPanel
+        test={makeTestWithStats({ title: 'Queued Markdown Test', status: 'active' })}
+        classroomId="classroom-1"
+        onTestUpdate={vi.fn()}
+        testQuestionLayout="summary-detail"
+      />,
+      { wrapper: Wrapper },
+    )
+
+    const firstChoice = await screen.findByRole('textbox', { name: 'Question 1 option A' })
+    fireEvent.change(firstChoice, { target: { value: 'Reddish' } })
+    fireEvent.blur(firstChoice)
+    await waitFor(() => expect(patchBodies).toHaveLength(1))
+
+    const markdownPane = screen.getByTestId('test-question-markdown-pane')
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
+    fireEvent.change(within(markdownPane).getByTestId('test-markdown-editor'), {
+      target: {
+        value: testToMarkdown({
+          title: 'Queued Markdown Test',
+          show_results: false,
+          questions: [{ ...question, options: ['Reddish', 'Bluish', 'Green'] }],
+          documents: [],
+        }),
+      },
+    })
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
+    expect(patchBodies).toHaveLength(1)
+
+    await act(async () => {
+      firstPatch.resolve({ ok: false, status: 500, json: async () => ({ error: 'Save unavailable' }) } as Response)
+      await firstPatch.promise
+    })
+    await waitFor(() => expect(patchBodies).toHaveLength(2))
+    expect(patchBodies[1].content.questions[0].options).toEqual(['Red', 'Bluish', 'Green'])
+    expect(patchBodies[1].content.source_markdown).toContain('Bluish')
+    expect(patchBodies[1].content.source_markdown).not.toContain('Reddish')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
+
+    await waitFor(() => expect(within(markdownPane).getByRole('button', { name: 'Edit Markdown' })).toBeEnabled())
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Edit Markdown' }))
+    fireEvent.change(within(markdownPane).getByTestId('test-markdown-editor'), {
+      target: {
+        value: testToMarkdown({
+          title: 'Queued Markdown Test',
+          show_results: false,
+          questions: [{ ...question, options: ['Reddish', 'Bluish', 'Green'] }],
+          documents: [],
+        }),
+      },
+    })
+    fireEvent.click(within(markdownPane).getByRole('button', { name: 'Apply Markdown' }))
+    await waitFor(() => expect(patchBodies).toHaveLength(3))
+    expect(patchBodies[2].content.questions[0].options).toEqual(['Reddish', 'Bluish', 'Green'])
+    expect(patchBodies[2].content.source_markdown).toContain('Reddish')
+  })
 
   it('uses the split authoring layout with one navigable question and real document actions', async () => {
     mockFetchForTest(sampleQuestions)

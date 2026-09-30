@@ -38,6 +38,7 @@ const EVENTS = [
   'grading.assignment_enrollment',
   'grading.assignment_document',
   'grading.test_run_reference_cache',
+  'grading.test_background_tick',
   'grading.suggestion_enrollment',
   'grading.suggestion_reference_cache',
 ] as const

@@ -1,7 +1,32 @@
-export const TEST_WORDING_ONLY_MESSAGE =
-  'A student has started. You can correct question wording and instructions. Question order, answer choices, grading and response settings are locked.'
+export const TEST_CORRECTIONS_MESSAGE =
+  'A student has started. You can correct question wording, instructions, and one existing choice per question at a time. Question order, choice count, marked answers, grading, and response settings are locked.'
 
 export type TestEditingPolicy = { structureLocked: boolean }
+
+export type FailedChoiceCorrection = {
+  questionId: string
+  attemptedOptions: string[]
+  previousOptions: string[]
+}
+
+export function restoreFailedChoiceText<T extends { id: string; options: string[] }>(
+  questions: T[],
+  correction: FailedChoiceCorrection,
+): T[] {
+  const changedIndex = correction.previousOptions.findIndex(
+    (option, index) => option !== correction.attemptedOptions[index],
+  )
+  if (changedIndex < 0) return questions
+  return questions.map((question) => {
+    if (
+      question.id !== correction.questionId
+      || question.options[changedIndex] !== correction.attemptedOptions[changedIndex]
+    ) return question
+    const options = [...question.options]
+    options[changedIndex] = correction.previousOptions[changedIndex]
+    return { ...question, options }
+  })
+}
 
 type TestPolicyQuestion = {
   id: string
@@ -27,7 +52,13 @@ export function allowsTestQuestionChanges(
     const candidate = next[index]
     return question.id === candidate.id
       && question.question_type === candidate.question_type
-      && JSON.stringify(question.options) === JSON.stringify(candidate.options)
+      && (question.question_type === 'multiple_choice'
+        ? question.options.length === candidate.options.length
+          && question.options.reduce(
+            (changed, option, optionIndex) => changed + Number(option !== candidate.options[optionIndex]),
+            0,
+          ) <= 1
+        : JSON.stringify(question.options) === JSON.stringify(candidate.options))
       && question.correct_option === candidate.correct_option
       && question.answer_key === candidate.answer_key
       && question.sample_solution === candidate.sample_solution

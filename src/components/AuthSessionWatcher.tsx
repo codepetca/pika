@@ -15,6 +15,7 @@ type AuthSessionWatcherProps = {
 }
 
 const DEFAULT_INTERVAL_MS = 60_000
+const EVENT_BURST_MS = 750
 
 export function AuthSessionWatcher({
   expectedUserId,
@@ -23,29 +24,41 @@ export function AuthSessionWatcher({
 }: AuthSessionWatcherProps) {
   useEffect(() => {
     let cancelled = false
-    let checking = false
+    let visibilityGeneration = 0
+    let checkingGeneration = -1
+    let lastStartedGeneration = -1
+    let lastStartedAt = Number.NEGATIVE_INFINITY
 
     async function checkSession() {
-      if (checking || cancelled) return
-      checking = true
+      if (cancelled || document.visibilityState === 'hidden') return
+      if (checkingGeneration === visibilityGeneration) return
+      const now = performance.now()
+      if (
+        lastStartedGeneration === visibilityGeneration
+        && now - lastStartedAt < Math.min(EVENT_BURST_MS, intervalMs / 2)
+      ) return
+      checkingGeneration = visibilityGeneration
+      lastStartedGeneration = visibilityGeneration
+      lastStartedAt = now
+      const requestGeneration = visibilityGeneration
 
       try {
         // Bypass fetchJSONWithCache so account and cookie changes are observed immediately.
         const response = await fetch('/api/auth/me', { cache: 'no-store' })
         const data = await response.json().catch(() => ({}))
 
-        if (!cancelled && response.status === 401) {
+        if (!cancelled && requestGeneration === visibilityGeneration && response.status === 401) {
           redirectToLoginForReauth()
           return
         }
 
-        if (!cancelled && response.ok && !sessionMatchesExpectedUser(data.user, expectedUserId, expectedRole)) {
+        if (!cancelled && requestGeneration === visibilityGeneration && response.ok && !sessionMatchesExpectedUser(data.user, expectedUserId, expectedRole)) {
           redirectToLoginForReauth(undefined, SESSION_CHANGED_REASON)
         }
       } catch {
         // Network hiccups should not log users out. The next focus/timer check will retry.
       } finally {
-        checking = false
+        if (checkingGeneration === requestGeneration) checkingGeneration = -1
       }
     }
 
@@ -59,7 +72,9 @@ export function AuthSessionWatcher({
       void checkSession()
     }
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'hidden') {
+        visibilityGeneration += 1
+      } else {
         void checkSession()
       }
     }

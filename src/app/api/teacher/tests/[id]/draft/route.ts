@@ -1,5 +1,5 @@
 import { getTestEditingPolicy } from '@/lib/server/test-editing-policy'
-import { allowsTestQuestionChanges, TEST_WORDING_ONLY_MESSAGE } from '@/lib/test-editing-policy'
+import { allowsTestQuestionChanges, TEST_CORRECTIONS_MESSAGE } from '@/lib/test-editing-policy'
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -120,7 +120,7 @@ export const PATCH = withErrorHandler('PatchTestDraft', async (request, context)
 
   const editingPolicy = await getTestEditingPolicy(testId)
   if (!allowsTestQuestionChanges(currentDraft.content.questions, nextContentResult.content.questions, editingPolicy)) {
-    return NextResponse.json({ error: TEST_WORDING_ONLY_MESSAGE, draft: currentDraft, editingPolicy }, { status: 409 })
+    return NextResponse.json({ error: TEST_CORRECTIONS_MESSAGE, draft: currentDraft, editingPolicy }, { status: 409 })
   }
 
   const saveResult = await saveTestDraftAtomic(supabase, {
