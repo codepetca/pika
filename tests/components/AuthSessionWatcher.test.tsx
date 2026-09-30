@@ -1,4 +1,4 @@
-import { render, waitFor, cleanup } from '@testing-library/react'
+import { act, render, waitFor, cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthSessionWatcher } from '@/components/AuthSessionWatcher'
 
@@ -28,6 +28,8 @@ describe('AuthSessionWatcher', () => {
   afterEach(() => {
     cleanup()
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it('redirects when the session endpoint reports unauthenticated', async () => {
@@ -92,6 +94,98 @@ describe('AuthSessionWatcher', () => {
     firstRender.unmount()
     render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
+  })
+
+  it('pauses hidden checks and coalesces return, focus, and timer without missing a second return', async () => {
+    vi.useFakeTimers()
+    let visibility: DocumentVisibilityState = 'visible'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    const fetchMock = vi.fn(() => mockResponse(200, {
+      user: { id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" intervalMs={60_000} />)
+    await act(async () => { await Promise.resolve() })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    visibility = 'hidden'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(120_000) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    visibility = 'visible'
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('focus'))
+    })
+    await act(async () => { await Promise.resolve() })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    visibility = 'hidden'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    visibility = 'visible'
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('focus'))
+    })
+    await act(async () => { await Promise.resolve() })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('checks again on return after a hidden network failure', async () => {
+    vi.useFakeTimers()
+    let visibility: DocumentVisibilityState = 'hidden'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockImplementation(() => mockResponse(401, {}))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AuthSessionWatcher intervalMs={60_000} />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(120_000) })
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    visibility = 'visible'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await act(async () => { await Promise.resolve() })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
+
+    visibility = 'hidden'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    visibility = 'visible'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await act(async () => { await Promise.resolve() })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(redirectToLoginForReauthMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts a fresh return check while an older request is pending and ignores its late result', async () => {
+    let visibility: DocumentVisibilityState = 'visible'
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility)
+    let finishFirst!: (response: Awaited<ReturnType<typeof mockResponse>>) => void
+    const first = new Promise<Awaited<ReturnType<typeof mockResponse>>>(
+      (resolve) => { finishFirst = resolve },
+    )
+    const fetchMock = vi.fn()
+      .mockReturnValueOnce(first)
+      .mockImplementation(() => mockResponse(200, {
+        user: { id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' },
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<AuthSessionWatcher expectedUserId="teacher-1" expectedRole="teacher" />)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    visibility = 'hidden'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    visibility = 'visible'
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    finishFirst(await mockResponse(401, {}))
+    await act(async () => { await Promise.resolve() })
     expect(redirectToLoginForReauthMock).not.toHaveBeenCalled()
   })
 
