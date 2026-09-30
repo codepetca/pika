@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-27 — Billing documentation sync after local reset
-
-Owner approved one documentation-only fifth correction batch and CI, with no additional reviewer, database changes or merge. Merged main4d0c4474 into PR1377; the sole archive conflict contained branch entries already present verbatim in main, so retained main archive without losing history. Consolidated reset/reseed receipts and superseded the old history-repair plan. Billing source/migration bytes stay identical to independently reviewed0a2c1c2d. Verified local001–217,3demo users/1classroom,sandboxfalse/test; generated types match and warning lint is clean. Focused checks and stable-commit CI follow. Review count remains8 (hard cap); no new launch.
-
-## 2026-09-27 — Billing final documentation-format correction
-
-Owner approved the sixth/final documentation-only correction and CI rerun. Restored CURRENT’s required `Prod DB 001–214` prefix after the prior shortening failed the rollout-format contract; no billing code, tests, migration SQL or database state changed. Prior CI passed8524tests plus billing DB contracts and warning lint; remaining jobs were incomplete at the failure checkpoint. Verify both startup size and rollout-format tests, focused checks, then fixed-commit CI. No additional reviewer or merge authority.
-
 ## 2026-09-28 — Selected assessment label size
 
 Enlarged the teacher assignment and test edit labels above their student tables to 18px mobile and 20px desktop. Follow-up: each existing ghost edit button now fills the available left section of the context bar, stopping before the centered action cluster. Student-facing pages and composite behavior are unchanged. Local seeded teacher Playwright captures covered both workspaces at desktop/mobile in light/dark, measured full-width click targets with no page overflow, verified keyboard focus, and confirmed each label opens its editor. PR1382's first final-SHA CI passed Test & Build but failed unrelated mobile Pattern Lab attendance-tooltip checks. The test now uses a real keyboard focus transition; all eight focused Pattern Lab cases pass across teacher/student, desktop/mobile, light/dark. Focused checks pass 275 tests plus architecture, UI/design policy, TypeScript, and lint. Risk: none. Model recommendation: GPT-6 Sol for the localized UI adjustment. Final review and CI follow.
@@ -204,3 +196,12 @@ Added browser visibility guards and Today activity wiring while preserving the m
 ## 2026-09-29 — Merge classroom Blueprint and complete adoption review
 
 PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-approved tenth targeted review and exact-head CI36659661703. One existing assignment-editor test load-timing race passed on the unchanged-candidate rerun; all final lanes and PR Gate passed. Adoption PR1396 security/compatibility review accepted two findings, corrected together; targeted security and final integration passed at5b399e3b. Rebased its three adoption commits onto merged main; conflicts were duplicate archive entries already preserved verbatim. Source/test/migration patch ID remains397b1e4f. Required focused checks and final CI follow. Production preflight through220 previews exactly221/222; direct named migration approval requested but not received. Actual course guidance remains unsaved/unadopted.
+
+## 2026-09-29 — Promote polling and pending main changes
+
+- Owner authorized production PR1397 after polling PR1395 merged main. Batch main de7a629d includes16 pending PRs. Independent security and compatibility reviews passed runtime interactions; corrected stale production schema summary and retained both production/main continuity histories. Application, migration, dependency and test bytes remain identical to reviewed main.
+- Production migrations215–220 already applied and verified; no schema/reset, billing activation, Vault configuration, benchmark grades or paid provider calls are part of this release. Background grading dispatch still requires separate URL/secret activation and a small canary; class completion target and CPU savings remain unmeasured. Final reviewed SHA, green PR Gate and production deployment readiness are required before completion.
+
+## 2026-09-30 — Prepare Blueprint production release
+
+PR1396 merged asb754bd69 after fixed-head CI36702895411 passed every lane and PR Gate. Production advanced via1397 while the release was preparing; promotion1398 now combines only classroom Blueprint drafting and guidance adoption. Production's current-state summary is preserved. Conflict resolution removes only duplicate historical archive entries already present verbatim; application/test/migration tree remains identical to reviewed main. Cumulative release review and final CI follow; production migrations221/222 require the pending direct approval before deployment. Actual ICS3U guidance save/adoption remains pending.
