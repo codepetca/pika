@@ -437,6 +437,44 @@ Joined without count badges or an All/Teaching/Joined filter; one top-right menu
 owner archive/restore and member hide/unhide, with Hidden below Archived. Apply the
 UI-change and visual-verification workflow when implementing its live consumer.
 
+### Coordinator checkpoint — 2026-10-01
+
+This checkpoint supersedes pending-state statements in the historical sequence
+above; it does not change the five-batch plan or authorize activation. Main baseline
+is `6c44c254d7412e5a4c574c4c5d03a8b0ca1aeff1` (PR #1418). Learner Daily Log
+reads passed two independent reviews, the real local PostgREST revocation contract
+and every exact-head CI lane, including PR Gate. The slice is merged into main,
+not independently promoted to production. Daily saves PR #1380 is merged; production
+migrations 224–225 were installed and semantically verified through the separately
+approved GitHub run `36869449834`. Shared admission remains dormant.
+
+The **Teacher vs student login** task retains overall coordination. Its next
+worktree is `codex/contextual-teacher-daily-reads`; the coordinator owns Git,
+roadmap, verification, independent review and integration. A bounded read-only
+inventory selected entry drill-down and learner history as the first PR; logs and
+summary follow separately. One implementation worker owns the two routes, their
+server helper and focused tests; the coordinator owns the local PostgREST harness,
+CI wiring and documentation. See the [teacher read contract](contextual-teacher-daily-log-read.md).
+Implementation must preserve absent and
+non-admitted legacy behavior, accept either account-role value for an admitted
+owner, enforce current owner/resource binding at the data read, retain existing
+projections and archive rules, and fail closed on unverified evidence. Do not
+substitute an earlier owner or roster preflight for a bound data query.
+
+Execution follows the table above: finish batch 1's teacher Daily reads and other
+everyday operations first; then batch 2's assessment/grade integrations. Batch 3
+may run alongside independent batch-2 work only after concrete file/subsystem
+ownership and dependencies are established. Batch 4's live consumer waits for
+batches 1–3; batch 5 requires their full integrated rehearsal and an explicitly
+authorized release. The separate billing task owns subscription implementation;
+the separate Daily scrolling task owns its UI-only work. Do not duplicate either.
+
+Each bounded implementation returns tests, real database evidence where required,
+an exact reviewed SHA and merged-PR evidence before phase advancement. Use the
+draft-first stable-SHA review budget; stop for a required owner decision, migration
+authorization, release authority or exhausted review budget. Do not enable cohorts,
+change account plans or deploy production merely because an individual slice passes.
+
 ### Current bounded integration slice — Assignment inline images
 
 The 2026-09-27 source audit found that private inline-image delivery still branches

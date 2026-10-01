@@ -4,6 +4,13 @@
 
 This is a dormant first slice of batch 1 in the
 [classroom-access roadmap](classroom-access-and-entitlements-roadmap.md).
+Current receipt: learner reads PR #1418 is merged in main; Daily saves PR #1380
+is merged and production migrations 224–225 are installed and verified via
+GitHub run `36869449834`. The pending migration statements below describe their
+earlier review history, not current application state. Shared admission remains
+off. The [teacher entry/history read slice](contextual-teacher-daily-log-read.md)
+is in development; roster-wide logs and summaries remain subsequent work.
+
 The existing owner/member material-list GET routes consume this policy. The
 [Daily Log save slice](contextual-daily-log-save.md) adds dormant POST/PATCH
 integration, with canonical migration 224 pending production. Its identical SQL
