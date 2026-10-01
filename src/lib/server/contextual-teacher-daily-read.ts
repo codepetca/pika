@@ -15,7 +15,7 @@ const uuid = z.string().uuid().transform((value) => value.toLowerCase())
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const entrySchema = z.object({
   id: uuid, classroom_id: uuid, student_id: uuid, date: dateSchema,
-  student: z.object({ email: z.string() }).passthrough(),
+  student: z.object({ id: uuid, email: z.string() }),
   classroom: z.object({ id: uuid, teacher_id: uuid }),
 }).passthrough()
 const historyRowSchema = z.object({
@@ -55,7 +55,7 @@ export async function readContextualTeacherEntry(input: {
   let result: { data: unknown; error: { code?: string } | null }
   try {
     result = await input.supabase.from('entries')
-      .select('*, student:users!student_id(email), classroom:classrooms!inner(id, teacher_id)')
+      .select('*, student:users!student_id(id, email), classroom:classrooms!inner(id, teacher_id)')
       .eq('id', entryId).single()
   } catch {
     throw new ApiError(503, 'Unable to verify Daily Log entry')
@@ -64,12 +64,13 @@ export async function readContextualTeacherEntry(input: {
   if (error?.code === 'PGRST116') throw new ApiError(404, 'Entry not found')
   const parsed = entrySchema.safeParse(data)
   if (error || !parsed.success || parsed.data.id !== entryId
-    || parsed.data.classroom.id !== parsed.data.classroom_id) {
+    || parsed.data.classroom.id !== parsed.data.classroom_id
+    || parsed.data.student.id !== parsed.data.student_id) {
     throw new ApiError(503, 'Unable to verify Daily Log entry')
   }
   if (parsed.data.classroom.teacher_id !== actorId) throw new ApiError(403, 'Forbidden')
-  const { classroom: _classroom, ...safeEntry } = parsed.data
-  return safeEntry
+  const { classroom: _classroom, student, ...safeEntry } = parsed.data
+  return { ...safeEntry, student: { email: student.email } }
 }
 
 /**
@@ -104,9 +105,15 @@ export async function readContextualTeacherStudentHistory(input: {
   if (context.relationship !== 'owner') throw new ApiError(403, 'Forbidden')
   if (context.ownerId !== actorId) throw new ApiError(503, 'Unable to verify Daily Log history')
 
-  const { data: enrollment, error: enrollmentError } = await supabase.from('classroom_enrollments')
-    .select('classroom_id, student_id')
-    .eq('classroom_id', classroomId).eq('student_id', studentId).maybeSingle()
+  let enrollmentResult: { data: unknown; error: unknown }
+  try {
+    enrollmentResult = await supabase.from('classroom_enrollments')
+      .select('classroom_id, student_id')
+      .eq('classroom_id', classroomId).eq('student_id', studentId).maybeSingle()
+  } catch {
+    throw new ApiError(503, 'Unable to verify Daily Log history')
+  }
+  const { data: enrollment, error: enrollmentError } = enrollmentResult
   if (enrollmentError) throw new ApiError(503, 'Unable to verify Daily Log history')
   if (enrollment === null) throw new ApiError(404, 'Student not found in classroom')
   const membership = enrollmentSchema.safeParse(enrollment)
@@ -123,7 +130,13 @@ export async function readContextualTeacherStudentHistory(input: {
     .eq('classroom.membership.student_id', studentId)
   if (input.date) query = query.eq('date', input.date)
   else if (input.beforeDate) query = query.lt('date', input.beforeDate)
-  const { data, error } = await query.order('date', { ascending: false }).limit(input.limit)
+  let entriesResult: { data: unknown; error: unknown }
+  try {
+    entriesResult = await query.order('date', { ascending: false }).limit(input.limit)
+  } catch {
+    throw new ApiError(503, 'Unable to verify Daily Log history')
+  }
+  const { data, error } = entriesResult
   const rows = z.array(historyRowSchema).safeParse(data)
   if (error || !rows.success || rows.data.some((row) => (
     row.classroom_id !== classroomId || row.student_id !== studentId

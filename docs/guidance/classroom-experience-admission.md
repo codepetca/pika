@@ -25,8 +25,10 @@ passed local verification under its original number 218 on 2026-09-27; that
 function was absent before the owner-approved local 221–223 application.
 The [learner Daily Log read slice](contextual-daily-log-read.md) adds dormant GET
 integration for own classroom history and the broad active-membership feed.
-Teacher Daily Log reads, material writes, other domains, home/page routing and enrollment
-retain their existing authorization. No environment is configured by this change.
+The teacher entry/history GETs also use shared admission, with current-owner
+evidence bound to their data reads. Teacher roster-wide logs/summary reads,
+material writes, other domains, home/page routing and enrollment retain their
+existing authorization. No environment is configured by this change.
 
 Do **not** configure a live cohort until the roadmap's full integrated release
 checks establish the complete reachable classroom experience. This is not an

@@ -18,7 +18,7 @@ const studentId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const entryId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
 const entry = { id: entryId, classroom_id: classroomId, student_id: studentId, date: '2026-10-01', text: 'Daily work', version: 2 }
 const owner = { userId: actorId, classroomId, ownerId: actorId, relationship: 'owner' as const, archived: true }
-const joinedEntry = () => ({ ...entry, student: { email: 'student@example.invalid' }, classroom: { id: classroomId, teacher_id: actorId } })
+const joinedEntry = () => ({ ...entry, student: { id: studentId, email: 'student@example.invalid' }, classroom: { id: classroomId, teacher_id: actorId } })
 const joinedHistory = () => ({ ...entry, classroom: { id: classroomId, teacher_id: actorId, membership: [{ classroom_id: classroomId, student_id: studentId }] } })
 
 function entryClient(data: unknown = joinedEntry(), error: unknown = null) {
@@ -72,6 +72,15 @@ describe('contextual teacher Daily Log reads', () => {
   it('keeps 404 missing and 403 nonowner from the authoritative joined entry row', async () => {
     await expect(readContextualTeacherEntry({ supabase: entryClient(null, { code: 'PGRST116' }) as never, actorId, entryId })).rejects.toMatchObject({ statusCode: 404 })
     await expect(readContextualTeacherEntry({ supabase: entryClient({ ...joinedEntry(), classroom: { id: classroomId, teacher_id: otherId } }) as never, actorId, entryId })).rejects.toMatchObject({ statusCode: 403 })
+  })
+  it('rejects a joined learner whose identity differs from the entry learner', async () => {
+    const row = { ...joinedEntry(), student: { id: otherId, email: 'other@example.invalid' } }
+    await expect(readContextualTeacherEntry({ supabase: entryClient(row) as never, actorId, entryId })).rejects.toMatchObject({ statusCode: 503 })
+  })
+  it('projects only learner email even if unexpected nested evidence is returned', async () => {
+    const row = { ...joinedEntry(), student: { ...joinedEntry().student, password_hash: 'synthetic-must-not-leak' } }
+    const result = await readContextualTeacherEntry({ supabase: entryClient(row) as never, actorId, entryId })
+    expect(result.student).toEqual({ email: 'student@example.invalid' })
   })
   it.each([() => ({ ...joinedEntry(), id: otherId }), () => ({ ...joinedEntry(), classroom_id: otherId }), () => ({ ...joinedEntry(), classroom: null }), () => ({ ...joinedEntry(), student_id: 'invalid' })])('fails closed on malformed or cross-bound entry rows %#', async (makeRow) => {
     await expect(readContextualTeacherEntry({ supabase: entryClient(makeRow()) as never, actorId, entryId })).rejects.toMatchObject({ statusCode: 503 })
@@ -135,5 +144,16 @@ describe('contextual teacher Daily Log reads', () => {
     await expect(readContextualTeacherStudentHistory(historyInput(historyClient(), { studentId: 'bad' }))).rejects.toMatchObject({ statusCode: 400 })
     await expect(readContextualTeacherStudentHistory(historyInput(historyClient({}, { code: 'XX000' })))).rejects.toMatchObject({ statusCode: 503 })
     await expect(readContextualTeacherStudentHistory(historyInput(historyClient([], null, { student_id: otherId, classroom_id: classroomId })))).rejects.toMatchObject({ statusCode: 503 })
+  })
+  it('normalizes rejected enrollment operations to a generic unavailable error', async () => {
+    const service = historyClient()
+    service.enrollmentQuery.maybeSingle.mockRejectedValueOnce(new Error('synthetic private database detail'))
+    await expect(readContextualTeacherStudentHistory(historyInput(service))).rejects.toMatchObject({ statusCode: 503, message: 'Unable to verify Daily Log history' })
+    expect(service.from).not.toHaveBeenCalledWith('entries')
+  })
+  it('normalizes rejected final entry operations to a generic unavailable error', async () => {
+    const service = historyClient()
+    service.query.then.mockImplementationOnce(() => { throw new Error('synthetic private database detail') })
+    await expect(readContextualTeacherStudentHistory(historyInput(service))).rejects.toMatchObject({ statusCode: 503, message: 'Unable to verify Daily Log history' })
   })
 })
