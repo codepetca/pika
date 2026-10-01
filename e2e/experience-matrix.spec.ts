@@ -1978,6 +1978,85 @@ test('keeps the selected Test grading roster compact and selection-driven', asyn
   })
 })
 
+test('confirms assignment AI grading before sending selected students', async ({ page }, testInfo) => {
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  await applyProjectTheme(page, testInfo)
+  const classroomId = TEST_GRADING_FIXTURE_CLASSROOM_ID
+  const assignmentId = '30000000-0000-4000-8000-000000000014'
+  const assignment = {
+    id: assignmentId, classroom_id: classroomId, title: 'Assignment confirmation',
+    description: '', instructions_markdown: 'Explain your approach.', rich_instructions: null,
+    due_at: null, position: 0, is_draft: false, released_at: '2026-01-01T12:00:00Z',
+    created_by: '30000000-0000-4000-8000-000000000012',
+    created_at: '2026-01-01T12:00:00Z', updated_at: '2026-01-01T12:00:00Z',
+    stats: { total_students: 2, submitted_count: 2, graded_count: 0, returned_count: 0 },
+  }
+  const students = [1, 2].map((index) => ({
+    student_id: `30000000-0000-4000-8000-00000000002${index}`,
+    student_email: `student${index}@example.invalid`, student_first_name: `Student ${index}`, student_last_name: 'Example',
+    status: 'submitted_on_time', student_updated_at: '2026-01-02T12:00:00Z', artifacts: [],
+    doc: { submitted_at: '2026-01-02T12:00:00Z', updated_at: '2026-01-02T12:00:00Z',
+      score_completion: null, score_thinking: null, score_workflow: null,
+      graded_at: null, returned_at: null, feedback_returned_at: null },
+  }))
+  const gradingBodies: Array<{ student_ids: string[] }> = []
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    let body: unknown = {}
+    if (url.pathname === `/api/teacher/assignments/${assignmentId}/auto-grade`) {
+      gradingBodies.push(route.request().postDataJSON())
+      body = { graded_count: 2, skipped_count: 0 }
+    } else if (url.pathname === '/api/teacher/assignments') body = { assignments: [assignment] }
+    else if (url.pathname === `/api/teacher/assignments/${assignmentId}`) body = { assignment, students, active_ai_grading_run: null }
+    else if (url.pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`)) {
+      const student = students.find((item) => url.pathname.endsWith(item.student_id))!
+      body = { assignment, student: { id: student.student_id, email: student.student_email, name: `${student.student_first_name} ${student.student_last_name}` }, doc: null, feedback_entries: [] }
+    } else if (url.pathname.endsWith('/history')) body = { history: [] }
+    else if (url.pathname.endsWith('/class-days')) body = { class_days: [] }
+    else if (url.pathname === '/api/teacher/materials') body = { materials: [] }
+    else if (url.pathname === '/api/teacher/surveys') body = { surveys: [] }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/e2e-fixtures/teacher-assignment-grading', { waitUntil: 'domcontentloaded' })
+  const toolbar = page.getByRole('toolbar', { name: 'Assignment grading actions' })
+  const selections = page.getByRole('checkbox', { name: /^Select Student/ })
+  await expect(selections).toHaveCount(2)
+  await selections.first().click()
+  const openConfirmation = async (count: number) => {
+    await toolbar.getByRole('button', { name: `Student actions for ${count} selected` }).click()
+    await page.getByRole('menuitem', { name: `AI Grade ${count} student${count === 1 ? '' : 's'}`, exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: `AI grade ${count} student${count === 1 ? '' : 's'}`, exact: true })
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText('This will overwrite existing grade, comments and teacher edits.')
+    await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+    await expect(dialog.getByRole('button', { name: 'AI grade', exact: true })).toHaveClass(/bg-danger/)
+    await verifyProjectContract(page, testInfo)
+    await page.screenshot({ path: testInfo.outputPath(`assignment-ai-grade-${count}.png`), animations: 'disabled' })
+    return dialog
+  }
+  const oneStudent = await openConfirmation(1)
+  expect(gradingBodies).toEqual([])
+  await oneStudent.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(oneStudent).toHaveCount(0)
+  expect(gradingBodies).toEqual([])
+  await selections.nth(1).click()
+  const twoStudents = await openConfirmation(2)
+  await page.keyboard.press('Tab')
+  await expect(twoStudents.getByRole('button', { name: 'AI grade', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(twoStudents.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(twoStudents).toHaveCount(0)
+  expect(gradingBodies).toEqual([])
+  await expect(toolbar.getByRole('button', { name: 'Student actions for 2 selected' })).toBeFocused()
+  const confirmed = await openConfirmation(2)
+  await confirmed.getByRole('button', { name: 'AI grade', exact: true }).click()
+  await expect.poll(() => gradingBodies).toEqual([{ student_ids: students.map((student) => student.student_id) }])
+  await expect(confirmed).toHaveCount(0)
+  expect(pageErrors).toEqual([])
+})
+
 test('shows publication language only at the publish transition', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   await applyProjectTheme(page, testInfo)
