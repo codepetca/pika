@@ -410,7 +410,9 @@ both codes. A rollback-only fault-injection contract covers the defensive branch
 PR1380 records application and final-review outcomes; these must pass before merge.
 The one-time225 approval does not authorize production. Production Daily Log
 application remains pending; no reset, reseed or production repair was performed.
-Daily reads and other batch-1 domains remain subsequent work;
+The [learner Daily Log read slice](contextual-daily-log-read.md) integrates scoped
+and broad own-entry history behind the same dormant shared admission, without a
+migration. Teacher Daily reads and other batch-1 domains remain subsequent work;
 no cohort or home/page activation is authorized by this slice.
 
 The shared cohort grants admission to the compatible experience, never classroom
