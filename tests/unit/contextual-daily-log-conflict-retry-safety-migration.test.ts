@@ -36,6 +36,8 @@ describe('Daily Log conflict retry safety', () => {
     expect(harness).toContain('Migration 225 is required; this harness never applies it')
     expect(harness).toContain("exception when sqlstate 'PT409' then null;")
     expect(harness).toContain('Binding conflict changed the entry')
+    expect(harness).toMatch(/reset role;\s+create or replace function public\.upsert_student_entry_with_pal_event_atomic/)
+    expect(harness).toMatch(/\$fault\$;\s+set local role service_role;\s+do \$binding_conflict\$/)
     expect(harness).toMatch(/\$binding_conflict\$;\s+rollback;/)
   })
 })

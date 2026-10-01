@@ -169,3 +169,12 @@ targeted review clears. Then check history/types/security, the behavior and
 eight concurrency contracts, existing-data preservation and restoration of the
 fault-injected dependency. PR1380 carries the live application/CI receipt;
 this section documents the authorized sequence, not a reusable permission.
+
+The seventh targeted review checked migration225 and adapter compatibility clean
+but found the fault-injection DDL ran as service_role rather than its postgres
+owner. The owner approved the two-line test correction and one eighth/final
+targeted review. The harness resets role only for temporary dependency DDL, then
+sets local service_role before the RPC assertion; a static regression locks both
+transitions. No application privilege or migration SQL changed. The local225
+one-push permission remains held until this correction clears review. No further
+reviewer launch is available within the absolute eight-launch budget.

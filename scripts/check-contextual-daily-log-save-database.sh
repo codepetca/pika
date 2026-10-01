@@ -152,6 +152,7 @@ $behavior$;
 
 -- Fault-inject only inside this rollback transaction. The original dependency
 -- definition and fixtures are restored by rollback, including on psql failure.
+reset role;
 create or replace function public.upsert_student_entry_with_pal_event_atomic(
   p_student_id uuid, p_classroom_id uuid, p_date date, p_text text,
   p_rich_content jsonb, p_on_time boolean, p_pal_event jsonb,
@@ -160,6 +161,7 @@ create or replace function public.upsert_student_entry_with_pal_event_atomic(
 )
 returns jsonb language sql security definer set search_path = ''
 as $fault$ select '{}'::jsonb; $fault$;
+set local role service_role;
 do $binding_conflict$
 declare
   v_actor constant uuid := 'c2240000-0000-4000-8000-000000000004';
