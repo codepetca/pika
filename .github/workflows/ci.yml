@@ -251,6 +251,9 @@ jobs:
       - name: Verify contextual teacher Daily roster logs and previews
         run: pnpm exec tsx scripts/check-contextual-teacher-daily-logs.ts
 
+      - name: Verify contextual teacher cached Daily summaries and current ownership
+        run: pnpm exec tsx scripts/check-contextual-teacher-daily-summary.ts
+
       - name: Verify contextual learner assignment submit and unsubmit atomicity
         run: bash scripts/check-contextual-assignment-doc-submission-database.sh
 

@@ -475,6 +475,26 @@ owner, enforce current owner/resource binding at the data read, retain existing
 projections and archive rules, and fail closed on unverified evidence. Do not
 substitute an earlier owner or roster preflight for a bound data query.
 
+Parallel execution checkpoint: teacher entry/history PR1420 is merged at
+`3cf01b06200819d8df53a41cf469973b102c8c7e`; roster logs PR1421 has clean independent
+reviews and is awaiting exact-head CI. Its actor helper is already in main, so the
+independent [cached summary read](contextual-teacher-daily-summary.md) proceeds in
+`codex/contextual-teacher-daily-summary` with separate source-file ownership.
+Reconcile with merged main before final review/readiness. The coordinator owns
+docs, CI, local database fixtures and Git; one implementation worker owns the
+summary route/helper/schemas and tests. The real local contract proves owner-bound
+stats, HEAD count and cache queries, including transfers before each statement;
+no summary/name payload may rely on an earlier preflight. No AI or schema change.
+
+A read-only lesson-plan inventory, verified by the coordinator, establishes the
+next domain after summaries: first current-relationship-bound list reads using
+shared admission while retaining pair/legacy fallback, then transaction-bound
+owner writes. Existing list payload queries trust earlier owner/member/visibility
+preflights; the ordered writer checks sequence but has no actor/owner/archive
+boundary. Date, bulk and copy writes therefore need separately reviewed additive
+actor-bound transactions and real race tests, not just role-gate replacement.
+Migration application retains its separate exact-target authorization.
+
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem
