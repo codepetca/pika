@@ -8,10 +8,11 @@ import { IMPACT_ACK, RUNTIME_CONFIG } from '../../scripts/migration-rollout-poli
 const sha = 'a'.repeat(40)
 const checked = 'b'.repeat(40)
 const tree = 'c'.repeat(40)
+const scopedToken = 'sbp_fc' + '1'.repeat(38)
 const roots: string[] = []
 afterEach(() => { vi.restoreAllMocks(); roots.forEach(root => rmSync(root, { recursive: true, force: true })); roots.length = 0 })
 
-function fixture(options: { unmerged?: boolean, binding?: string, failedApply?: boolean, treeMismatch?: boolean, activeVault?: boolean } = {}) {
+function fixture(options: { unmerged?: boolean, binding?: string, failedApply?: boolean, treeMismatch?: boolean, activeVault?: boolean, token?: string, dbPassword?: string } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'pika-rollout-test-'))
   roots.push(root)
   const bin = join(root, 'bin')
@@ -19,7 +20,7 @@ function fixture(options: { unmerged?: boolean, binding?: string, failedApply?: 
   const calls = join(root, 'calls.jsonl')
   const applied = join(root, 'applied')
   const ci = readFileSync('.github/workflows/ci.yml', 'utf8')
-  const record = `const fs=require('node:fs'); const args=process.argv.slice(2);fs.appendFileSync(${JSON.stringify(calls)},JSON.stringify({bin:BIN,args,auth:process.env.GIT_CONFIG_VALUE_0,token:process.env.SUPABASE_ACCESS_TOKEN,password:process.env.SUPABASE_DB_PASSWORD,home:process.env.HOME})+'\\n');`
+  const record = `const fs=require('node:fs'); const args=process.argv.slice(2);fs.appendFileSync(${JSON.stringify(calls)},JSON.stringify({bin:BIN,args,auth:process.env.GIT_CONFIG_VALUE_0,token:process.env.SUPABASE_ACCESS_TOKEN,password:process.env.SUPABASE_DB_PASSWORD,pgPassword:process.env.PGPASSWORD,pgHost:process.env.PGHOST,envKeys:Object.keys(process.env).sort(),home:process.env.HOME})+'\\n');`
   writeFileSync(join(bin, 'git'), `#!/usr/bin/env node\nconst BIN='git';${record}
 if(args[0]==='remote') console.log('https://github.com/codepetca/pika.git');
 else if(args[0]==='fetch') { if(!process.env.GIT_CONFIG_VALUE_0) process.exit(3); }
@@ -30,13 +31,14 @@ else if(args[0]==='show') { if(args[1].endsWith('ci.yml')) process.stdout.write(
 `, { mode: 0o755 })
   writeFileSync(join(bin, 'supabase'), `#!/usr/bin/env node\nconst BIN='supabase';${record}
 const wd=args.includes('--workdir')?args[args.indexOf('--workdir')+1]:process.cwd();
+if(args.includes('--linked')) console.error('Initialising login role...');
 if(args[0]==='--version') console.log('2.103.0');
 else if(args[0]==='link') {fs.mkdirSync(wd+'/supabase/.temp',{recursive:true});fs.writeFileSync(wd+'/supabase/.temp/project-ref',${JSON.stringify(options.binding ?? 'abcdefghijklmnopqrst')});console.error('PRIVATE CLI TOKEN AND SQL DATA');}
 else if(args[0]==='migration') console.log(' Local | Remote | Time (UTC)\\n-------|--------|-----------\\n 001 | 001 | 001\\n 002 | '+(fs.existsSync(${JSON.stringify(applied)})?'002':'')+' | 002');
 else if(args.includes('--dry-run')) console.error('DRY RUN: migrations will *not* be pushed to the database.\\nWould push these migrations:\\n • 002_next.sql\\nFinished supabase db push.');
 else {fs.writeFileSync(${JSON.stringify(applied)},'yes'); console.error('PRIVATE FAILURE SQL DATA');${options.failedApply ? 'process.exit(1)' : ''}}
 `, { mode: 0o755 })
-  const env = { PATH: `${bin}:${dirname(process.execPath)}:${process.env.PATH}`, GH_TOKEN: 'private-git-token', SUPABASE_ACCESS_TOKEN: 'private-cli-token', SUPABASE_DB_PASSWORD: 'private-db-password', GITHUB_REPOSITORY: 'codepetca/pika', ROLLOUT_SOURCE_DIR: root, ROLLOUT_CI_RUN_ID: '123', GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/main', GITHUB_WORKFLOW_REF: 'codepetca/pika/.github/workflows/migrations.yml@refs/heads/main' }
+  const env = { PATH: `${bin}:${dirname(process.execPath)}:${process.env.PATH}`, GH_TOKEN: 'private-git-token', SUPABASE_ACCESS_TOKEN: options.token ?? scopedToken, ...(options.dbPassword ? { SUPABASE_DB_PASSWORD: options.dbPassword } : {}), PGPASSWORD: 'ignored-pg-password', PGHOST: 'ignored-pg-host', GITHUB_REPOSITORY: 'codepetca/pika', ROLLOUT_SOURCE_DIR: root, ROLLOUT_CI_RUN_ID: '123', GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/main', GITHUB_WORKFLOW_REF: 'codepetca/pika/.github/workflows/migrations.yml@refs/heads/main' }
   const jobs = [
     { id: 1, name: 'Architecture Database Contracts', conclusion: 'success', steps: [{ name: 'Start ephemeral Supabase and replay migrations', conclusion: 'success' }, { name: 'Check generated database types', conclusion: 'success' }] },
     { id: 2, name: 'Test & Build', conclusion: 'success', steps: [{ name: 'Run tests with coverage', conclusion: 'success' }, { name: 'Build production bundle', conclusion: 'success' }] },
@@ -66,12 +68,14 @@ describe('portable CLI adapter using offline executables and fake GitHub API', {
       const cliCalls = calls.filter(c => c.bin === 'supabase')
       expect(calls.filter(c => c.bin === 'git' && c.args[0] === 'fetch').every(c => c.auth?.startsWith('AUTHORIZATION: basic '))).toBe(true)
       expect(calls.filter(c => c.bin === 'git').every(c => !c.token && !c.password)).toBe(true)
-      expect(cliCalls.every(c => !c.auth && c.token === 'private-cli-token')).toBe(true)
+      expect(cliCalls.every(c => !c.auth && c.token === scopedToken && !c.password && !c.pgPassword && !c.pgHost)).toBe(true)
+      // macOS adds this text-encoding variable during process launch.
+      expect(cliCalls.map(c => c.envKeys.filter((key: string) => key !== '__CF_USER_TEXT_ENCODING'))).toEqual(cliCalls.map(() => ['CI', 'HOME', 'NO_COLOR', 'PATH', 'SUPABASE_ACCESS_TOKEN']))
       expect(cliCalls.some(c => c.args.includes('--linked') && c.args.includes('--dry-run'))).toBe(true)
       expect(cliCalls.every(c => !c.args.some((arg: string) => ['--db-url', '--include-all', '--include-seed', '--include-roles', '--local', '--password'].includes(arg)))).toBe(true)
       expect(cliCalls[0].home).not.toBe(f.root)
       expect(existsSync(join(cliCalls[0].home, 'supabase/migrations/001_first.sql'))).toBe(true)
-      expect(f.logs.mock.calls.flat().join(' ')).not.toMatch(/PRIVATE|private-git-token|private-cli-token|private-db-password/)
+      expect(f.logs.mock.calls.flat().join(' ')).not.toMatch(/PRIVATE|private-git-token|sbp_fc|ignored-pg-password|ignored-pg-host/)
       expect(f.logs.mock.calls.flat().join(' ')).toContain('approved_digest')
     } finally { f.runtime.cleanup() }
     expect(existsSync(f.calls().find(c => c.bin === 'supabase').home)).toBe(false)
@@ -110,6 +114,12 @@ describe('portable CLI adapter using offline executables and fake GitHub API', {
       expect(f.logs.mock.calls.flat().join(' ')).toContain('apply-failed')
       expect(f.logs.mock.calls.flat().join(' ')).not.toMatch(/PRIVATE|private-db-password/)
     } finally { f.runtime.cleanup() }
+  })
+  it.each(['sbp_' + '1'.repeat(40), 'invalid-token'])('rejects non-scoped tokens before invoking the CLI: %s', token => {
+    expect(() => fixture({ token })).toThrow('scoped Supabase personal access token')
+  })
+  it('rejects database passwords rather than falling back to permanent credentials', () => {
+    expect(() => fixture({ dbPassword: 'private-db-password' })).toThrow('Database passwords are not permitted')
   })
   it('rejects branch workflow execution before preparing a CLI workspace', () => {
     expect(() => createRuntime({ GITHUB_REPOSITORY: 'codepetca/pika', GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF: 'refs/heads/evil' })).toThrow('main only')

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-28 — Classroom drafts guided by frozen Blueprint Versions
-
-Added teacher Classwork and Tests entry actions for a shared unit-aware AI draft dialog. The teacher can review exact Version rules, edit standalone Markdown, then create an unpublished Assignment or Test and continue in its editor. The server uses the classroom's frozen Version for model input, validates a signed preview and edited draft, and calls atomic SQL functions that store private provenance in a sidecar. Teacher editors load a compact source note; students receive only assessment content. New migration 219 and rollback-only database contracts await clean CI replay; no local migration was applied because the shared local database has an unrelated 218. Teacher desktop/mobile light/dark dialog and student Classwork screenshots were reviewed. The full focused check passed 2,547 tests plus architecture, UI/design policy, TypeScript, and lint before the final cached-read and accessibility-test refinements; an exact final check is pending. PR #1386's CI found a PL/pgSQL typed-array lint warning in migration 218; that one-line correction passed focused checks, but its review budget checkpoint is pending.
-
 ## 2026-09-28 — Blueprint phase-one merge and classroom review correction
 
 PR #1386 passed independent review and exact-head CI, then merged into main at `ab6cb6e5`. Rebased draft PR #1387 onto that main commit. Its final integration review found a real signed-rule mismatch: JavaScript and PostgreSQL trimmed different edge whitespace, and uppercase stored UUIDs failed text comparison. Aligned frozen-rule reconstruction for rule text, unit labels, and UUID identity, with focused app and database contract fixtures. The fourth correction batch passed 2,573 focused tests across 243 files plus architecture, UI/design policy, TypeScript, and lint. The shared local database remains untouched. Targeted and final independent review, exact-head CI, and the classroom PR merge gate remain pending.
@@ -207,3 +203,7 @@ Second targeted review found that spaced field labels, indented reserved section
 ## 2026-09-30 — Guided assignment documentation checkpoint
 
 Owner approved one documentation correction/main sync and one brief review after the review-budget checkpoint. Restored the missing space in CURRENT migration history while retaining verified production 222 and the new main deployment flow. Application changes remain unchanged; exact-head checks and main merge remain gated.
+
+## 2026-09-30 — Password-free hosted migration authentication
+
+Replaced the manual rollout's permanent database-password requirement with pinned CLI native temporary logins from a production-project scoped PAT. The runner rejects classic tokens and password fallback, isolates PostgreSQL environment variables, and binds the authentication strategy into format-2 preview digests. Existing exact migration authorization remains required. Documented six token capabilities, Database Read-write authority, temporary-role creation during preview, Beta endpoint dependency, and server-enforced denial of network-ban removal. The owner declined password reset; none was performed. Offline rollout tests pass42; focused checks, independent review, owner approval for expanded token authority, credential replacement and hosted preview remain pending. No production migration was applied.

@@ -62,13 +62,15 @@ export function createRuntime(env) {
   const repository = env.GITHUB_REPOSITORY
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository ?? '')) throw new Error('Invalid repository binding.')
   if (env.GITHUB_ACTIONS === 'true' && (env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || env.GITHUB_REF !== 'refs/heads/main' || env.GITHUB_WORKFLOW_REF !== `${repository}/.github/workflows/migrations.yml@refs/heads/main`)) throw new Error('Run this manual workflow from main only.')
-  if (!env.GH_TOKEN || !env.SUPABASE_ACCESS_TOKEN || !env.SUPABASE_DB_PASSWORD) throw new Error('Required environment-scoped credentials are missing.')
+  if (!env.GH_TOKEN || !env.SUPABASE_ACCESS_TOKEN) throw new Error('Required environment-scoped credentials are missing.')
+  if (!/^sbp_fc[a-f0-9]{38}$/.test(env.SUPABASE_ACCESS_TOKEN)) throw new Error('A scoped Supabase personal access token is required.')
+  if (env.SUPABASE_DB_PASSWORD) throw new Error('Database passwords are not permitted for temporary-login rollouts.')
   const workdir = mkdtempSync(join(tmpdir(), 'pika-migration-rollout-'))
   // Only pass environment values the CLI needs. In particular, do not pass a
   // caller-provided DB URL, debug configuration, or alternate Supabase profile.
   const cliEnv = {
     PATH: env.PATH, HOME: workdir, CI: 'true', NO_COLOR: '1',
-    SUPABASE_ACCESS_TOKEN: env.SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD: env.SUPABASE_DB_PASSWORD,
+    SUPABASE_ACCESS_TOKEN: env.SUPABASE_ACCESS_TOKEN,
   }
   const gitEnv = {
     PATH: env.PATH, HOME: workdir, GIT_TERMINAL_PROMPT: '0',
@@ -152,7 +154,7 @@ export function createRuntime(env) {
       // Only structured allowlisted identifiers and hashes reach public logs.
       const { plan, status, durableHistory } = result
       const compact = {
-        status, target: plan.target, project: plan.project, sourceSha: plan.sourceSha, ciRunId: env.ROLLOUT_CI_RUN_ID,
+        status, auth: plan.auth, target: plan.target, project: plan.project, sourceSha: plan.sourceSha, ciRunId: env.ROLLOUT_CI_RUN_ID,
         digest: plan.digest, runtimeConfigHash: plan.runtimeConfigHash, pending: plan.pending,
         approval: { approved_digest: plan.digest, approved_migrations: plan.pending.map(f => f.version).join(','), confirmation: `APPLY ${plan.target} ${plan.sourceSha}`, impact_ack: 'I reviewed the SQL and acknowledge all destructive or irreversible effects.' },
         sql: plan.pending.map(f => `https://github.com/${repository}/blob/${plan.sourceSha}/supabase/migrations/${f.name}`),
