@@ -359,9 +359,10 @@ owner-precedence defect: an admitted owner with historical self-enrollment can
 open a learner document (200 rather than 403). PR #1376 corrected the learner
 transaction boundaries and passed all seven real route/database scenarios,
 the database contract suite and browser CI before merging as `7758ed44`.
-Migration 214 is applied and catalog-verified in production. Local application
-is blocked by separately applied billing migrations using 214–216; do not repair
-or reset that shared history without a coordinated, explicitly authorized plan.
+Migration 214 is applied and catalog-verified in production. The separately
+authorized local reset/reseed on 2026-09-27 resolved the billing numbering collision;
+local history now matches main through 217, with 214 retaining owner precedence
+and billing using 215–217. Do not reuse the superseded history-repair proposal.
 The remaining full-experience work follows these five batches:
 
 | Batch | Scope | Exit evidence |
@@ -385,6 +386,17 @@ current owner/member/resource checks remain authoritative. Absent configuration
 preserves legacy/pair-pilot behavior. No live cohort is configured; writes, Daily,
 other domains and product entry remain unfinished. Cohort retention and compatible
 recovery versions are operator obligations, not guarantees of the stateless reader.
+
+The next bounded implementation is [Daily Log POST/PATCH saves](contextual-daily-log-save.md).
+The owner elected to continue the current server/session and service-role
+architecture after comparison; a user-JWT RLS or restricted-credential redesign
+is not part of this work. Migration 223 adds the transaction-time member boundary,
+controlled by the same shared admission contract. It was resequenced from the
+branch's original 218 after main allocated 218–222. Its SQL body is unchanged;
+the earlier local verification is historical, and the current shared local
+database does not contain that function. Application of 223 remains pending.
+Daily reads and other batch-1 domains remain subsequent work;
+no cohort or home/page activation is authorized by this slice.
 
 The shared cohort grants admission to the compatible experience, never classroom
 ownership or enrollment. Resource-specific authorization remains mandatory.

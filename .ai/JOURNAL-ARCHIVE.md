@@ -33901,6 +33901,17 @@ Mounted the first image reference when the teacher preview or started student te
 
 <!-- pika-session-log-archive-batch:687355cfc447c575321d24b1116cc17e410e187998f72663a357344a13968a49 -->
 <!-- pika-session-log-archive-batch:5cff662d0e56f9f0e5bfd0d26fb9048d7f95cf99d2c99a2fe98e74c4902d7501 -->
+<!-- pika-session-log-archive-batch:a57f31581214163780b972d7ce3d4520b5097a02bcd77302d2d323e9ecb8e575 -->
+## 2026-09-27 — Dormant Daily Log save boundary prepared
+
+Owner chose to continue the existing server/session and service-role architecture after comparison. Coordinator owns codex/contextual-daily-log-save from main261ee0b1; Terra/high implemented bounded API/adapters/tests. Migration218 adds service-only transaction-time member/owner/archive/class-day/revision checks and reuses the existing Pal-outbox writer. POST/PATCH use the shared admission cohort; GET/UI/production activation remain unchanged. Added behavior/concurrency harnesses to CI and a scoped runbook. Risk: runtime-platform; model recommendation: Terra/high implementation, Sol/high security plus Terra/high compatibility review.
+
+Migration218 is reserved with billing, authored but NOT APPLIED. Read-only local history matches001–217; dry-run previews only218. Final targeted118tests and focused207workflow/affected tests passed, as did architecture/UI/design policy checks. Focused gate stops at the sole expected missing generatedRPC TypeScript signature; database verification/type generation await exact local218 permission. No migration application, reset, seed, account grant, deployment or cohort activation. Independent review/PR/merge follow database proof; no review session has started.
+
+## 2026-09-27 — Authorized local migration 218 verified
+
+Owner explicitly approved218local. Fresh local target/history/dry-run showed only218; one application succeeded. Local history matches001–218, generated database types updated. Rollback behavior harness and all eight concurrency contracts passed, with synthetic fixtures removed afterward. Existing seeded classroom data is unchanged. No production application, deployment, cohort activation, reset or reseed. Exact local application authority is consumed; independent review and PR gates remain.
+
 ## 2026-09-28 — Teacher Tests list access status
 
 - Resumed PR #1340 after the Claude handoff. Initial Sol/Terra review found uncached reference generation ran before durable attempt accounting and missing-question recovery could exceed the attempt cap. One correction batch places preparation inside the counted microbatch attempt, checks the deadline again afterward, and caps missing-question recovery. Four new regressions fail before the correction and pass after it; runner suite passes 20 tests. No migration or grading-strategy change. Focused verification, targeted re-review, and owner merge approval remain required.

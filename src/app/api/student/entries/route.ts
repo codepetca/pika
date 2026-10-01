@@ -17,6 +17,12 @@ import {
   type PalImmediateDeliveryStatus,
 } from '@/lib/server/pal-outbox'
 import { upsertStudentEntryWithPalEvent } from '@/lib/server/pal-source-writes'
+import { authorizeContextualDailyLogRequest } from '@/lib/server/contextual-daily-log-access'
+import {
+  saveContextualDailyLog,
+  verifyContextualDailyLogPatchPreimage,
+  verifyContextualDailyLogPostPreimage,
+} from '@/lib/server/contextual-daily-log-save'
 import type { JsonPatchOperation, MoodEmoji, TiptapContent } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -177,8 +183,12 @@ export const GET = withErrorHandler('GetStudentEntries', async (request, context
  * Creates or updates an entry for the current student
  */
 export const POST = withErrorHandler('PostStudentEntry', async (request, context) => {
-  const user = await requireRole('student')
-  const body = (await request.json()) as EntryContentPayload
+  let cachedBody: EntryContentPayload | undefined
+  const dailyLogAccess = await authorizeContextualDailyLogRequest(async () => {
+    cachedBody = (await request.json()) as EntryContentPayload
+    return cachedBody.classroom_id
+  })
+  const body = cachedBody ?? (await request.json()) as EntryContentPayload
 
   const { classroom_id, date, text, rich_content, minutes_reported, mood } = body
 
@@ -212,14 +222,17 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
 
   const entryText = extractPlainText(content)
 
+  const user = dailyLogAccess.user
   const supabase = getServiceRoleClient()
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
-  if (!access.ok) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    )
+  if (dailyLogAccess.mode === 'legacy') {
+    const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
+    }
   }
 
   const todayToronto = getTodayInToronto()
@@ -237,6 +250,44 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
 
   const now = new Date()
   const onTime = isOnTime(now, date)
+
+  if (dailyLogAccess.mode === 'contextual') {
+    const { data: preimage, error: preimageError } = await supabase
+      .from('entries')
+      .select('id, student_id, classroom_id, date, version, minutes_reported, mood')
+      .eq('student_id', user.id)
+      .eq('classroom_id', classroom_id)
+      .eq('date', date)
+      .single()
+    if (preimageError && preimageError.code !== 'PGRST116') {
+      return NextResponse.json({ error: 'Failed to fetch entry' }, { status: 500 })
+    }
+    const contextualExisting = verifyContextualDailyLogPostPreimage({
+      actorId: user.id, classroomId: classroom_id, date, entry: preimage,
+    })
+    const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+    const result = await saveContextualDailyLog({
+      supabase,
+      actorId: user.id,
+      classroomId: classroom_id,
+      date,
+      text: entryText,
+      richContent: content,
+      minutesReported: minutes_reported === undefined ? contextualExisting?.minutes_reported : minutes_reported,
+      mood: mood === undefined ? contextualExisting?.mood : mood,
+      onTime,
+      palEvent: pal.event,
+      expectedVersion: contextualExisting?.version ?? null,
+      expectedEntryId: contextualExisting?.id ?? null,
+    })
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error, entry: result.entry }, { status: result.status })
+    }
+    const palDelivery = pal.event || isClassroomPalRequested()
+      ? await deliverDailyLogPal({ event: pal.event, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+      : undefined
+    return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
+  }
 
   const { data: existing, error: existingError } = await supabase
     .from('entries')
@@ -360,8 +411,12 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
  * Applies JSON Patch or full-content updates with optimistic concurrency.
  */
 export const PATCH = withErrorHandler('PatchStudentEntry', async (request, context) => {
-  const user = await requireRole('student')
-  const body = (await request.json()) as EntryPatchPayload
+  let cachedBody: EntryPatchPayload | undefined
+  const dailyLogAccess = await authorizeContextualDailyLogRequest(async () => {
+    cachedBody = (await request.json()) as EntryPatchPayload
+    return cachedBody.classroom_id
+  })
+  const body = cachedBody ?? (await request.json()) as EntryPatchPayload
 
   const { classroom_id, date, entry_id, version, rich_content, patch } = body
 
@@ -407,14 +462,17 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     )
   }
 
+  const user = dailyLogAccess.user
   const supabase = getServiceRoleClient()
 
-  const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
-  if (!access.ok) {
-    return NextResponse.json(
-      { error: access.error },
-      { status: access.status }
-    )
+  if (dailyLogAccess.mode === 'legacy') {
+    const access = await assertStudentCanAccessClassroom(user.id, classroom_id)
+    if (!access.ok) {
+      return NextResponse.json(
+        { error: access.error },
+        { status: access.status }
+      )
+    }
   }
 
   const todayToronto = getTodayInToronto()
@@ -445,6 +503,110 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
       { error: 'Failed to fetch entry' },
       { status: 500 }
     )
+  }
+
+  const contextualExisting = dailyLogAccess.mode === 'contextual'
+    ? verifyContextualDailyLogPatchPreimage({
+      actorId: user.id,
+      classroomId: classroom_id,
+      date,
+      entry: existing,
+    })
+    : null
+
+  if (dailyLogAccess.mode === 'contextual') {
+    if (!contextualExisting) {
+      if (patch) {
+        return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
+      }
+      if (entry_id) {
+        return NextResponse.json(
+          { error: 'Entry has been updated elsewhere', entry: null },
+          { status: 409 },
+        )
+      }
+
+      const content = normalizeContent(rich_content, null)
+      const contentValidation = validateContentPayload(content)
+      if (!contentValidation.ok) {
+        return NextResponse.json({ error: contentValidation.error }, { status: 400 })
+      }
+      const entryText = extractPlainText(content)
+      const now = new Date()
+      const onTime = isOnTime(now, date)
+      const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+      const result = await saveContextualDailyLog({
+        supabase,
+        actorId: user.id,
+        classroomId: classroom_id,
+        date,
+        text: entryText,
+        richContent: content,
+        onTime,
+        palEvent: pal.event,
+        expectedVersion: null,
+        expectedEntryId: null,
+      })
+      if (!result.ok) {
+        return NextResponse.json({ error: result.error, entry: result.entry }, { status: result.status })
+      }
+      const palDelivery = pal.event || isClassroomPalRequested()
+        ? await deliverDailyLogPal({ event: pal.event, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+        : undefined
+      return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
+    }
+
+    const currentVersion = contextualExisting.version
+    if (!entry_id || entry_id !== contextualExisting.id || version !== currentVersion) {
+      const normalizedEntry = {
+        ...contextualExisting,
+        rich_content: normalizeContent(contextualExisting.rich_content, contextualExisting.text),
+      }
+      return NextResponse.json(
+        { error: 'Entry has been updated elsewhere', entry: normalizedEntry },
+        { status: 409 },
+      )
+    }
+    let nextContent: TiptapContent
+    if (patch && patch.length > 0) {
+      const patched = tryApplyJsonPatch(normalizeContent(contextualExisting.rich_content, contextualExisting.text), patch)
+      if (!patched.success) return NextResponse.json({ error: 'Invalid patch' }, { status: 400 })
+      nextContent = patched.content
+    } else if (patch && patch.length === 0) {
+      nextContent = normalizeContent(contextualExisting.rich_content, contextualExisting.text)
+    } else {
+      nextContent = normalizeContent(rich_content, null)
+    }
+
+    const contentValidation = validateContentPayload(nextContent)
+    if (!contentValidation.ok) {
+      return NextResponse.json({ error: contentValidation.error }, { status: 400 })
+    }
+    const entryText = extractPlainText(nextContent)
+    const now = new Date()
+    const onTime = isOnTime(now, date)
+    const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
+    const result = await saveContextualDailyLog({
+      supabase,
+      actorId: user.id,
+      classroomId: classroom_id,
+      date,
+      text: entryText,
+      richContent: nextContent,
+      minutesReported: contextualExisting.minutes_reported,
+      mood: contextualExisting.mood,
+      onTime,
+      palEvent: pal.event,
+      expectedVersion: currentVersion,
+      expectedEntryId: contextualExisting.id,
+    })
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error, entry: result.entry }, { status: result.status })
+    }
+    const palDelivery = pal.event || isClassroomPalRequested()
+      ? await deliverDailyLogPal({ event: pal.event, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+      : undefined
+    return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
   }
 
   if (!existing) {
