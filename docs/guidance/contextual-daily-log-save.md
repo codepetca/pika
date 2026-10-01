@@ -6,9 +6,11 @@ Status: in development, dormant. The migration is now
 was applied locally under its former number 223 with the owner-approved
 221–223 set on 2026-09-30. The exact owner-approved local history repair now records
 Daily Log as 224 and main's actual 223 is applied. Local verification passes;
-production application remains pending. Final review found the custom `40001`
-defensive binding error can trigger PostgREST retry storms; merge is blocked
-pending an additive correction and adapter compatibility. Keep admission dormant.
+production application remains pending. Migration225 is the additive correction
+for the reviewed custom `40001` defensive-binding retry risk; the adapter accepts
+its `PT409` and the old code. Owner approved one targeted review and exactly225
+locally after verification. PR1380 holds the latest application/review receipt.
+Keep admission dormant; neither migration nor code merge authorizes activation.
 This is one bounded part of batch 1 in the
 [classroom-access roadmap](classroom-access-and-entitlements-roadmap.md), not
 permission to activate a cohort or the Teaching/Joined interface.
@@ -148,9 +150,22 @@ reconciliation checks were clean except one merge-blocking finding: migration
 which PostgREST 14 can retry indefinitely; the adapter also lacks `PT409`
 compatibility. See [the confirmed incident class](supabase-disk-io.md).
 
-Preserve installed 224 bytes. The proposed correction is a new additive
-`CREATE OR REPLACE` migration changing only that error to `PT409`, preserving
-signature, locking, grants, definer and search path; accept both codes in the
-adapter and add regressions. It is not yet implemented or applied. One further
-targeted review and its exact local application need separate approval; the
-review budget is at its approved six-launch limit. PR1380 remains draft.
+Preserve installed224 bytes. The owner approved the fix, one seventh targeted
+review (20-minute cap) and exactly `225_daily_log_conflict_retry_safety.sql`
+locally after verification. No other application or production operation is
+authorized. Migration225 uses the complete `CREATE OR REPLACE` definition with
+only the defensive error changed to `PT409`, reasserting the identical grants
+and metadata. Signature, locks, authorization, atomic writes, definer and search
+path remain unchanged. The adapter accepts both error codes without retrying.
+Static regressions compare the complete function and retained224 checksum;
+the existing rollback-only database harness fault-injects a malformed delegated
+result and requires `PT409` without changing the entry. Its temporary dependency
+replacement and all fixtures are rolled back, including on psql failure.
+
+Before application, verify all001–224 identities and preview only225 with the
+normal `supabase db push --local --dry-run`; no include-all/history repair is
+needed. Apply exactly225 once with `supabase db push --local` only after the
+targeted review clears. Then check history/types/security, the behavior and
+eight concurrency contracts, existing-data preservation and restoration of the
+fault-injected dependency. PR1380 carries the live application/CI receipt;
+this section documents the authorized sequence, not a reusable permission.

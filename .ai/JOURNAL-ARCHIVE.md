@@ -33983,3 +33983,8 @@ Changed the shared teacher work-item card so ordinary Classwork and Tests cards 
 ## 2026-09-29 — Teacher Test split-pane scrollbar parity
 
 Applied the existing assignment `scrollbar-hover` utility to the teacher Test grading student table and selected-student inspector. Both panes retain independent scrolling; the visible inspector scrollbar is hidden at rest, matching assignments. Local seeded teacher browser verification covered selected desktop light/dark and mobile light/dark, with the student mobile route checked for regression. The desktop page stayed at viewport height while the inspector scrolled; no horizontal overflow appeared on mobile. Focused checks passed 221 tests plus architecture, UI/design policy, TypeScript, and lint. Risk profile: none. Model recommendation: GPT-6 Sol for this localized UI change.
+
+<!-- pika-session-log-archive-batch:43816c700cc728c10ef0775fc4aecbcc246acb4ef7fd26f6a53f90d2388a65b8 -->
+## 2026-09-29 — Teacher Test question review formatting
+
+Changed the selected-student Test grading question comment placeholder from `Comment (optional)` to `Comment`. Coding open responses now use the existing `response_monospace` results field to show a Code label and a monospace, indentation-preserving response block with internal horizontal scroll; prose open responses retain their styling. No scoring or autosave behavior changed. Rebasing draft PR #1391 onto the latest main resolved the session archive marker conflict while retaining both log entries. Focused checks passed 234 tests plus architecture, UI/design policy, TypeScript, and lint. The owner visually verified the selected teacher pane and accepted the result. Risk profile: none. Model recommendation: GPT-6 Sol for the localized teacher UI change.

@@ -109,6 +109,7 @@ describe('contextual daily-log save', () => {
     ['P0002', 404],
     ['22023', 400],
     ['40001', 409],
+    ['PT409', 409],
     ['55P03', 409],
     ['PGRST202', 503],
     ['42883', 503],
@@ -118,6 +119,7 @@ describe('contextual daily-log save', () => {
     const operation = save(rpc)
     await expect(operation).rejects.toMatchObject({ statusCode })
     await expect(operation).rejects.not.toThrow('private database detail')
+    expect(rpc).toHaveBeenCalledTimes(1)
   })
 
   it.each([

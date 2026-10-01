@@ -61,7 +61,7 @@ function mapRpcError(code: string | undefined): never {
   if (code === '42501') throw new ApiError(403, 'Forbidden')
   if (code === 'P0002') throw new ApiError(404, 'Entry not found')
   if (code === '22023') throw new ApiError(400, 'Invalid daily log save request')
-  if (code === '40001' || code === '55P03' || isRetryableDatabaseContention({ code })) {
+  if (code === 'PT409' || code === '40001' || code === '55P03' || isRetryableDatabaseContention({ code })) {
     throw new ApiError(409, 'Entry changed during this update. Refresh and try again.')
   }
   throw new ApiError(503, 'Unable to save daily log')

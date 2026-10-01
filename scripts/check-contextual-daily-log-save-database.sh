@@ -18,6 +18,8 @@ begin
   if to_regprocedure(v_signature) is null or not exists (
     select 1 from supabase_migrations.schema_migrations where version = '224'
   ) then raise exception 'Migration 224 is required; this harness never applies it'; end if;
+  if not exists (select 1 from supabase_migrations.schema_migrations where version = '225')
+  then raise exception 'Migration 225 is required; this harness never applies it'; end if;
   if has_function_privilege('anon', v_signature, 'execute')
     or has_function_privilege('authenticated', v_signature, 'execute')
     or not has_function_privilege('service_role', v_signature, 'execute')
@@ -147,6 +149,38 @@ begin
   exception when insufficient_privilege then null; end;
 end;
 $behavior$;
+
+-- Fault-inject only inside this rollback transaction. The original dependency
+-- definition and fixtures are restored by rollback, including on psql failure.
+create or replace function public.upsert_student_entry_with_pal_event_atomic(
+  p_student_id uuid, p_classroom_id uuid, p_date date, p_text text,
+  p_rich_content jsonb, p_on_time boolean, p_pal_event jsonb,
+  p_minutes_reported integer default null, p_mood text default null,
+  p_expected_version integer default null
+)
+returns jsonb language sql security definer set search_path = ''
+as $fault$ select '{}'::jsonb; $fault$;
+do $binding_conflict$
+declare
+  v_actor constant uuid := 'c2240000-0000-4000-8000-000000000004';
+  v_class constant uuid := 'c2240000-0000-4000-8000-000000000010';
+  v_day date := (clock_timestamp() at time zone 'America/Toronto')::date;
+  v_entry public.entries%rowtype;
+begin
+  select * into strict v_entry from public.entries
+  where classroom_id = v_class and student_id = v_actor and date = v_day;
+  begin
+    perform public.save_daily_log_for_member_v1(v_actor, v_class, v_day,
+      'Must not persist', '{"type":"doc","content":[]}', true,
+      p_expected_version => v_entry.version, p_expected_entry_id => v_entry.id);
+    raise exception 'Malformed inner save did not raise a binding conflict';
+  exception when sqlstate 'PT409' then null;
+  end;
+  if exists (select 1 from public.entries where id = v_entry.id
+    and (text is distinct from v_entry.text or version is distinct from v_entry.version))
+  then raise exception 'Binding conflict changed the entry'; end if;
+end;
+$binding_conflict$;
 rollback;
 SQL
 echo 'Contextual Daily Log save behavior passed (all fixtures rolled back).'

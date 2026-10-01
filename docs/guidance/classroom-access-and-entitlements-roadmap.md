@@ -403,9 +403,12 @@ exact preview. All history identities through 224, generated types, security,
 assignment conflict behavior and Daily rollback/eight concurrency cases pass;
 the data-preservation check passes. That one-time approval is consumed.
 Final review at 57ccc26f found a custom-40001 retry risk in Daily's defensive
-binding check. Preserve already-applied 224; an additive conflict-code correction
-and adapter compatibility require remediation and targeted review before merge.
-Its local application needs separate exact approval. Production Daily Log
+binding check. Owner approved the additive225 correction, one seventh targeted
+review and exactly225 locally after verification. Migration224 remains unchanged;
+225 replaces only the defensive conflict code with PT409 and the adapter accepts
+both codes. A rollback-only fault-injection contract covers the defensive branch.
+PR1380 records application and final-review outcomes; these must pass before merge.
+The one-time225 approval does not authorize production. Production Daily Log
 application remains pending; no reset, reseed or production repair was performed.
 Daily reads and other batch-1 domains remain subsequent work;
 no cohort or home/page activation is authorized by this slice.

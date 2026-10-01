@@ -9,8 +9,10 @@ The existing owner/member material-list GET routes consume this policy. The
 integration, with canonical migration 224 pending production. Its identical SQL
 was applied under the old 223 on 2026-09-30; an exact owner-approved local history
 repair now records it as 224 and main's real 223 was applied once. Local history,
-types and Daily contracts pass. A reviewed custom-40001 retry risk blocks merge
-pending a separately reviewed additive correction; admission remains dormant.
+types and Daily contracts pass. Additive migration225 corrects the reviewed
+custom-40001 retry risk; the adapter accepts PT409 and the former code. Its exact
+local application and one targeted review are owner-approved, not permission for
+production or admission activation. PR1380 carries the latest verification receipt.
 The unchanged transaction
 passed local verification under its original number 218 on 2026-09-27; that
 function was absent before the owner-approved local 221–223 application.
