@@ -65,9 +65,9 @@ vi.mock('@/ui', async (importOriginal) => {
   return {
     ...actual,
     Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
-    ConfirmDialog: ({ isOpen, title, description, confirmLabel, cancelLabel, onConfirm, onCancel, isConfirmDisabled, isCancelDisabled }: any) => (
+    ConfirmDialog: ({ isOpen, title, description, confirmLabel = 'Confirm', cancelLabel = 'Cancel', onConfirm, onCancel, isConfirmDisabled, isCancelDisabled }: any) => (
       isOpen ? (
-        <div>
+        <div role="dialog" aria-label={title}>
           <div>{title}</div>
           {description ? <div>{description}</div> : null}
           <button type="button" onClick={onCancel} disabled={isCancelDisabled}>{cancelLabel}</button>
@@ -642,7 +642,8 @@ function getAssignmentUtilityAction(name: 'Edit Assignment' | 'Delete Assignment
 
 function getSelectedStudentAction(
   name:
-    | 'AI Grade'
+    | 'AI Grade 1 student'
+    | 'AI Grade 2 students'
     | 'Copy grade to 1 selected'
     | 'Copy grade to 2 selected'
     | 'Copy comment to 2 selected'
@@ -2961,9 +2962,10 @@ describe('TeacherClassroomView', () => {
     expect(mockClearSelection).toHaveBeenCalled()
   })
 
-  it('starts and polls a Gradex assignment run from the selected-students AI Grade action', async () => {
-    mockStudentSelectionState.selectedIds = new Set(['student-1'])
-    mockStudentSelectionState.selectedCount = 1
+  it.each([1, 2])('confirms AI grading for %i selected students before starting and polling a Gradex assignment run', async (selectedCount) => {
+    const selectedIds = ['student-1', 'student-2'].slice(0, selectedCount)
+    mockStudentSelectionState.selectedIds = new Set(selectedIds)
+    mockStudentSelectionState.selectedCount = selectedCount
 
     const gradexRun = {
       id: 'run-gradex-1',
@@ -3067,16 +3069,37 @@ describe('TeacherClassroomView', () => {
 
     document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
 
-    render(<TeacherClassroomView classroom={classroom} />)
+    const { rerender } = render(<TeacherClassroomView classroom={classroom} />)
 
     await waitFor(() => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
-    fireEvent.click(getSelectedStudentAction('AI Grade'))
+    const actionLabel = selectedCount === 1 ? 'AI Grade 1 student' : 'AI Grade 2 students'
+    fireEvent.click(getSelectedStudentAction(actionLabel))
+    const dialog = screen.getByRole('dialog', { name: `AI grade ${selectedCount} student${selectedCount === 1 ? '' : 's'}` })
+    expect(dialog).toHaveTextContent('This will overwrite existing grade, comments and teacher edits.')
+    expect(autoGradeBodies).toEqual([])
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog', { name: /^AI grade/ })).not.toBeInTheDocument()
+    expect(autoGradeBodies).toEqual([])
 
+    fireEvent.click(getSelectedStudentAction(actionLabel))
+    mockStudentSelectionState.selectedIds = new Set()
+    mockStudentSelectionState.selectedCount = 0
+    rerender(<TeacherClassroomView classroom={classroom} />)
+    const confirmationButton = within(screen.getByRole('dialog', { name: /^AI grade/ })).getByRole('button', { name: 'AI grade', exact: true })
+    expect(confirmationButton).toBeDisabled()
+    fireEvent.click(confirmationButton)
+    expect(autoGradeBodies).toEqual([])
+    mockStudentSelectionState.selectedIds = new Set(selectedIds)
+    mockStudentSelectionState.selectedCount = selectedCount
+    rerender(<TeacherClassroomView classroom={classroom} />)
+    expect(confirmationButton).toBeEnabled()
+    fireEvent.click(confirmationButton)
+    expect(screen.queryByRole('dialog', { name: /^AI grade/ })).not.toBeInTheDocument()
     await waitFor(() => {
-      expect(autoGradeBodies).toEqual([{ student_ids: ['student-1'] }])
+      expect(autoGradeBodies).toEqual([{ student_ids: selectedIds }])
     })
     await waitFor(() => {
       expect(tickFetchCount).toBe(1)

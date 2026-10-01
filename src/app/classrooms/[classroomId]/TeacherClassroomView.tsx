@@ -697,6 +697,7 @@ export function TeacherClassroomView({
   const [isReturning, setIsReturning] = useState(false)
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
+  const [showBatchAutoGradeConfirm, setShowBatchAutoGradeConfirm] = useState(false)
   const [gradeSelectedConfirmTarget, setGradeSelectedConfirmTarget] =
     useState<GradeSelectedApplyTarget | null>(null)
   const gradeSelectedConfirmTitleId = useId()
@@ -2302,11 +2303,9 @@ export function TeacherClassroomView({
   const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'ai-grade-selected',
-      label: 'AI Grade',
+      label: `AI Grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`,
       icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => {
-        void handleBatchAutoGrade()
-      },
+      onSelect: () => setShowBatchAutoGradeConfirm(true),
       disabled: selectedStudentActionsBusy,
     },
     {
@@ -2842,6 +2841,21 @@ export function TeacherClassroomView({
         workspaceFrame="standalone"
         workspaceFrameClassName={selectedSurvey || activeSelectedStudentId ? 'border-0 bg-page' : undefined}
         workspaceRef={workspaceContainerRef}
+      />
+
+      <ConfirmDialog
+        isOpen={showBatchAutoGradeConfirm}
+        title={`AI grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`}
+        description="This will overwrite existing grade, comments and teacher edits."
+        confirmLabel="AI grade"
+        confirmVariant="danger"
+        isConfirmDisabled={selectedStudentActionsBusy || batchSelectedCount === 0}
+        onCancel={() => setShowBatchAutoGradeConfirm(false)}
+        onConfirm={() => {
+          if (selectedStudentActionsBusy || batchSelectedCount === 0) return
+          setShowBatchAutoGradeConfirm(false)
+          void handleBatchAutoGrade()
+        }}
       />
 
       <ConfirmDialog
