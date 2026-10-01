@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/classrooms/[id]/authoring-drafts/create/route'
 import { courseBlueprintAssignmentsToMarkdown } from '@/lib/course-blueprint-assignments'
+import { normalizeGeneratedAssignmentInstructions } from '@/lib/server/guided-assignment-markdown'
 import { courseBlueprintAssessmentsToMarkdown } from '@/lib/course-blueprint-assessments-markdown'
 import { resolveCourseBlueprintAuthoringContext } from '@/lib/course-blueprint-authoring-context'
 import {
@@ -105,6 +106,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe('classroom guided draft creation', () => {
+  it('creates one assignment while retaining a fenced reference with parser-like lines', async () => {
+    const instructions = normalizeGeneratedAssignmentInstructions([
+      '## Task',
+      'Write a SuperKarel method.',
+      '---',
+      '## Coding reference',
+      '````java',
+      '## This is example code',
+      '---',
+      'Points: 999',
+      '````',
+    ].join('\n'))
+    const response = await POST(request(body('assignments', assignmentMarkdown(instructions))), context)
+    expect(response.status).toBe(201)
+    expect(mocks.rpc).toHaveBeenCalledWith('create_guided_assignment_for_owner_v1',
+      expect.objectContaining({
+        p_points_possible: 20,
+        p_instructions_markdown: expect.stringContaining('````java\n## This is example code\n---\nPoints: 999\n````'),
+      }))
+    expect(mocks.rpc.mock.calls[0][1].p_instructions_markdown).toContain('### Coding reference')
+  })
+
   it('accepts teacher edits and creates exactly one draft assignment with frozen Version provenance', async () => {
     const preview = body('assignments', assignmentMarkdown())
     const response = await POST(request({ ...preview, content: assignmentMarkdown('Edited instructions.') }), context)
@@ -186,6 +209,47 @@ describe('classroom guided draft creation', () => {
     }), context)
     expect(zero.status).toBe(400)
     expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects edited body delimiters and metadata before any assignment write', async () => {
+    const seed = body('assignments', assignmentMarkdown('First section.'))
+    const edits = [
+      assignmentMarkdown('First section.\n\n---\n\nSecond section is required.'),
+      assignmentMarkdown('First section.\nPoints: 999\nSecond section is required.'),
+      assignmentMarkdown('First section.\nDue Days: 0\nSecond section is required.'),
+      assignmentMarkdown('First section.\nPoints :999\nSecond section is required.'),
+      assignmentMarkdown('First section.\nDue Days :0\nSecond section is required.'),
+      assignmentMarkdown('First section.\n### Submission Requirements\nSecond section is required.'),
+      assignmentMarkdown('First section.\n  ### Submission Requirements\nSecond section is required.'),
+      assignmentMarkdown('First section.\n  ### Instructions\nSecond section is required.'),
+      assignmentMarkdown('First section.\nArtifact ID: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+        .replace('Track Authenticity: false\n\nFirst section.', 'Track Authenticity: false\nFirst section.'),
+      `# Unit directions\n${assignmentMarkdown('First section.')}`,
+      `Teacher preface\n${assignmentMarkdown('First section.')}`,
+      `\`\`\`java\n## example\n\`\`\`\n${assignmentMarkdown('First section.')}`,
+    ]
+    for (const content of edits) {
+      const response = await POST(request({ ...seed, content }), context)
+      expect(response.status).toBe(400)
+    }
+    expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+
+  it('keeps a valid teacher-added submission requirement', async () => {
+    const content = courseBlueprintAssignmentsToMarkdown([{
+      title: 'Program assignment',
+      instructions_markdown: 'Write the Karel program.',
+      submission_requirements: [{ type: 'repo_link', label: 'Code repository', required: true }],
+      default_due_days: 7, default_due_time: '23:59', points_possible: 20,
+      include_in_final: true, is_draft: true, position: 0,
+    }])
+    const response = await POST(request(body('assignments', content)), context)
+    expect(response.status).toBe(201)
+    expect(mocks.rpc).toHaveBeenCalledWith('create_guided_assignment_for_owner_v1',
+      expect.objectContaining({
+        p_instructions_markdown: 'Write the Karel program.',
+        p_requirements: [expect.objectContaining({ type: 'repo_link', label: 'Code repository' })],
+      }))
   })
 
   it('maps a replayed draft id to a conflict without another artifact', async () => {

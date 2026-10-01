@@ -210,7 +210,7 @@ export function LimitedMarkdown({
               key={key}
               className="overflow-x-auto rounded-lg bg-gray-900 p-4 font-mono text-sm text-gray-100"
             >
-              <code>{block.code}</code>
+              <code className="text-text-inverse">{block.code}</code>
             </pre>
           )
         }

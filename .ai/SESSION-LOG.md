@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-28 — High-only test grading completion in progress
-
-The owner chose high reasoning on every attempt, background continuation after leaving the page, and a 20-minute target for 24 students with two AI-marked answers each. Added test-policy v7 to forbid effort downgrade, individual high-effort retries after failed four-answer batches, a protected bounded worker route, and migration 219 for pg_net wakeups plus a minute pg_cron watchdog. Vault settings activate dispatch after rollout; no migration or production deployment has been applied. Initial focused checks passed 2,833 tests plus architecture, UI/design policy, TypeScript and lint; both independent initial reviewers passed. Next: exact-head CI, targeted review of the retry correction, and owner approval for migration application and promotion. Risk profiles: async-grading and runtime-platform. Model recommendation: GPT-6 Sol for this cross-layer reliability change.
-
-The high-only sequential offline run took 19.2 minutes for 48 answers; 44 graded and four exhausted the 6K/8K output budgets. All four graded on one further high-only attempt in 3.5 minutes. Corrected the run coordinator to retry output-budget exhaustion for individual answers, within its existing three-attempt limit, and mapped DeepSeek provider errors to a teacher-safe message. This is evidence for the retry path, not a guarantee of a 20-minute production class run; production's adaptive batching and background dispatch still need rollout verification.
-
-A paired offline high-only trial raised individual grading budgets to 12K/16K and completed all 48 answers in 18.0 sequential grading-call minutes with 50 provider requests; the prior 6K/8K run plus rescue took 22.7 minutes and 66 requests. The fixed off-peak reference-rate estimate fell from $0.1701 to $0.1378. Seventeen scores differed across runs, so the trial does not establish a quality improvement. The draft now applies 12K/16K only to individual grading, retains 6K/8K reference generation, and records policy v8. No Pika grades were written by the trial; background class completion remains unverified.
-
-## 2026-09-28 — Classroom drafts guided by frozen Blueprint Versions
-
-Added teacher Classwork and Tests entry actions for a shared unit-aware AI draft dialog. The teacher can review exact Version rules, edit standalone Markdown, then create an unpublished Assignment or Test and continue in its editor. The server uses the classroom's frozen Version for model input, validates a signed preview and edited draft, and calls atomic SQL functions that store private provenance in a sidecar. Teacher editors load a compact source note; students receive only assessment content. New migration 219 and rollback-only database contracts await clean CI replay; no local migration was applied because the shared local database has an unrelated 218. Teacher desktop/mobile light/dark dialog and student Classwork screenshots were reviewed. The full focused check passed 2,547 tests plus architecture, UI/design policy, TypeScript, and lint before the final cached-read and accessibility-test refinements; an exact final check is pending. PR #1386's CI found a PL/pgSQL typed-array lint warning in migration 218; that one-line correction passed focused checks, but its review budget checkpoint is pending.
-
-## 2026-09-28 — Blueprint phase-one merge and classroom review correction
-
-PR #1386 passed independent review and exact-head CI, then merged into main at `ab6cb6e5`. Rebased draft PR #1387 onto that main commit. Its final integration review found a real signed-rule mismatch: JavaScript and PostgreSQL trimmed different edge whitespace, and uppercase stored UUIDs failed text comparison. Aligned frozen-rule reconstruction for rule text, unit labels, and UUID identity, with focused app and database contract fixtures. The fourth correction batch passed 2,573 focused tests across 243 files plus architecture, UI/design policy, TypeScript, and lint. The shared local database remains untouched. Targeted and final independent review, exact-head CI, and the classroom PR merge gate remain pending.
-
-## 2026-09-28 — Classroom frozen-guidance boundary correction
-
-The targeted seventh reviewer found two blocking gaps in PR #1387: suggest/create routes compared equivalent UUID spellings case sensitively, and migration 218's original validator still accepted whitespace-only unit labels that migration 219 and the app reject. The owner approved a fifth correction batch. Updated both route guards and replaced the validator in migration 219, leaving historical migration 218 unchanged. Added API regressions for a lowercase request against an uppercase frozen ID and database contract cases for empty, 160-character, and 161-character post-trim labels. The affected 22 tests and shell syntax pass; final focused checks, cumulative review, CI, and merge remain pending. Shared local and production migrations remain unapplied.
-
-## 2026-09-29 — Teacher work-list hover distinction
-
-Changed the shared teacher work-item card so ordinary Classwork and Tests cards use the semantic info tint on hover, distinct from muted draft cards. Focused checks passed 338 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright verified teacher Classwork and Tests at desktop/mobile widths in light/dark themes, including actual hover and draft comparison. Risk profile: none. Model recommendation: GPT-6 Sol for the localized shared UI change.
-
-## 2026-09-29 — Teacher Test split-pane scrollbar parity
-
-Applied the existing assignment `scrollbar-hover` utility to the teacher Test grading student table and selected-student inspector. Both panes retain independent scrolling; the visible inspector scrollbar is hidden at rest, matching assignments. Local seeded teacher browser verification covered selected desktop light/dark and mobile light/dark, with the student mobile route checked for regression. The desktop page stayed at viewport height while the inspector scrolled; no horizontal overflow appeared on mobile. Focused checks passed 221 tests plus architecture, UI/design policy, TypeScript, and lint. Risk profile: none. Model recommendation: GPT-6 Sol for this localized UI change.
-
 ## 2026-09-29 — Teacher Test question review formatting
 
 Changed the selected-student Test grading question comment placeholder from `Comment (optional)` to `Comment`. Coding open responses now use the existing `response_monospace` results field to show a Code label and a monospace, indentation-preserving response block with internal horizontal scroll; prose open responses retain their styling. No scoring or autosave behavior changed. Rebasing draft PR #1391 onto the latest main resolved the session archive marker conflict while retaining both log entries. Focused checks passed 234 tests plus architecture, UI/design policy, TypeScript, and lint. The owner visually verified the selected teacher pane and accepted the result. Risk profile: none. Model recommendation: GPT-6 Sol for the localized teacher UI change.
@@ -154,6 +126,7 @@ PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-app
 ## 2026-09-30 — Prepare Blueprint production release
 
 PR1396 merged asb754bd69 after fixed-head CI36702895411 passed every lane and PR Gate. Production advanced via1397 while the release was preparing; promotion1398 now combines only classroom Blueprint drafting and guidance adoption. Production's current-state summary is preserved. Conflict resolution removes only duplicate historical archive entries already present verbatim; application/test/migration tree remains identical to reviewed main. Cumulative release review and final CI follow; production migrations221/222 now have direct one-time owner approval after checks. Actual ICS3U guidance was saved/read-verified at Draft4; P3/P5 adoption remains pending. Fresh linked DB preflight currently cannot connect; no application attempted.
+
 ## 2026-09-30 — Retire remaining hosted staging workflow
 
 - Replaced obsolete staging/Preview rollout prerequisites with local app + local Supabase checks → reviewed main PR → production; updated startup/setup/rollout guidance and documented retirement evidence.
@@ -208,6 +181,22 @@ Main advanced during CI. The owner approved one archive-only sync, one focused r
 
 Read the Disk IO Budget warning and production catalog/log evidence. Confirmed a PostgREST internal retry storm on manual Assignment grading SQLSTATE40001; stopped the exact matched runaway backend. Follow-up shows no runaway process and essentially flat rollbacks. Stored database size remains below the free quota. Prepared migration223 changing only the manual stale-revision error to PT409, dual-code legacy/contextual adapter support, regressions and recovery guidance. Isolated disposable-database replay verifies stale rejection, complete batch rollback, nonowner rejection, fresh save and unchanged grants/security. Production migration and application rollout remain pending explicit authorization; other current custom40001 RPCs need a separate audit.
 
+## 2026-09-30 — Guided assignment Markdown boundaries
+
+Classroom guided assignment previews now normalize generated prose that resembles Blueprint delimiters and protect fenced code during the existing single-assignment create parse. The Karel-shaped task/reference regression and route creation check preserve 10 points, draft status, student content, and verbatim backtick/tilde code examples. Shared Blueprint parser, migrations, and provider settings are unchanged. Affected tests and focused checks passed; PR review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the bounded server serialization fix.
+
+## 2026-09-30 — Guided assignment correction review
+
+Remediated first review findings in classroom guided assignment previews. Ambiguous teacher edits (interior divider, body metadata, or unparseable reserved section) now fail before the create RPC; valid submission requirements remain accepted. LimitedMarkdown recognizes long backtick and tilde fences, preserves inner short markers and following prose, and gives code the existing inverse text token for contrast. The production renderer's Pattern Lab fixture passed eight teacher/student, desktop/mobile, light/dark Playwright captures; screenshots were reviewed. Focused gate, independent review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for this bounded parser/rendering correction.
+
+## 2026-09-30 — Guided assignment parser grammar follow-up
+
+Second targeted review found that spaced field labels, indented reserved section headings, and nonblank pre-title text could bypass the classroom guided preview guard and lose or mutate content. The classroom-only helper now classifies exactly the eight fields accepted by the unchanged legacy parser, recognizes sections after trim, and rejects ignored prefaces before the create RPC. Generated prose with those field and heading forms remains visible and keeps its original points. Focused checks and stable-SHA re-review remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the narrow parser boundary correction.
+
+## 2026-09-30 — Guided assignment documentation checkpoint
+
+Owner approved one documentation correction/main sync and one brief review after the review-budget checkpoint. Restored the missing space in CURRENT migration history while retaining verified production 222 and the new main deployment flow. Application changes remain unchanged; exact-head checks and main merge remain gated.
+
 ## 2026-09-30 — Production release after migrations 221/222
 
 Owner authorized production deployment. Production migrations221/222 applied once successfully from reviewed8b317736; linked postflight222history entries aligned, no drift. Read-only columns/RLS/service-only grants and guidance triggers verified. Updating existing releasePR1398 with reviewed main3eed5324 (AI grade confirmation, test-reference policy, same-day Class Days corrections). Only merge conflict is archived continuity; both sides preserved. Migration/application source matches current main. Cumulative integration review and exact-head CI precede merge.
@@ -215,3 +204,7 @@ Owner authorized production deployment. Production migrations221/222 applied onc
 ## 2026-09-30 — Production disk I/O fix rollout (PR1408)
 
 Owner authorized migration223 on production followed by application promotion. Linked history and dry-run confirmed221/222 already applied and only223 pending. Applied223 once successfully; the live function source hash matches the reviewed migration exactly, with PT409 and unchanged service-only ACL, security definer and empty search path. Main fixPR1406 merged as112c1c73 after independent review and green CI36771557844. PromotionPR1408 batches reviewed hosted toolingPR1404 and the grading compatibility fix. Resolved archive continuity by retaining the production narrative (which contains every main narrative line) and all main-only batch markers; runtime and Supabase files remain identical to main. Cumulative review and final CI precede the authorized production merge.
+
+## 2026-09-30 — Guided assignment production promotion (PR1410)
+
+Promoting reviewed main1b5430b3 after PR1407 passed8758 CI tests, database/browser contracts and PR Gate. One continuity conflict batch retains production verified223 and both historical narratives; application, tests, schema and configuration stay byte-identical to reviewed main. Production223 was applied by its separately authorized owner; this task applies no migrations. One cumulative promotion review and exact-head CI precede release. Final teacher guided-assignment proof remains pending sign-in.

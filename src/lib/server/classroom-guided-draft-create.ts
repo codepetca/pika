@@ -5,6 +5,7 @@ import {
 } from '@/lib/scheduling'
 import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { markdownToCourseBlueprintAssignments } from '@/lib/course-blueprint-assignments'
+import { findAmbiguousGuidedAssignmentEdit, protectGuidedAssignmentCode } from '@/lib/server/guided-assignment-markdown'
 import { markdownToCourseBlueprintAssessments } from '@/lib/course-blueprint-assessments-markdown'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { markPortableTestQuestionIdentity } from '@/lib/test-question-identity'
@@ -35,11 +36,15 @@ type ParseResult =
 /** Parse an edited, standalone preview before any classroom mutation. */
 export function parseClassroomGuidedDraft(target: 'assignments' | 'tests', content: string): ParseResult {
   if (target === 'assignments') {
-    const parsed = markdownToCourseBlueprintAssignments(content, [])
+    const ambiguousEdit = findAmbiguousGuidedAssignmentEdit(content)
+    if (ambiguousEdit) return { ok: false, errors: [ambiguousEdit] }
+    const protectedCode = protectGuidedAssignmentCode(content)
+    const parsed = markdownToCourseBlueprintAssignments(protectedCode.content, [])
     if (parsed.errors.length || parsed.assignments.length !== 1) {
       return { ok: false, errors: parsed.errors.length ? parsed.errors : ['The preview must contain exactly one assignment'] }
     }
     const assignment = parsed.assignments[0]
+    assignment.instructions_markdown = protectedCode.restore(assignment.instructions_markdown)
     const errors: string[] = []
     if (assignment.title.length > 200) errors.push('Title is too long')
     if (!assignment.instructions_markdown.trim() || assignment.instructions_markdown.length > 20_000) {

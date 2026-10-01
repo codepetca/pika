@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { CourseBlueprintDetail, TestDraftContent } from '@/types'
 import { resolveCourseBlueprintAuthoringContext } from '@/lib/course-blueprint-authoring-context'
 import { courseBlueprintAssignmentsToMarkdown } from '@/lib/course-blueprint-assignments'
+import { normalizeGeneratedAssignmentInstructions } from '@/lib/server/guided-assignment-markdown'
 import {
   courseBlueprintAssessmentsToMarkdown,
   type CourseBlueprintAssessmentMarkdownRecord,
@@ -333,7 +334,11 @@ export async function generateClassroomGuidedDraft(args: {
     if (draft.points_possible <= 0) {
       throw new Error('AI drafting returned an assignment without positive points')
     }
-    const record = buildAssignmentRecord(draft, 0)
+    const record = buildAssignmentRecord({
+      ...draft,
+      title: draft.title.replace(/\s+/g, ' '),
+      instructions_markdown: normalizeGeneratedAssignmentInstructions(draft.instructions_markdown),
+    }, 0)
     return {
       target: args.target,
       content: courseBlueprintAssignmentsToMarkdown([record]),

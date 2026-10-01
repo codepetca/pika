@@ -75,6 +75,27 @@ import { OwnedJoinedHomeMockup } from './OwnedJoinedHomeMockup'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+
+const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
+  '### Task',
+  'Write a Java SuperKarel method.',
+  '',
+  '### Coding reference',
+  '### **Instructions**',
+  '````java',
+  '## code heading',
+  '```',
+  '---',
+  '````',
+  'After the backtick example.',
+  '',
+  '~~~java',
+  '## tilde example',
+  '---',
+  '~~~',
+  'After the tilde example.',
+].join('\n')
 
 type Role = 'teacher' | 'student'
 
@@ -609,6 +630,14 @@ export function UiGallery({ role }: Props) {
             {role === 'teacher' && <TestEditSplitPattern />}
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
+            <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"
+              title="Guided assignment Markdown" description="The production assignment renderer with a fixed coding reference for both classroom roles.">
+              <div data-testid="guided-assignment-markdown-reference">
+                <Card tone="panel" padding="md">
+                  <LimitedMarkdown content={GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE} />
+                </Card>
+              </div>
+            </PatternSection>
             <TestReferenceImagePattern />
             <StudentGradesPattern />
             <PatternSection
