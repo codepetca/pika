@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
 export const CLI_VERSION = '2.103.0'
+export const AUTH_STRATEGY = 'scoped-pat-temporary-login-v1'
 // Keep executable CLI configuration owned by trusted tooling. Candidate config
 // remains CI evidence, but cannot provision Vault secrets or enable seeding.
 export const RUNTIME_CONFIG = `project_id = "pika-migration-rollout"
@@ -95,7 +96,7 @@ export function createPlan(input, files, history, cliPending, schemaTree, runtim
     else if (pendingStarted) fail('Database history is not an applied prefix; do not repair automatically.')
   })
   if (JSON.stringify(cliPending) !== JSON.stringify(pending.map(f => f.name))) fail('CLI preview differs from the complete pending set.')
-  const binding = { format: 1, cli: CLI_VERSION, target: input.target, project: input.projectRef, sourceSha: input.sourceSha, schemaTree, runtimeConfigHash, files, history, pending }
+  const binding = { format: 2, auth: AUTH_STRATEGY, cli: CLI_VERSION, target: input.target, project: input.projectRef, sourceSha: input.sourceSha, schemaTree, runtimeConfigHash, files, history, pending }
   return { ...binding, digest: hash(JSON.stringify(binding)) }
 }
 

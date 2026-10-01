@@ -4,8 +4,19 @@
 
 This is a dormant first slice of batch 1 in the
 [classroom-access roadmap](classroom-access-and-entitlements-roadmap.md).
-Only the existing owner/member material-list GET routes consume this policy so
-far. Material writes, Daily Log, other domains, home/page routing and enrollment
+The existing owner/member material-list GET routes consume this policy. The
+[Daily Log save slice](contextual-daily-log-save.md) adds dormant POST/PATCH
+integration, with canonical migration 224 pending production. Its identical SQL
+was applied under the old 223 on 2026-09-30; an exact owner-approved local history
+repair now records it as 224 and main's real 223 was applied once. Local history,
+types and Daily contracts pass. Additive migration225 corrects the reviewed
+custom-40001 retry risk; the adapter accepts PT409 and the former code. Its exact
+local application and one targeted review are owner-approved, not permission for
+production or admission activation. PR1380 carries the latest verification receipt.
+The unchanged transaction
+passed local verification under its original number 218 on 2026-09-27; that
+function was absent before the owner-approved local 221–223 application.
+Material writes, Daily Log reads, other domains, home/page routing and enrollment
 retain their existing authorization. No environment is configured by this change.
 
 Do **not** configure a live cohort until the roadmap's full integrated release

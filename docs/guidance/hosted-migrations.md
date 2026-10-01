@@ -16,7 +16,7 @@ fails. See [the schema rollout checklist](./schema-rollout-checklist.md).
 
 Configure **production only** after this workflow is reviewed and merged into `main`: create
 the GitHub Actions environment `migrations-production`, separate from Vercel environments.
-The target is restricted to production; the mode defaults to read-only preview (a dry run,
+The target is restricted to production; the mode defaults to a migration preview (a dry run,
 not a hosted test environment). Development and smoke tests use local Supabase. Do not create
 an additional hosted migration target; see [the environment flow](../dev-workflow.md#environments-and-release-flow).
 Set the production environment's deployment branch policy to **selected branches and tags**, with exactly
@@ -31,8 +31,45 @@ In **production** configure these settings:
 | --- | --- |
 | Variable `ROLLOUT_TARGET` | `production`, matching the environment |
 | Variable `SUPABASE_PROJECT_REF` | Exact 20-letter project reference for that target |
-| Secret `SUPABASE_ACCESS_TOKEN` | CLI management token authorized for that project, with the narrowest practical project/organization access |
-| Secret `SUPABASE_DB_PASSWORD` | That project's database password |
+| Secret `SUPABASE_ACCESS_TOKEN` | Scoped personal access token for this project only, with the permissions below |
+
+Create a new **project-scoped** Supabase personal access token using the scoped token form, selecting only the
+production project. Start from **No access** and grant these permissions:
+
+| Permission | Access |
+| --- | --- |
+| Project Settings | Read |
+| API Keys | Read |
+| API Key Secrets | Read |
+| Connection Pooling | Read |
+| Database | Read-write |
+| Network Bans | Read |
+
+Leave every other permission at **None**, including Network Bans Write. Before creating the token,
+verify Supabase's Review access screen shows exactly the production project, the six capabilities
+above, and the intended expiry. After creation, verify its token listing is not labeled **Legacy**
+before saving it to GitHub. Never use Create legacy token or an existing Legacy token.
+The runner checks only expected token syntax/prefix: a Legacy token can also begin with `sbp_fc`.
+Token strings cannot attest token type, selected project, or permission restrictions. Supabase's
+Dashboard review and server-enforced scopes are the actual control, verified by the owner.
+Use an expiry and arrange renewal before it expires.
+A token with only Database Read cannot initialize temporary logins. Database Read-write also permits
+SQL execution through the Management API; it is broader than permission to create login roles.
+
+No permanent database password is needed or reset. The workflow does not read a
+`SUPABASE_DB_PASSWORD` secret, and direct execution rejects that environment variable when set.
+The pinned CLI uses its native linked-project flow to request temporary database login roles through
+[the CLI login-role endpoint](https://supabase.com/docs/reference/api/v1-create-login-role), with
+`read_only: false`, then assumes `postgres`. Expiration is managed by Supabase. This endpoint is
+Beta; a changed response or CLI behavior requires investigation rather than a password fallback.
+A preview creates temporary login roles and reads history, but does not apply migration SQL or
+change migration history. It therefore requires write-capable authentication even in preview mode.
+
+GitHub-hosted IPv4 runners use the linked pooler when needed. On repeated connection failures,
+the pinned CLI may list network bans and attempt to remove them. The scoped token must have
+Network Bans Read only: Supabase denies removal, and a blocked connection fails the rollout.
+Do not grant Network Bans Write as a recovery shortcut. See
+[Supabase token permissions](https://supabase.com/docs/guides/platform/personal-access-tokens).
 
 For production, set `ROLLOUT_TARGET` to `production` and verify the production project reference.
 Keep credentials scoped to the configured migration environment, rather than repository-wide. Verify the project
@@ -45,7 +82,11 @@ The hosted workflow requires **Linux x86_64** (Ubuntu), Node 24 and pinned Supab
 Checkout and Node setup actions use reviewed immutable commit SHAs. The Supabase installation
 step downloads the fixed Linux amd64 release archive and verifies its reviewed SHA-256
 `1eaeee74576b2b296c9731ed729c38ec91f48096be7c10290e324888a310ded7` **before extraction
-or execution** and before the rollout step receives database credentials. CLI upgrades, archive
+or execution** and before the rollout step receives database credentials. The release bundles two
+executables: the `supabase` shim and its `supabase-go` engine. Both must be extracted into the same
+directory and executable. The installer checks the engine's version before exposing either binary
+to the credentialed rollout step; the shim's version alone does not prove commands can execute.
+CLI upgrades, archive
 checksum changes, action pin changes or another hosted runner architecture require explicit review
 and renewed installation/parser/prompt verification. Direct local tooling can still use the pinned
 CLI's native platform binary; this hosted archive check does not change macOS execution.
@@ -86,12 +127,13 @@ execution planning; a timeout can leave a committed prefix, so never automatical
    read-only database contract/smoke checks from the approved rollout plan. Migration history proves
    recorded versions, not semantic correctness of data or application behavior.
 
-The digest binds project, target, source SHA, pinned CLI, the trusted runtime configuration hash,
+The format-2 digest binds the temporary-login authentication strategy, project, target, source SHA, pinned CLI, the trusted runtime configuration hash,
 complete Supabase tree, every migration's
 hash, full local/remote version history and the entire pending set. Apply recomputes the preview and
 checks it again immediately before applying. A different digest, extra/missing pending file, changed
 content or history drift requires a fresh preview and fresh approval. It never hides files to apply
-an approved subset. Remote history must be an exact applied prefix of the candidate's migration
+an approved subset. Digests from the permanent-password workflow are invalid; obtain a new preview
+and approval after this authentication change. Remote history must be an exact applied prefix of the candidate's migration
 inventory; divergent history requires separately authorized investigation/repair.
 
 The isolated executable CLI workspace uses a fixed configuration owned by trusted tooling:

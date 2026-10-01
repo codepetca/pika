@@ -236,6 +236,12 @@ jobs:
       - name: Verify contextual learner assignment-save atomicity and privileges
         run: bash scripts/check-contextual-assignment-doc-save-database.sh
 
+      - name: Verify contextual Daily Log save atomicity and privileges
+        run: bash scripts/check-contextual-daily-log-save-database.sh
+
+      - name: Verify contextual Daily Log concurrent access and revisions
+        run: node scripts/check-contextual-daily-log-save-concurrency.mjs
+
       - name: Verify contextual learner assignment submit and unsubmit atomicity
         run: bash scripts/check-contextual-assignment-doc-submission-database.sh
 
