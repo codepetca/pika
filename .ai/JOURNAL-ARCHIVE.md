@@ -33920,11 +33920,13 @@ The Tests list now displays Open when any enrolled student has effective open ac
 
 <!-- pika-session-log-archive-batch:084d8ac0eb5072e4693744ccdbfec031b28a1f8da75d63fee935836fec698433 -->
 <!-- pika-session-log-archive-batch:f7c783a27c5fc45004113ccf2fffbb5e8b4bc70695d6ef020fdfe9f0af92737e -->
+<!-- pika-session-log-archive-batch:c7336b0bedbe192f7ff3e693d1a6e4286bb6411c9337075624012d187af9e478 -->
 ## 2026-09-28 — Markdown code in Karel multiple choice
 
 Updated the teacher test authoring guide to require inline Markdown code for short snippets in multiple-choice prompts and one-line options, and fenced language-labeled blocks for multiline snippets in prompts. In production P5 ICS3U Unit 1 Java Karel quiz, formatted Q3 command options and Q4/Q5 prompt snippets; saved and re-read the test. In P3 ICS3U, formatted and saved Q4/Q5 prompt snippets; Q3 options remain plain because a student has started and Pika locks answer-choice edits. Preserved question IDs, point values, keys, documents, and release settings. Preview was blocked by the exam-mode maximized-window requirement in browser control; persistent Markdown was verified instead. Documentation risk profile: none. Model recommendation: GPT-6 Sol for focused documentation update.
 
 <!-- pika-session-log-archive-batch:f5328c787de3d234e805c87a8d48a5b79b1100145026261744a05262efcbba37 -->
+<!-- pika-session-log-archive-batch:c5515c246cb8196dbdc11eb057715595d09ec7d9feb04a76321220337571f76d -->
 ## 2026-09-28 — Resume offline test grading comparison
 
 - Continued draft PR1347 after the owner resumed the paused experiment. Synced current main with both archive histories retained; grading adapters/profiles are unchanged since the saved 33-operation checkpoint. Added strict comparison checkpoint resume for unchanged keyed questions, with exact answer/manifest, target, pricing, source and completed-prefix checks before provider work. The pause gap and possible interrupted request remain explicit in private accounting.
@@ -33959,3 +33961,20 @@ The owner chose high reasoning on every attempt, background continuation after l
 The high-only sequential offline run took 19.2 minutes for 48 answers; 44 graded and four exhausted the 6K/8K output budgets. All four graded on one further high-only attempt in 3.5 minutes. Corrected the run coordinator to retry output-budget exhaustion for individual answers, within its existing three-attempt limit, and mapped DeepSeek provider errors to a teacher-safe message. This is evidence for the retry path, not a guarantee of a 20-minute production class run; production's adaptive batching and background dispatch still need rollout verification.
 
 A paired offline high-only trial raised individual grading budgets to 12K/16K and completed all 48 answers in 18.0 sequential grading-call minutes with 50 provider requests; the prior 6K/8K run plus rescue took 22.7 minutes and 66 requests. The fixed off-peak reference-rate estimate fell from $0.1701 to $0.1378. Seventeen scores differed across runs, so the trial does not establish a quality improvement. The draft now applies 12K/16K only to individual grading, retains 6K/8K reference generation, and records policy v8. No Pika grades were written by the trial; background class completion remains unverified.
+
+<!-- pika-session-log-archive-batch:2ab97c0acf6cf67c2efb18a3b5051cbe8d9d26981462dce9ac557789420e7365 -->
+## 2026-09-28 — Classroom drafts guided by frozen Blueprint Versions
+
+Added teacher Classwork and Tests entry actions for a shared unit-aware AI draft dialog. The teacher can review exact Version rules, edit standalone Markdown, then create an unpublished Assignment or Test and continue in its editor. The server uses the classroom's frozen Version for model input, validates a signed preview and edited draft, and calls atomic SQL functions that store private provenance in a sidecar. Teacher editors load a compact source note; students receive only assessment content. New migration 219 and rollback-only database contracts await clean CI replay; no local migration was applied because the shared local database has an unrelated 218. Teacher desktop/mobile light/dark dialog and student Classwork screenshots were reviewed. The full focused check passed 2,547 tests plus architecture, UI/design policy, TypeScript, and lint before the final cached-read and accessibility-test refinements; an exact final check is pending. PR #1386's CI found a PL/pgSQL typed-array lint warning in migration 218; that one-line correction passed focused checks, but its review budget checkpoint is pending.
+
+## 2026-09-28 — Blueprint phase-one merge and classroom review correction
+
+PR #1386 passed independent review and exact-head CI, then merged into main at `ab6cb6e5`. Rebased draft PR #1387 onto that main commit. Its final integration review found a real signed-rule mismatch: JavaScript and PostgreSQL trimmed different edge whitespace, and uppercase stored UUIDs failed text comparison. Aligned frozen-rule reconstruction for rule text, unit labels, and UUID identity, with focused app and database contract fixtures. The fourth correction batch passed 2,573 focused tests across 243 files plus architecture, UI/design policy, TypeScript, and lint. The shared local database remains untouched. Targeted and final independent review, exact-head CI, and the classroom PR merge gate remain pending.
+
+## 2026-09-28 — Classroom frozen-guidance boundary correction
+
+The targeted seventh reviewer found two blocking gaps in PR #1387: suggest/create routes compared equivalent UUID spellings case sensitively, and migration 218's original validator still accepted whitespace-only unit labels that migration 219 and the app reject. The owner approved a fifth correction batch. Updated both route guards and replaced the validator in migration 219, leaving historical migration 218 unchanged. Added API regressions for a lowercase request against an uppercase frozen ID and database contract cases for empty, 160-character, and 161-character post-trim labels. The affected 22 tests and shell syntax pass; final focused checks, cumulative review, CI, and merge remain pending. Shared local and production migrations remain unapplied.
+
+## 2026-09-29 — Teacher work-list hover distinction
+
+Changed the shared teacher work-item card so ordinary Classwork and Tests cards use the semantic info tint on hover, distinct from muted draft cards. Focused checks passed 338 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright verified teacher Classwork and Tests at desktop/mobile widths in light/dark themes, including actual hover and draft comparison. Risk profile: none. Model recommendation: GPT-6 Sol for the localized shared UI change.

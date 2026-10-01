@@ -93,8 +93,8 @@ async function blocked(waiter, holder) {
 
 try {
   await admin.run(`DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '223')
-      THEN RAISE EXCEPTION 'Migration 223 is required; this harness never applies it'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM supabase_migrations.schema_migrations WHERE version = '224')
+      THEN RAISE EXCEPTION 'Migration 224 is required; this harness never applies it'; END IF;
     END $$;
     BEGIN;
     INSERT INTO public.users (id,email,role) VALUES
@@ -102,7 +102,7 @@ try {
       ('${actor}', '${tag}_member@example.invalid','teacher');
     SET LOCAL ROLE service_role;
     SELECT public.set_effective_feature_entitlement_v1(gen_random_uuid(), '${owner}',
-      'classrooms.create','manual',true,clock_timestamp(),null,1,'test:223','daily_save_race',
+      'classrooms.create','manual',true,clock_timestamp(),null,1,'test:224','daily_save_race',
       coalesce((SELECT revision FROM public.effective_feature_entitlements
         WHERE subject_user_id='${owner}' AND feature_key='classrooms.create'),0));
     RESET ROLE;

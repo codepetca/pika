@@ -1,14 +1,18 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const migration = () => readFileSync('supabase/migrations/223_contextual_daily_log_save.sql', 'utf8')
+const migration = () => readFileSync('supabase/migrations/224_contextual_daily_log_save.sql', 'utf8')
 
 describe('contextual Daily Log save boundary', () => {
   it('has a unique migration number after reconciliation with main', () => {
     const migrations = readdirSync('supabase/migrations')
-    expect(migrations.filter((name) => name.startsWith('223_'))).toEqual([
-      '223_contextual_daily_log_save.sql',
+    expect(migrations.filter((name) => name.startsWith('224_'))).toEqual([
+      '224_contextual_daily_log_save.sql',
     ])
+    expect(migrations.filter((name) => name.startsWith('223_'))).toEqual([
+      '223_stop_assignment_grade_conflict_retries.sql',
+    ])
+    expect(migrations).not.toContain('223_contextual_daily_log_save.sql')
     expect(migrations).not.toContain('218_contextual_daily_log_save.sql')
   })
 
@@ -54,7 +58,7 @@ describe('contextual Daily Log save boundary', () => {
 
   it('has a rollback-only behavior harness wired into CI', () => {
     const harness = readFileSync('scripts/check-contextual-daily-log-save-database.sh', 'utf8')
-    expect(harness).toContain('Migration 223 is required; this harness never applies it')
+    expect(harness).toContain('Migration 224 is required; this harness never applies it')
     expect(harness).toContain('rollback;')
     expect(harness).toContain('Owner self-enrollment must not confer member access')
     expect(harness).toContain('Create-only retry overwrote an existing entry')

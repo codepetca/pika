@@ -390,11 +390,15 @@ recovery versions are operator obligations, not guarantees of the stateless read
 The next bounded implementation is [Daily Log POST/PATCH saves](contextual-daily-log-save.md).
 The owner elected to continue the current server/session and service-role
 architecture after comparison; a user-JWT RLS or restricted-credential redesign
-is not part of this work. Migration 223 adds the transaction-time member boundary,
+is not part of this work. Migration 224 adds the transaction-time member boundary,
 controlled by the same shared admission contract. It was resequenced from the
-branch's original 218 after main allocated 218–222. Its SQL body is unchanged;
-the earlier local verification is historical, and the current shared local
-database does not contain that function. Application of 223 remains pending.
+branch's original 218, then 223, after main allocated 218–223. Its SQL body is unchanged;
+the earlier local verification is historical. The owner subsequently approved
+221–223 locally, applied once on 2026-09-30; history and generated types match
+through that branch's 223 and the function is present. Main subsequently assigned
+223 to the assignment-grade conflict correction: local history alignment is
+pending the exact approval described in the Daily Log runbook. Production Daily
+Log application remains pending; no reset or repair is authorized by this slice.
 Daily reads and other batch-1 domains remain subsequent work;
 no cohort or home/page activation is authorized by this slice.
 
