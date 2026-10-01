@@ -259,3 +259,20 @@ real PostgREST cases and all prior database/race/cleanup cases pass; targeted
 security re-review is clean at pre-rebase ba6ca7d7. Reconciled focused checks
 pass168tests/16files and all static gates; the five-group actual database harness
 passes again with exact cleanup. Cumulative integration review remains next.
+## 2026-10-01 — Daily outer-scroll investigation
+
+- User clarified the defect: Daily's whole page scrolls vertically into blank space below the table, in wide and narrow windows; only the table should scroll.
+- Read-only local investigation in app-managed worktree `daily-scroll-containment`; startup verification passed. With 80 mocked roster rows and the full classroom shell, Chromium1440×900 keeps document900px and table578px;1000/390px widths grow document3326px and table3004px because AppShell confinement is desktop-only. Exact wide-window blank-space symptom remains unreproduced; awaiting clarification about table-end versus outside-table scrolling. Product source unchanged.
+- Debug screenshots `/tmp/pika-daily-summary-{1440,1000,390}.png`; reference historical PR775/test-pane overflow and PR578/student-scroll persistence. Automatic DeepSeek delegation paused through2026-12-31 per shared pilot record.
+
+## 2026-10-01 — Daily blank-space cause confirmed in Chrome
+
+- Inspected user's existing production Daily tab read-only. At1152×608, body/AppShell608px but document953px and page scrollY300px, with the table independently scrolled551px. Hidden `No QR check-in` spans in Check-in cells extend to document953px because every ancestor through the scroller is statically positioned.
+- User has reduced motion enabled: Daily entry animation/transform is disabled. The animation otherwise incidentally creates a containing block, explaining why local default-motion screenshots missed the desktop defect. Containment should be explicit for screen-reader labels in both Daily table modes; retain their accessible text. Narrow shell-height issue from earlier investigation is separate.
+- Product source unchanged. Next implementation: regression with reduced-motion and missing check-ins, explicit local positioned containment, compare default/selected Daily states and wide/narrow viewports.
+
+## 2026-10-01 — Daily scroll containment fix
+
+- Made both teacher Daily roster scrollers positioned containers so hidden check-in labels remain inside the table without depending on animation transforms. Added an AppShell narrow-viewport opt-in used only by teacher Daily; reused the Daily/TeacherWorkspaceSplit composition and `/pattern-lab` Daily reference. No new visual pattern or data behavior.
+- Browser regression failed before the fix (reduced-motion document1455px for a900px viewport). Final Playwright matrix passes20: teacher fixture/full classroom, selected/unselected, normal/reduced motion,1440×900/390×844, light/dark; student Daily regression/screenshots pass all4 projects. Exact user-size1152×608 reduced-motion smoke keeps document608px and context bar56px before/after table-end wheel scrolling. Screenshots inspected in `test-results/` and `/tmp/pika-daily-exact-classroom.png`.
+- Focused gate passes223 tests plus architecture, UI/design policy, TypeScript and lint; audit/diff checks pass. An earlier concurrent run timed out two unrelated startup-doc harness tests; serial rerun passes. Risk profile:none. Independent review and final PR CI pending; use one GPT-5.6 Sol/high behavior reviewer because Terra is unavailable. DeepSeek pilot remains paused.

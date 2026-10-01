@@ -1,4 +1,6 @@
 import React from 'react'
+// Missing-check-in label containment and reduced-motion scrolling are verified
+// in the "Daily scroll containment" browser cases in e2e/experience-matrix.spec.ts.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'

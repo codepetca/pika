@@ -1092,6 +1092,101 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await verifyProjectContract(page, testInfo)
 })
 
+test.describe('Daily scroll containment', () => {
+  test.use({ storageState: TEACHER_STORAGE })
+  for (const surface of ['fixture', 'classroom'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`contains Daily table scrolling with ${reducedMotion} motion in ${surface}`, async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await page.emulateMedia({ reducedMotion })
+        await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
+
+        const classroomId = surface === 'classroom'
+          ? await getSeededTeacherClassroomId(page)
+          : ATTENDANCE_FIXTURE_CLASSROOM_ID
+        const logs = Array.from({ length: 45 }, (_, index) => ({
+          student_id: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+          student_email: `student${index + 1}@example.com`,
+          student_first_name: `Student ${String(index + 1).padStart(2, '0')}`,
+          student_last_name: `Alpha${String(index + 1).padStart(2, '0')}`,
+          entry: null,
+          history_preview: [],
+        }))
+        await page.route(`**/api/classrooms/${classroomId}/class-days`, (route) =>
+          route.fulfill({ json: { class_days: [{
+            id: '50000000-0000-4000-8000-000000000001',
+            classroom_id: classroomId,
+            date: '2026-08-29',
+            prompt_text: null,
+            is_class_day: true,
+          }] } }),
+        )
+        await page.route('**/api/teacher/logs?**', (route) => route.fulfill({ json: { logs } }))
+        await page.route('**/api/teacher/student-history?**', (route) =>
+          route.fulfill({ json: { entries: [] } }),
+        )
+        await page.route('**/api/teacher/log-summary?**', (route) =>
+          route.fulfill({ json: { summary_status: 'no_logs', summary: null } }),
+        )
+        await page.route('**/api/teacher/attendance/policy?**', (route) =>
+          route.fulfill({ json: { policy: null } }),
+        )
+        await page.route('**/api/teacher/attendance/session?**', (route) => route.fulfill({ json: {
+          classroomId,
+          classDate: '2026-08-29',
+          integration: 'not_configured',
+          session: {
+            state: 'not_scheduled', opensAt: null, closesAt: null,
+            sessionStartsAt: null, sessionEndsAt: null, presentThroughAt: null, absentAt: null,
+            revision: null, pendingCommand: false, commandFailed: false,
+          },
+          sync: { state: 'unavailable', confirmedAt: null },
+          students: [],
+        } }))
+        await page.goto(surface === 'classroom'
+          ? `/classrooms/${classroomId}?tab=daily`
+          : '/e2e-fixtures/teacher-daily-attendance')
+        const scrollPane = page.getByTestId('daily-student-scroll-pane')
+        await expect(scrollPane.getByRole('row')).toHaveCount(logs.length + 1)
+        if (surface === 'fixture') {
+          await expect(scrollPane.getByText('No QR check-in', { exact: true })).toHaveCount(logs.length)
+        }
+
+        async function verifyScrollContainment(state: 'table' | 'selected') {
+          await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height + 1)
+          // Selection restores remembered scroll in a layout effect; scroll after it settles.
+          await expect.poll(() => scrollPane.evaluate((element) => {
+            element.scrollTop = element.scrollHeight
+            return element.scrollTop
+          })).toBeGreaterThan(0)
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height + 1)
+          await expect.poll(() => scrollPane.evaluate((element) => {
+            const head = element.querySelector('thead')!
+            return Math.abs(head.getBoundingClientRect().y - element.getBoundingClientRect().y)
+          })).toBeLessThanOrEqual(1)
+          const paneBox = await scrollPane.boundingBox()
+          // Scrolling beyond the table must not reveal blank document space.
+          await page.mouse.move(paneBox!.x + paneBox!.width / 2, paneBox!.y + paneBox!.height / 2)
+          await page.mouse.wheel(0, 1000)
+          await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+          const { theme, viewport } = getExperienceMetadata(testInfo)
+          await page.screenshot({
+            path: testInfo.outputPath(`daily-scroll-${surface}-${viewport}-${theme}-${reducedMotion}-${state}.png`),
+            animations: 'disabled',
+          })
+        }
+
+        await verifyScrollContainment('table')
+        await scrollPane.evaluate((element) => { element.scrollTop = 0 })
+        await page.getByRole('cell', { name: 'Student 01', exact: true }).click()
+        await expect(page.getByTestId('daily-selected-student-workspace')).toBeVisible()
+        await verifyScrollContainment('selected')
+      })
+    }
+  }
+})
+
 test('shows manual attendance marks optimistically', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
   await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
@@ -2956,6 +3051,7 @@ test.describe('student experience matrix', () => {
     await expect(page.getByRole('heading', { name: 'Past logs' })).toBeVisible()
     await verifyActiveClassroomTab(page, testInfo, 'Daily')
     await verifyProjectContract(page, testInfo)
+    await page.screenshot({ path: testInfo.outputPath('student-today.png'), animations: 'disabled' })
   })
 
   test('reads the Course Guide as a clean in-Pika document', async ({ page }, testInfo) => {

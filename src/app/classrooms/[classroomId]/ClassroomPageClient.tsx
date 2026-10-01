@@ -1800,6 +1800,7 @@ function ClassroomPageContent({
       onNavigateHome={handleHomeNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
       constrainToViewport={hasConstrainedWorkspace}
+      constrainToViewportOnMobile={isTeacher && activeTab === 'daily'}
       examModeHeader={examHeaderData}
       pageTitle={undefined}
     >
