@@ -16,7 +16,9 @@ production or admission activation. PR1380 carries the latest verification recei
 The unchanged transaction
 passed local verification under its original number 218 on 2026-09-27; that
 function was absent before the owner-approved local 221–223 application.
-Material writes, Daily Log reads, other domains, home/page routing and enrollment
+The [learner Daily Log read slice](contextual-daily-log-read.md) adds dormant GET
+integration for own classroom history and the broad active-membership feed.
+Teacher Daily Log reads, material writes, other domains, home/page routing and enrollment
 retain their existing authorization. No environment is configured by this change.
 
 Do **not** configure a live cohort until the roadmap's full integrated release

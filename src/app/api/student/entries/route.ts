@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { isOnTime, getTodayInToronto } from '@/lib/timezone'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import {
@@ -18,6 +17,7 @@ import {
 } from '@/lib/server/pal-outbox'
 import { upsertStudentEntryWithPalEvent } from '@/lib/server/pal-source-writes'
 import { authorizeContextualDailyLogRequest } from '@/lib/server/contextual-daily-log-access'
+import { authorizeDailyLogReadActor, readContextualDailyLogs } from '@/lib/server/contextual-daily-log-read'
 import {
   saveContextualDailyLog,
   verifyContextualDailyLogPatchPreimage,
@@ -109,7 +109,8 @@ function validateContentPayload(content: TiptapContent) {
  * Fetches entries for the current student (most recent first).
  */
 export const GET = withErrorHandler('GetStudentEntries', async (request, context) => {
-  const user = await requireRole('student')
+  const readAccess = await authorizeDailyLogReadActor()
+  const user = readAccess.user
   const supabase = getServiceRoleClient()
 
   const { searchParams } = new URL(request.url)
@@ -122,6 +123,11 @@ export const GET = withErrorHandler('GetStudentEntries', async (request, context
     if (Number.isFinite(parsed) && parsed > 0) {
       limit = Math.min(parsed, MAX_ENTRIES_LIMIT)
     }
+  }
+
+  if (readAccess.mode === 'contextual') {
+    const entries = await readContextualDailyLogs({ supabase, actorId: user.id, classroomId, limit })
+    return NextResponse.json({ entries })
   }
 
   let query = supabase
