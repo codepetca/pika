@@ -16,6 +16,24 @@ type ServiceClient = ReturnType<typeof getServiceRoleClient>
 const failure = () => new ApiError(503, 'Unable to verify Daily Log summary')
 const uuid = z.string().uuid().transform((value) => value.toLowerCase())
 const joinedClassroom = 'classroom:classrooms!inner(id,teacher_id)'
+const isoFraction = /(?:\.(\d+))?(?:Z|[+-]\d{2}:\d{2})$/
+
+/** Date.parse loses PostgreSQL microseconds, so compare fractions after UTC seconds. */
+function compareTimestamps(left: string, right: string): number {
+  const leftMillis = Date.parse(left)
+  const rightMillis = Date.parse(right)
+  const leftFraction = isoFraction.exec(left)?.[1] ?? ''
+  const rightFraction = isoFraction.exec(right)?.[1] ?? ''
+  if (!Number.isFinite(leftMillis) || !Number.isFinite(rightMillis)
+    || !isoFraction.test(left) || !isoFraction.test(right)) throw failure()
+  const leftSecond = Math.floor(leftMillis / 1000)
+  const rightSecond = Math.floor(rightMillis / 1000)
+  if (leftSecond !== rightSecond) return Math.sign(leftSecond - rightSecond)
+  const width = Math.max(leftFraction.length, rightFraction.length)
+  const fullLeft = leftFraction.padEnd(width, '0')
+  const fullRight = rightFraction.padEnd(width, '0')
+  return fullLeft === fullRight ? 0 : fullLeft > fullRight ? 1 : -1
+}
 
 /** Every data statement checks current ownership; the preflight only retains 404/403 semantics. */
 export async function readContextualTeacherLogSummary(input: {
@@ -67,7 +85,7 @@ export async function readContextualTeacherLogSummary(input: {
     return { summary: null, summary_status: 'no_entries' as const }
   }
   if (stats.data.data.length === 0) throw failure()
-  const maxUpdatedAt = Date.parse(stats.data.data[0].updated_at)
+  const maxUpdatedAt = stats.data.data[0].updated_at
 
   let cacheResult: unknown
   try {
@@ -93,9 +111,10 @@ export async function readContextualTeacherLogSummary(input: {
   const items = teacherLogSummaryCurrentItemsSchema.safeParse(rawItems)
   const names = teacherLogSummaryInitialsMapSchema.safeParse(cached.initials_map)
   if (!items.success || !names.success) throw failure()
+  if (items.data.action_items.some((item) => !Object.hasOwn(names.data, item.initials))) throw failure()
   const fresh = cached.entry_count === actualEntryCount
     && (cached.entries_updated_at === null
-      || Date.parse(cached.entries_updated_at) >= maxUpdatedAt)
+      || compareTimestamps(cached.entries_updated_at, maxUpdatedAt) >= 0)
   if (!fresh) return { summary: null, summary_status: 'pending' as const }
 
   const restored = restoreNames(items.data, names.data)

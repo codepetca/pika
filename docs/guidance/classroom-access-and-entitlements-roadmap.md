@@ -455,18 +455,20 @@ review passed; 44 focused tests, 135 canonical focused tests/static checks and
 the real PostgREST contract passed. Every exact-head CI lane, including PR Gate,
 passed in run `36936773832` on reviewed SHA `5d795bb0`. No promotion or activation.
 
+Roster logs/previews PR1421 is merged at
+`e87d322a0aca946730b5949b720a42261052bfab`. Four independent review launches and
+one correction batch resolved builder/envelope errors and synthetic audit cleanup;
+28 targeted/119 focused tests, static checks, the real1001-learner PostgREST
+contract and all exact-head CI36940960454 gates passed on reviewed5adf5905.
+The keyset roster read and per-learner previews require no schema. No promotion
+or activation occurred. The hub is synchronized; merged Git retains the work.
+
 The **Teacher vs student login** task retains overall coordination. Its current
-worktree is `codex/contextual-teacher-daily-logs`; the coordinator owns Git,
-roadmap, verification, independent review and integration. A bounded read-only
-proposal and a zero-result local PostgREST syntax probe selected an enrollment-rooted
-joined query for roster-wide logs/previews, before cached summary reads. One
-implementation worker owns this route, its focused helper/input schema and tests;
-the coordinator owns the synthetic 1001-learner PostgREST harness, CI and docs.
-The real harness must prove per-learner limits, optional profile shape, cross-class
-binding, keyset pagination and removal/transfer at the bound read before acceptance;
-the syntax probe proves none of these. This approach adds no schema. If it fails
-the real contract, reconcile a separately reviewed actor-bound RPC instead of
-falling back to an unbound or per-learner legacy query.
+worktree is `codex/contextual-teacher-daily-summary`; the coordinator owns Git,
+roadmap, verification, independent review and integration. One implementation
+worker owns the summary route/helper/schema and tests; the coordinator owns the
+local PostgREST harness, CI and docs. Every data statement independently binds
+current ownership, classroom and date. No AI generation or schema change.
 See the [entry/history contract](contextual-teacher-daily-log-read.md) and
 [roster-wide logs contract](contextual-teacher-daily-logs.md).
 Implementation must preserve absent and
@@ -475,14 +477,14 @@ owner, enforce current owner/resource binding at the data read, retain existing
 projections and archive rules, and fail closed on unverified evidence. Do not
 substitute an earlier owner or roster preflight for a bound data query.
 
-Parallel execution checkpoint: teacher entry/history PR1420 is merged at
-`3cf01b06200819d8df53a41cf469973b102c8c7e`; roster logs PR1421 has clean independent
-reviews and is awaiting exact-head CI. Its actor helper is already in main, so the
-independent [cached summary read](contextual-teacher-daily-summary.md) proceeds in
-`codex/contextual-teacher-daily-summary` with separate source-file ownership.
-Reconcile with merged main before final review/readiness. The coordinator owns
-docs, CI, local database fixtures and Git; one implementation worker owns the
-summary route/helper/schemas and tests. The real local contract proves owner-bound
+The independent [cached summary read](contextual-teacher-daily-summary.md) began
+in parallel from the already-merged1420 actor helper, then rebased onto merged1421.
+Continuity and CI-placement conflicts retain both slices; no migration was added
+or renumbered. Initial security/compatibility review found two accepted blockers:
+microsecond freshness truncation and silently dropped unresolved name-map warnings.
+One correction batch retains full timestamp precision and validates nonblank own
+map references before restoration. Targeted/final reviews remain acceptance gates.
+The real local contract proves owner-bound
 stats, HEAD count and cache queries, including transfers before each statement;
 no summary/name payload may rely on an earlier preflight. No AI or schema change.
 

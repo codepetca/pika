@@ -3,6 +3,7 @@ import { z } from 'zod'
 const uuid = z.string().uuid().transform((value) => value.toLowerCase())
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const timestamp = z.string().datetime({ offset: true })
+const nonblank = z.string().refine((value) => value.trim().length > 0)
 
 export const teacherLogSummaryQuerySchema = z.object({
   classroomId: uuid,
@@ -38,11 +39,11 @@ export const teacherLogSummaryCurrentItemsSchema = z.object({
   overview: z.string(),
   action_items: z.array(z.object({
     text: z.string(),
-    initials: z.string(),
+    initials: nonblank,
   })),
 })
 
-export const teacherLogSummaryInitialsMapSchema = z.record(z.string(), z.string())
+export const teacherLogSummaryInitialsMapSchema = z.record(nonblank, nonblank)
 
 export const teacherLogSummaryPreflightResultSchema = z.object({
   data: teacherLogSummaryClassroomSchema.nullable(),

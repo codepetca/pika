@@ -100,6 +100,36 @@ describe('contextual teacher cached Daily summary', () => {
   })
 
   it.each([
+    ['2026-09-30T13:00:00.123900Z', '2026-09-30T13:00:00.123100Z', 'pending'],
+    ['2026-09-30T13:00:00.123100Z', '2026-09-30T13:00:00.123900Z', 'ready'],
+    ['2026-09-30T13:00:00.123100Z', '2026-09-30T13:00:00.123100Z', 'ready'],
+    ['2026-09-30T13:00:00.123456789Z', '2026-09-30T13:00:00.123456788Z', 'pending'],
+    ['2026-09-30T09:00:00.123900-04:00', '2026-09-30T13:00:00.1239Z', 'ready'],
+    ['2026-09-30T13:00:00.1239Z', '2026-09-30T09:00:00.123100-04:00', 'pending'],
+  ] as const)('compares full timestamp precision for entry %s and cache %s', async (entryTime, cacheTime, status) => {
+    const f = fixture({
+      stats: { data: [{ ...stats[0], updated_at: entryTime }], error: null },
+      cache: { data: { ...cache, entries_updated_at: cacheTime }, error: null },
+    })
+    const result = await read(f)
+    expect(result.summary_status).toBe(status)
+  })
+
+  it.each([
+    [{}, cache.summary_items],
+    [{ AB: '' }, cache.summary_items],
+    [{ AB: '   ' }, cache.summary_items],
+    [{ AB: 'Alice Brown', '': 'Another Student' }, cache.summary_items],
+    [{ AB: 'Alice Brown', ' ': 'Another Student' }, cache.summary_items],
+    [{ AB: 'Alice Brown' }, { policy_version: 'high-priority-v1', overview: 'Progress', action_items: [{ text: 'needs help', initials: '' }] }],
+    [{ ' ': 'Alice Brown' }, { policy_version: 'high-priority-v1', overview: 'Progress', action_items: [{ text: 'needs help', initials: ' ' }] }],
+    [{}, { policy_version: 'high-priority-v1', overview: 'Progress', action_items: [{ text: 'needs help', initials: 'toString' }] }],
+  ])('rejects unresolvable or blank current-cache name evidence %#', async (initialsMap, summaryItems) => {
+    const f = fixture({ cache: { data: { ...cache, initials_map: initialsMap, summary_items: summaryItems }, error: null } })
+    await expect(read(f)).rejects.toMatchObject({ statusCode: 503 })
+  })
+
+  it.each([
     { stats: { data: null, error: null } },
     { classrooms: { data: classroom } },
     { classrooms: { data: classroom, error: false } },

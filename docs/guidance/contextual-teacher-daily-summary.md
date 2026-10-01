@@ -21,6 +21,13 @@ freshness; a current policy without an overview remains pending. Names are resto
 only from validated current cached JSON. Malformed current evidence fails closed
 with generic503, never provider/database details or an unverified fallback.
 
+Require every action-item initial to be a non-empty own map key with a non-blank
+name; reject blank keys/values and missing mappings before restoration. Otherwise
+the existing restorer silently drops unmatched warnings and could produce a ready
+all-clear. This intentionally makes an unresolved current cache unavailable,
+including the generator's `?` fallback for missing profile names. Do not repair
+the cache, change the generator or silently claim there are no high-priority items.
+
 This reads an already-generated cache. It does not invoke AI, change generation,
 metering, model/policy, charging, nightly cron or stored rows. The nightly generator
 already operates on active classrooms rather than a global teacher-role filter.
@@ -37,7 +44,9 @@ timestamps and cached names/items as unknown; include query construction and awa
 in error containment. No unbound RPC/query or retry fallback is permitted.
 
 Freshness retains entry count and max-update semantics, including the existing
-nullable cache update timestamp behavior. These are ordinary independently
+nullable cache update timestamp behavior. Timestamp ordering retains PostgreSQL microsecond
+precision, including two updates within one JavaScript millisecond and equivalent
+timezone-offset spellings. These are ordinary independently
 authorized statement snapshots, not an atomic multi-query snapshot or a lock.
 If ownership transfers before a later query, that query cannot disclose the former
 owner's cache or names; previous non-payload stats do not authorize the cache.

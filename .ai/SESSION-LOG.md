@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Classroom Blueprint tab
-
-Added a teacher-only Blueprint item to the existing classroom sidebar and a content pane for that classroom's saved Blueprint Version. The pane shows course outline, assignment and test titles, and private authoring guidance, with loading, retry, and unlinked-classroom states. It reads the existing ownership-checked frozen Version endpoint; later edits to the source Draft do not silently change the classroom. Student navigation excludes the tab and direct student URLs return to Daily. Teacher desktop/mobile light/dark views, a populated Version fixture, and student desktop/mobile navigation were visually checked. Focused checks passed 3,488 tests plus architecture, UI/design policy, TypeScript, and lint. PR #1387 is draft during review; migrations 218/219 remain unapplied locally.
-
-The independent cumulative review found no blockers. After a documentation-only rebase onto current main, exact-head CI passed Test & Build and database contracts but the browser gate found four outdated Pattern Lab snapshots: the shared classroom navigation catalog now includes Blueprint. Updated the four Linux baselines from deterministic CI actuals and the four Darwin baselines from the local Pattern Lab runner; all four focused visual cases pass without snapshot update mode. The three other browser retries were flaky and passed. PR remains draft for the snapshot correction and new exact-head CI.
-
-Main advanced with a separate test-grading migration numbered 219 before the snapshot correction's ready run. Rebased the classroom branch and resequenced its additive provenance migration to 220; the source SQL remains unchanged. The latest PR head must pass clean migration replay, generated type checks, browser matrix, and PR Gate. Neither feature migration has been applied to the shared local database.
-
-The 220 Test editing migration merged into main during the next exact-head CI run. That CI passed Test & Build, database contracts, Browser Experience Matrix, and PR Gate, but the PR became conflicting. Rebased again and resequenced the classroom provenance migration to 221, still with identical SQL. The first focused run hit an unrelated Pal timing failure that passed in isolation; the full rerun passed 3,495 tests plus architecture, UI/design policy, TypeScript, and lint. The branch awaits another stable exact-head gate; local migration history remains untouched.
-
-## 2026-09-29 — Classroom Blueprint Settings-style navigation
-
-Changed the teacher classroom Blueprint sidebar icon to Lucide Factory and moved Overview, Content, and Authoring Guidance into the Settings-style segmented control at the top of the pane. Section choice now follows the classroom URL, so refresh and browser navigation retain it. The control remains visible through loading and unlinked-Version states. Teacher desktop/mobile light/dark and populated-Version views were visually checked; direct student navigation still resolves to Daily without Blueprint. Focused checks passed 3,503 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. The composite widget checklist was reviewed: the shared control supplies arrow-key focus behavior, while tests cover the group label and pressed state. Updated the four Darwin Pattern Lab snapshots locally and the four Linux snapshots from deterministic CI actuals; the four local visual cases pass without update mode. CI at e7fb6d4c passed build, database, browser, and PR Gate. After main advanced with Gradebook changes, rebased without application-code changes and passed 3,505 focused tests plus all static gates. The rebased head needs exact-head CI. Risk profile: none. Model recommendation: GPT-6 Sol for this localized UI change.
-
-## 2026-09-29 — Stacked test diagrams and course guidance check
-
-Replaced the test-authoring guide’s side-by-side transformation rule with vertically stacked generated diagrams: starting state above ending state, clear labels, and reference-pane legibility. Read-only production inspection of ICS3U-4 found Draft revision 3 / latest Version 3 on the legacy Blueprint page, without Authoring Guidance controls. The earlier populated classroom screenshots used sample fixture guidance, not saved ICS3U rules. Production export verification was interrupted; no course guidance, classroom Version link, quiz image, or database change was made. Classroom implementation resolves guidance from the linked immutable Version, so editing the source Draft alone cannot update an existing classroom. Focused checks pass 3,505 tests (7 skipped), architecture, UI/design policies, TypeScript and lint; diff and session-log validation pass. PR1387 remains draft; its existing eight-reviewer session cap remains in effect.
-
 ## 2026-09-29 — Resume Blueprint rollout orchestration
 
 User authorized completion through release and actual ICS3U guidance. Rebased PR1387 onto main27ddf09a; resolved continuity duplicates and regenerated combined Pattern Lab snapshots on Darwin and Linux. Focused checks pass3,507tests/7skipped and all static gates; eight snapshot cases pass without update mode. Verified production through220, empty Pika-managed ICS3U-4 Draft guidance, and P3/P5 frozenVersion3 with no guidance. P5 has1untrackedtest; P3has1untrackedtest/1lesson, so existing full classroom update is blocked. Sol read-only subagent identified adoption seams; coordinator requires separate guidance binding to preserve copied-artifact Version identity. Prepared exact course rules in ignored output/rollout/ics3u-authoring-guidance.md. Updated the single roadmap with the necessary guidance-only adoption phase. Specific approval to exceed the prior eight-reviewer cap is pending; no new PR reviewer, migration, course save, or deployment ran.
@@ -215,6 +197,7 @@ six identified synthetic logs-harness audit rows from local, retaining a private
 recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
 119 focused tests and static checks pass. Targeted/final review pending. No
 production, migration, cohort, plan or UI change; summary read remains next.
+
 ## 2026-10-01 — Dormant teacher cached Daily summary implementation
 
 While independently reviewed roster-logs PR1421 runs CI, a separate worktree
@@ -229,3 +212,17 @@ cache states/isolation, archived owner and transfers before all three reads, wit
 exact fixture/audit cleanup. Independent review and final main reconciliation
 pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
 No AI, billing, migration, UI, cohort activation or production change.
+
+## 2026-10-01 — Roster logs merged; cached summary review corrections
+
+PR1421 merged main e87d322a after four independent reviews, one correction batch,
+119 focused tests/static checks, real1001-learner database checks and every exact
+head CI36940960454 gate at5adf5905. Hub is synchronized; no production activation.
+PR1422 initial reviews at6f255b32 accepted microsecond freshness loss and unresolved
+name-map warning suppression. One batch preserves full timestamp precision and
+requires nonblank own map references before restoration (14 new tests,11 red).
+76 targeted/167 focused tests and real PostgreSQL microsecond/map/race/cleanup
+cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
+application source has no rebase conflicts and no migration was renumbered.
+Targeted security and final integration review remain pending. No AI, schema,
+cohort, UI, billing or production change; lesson-plan list reads follow.

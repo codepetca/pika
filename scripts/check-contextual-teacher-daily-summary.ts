@@ -90,11 +90,11 @@ async function main() {
         ('${classA}','${learnerStudent}'),('${classA}','${learnerTeacher}'),('${classB}','${learnerStudent}');
       insert into public.class_days(classroom_id,date,is_class_day) values
         ('${classA}','${today}',true),('${classA}','${previous}',true),('${classB}','${today}',true);
-      insert into public.entries(classroom_id,student_id,date,text,on_time) values
-        ('${classA}','${learnerStudent}','${today}','synthetic A one',true),
-        ('${classA}','${learnerTeacher}','${today}','synthetic A two',true),
-        ('${classA}','${learnerStudent}','${previous}','synthetic previous',true),
-        ('${classB}','${learnerStudent}','${today}','synthetic B',true);
+      insert into public.entries(classroom_id,student_id,date,text,on_time,updated_at) values
+        ('${classA}','${learnerStudent}','${today}','synthetic A one',true,'${today}T13:00:00.123900+00:00'),
+        ('${classA}','${learnerTeacher}','${today}','synthetic A two',true,'${today}T12:00:00+00:00'),
+        ('${classA}','${learnerStudent}','${previous}','synthetic previous',true,'${previous}T13:00:00+00:00'),
+        ('${classB}','${learnerStudent}','${today}','synthetic B',true,clock_timestamp());
       insert into public.log_summaries(classroom_id,date,model,summary_items,initials_map,entry_count,entries_updated_at) values
         ('${classB}','${today}','synthetic','${currentItems}'::jsonb,'{"A.L.":"Other Classroom Learner"}'::jsonb,1,clock_timestamp()),
         ('${classA}','${previous}','synthetic','${currentItems}'::jsonb,'{"A.L.":"Previous Day Learner"}'::jsonb,1,clock_timestamp());
@@ -131,6 +131,12 @@ async function main() {
     restoreCache()
     sql(`update public.log_summaries set entries_updated_at='2000-01-01T00:00:00Z' where classroom_id='${classA}' and date='${today}';`)
     assert.equal((await summary(ownerStudent, classA)).summary_status, 'pending')
+    sql(`update public.log_summaries set entries_updated_at='${today}T13:00:00.123100+00:00' where classroom_id='${classA}' and date='${today}';`)
+    assert.equal((await summary(ownerStudent, classA)).summary_status, 'pending', 'Sub-millisecond stale cache must not appear ready')
+    restoreCache()
+    assert.equal((await summary(ownerStudent, classA)).summary_status, 'ready', 'Equal PostgreSQL microseconds remain fresh')
+    sql(`update public.log_summaries set entries_updated_at='${today}T13:00:00.123901+00:00' where classroom_id='${classA}' and date='${today}';`)
+    assert.equal((await summary(ownerStudent, classA)).summary_status, 'ready', 'Later PostgreSQL microseconds remain fresh')
     sql(`update public.log_summaries set summary_items='[]'::jsonb where classroom_id='${classA}' and date='${today}';`)
     assert.deepEqual(await summary(ownerStudent, classA), { summary: null, summary_status: 'unavailable' })
     restoreCache()
@@ -139,10 +145,17 @@ async function main() {
     restoreCache()
     sql(`update public.log_summaries set initials_map='{"A.L.":42}'::jsonb where classroom_id='${classA}' and date='${today}';`)
     await assert.rejects(summary(ownerStudent, classA), { statusCode: 503 })
+    for (const invalidMap of ['{}','{"A.L.":"Alpha Learner","":"Injected"}','{"A.L.":"  "}']) {
+      sql(`update public.log_summaries set initials_map='${invalidMap}'::jsonb where classroom_id='${classA}' and date='${today}';`)
+      await assert.rejects(summary(ownerStudent, classA), { statusCode: 503 })
+    }
+    restoreCache()
+    sql(`update public.log_summaries set summary_items='{"policy_version":"high-priority-v1","overview":"fixture","action_items":[{"text":"? reported an urgent wellbeing concern.","initials":"?"}]}'::jsonb where classroom_id='${classA}' and date='${today}';`)
+    await assert.rejects(summary(ownerStudent, classA), { statusCode: 503 }, 'Unresolved warning must not become a ready all-clear')
     sql(`delete from public.log_summaries where classroom_id='${classA}' and date='${today}';`)
     assert.deepEqual(await summary(ownerStudent, classA), { summary: null, summary_status: 'pending' })
     restoreCache()
-    process.stdout.write('PASS cache count/update staleness, retired policy, missing overview/cache and malformed current name-map fail-closed behavior; no AI calls\n')
+    process.stdout.write('PASS PostgreSQL microsecond/cache count/update freshness, retired policy, missing overview/cache and malformed/unresolved/empty name-map fail-closed behavior; no AI calls\n')
 
     for (const phase of ['stats','count','cache'] as const) {
       const transfer = instrument(ownerStudent, classA, today, phase)
