@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Test grading two-state status header
-
-Owner narrowed the selected Test grading Status sort to Submitted and Returned. The one-icon/count control now alternates between those two groups; Not started, In progress, and Closed for grading stay visible after them in both orders. Pattern Lab and semantic/browser tests cover the two states. Focused checks passed 256 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright passed the teacher roster in desktop/mobile light/dark; the changed macOS Pattern Lab references and roster screenshots were reviewed. Linux Pattern Lab desktop/mobile light/dark references were inspected and updated from twelve stable CI captures; their differences are confined to the revised example copy. Independent review found no blockers in the two-state behavior. Final CI remains pending. Student view is n/a because the roster is teacher-only. Composite-widget checklist reviewed: keyboard and semantic state covered by tests; no manual follow-up. Risk profile: none. Model recommendation: GPT-6 Sol for a localized UI interaction.
-
 ## 2026-09-29 — Teacher work-list hover distinction
 
 Changed the shared teacher work-item card so ordinary Classwork and Tests cards use the semantic info tint on hover, distinct from muted draft cards. Focused checks passed 338 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright verified teacher Classwork and Tests at desktop/mobile widths in light/dark themes, including actual hover and draft comparison. Risk profile: none. Model recommendation: GPT-6 Sol for the localized shared UI change.
@@ -201,6 +197,7 @@ The owner approved one additional main sync, bounded compatibility review, fresh
 ## 2026-10-01 — Hosted migration CLI companion diagnosis
 
 The owner created the reviewed Pika-only 90-day scoped token and saved GitHub migrations-production/SUPABASE_ACCESS_TOKEN at 08:02 Toronto time. The first hosted preview, run36859514133 at merged5f74d08d with verified CI36853538954, failed before a migration plan. Reproduced the installer defect using a fake credential: CLI2.103.0 ships a supabase shim plus supabase-go engine, but the installer extracted only the shim. With both checksum-verified binaries present, linking reaches the expected Unauthorized response for the fake token. Prepared a narrow installer correction and engine-version preflight without changing credentials, scopes, target bindings or migration approval policy. The focused gate passed95 tests plus architecture, UI/design policy, TypeScript and lint; the Linux archive contains both regular x86_64 executables under the unchanged checksum, and the installer shell/version preflight passes. A bounded independent operations review, required CI and the production preview retry remain pending. No production migration or password reset occurred. Risk profile: runtime-platform.
+
 ## 2026-10-01 — Assignment AI feedback wording
 
 - Removed the assignment prompt's required `Next Step:` line without adding a prohibition; retained Strength/Missed/optional Tip and all scoring rules. Prompt provenance advanced to v4.
