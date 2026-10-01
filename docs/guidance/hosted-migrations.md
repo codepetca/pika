@@ -82,7 +82,11 @@ The hosted workflow requires **Linux x86_64** (Ubuntu), Node 24 and pinned Supab
 Checkout and Node setup actions use reviewed immutable commit SHAs. The Supabase installation
 step downloads the fixed Linux amd64 release archive and verifies its reviewed SHA-256
 `1eaeee74576b2b296c9731ed729c38ec91f48096be7c10290e324888a310ded7` **before extraction
-or execution** and before the rollout step receives database credentials. CLI upgrades, archive
+or execution** and before the rollout step receives database credentials. The release bundles two
+executables: the `supabase` shim and its `supabase-go` engine. Both must be extracted into the same
+directory and executable. The installer checks the engine's version before exposing either binary
+to the credentialed rollout step; the shim's version alone does not prove commands can execute.
+CLI upgrades, archive
 checksum changes, action pin changes or another hosted runner architecture require explicit review
 and renewed installation/parser/prompt verification. Direct local tooling can still use the pinned
 CLI's native platform binary; this hosted archive check does not change macOS execution.

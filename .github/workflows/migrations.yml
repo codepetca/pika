@@ -112,8 +112,9 @@ jobs:
             https://github.com/supabase/cli/releases/download/v2.103.0/supabase_linux_amd64.tar.gz \
             --output "$CLI_ARCHIVE"
           printf '%s  %s\n' '1eaeee74576b2b296c9731ed729c38ec91f48096be7c10290e324888a310ded7' "$CLI_ARCHIVE" | sha256sum --check --status
-          tar -xzf "$CLI_ARCHIVE" -C "$CLI_DIR" supabase
-          chmod 700 "$CLI_DIR/supabase"
+          tar -xzf "$CLI_ARCHIVE" -C "$CLI_DIR" supabase supabase-go
+          chmod 700 "$CLI_DIR/supabase" "$CLI_DIR/supabase-go"
+          [[ "$("$CLI_DIR/supabase-go" --version)" == "2.103.0" ]]
           rm "$CLI_ARCHIVE"
           printf '%s\n' "$CLI_DIR" >> "$GITHUB_PATH"
 
