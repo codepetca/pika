@@ -33,7 +33,7 @@ In **production** configure these settings:
 | Variable `SUPABASE_PROJECT_REF` | Exact 20-letter project reference for that target |
 | Secret `SUPABASE_ACCESS_TOKEN` | Scoped personal access token for this project only, with the permissions below |
 
-Create a **scoped** Supabase personal access token (`sbp_fc` prefix), selecting only the
+Create a new **project-scoped** Supabase personal access token using the scoped token form, selecting only the
 production project. Start from **No access** and grant these permissions:
 
 | Permission | Access |
@@ -45,10 +45,14 @@ production project. Start from **No access** and grant these permissions:
 | Database | Read-write |
 | Network Bans | Read |
 
-Leave every other permission at **None**, including Network Bans Write. Verify the project and
-permission summary in Supabase before saving the token. The runner validates scoped-token format;
-it cannot prove the token's project or permission restrictions. Those restrictions are enforced
-by Supabase and must be checked by the owner. Use an expiry and arrange renewal before it expires.
+Leave every other permission at **None**, including Network Bans Write. Before creating the token,
+verify Supabase's Review access screen shows exactly the production project, the six capabilities
+above, and the intended expiry. After creation, verify its token listing is not labeled **Legacy**
+before saving it to GitHub. Never use Create legacy token or an existing Legacy token.
+The runner checks only expected token syntax/prefix: a Legacy token can also begin with `sbp_fc`.
+Token strings cannot attest token type, selected project, or permission restrictions. Supabase's
+Dashboard review and server-enforced scopes are the actual control, verified by the owner.
+Use an expiry and arrange renewal before it expires.
 A token with only Database Read cannot initialize temporary logins. Database Read-write also permits
 SQL execution through the Management API; it is broader than permission to create login roles.
 

@@ -115,8 +115,13 @@ describe('portable CLI adapter using offline executables and fake GitHub API', {
       expect(f.logs.mock.calls.flat().join(' ')).not.toMatch(/PRIVATE|private-db-password/)
     } finally { f.runtime.cleanup() }
   })
-  it.each(['sbp_' + '1'.repeat(40), 'invalid-token'])('rejects non-scoped tokens before invoking the CLI: %s', token => {
-    expect(() => fixture({ token })).toThrow('scoped Supabase personal access token')
+  it.each(['sbp_' + '1'.repeat(40), 'invalid-token'])('rejects tokens outside the expected rollout syntax before invoking the CLI: %s', token => {
+    expect(() => fixture({ token })).toThrow('Unexpected Supabase token syntax')
+  })
+  it('cannot infer scope from a legacy-compatible prefix; Dashboard verification is required', () => {
+    // Legacy tokens can start with fc too; syntax cannot attest token type or scope.
+    const f = fixture({ token: 'sbp_fcf4' + '1'.repeat(36) })
+    f.runtime.cleanup()
   })
   it('rejects database passwords rather than falling back to permanent credentials', () => {
     expect(() => fixture({ dbPassword: 'private-db-password' })).toThrow('Database passwords are not permitted')

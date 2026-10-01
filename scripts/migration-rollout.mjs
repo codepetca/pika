@@ -63,7 +63,9 @@ export function createRuntime(env) {
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository ?? '')) throw new Error('Invalid repository binding.')
   if (env.GITHUB_ACTIONS === 'true' && (env.GITHUB_EVENT_NAME !== 'workflow_dispatch' || env.GITHUB_REF !== 'refs/heads/main' || env.GITHUB_WORKFLOW_REF !== `${repository}/.github/workflows/migrations.yml@refs/heads/main`)) throw new Error('Run this manual workflow from main only.')
   if (!env.GH_TOKEN || !env.SUPABASE_ACCESS_TOKEN) throw new Error('Required environment-scoped credentials are missing.')
-  if (!/^sbp_fc[a-f0-9]{38}$/.test(env.SUPABASE_ACCESS_TOKEN)) throw new Error('A scoped Supabase personal access token is required.')
+  // This prefix is a syntax check only: some legacy tokens can also match it.
+  // Project/permission scope must be verified by the owner in the Dashboard.
+  if (!/^sbp_fc[a-f0-9]{38}$/.test(env.SUPABASE_ACCESS_TOKEN)) throw new Error('Unexpected Supabase token syntax; verify project scope in the Dashboard.')
   if (env.SUPABASE_DB_PASSWORD) throw new Error('Database passwords are not permitted for temporary-login rollouts.')
   const workdir = mkdtempSync(join(tmpdir(), 'pika-migration-rollout-'))
   // Only pass environment values the CLI needs. In particular, do not pass a
