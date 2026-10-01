@@ -21,7 +21,7 @@ describe('gradeStudentWork prompt rules', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":4,"feedback":"Strength: Clear structure and complete sections. Next Step: tighten evidence-to-claim links. Improve: Add one concrete example in your analysis paragraph."}' }, finish_reason: 'stop' }],
+        choices: [{ message: { content: '{"score_completion":8,"score_thinking":7,"score_workflow":4,"feedback":"Strength: Clear structure and complete sections.\\nMissed: The analysis lacked a concrete example.\\nTip: In future work, concrete examples can strengthen evidence-to-claim links."}' }, finish_reason: 'stop' }],
         usage: { prompt_tokens: 120, completion_tokens: 40, total_tokens: 160 },
       }),
     })
@@ -44,10 +44,10 @@ describe('gradeStudentWork prompt rules', () => {
     expect(result.score_thinking).toBe(7)
     expect(result.score_workflow).toBe(4)
     expect(result.feedback).toContain('Strength:')
-    expect(result.feedback).toContain('Next Step:')
+    expect(result.feedback).not.toContain('Next Step:')
     expect(result.grading_profile_version).toBe('pika-assignment-v2')
     expect(result.rubric_version).toBe('pika-essay-ctw-v2')
-    expect(result.prompt_version).toBe('pika-assignment-prompt-v3')
+    expect(result.prompt_version).toBe('pika-assignment-prompt-v4')
     expect(result.policy_version).toBe('pika-grading-policy-v3')
     expect(result.provider).toBe('deepseek')
     expect(result.token_usage).toEqual({
@@ -60,7 +60,7 @@ describe('gradeStudentWork prompt rules', () => {
       provider: 'deepseek',
       model: 'deepseek-flash',
       policyVersion: 'pika-grading-policy-v3',
-      promptVersion: 'pika-assignment-prompt-v3',
+      promptVersion: 'pika-assignment-prompt-v4',
       gradingProfileVersion: 'pika-assignment-v2',
       rubricVersion: 'pika-essay-ctw-v2',
       providerRequestCount: 1,
@@ -83,6 +83,7 @@ describe('gradeStudentWork prompt rules', () => {
     expect(systemPrompt).toContain('One "Missed:" line')
     expect(systemPrompt).toContain('Only list something as missed if the instructions actually ask for it')
     expect(systemPrompt).toContain('At most one "Tip:"')
+    expect(systemPrompt).not.toContain('Next Step:')
     expect(systemPrompt).not.toContain('Improve:')
     expect(gradingBody.max_tokens).toBe(2400)
     expect(gradingBody.reasoning_effort).toBe('high')
