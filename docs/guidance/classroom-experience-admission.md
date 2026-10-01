@@ -6,8 +6,11 @@ This is a dormant first slice of batch 1 in the
 [classroom-access roadmap](classroom-access-and-entitlements-roadmap.md).
 The existing owner/member material-list GET routes consume this policy. The
 [Daily Log save slice](contextual-daily-log-save.md) adds dormant POST/PATCH
-integration, with canonical migration 224 pending production and local history
-alignment. Its identical SQL was applied under the old 223 on 2026-09-30.
+integration, with canonical migration 224 pending production. Its identical SQL
+was applied under the old 223 on 2026-09-30; an exact owner-approved local history
+repair now records it as 224 and main's real 223 was applied once. Local history,
+types and Daily contracts pass. A reviewed custom-40001 retry risk blocks merge
+pending a separately reviewed additive correction; admission remains dormant.
 The unchanged transaction
 passed local verification under its original number 218 on 2026-09-27; that
 function was absent before the owner-approved local 221–223 application.

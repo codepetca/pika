@@ -4,8 +4,11 @@ Status: in development, dormant. The migration is now
 `224_contextual_daily_log_save.sql`, resequenced after current main allocated
 223 to `stop_assignment_grade_conflict_retries`. The unchanged Daily Log SQL
 was applied locally under its former number 223 with the owner-approved
-221–223 set on 2026-09-30. Local migration history now needs alignment;
-production application of Daily Log remains pending.
+221–223 set on 2026-09-30. The exact owner-approved local history repair now records
+Daily Log as 224 and main's actual 223 is applied. Local verification passes;
+production application remains pending. Final review found the custom `40001`
+defensive binding error can trigger PostgREST retry storms; merge is blocked
+pending an additive correction and adapter compatibility. Keep admission dormant.
 This is one bounded part of batch 1 in the
 [classroom-access roadmap](classroom-access-and-entitlements-roadmap.md), not
 permission to activate a cohort or the Teaching/Joined interface.
@@ -87,7 +90,22 @@ dormant code or applying the function must not configure a live admission cohort
 The full experience and recovery-floor checks in the main roadmap still gate
 activation.
 
-## Local 223 collision recovery — proposed, not executed
+## Local 223 collision recovery — completed receipt, not permission to repeat
+
+The owner explicitly approved the sequence below on 2026-09-30 after the review
+checkpoint. Independent Sol/high review confirmed it safe at 57ccc26f despite
+the separate merge blocker. Fresh checks proved all old history identities and
+the installed Daily function exactly matched 224, including body and privileges.
+Both named repairs succeeded; the include-all preview contained only canonical
+223 and that one application succeeded. History names through 224 and both
+installed function bodies match source. Generated types, security advisor,
+rollback-only stale-PT409/fresh grading behavior, Daily rollback behavior and all
+eight concurrency cases pass. Fixture cleanup completed; counts and digests of
+existing users, classrooms, enrollments, class days, entries, entitlements and
+account plans remain unchanged. No reset, reseed, production write or activation.
+
+The approved sequence is retained as historical recovery evidence, not a
+reusable command runbook or authorization:
 
 The CLI compares migration versions, not SQL identity: before repair a dry-run
 can incorrectly report only 224 pending, even though local 223 records Daily Log
@@ -95,8 +113,7 @@ and main 223 is the assignment-grade conflict correction. Do not apply that
 preview: Daily Log's `CREATE FUNCTION` would target an existing function and the
 real main 223 would remain unapplied.
 
-After independent review and exact owner authorization, preserve the installed
-Daily Log function and existing data:
+The completed sequence preserved the installed Daily Log function and data:
 
 1. Verify local project `pika`, exact container `supabase_db_pika`, history through
    222, and old 223 name `contextual_daily_log_save`. Confirm the installed Daily
@@ -118,9 +135,22 @@ Daily Log function and existing data:
    conflict behavior and Daily Log rollback/concurrency contracts; confirm real
    data and rollout settings are unchanged.
 
-The previous local 221–223 application permission is consumed and did not
-authorize either repair or another application. Request approval for this exact
-local sequence; stop on any unexpected state or command failure. Do not retry a
-failed application, reset/reseed, repair production, paste migration SQL, or mark
-an unverified function as applied. If another task changes the migration sequence
-or local schema, re-plan before mutating it.
+Both the earlier 221–223 permission and this exact repair/application approval
+are consumed. Any further application or repair requires new exact approval.
+Never reset/reseed, repair production, paste migration SQL or mark an unverified
+function as applied under these receipts.
+
+## Review checkpoint — conflict retry safety
+
+The sixth, explicitly approved replacement review completed on 57ccc26f. All
+reconciliation checks were clean except one merge-blocking finding: migration
+224's defensive `Daily log binding changed` error uses custom SQLSTATE `40001`,
+which PostgREST 14 can retry indefinitely; the adapter also lacks `PT409`
+compatibility. See [the confirmed incident class](supabase-disk-io.md).
+
+Preserve installed 224 bytes. The proposed correction is a new additive
+`CREATE OR REPLACE` migration changing only that error to `PT409`, preserving
+signature, locking, grants, definer and search path; accept both codes in the
+adapter and add regressions. It is not yet implemented or applied. One further
+targeted review and its exact local application need separate approval; the
+review budget is at its approved six-launch limit. PR1380 remains draft.

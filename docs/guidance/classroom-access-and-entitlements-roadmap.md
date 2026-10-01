@@ -396,9 +396,17 @@ branch's original 218, then 223, after main allocated 218–223. Its SQL body is
 the earlier local verification is historical. The owner subsequently approved
 221–223 locally, applied once on 2026-09-30; history and generated types match
 through that branch's 223 and the function is present. Main subsequently assigned
-223 to the assignment-grade conflict correction: local history alignment is
-pending the exact approval described in the Daily Log runbook. Production Daily
-Log application remains pending; no reset or repair is authorized by this slice.
+223 to the assignment-grade conflict correction. On 2026-09-30 the owner approved
+the exact local repair: remove the old 223 receipt, record identical installed
+Daily SQL as 224, and apply only canonical main 223 with `--include-all` after its
+exact preview. All history identities through 224, generated types, security,
+assignment conflict behavior and Daily rollback/eight concurrency cases pass;
+the data-preservation check passes. That one-time approval is consumed.
+Final review at 57ccc26f found a custom-40001 retry risk in Daily's defensive
+binding check. Preserve already-applied 224; an additive conflict-code correction
+and adapter compatibility require remediation and targeted review before merge.
+Its local application needs separate exact approval. Production Daily Log
+application remains pending; no reset, reseed or production repair was performed.
 Daily reads and other batch-1 domains remain subsequent work;
 no cohort or home/page activation is authorized by this slice.
 
