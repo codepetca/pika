@@ -228,7 +228,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
   ) : undefined
 
   const studentsPanel = selectedItem ? (
-    <div id="work-pattern-students-panel" role="tabpanel" aria-labelledby="work-pattern-students-tab" hidden={mode !== 'students'} className="h-full min-h-0 flex-1 flex-col">
+    <div id="work-pattern-students-panel" role="tabpanel" aria-labelledby="work-pattern-students-tab" hidden={mode !== 'students'} className={cn('h-full min-h-0 flex-1 flex-col', mode === 'students' && 'flex')}>
       <TeacherWorkspaceSplit
         className="min-h-0 flex-1"
         splitVariant="gapped"
@@ -287,7 +287,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
           <SegmentedControl ariaLabel="Workspace family" value={family} onChange={changeFamily} options={FAMILY_OPTIONS} />
         </div>
       </Card>
-      <div className="min-h-96 overflow-hidden rounded-card border border-border bg-page" data-testid="work-surface-shell-example">
+      <div className={cn('min-h-96 overflow-hidden rounded-card border border-border bg-page', selectedItem && mode === 'students' && 'h-96')} data-testid="work-surface-shell-example">
         <TeacherWorkSurfaceShell
           className="mx-0"
           state={selectedItem ? 'workspace' : 'summary'}
