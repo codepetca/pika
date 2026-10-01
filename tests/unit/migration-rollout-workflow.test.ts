@@ -57,6 +57,7 @@ describe('migration workflow authorization boundary', () => {
     expect(runBlocks).toHaveLength(3)
     expect(runBlocks.join('\n')).not.toMatch(/\$\{\{|pnpm|db reset|db push|--db-url/)
     expect(runBlocks.join('\n')).toContain('node tooling/scripts/migration-rollout.mjs')
+    expect(workflow).not.toContain('SUPABASE_DB_PASSWORD')
     expect(workflow).not.toContain('upload-artifact')
   })
 })

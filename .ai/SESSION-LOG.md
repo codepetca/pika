@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Hide unreleased assessments in Gradebook
-
-Added a default-on, persisted More actions option to hide draft Assignment and Test columns from the teacher Gradebook table, student detail panel, and CSV export. The Pattern Lab fixture now includes both draft types. Focused checks passed 299 tests plus architecture, UI/design policy, TypeScript, and lint; Playwright confirmed the checked menu and draft-column toggle in desktop/mobile light/dark views. Risk profile: none. Model recommendation: GPT-6 Sol for this localized Gradebook UI change.
-
-## 2026-09-29 — Test grading status order
-
-The selected Test grading roster now toggles its Status header between Submitted → Returned → Not submitted and the reverse. Not submitted groups the API's Not started, In progress, and Closed for grading states while preserving each row's exact label. Follow-up: each group control now shows its status icon beside the total student count; the Not submitted control counts all three underlying states, and Pattern Lab documents the grouping. Focused checks passed 256 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright passed the selected-roster scenario in desktop/mobile and light/dark, including both sort orders and mobile visibility of the status controls. Pattern Lab snapshot baselines were visually reviewed and regenerated for desktop/mobile light/dark on macOS and Linux. Composite-widget checklist reviewed: keyboard and semantic state covered by component tests; no manual follow-up. Risk profile: none. Model recommendation: GPT-5.6 Terra high for a bounded UI behavior review.
-
 ## 2026-09-29 — Test grading single status header
 
 Refined the selected Test grading Status header to show one icon and student count at a time. It cycles Submitted, Returned, and Not submitted, with tooltips and accessible names identifying the current group; the Submitted and Not submitted positions retain the requested forward and reverse orders. The column is narrower, and old saved widths use a new storage key. Focused checks passed 256 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright passed the teacher roster in desktop/mobile light/dark, including the tooltip and all three sort positions. Pattern Lab's single-control example and macOS baselines were visually reviewed. Linux desktop/mobile light/dark baselines were updated from CI captures after all twelve original and retry captures matched byte-for-byte within each variant; the light desktop and dark mobile captures were inspected. Exact-head CI remains pending. Student view is n/a because the roster is teacher-only. Composite-widget checklist reviewed: keyboard and semantic state covered by tests; no manual follow-up. Risk profile: none. Model recommendation: GPT-6 Sol for a localized UI interaction.
@@ -174,6 +166,10 @@ Second targeted review found that spaced field labels, indented reserved section
 
 Owner approved one documentation correction/main sync and one brief review after the review-budget checkpoint. Restored the missing space in CURRENT migration history while retaining verified production 222 and the new main deployment flow. Application changes remain unchanged; exact-head checks and main merge remain gated.
 
+## 2026-09-30 — Password-free hosted migration authentication
+
+Replaced the manual rollout's permanent database-password requirement with pinned CLI native temporary logins from a production-project scoped PAT. The runner checks token syntax and rejects password fallback, isolates PostgreSQL environment variables, and binds the authentication strategy into format-2 preview digests. Existing exact migration authorization remains required. Documented six token capabilities, Database Read-write authority, temporary-role creation during preview, Beta endpoint dependency, and server-enforced denial of network-ban removal. The owner declined password reset; none was performed. A targeted review corrected prefix-based scope assurance: legacy tokens can share the prefix, so Dashboard review is the scope control. Offline rollout tests pass43; focused checks, independent review, owner approval for expanded token authority, credential replacement and hosted preview remain pending. No production migration was applied.
+
 ## 2026-09-30 — Reconcile dormant Daily Log saves with current main
 
 Owner requested pull/reconciliation. Rebased PR1380 onto main32ad59f5, preserving both histories in the sole archive conflict. Resequenced the branch migration from218 to223 because main now occupies218–222; updated harnesses, regressions and rollout receipts. SQL checksum and Daily Log runtime code match the previously reviewed1eda5574. PR returned to draft before reconciliation; backup branch retains the original SHA. Current local history is through220 with Blueprint218 and no Daily Log function; Sep27 local218 proof is historical. No database application, reset/history repair, production promotion or cohort activation. Focused verification and targeted stable-SHA integration review remain pending.
@@ -201,3 +197,7 @@ Owner approved narrow225 fix, one seventh targeted review and exactly225 locally
 ## 2026-09-30 — Approved final Daily harness role correction
 
 Seventh review at98d0822c found225/adapter clean but fault-injection DDL still ran as service_role, not postgres owner. Catalog proof confirmed missing ownership. Owner approved two-line correction and eighth/final targeted review: reset role before temporary dependency replacement; set local service_role before save assertion. Static regression covers both transitions. Migration224/225 SQL and application permissions unchanged. Local225 permission remains held, unattempted pending final review; PR1380 contains live application/CI receipt. No production or rollout activation. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high bounded role-correction/integration review.
+
+## 2026-10-01 — Hosted migration authentication main sync
+
+The owner approved one additional main sync, bounded compatibility review, fresh CI, and merge for PR #1411. Integrated main `4399bd7f`, retaining both archive histories and all new Daily Log migrations and CI checks. The previously reviewed scoped-token temporary-login implementation remains unchanged. Hosted credential activation and the first production preview remain pending; no database password reset or production migration application is authorized.

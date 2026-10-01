@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createPlan, parseHistory, parseDryRun, validateInputs, verifyCi, checkoutSha, hash, RUNTIME_CONFIG } from '../../scripts/migration-rollout-policy.mjs'
+import { createPlan, parseHistory, parseDryRun, validateInputs, verifyCi, checkoutSha, hash, RUNTIME_CONFIG, AUTH_STRATEGY, verifyApproval } from '../../scripts/migration-rollout-policy.mjs'
 import { executeRollout } from '../../scripts/migration-rollout.mjs'
 
 const sha = 'a'.repeat(40)
@@ -65,6 +65,14 @@ describe('migration rollout authorization', () => {
     expect(changed.digest).not.toBe(original.digest)
     expect(original.runtimeConfigHash).toBe(hash(RUNTIME_CONFIG))
   })
+  it('binds temporary authentication and invalidates permanent-password approvals', () => {
+    const current = plan()
+    expect(current.format).toBe(2)
+    expect(current.auth).toBe(AUTH_STRATEGY)
+    const { digest, auth, ...binding } = current
+    const oldDigest = hash(JSON.stringify({ ...binding, format: 1 }))
+    expect(() => verifyApproval({ ...approved(), approvedDigest: oldDigest }, current)).toThrow('obtain new approval')
+  })
   it('requires the complete pending set and a matching remote prefix', () => {
     for (const badHistory of [history.slice(0, 1), [...history, { local: '', remote: '999' }], [{ local: '001', remote: '' }, { local: '002', remote: '002' }], [{ local: '001', remote: '002' }, history[1]]]) {
       expect(() => createPlan(inputs, files, badHistory, ['002_next.sql'], 'd'.repeat(40))).toThrow()
@@ -81,6 +89,8 @@ describe('private CLI and CI evidence parsers', () => {
   })
   it('parses the dry-run filename list and an explicit no-op, rejecting unexpected output', () => {
     expect(parseDryRun(dry)).toEqual(['002_next.sql'])
+    expect(parseDryRun('Initialising login role...\n' + dry)).toEqual(['002_next.sql'])
+    expect(() => parseDryRun(dry + 'Initialising login role...')).toThrow()
     expect(parseDryRun('Remote database is up to date.')).toEqual([])
     for (const output of ['', dry + ' • ../../secrets.sql', 'Would push these migrations:\nhello']) expect(() => parseDryRun(output)).toThrow()
   })
