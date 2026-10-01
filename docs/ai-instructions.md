@@ -19,6 +19,7 @@ History: append/trim `.ai/SESSION-LOG.md`; archive for investigation only.
 | UI/UX | Use [`.codex/skills/pika-ui-change`](../.codex/skills/pika-ui-change/SKILL.md), then `DESIGN.md`, `docs/guidance/ui/README.md`, and `docs/guidance/ui/stable.md` |
 | Teacher work surfaces | [canon](./guidance/ui/teacher-work-surfaces.md), [operational tables](./guidance/ui/teacher-operational-tables.md), [assignment language](./guidance/assignment-ux-language.md), [audit](./guidance/ui/audit-teacher-work-surfaces.md) |
 | Schema rollout or API validation | [`schema`](./guidance/schema-rollout-checklist.md), [`API`](./guidance/api-boundary-validation.md) |
+| Production migrations | Use [pika-prod-migrations](../.codex/skills/pika-prod-migrations/SKILL.md) |
 | Classroom roles or entitlements | [Roadmap](./guidance/classroom-access-and-entitlements-roadmap.md) (phased rollout) |
 | Billing, tiers, proration | [Policy](./guidance/subscription-policy.md) |
 | Legacy quiz/tests contract cleanup | [Cleanup](./guidance/legacy-quiz-contract-cleanup.md), [Schema](./guidance/schema-rollout-checklist.md) |
@@ -56,7 +57,7 @@ Read startup and routed docs before edits.
 
 ## Prompt And Skill Map
 
-Use `.codex/prompts/` for session start, issue work, TDD, UI verify, audit, API-route, error-handler, and production-merge flows. UI changes require Playwright final verification; see [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md). When available, use specialist skills for product-design briefs, Pika UI verification, Supabase/Postgres work, and large React refactors.
+Use relevant `.codex/prompts/` and specialist skills. UI changes require Playwright final verification; see [`docs/guides/ai-ui-testing.md`](./guides/ai-ui-testing.md).
 
 ## Source Of Truth Order
 

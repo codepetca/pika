@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Teacher work-list hover distinction
-
-Changed the shared teacher work-item card so ordinary Classwork and Tests cards use the semantic info tint on hover, distinct from muted draft cards. Focused checks passed 338 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright verified teacher Classwork and Tests at desktop/mobile widths in light/dark themes, including actual hover and draft comparison. Risk profile: none. Model recommendation: GPT-6 Sol for the localized shared UI change.
-
 ## 2026-09-29 — Teacher Test split-pane scrollbar parity
 
 Applied the existing assignment `scrollbar-hover` utility to the teacher Test grading student table and selected-student inspector. Both panes retain independent scrolling; the visible inspector scrollbar is hidden at rest, matching assignments. Local seeded teacher browser verification covered selected desktop light/dark and mobile light/dark, with the student mobile route checked for regression. The desktop page stayed at viewport height while the inspector scrolled; no horizontal overflow appeared on mobile. Focused checks passed 221 tests plus architecture, UI/design policy, TypeScript, and lint. Risk profile: none. Model recommendation: GPT-6 Sol for this localized UI change.
@@ -202,3 +198,9 @@ The owner created the reviewed Pika-only 90-day scoped token and saved GitHub mi
 
 - Removed the assignment prompt's required `Next Step:` line without adding a prohibition; retained Strength/Missed/optional Tip and all scoring rules. Prompt provenance advanced to v4.
 - Verified: 20 focused grading tests; `pnpm check:focused -- --base origin/main` (250 tests plus architecture, UI/design policy, TypeScript and lint). Teacher/student feedback visually inspected at desktop/mobile in light/dark with intercepted local fixture feedback; captures in `output/playwright/`.
+
+## 2026-10-01 — Production migrations skill and rollout receipt
+
+- Added repository skill `pika-prod-migrations`, routed from AGENTS and the AI instructions. Future production migration work defaults to the existing manual GitHub workflow, with exact one-time authorization, compatible CI proof, preview-bound approval, one apply attempt and read-only semantic verification. Local migrations and app promotion retain their own procedures.
+- Recorded the owner-authorized application of exactly 224 and 225 on production: GitHub run https://github.com/codepetca/pika/actions/runs/36869449834 passed in 39 seconds with `applied-verified`, source `658ee5f5366c59b4d59b56c18a28dd64442b84d8`, CI proof `36862441326` and verified history count 225. Independent read-only checks matched the exact 225 function body and service-only execution grants. No rollout flag activation or application promotion occurred.
+- Updated CURRENT with the verified production state. Skill validation and all 91 documentation/workflow contract tests passed; independent review and final CI are pending. No runtime, migration SQL, credentials or workflow controls are changed by this PR.
