@@ -9,7 +9,8 @@ is merged and production migrations 224–225 are installed and verified via
 GitHub run `36869449834`. The pending migration statements below describe their
 earlier review history, not current application state. Shared admission remains
 off. The [teacher entry/history read slice](contextual-teacher-daily-log-read.md)
-is in development; roster-wide logs and summaries remain subsequent work.
+is merged in PR #1420. The [roster-wide logs/preview slice](contextual-teacher-daily-logs.md)
+is in development; cached summaries remain subsequent work.
 
 The existing owner/member material-list GET routes consume this policy. The
 [Daily Log save slice](contextual-daily-log-save.md) adds dormant POST/PATCH
@@ -26,7 +27,8 @@ function was absent before the owner-approved local 221–223 application.
 The [learner Daily Log read slice](contextual-daily-log-read.md) adds dormant GET
 integration for own classroom history and the broad active-membership feed.
 The teacher entry/history GETs also use shared admission, with current-owner
-evidence bound to their data reads. Teacher roster-wide logs/summary reads,
+evidence bound to their data reads. Roster-wide logs/previews are being integrated
+with current-owner and enrollment evidence in each data page. Cached summary reads,
 material writes, other domains, home/page routing and enrollment retain their
 existing authorization. No environment is configured by this change.
 

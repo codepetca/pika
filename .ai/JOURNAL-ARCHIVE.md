@@ -34074,3 +34074,8 @@ Final review found that a failed-choice rollback marker persisted into a later v
 After background test grading took migration number 219 on main, rebased the PR branch and renamed this feature's migration to 220. The local database had already recorded the earlier 219 choice migration; its history was not altered. The PR remains draft because CI also found a separate shared-trigger failure on student availability inserts.
 
 After the other task reset and reseeded local through main's 219, corrected migration 220's shared trigger so question-only option fields are evaluated only for question updates. Added an availability insert to the rollback-only Test editing contract and verified both it and the CI-failing removed-student contract against migration 220 inside separate rollback transactions. Local migration history and seeded data remain unchanged; exact-head CI is pending.
+
+<!-- pika-session-log-archive-batch:7a34fb43aac27b49f6c3ac3eedc00525513bb495684d432389f597b93e282049 -->
+## 2026-09-29 — Hide unreleased assessments in Gradebook
+
+Added a default-on, persisted More actions option to hide draft Assignment and Test columns from the teacher Gradebook table, student detail panel, and CSV export. The Pattern Lab fixture now includes both draft types. Focused checks passed 299 tests plus architecture, UI/design policy, TypeScript, and lint; Playwright confirmed the checked menu and draft-column toggle in desktop/mobile light/dark views. Risk profile: none. Model recommendation: GPT-6 Sol for this localized Gradebook UI change.

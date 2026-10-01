@@ -448,13 +448,27 @@ not independently promoted to production. Daily saves PR #1380 is merged; produc
 migrations 224–225 were installed and semantically verified through the separately
 approved GitHub run `36869449834`. Shared admission remains dormant.
 
-The **Teacher vs student login** task retains overall coordination. Its next
-worktree is `codex/contextual-teacher-daily-reads`; the coordinator owns Git,
+Teacher entry/history PR #1420 is now merged in main at
+`3cf01b06200819d8df53a41cf469973b102c8c7e`. Initial security/compatibility reviews,
+one correction batch, targeted security re-review and cumulative integration
+review passed; 44 focused tests, 135 canonical focused tests/static checks and
+the real PostgREST contract passed. Every exact-head CI lane, including PR Gate,
+passed in run `36936773832` on reviewed SHA `5d795bb0`. No promotion or activation.
+
+The **Teacher vs student login** task retains overall coordination. Its current
+worktree is `codex/contextual-teacher-daily-logs`; the coordinator owns Git,
 roadmap, verification, independent review and integration. A bounded read-only
-inventory selected entry drill-down and learner history as the first PR; logs and
-summary follow separately. One implementation worker owns the two routes, their
-server helper and focused tests; the coordinator owns the local PostgREST harness,
-CI wiring and documentation. See the [teacher read contract](contextual-teacher-daily-log-read.md).
+proposal and a zero-result local PostgREST syntax probe selected an enrollment-rooted
+joined query for roster-wide logs/previews, before cached summary reads. One
+implementation worker owns this route, its focused helper/input schema and tests;
+the coordinator owns the synthetic 1001-learner PostgREST harness, CI and docs.
+The real harness must prove per-learner limits, optional profile shape, cross-class
+binding, keyset pagination and removal/transfer at the bound read before acceptance;
+the syntax probe proves none of these. This approach adds no schema. If it fails
+the real contract, reconcile a separately reviewed actor-bound RPC instead of
+falling back to an unbound or per-learner legacy query.
+See the [entry/history contract](contextual-teacher-daily-log-read.md) and
+[roster-wide logs contract](contextual-teacher-daily-logs.md).
 Implementation must preserve absent and
 non-admitted legacy behavior, accept either account-role value for an admitted
 owner, enforce current owner/resource binding at the data read, retain existing
