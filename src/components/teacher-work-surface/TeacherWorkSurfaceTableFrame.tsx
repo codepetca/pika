@@ -24,7 +24,7 @@ export const TeacherWorkSurfaceTableFrame = forwardRef<HTMLDivElement, TeacherWo
       {...props}
       ref={ref}
       className={cn(
-        'min-h-48 flex-1 overflow-auto rounded-lg bg-surface',
+        'relative min-h-48 flex-1 overflow-auto overscroll-y-contain rounded-lg bg-surface',
         selectionActive && 'pb-32 sm:pb-20',
         className,
       )}

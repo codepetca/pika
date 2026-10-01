@@ -96,7 +96,7 @@ export function GradebookTable({
       onSelectKey={(id) => { const student = students.find((s) => s.student_id === id); if (student) onStudentSelect(student) }}
       onDeselect={onStudentDeselect}
       getRowId={getGradebookStudentRowId}
-      className="relative isolate h-full min-h-0 min-w-0 overflow-auto rounded-lg border border-border bg-surface"
+      className="relative isolate h-full min-h-0 min-w-0 overflow-auto overscroll-y-contain rounded-lg border border-border bg-surface"
       data-testid="gradebook-student-scroll-pane"
       onScroll={onScroll}
     >

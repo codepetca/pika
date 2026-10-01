@@ -477,6 +477,7 @@ function mockManyLogsFetch(count = 30) {
   return fetchMock
 }
 
+// Long-table viewport and gesture containment are covered in the experience matrix browser suite.
 describe('TeacherAttendanceTab', () => {
   afterEach(() => {
     cleanup()

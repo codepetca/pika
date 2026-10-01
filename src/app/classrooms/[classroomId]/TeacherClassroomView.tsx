@@ -2245,7 +2245,7 @@ export function TeacherClassroomView({
   const classPane = (
     <div
       ref={classPaneScrollRef}
-      className="h-full min-h-0 overflow-auto scrollbar-hover"
+      className="h-full min-h-0 overflow-auto overscroll-y-contain scrollbar-hover"
       data-testid="assignment-student-scroll-pane"
       onScroll={preserveClassPaneScrollPosition}
     >

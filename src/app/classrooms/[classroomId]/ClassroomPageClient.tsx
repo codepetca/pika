@@ -1702,18 +1702,18 @@ function ClassroomPageContent({
       : activeTab === 'tests'
         ? 'pb-0'
         : ''
-  const hasActiveTeacherSplitPanes =
+  const hasTeacherStudentTableWorkspace =
     isTeacher &&
     (
       activeTab === 'daily' ||
       activeTab === 'roster' ||
       (activeTab === 'gradebook' && gradebookSectionParam !== 'settings') ||
-      (activeTab === 'assignments' && !!assignmentIdParam && !!assignmentStudentIdParam) ||
-      (activeTab === 'tests' && !!testIdParam && testModeParam === 'grading' && !!testStudentIdParam)
+      (activeTab === 'assignments' && !!assignmentIdParam) ||
+      (activeTab === 'tests' && !!testIdParam && testModeParam === 'grading')
     )
   const hasTeacherViewportGrid = isTeacher && activeTab === 'gradebook'
   const hasConstrainedWorkspace =
-    hasActiveTeacherSplitPanes ||
+    hasTeacherStudentTableWorkspace ||
     hasTeacherViewportGrid ||
     activeTab === 'resources' ||
     (!isTeacher && activeTab === 'today')
@@ -1800,7 +1800,7 @@ function ClassroomPageContent({
       onNavigateHome={handleHomeNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
       constrainToViewport={hasConstrainedWorkspace}
-      constrainToViewportOnMobile={isTeacher && activeTab === 'daily'}
+      constrainToViewportOnMobile={hasTeacherStudentTableWorkspace && activeTab !== 'gradebook'}
       examModeHeader={examHeaderData}
       pageTitle={undefined}
     >

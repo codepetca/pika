@@ -722,7 +722,7 @@ export function TeacherRosterTab({ classroom }: Props) {
   ) : (
     <div
       ref={rosterTableScrollRef}
-      className="min-h-[200px] flex-1 overflow-auto rounded-lg bg-surface"
+      className="relative min-h-[200px] flex-1 overflow-auto overscroll-y-contain rounded-lg bg-surface"
       data-testid="roster-student-scroll-pane"
       onScroll={preserveRosterTableScrollPosition}
     >

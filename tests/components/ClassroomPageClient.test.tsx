@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-// Daily viewport containment is exercised through the real ClassroomPageClient
-// by the "Daily scroll containment" browser cases in e2e/experience-matrix.spec.ts.
+// Viewport containment is exercised through the real ClassroomPageClient by the
+// Daily and Teacher student-table scroll containment cases in e2e/experience-matrix.spec.ts.
 describe('ClassroomPageClient titlebar navigation', () => {
   it('scopes student Daily Log recovery to the signed-in student', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
