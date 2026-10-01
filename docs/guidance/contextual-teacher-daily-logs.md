@@ -58,6 +58,12 @@ or reseed. Wire this harness into ephemeral CI and run focused unit/API/legacy
 checks plus canonical focused checks, independent high-risk review and exact-head
 PR Gate before merge. Receipts belong in the PR; this document proves no result.
 
+Both teacher Daily harnesses retain exact entitlement operation UUIDs and remove
+only their own synthetic audit rows, guarded by operation/subject, fixture actor,
+reason, feature and fixture user identity. Assert audit/live-state cleanup as well
+as users/classrooms/entries. This privileged local-test cleanup does not change
+production audit retention, grants or account-deletion behavior.
+
 If actual nested PostgREST behavior cannot satisfy the contract, stop and reconcile
 an additive actor-bound service-only paged RPC, with current numbering/types/review
 and rollout authorization. Do not silently weaken binding or introduce N+1 fallback.

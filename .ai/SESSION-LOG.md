@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Classroom Blueprint tab
-
-Added a teacher-only Blueprint item to the existing classroom sidebar and a content pane for that classroom's saved Blueprint Version. The pane shows course outline, assignment and test titles, and private authoring guidance, with loading, retry, and unlinked-classroom states. It reads the existing ownership-checked frozen Version endpoint; later edits to the source Draft do not silently change the classroom. Student navigation excludes the tab and direct student URLs return to Daily. Teacher desktop/mobile light/dark views, a populated Version fixture, and student desktop/mobile navigation were visually checked. Focused checks passed 3,488 tests plus architecture, UI/design policy, TypeScript, and lint. PR #1387 is draft during review; migrations 218/219 remain unapplied locally.
-
-The independent cumulative review found no blockers. After a documentation-only rebase onto current main, exact-head CI passed Test & Build and database contracts but the browser gate found four outdated Pattern Lab snapshots: the shared classroom navigation catalog now includes Blueprint. Updated the four Linux baselines from deterministic CI actuals and the four Darwin baselines from the local Pattern Lab runner; all four focused visual cases pass without snapshot update mode. The three other browser retries were flaky and passed. PR remains draft for the snapshot correction and new exact-head CI.
-
-Main advanced with a separate test-grading migration numbered 219 before the snapshot correction's ready run. Rebased the classroom branch and resequenced its additive provenance migration to 220; the source SQL remains unchanged. The latest PR head must pass clean migration replay, generated type checks, browser matrix, and PR Gate. Neither feature migration has been applied to the shared local database.
-
-The 220 Test editing migration merged into main during the next exact-head CI run. That CI passed Test & Build, database contracts, Browser Experience Matrix, and PR Gate, but the PR became conflicting. Rebased again and resequenced the classroom provenance migration to 221, still with identical SQL. The first focused run hit an unrelated Pal timing failure that passed in isolation; the full rerun passed 3,495 tests plus architecture, UI/design policy, TypeScript, and lint. The branch awaits another stable exact-head gate; local migration history remains untouched.
-
 ## 2026-09-29 — Classroom Blueprint Settings-style navigation
 
 Changed the teacher classroom Blueprint sidebar icon to Lucide Factory and moved Overview, Content, and Authoring Guidance into the Settings-style segmented control at the top of the pane. Section choice now follows the classroom URL, so refresh and browser navigation retain it. The control remains visible through loading and unlinked-Version states. Teacher desktop/mobile light/dark and populated-Version views were visually checked; direct student navigation still resolves to Daily without Blueprint. Focused checks passed 3,503 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. The composite widget checklist was reviewed: the shared control supplies arrow-key focus behavior, while tests cover the group label and pressed state. Updated the four Darwin Pattern Lab snapshots locally and the four Linux snapshots from deterministic CI actuals; the four local visual cases pass without update mode. CI at e7fb6d4c passed build, database, browser, and PR Gate. After main advanced with Gradebook changes, rebased without application-code changes and passed 3,505 focused tests plus all static gates. The rebased head needs exact-head CI. Risk profile: none. Model recommendation: GPT-6 Sol for this localized UI change.
@@ -204,3 +194,14 @@ PR1420 merged main at3cf01b06 after four bounded independent review launches and
 Next worktree codex/contextual-teacher-daily-logs starts from3cf01b06. A bounded read-only proposal plus coordinator schema/SDK checks and a zero-result local PostgREST syntax probe selected enrollment-rooted nested profiles/selected entries/previews; no migration or N+1 fallback. One worker owns helper/route/input and TDD tests; coordinator owns real1001learner/seven-entry fixture contract, CI wiring and docs. Actual per-learner limits, projection, keyset pagination, current membership/owner races and cleanup remain acceptance gates; syntax alone proves none of them. Shared admission remains off; cached summary is next. Risk runtime-platform; high-risk independent review models GPT-5.6 Sol/high security and GPT-6 Sol/high compatibility fallback (Terra unavailable).
 
 Worker completed23focused tests plus TypeScript, architecture and ESLint. Real PostgREST passes every1001learner/pagination/projection/profile/date/archive/denial/removal/transfer contract with exactcleanup. First harness attempt tried to resurrect a closed membership generation; its cleanup passed, fixture rejoin now uses a new enrollment UUID as required by the existing Pal lifecycle, and the rerun is green. No product change or weakened trigger was needed. Canonical focused verification, independent review and exact-head CI remain pending.
+
+## 2026-10-01 Teacher Daily logs review corrections
+
+PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
+correction validates malformed query envelopes and catches builder failures as
+generic 503 (five TDD regressions); both teacher Daily local harnesses now retain
+exact entitlement operation IDs and assert live-state/audit cleanup. Removed only
+six identified synthetic logs-harness audit rows from local, retaining a private
+recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
+119 focused tests and static checks pass. Targeted/final review pending. No
+production, migration, cohort, plan or UI change; summary read remains next.

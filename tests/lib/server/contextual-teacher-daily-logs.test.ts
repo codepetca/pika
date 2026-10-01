@@ -73,6 +73,22 @@ describe('contextual teacher logs roster read', () => {
     await expect(readContextualTeacherLogs({ supabase: rejected as never, actorId, classroomId })).rejects.toMatchObject({ statusCode: 503 })
   })
 
+  it('maps a query-builder throw to the generic unavailable response', async () => {
+    const service = client()
+    service.from.mockImplementationOnce(() => { throw new Error('builder failure') })
+    await expect(readContextualTeacherLogs({ supabase: service as never, actorId, classroomId }))
+      .rejects.toMatchObject({ statusCode: 503, message: 'Unable to verify Daily Log roster' })
+  })
+
+  it.each([null, undefined, { data: [] }, { data: [], error: false }])(
+    'rejects a malformed query result envelope %#', async (envelope) => {
+      const service = client()
+      service.query.then.mockImplementationOnce(resolve => { resolve(envelope) })
+      await expect(readContextualTeacherLogs({ supabase: service as never, actorId, classroomId }))
+        .rejects.toMatchObject({ statusCode: 503, message: 'Unable to verify Daily Log roster' })
+    },
+  )
+
   it.each([
     () => ({ ...row(), classroom: { id: classroomId, teacher_id: otherId } }),
     () => ({ ...row(), classroom_id: otherId }),

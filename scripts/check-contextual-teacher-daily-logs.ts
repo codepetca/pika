@@ -23,6 +23,8 @@ async function main() {
   }
   const tag = `tdl_${randomUUID().slice(0, 8)}`
   const ownerStudent = randomUUID(), ownerTeacher = randomUUID(), outsider = randomUUID()
+  const entitlementOperations = [ownerStudent, ownerTeacher].map(subject => ({ subject, operation: randomUUID() }))
+  const operationsSql = entitlementOperations.map(({ subject, operation }) => `('${operation}'::uuid,'${subject}'::uuid)`).join(',')
   const classA = randomUUID(), classB = randomUUID(), emptyClass = randomUUID()
   const learners = Array.from({ length: 1001 }, (_, index) => ({
     id: randomUUID(), enrollmentId: randomUUID(), index,
@@ -71,10 +73,10 @@ async function main() {
         ('${outsider}','${tag}_outsider@example.invalid','teacher'),
         ${learners.map(learner => `('${learner.id}','${learner.email}','${learner.role}')`).join(',')};
       set local role service_role;
-      select public.set_effective_feature_entitlement_v1(gen_random_uuid(),u,
+      select public.set_effective_feature_entitlement_v1(operation_id,u,
         'classrooms.create','manual',true,clock_timestamp(),null,3,'test:teacher-daily-logs','teacher_daily_logs_fixture',
         coalesce((select revision from public.effective_feature_entitlements where subject_user_id=u and feature_key='classrooms.create'),0))
-      from unnest(array['${ownerStudent}'::uuid,'${ownerTeacher}'::uuid]) u;
+      from (values ${operationsSql}) as fixture(operation_id,u);
       reset role;
       insert into public.classrooms(id,teacher_id,title,class_code) values
         ('${classA}','${ownerStudent}','${tag} A','${tag}_a'),
@@ -164,13 +166,26 @@ async function main() {
   } finally {
     if (created) {
       sql(`begin;
+        delete from public.effective_feature_entitlement_audit a using (values ${operationsSql}) as fixture(operation_id,u)
+          where a.operation_id=fixture.operation_id and a.subject_user_id=fixture.u
+            and a.actor_ref='test:teacher-daily-logs' and a.reason_code='teacher_daily_logs_fixture'
+            and a.feature_key='classrooms.create'
+            and exists(select 1 from public.users u where u.id=fixture.u and u.email like '${tag}_%@example.invalid');
         delete from public.classrooms where id in ('${classA}','${classB}','${emptyClass}') and teacher_id in ('${ownerStudent}','${ownerTeacher}');
         delete from public.users where id=any(array[${idsSql}]) and email like '${tag}_%@example.invalid';
         commit;`)
       assert.equal(sql(`select
         (select count(*) from public.users where id=any(array[${idsSql}]))+
         (select count(*) from public.classrooms where id in ('${classA}','${classB}','${emptyClass}'))+
-        (select count(*) from public.entries where classroom_id in ('${classA}','${classB}','${emptyClass}'));`), 'SET\nSET\n0')
+        (select count(*) from public.entries where classroom_id in ('${classA}','${classB}','${emptyClass}'))+
+        (select count(*) from public.classroom_enrollments where student_id=any(array[${idsSql}]))+
+        (select count(*) from public.student_profiles where user_id=any(array[${idsSql}]))+
+        (select count(*) from public.class_days where classroom_id in ('${classA}','${classB}','${emptyClass}'))+
+        (select count(*) from public.effective_feature_entitlements where subject_user_id=any(array[${idsSql}]))+
+        (select count(*) from public.account_plans where subject_user_id=any(array[${idsSql}]))+
+        (select count(*) from public.account_plan_audit where subject_user_id=any(array[${idsSql}]))+
+        (select count(*) from public.effective_feature_entitlement_audit where subject_user_id=any(array[${idsSql}])
+          or operation_id in (select operation_id from (values ${operationsSql}) as fixture(operation_id,u)));`), 'SET\nSET\n0')
       process.stdout.write('PASS exact synthetic fixture cleanup; no migration, reset, hosted operation or unrelated row changes\n')
     }
   }

@@ -26,6 +26,7 @@ const enrollmentSchema = z.object({
   }),
 })
 const pageSchema = z.array(enrollmentSchema).max(PAGE_SIZE)
+const queryResultSchema = z.object({ data: pageSchema, error: z.null() })
 const select = `
   id, classroom_id, student_id,
   classroom:classrooms!inner(id, teacher_id),
@@ -73,16 +74,16 @@ export async function readContextualTeacherLogs(input: {
   let lastId: string | undefined
   const seenStudents = new Set<string>()
   for (;;) {
-    let query = input.supabase.from('classroom_enrollments')
-      .select(select)
-      .eq('classroom_id', classroomId)
-      .eq('classroom.teacher_id', actorId)
-      .eq('learner.selected.classroom_id', classroomId)
-      .eq('learner.preview.classroom_id', classroomId)
-    if (selectedDate) query = query.eq('learner.selected.date', selectedDate)
-    if (lastId) query = query.gt('id', lastId)
-    let result: { data: unknown; error: unknown }
+    let result: unknown
     try {
+      let query = input.supabase.from('classroom_enrollments')
+        .select(select)
+        .eq('classroom_id', classroomId)
+        .eq('classroom.teacher_id', actorId)
+        .eq('learner.selected.classroom_id', classroomId)
+        .eq('learner.preview.classroom_id', classroomId)
+      if (selectedDate) query = query.eq('learner.selected.date', selectedDate)
+      if (lastId) query = query.gt('id', lastId)
       result = await query
         .order('id', { ascending: true })
         .order('date', { ascending: false, referencedTable: 'learner.preview' })
@@ -93,10 +94,10 @@ export async function readContextualTeacherLogs(input: {
     } catch {
       throw unavailable()
     }
-    if (result.error) throw unavailable()
-    const page = pageSchema.safeParse(result.data)
-    if (!page.success) throw unavailable()
-    for (const row of page.data) {
+    const envelope = queryResultSchema.safeParse(result)
+    if (!envelope.success) throw unavailable()
+    const page = envelope.data.data
+    for (const row of page) {
       if (row.classroom_id !== classroomId || row.classroom.id !== classroomId
         || row.classroom.teacher_id !== actorId || row.student_id !== row.learner.id
         || (lastId !== undefined && row.id <= lastId) || seenStudents.has(row.student_id)
@@ -129,7 +130,7 @@ export async function readContextualTeacherLogs(input: {
         history_preview: preview,
       })
     }
-    if (page.data.length < PAGE_SIZE) break
+    if (page.length < PAGE_SIZE) break
     if (!lastId) throw unavailable()
   }
   logs.sort((a, b) => a.student_email.localeCompare(b.student_email)
