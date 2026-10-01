@@ -3,6 +3,7 @@ import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { generateVerificationCode, hashCode } from '@/lib/crypto'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
+import { requireLegacyPasswordAuth } from '@/lib/server/workos-pilot'
 import { forgotPasswordSchema } from '@/lib/validations/auth'
 import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
 import {
@@ -20,6 +21,7 @@ const SUCCESS_RESPONSE = {
 }
 
 export const POST = withErrorHandler('ForgotPassword', async (request: NextRequest) => {
+  requireLegacyPasswordAuth()
   const startedAtMs = Date.now()
   const { email: normalizedEmail } = forgotPasswordSchema.parse(await request.json())
 
