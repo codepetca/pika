@@ -20,6 +20,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/lib/auth', () => ({
+  requireAuth: vi.fn(async () => ({ id: 'student-1', email: 'test@student.com', role: 'student' })),
   requireRole: vi.fn(async (role: string) => {
     if (role === 'student') {
       return { id: 'student-1', email: 'test@student.com', role: 'student' }
@@ -71,6 +72,7 @@ describe('GET /api/student/entries', () => {
       expect(response.status).toBe(401)
       expect(data.error).toBe('Unauthorized')
     })
+
   })
 
   describe('fetching entries', () => {
@@ -297,6 +299,37 @@ describe('POST /api/student/entries', () => {
 
       expect(response.status).toBe(401)
       expect(data.error).toBe('Unauthorized')
+    })
+
+    it('returns 401 for an unauthenticated malformed body without parsing it', async () => {
+      const { requireRole } = await import('@/lib/auth')
+      ;(requireRole as any).mockRejectedValueOnce(mockAuthenticationError())
+      const request = new NextRequest('http://localhost:3000/api/student/entries', { method: 'POST', body: '{' })
+      const json = vi.spyOn(request, 'json')
+
+      expect((await POST(request)).status).toBe(401)
+      expect(json).not.toHaveBeenCalled()
+    })
+
+    it('returns 403 for a wrong-role malformed body without parsing it', async () => {
+      const { requireRole } = await import('@/lib/auth')
+      ;(requireRole as any).mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+      const request = new NextRequest('http://localhost:3000/api/student/entries', { method: 'POST', body: '{' })
+      const json = vi.spyOn(request, 'json')
+
+      expect((await POST(request)).status).toBe(403)
+      expect(json).not.toHaveBeenCalled()
+    })
+
+    it('returns terminal shared-admission configuration failure before parsing a body', async () => {
+      const { requireAuth } = await import('@/lib/auth')
+      ;(requireAuth as any).mockResolvedValueOnce({ id: 'student-1', email: 'test@student.com', role: 'student' })
+      vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', 'not-json')
+      const request = new NextRequest('http://localhost:3000/api/student/entries', { method: 'POST', body: '{' })
+      const json = vi.spyOn(request, 'json')
+
+      expect((await POST(request)).status).toBe(503)
+      expect(json).not.toHaveBeenCalled()
     })
   })
 

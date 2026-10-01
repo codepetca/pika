@@ -359,9 +359,10 @@ owner-precedence defect: an admitted owner with historical self-enrollment can
 open a learner document (200 rather than 403). PR #1376 corrected the learner
 transaction boundaries and passed all seven real route/database scenarios,
 the database contract suite and browser CI before merging as `7758ed44`.
-Migration 214 is applied and catalog-verified in production. Local application
-is blocked by separately applied billing migrations using 214–216; do not repair
-or reset that shared history without a coordinated, explicitly authorized plan.
+Migration 214 is applied and catalog-verified in production. The separately
+authorized local reset/reseed on 2026-09-27 resolved the billing numbering collision;
+local history now matches main through 217, with 214 retaining owner precedence
+and billing using 215–217. Do not reuse the superseded history-repair proposal.
 The remaining full-experience work follows these five batches:
 
 | Batch | Scope | Exit evidence |
@@ -385,6 +386,32 @@ current owner/member/resource checks remain authoritative. Absent configuration
 preserves legacy/pair-pilot behavior. No live cohort is configured; writes, Daily,
 other domains and product entry remain unfinished. Cohort retention and compatible
 recovery versions are operator obligations, not guarantees of the stateless reader.
+
+The next bounded implementation is [Daily Log POST/PATCH saves](contextual-daily-log-save.md).
+The owner elected to continue the current server/session and service-role
+architecture after comparison; a user-JWT RLS or restricted-credential redesign
+is not part of this work. Migration 224 adds the transaction-time member boundary,
+controlled by the same shared admission contract. It was resequenced from the
+branch's original 218, then 223, after main allocated 218–223. Its SQL body is unchanged;
+the earlier local verification is historical. The owner subsequently approved
+221–223 locally, applied once on 2026-09-30; history and generated types match
+through that branch's 223 and the function is present. Main subsequently assigned
+223 to the assignment-grade conflict correction. On 2026-09-30 the owner approved
+the exact local repair: remove the old 223 receipt, record identical installed
+Daily SQL as 224, and apply only canonical main 223 with `--include-all` after its
+exact preview. All history identities through 224, generated types, security,
+assignment conflict behavior and Daily rollback/eight concurrency cases pass;
+the data-preservation check passes. That one-time approval is consumed.
+Final review at 57ccc26f found a custom-40001 retry risk in Daily's defensive
+binding check. Owner approved the additive225 correction, one seventh targeted
+review and exactly225 locally after verification. Migration224 remains unchanged;
+225 replaces only the defensive conflict code with PT409 and the adapter accepts
+both codes. A rollback-only fault-injection contract covers the defensive branch.
+PR1380 records application and final-review outcomes; these must pass before merge.
+The one-time225 approval does not authorize production. Production Daily Log
+application remains pending; no reset, reseed or production repair was performed.
+Daily reads and other batch-1 domains remain subsequent work;
+no cohort or home/page activation is authorized by this slice.
 
 The shared cohort grants admission to the compatible experience, never classroom
 ownership or enrollment. Resource-specific authorization remains mandatory.

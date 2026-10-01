@@ -12730,6 +12730,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_daily_log_for_member_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_date: string
+          p_expected_entry_id?: string
+          p_expected_version?: number
+          p_minutes_reported?: number
+          p_mood?: string
+          p_on_time: boolean
+          p_pal_event?: Json
+          p_rich_content: Json
+          p_text: string
+        }
+        Returns: Json
+      }
       save_gradebook_effective_mark: {
         Args: {
           p_assessment_id: string
