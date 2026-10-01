@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { GradingProfile } from '@/lib/grading/profiles/types'
 
 export const PIKA_ASSIGNMENT_GRADING_PROFILE_VERSION = 'pika-assignment-v2'
-export const PIKA_ASSIGNMENT_PROMPT_VERSION = 'pika-assignment-prompt-v3'
+export const PIKA_ASSIGNMENT_PROMPT_VERSION = 'pika-assignment-prompt-v4'
 export const PIKA_ASSIGNMENT_RUBRIC_VERSION = 'pika-essay-ctw-v2'
 export const PIKA_ASSIGNMENT_POLICY_VERSION = 'pika-grading-policy-v3'
 
@@ -103,7 +103,6 @@ Feedback rules — write "feedback" for the student, each item on its own line:
 - "Strength:" one sentence.
 - One "Missed:" line for each requirement in the instructions the student missed or only partly did, even when it cost no points. Only list something as missed if the instructions actually ask for it. Omit these lines if nothing was missed.
 - At most one "Tip:" line with an optional suggestion that was not required but would improve the work.
-- "Next Step:" one sentence.
 Feedback never changes the scores. A missing formatting detail the instructions ask for, such as a caption under a screenshot, belongs in the feedback and never costs points.`,
       userPrompt: `Assignment: ${input.assignmentTitle}
 Instructions: ${input.instructions}
