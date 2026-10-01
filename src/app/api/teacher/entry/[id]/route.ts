@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
+import { authorizeTeacherDailyReadActor, readContextualTeacherEntry } from '@/lib/server/contextual-teacher-daily-read'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -11,10 +11,14 @@ export const revalidate = 0
  * Fetches a specific entry (for teacher to view)
  */
 export const GET = withErrorHandler('GetTeacherEntry', async (_request, context) => {
-  const user = await requireRole('teacher')
+  const { mode, user } = await authorizeTeacherDailyReadActor()
 
   const { id } = await context.params
   const supabase = getServiceRoleClient()
+  if (mode === 'contextual') {
+    const entry = await readContextualTeacherEntry({ supabase, actorId: user.id, entryId: id })
+    return NextResponse.json({ entry })
+  }
 
   const { data: entry, error } = await supabase
     .from('entries')

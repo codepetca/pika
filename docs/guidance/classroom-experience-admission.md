@@ -4,6 +4,13 @@
 
 This is a dormant first slice of batch 1 in the
 [classroom-access roadmap](classroom-access-and-entitlements-roadmap.md).
+Current receipt: learner reads PR #1418 is merged in main; Daily saves PR #1380
+is merged and production migrations 224–225 are installed and verified via
+GitHub run `36869449834`. The pending migration statements below describe their
+earlier review history, not current application state. Shared admission remains
+off. The [teacher entry/history read slice](contextual-teacher-daily-log-read.md)
+is in development; roster-wide logs and summaries remain subsequent work.
+
 The existing owner/member material-list GET routes consume this policy. The
 [Daily Log save slice](contextual-daily-log-save.md) adds dormant POST/PATCH
 integration, with canonical migration 224 pending production. Its identical SQL
@@ -18,8 +25,10 @@ passed local verification under its original number 218 on 2026-09-27; that
 function was absent before the owner-approved local 221–223 application.
 The [learner Daily Log read slice](contextual-daily-log-read.md) adds dormant GET
 integration for own classroom history and the broad active-membership feed.
-Teacher Daily Log reads, material writes, other domains, home/page routing and enrollment
-retain their existing authorization. No environment is configured by this change.
+The teacher entry/history GETs also use shared admission, with current-owner
+evidence bound to their data reads. Teacher roster-wide logs/summary reads,
+material writes, other domains, home/page routing and enrollment retain their
+existing authorization. No environment is configured by this change.
 
 Do **not** configure a live cohort until the roadmap's full integrated release
 checks establish the complete reachable classroom experience. This is not an

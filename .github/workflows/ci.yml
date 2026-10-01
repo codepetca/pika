@@ -245,6 +245,9 @@ jobs:
       - name: Verify contextual Daily Log joined reads and revocation
         run: pnpm exec tsx scripts/check-contextual-daily-log-read.ts
 
+      - name: Verify contextual teacher Daily Log reads and current ownership
+        run: pnpm exec tsx scripts/check-contextual-teacher-daily-read.ts
+
       - name: Verify contextual learner assignment submit and unsubmit atomicity
         run: bash scripts/check-contextual-assignment-doc-submission-database.sh
 

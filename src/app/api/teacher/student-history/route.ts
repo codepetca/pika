@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { teacherStudentHistoryQuerySchema } from '@/lib/validations/teacher-student-history'
+import { authorizeTeacherDailyReadActor, readContextualTeacherStudentHistory } from '@/lib/server/contextual-teacher-daily-read'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -13,7 +13,7 @@ export const revalidate = 0
  * Returns entries for a student in reverse chronological order, optionally for one exact date.
  */
 export const GET = withErrorHandler('GetStudentHistory', async (request: NextRequest) => {
-  const user = await requireRole('teacher')
+  const { mode, user } = await authorizeTeacherDailyReadActor()
   const { searchParams } = new URL(request.url)
   const queryInput = teacherStudentHistoryQuerySchema.parse({
     classroom_id: searchParams.get('classroom_id') ?? undefined,
@@ -31,6 +31,12 @@ export const GET = withErrorHandler('GetStudentHistory', async (request: NextReq
   } = queryInput
 
   const supabase = getServiceRoleClient()
+  if (mode === 'contextual') {
+    const entries = await readContextualTeacherStudentHistory({
+      supabase, actorId: user.id, classroomId, studentId, beforeDate, date, limit,
+    })
+    return NextResponse.json({ entries })
+  }
   const ownership = await assertTeacherOwnsClassroom(user.id, classroomId, { supabase })
   if (!ownership.ok) {
     return NextResponse.json(
