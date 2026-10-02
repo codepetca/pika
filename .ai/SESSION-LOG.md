@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Hosted migration CLI companion diagnosis
-
-The owner created the reviewed Pika-only 90-day scoped token and saved GitHub migrations-production/SUPABASE_ACCESS_TOKEN at 08:02 Toronto time. The first hosted preview, run36859514133 at merged5f74d08d with verified CI36853538954, failed before a migration plan. Reproduced the installer defect using a fake credential: CLI2.103.0 ships a supabase shim plus supabase-go engine, but the installer extracted only the shim. With both checksum-verified binaries present, linking reaches the expected Unauthorized response for the fake token. Prepared a narrow installer correction and engine-version preflight without changing credentials, scopes, target bindings or migration approval policy. The focused gate passed95 tests plus architecture, UI/design policy, TypeScript and lint; the Linux archive contains both regular x86_64 executables under the unchanged checksum, and the installer shell/version preflight passes. A bounded independent operations review, required CI and the production preview retry remain pending. No production migration or password reset occurred. Risk profile: runtime-platform.
-
 ## 2026-10-01 — Assignment AI feedback wording
 
 - Removed the assignment prompt's required `Next Step:` line without adding a prohibition; retained Strength/Missed/optional Tip and all scoring rules. Prompt provenance advanced to v4.
@@ -468,3 +464,13 @@ the reviewed candidate before receipt updates; installed229 digest9b4c9b8b
 unchanged/immutable, local001–229 unchanged. Batch4 records reconciliation;
 no further default fix batch. One final changed-base integration review and
 fresh exact-head CI remain. Production, accounts, billing and admission held.
+
+## 2026-10-02 — Approved copy1431 continuity cleanup
+
+Final integration review confirmed source/SQL preservation and found two surplus
+historical Daily entries from reconciliation. Owner approved exactly one extra
+documentation-only batch5 and one final recheck, plus10review minutes; counters
+retained. Removed only the later duplicates, preserving each original record.
+263focused tests and all local gates passed at a60a2db9. No application/SQL/type/CI
+changes, migration application, production promotion or activation. Frozen final
+recheck and new exact-head CI must pass before normal main merge.
