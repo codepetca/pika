@@ -84,7 +84,7 @@ export function Tabs<TValue extends string>({
       className={cn(
         variant === 'connected'
           ? 'mb-[-1px] flex min-w-0 max-w-full items-end gap-1 overflow-x-auto'
-          : 'flex min-w-0 max-w-full gap-1 overflow-x-auto border-b border-border',
+          : 'flex min-w-0 max-w-full gap-1 overflow-x-auto',
         className,
       )}
     >

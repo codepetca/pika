@@ -728,7 +728,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     >
       <TableCard chrome="flush" overflowX>
         {loadError && (
-          <div className="border-b border-border p-3">
+          <div className="p-3">
             <div
               role="alert"
               className="flex items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
@@ -739,7 +739,7 @@ export function TeacherRosterTab({ classroom }: Props) {
           </div>
         )}
         {counselorError && counselorErrorRow ? (
-          <div className="border-b border-border p-3">
+          <div className="p-3">
             <div
               id={`roster-counselor-error-${counselorError.rosterId}`}
               role="alert"

@@ -52,9 +52,6 @@ export function SummaryDetailWorkspaceShell({
       : rightPaneStyle
     : rightPaneStyle
 
-  const responsiveDividerBorderClass =
-    divider && orientation === 'responsive' ? 'border-t border-border lg:border-t-0' : ''
-
   return (
     <WorkspaceSplitPane
       left={left}
@@ -67,7 +64,6 @@ export function SummaryDetailWorkspaceShell({
       leftPaneClassName={cn('min-h-0 flex-1 overflow-hidden', leftPaneClassName)}
       rightPaneClassName={cn(
         'min-h-0 overflow-hidden bg-surface',
-        responsiveDividerBorderClass,
         rightPaneClassName,
       )}
       leftPaneStyle={leftPaneStyle}

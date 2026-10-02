@@ -440,10 +440,12 @@ describe('useTeacherManualAttendanceController', () => {
     act(() => {
       command = result.current.submitMarks([studentId], 'absent')
     })
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true))
     rerender({ selectedDate: '2026-05-07' })
     await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-07'))
     rerender({ selectedDate: '2026-05-06' })
-    await waitFor(() => expect(result.current.overridesByStudentId.get(studentId)).toBe('present'))
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('absent')
 
     await act(async () => {
       rejectPost(new Error('Old write failed'))
@@ -571,4 +573,46 @@ describe('useTeacherManualAttendanceController', () => {
       tone: 'warning',
     })
   })
+
+  it.each(['date', 'activity'] as const)('saves accepted corrections in order through an A to B to A %s transition', async transition => {
+    let releaseFirst!: () => void
+    const gate = new Promise<void>(resolve => { releaseFirst = resolve })
+    const writes: Array<{ date: string; status: string }> = []
+    let saved = 'late'
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (init?.method === 'POST') {
+        const body = JSON.parse(String(init.body))
+        writes.push({ date: body.date, status: body.status })
+        if (writes.length === 1) await gate
+        saved = body.status
+        return response({ savedCount: 1 })
+      }
+      const next = view(url.searchParams.get('date')!)
+      if (next.classDate === '2026-05-06') next.overrides = [{ studentId, status: saved as 'late' }]
+      return response(next)
+    }))
+    const { result, rerender } = renderHook(({ selectedDate, isActive }) => useTeacherManualAttendanceController({
+      classroomId, selectedDate, isActive, enabled: true, archived: false, visibleStudentIds: [studentId],
+    }), { initialProps: { selectedDate: '2026-05-06', isActive: true } })
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    let first!: Promise<void>
+    let correction!: Promise<void>
+    act(() => { first = result.current.submitMarks([studentId], 'absent') })
+    await waitFor(() => expect(writes).toHaveLength(1))
+    act(() => { correction = result.current.submitMarks([studentId], 'present') })
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('present')
+    rerender(transition === 'date' ? { selectedDate: '2026-05-07', isActive: true }
+      : { selectedDate: '2026-05-06', isActive: false })
+    if (transition === 'date') await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-07'))
+    rerender({ selectedDate: '2026-05-06', isActive: true })
+    await waitFor(() => expect(result.current.pendingStudentIds.has(studentId)).toBe(true))
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('present')
+    await act(async () => { releaseFirst(); await Promise.all([first, correction]) })
+    expect(writes).toEqual([{ date: '2026-05-06', status: 'absent' }, { date: '2026-05-06', status: 'present' }])
+    await waitFor(() => expect(result.current.pendingStudentIds.size).toBe(0))
+    expect(result.current.overridesByStudentId.get(studentId)).toBe('present')
+    expect(saved).toBe('present')
+  })
+
 })

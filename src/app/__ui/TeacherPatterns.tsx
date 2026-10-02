@@ -37,7 +37,7 @@ export function TeacherPatterns() {
             Relative date
           </Button>
         </div>
-        <div className="mt-4 rounded-card border border-border bg-page pb-3" data-testid="standalone-shell-example">
+        <div className="mt-4 rounded-card bg-page pb-3" data-testid="standalone-shell-example">
           <TeacherWorkSurfaceShell
             className="mx-0"
             state="workspace"
@@ -84,7 +84,7 @@ export function TeacherPatterns() {
         <p className="mt-1 text-sm text-text-muted">
           Selected-workspace reference · tabs connect directly to their panel, without standalone top spacing.
         </p>
-        <div className="mt-4 rounded-card border border-border bg-page" data-testid="attached-shell-example">
+        <div className="mt-4 rounded-card bg-page" data-testid="attached-shell-example">
           <TeacherWorkSurfaceShell
             className="mx-0"
             state="workspace"

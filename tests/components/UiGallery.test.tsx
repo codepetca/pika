@@ -157,6 +157,14 @@ describe('UiGallery history preview fixture', () => {
     expect(date).not.toHaveAccessibleDescription()
     expect(date.querySelector('[aria-hidden="true"]')).toBeNull()
     expect(date).not.toHaveClass('flex-col')
+
+    const overview = screen.getByRole('tab', { name: 'Overview' })
+    overview.focus()
+    await user.keyboard('{ArrowRight}')
+    const details = screen.getByRole('tab', { name: 'Work details' })
+    expect(details).toHaveFocus()
+    expect(details).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tabpanel', { name: 'Work details' })).toBeVisible()
   })
 
   it('demonstrates one student confirmation for all missing attachments', async () => {

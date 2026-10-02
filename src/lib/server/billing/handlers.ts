@@ -18,6 +18,7 @@ export function createBillingHandlers(
   loadRuntime: () => Promise<BillingHandlerRuntime>,
   loadPurchases?: () => Promise<{ reconcileCheckouts(input: { limit: number }): Promise<unknown> } | null>,
   loadLifecycle?: () => Promise<{ applyDue(input: { limit: number }): Promise<{ processed: number }> } | null>,
+  loadCloseouts?: () => Promise<{ closeDueRenewals(input: { limit: number }): Promise<unknown> } | null>,
 ) {
   function requireConfiguration() {
     const config = configuration()
@@ -50,7 +51,10 @@ export function createBillingHandlers(
       const purchases = purchaseRuntime ? await purchaseRuntime.reconcileCheckouts({ limit: 1 }) : undefined
       const lifecycleRuntime = loadLifecycle ? await loadLifecycle() : null
       const lifecycle = lifecycleRuntime ? await lifecycleRuntime.applyDue({ limit: 25 }) : undefined
-      return NextResponse.json({ ...result, ...(purchases ? { purchases } : {}), ...(lifecycle ? { lifecycle } : {}) })
+      const closeoutRuntime = loadCloseouts ? await loadCloseouts() : null
+      const closeouts = closeoutRuntime ? await closeoutRuntime.closeDueRenewals({ limit: 1 }) : undefined
+      return NextResponse.json({ ...result, ...(purchases ? { purchases } : {}), ...(lifecycle ? { lifecycle } : {}),
+        ...(closeouts ? { closeouts } : {}) })
     }),
   }
 }

@@ -393,7 +393,7 @@ function StudentTodayPlanSidebar({
     <div
       data-student-today-plan-region
       tabIndex={-1}
-      className="flex h-full min-h-0 flex-col divide-y divide-border"
+      className="flex h-full min-h-0 flex-col"
     >
       {calendarRefreshing ? (
         <div role="status" className="flex items-center gap-2 px-4 pt-4 text-sm text-text-muted">
@@ -540,7 +540,7 @@ function StudentTodayWorkspace({
       className="flex-1 pt-2"
       splitVariant="gapped"
       primaryClassName="min-h-0"
-      inspectorClassName="hidden min-h-0 rounded-lg border border-border bg-surface lg:block"
+      inspectorClassName="hidden min-h-0 rounded-lg bg-surface lg:block"
       inspectorCollapsed={false}
       inspectorWidth={planPaneWidth}
       minInspectorPx={300}
@@ -2207,7 +2207,7 @@ function ClassroomPageContent({
         viewportPaddingClassName="p-2 sm:p-4"
         ariaLabelledBy="assignments-markdown-dialog-title"
       >
-        <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
             <h2 id="assignments-markdown-dialog-title" className="text-base font-semibold text-text-default">
               Edit Markdown

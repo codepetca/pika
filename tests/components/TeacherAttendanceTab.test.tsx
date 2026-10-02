@@ -694,6 +694,33 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeInTheDocument()
   })
 
+  it('disables manual settings during a mark save while keeping row corrections available', async () => {
+    const fetchMock = mockManualAttendanceFetch()
+    const baseFetch = fetchMock.getMockImplementation()!
+    const saving = deferred<Response>()
+    fetchMock.mockImplementation((input, init) => {
+      if (String(input) === '/api/teacher/manual-attendance' && init?.method === 'POST') return saving.promise
+      return baseFetch(input, init)
+    })
+    const user = userEvent.setup()
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} manualAttendanceEnabled />
+    </AppMessageProvider></TooltipProvider>)
+    await user.click(await screen.findByRole('button', { name: 'Mark Student2 Test absent' }))
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test absent' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Mark Student2 Test present' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: /Attendance from log/ })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: /Edit time/ })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeEnabled()
+    await act(async () => { saving.resolve(await mockJson({ savedCount: 1 })) })
+    await waitFor(() => expect(screen.getByRole('menuitemcheckbox', { name: /Attendance from log/ }))
+      .toBeEnabled())
+    await user.click(screen.getByRole('menuitemcheckbox', { name: /Attendance from log/ }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(true))
+  })
+
   it('blocks passive attendance times longer than 12 hours', async () => {
     mockManualAttendanceFetch()
     const user = userEvent.setup()
@@ -1181,7 +1208,7 @@ describe('TeacherAttendanceTab', () => {
     })
   })
 
-  it('keeps revalidating a pending mark until confirmation arrives after the bounded poll', async () => {
+  it('reconciles a committed mark in the background while keeping controls responsive', async () => {
     let attendanceReadCount = 0
     const initialAttendance = combinedAttendanceView()
     const confirmedAttendance = combinedAttendanceView({
@@ -1211,10 +1238,10 @@ describe('TeacherAttendanceTab', () => {
       }
       if (url.startsWith('/api/teacher/attendance/session?')) {
         attendanceReadCount += 1
-        return mockJson(attendanceReadCount >= 10 ? confirmedAttendance : initialAttendance)
+        return mockJson(attendanceReadCount >= 4 ? confirmedAttendance : initialAttendance)
       }
       if (url === '/api/teacher/attendance/marks' && init?.method === 'POST') {
-        return mockJson({ outcome: 'accepted', appliedCount: 0 })
+        return mockJson({ outcome: 'applied', appliedCount: 1 })
       }
       throw new Error(`Unhandled fetch: ${url}`)
     })
@@ -1245,11 +1272,11 @@ describe('TeacherAttendanceTab', () => {
     })
 
     const waitingLateButton = screen.getByRole('button', { name: 'Mark Student1 Test late' })
-    expect(attendanceReadCount).toBe(9)
-    expect(waitingLateButton).toBeDisabled()
+    expect(attendanceReadCount).toBe(3)
+    expect(waitingLateButton).toBeEnabled()
     expect(waitingLateButton).toHaveAttribute('aria-pressed', 'true')
     expect(appMessageMock.showMessage).toHaveBeenCalledWith({
-      text: 'Update sent; waiting for attendance confirmation',
+      text: '1 student marked late',
       tone: 'info',
     })
 
@@ -1258,7 +1285,7 @@ describe('TeacherAttendanceTab', () => {
     })
 
     const confirmedLateButton = screen.getByRole('button', { name: 'Mark Student1 Test late' })
-    expect(attendanceReadCount).toBe(10)
+    expect(attendanceReadCount).toBe(4)
     expect(confirmedLateButton).toBeEnabled()
     expect(confirmedLateButton).toHaveAttribute('aria-pressed', 'true')
     expect(appMessageMock.showMessage).toHaveBeenCalledWith({

@@ -177,6 +177,11 @@ After correcting an incident, a service operator can invoke the sandbox-gated
 `billing_requeue_subscription_v1` RPC with `subscription_id`, `actor_ref` and
 `reason_code`. It audits the request, resets retry state and schedules work; it
 refuses to take an active worker lease. No browser or admin UI exposes this RPC.
+Migration228 extends that same operator procedure to a held renewal closeout:
+it preserves the invoice and mutation stage, checks the original plan/access/
+entitlement fences, and resets the bounded retry budget. Changed assignment facts
+remain a conflict. Ordinary work selection excludes active closeouts before its
+limit so one held account cannot starve another account's paid reconciliation.
 
 Consolidated migration209 must precede activation of this application revision: worker
 bindings now require the immutable product and amount supplied by its RPCs.
@@ -195,26 +200,26 @@ requires the exact target-and-migration approval in the schema checklist.
 | --- | --- | --- |
 | 0 | Land admin, Stripe foundation and policy dependency chain with required PR Gate on each final SHA | Complete: #1360, #1366 and #1367 merged |
 | 1 | Exact 12-variant USD/CAD catalog; authenticated, durable hosted checkout; idempotent creation/recovery; verified payment grants selected version | Merged #1368; local sandbox first-purchase rehearsal passed; customer return UI pending |
-| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | In progress on `codex/subscription-automation`; phase 1 and testing PR #1372 merged |
+| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | Lifecycle #1377 merged; renewal closeout in progress on `codex/renewal-closeout` |
 | 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | Pending lifecycle integration |
 | 4 | Billing UI, self-service portal, expiry/failure notifications and missed-schedule recovery; role/theme/viewport visual verification | Pending backend contracts |
 | 5 | Full provider test-mode lifecycle rehearsal, concurrency/retry evidence, AI cost validation and tax setup review | First-purchase rehearsal completed; full lifecycle blocked by phases 2–4 and remaining policy contracts |
 
-Current execution (2026-09-27): the owner requested orchestration of the remaining
-lifecycle, classroom restrictions, customer billing screens, notices, and full
-sandbox acceptance matrix. The coordinator owns this branch and the complete
-outcome; completing one slice does not complete the launch plan. Phases 2–5 remain
-ordered by their backend dependencies. Main is at `85e8a2bf` when this work starts.
+Current execution (2026-10-02): lifecycle PR #1377 merged as `261ee0b1`.
+The coordinator continues phases 2–5 on `codex/renewal-closeout`, rebased onto
+main `a6c23954`. Billing remains disabled. Existing trial, paid conversion,
+exact expiry, renewal grace and immutable purchased terms are integrated; financial
+closeout and safe resubscription after unpaid grace are the next deliverable.
+Completing this slice does not complete the launch plan.
 
-Current ownership on `codex/subscription-automation`:
-- Astra/high: lifecycle schema, service contracts, exact effective-access resolver,
-  synchronization and local transition integration, and database harness.
-- Billing adapter worker: unpaid invoice normalization and its regression tests.
-- Terra/high: read-only classroom mutation/archive/purge integration map; implementation
-  follows the lifecycle contract and keeps existing-work protections explicit.
-- Coordinator: HTTP/API integration, plan/status documentation, generated database
-  contract, overall verification, and PR lifecycle. Workers do not commit, apply
-  migrations, mutate Stripe, send email, merge, or recursively delegate.
+Current ownership: Astra/high implements the durable closeout schema and rollback
+contracts; GPT-6.1 Sol/high implements the Stripe adapter and provider fixtures
+(the preferred Terra model is unavailable); the coordinator owns service/runtime
+integration, documentation, acceptance and the PR lifecycle. Workers do not apply
+migrations, mutate Stripe, send email, merge or recursively delegate.
+
+The following first-lifecycle review evidence is historical; #1377 subsequently
+passed required CI and merged. Its earlier application permissions are consumed.
 
 Phase 2 exit requires an integrated runtime, not an unused calculator: lifetime
 trial idempotency, verified paid conversion/renewal, exact known cancellation and
@@ -250,17 +255,100 @@ lint now returns no issues; all four billing database contracts and generated-ty
 checks pass again. Applied migrations 214 and 215 remain unchanged. The corrected
 candidate still requires final review and a passing PR Gate before merge.
 
-Unresolved launch policy remains explicit: tax/refund/dispute consequences and AI
-quantities are not silently invented. A scheduled downgrade's failed-renewal grace
-quota is being confirmed with the owner. Operational defaults and classroom ranking
-must be recorded with implementation and verified before activation.
+Current phase-2 slice: unpaid-renewal financial closeout (SUB-11).
+Migration **228_subscription_renewal_closeout.sql** is reserved for this slice:
+classroom227 merged in PR #1426 as `a101fb28`; the billing branch is rebased onto
+that main commit. Local228 is now applied and generated types match. Never copy
+an unrelated migration into this PR or repair the shared migration history.
 
-Schema application will use the existing local database after the owner approves
-the exact reviewed new migration. No reset/reseed is planned. Current authorization
-covers code, tests and draft PR publication, not a new merge, production deployment,
-live billing, live Stripe mutations, or real email delivery. Gates remain off by
-default. Final independent review follows the bounded HQ review workflow; previous
-PR review extensions are consumed and do not expand this new PR's budget.
+- Persist one operation for each bound failed invoice, with immutable invoice,
+  paid-through and exact168-hour cutoff. Keep mutation stage separate from
+  retry/attention state so ambiguous provider writes survive recovery.
+- Run after local expiry has applied Free. Reuse the subscription lease and
+  binding→plan→access lock order. Validate plan, access and entitlement revisions
+  at claim, checkpoint and finish, including manual entitlement-only overrides.
+- Always reread complete raw payment evidence. Pause automatic collection, reread,
+  void the exact unpaid invoice, verify the void, then cancel without invoicing or
+  proration. Persist intent before each action and recheck the lease after the
+  adapter's fresh read, immediately before the actual provider request.
+- Verified paid renewal wins via the existing lifecycle paid-access writer.
+  Pending payment defers. Partial/unsupported payments, unknown later invoices
+  and incomplete evidence prevent irreversible actions and require attention.
+  Normalized `payments: []` alone never proves no payment is in flight.
+  Five deferred attempts escalate to attention while retaining the current binding
+  and mutation intent; a process crash alone does not consume this failure budget.
+- Stable POST keys are derived from the durable operation. Timeouts are recovered
+  by authoritative reads; DELETE cancellation has no idempotency-key guarantee.
+- Closeout requires a voided target, canceled subscription and complete absence
+  of outstanding obligations before the existing lifecycle writer retires the
+  binding. Historical purchased terms/invoice effects remain intact; existing
+  checkout eligibility then permits resubscription.
+- Database fences cannot make a Stripe write atomic with a later manual override.
+  Fresh local/provider checks, void-before-cancel and conservative attention states
+  limit this cross-system race; real provider rehearsal remains required.
+- Launch still requires a scheduler and alert policy. The once-daily hosting
+  ceiling and outages prevent a promise of immediate provider closure. Exact
+  access cutoffs remain independent of worker timing.
+
+Unresolved launch policy remains explicit: tax/refund/dispute consequences and AI
+quantities are not silently invented. Scheduled downgrade grace quotas, operational
+defaults and classroom ranking need their own recorded implementation evidence.
+
+Use the existing local database only after approval of the exact reviewed new
+migration. No reset/reseed is planned. Current authority covers code, tests and
+PR review/publication, not another merge, production rollout, live Stripe writes,
+activation or email delivery. Use the current `pr-review` skill's bounded budget;
+previous PR extensions are consumed and do not expand this review session.
+
+Preapplication review started2026-10-02T12:16:19Z. Four of seven reviewer
+launches were used (one capacity failure; two initial reviews and one targeted
+review). Batch1 resolved ordinary queue starvation, operator attention recovery
+and a rollback fixture that called the protected public plan setter. The setter
+remains protected. Targeted review of source `8ebecac6` found no actionable blockers.
+334 billing tests passed before application; all195 focused tests and the full
+focused static gate pass after application/type generation. The owner approved
+one application of **228_subscription_renewal_closeout.sql to the existing local
+database after227 merges** on2026-10-02. That permission is consumed: matching
+history and a preview containing only228 preceded one successful local push.
+Approved SQL SHA256:
+`7aba5de53766e5988284ae3f446c495954f171fadf83c64cc5bd053a25078f5a`.
+Installed history is001–228; actual generated types/check pass. Foundation,
+checkout and subscription lifecycle rollback checks pass; warning-level schema
+lint and security advisor report no issues. The initial closeout harness failed
+because its synthetic offering lacked `features.catalog_key`; the approved
+fixture batch adds that metadata and verifies the selected offering identity.
+The full rerun then exposed an ambiguous PL/pgSQL CASE expression in the retry
+assertion; parentheses resolve it in the same batch. The complete closeout
+harness now passes, including terminal/resubscription, late payment, durable
+retry escalation, queue fairness and audited attention recovery. All fixtures rolled back;
+users/classrooms/bindings counts and row digests match before/after, no closeout
+operations remain, and sandbox remainsOFF. No real Stripe rehearsal occurred.
+The owner approved a30-minute extension at14:17:44UTC, ending14:47:44UTC, for one
+fixture correction batch, database rerun and one final integration reviewer.
+The fixture batch and final integration review completed: five reviewer launches
+and two correction batches. Final reviewed source `25f12dfd` passed all five CI
+gates in run37019461972, including the browser matrix and concurrent Stripe
+binding/webhook regression. PR #1429 then required synchronization with newer
+main `a6c23954`; local merge preview was clean although GitHub reported conflicts.
+The owner approved one main sync, one20-minute targeted review, fresh stable-SHA
+CI and merge on green at16:52:17UTC (review deadline17:12:17UTC). The rebase is
+clean; billing source, fixtures, generated types and installed228 remain
+byte-identical. This is the third correction/sync batch; one sixth reviewer
+launch is authorized. Required local checks, targeted sync review and fresh CI
+precede the authorized merge. No new migration application or activation is
+authorized. Real provider lifecycle rehearsal and launch scheduler/alert policy
+remain later acceptance gates.
+
+Targeted sync review cleared `87007a8e`; freshCI37037586582 found one
+documentation failure among9174tests (9166passed/7skipped). Compact CURRENT
+omitted the four characters in the required `Prod DB 001–` production-history
+prefix. PR1429 returned to draft; restoring the prefix preserves the same
+verified production/local histories and the startup-size budget. The focused
+47 current-history/startup tests pass. This is correction batch4; billing code,
+types and228 remain unchanged. The one approved sync reviewer is consumed, so
+the corrected candidate needs authorization for one brief independent review
+before fresh CI. Existing merge-on-green approval remains valid. The obsolete
+failed-source CI run was canceled; no gate is bypassed.
 
 The following paragraphs retain the historical phase-1 rollout evidence; their
 pending statements describe that earlier slice, not current phase-2 completion.

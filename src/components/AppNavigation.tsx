@@ -30,7 +30,7 @@ export function AppNavigation({ label, items, width = 'wide' }: AppNavigationPro
   const pathname = usePathname()
 
   return (
-    <nav aria-label={label} className="border-b border-border bg-surface">
+    <nav aria-label={label} className="bg-surface">
       <div className={`mx-auto px-4 ${widthClasses[width]}`}>
         <div className="flex min-h-11 items-stretch gap-1 overflow-x-auto" data-app-navigation-scroll>
           {items.map((item) => {

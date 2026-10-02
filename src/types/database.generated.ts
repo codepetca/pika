@@ -2565,6 +2565,74 @@ export type Database = {
           },
         ]
       }
+      billing_renewal_closeouts: {
+        Row: {
+          attempt_count: number
+          completed_at: string | null
+          created_at: string
+          cutoff: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          id: string
+          invoice_id: string
+          next_attempt_at: string | null
+          paid_through: string
+          reason: string | null
+          revision: number
+          stage: string
+          status: string
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          cutoff: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          id?: string
+          invoice_id: string
+          next_attempt_at?: string | null
+          paid_through: string
+          reason?: string | null
+          revision?: number
+          stage?: string
+          status?: string
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          completed_at?: string | null
+          created_at?: string
+          cutoff?: string
+          expected_access_revision?: number
+          expected_account_plan_revision?: number
+          expected_entitlement_revision?: number
+          id?: string
+          invoice_id?: string
+          next_attempt_at?: string | null
+          paid_through?: string
+          reason?: string | null
+          revision?: number
+          stage?: string
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_renewal_closeouts_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_trial_definitions: {
         Row: {
           classroom_limit: number
@@ -9478,7 +9546,15 @@ export type Database = {
       }
       billing_apply_due_access_v1: { Args: { p_request: Json }; Returns: Json }
       billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_checkpoint_renewal_closeout_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       billing_claim_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_claim_renewal_closeout_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       billing_claim_subscription_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -9486,6 +9562,10 @@ export type Database = {
       billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_renewal_closeout_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       billing_finish_subscription_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -9501,6 +9581,10 @@ export type Database = {
         Returns: Json
       }
       billing_list_checkout_work_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_list_renewal_closeouts_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
@@ -12754,6 +12838,30 @@ export type Database = {
           p_earned: number
           p_student_id: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      save_lesson_plan_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_client_id?: string
+          p_content: Json
+          p_content_markdown: string
+          p_date: string
+          p_delete: boolean
+          p_sequence?: number
+        }
+        Returns: Json
+      }
+      save_lesson_plans_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_cleared_dates: string[]
+          p_client_id?: string
+          p_plans: Json
+          p_sequence?: number
         }
         Returns: Json
       }
