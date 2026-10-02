@@ -822,12 +822,12 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
               <col style={{ width: GRADEBOOK_FINAL_COLUMN_WIDTH }} />
             </colgroup>
             <DataTableHead><DataTableRow>
-              <TableSelectionHeaderCell className={cn('sticky top-0 bg-surface-2', keepKeyColumnsVisible && 'left-0 z-sticky-table')} checked={selected.length === rows.length} indeterminate={selected.length > 0 && selected.length < rows.length} onChange={(checked) => setSelected(checked ? rows.map((row) => row.id) : [])} ariaLabel="Select all gradebook students" />
+              <TableSelectionHeaderCell className={cn('sticky top-0 bg-surface-3', keepKeyColumnsVisible && 'left-0 z-sticky-table')} checked={selected.length === rows.length} indeterminate={selected.length > 0 && selected.length < rows.length} onChange={(checked) => setSelected(checked ? rows.map((row) => row.id) : [])} ariaLabel="Select all gradebook students" />
               {nameColumns.map((column, index) => (
                 <SortableHeaderCell
                   key={column.key}
                   className={cn(
-                    'sticky top-0 bg-surface-2',
+                    'sticky top-0 bg-surface-3',
                     keepKeyColumnsVisible && index === 0 && 'left-10 z-sticky-table border-r border-border-strong',
                   )}
                   label={column.label}
@@ -837,10 +837,10 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                   resize={{ value: column.width, min: 72, max: 220, onChange: column.onWidthChange }}
                 />
               ))}
-              {showStudentIds ? <DataTableHeaderCell className="sticky top-0 bg-surface-2">ID</DataTableHeaderCell> : null}
-              {empty ? <DataTableHeaderCell align="center" className="sticky top-0 bg-surface-2">Assessments</DataTableHeaderCell> : assessments.map((assessment) => <DataTableHeaderCell key={assessment} align="center" className="sticky top-0 overflow-hidden bg-surface-2 !px-1"><Tooltip content={assessment} side="bottom"><Button type="button" variant="ghost" size="xs" className="w-full overflow-hidden px-1 text-center font-normal text-text-default" onClick={() => setSelectedAssessmentTitle(assessment)}><span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{assessment}</span></Button></Tooltip></DataTableHeaderCell>)}
-              {fewAssessments ? <DataTableHeaderCell className="sticky top-0 bg-surface-2"><span className="sr-only">Unused assessment space</span></DataTableHeaderCell> : null}
-              <DataTableHeaderCell align="right" className={cn('sticky top-0 whitespace-nowrap bg-surface-2', keepKeyColumnsVisible && 'right-0 z-sticky-table border-l border-border-strong')}>Final</DataTableHeaderCell>
+              {showStudentIds ? <DataTableHeaderCell className="sticky top-0 bg-surface-3">ID</DataTableHeaderCell> : null}
+              {empty ? <DataTableHeaderCell align="center" className="sticky top-0 bg-surface-3">Assessments</DataTableHeaderCell> : assessments.map((assessment) => <DataTableHeaderCell key={assessment} align="center" className="sticky top-0 overflow-hidden bg-surface-3 !px-1"><Tooltip content={assessment} side="bottom"><Button type="button" variant="ghost" size="xs" className="w-full overflow-hidden px-1 text-center font-normal text-text-default" onClick={() => setSelectedAssessmentTitle(assessment)}><span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{assessment}</span></Button></Tooltip></DataTableHeaderCell>)}
+              {fewAssessments ? <DataTableHeaderCell className="sticky top-0 bg-surface-3"><span className="sr-only">Unused assessment space</span></DataTableHeaderCell> : null}
+              <DataTableHeaderCell align="right" className={cn('sticky top-0 whitespace-nowrap bg-surface-3', keepKeyColumnsVisible && 'right-0 z-sticky-table border-l border-border-strong')}>Final</DataTableHeaderCell>
             </DataTableRow>
             </DataTableHead>
             {showWeights && assessments.length > 0 ? (

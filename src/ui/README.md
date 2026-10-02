@@ -234,6 +234,8 @@ base controls and shell styling follow the `@/ui` contracts.
 - Import `DataTable`, `SortableHeaderCell`, `KeyboardNavigableTable`, and related table primitives
   from `@/ui`; keyboard-selectable tables require a feature-specific accessible name and matching
   row IDs so keyboard selection can move focus to the active row.
+- `DataTableHead` uses `bg-surface-3` to distinguish column headings from the table and page.
+  Pinned header cells use the same opaque surface; body metadata and footer surfaces remain feature-owned.
 - Pass a `resize` configuration to `SortableHeaderCell`, or use `ResizableHeaderCell` for a
   non-sortable column, when a table exposes adjustable widths. The shared resize handle owns the
   vertical separator semantics, min/max/current values, pointer drag behavior, and

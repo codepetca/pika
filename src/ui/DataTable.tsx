@@ -77,7 +77,7 @@ export function DataTableHead({
   return (
     <thead
       className={[
-        'border-b border-border bg-surface-2',
+        'border-b border-border bg-surface-3',
         sticky ? 'sticky top-0 z-sticky-table' : '',
         className,
       ].filter(Boolean).join(' ')}

@@ -112,18 +112,18 @@ export function GradebookTable({
           </colgroup>
           <DataTableHead sticky>
             <DataTableRow>
-              <TableSelectionHeaderCell className={cn('border-b border-border bg-surface-2', frozen && 'sticky left-0 z-sticky-table')} checked={allSelected} indeterminate={someSelected} onChange={toggleSelectAll} ariaLabel="Select all students" />
+              <TableSelectionHeaderCell className={cn('border-b border-border bg-surface-3', frozen && 'sticky left-0 z-sticky-table')} checked={allSelected} indeterminate={someSelected} onChange={toggleSelectAll} ariaLabel="Select all students" />
               {names.map((column, index) => (
                 <SortableHeaderCell
                   key={column.key} label={column.label} isActive={sortColumn === column.key}
                   direction={sortDirection} onClick={() => onSort(column.key)}
-                  className={cn('border-b border-border bg-surface-2', frozen && index === 0 && 'sticky left-10 z-sticky-table border-r border-border-strong')}
+                  className={cn('border-b border-border bg-surface-3', frozen && index === 0 && 'sticky left-10 z-sticky-table border-r border-border-strong')}
                   resize={{ value: columnWidths[column.key], min: 72, max: 220, onChange: (width) => onColumnWidthChange(column.key, width) }}
                 />
               ))}
-              {showStudentIds ? <SortableHeaderCell label="ID" isActive={sortColumn === 'id'} direction={sortDirection} onClick={() => onSort('id')} className="border-b border-border bg-surface-2" /> : null}
+              {showStudentIds ? <SortableHeaderCell label="ID" isActive={sortColumn === 'id'} direction={sortDirection} onClick={() => onSort('id')} className="border-b border-border bg-surface-3" /> : null}
               {columns.map((column) => (
-                <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" className="overflow-hidden border-b border-border bg-surface-2 !px-1">
+                <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" className="overflow-hidden border-b border-border bg-surface-3 !px-1">
                   <Tooltip content={column.title} side="bottom">
                     <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit ${column.code}: ${column.title}`} className="w-full overflow-hidden px-1 font-normal text-text-default">
                       <span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{ultraCompact ? column.code : column.title}</span>
@@ -131,8 +131,8 @@ export function GradebookTable({
                   </Tooltip>
                 </DataTableHeaderCell>
               ))}
-              {filler ? <DataTableHeaderCell align="center" className="border-b border-border bg-surface-2">{columns.length ? <span className="sr-only">Unused assessment space</span> : 'Assessments'}</DataTableHeaderCell> : null}
-              <DataTableHeaderCell align="right" className={cn('border-b border-border bg-surface-2', frozen && 'sticky right-0 z-sticky-table border-l border-border-strong')}>Final</DataTableHeaderCell>
+              {filler ? <DataTableHeaderCell align="center" className="border-b border-border bg-surface-3">{columns.length ? <span className="sr-only">Unused assessment space</span> : 'Assessments'}</DataTableHeaderCell> : null}
+              <DataTableHeaderCell align="right" className={cn('border-b border-border bg-surface-3', frozen && 'sticky right-0 z-sticky-table border-l border-border-strong')}>Final</DataTableHeaderCell>
             </DataTableRow>
           </DataTableHead>
           {(showWeights || displayMode === 'raw') && columns.length > 0 ? (
