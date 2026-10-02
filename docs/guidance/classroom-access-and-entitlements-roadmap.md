@@ -530,7 +530,8 @@ lifecycle-fence verification passes; both initial independent reviewers are clea
 on c1eedd0d. CI36950939593 passed the date database harness but found a CURRENT
 documentation-format regression (9043 unit tests passed, one failed). The single
 missing space was reproduced and corrected in f86d5f85; targeted review and all
-216 focused/static checks pass. PR1424 is draft for cumulative review/new CI. It must merge
+216 focused/static checks pass. Targeted and final cumulative reviews are clean;
+PR1424 is ready atf86d5f85 with exact-head final CI36952067498 running. It must merge
 before bulk publication/integration; no activation or production change is implied.
 
 Source/TDD preparation for [bulk owner writes](contextual-lesson-plan-bulk-writes.md)
@@ -543,6 +544,15 @@ source/tests/harness preparation and the coordinator owns docs/CI/Git. Tentative
 requires latest-main numbering verification and separate exact-target application
 approval. New-RPC database evidence and legitimate generated types remain pending;
 do not hand-edit generated types, apply schema or claim acceptance prematurely.
+Bulk SQL is statically clean. One accepted harness cleanup gap under strict auto-Free
+provisioning was corrected: exact UUID/tagged provisioning operation pairs, both
+durable audit tables, outsider residual checks, unconditional ambiguous-setup cleanup
+and bounded session termination.36 source tests and targeted independent review pass
+at4759f24b; SQL227 digest remainsc840869da61aa5a343a225f02d06cd99e428c93cb9a707f7e61f8cbb66097b8a.
+Local strict enforcement is currentlyfalse (read-only verified), so that risk is
+conditional, not a claim of existing residue. No harness or227 application occurred.
+Fresh227 LOCAL approval is requested; generated types and real full/negative cleanup
+proof remain pending. Production and admission activation are not authorized.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
