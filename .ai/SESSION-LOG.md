@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Independent classroom guidance adoption
-
-- Implemented explicit teacher guidance preview/adoption on `codex/classroom-blueprint-guidance-updates`; Content Version and copied artifacts retain structural lineage while a separate immutable Guidance Version supplies future drafts. Signed proof and atomic sidecar creation bind both context identities.
-- Migration 222 adds pointer, ownership/revision/lifecycle guards, archive defaults, content-reset and purge protections. Isolated replay/type generation, warning lint, 273-edge schema audit, adoption/concurrency/purge contracts passed. Focused gate: 3,518 tests; final affected checks: 41 + 17 archive tests. Visual teacher desktop/mobile light/dark and student exclusion checked at localhost:3012 with deterministic guidance fixtures.
-- No shared/production migration, seed, or publication. Coordinator owns PR review, release, exact migration permission and actual ICS3U rollout. Historical standalone archive restore fixture stops on already-retired quizzes; current archive preservation/defaults have focused coverage.
-
 ## 2026-09-29 — Guidance adoption frozen-context test correction
 
 - Final coordinator checks found a related model-input test still expecting one Blueprint Version. Updated its typed fixture to separate Content Version 1 and Guidance Version 2, and assert both provenance identities plus the current model source label. Both affected tests pass. No runtime or snapshot changes.
@@ -365,3 +359,17 @@ c840869da61aa5a343a225f02d06cd99e428c93cb9a707f7e61f8cbb66097b8a. Two preapply
 review launches/one fix batch; full PR review/realDB acceptance not complete.
 Exact227 LOCAL approval requested, not granted yet. Full/negative/stricttrue proofs
 and generatedtypes pending; no sharedflag, production, UI, billing or AI change.
+
+## 2026-10-01 — Local227 applied and real bulk contracts verified
+
+Consumed exact227 LOCAL approval with one successful application; digest unchanged.
+Catalog confirms service-only execute and hardened definer; generated types/check
+and TypeScript pass. Real harness exposed two test defects, corrected together:
+fresh nonce with accepted-save probe for decisive late rollback; owner cascade for
+Blueprint cleanup without guard bypass.38 affected tests pass. Full database run
+and forced post-fixture failure both prove zero residual rows. The first failed
+run's exact tagged synthetic fixtures were removed and are regenerable; no real
+account/classroom changed. Runtime correctionb2c64b45 targeted Sol/high review clean,
+shared budget3launches/2fixbatches. Local strictfalse: automatic Free audit cleanup
+has static review, not strict-enabled runtime evidence.1424 final browser CI still
+pending; its merge precedes bulk publication. Prod001–225, all activation holds remain.

@@ -551,8 +551,15 @@ and bounded session termination.36 source tests and targeted independent review 
 at4759f24b; SQL227 digest remainsc840869da61aa5a343a225f02d06cd99e428c93cb9a707f7e61f8cbb66097b8a.
 Local strict enforcement is currentlyfalse (read-only verified), so that risk is
 conditional, not a claim of existing residue. No harness or227 application occurred.
-Fresh227 LOCAL approval is requested; generated types and real full/negative cleanup
-proof remain pending. Production and admission activation are not authorized.
+That preparation checkpoint is superseded by owner-approved LOCAL227 application
+on2026-10-01, once, with unchanged SQL digest. Matching generated types, TypeScript,
+service-only privileges and the full synthetic atomicity/concurrency harness pass.
+The deliberate post-fixture failure also proves zero residual rows. Runtime tests
+exposed stale test sequencing and an invalid direct Blueprint teardown; one batched
+harness-only correction uses a fresh nonce plus an accepted-save probe and guarded
+owner cascade.38 affected tests and targeted independent review pass. Strict-enabled
+auto-Free cleanup remains statically reviewed, not locally exercised. Full-PR review
+and final CI follow1424 merge. Production and admission activation are not authorized.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3

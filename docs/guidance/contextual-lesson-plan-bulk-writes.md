@@ -2,9 +2,11 @@
 
 This is preparation within batch 1, not activation. The single-date transaction
 in PR1424 is reviewed and in CI; it must merge before this slice is published.
-Migration226 is installed locally and must remain unchanged. The next additive
-migration is tentatively227, subject to a latest-main numbering check and separate
-exact-target application authorization. No new migration is applied by this work.
+Migrations226 and227 are installed locally and must remain unchanged. Exact227
+LOCAL authorization was consumed by one successful application on2026-10-01.
+Matching generated types, service-only privileges and the real synthetic database
+harness pass. Production remains001–225; no production or activation authority
+is implied by these local receipts.
 
 The proposed admitted path authenticates before params or body, validates the
 classroom identifier and current-owner preflight, then sends one normalized batch
@@ -56,7 +58,18 @@ earlier saves, heads and both revision families unchanged. Tests must cover both
 owner roles, denial and transfer/archive orderings, batch/date/legacy contention,
 the500-date boundary, stale/equal replay, actual REST/SDK conflicts, privileges,
 lineage and exact fixture/audit cleanup. These are acceptance requirements, not
-completed receipts at preparation time.
+completed receipts merely from source preparation.
+
+Local227 receipts now cover the full positive harness and deliberate post-fixture
+failure, each with exact zero-residual cleanup. The late-conflict test independently
+proves its earlier save is accepted before testing rollback; Blueprint teardown
+uses the owner cascade without bypassing lifecycle guards.38 affected API/static/
+legacy tests, generated-type verification and TypeScript pass. SQL227 retains
+SHA256 `c840869da61aa5a343a225f02d06cd99e428c93cb9a707f7e61f8cbb66097b8a`.
+Local strict creation enforcement was false during these runs: cleanup of durable
+auto-Free provisioning audits has static independent-review coverage, not a claim
+that the strict-enabled provisioning branch ran locally. Final full-PR review and
+exact-head CI remain required.
 
 Copy remains a separate later slice. Complete decommission transitions remain an
 integrated lifecycle/release gate. Production schema, billing, AI, account plans,
