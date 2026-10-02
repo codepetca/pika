@@ -34199,3 +34199,5 @@ Read the Disk IO Budget warning and production catalog/log evidence. Confirmed a
 ## 2026-09-30 — Guided assignment Markdown boundaries
 
 Classroom guided assignment previews now normalize generated prose that resembles Blueprint delimiters and protect fenced code during the existing single-assignment create parse. The Karel-shaped task/reference regression and route creation check preserve 10 points, draft status, student content, and verbatim backtick/tilde code examples. Shared Blueprint parser, migrations, and provider settings are unchanged. Affected tests and focused checks passed; PR review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the bounded server serialization fix.
+
+<!-- pika-session-log-archive-batch:0ec4b44fbf02954ae7312c5fa7cc8e9285f4f5fd38473433e92ce276c61b9f4f -->

@@ -308,11 +308,19 @@ and a rollback fixture that called the protected public plan setter. The setter
 remains protected. Targeted review of source `8ebecac6` found no actionable blockers.
 334 billing tests and195 focused tests pass; full focused checks stop at the
 missing generated closeout RPC contract. Local228 is not applied, and database/
-SQL warning checks and provider rehearsal remain unverified. Wait for227's
-reviewed merge, rebase, preview only228, then obtain/consume exact local application
-permission. Generate types from that actual schema and complete database checks
-before publishing a draft PR. Reserve final integration review for that completed
-candidate. No new merge or activation is authorized.
+SQL warning checks and provider rehearsal remain unverified. The owner approved
+one application of **228_subscription_renewal_closeout.sql to the existing local
+database after227 merges** on2026-10-02. This permission is unconsumed: PR #1426
+remains draft/open at `de2feb047f07d3c23a3c8c408e98d783eae26ac4` as of13:33UTC.
+Approved SQL SHA256:
+`7aba5de53766e5988284ae3f446c495954f171fadf83c64cc5bd053a25078f5a`.
+Wait for227's reviewed merge, rebase, verify matching history and preview only228,
+then consume the permission with one local application attempt. Generate types
+from that actual schema and complete database checks before publishing a draft PR.
+The60-minute review window expired at13:16:19UTC; the migration approval does not
+extend it. Further reviewer launches or remediation batches require an explicit
+review-budget extension. Final integration review remains pending after database
+acceptance. No new merge or activation is authorized.
 
 The following paragraphs retain the historical phase-1 rollout evidence; their
 pending statements describe that earlier slice, not current phase-2 completion.

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Open local single-action grading preview
-
-Started reviewed PR1400 worktree fedf1824 locally on port3117 using the canonical local Supabase launcher. Local login HTTP200; signed into seeded teacher account via Dev Quick Login, opened Test Classroom → Seed Test - AI Grading Demo, selected Student1 Test and left AI grade confirmation open in the app browser. Verified modal has Cancel and AI grade with overwrite warning; no grading was started. Server session remains running for owner preview, URL http://127.0.0.1:3117. No application code, schema or grading data changes.
-
 ## 2026-09-30 — Counted danger confirmation for AI grading
 
 Student actions now names the selected count (AI Grade 1 student / AI Grade 2 students). Reused the canonical compact danger ConfirmDialog, with the matching count in its title, the owner's exact overwrite warning, initial Cancel focus and red AI grade confirmation. Existing all-scope grading behavior and concurrency guards remain unchanged. Component coverage verifies no grading request before confirmation or after Cancel; focused224tests and architecture/UI/design/TypeScript/lint plus audit pass. Four desktop/mobile light/dark browser cases pass, with eight one/two-student dialog captures visually reviewed. Actual seeded teacher preview remains open locally on port3117; no grading was started. PR1400 remains draft for stable-SHA independent review; merge/promotion not authorized for this PR. Risk profile: none. Model recommendation: GPT-6 Sol for the localized interaction update.
@@ -410,3 +406,16 @@ Batch1 committed8ebecac6; targetedAstra/high review is clean.4launches total
 Source/code334tests andfocused195tests pass; noSQLexecution. Nextsafeaction
 is227reviewedmerge/rebase, exactlocal228approval andpreview, oneapply, then
 types/DB/warnings/PRacceptance. Sourceanddata/gates preserved; noPRpublishedyet.
+
+## 2026-10-02 — Conditional local closeout migration approval
+
+Owner approved one application of228_subscription_renewal_closeout.sql to the
+existing local database after classroom227 merges. Permission remains unconsumed:
+PR1426 is draft/open atde2feb047f07d3c23a3c8c408e98d783eae26ac4 as of13:33UTC.
+228 SQL digest remains7aba5de53766e5988284ae3f446c495954f171fadf83c64cc5bd053a25078f5a.
+Wait for its reviewed merge, rebase, verify history/preview only228, then one
+approved local attempt and actual type generation/database validation. No reset,
+reseed, history repair, production change, activation or merge authorized.
+Source review remains clean at8ebecac6; the60-minute review window expired at
+13:16:19UTC with4launches/1fixbatch used. Migration approval does not extend review;
+additional reviewers/remediation need explicit extension after concrete DB evidence.
