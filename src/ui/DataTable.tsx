@@ -68,16 +68,19 @@ export function DataTable({
 export function DataTableHead({
   children,
   sticky = false,
+  dividers = true,
   className = '',
 }: {
   children: ReactNode
   sticky?: boolean
+  dividers?: boolean
   className?: string
 }) {
   return (
     <thead
       className={[
-        'border-b border-border bg-surface-3',
+        'bg-surface-3',
+        dividers ? 'border-b border-border' : '',
         sticky ? 'sticky top-0 z-sticky-table' : '',
         className,
       ].filter(Boolean).join(' ')}
@@ -87,8 +90,8 @@ export function DataTableHead({
   )
 }
 
-export function DataTableBody({ children }: { children: ReactNode }) {
-  return <tbody className="divide-y divide-border">{children}</tbody>
+export function DataTableBody({ children, dividers = true }: { children: ReactNode; dividers?: boolean }) {
+  return <tbody className={dividers ? 'divide-y divide-border' : undefined}>{children}</tbody>
 }
 
 export function DataTableRow({
