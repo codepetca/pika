@@ -248,6 +248,9 @@ jobs:
       - name: Verify contextual lesson-plan reads and current relationship visibility
         run: pnpm exec tsx scripts/check-contextual-lesson-plan-read.ts
 
+      - name: Verify contextual lesson-plan date writes and owner concurrency
+        run: node scripts/check-contextual-lesson-plan-date-write-concurrency.mjs
+
       - name: Verify contextual teacher Daily Log reads and current ownership
         run: pnpm exec tsx scripts/check-contextual-teacher-daily-read.ts
 

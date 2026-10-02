@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { TiptapContent } from '@/types'
+import { isValidTiptapContent } from '@/lib/tiptap-content'
 
 export const lessonPlanMutationVersionSchema = z.object({
   client_id: z.string().uuid(),
@@ -27,6 +28,56 @@ export const lessonPlanDateSchema = z.string().superRefine((value, context) => {
     context.addIssue({ code: 'custom', message: `Invalid date format: ${value}` })
   }
 })
+
+const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
+
+export const contextualLessonPlanDateParamsSchema = z.object({
+  id: canonicalUuid,
+  date: lessonPlanDateSchema,
+}).strict()
+
+export const contextualLessonPlanRowSchema = z.object({
+  id: canonicalUuid,
+  classroom_id: canonicalUuid,
+  date: lessonPlanDateSchema,
+  content: z.custom<TiptapContent>(isValidTiptapContent),
+  content_markdown: z.string().nullable(),
+  artifact_id: canonicalUuid,
+  source_artifact_id: canonicalUuid.nullable(),
+  source_blueprint_version_id: canonicalUuid.nullable(),
+  blueprint_archived_at: z.string().datetime({ offset: true }).nullable(),
+  created_at: z.string().datetime({ offset: true }),
+  updated_at: z.string().datetime({ offset: true }),
+}).strict()
+
+export const contextualLessonPlanRpcResultSchema = z.object({
+  applied: z.boolean(),
+  lesson_plan: contextualLessonPlanRowSchema.nullable(),
+}).strict()
+
+const sdkResponseMetadata = {
+  count: z.number().nullable().optional(),
+  status: z.number().int().optional(),
+  statusText: z.string().optional(),
+}
+
+export const contextualLessonPlanRpcEnvelopeSchema = z.union([
+  z.object({
+    data: contextualLessonPlanRpcResultSchema,
+    error: z.null(),
+    ...sdkResponseMetadata,
+  }).strict(),
+  z.object({
+    data: z.null(),
+    error: z.object({
+      code: z.string(),
+      message: z.string().nullable().optional(),
+      details: z.string().nullable().optional(),
+      hint: z.string().nullable().optional(),
+    }).strict(),
+    ...sdkResponseMetadata,
+  }).strict(),
+])
 
 const tiptapContentSchema = z.custom<TiptapContent>((value) => (
   typeof value === 'object' &&
