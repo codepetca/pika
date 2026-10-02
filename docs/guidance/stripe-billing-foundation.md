@@ -207,7 +207,7 @@ requires the exact target-and-migration approval in the schema checklist.
 
 Current execution (2026-10-02): lifecycle PR #1377 merged as `261ee0b1`.
 The coordinator continues phases 2–5 on `codex/renewal-closeout`, rebased onto
-main `42789d40`. Billing remains disabled. Existing trial, paid conversion,
+main `a101fb28`. Billing remains disabled. Existing trial, paid conversion,
 exact expiry, renewal grace and immutable purchased terms are integrated; financial
 closeout and safe resubscription after unpaid grace are the next deliverable.
 Completing this slice does not complete the launch plan.
@@ -257,9 +257,8 @@ candidate still requires final review and a passing PR Gate before merge.
 
 Current phase-2 slice: unpaid-renewal financial closeout (SUB-11).
 Migration **228_subscription_renewal_closeout.sql** is reserved for this slice:
-main currently ends at226 and the classroom task owns227 (already applied to
-the shared local database, PR #1426). Rebase onto its reviewed merge before
-running local migration preview or generating the database contract. Never copy
+classroom227 merged in PR #1426 as `a101fb28`; the billing branch is rebased onto
+that main commit. Local228 is now applied and generated types match. Never copy
 an unrelated migration into this PR or repair the shared migration history.
 
 - Persist one operation for each bound failed invoice, with immutable invoice,
@@ -306,21 +305,28 @@ launches were used (one capacity failure; two initial reviews and one targeted
 review). Batch1 resolved ordinary queue starvation, operator attention recovery
 and a rollback fixture that called the protected public plan setter. The setter
 remains protected. Targeted review of source `8ebecac6` found no actionable blockers.
-334 billing tests and195 focused tests pass; full focused checks stop at the
-missing generated closeout RPC contract. Local228 is not applied, and database/
-SQL warning checks and provider rehearsal remain unverified. The owner approved
+334 billing tests passed before application; all195 focused tests and the full
+focused static gate pass after application/type generation. The owner approved
 one application of **228_subscription_renewal_closeout.sql to the existing local
-database after227 merges** on2026-10-02. This permission is unconsumed: PR #1426
-remains draft/open at `de2feb047f07d3c23a3c8c408e98d783eae26ac4` as of13:33UTC.
+database after227 merges** on2026-10-02. That permission is consumed: matching
+history and a preview containing only228 preceded one successful local push.
 Approved SQL SHA256:
 `7aba5de53766e5988284ae3f446c495954f171fadf83c64cc5bd053a25078f5a`.
-Wait for227's reviewed merge, rebase, verify matching history and preview only228,
-then consume the permission with one local application attempt. Generate types
-from that actual schema and complete database checks before publishing a draft PR.
+Installed history is001–228; actual generated types/check pass. Foundation,
+checkout and subscription lifecycle rollback checks pass; warning-level schema
+lint and security advisor report no issues. The new closeout harness reaches
+resubscription then fails `checkout_request_invalid`: its synthetic offering has
+empty features, but checkout requires `features.catalog_key`. Fix that fixture
+and assert an available offering before rerunning the complete closeout harness;
+later contracts in that harness remain unexecuted. All fixtures rolled back;
+users/classrooms/bindings counts and row digests match before/after, no closeout
+operations remain, and sandbox remainsOFF. No real Stripe rehearsal occurred.
 The60-minute review window expired at13:16:19UTC; the migration approval does not
 extend it. Further reviewer launches or remediation batches require an explicit
-review-budget extension. Final integration review remains pending after database
-acceptance. No new merge or activation is authorized.
+review-budget extension. Proposed next scope: one fixture correction batch,
+database rerun and one final integration reviewer in a30-minute extension.
+Final integration review and draft publication remain pending after database
+acceptance. No new migration application, merge or activation is authorized.
 
 The following paragraphs retain the historical phase-1 rollout evidence; their
 pending statements describe that earlier slice, not current phase-2 completion.
