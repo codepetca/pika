@@ -33,7 +33,7 @@ const second = '2026-09-20'
 const linked = '2026-09-21'
 const doc = { type: 'doc', content: [] }
 const sessions = []
-let created = false
+const verifyCleanupAfterFixture = process.argv.includes('--verify-cleanup-after-fixture')
 
 function quote(value) { return `'${String(value).replaceAll("'", "''")}'` }
 function sql(statement) {
@@ -115,7 +115,20 @@ class Session {
   async close() {
     if (!this.closed) this.child.stdin.end('ROLLBACK;\n\\q\n')
     const force = setTimeout(() => this.child.kill('SIGTERM'), 5000)
-    try { await this.done } finally { clearTimeout(force) }
+    const forceHard = setTimeout(() => this.child.kill('SIGKILL'), 8000)
+    let bound
+    try {
+      await Promise.race([
+        this.done,
+        new Promise((_, reject) => {
+          bound = setTimeout(() => reject(new Error(`Session close timeout: ${this.name}`)), 10_000)
+        }),
+      ])
+    } finally {
+      clearTimeout(force)
+      clearTimeout(forceHard)
+      clearTimeout(bound)
+    }
   }
 }
 
@@ -157,7 +170,7 @@ try {
       ('${classroom}','${ownerStudent}','${tag} student','${tag}_s'),
       ('${teacherClassroom}','${ownerTeacher}','${tag} teacher','${tag}_t');
     commit;`)
-  created = true
+  if (verifyCleanupAfterFixture) throw new Error('Forced post-fixture cleanup proof')
 
   for (const [actor, target] of [[ownerStudent, classroom], [ownerTeacher, teacherClassroom]]) {
     const response = result(serviceSave(actor, target,
@@ -458,8 +471,23 @@ try {
   const cleanup = observer.closed ? new Session('cleanup') : observer
   try {
     await Promise.allSettled(sessions.filter((session) => session !== cleanup).map((session) => session.close()))
-    if (created) {
-      sql(`begin;
+    sql(`begin;
+        create temp table bulk_audit_cleanup_ops (
+          operation_id uuid,
+          subject_user_id uuid,
+          primary key (operation_id, subject_user_id)
+        ) on commit drop;
+        insert into bulk_audit_cleanup_ops (operation_id, subject_user_id)
+          select audit.operation_id, audit.subject_user_id
+          from public.account_plan_audit audit
+          join public.users fixture_user on fixture_user.id=audit.subject_user_id
+          where audit.actor_ref='system:user-provisioning'
+            and audit.reason_code='default_free_account_provisioning'
+            and (
+              (fixture_user.id='${ownerStudent}' and fixture_user.email='${tag}_student@example.invalid')
+              or (fixture_user.id='${ownerTeacher}' and fixture_user.email='${tag}_teacher@example.invalid')
+              or (fixture_user.id='${outsider}' and fixture_user.email='${tag}_outsider@example.invalid')
+            );
         delete from public.classroom_purge_fences
           where classroom_id='${classroom}' and operation_id='${purgeOperation}'
             and teacher_id='${ownerStudent}';
@@ -473,6 +501,34 @@ try {
             and audit.feature_key='classrooms.create'
             and exists(select 1 from public.users owner where owner.id=fixture.u
               and owner.email in ('${tag}_student@example.invalid','${tag}_teacher@example.invalid'));
+        delete from public.effective_feature_entitlement_audit audit
+          using bulk_audit_cleanup_ops operation
+          where audit.operation_id=operation.operation_id
+            and audit.subject_user_id=operation.subject_user_id
+            and audit.actor_ref='system:user-provisioning'
+            and audit.reason_code='default_free_account_provisioning'
+            and audit.feature_key='classrooms.create';
+        delete from public.account_plan_audit audit
+          using bulk_audit_cleanup_ops operation
+          where audit.operation_id=operation.operation_id
+            and audit.subject_user_id=operation.subject_user_id
+            and audit.actor_ref='system:user-provisioning'
+            and audit.reason_code='default_free_account_provisioning';
+        do $cleanup$
+        begin
+          if exists (select 1 from public.account_plan_audit audit
+            join bulk_audit_cleanup_ops operation
+              on operation.operation_id=audit.operation_id
+              and operation.subject_user_id=audit.subject_user_id)
+            or exists (select 1 from public.effective_feature_entitlement_audit audit
+              join bulk_audit_cleanup_ops operation
+                on operation.operation_id=audit.operation_id
+                and operation.subject_user_id=audit.subject_user_id)
+          then
+            raise exception 'Synthetic auto-provision audit cleanup incomplete';
+          end if;
+        end;
+        $cleanup$;
         delete from public.classrooms
           where (id='${classroom}' and title='${tag} student' and class_code='${tag}_s')
              or (id='${teacherClassroom}' and title='${tag} teacher' and class_code='${tag}_t');
@@ -495,10 +551,9 @@ try {
         (select count(*) from public.users where id in ('${ownerStudent}','${ownerTeacher}','${outsider}'))+
         (select count(*) from public.account_plans where subject_user_id in ('${ownerStudent}','${ownerTeacher}','${outsider}'))+
         (select count(*) from public.account_plan_audit where subject_user_id in ('${ownerStudent}','${ownerTeacher}','${outsider}'))+
-        (select count(*) from public.effective_feature_entitlements where subject_user_id in ('${ownerStudent}','${ownerTeacher}'))+
-        (select count(*) from public.effective_feature_entitlement_audit where subject_user_id in ('${ownerStudent}','${ownerTeacher}'));`), '0')
-      console.log('PASS exact synthetic fixture cleanup with zero residual rows')
-    }
+        (select count(*) from public.effective_feature_entitlements where subject_user_id in ('${ownerStudent}','${ownerTeacher}','${outsider}'))+
+        (select count(*) from public.effective_feature_entitlement_audit where subject_user_id in ('${ownerStudent}','${ownerTeacher}','${outsider}'));`), '0')
+    console.log('PASS exact synthetic fixture cleanup with zero residual rows')
   } finally {
     await cleanup.close()
   }

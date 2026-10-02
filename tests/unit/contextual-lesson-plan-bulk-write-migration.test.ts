@@ -40,3 +40,25 @@ describe('contextual lesson-plan bulk write migration source', () => {
     expect(sql).toMatch(/exception when sqlstate '22007' or sqlstate '22008'/)
   })
 })
+
+const harness = readFileSync('scripts/check-contextual-lesson-plan-bulk-write-concurrency.mjs', 'utf8')
+
+describe('contextual lesson-plan bulk synthetic cleanup source', () => {
+  it('handles strict automatic Free audit rows for all three tagged synthetic users', () => {
+    expect(harness).toContain('default_free_account_provisioning')
+    expect(harness).toContain('system:user-provisioning')
+    expect(harness).toContain('account_plan_audit')
+    expect(harness).toContain('effective_feature_entitlement_audit')
+    expect(harness).toMatch(/create temp table bulk_audit_cleanup_ops\s*\(\s*operation_id uuid,\s*subject_user_id uuid/i)
+    expect(harness).toMatch(/delete from public\.account_plan_audit[\s\S]*?using bulk_audit_cleanup_ops/i)
+    expect(harness).toMatch(/delete from public\.effective_feature_entitlement_audit[\s\S]*?using bulk_audit_cleanup_ops/i)
+    expect(harness).toMatch(/\$\{outsider\}[\s\S]*?\$\{tag\}_outsider@example\.invalid/)
+  })
+
+  it('attempts exact cleanup even if fixture creation returns ambiguously and verifies forced failure teardown', () => {
+    expect(harness).not.toMatch(/if \(created\) \{\s*sql\(`begin;/)
+    expect(harness).toContain('--verify-cleanup-after-fixture')
+    expect(harness).toContain('Forced post-fixture cleanup proof')
+    expect(harness).toMatch(/delete from public\.users[\s\S]*?PASS exact synthetic fixture cleanup with zero residual rows/)
+  })
+})
