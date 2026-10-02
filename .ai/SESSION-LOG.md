@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Hosted migration CLI companion diagnosis
-
-The owner created the reviewed Pika-only 90-day scoped token and saved GitHub migrations-production/SUPABASE_ACCESS_TOKEN at 08:02 Toronto time. The first hosted preview, run36859514133 at merged5f74d08d with verified CI36853538954, failed before a migration plan. Reproduced the installer defect using a fake credential: CLI2.103.0 ships a supabase shim plus supabase-go engine, but the installer extracted only the shim. With both checksum-verified binaries present, linking reaches the expected Unauthorized response for the fake token. Prepared a narrow installer correction and engine-version preflight without changing credentials, scopes, target bindings or migration approval policy. The focused gate passed95 tests plus architecture, UI/design policy, TypeScript and lint; the Linux archive contains both regular x86_64 executables under the unchanged checksum, and the installer shell/version preflight passes. A bounded independent operations review, required CI and the production preview retry remain pending. No production migration or password reset occurred. Risk profile: runtime-platform.
-
-## 2026-10-01 — Assignment AI feedback wording
-
-- Removed the assignment prompt's required `Next Step:` line without adding a prohibition; retained Strength/Missed/optional Tip and all scoring rules. Prompt provenance advanced to v4.
-- Verified: 20 focused grading tests; `pnpm check:focused -- --base origin/main` (250 tests plus architecture, UI/design policy, TypeScript and lint). Teacher/student feedback visually inspected at desktop/mobile in light/dark with intercepted local fixture feedback; captures in `output/playwright/`.
-
 ## 2026-10-01 — Production migrations skill and rollout receipt
 
 - Added repository skill `pika-prod-migrations`, routed from AGENTS and the AI instructions. Future production migration work defaults to the existing manual GitHub workflow, with exact one-time authorization, compatible CI proof, preview-bound approval, one apply attempt and read-only semantic verification. Local migrations and app promotion retain their own procedures.
@@ -414,6 +405,17 @@ Evidence: focused 254 tests and static checks passed; targeted controller/compon
 
 Owner approved one additional journal reconciliation, targeted review and CI cycle after the bounded review checkpoint. Rebased PR1430 onto main25cc0691 (renewal closeout); preserved both archive histories and removed only duplicate blocks introduced by conflict resolution. All attendance source and tests remain byte-identical to reviewed8bc09489. Prior exact-head CI37038675999 passed every selected lane and PR Gate. Fresh focused verification, the single approved targeted review, final exact-head CI and main merge remain gated. Risk profile:workspace-state. Model recommendation:GPT-6.1 Sol/high for bounded synchronization compatibility.
 
+## 2026-10-02 — Minimal app scrollbar tracks
+
+- Extended `src/app/globals.scss` with transparent app-wide tracks and semantic thumb color; preserved native width, hover/hidden utilities, and forced-color defaults. Older Safari gets a guarded pseudo-element fallback.
+- Reference/reuse: classroom shell and existing transparent document tracks; extend global CSS, reuse utilities. Both roles, desktop/mobile, light/dark, default/hover/focus/hidden covered. No composite behavior, new component, or experimental guidance.
+- Verification: focused checks passed (91 tests, architecture, UI/design policy, TypeScript, lint). Headed Playwright captured all eight role/viewport/theme combinations for Classrooms and Pattern Lab, plus temporary browser-only surface probes; scrolling, hover/focus, hidden scrollbars, and forced colors passed. Evidence: `/tmp/pika-scrollbar-captures/evidence.json`; captures alongside it. Safari fallback not tested in Safari.
+- Risk profile: none. Model recommendation: GPT-6.1 Sol — small global CSS refinement with browser verification. PR1432 independently reviewed without blockers; original exact-head CI37047140437 and PR Gate passed. Owner authorized main merge; rebased onto attendance1430, preserving main history and removing only a newly duplicated archived entry. Scrollbar CSS remains byte-identical; sync checks, targeted review and fresh final CI precede merge.
+
 ## 2026-10-02 — Attendance main-to-production promotion
 
 Owner requested production promotion after attendance PR1430 merged to main8dc05d47. Draft release PR1433 batches reviewed main PRs1424,1426,1427,1428,1429,1430. Reconciled the single archive conflict in an ephemeral detached promotion worktree while preserving both histories. Application, tests, schema files and configuration match reviewed main exactly. Main exact-head CI37045983716 passed all lanes and PR Gate. One cumulative release compatibility review and fresh full promotion CI precede merge; no database migration application or flag activation is included. Risk profile:runtime-platform. Model recommendation:GPT-5.6 Sol/high for gated database/runtime release compatibility.
+
+## 2026-10-02 — Deploy current main after attendance release
+
+Owner requested deploying main to production after the attendance promotion merged. Production47970e41 is already building in Vercel; mainbf3754c4 additionally contains reviewed scrollbar PR1432. Draft promotion1434 includes that source change and preserves both journal histories in its sole continuity conflict. Application/configuration/schema/tests match reviewed mainbf3754c4 exactly; no database application or flag change. One bounded promotion compatibility review, focused checks and exact-head CI precede merge, then Vercel production deployment is verified. Risk profile:runtime-platform. Model recommendation:GPT-6 Luna/medium for mechanical release/source equivalence and continuity verification.
