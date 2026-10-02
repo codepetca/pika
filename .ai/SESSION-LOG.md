@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Pull reveals new applied migration collision
-
-Pulled hub main to3e4d9f1b; feature remote remains656a9a1e. PR1380 is open with prior exact-head CI green but now conflicting with main. Main223 is stop_assignment_grade_conflict_retries; fresh local history223 remains contextual_daily_log_save. Preserve the applied SQL/history and local verification receipts. Next source reconciliation must allocate a new Daily number and explicitly plan local history alignment; no renumber, application, reset or history repair was performed during this report-only request. Shared full-experience admission remains dormant; Daily reads and the remaining five-batch integrations are unfinished.
-
 ## 2026-09-30 — Resolve source 223 collision without changing local history
 
 Owner requested resolution. Preserved old reviewed SHA656a9a1e and local application receipts, folded its three commits without a tree change, and rebased onto main1b5430b3. Resolved CURRENT/history conflicts preserving main's production222 and retired-staging guidance, old Daily history and local receipts. Canonical Daily migration is224 with unchanged SQL; harnesses, numbering regressions and runbook follow224. Local still records Daily under223; documented an exact proposed history-only rebinding plus main223 application, not executed or authorized. No database reset/reseed, schema/history repair, production mutation or rollout activation. Focused checks and one bounded final reconciliation review remain before ready CI.
@@ -407,3 +403,13 @@ No new migration application, history repair, reset/reseed, production change,
 Stripe write or activation. Local checks and fixed-candidate sync review precede
 fresh ready-event CI and the approved main merge. Remaining billing phases/real
 provider rehearsal stay separate; classroom coordinator awaits228 landing for229.
+
+## 2026-10-02 — CI production-history format correction
+
+Targeted sync review at87007a8e passed; freshCI37037586582 found one failure
+among9174tests: compact CURRENT omitted the required `Prod DB 001–` prefix.
+Returned PR1429 to draft and restored the four missing characters without
+changing production history or weakening the contract. Billing source/228 remain
+unchanged. Fourth correction batch; focused/current-history checks precede a
+brief additional independent review, which needs authorization because the one
+approved sync reviewer is consumed. Existing merge-on-green authority remains.

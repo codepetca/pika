@@ -339,6 +339,17 @@ precede the authorized merge. No new migration application or activation is
 authorized. Real provider lifecycle rehearsal and launch scheduler/alert policy
 remain later acceptance gates.
 
+Targeted sync review cleared `87007a8e`; freshCI37037586582 found one
+documentation failure among9174tests (9166passed/7skipped). Compact CURRENT
+omitted the four characters in the required `Prod DB 001–` production-history
+prefix. PR1429 returned to draft; restoring the prefix preserves the same
+verified production/local histories and the startup-size budget. The focused
+47 current-history/startup tests pass. This is correction batch4; billing code,
+types and228 remain unchanged. The one approved sync reviewer is consumed, so
+the corrected candidate needs authorization for one brief independent review
+before fresh CI. Existing merge-on-green approval remains valid. The obsolete
+failed-source CI run was canceled; no gate is bypassed.
+
 The following paragraphs retain the historical phase-1 rollout evidence; their
 pending statements describe that earlier slice, not current phase-2 completion.
 
