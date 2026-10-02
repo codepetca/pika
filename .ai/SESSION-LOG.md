@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 Allow today's Class Days correction
-
-- User approved same-day edits: Settings now allows adding today immediately, confirms before excluding today, and disables all past dates to match the API. Existing logs remain stored; Toronto-midnight and archived-classroom guards are retained.
-- UI brief: teacher Settings > Class Days; extend the existing calendar and reuse ConfirmDialog, referenced against Pattern Lab's student attachment confirmation. Teacher desktop1440x900/mobile390x844, light/dark, selected/open/cancel/confirm/error/focus states; student n/a (teacher-only editor). No redesign, new shared components, or experimental pattern. Composite accessibility reviewed; Escape, focus trapping/return and pressed state verified.
-- Verification: regression tests reproduced six failures before implementation; final focused checks passed 200 tests, architecture/UI/design policy, TypeScript and lint. Playwright matrix passed with deterministic class-day API fixtures, including missing today, cancellation, restoration and save-error rollback. Evidence: /tmp/pika-class-day-visuals; Pika audit passed. No migration or production application deployment.
-
-- Independent review found past-day colour precedence hid historical class-day status; one remediation batch preserves muted-success past days without hover and adds a visual-state regression. The same batch checks Toronto's current date when clicked so a future class day that becomes today requires confirmation. Synced main and retained continuity history without duplicate archive entries. Final focused200tests, architecture/UI/design/TypeScript/lint, audit and the four-case browser matrix pass; updated past-day visuals inspected. Stable-SHA re-review follows.
-
-- Initial/targeted/final independent review completed (three launches, one code correction batch); exact-head CI36737461379 passed Test & Build, Browser Experience Matrix and PR Gate on5c6de421. Main then advanced with unrelated authoring docs; second synchronization batch retains both continuity histories and leaves the three implementation/test files byte-identical. Focused recheck and bounded synchronization review precede fresh candidate CI.
-
-## 2026-09-30 — Supabase grading conflict I/O incident
-
-Read the Disk IO Budget warning and production catalog/log evidence. Confirmed a PostgREST internal retry storm on manual Assignment grading SQLSTATE40001; stopped the exact matched runaway backend. Follow-up shows no runaway process and essentially flat rollbacks. Stored database size remains below the free quota. Prepared migration223 changing only the manual stale-revision error to PT409, dual-code legacy/contextual adapter support, regressions and recovery guidance. Isolated disposable-database replay verifies stale rejection, complete batch rollback, nonowner rejection, fresh save and unchanged grants/security. Production migration and application rollout remain pending explicit authorization; other current custom40001 RPCs need a separate audit.
-
-## 2026-09-30 — Guided assignment Markdown boundaries
-
-Classroom guided assignment previews now normalize generated prose that resembles Blueprint delimiters and protect fenced code during the existing single-assignment create parse. The Karel-shaped task/reference regression and route creation check preserve 10 points, draft status, student content, and verbatim backtick/tilde code examples. Shared Blueprint parser, migrations, and provider settings are unchanged. Affected tests and focused checks passed; PR review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the bounded server serialization fix.
-
 ## 2026-09-30 — Guided assignment correction review
 
 Remediated first review findings in classroom guided assignment previews. Ambiguous teacher edits (interior divider, body metadata, or unparseable reserved section) now fail before the create RPC; valid submission requirements remain accepted. LimitedMarkdown recognizes long backtick and tilde fences, preserves inner short markers and following prose, and gives code the existing inverse text token for contrast. The production renderer's Pattern Lab fixture passed eight teacher/student, desktop/mobile, light/dark Playwright captures; screenshots were reviewed. Focused gate, independent review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for this bounded parser/rendering correction.
@@ -255,18 +237,6 @@ zero residue;226 unchanged. Added synthetic-target guards to the denial probe.
 Full decommission transition remains a later integrated gate, not claimed here.
 Canonical focused checks and draft-first independent review/CI remain next.
 
-## 2026-10-02 — Keep Gradebook maximum header on one line
-
-- `codex/gradebook-max-row`: shortened the raw-mark row header to Max with no wrapping; preserved Max mark as its accessible name and title. Extended the existing GradebookTable owner; no shared primitive or experimental pattern. Risk: none.
-- Pattern Lab production Gradebook fixture: eight Playwright captures at 1440×900 / 390×844, light/dark, normal/ultra-compact; one text line, no clipping, existing 52px control row height, maximum edit focus/open/Escape verified. Student n/a: this table is teacher-only. Evidence: worktree `output/playwright/max-row`; focused checks and independent review before ready PR.
-
-## 2026-10-02 — Strengthen Gradebook Max label
-
-- Follow-up on PR1427 / `codex/gradebook-max-row`: use semantic default text color and semibold weight on Max so the one-line header reads clearly. Same production GradebookTable/Pattern Lab reference and eight-view visual matrix; teacher-only, risk none. Return PR to draft and review the updated stable SHA before CI.
-
-## 2026-10-02 — Compact Gradebook metadata rows
-
-- User requested Category and Max density consistent with Course %. Scoped 24px targets and zero vertical cell padding to those two GradebookTable metadata rows; retained Max emphasis, labels, shared focus treatment and edit permissions. Course % / Pattern Lab Gradebook is the reference; shared Button contract unchanged. Teacher-only, risk none; desktop/mobile, light/dark, normal/ultra-compact visual and keyboard verification before ready PR.
 ## 2026-10-01 — Date review clean; bulk transaction preparation
 
 Date PR1424 published draft atc1eedd0d after42 affected/216 focused tests and
@@ -329,6 +299,19 @@ Bulk rebased onto new date head; resolved CURRENT-only conflict and retained1419
 scrolling/session work.227 digest unchanged; production/admission holds remain.
 Bulk publication/full independent review still waits1424 merge; do not reset either
 review budget (date01:21:30Z, bulk01:41:00Z) across this CI/user checkpoint.
+
+## 2026-10-02 — Keep Gradebook maximum header on one line
+
+- `codex/gradebook-max-row`: shortened the raw-mark row header to Max with no wrapping; preserved Max mark as its accessible name and title. Extended the existing GradebookTable owner; no shared primitive or experimental pattern. Risk: none.
+- Pattern Lab production Gradebook fixture: eight Playwright captures at 1440×900 / 390×844, light/dark, normal/ultra-compact; one text line, no clipping, existing 52px control row height, maximum edit focus/open/Escape verified. Student n/a: this table is teacher-only. Evidence: worktree `output/playwright/max-row`; focused checks and independent review before ready PR.
+
+## 2026-10-02 — Strengthen Gradebook Max label
+
+- Follow-up on PR1427 / `codex/gradebook-max-row`: use semantic default text color and semibold weight on Max so the one-line header reads clearly. Same production GradebookTable/Pattern Lab reference and eight-view visual matrix; teacher-only, risk none. Return PR to draft and review the updated stable SHA before CI.
+
+## 2026-10-02 — Compact Gradebook metadata rows
+
+- User requested Category and Max density consistent with Course %. Scoped 24px targets and zero vertical cell padding to those two GradebookTable metadata rows; retained Max emphasis, labels, shared focus treatment and edit permissions. Course % / Pattern Lab Gradebook is the reference; shared Button contract unchanged. Teacher-only, risk none; desktop/mobile, light/dark, normal/ultra-compact visual and keyboard verification before ready PR.
 
 ## 2026-10-02 — Date merged; bulk full review resumed with explicit extension
 
