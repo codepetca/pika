@@ -195,26 +195,26 @@ requires the exact target-and-migration approval in the schema checklist.
 | --- | --- | --- |
 | 0 | Land admin, Stripe foundation and policy dependency chain with required PR Gate on each final SHA | Complete: #1360, #1366 and #1367 merged |
 | 1 | Exact 12-variant USD/CAD catalog; authenticated, durable hosted checkout; idempotent creation/recovery; verified payment grants selected version | Merged #1368; local sandbox first-purchase rehearsal passed; customer return UI pending |
-| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | In progress on `codex/subscription-automation`; phase 1 and testing PR #1372 merged |
+| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | Lifecycle #1377 merged; renewal closeout in progress on `codex/renewal-closeout` |
 | 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | Pending lifecycle integration |
 | 4 | Billing UI, self-service portal, expiry/failure notifications and missed-schedule recovery; role/theme/viewport visual verification | Pending backend contracts |
 | 5 | Full provider test-mode lifecycle rehearsal, concurrency/retry evidence, AI cost validation and tax setup review | First-purchase rehearsal completed; full lifecycle blocked by phases 2–4 and remaining policy contracts |
 
-Current execution (2026-09-27): the owner requested orchestration of the remaining
-lifecycle, classroom restrictions, customer billing screens, notices, and full
-sandbox acceptance matrix. The coordinator owns this branch and the complete
-outcome; completing one slice does not complete the launch plan. Phases 2–5 remain
-ordered by their backend dependencies. Main is at `85e8a2bf` when this work starts.
+Current execution (2026-10-02): lifecycle PR #1377 merged as `261ee0b1`.
+The coordinator continues phases 2–5 on `codex/renewal-closeout`, rebased onto
+main `42789d40`. Billing remains disabled. Existing trial, paid conversion,
+exact expiry, renewal grace and immutable purchased terms are integrated; financial
+closeout and safe resubscription after unpaid grace are the next deliverable.
+Completing this slice does not complete the launch plan.
 
-Current ownership on `codex/subscription-automation`:
-- Astra/high: lifecycle schema, service contracts, exact effective-access resolver,
-  synchronization and local transition integration, and database harness.
-- Billing adapter worker: unpaid invoice normalization and its regression tests.
-- Terra/high: read-only classroom mutation/archive/purge integration map; implementation
-  follows the lifecycle contract and keeps existing-work protections explicit.
-- Coordinator: HTTP/API integration, plan/status documentation, generated database
-  contract, overall verification, and PR lifecycle. Workers do not commit, apply
-  migrations, mutate Stripe, send email, merge, or recursively delegate.
+Current ownership: Astra/high implements the durable closeout schema and rollback
+contracts; GPT-6.1 Sol/high implements the Stripe adapter and provider fixtures
+(the preferred Terra model is unavailable); the coordinator owns service/runtime
+integration, documentation, acceptance and the PR lifecycle. Workers do not apply
+migrations, mutate Stripe, send email, merge or recursively delegate.
+
+The following first-lifecycle review evidence is historical; #1377 subsequently
+passed required CI and merged. Its earlier application permissions are consumed.
 
 Phase 2 exit requires an integrated runtime, not an unused calculator: lifetime
 trial idempotency, verified paid conversion/renewal, exact known cancellation and
@@ -250,17 +250,51 @@ lint now returns no issues; all four billing database contracts and generated-ty
 checks pass again. Applied migrations 214 and 215 remain unchanged. The corrected
 candidate still requires final review and a passing PR Gate before merge.
 
-Unresolved launch policy remains explicit: tax/refund/dispute consequences and AI
-quantities are not silently invented. A scheduled downgrade's failed-renewal grace
-quota is being confirmed with the owner. Operational defaults and classroom ranking
-must be recorded with implementation and verified before activation.
+Current phase-2 slice: unpaid-renewal financial closeout (SUB-11).
+Migration **228_subscription_renewal_closeout.sql** is reserved for this slice:
+main currently ends at226 and the classroom task owns227 (already applied to
+the shared local database, PR #1426). Rebase onto its reviewed merge before
+running local migration preview or generating the database contract. Never copy
+an unrelated migration into this PR or repair the shared migration history.
 
-Schema application will use the existing local database after the owner approves
-the exact reviewed new migration. No reset/reseed is planned. Current authorization
-covers code, tests and draft PR publication, not a new merge, production deployment,
-live billing, live Stripe mutations, or real email delivery. Gates remain off by
-default. Final independent review follows the bounded HQ review workflow; previous
-PR review extensions are consumed and do not expand this new PR's budget.
+- Persist one operation for each bound failed invoice, with immutable invoice,
+  paid-through and exact168-hour cutoff. Keep mutation stage separate from
+  retry/attention state so ambiguous provider writes survive recovery.
+- Run after local expiry has applied Free. Reuse the subscription lease and
+  binding→plan→access lock order. Validate plan, access and entitlement revisions
+  at claim, checkpoint and finish, including manual entitlement-only overrides.
+- Always reread complete raw payment evidence. Pause automatic collection, reread,
+  void the exact unpaid invoice, verify the void, then cancel without invoicing or
+  proration. Persist intent before each action and recheck the lease after the
+  adapter's fresh read, immediately before the actual provider request.
+- Verified paid renewal wins via the existing lifecycle paid-access writer.
+  Pending payment defers. Partial/unsupported payments, unknown later invoices
+  and incomplete evidence prevent irreversible actions and require attention.
+  Normalized `payments: []` alone never proves no payment is in flight.
+  Five deferred attempts escalate to attention while retaining the current binding
+  and mutation intent; a process crash alone does not consume this failure budget.
+- Stable POST keys are derived from the durable operation. Timeouts are recovered
+  by authoritative reads; DELETE cancellation has no idempotency-key guarantee.
+- Closeout requires a voided target, canceled subscription and complete absence
+  of outstanding obligations before the existing lifecycle writer retires the
+  binding. Historical purchased terms/invoice effects remain intact; existing
+  checkout eligibility then permits resubscription.
+- Database fences cannot make a Stripe write atomic with a later manual override.
+  Fresh local/provider checks, void-before-cancel and conservative attention states
+  limit this cross-system race; real provider rehearsal remains required.
+- Launch still requires a scheduler and alert policy. The once-daily hosting
+  ceiling and outages prevent a promise of immediate provider closure. Exact
+  access cutoffs remain independent of worker timing.
+
+Unresolved launch policy remains explicit: tax/refund/dispute consequences and AI
+quantities are not silently invented. Scheduled downgrade grace quotas, operational
+defaults and classroom ranking need their own recorded implementation evidence.
+
+Use the existing local database only after approval of the exact reviewed new
+migration. No reset/reseed is planned. Current authority covers code, tests and
+PR review/publication, not another merge, production rollout, live Stripe writes,
+activation or email delivery. Use the current `pr-review` skill's bounded budget;
+previous PR extensions are consumed and do not expand this review session.
 
 The following paragraphs retain the historical phase-1 rollout evidence; their
 pending statements describe that earlier slice, not current phase-2 completion.

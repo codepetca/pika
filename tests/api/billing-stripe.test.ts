@@ -1,15 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockLoadBillingRuntime, mockLifecycleRuntime, applyDue } = vi.hoisted(() => ({
+const { mockLoadBillingRuntime, mockLifecycleRuntime, applyDue, mockCloseoutRuntime, closeDueRenewals } = vi.hoisted(() => ({
   mockLoadBillingRuntime: vi.fn(),
   mockLifecycleRuntime: vi.fn(),
   applyDue: vi.fn(),
+  mockCloseoutRuntime: vi.fn(), closeDueRenewals: vi.fn(),
 }))
 
 vi.mock('@/lib/server/billing/runtime', () => ({
   createBillingRuntime: mockLoadBillingRuntime,
 }))
 vi.mock('@/lib/server/billing/lifecycle-runtime', () => ({ createBillingLifecycleRuntime: mockLifecycleRuntime }))
+vi.mock('@/lib/server/billing/closeout-runtime', () => ({ createBillingCloseoutRuntime: mockCloseoutRuntime }))
 
 import { POST as processBilling } from '@/app/api/billing/stripe/process/route'
 import { POST as receiveWebhook } from '@/app/api/billing/stripe/webhook/route'
@@ -31,6 +33,8 @@ describe('Stripe billing routes', () => {
     vi.clearAllMocks()
     applyDue.mockResolvedValue({ processed: 0 })
     mockLifecycleRuntime.mockReturnValue({ applyDue })
+    closeDueRenewals.mockResolvedValue({ processed: 0 })
+    mockCloseoutRuntime.mockReturnValue({ closeDueRenewals })
   })
 
   afterEach(() => {
@@ -49,6 +53,7 @@ describe('Stripe billing routes', () => {
     expect(processResponse.status).toBe(404)
     expect(mockLoadBillingRuntime).not.toHaveBeenCalled()
     expect(mockLifecycleRuntime).not.toHaveBeenCalled()
+    expect(mockCloseoutRuntime).not.toHaveBeenCalled()
   })
 
   it('checks the dedicated worker credential before constructing the billing runtime', async () => {
@@ -61,6 +66,7 @@ describe('Stripe billing routes', () => {
     expect(response.status).toBe(401)
     expect(mockLoadBillingRuntime).not.toHaveBeenCalled()
     expect(mockLifecycleRuntime).not.toHaveBeenCalled()
+    expect(mockCloseoutRuntime).not.toHaveBeenCalled()
   })
 
   it('runs at most one claimed subscription with a 120-second lease', async () => {
@@ -82,5 +88,6 @@ describe('Stripe billing routes', () => {
     expect(listWork).toHaveBeenCalledWith({ limit: 1 })
     expect(mockLoadBillingRuntime).toHaveBeenCalledOnce()
     expect(applyDue).toHaveBeenCalledWith({ limit: 25 })
+    expect(closeDueRenewals).toHaveBeenCalledWith({ limit: 1 })
   })
 })

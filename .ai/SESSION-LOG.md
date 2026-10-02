@@ -385,3 +385,16 @@ unchanged; no schema/promotion/activation. User-authorized billing coordination
 confirmed227 taken,228 planned by billing; its applications remain separately gated.
 
 Owner explicitly approved the final extension: one main sync/screenshot batch, one final independent review, fresh CI and merge to main if green. Integrated main a101fb28 cleanly; all owned UI source remains byte-identical to9c8e5302. Full canonical union passes191files/2012tests plus architecture/UI/design/TypeScript/lint. Matched Linux Playwright1.58 browser and CI system font (DejaVu Sans); all four teacher contract screenshots pass. Visually inspected current captures; refreshed only two light teacher-contract references for the subtle header shade, retaining dark/student/dialog references and all thresholds. Desktop change is confined to the table heading; mobile captures include tolerated low-amplitude font antialiasing with identical dimensions/no layout movement. Initial container font mismatch was discarded. One isolated final integration reviewer (launch7, sync batch5) now checks current owner follow-ups, screenshot acceptance and main compatibility before ready CI. Merge permission is main-only; no promotion or migration application.
+## 2026-10-02 — Failed-renewal closeout resumed
+
+Resumed codex/renewal-closeout, preserving prior edits and safety branch before
+rebasing onto main42789d40. Repaired stale dependency symlink; verify-env passes.
+Coordinator owns TS worker/store/runtime/docs; Astra/high owns228 closeout SQL
+and rollback contracts; GPT-6.1Sol/high delivered strict Stripe adapter+fixtures.
+330 billing tests and architecture/lint pass; no actual Stripe writes. Local
+history001–227 and sandbox OFF confirmed read-only.227 belongs to classroom
+PR1426; await its merge before228 preview/application and type generation.
+228 is not applied; TypeScript is blocked only by missing generated RPCs.
+No reset/reseed/history repair, activation, production change or merge authorized.
+Next: fixed-candidate independent preapplication review, exact local228 approval,
+then generated contract/database acceptance and bounded draft-first PR lifecycle.
