@@ -34167,3 +34167,8 @@ Started reviewed PR1400 worktree fedf1824 locally on port3117 using the canonica
 ## 2026-09-30 — Counted danger confirmation for AI grading
 
 Student actions now names the selected count (AI Grade 1 student / AI Grade 2 students). Reused the canonical compact danger ConfirmDialog, with the matching count in its title, the owner's exact overwrite warning, initial Cancel focus and red AI grade confirmation. Existing all-scope grading behavior and concurrency guards remain unchanged. Component coverage verifies no grading request before confirmation or after Cancel; focused224tests and architecture/UI/design/TypeScript/lint plus audit pass. Four desktop/mobile light/dark browser cases pass, with eight one/two-student dialog captures visually reviewed. Actual seeded teacher preview remains open locally on port3117; no grading was started. PR1400 remains draft for stable-SHA independent review; merge/promotion not authorized for this PR. Risk profile: none. Model recommendation: GPT-6 Sol for the localized interaction update.
+
+<!-- pika-session-log-archive-batch:eb0036803fbd8142131a75c3cc94f762653e3b25192e5b2b2b38077cecbdad73 -->
+## 2026-09-30 — Test references stay inside the assessment
+
+Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.

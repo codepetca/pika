@@ -534,8 +534,9 @@ missing space was reproduced and corrected in f86d5f85; targeted review and all
 PR1424 final CI36952067498 passed every gate atf86d5f85, but GitHub denied merge
 because main advanced through scrolling PR1419. Returned to draft and rebased onto
 1220d586 with both reviewed patches identical. Targeted reconciliation review and
-216 focused checks pass atd9b7d780; ready-event CI36954995904 is running. Its merge
-still precedes bulk publication/integration; no admin/auto bypass or activation.
+216 focused checks pass atd9b7d780; ready-event CI36954995904 passed all five gates.
+PR1424 merged as42789d40; canonical main is synced. Its conditional follow-up is
+paused after completion; no admin/auto bypass, production change or activation.
 
 Source/TDD preparation for [bulk owner writes](contextual-lesson-plan-bulk-writes.md)
 can proceed independently in a stacked checkout while date CI runs. The selected
@@ -563,9 +564,11 @@ harness-only correction uses a fresh nonce plus an accepted-save probe and guard
 owner cascade.38 affected tests and targeted independent review pass. Strict-enabled
 auto-Free cleanup remains statically reviewed, not locally exercised. Full-PR review
 and final CI follow1424 merge. Production and admission activation are not authorized.
-The prepared bulk branch is reconciled onto date headd9b7d780, preserving1419;
-one CURRENT-only conflict retained the bulk continuity record and installed227
-digest is unchanged. Publication/full review wait for1424's new exact-head gate.
+The prepared bulk branch is reconciled onto merged main42789d40, preserving1419;
+installed226/227 digests are unchanged. Its draft publication and initial full
+high-risk review now proceed. The user approved a30-minute review-window extension
+after the original elapsed window expired during prerequisite CI; prior counters
+remain3launches/2fixbatches before the full initial wave. No budget reset or rollout.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3

@@ -1,7 +1,8 @@
 # Dormant shared-admission bulk lesson-plan writes
 
 This is preparation within batch 1, not activation. The single-date transaction
-in PR1424 is reviewed and in CI; it must merge before this slice is published.
+in PR1424 merged as42789d40 after all five exact-head CI gates passed. This slice
+is now reconciled onto that main commit for draft publication and full review.
 Migrations226 and227 are installed locally and must remain unchanged. Exact227
 LOCAL authorization was consumed by one successful application on2026-10-01.
 Matching generated types, service-only privileges and the real synthetic database

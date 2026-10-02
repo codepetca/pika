@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Test references stay inside the assessment
-
-Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.
-
 ## 2026-09-30 — Hosted migration workflow (PR1404)
 
 Implemented the manual school-accessible GitHub migration workflow, portable runner, exact source/target/migration/hash approval, CI replay evidence binding, history drift checks, one-attempt failure handling, and minimal trusted CLI configuration. Production is the default target; preview is the default mode. No live migration or billing change is authorized or performed. PR1404 received independent security and operations review; one correction batch pinned actions and verified CLI download checksums before execution, and explicitly reports unknown durable state. The 128-test focused gate and all required CI lanes/PR Gate passed on reviewed d7120d73; four reviewer launches completed with no unresolved findings.
@@ -339,3 +335,13 @@ Bulk rebased onto new date head; resolved CURRENT-only conflict and retained1419
 scrolling/session work.227 digest unchanged; production/admission holds remain.
 Bulk publication/full independent review still waits1424 merge; do not reset either
 review budget (date01:21:30Z, bulk01:41:00Z) across this CI/user checkpoint.
+
+## 2026-10-02 — Date merged; bulk full review resumed with explicit extension
+
+1424 exact-head CI36954995904 passed all five gates atd9b7d780; normal squash merge
+42789d40 verified and canonical main synced. Conditional heartbeat paused. Date
+checkout retained while bulk dependency reconciles; no production/schema action.
+User explicitly approved30additional elapsed review minutes. Original bulk ledger
+and3launches/2fixbatches retained; resumed10:41:56Z, deadline11:11:56Z. Bulk rebased
+cleanly onto42789d40, installed226/227 unchanged. Draft publication and the single
+full initial security/compatibility wave follow fresh focused/type/audit checks.
