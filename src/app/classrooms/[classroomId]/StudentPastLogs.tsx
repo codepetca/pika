@@ -50,7 +50,7 @@ export function StudentPastLogs({ logs }: { logs: PastLog[] }) {
       <header className="px-4 py-3">
         <h2 className="text-sm font-semibold text-text-default">Past logs</h2>
       </header>
-      <div className="divide-y divide-border">
+      <div>
         {logs.length === 0 ? (
           <p className="px-4 py-6 text-sm text-text-muted">No past logs yet</p>
         ) : visibleLogs.map(({ date, entry }) => {
