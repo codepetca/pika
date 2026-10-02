@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 
+// Stacked long-table/inspector sizing is exercised in the experience matrix browser suite.
 describe('TeacherWorkspaceSplit', () => {
   it('renders primary and inspector panes with a resize handle when expanded', () => {
     render(

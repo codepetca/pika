@@ -890,6 +890,7 @@ describe('PageMockups', () => {
   })
 
   it('exercises WorkSurfaceMockup from a full-width list through its active inspector', async () => {
+    // Selected pane geometry and scroll reachability are covered in e2e/ui-pattern-lab.spec.ts.
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')

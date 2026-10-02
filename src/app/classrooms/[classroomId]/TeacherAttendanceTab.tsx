@@ -1281,7 +1281,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
             <div
               ref={studentTableScrollRef}
-              className="h-full min-h-0 overflow-auto"
+              className="relative h-full min-h-0 overflow-auto overscroll-y-contain"
               data-testid="daily-student-scroll-pane"
               onScroll={preserveStudentTableScrollPosition}
               onClick={(e) => {
@@ -1312,7 +1312,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       <div className="daily-table-enter flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
         <div
           ref={studentTableScrollRef}
-          className="min-h-[180px] flex-1 overflow-auto rounded-lg bg-surface"
+          className="relative min-h-[180px] flex-1 overflow-auto overscroll-y-contain rounded-lg bg-surface"
           data-testid="daily-student-scroll-pane"
           onScroll={preserveStudentTableScrollPosition}
         >

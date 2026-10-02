@@ -26,6 +26,8 @@ interface AppShellProps {
   onNavigateHome?: (href: string) => boolean
   mainClassName?: string
   constrainToViewport?: boolean
+  /** Also bound narrow-screen workspaces that own their internal scrolling. */
+  constrainToViewportOnMobile?: boolean
   examModeHeader?: {
     testTitle: string
     exitsCount: number
@@ -50,13 +52,17 @@ export function AppShell({
   onNavigateHome,
   mainClassName,
   constrainToViewport = false,
+  constrainToViewportOnMobile = false,
   examModeHeader,
   pageTitle,
 }: AppShellProps) {
   const shouldConstrainViewport = constrainToViewport || !!examModeHeader
+  const viewportClassName = shouldConstrainViewport
+    ? constrainToViewportOnMobile ? 'h-dvh overflow-hidden' : 'lg:h-dvh lg:overflow-hidden'
+    : ''
 
   return (
-    <div className={`flex min-h-dvh flex-col bg-page${shouldConstrainViewport ? ' lg:h-dvh lg:overflow-hidden' : ''}`}>
+    <div className={['flex min-h-dvh flex-col bg-page', viewportClassName].filter(Boolean).join(' ')}>
       {user && <AuthSessionWatcher expectedUserId={user.id} expectedRole={user.role} />}
       {showHeader && (
         <AppHeader
@@ -74,7 +80,7 @@ export function AppShell({
       <main
         className={[
           'flex-1 min-h-0 w-full',
-          shouldConstrainViewport ? 'lg:overflow-hidden' : '',
+          shouldConstrainViewport ? constrainToViewportOnMobile ? 'overflow-hidden' : 'lg:overflow-hidden' : '',
           mainClassName || 'max-w-7xl mx-auto px-4 py-3',
         ].filter(Boolean).join(' ')}
       >

@@ -2,6 +2,43 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
 test.setTimeout(90_000)
 
+test('teacher WorkSurfaceMockup keeps the selected table and inspector usable', async ({ page }, testInfo) => {
+  await openPatternLab(page, testInfo, 'teacher')
+  await page.getByRole('tab', { name: 'Workspaces', exact: true }).click()
+  const example = page.getByTestId('work-surface-shell-example')
+  await example.getByRole('button', { name: /^Field observations/ }).click()
+  await expect(example.locator('#work-pattern-students-panel')).toBeHidden()
+  await example.getByRole('tab', { name: 'Students', exact: true }).click()
+  await example.getByRole('button', { name: 'Maya Chen', exact: true }).click()
+  await example.scrollIntoViewIfNeeded()
+
+  const table = example.locator('table')
+  const tableFrame = table.locator('..')
+  const inspector = example.getByText('Student work', { exact: true }).locator('..')
+  const canvasBounds = (await example.boundingBox())!
+  for (const pane of [tableFrame, inspector]) {
+    const bounds = (await pane.boundingBox())!
+    // The compact reference canvas must leave room for two student rows or inspector text.
+    expect(bounds.height).toBeGreaterThanOrEqual(100)
+    expect(bounds.y).toBeGreaterThanOrEqual(canvasBounds.y)
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(canvasBounds.y + canvasBounds.height)
+  }
+  await testInfo.attach('selected-workspace-panes-top', {
+    body: await example.screenshot({ path: testInfo.outputPath('selected-workspace-panes-top.png'), animations: 'disabled' }),
+    contentType: 'image/png',
+  })
+  await tableFrame.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await expect(table.getByRole('button', { name: 'Sana Patel' })).toBeInViewport()
+  const response = inspector.getByText('Selected response or document appears here only after the teacher chooses a student.')
+  await response.scrollIntoViewIfNeeded()
+  await expect(response).toBeInViewport()
+  await expect(table.getByRole('button', { name: 'Sana Patel' })).toBeInViewport()
+  await testInfo.attach('selected-workspace-panes', {
+    body: await example.screenshot({ path: testInfo.outputPath('selected-workspace-panes.png'), animations: 'disabled' }),
+    contentType: 'image/png',
+  })
+})
+
 for (const role of ['teacher', 'student'] as const) {
   test(`${role} renders guided assignment Markdown code references`, async ({ page }, testInfo) => {
     await openPatternLab(page, testInfo, role)

@@ -298,7 +298,7 @@ export function TeacherWorkspaceSplit({
         {inspectorVisible ? (
           <div
             className={cn(
-              'min-h-0 w-full overflow-hidden lg:shrink-0 lg:basis-[var(--teacher-workspace-inspector-width)]',
+              'min-h-0 w-full basis-0 grow overflow-hidden lg:shrink-0 lg:grow-0 lg:basis-[var(--teacher-workspace-inspector-width)]',
               mobileInspector && 'hidden lg:block',
               inspectorClassName,
             )}

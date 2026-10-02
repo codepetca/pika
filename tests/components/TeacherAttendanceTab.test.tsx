@@ -1,4 +1,6 @@
 import React from 'react'
+// Missing-check-in label containment and reduced-motion scrolling are verified
+// in the "Daily scroll containment" browser cases in e2e/experience-matrix.spec.ts.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -475,6 +477,7 @@ function mockManyLogsFetch(count = 30) {
   return fetchMock
 }
 
+// Long-table viewport and gesture containment are covered in the experience matrix browser suite.
 describe('TeacherAttendanceTab', () => {
   afterEach(() => {
     cleanup()
