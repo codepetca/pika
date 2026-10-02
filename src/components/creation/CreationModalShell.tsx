@@ -128,7 +128,7 @@ export function CreationModalShell({
         {children}
       </div>
       {footer && (
-        <div className="shrink-0 border-t border-border p-3 sm:p-4">
+        <div className="shrink-0 p-3 sm:p-4">
           {footer}
         </div>
       )}

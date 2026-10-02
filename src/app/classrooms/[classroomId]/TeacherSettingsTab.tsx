@@ -78,7 +78,7 @@ interface Props {
 
 function SettingsPanel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <Card padding="md" className={cn('space-y-3 shadow-none', className)}>
+    <Card padding="md" className={cn('space-y-3 border-0 shadow-none', className)}>
       {children}
     </Card>
   )
@@ -660,7 +660,7 @@ export function TeacherSettingsTab({
               </Button>
             </div>
 
-            <div className="flex flex-col gap-2 border-t border-border pt-3">
+            <div className="flex flex-col gap-2 pt-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <SettingsSwitchRow
                   checked={displayedAllowEnrollment}
@@ -674,7 +674,7 @@ export function TeacherSettingsTab({
               </div>
             </div>
 
-            <div className="space-y-2 border-t border-border pt-3">
+            <div className="space-y-2 pt-3">
               <SettingsSwitchRow
                 checked={displayedJoinPolicy === 'roster'}
                 onChange={(isRoster) => saveJoinPolicy(isRoster ? 'roster' : 'open_join')}
@@ -716,7 +716,7 @@ export function TeacherSettingsTab({
                 Daily, Roster, and Settings are always available. Hiding a feature does not delete its content.
               </div>
 
-              <div className="divide-y divide-border">
+              <div className="space-y-1">
                 {(
                   [
                     ['attendance', 'QR Attendance', 'Turn off to use manual or log-based attendance'],

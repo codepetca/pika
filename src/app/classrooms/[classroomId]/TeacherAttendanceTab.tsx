@@ -1296,7 +1296,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           }
           inspector={
             <>
-              <div className="flex min-h-10 items-center border-b border-border px-3 py-2">
+              <div className="flex min-h-10 items-center px-3 py-2">
                 <span className="truncate text-sm font-semibold text-text-default">
                   {selectedStudentName}
                 </span>
@@ -1326,7 +1326,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             hidden={!summaryPanelVisible}
             className={cn(
               summaryPanelCollapsed
-                ? 'flex h-10 min-h-10 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-surface'
+                ? 'flex h-10 min-h-10 shrink-0 flex-col overflow-hidden rounded-lg bg-surface'
                 : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface',
               !summaryPanelVisible && '!hidden',
             )}

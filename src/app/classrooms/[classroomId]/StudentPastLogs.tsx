@@ -46,8 +46,8 @@ export function StudentPastLogs({ logs }: { logs: PastLog[] }) {
   const visibleLogs = logs.slice(0, visibleCount)
 
   return (
-    <section ref={panelRef} aria-label="Past logs" className="rounded-lg border border-border bg-surface">
-      <header className="border-b border-border px-4 py-3">
+    <section ref={panelRef} aria-label="Past logs" className="rounded-lg bg-surface">
+      <header className="px-4 py-3">
         <h2 className="text-sm font-semibold text-text-default">Past logs</h2>
       </header>
       <div className="divide-y divide-border">

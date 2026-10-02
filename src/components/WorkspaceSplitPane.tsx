@@ -44,7 +44,6 @@ export function WorkspaceSplitPane({
 }: WorkspaceSplitPaneProps) {
   const rootOrientationClass = orientation === 'row' ? 'flex-row' : 'flex-col lg:flex-row'
   const dividerVisibilityClass = orientation === 'row' ? 'block' : 'hidden lg:block'
-  const rightBorderClass = orientation === 'row' ? 'border-l border-border' : 'border-t border-border lg:border-l lg:border-t-0'
 
   return (
     <div
@@ -88,7 +87,7 @@ export function WorkspaceSplitPane({
 
       {rightVisible ? (
         <div
-          className={cn('min-h-0 overflow-hidden', !divider && rightBorderClass, rightPaneClassName)}
+          className={cn('min-h-0 overflow-hidden', rightPaneClassName)}
           style={rightPaneStyle}
         >
           {right}

@@ -960,7 +960,7 @@ export function StudentTodayTab({
   ) : null
 
   const mobilePlanContent = mobilePlan ? (
-    <div className="min-h-0 w-full overflow-hidden rounded-lg border border-border bg-surface lg:hidden">
+    <div className="min-h-0 w-full overflow-hidden rounded-lg bg-surface lg:hidden">
       {mobilePlan}
     </div>
   ) : null
@@ -1051,7 +1051,7 @@ export function StudentTodayTab({
           </div>
         </div>
       ))}
-      <div className="bg-surface rounded-lg border border-border p-6">
+      <div className="bg-surface rounded-lg p-6">
         {!isClassDay ? (
           <div className="bg-page border border-border rounded-lg p-4 text-center">
             <p className="text-text-muted">No class today</p>

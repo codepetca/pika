@@ -88,8 +88,10 @@ Current executable owners and representative recorded teacher, student,
 desktop, mobile, light, and dark surfaces support these invariants. Historical
 capture sets must be refreshed before they can prove current conformance:
 
-- Structure comes primarily from semantic surface changes, thin borders,
-  spacing, and alignment. Strong elevation is reserved for overlays, active
+- Application framing uses semantic surface changes, spacing, and alignment
+  without decorative header/sidebar rules, section dividers, or panel outlines.
+  Borders still identify controls, selection, table structure, and status.
+  Strong elevation is reserved for overlays, active
   drag states, and other temporary foreground responsibilities.
 - Blue is the common action, selection, link, and focus accent. Classroom
   gradients are scoped identity cues and must not become a second global color
