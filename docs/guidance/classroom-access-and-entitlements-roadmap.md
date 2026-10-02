@@ -531,8 +531,11 @@ on c1eedd0d. CI36950939593 passed the date database harness but found a CURRENT
 documentation-format regression (9043 unit tests passed, one failed). The single
 missing space was reproduced and corrected in f86d5f85; targeted review and all
 216 focused/static checks pass. Targeted and final cumulative reviews are clean;
-PR1424 is ready atf86d5f85 with exact-head final CI36952067498 running. It must merge
-before bulk publication/integration; no activation or production change is implied.
+PR1424 final CI36952067498 passed every gate atf86d5f85, but GitHub denied merge
+because main advanced through scrolling PR1419. Returned to draft and rebased onto
+1220d586 with both reviewed patches identical. Targeted reconciliation review and
+216 focused checks pass atd9b7d780; ready-event CI36954995904 is running. Its merge
+still precedes bulk publication/integration; no admin/auto bypass or activation.
 
 Source/TDD preparation for [bulk owner writes](contextual-lesson-plan-bulk-writes.md)
 can proceed independently in a stacked checkout while date CI runs. The selected
@@ -560,6 +563,9 @@ harness-only correction uses a fresh nonce plus an accepted-save probe and guard
 owner cascade.38 affected tests and targeted independent review pass. Strict-enabled
 auto-Free cleanup remains statically reviewed, not locally exercised. Full-PR review
 and final CI follow1424 merge. Production and admission activation are not authorized.
+The prepared bulk branch is reconciled onto date headd9b7d780, preserving1419;
+one CURRENT-only conflict retained the bulk continuity record and installed227
+digest is unchanged. Publication/full review wait for1424's new exact-head gate.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3

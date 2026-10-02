@@ -11,51 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Guidance adoption frozen-context test correction
-
-- Final coordinator checks found a related model-input test still expecting one Blueprint Version. Updated its typed fixture to separate Content Version 1 and Guidance Version 2, and assert both provenance identities plus the current model source label. Both affected tests pass. No runtime or snapshot changes.
-- PR1387 is back in draft: Test & Build and Database contracts passed, but four Linux Pattern Lab goldens differ because Docker and CI font environments differ. Coordinator identified the canonical capture correction without changing snapshots; a tenth parent review needs a checkpoint. Adoption remains separate, and visual samples do not define production seed rules.
-
-## 2026-09-29 — Guidance adoption initial review corrections
-
-- Batched both accepted findings: removed the private guidance Version pointer from legacy/contextual student detail responses and server-rendered student detail/list props; labelled comparison rules with the fresh preview's Version. Teacher records and access gates retain their behavior. Audited explicit student list/join and nested assessment classroom shapes.
-- Regressions cover distinct content/guidance IDs, legacy/contextual API and page serialization, teacher preservation, and stale tab Version 3 with fresh preview Version 4. Targeted checks passed 116 tests; final focused gate passed 3,554 tests (7 skipped), architecture, UI/design policy, TypeScript and lint. Desktop/mobile light/dark fresh-preview screenshots inspected in the existing temporary evidence directory.
-- Migration and generated schema unchanged; frozen database contracts reused. No parent PR1387 source/snapshot change, PR lifecycle action, shared database mutation, or production write.
-
-## 2026-09-29 — Merge classroom Blueprint and complete adoption review
-
-PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-approved tenth targeted review and exact-head CI36659661703. One existing assignment-editor test load-timing race passed on the unchanged-candidate rerun; all final lanes and PR Gate passed. Adoption PR1396 security/compatibility review accepted two findings, corrected together; targeted security and final integration passed at5b399e3b. Rebased its three adoption commits onto merged main; conflicts were duplicate archive entries already preserved verbatim. Source/test/migration patch ID remains397b1e4f. Required focused checks and final CI follow. Production preflight through220 previews exactly221/222; direct named migration approval requested but not received. Actual course guidance remains unsaved/unadopted.
-
-## 2026-09-30 — Retire remaining hosted staging workflow
-
-- Replaced obsolete staging/Preview rollout prerequisites with local app + local Supabase checks → reviewed main PR → production; updated startup/setup/rollout guidance and documented retirement evidence.
-- Production-only Vercel Git deployment; local attendance HTTP load target guards; removed `.env.staging` setup default and renamed seed/test fixtures. WorkOS provider test configuration and archive/attendance operation buffers remain distinct contracts.
-- Confirmed staging Supabase/Vercel projects already absent; removed two empty January-era GitHub staging environment records and preserved the ignored legacy local env in a private credential backup outside the checkout.
-- Synced newly merged PR1404 and removed its staging target/creation guidance. The manual migration workflow is pinned to production; direct staging requests fail before preparation or database contact. Production approval/digest/source safeguards remain intact.
-- Risk profile runtime-platform. Model recommendation: GPT-6.1 Sol — bounded workflow/configuration cleanup. Validation and stable-SHA PR evidence recorded in the PR.
-
-## 2026-09-30 — Blueprint rollout and complete Content lists
-
-Adoption PR1396 merged as b754bd69 after all exact-head CI36702895411 gates passed. Production PR1398 is draft at6fc43e4a; security review clean, compatibility found the teacher Content reader's 40-title truncation. Removed that presentation limit, covering all500assignment/200test titles from the structural Version; AI input retains its separate40-title cap. Updated the canonical plan. Actual ICS3U-4 guidance saved and read-verified through the production teacher editor at Draft revision4; classroom adoption and migrations remain pending. Production review consumed2launches/0fixbatches and reached45minutes; the correction and final release review need an explicit time extension. Focused checks passed121tests; Playwright desktop/mobile light/dark Content captures show item41 and no overflow. No production migration or classroom content changes occurred.
-
-Owner approved the45-minute correction/final-release review extension and one production221/222 application after checks on2026-09-30. Correction reviewer found stale instructions later in the canonical plan; marked the historical Draft3 baseline and completed main merges/Draft4 save explicitly, retaining release/class adoption pending. Runtime and regression review clean; final integration will confirm the documentation correction.
-
-## 2026-09-30 — AI regrade overwrite warning
-
-Added explicit copy to the existing teacher AI Grade scope dialog: Regrade all overwrites existing grades and comments, including teacher edits. Grading behavior and scope buttons remain unchanged. Reused DialogPanel/Button and existing semantic text styles; reference: selected Test grading actions and Pattern Lab shared dialog. Teacher desktop/mobile in light/dark verified with four passing Playwright cases and reviewed screenshots; student n/a because its interface is unchanged. Focused checks pass 224 tests plus architecture, UI/design policy, TypeScript and lint; Pika audit passes. Risk profile: none. Independent low-risk review and ready PR Gate remain pending. Model recommendation: GPT-6 Sol for this localized wording change.
-
-## 2026-09-30 — Simplify AI grading confirmation
-
-Owner replaced the two grade-scope choices with one AI grade confirmation. Reused the existing teacher DialogPanel and buttons; Cancel plus AI grade now requests all eligible answers for selected students and explicitly warns that existing grades/comments, including teacher edits, are overwritten. The existing component test asserts all scope and absence of the old options; four desktop/mobile light/dark Playwright cases pass and screenshots were reviewed. Focused224tests plus architecture/UI/design/TypeScript/lint and audit pass. Student interface and backend grading contracts unchanged; no paid grading calls or schema changes. PR1400 returned to draft before correction; independent review of new stable SHA pending. Risk profile: none. Model recommendation: GPT-6 Sol for the localized grading confirmation change.
-
-## 2026-09-30 — Open local single-action grading preview
-
-Started reviewed PR1400 worktree fedf1824 locally on port3117 using the canonical local Supabase launcher. Local login HTTP200; signed into seeded teacher account via Dev Quick Login, opened Test Classroom → Seed Test - AI Grading Demo, selected Student1 Test and left AI grade confirmation open in the app browser. Verified modal has Cancel and AI grade with overwrite warning; no grading was started. Server session remains running for owner preview, URL http://127.0.0.1:3117. No application code, schema or grading data changes.
-
-## 2026-09-30 — Counted danger confirmation for AI grading
-
-Student actions now names the selected count (AI Grade 1 student / AI Grade 2 students). Reused the canonical compact danger ConfirmDialog, with the matching count in its title, the owner's exact overwrite warning, initial Cancel focus and red AI grade confirmation. Existing all-scope grading behavior and concurrency guards remain unchanged. Component coverage verifies no grading request before confirmation or after Cancel; focused224tests and architecture/UI/design/TypeScript/lint plus audit pass. Four desktop/mobile light/dark browser cases pass, with eight one/two-student dialog captures visually reviewed. Actual seeded teacher preview remains open locally on port3117; no grading was started. PR1400 remains draft for stable-SHA independent review; merge/promotion not authorized for this PR. Risk profile: none. Model recommendation: GPT-6 Sol for the localized interaction update.
-
 ## 2026-09-30 — Test references stay inside the assessment
 
 Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.
@@ -373,3 +328,14 @@ account/classroom changed. Runtime correctionb2c64b45 targeted Sol/high review c
 shared budget3launches/2fixbatches. Local strictfalse: automatic Free audit cleanup
 has static review, not strict-enabled runtime evidence.1424 final browser CI still
 pending; its merge precedes bulk publication. Prod001–225, all activation holds remain.
+
+## 2026-10-01 — Date gate passed; strict main reconciliation required
+
+1424 final CI36952067498 passed all gates, but normal merge denied behind1419main.
+Returned draft, rebased onto1220d586; both patches identical and226 digest unchanged.
+Targeted Luna/medium reconciliation review clean;216 focused checks pass.5date review
+launches/1fixbatch; exact reviewed headd9b7d780 ready, CI36954995904 running. No bypass.
+Bulk rebased onto new date head; resolved CURRENT-only conflict and retained1419
+scrolling/session work.227 digest unchanged; production/admission holds remain.
+Bulk publication/full independent review still waits1424 merge; do not reset either
+review budget (date01:21:30Z, bulk01:41:00Z) across this CI/user checkpoint.
