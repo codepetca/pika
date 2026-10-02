@@ -55,7 +55,6 @@ export function RightSidebar({
             'hidden lg:flex flex-col',
             'sticky top-12 h-[calc(100vh-3rem)]',
             'bg-surface',
-            'border-l border-border',
             className,
           ]
             .filter(Boolean)
@@ -63,7 +62,7 @@ export function RightSidebar({
         >
           {/* Header */}
           {showDesktopHeader && (
-            <div className="flex items-center justify-between p-2 border-b border-border">
+            <div className="flex items-center justify-between p-2">
               <span className="truncate flex-1 px-2 text-sm font-semibold text-text-default">
                 {title}
               </span>
@@ -90,7 +89,6 @@ export function RightSidebar({
         panelClassName={[
           'absolute inset-y-0 right-0 w-full max-w-md',
           'bg-surface',
-          'border-l border-border',
           'shadow-xl',
           'flex flex-col',
         ].join(' ')}
@@ -108,7 +106,7 @@ export function RightSidebar({
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between p-3 border-b border-border">
+          <div className="flex items-center justify-between p-3">
             <span className="text-sm font-semibold text-text-default truncate flex-1">
               {title}
             </span>

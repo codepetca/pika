@@ -239,8 +239,8 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
         dividerLabel="Resize student list and work preview"
         minPrimaryPx={320}
         minInspectorPx={280}
-        primaryClassName="flex min-h-0 flex-col rounded-lg border border-border bg-surface"
-        inspectorClassName="min-h-0 rounded-lg border border-border bg-surface"
+        primaryClassName="flex min-h-0 flex-col rounded-lg bg-surface"
+        inspectorClassName="min-h-0 rounded-lg bg-surface"
         primary={(
           <TeacherWorkSurfaceTableFrame className="min-h-0 rounded-lg">
             <DataTable density="tight">
@@ -287,7 +287,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
           <SegmentedControl ariaLabel="Workspace family" value={family} onChange={changeFamily} options={FAMILY_OPTIONS} />
         </div>
       </Card>
-      <div className={cn('min-h-96 overflow-hidden rounded-card border border-border bg-page', selectedItem && mode === 'students' && 'h-96')} data-testid="work-surface-shell-example">
+      <div className={cn('min-h-96 overflow-hidden rounded-card bg-page', selectedItem && mode === 'students' && 'h-96')} data-testid="work-surface-shell-example">
         <TeacherWorkSurfaceShell
           className="mx-0"
           state={selectedItem ? 'workspace' : 'summary'}

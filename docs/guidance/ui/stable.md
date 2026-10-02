@@ -68,6 +68,7 @@ Source grounding:
 ### 3. Classroom pages preserve the shared shell
 
 - Classroom work stays inside the shared classroom shell rather than inventing standalone page layouts.
+- Keep app framing borderless: headers, sidebars, section boundaries, and workspace panels use surface tones and spacing. Preserve control borders, selection indicators, table rules, status treatments, focus rings, and interactive resize handles.
 - Keep left navigation for tab switching, main content for the active workflow, and right-side inspection/detail behavior where the route already supports it.
 - On desktop, the shell remains a three-panel grid. On mobile, side panels collapse into drawer behavior rather than creating a separate information architecture.
 

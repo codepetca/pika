@@ -41,7 +41,7 @@ export function StudentCalendarDateContent({
       ) : null}
 
       {assignments.length > 0 && (
-        <div className="mt-4 border-t border-border pt-3">
+        <div className="mt-4 pt-3">
           <h4 className="text-xs font-semibold text-text-muted">Assignments</h4>
           <div className="mt-2 space-y-2">
             {assignments.map((assignment) => (
@@ -63,7 +63,7 @@ export function StudentCalendarDateContent({
       )}
 
       {announcements.length > 0 && (
-        <div className="mt-4 border-t border-border pt-3">
+        <div className="mt-4 pt-3">
           <h4 className="text-xs font-semibold text-text-muted">Announcements</h4>
           <div className="mt-2 space-y-3">
             {announcements.map((announcement) => {

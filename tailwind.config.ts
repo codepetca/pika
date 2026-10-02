@@ -41,6 +41,7 @@ const config: Config = {
       colors: {
         // Semantic background colors
         page: 'var(--color-page)',
+        'gradebook-final': 'var(--color-gradebook-final)',
         'reference-image-canvas': 'var(--color-reference-image-canvas)',
         qr: {
           background: 'var(--color-qr-background)',

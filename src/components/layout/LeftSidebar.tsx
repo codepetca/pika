@@ -36,7 +36,6 @@ export function LeftSidebar({
         className={[
           'hidden lg:flex flex-col',
           'sticky top-12 h-[calc(100vh-3rem)]',
-          'border-r border-border',
           'bg-surface',
           'transition-[width] duration-200 ease-out',
           'overflow-hidden',
@@ -58,7 +57,6 @@ export function LeftSidebar({
         {/* Toggle button */}
         <div
           className={[
-            'border-t border-border',
             isExpanded ? 'p-3' : 'py-3 px-0.5',
           ].join(' ')}
         >
@@ -100,13 +98,12 @@ export function LeftSidebar({
         panelClassName={[
           'absolute inset-y-0 left-0 w-72',
           'bg-surface',
-          'border-r border-border',
           'shadow-xl',
           'flex flex-col',
         ].join(' ')}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-border">
+        <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-text-default">
             <Menu className="h-6 w-6 text-text-muted" aria-hidden="true" />
             <span>Navigation</span>
@@ -125,7 +122,7 @@ export function LeftSidebar({
         {/* Nav content */}
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
           {mobileHomeHref && (
-            <div className="mb-3 border-b border-border pb-3">
+            <div className="mb-3 pb-3">
               <Link
                 href={mobileHomeHref}
                 onClick={(event) => {

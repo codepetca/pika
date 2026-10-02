@@ -927,7 +927,7 @@ export function TeacherGradebookTab({
           inspectorWidth={detailPaneWidth}
           onInspectorWidthChange={setDetailPaneWidth}
           inspectorCollapsed={false}
-          inspectorClassName="min-h-72 rounded-lg border border-border bg-surface"
+          inspectorClassName="min-h-72 rounded-lg bg-surface"
           dividerLabel="Resize gradebook details"
           defaultInspectorWidth={32}
           minInspectorPx={300}
@@ -936,7 +936,7 @@ export function TeacherGradebookTab({
           maxInspectorPercent={45}
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-surface lg:hidden">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg bg-surface lg:hidden">
         {mobileStudent ? (
           <GradebookStudentPanel
             student={mobileStudent}

@@ -85,7 +85,7 @@ export function GradebookTable({
   const finalValues = students.map((student) => student.final_percent).filter((value): value is number => value != null)
   const finalAverage = average(finalValues)
   const courseWeights = gradebookCourseWeightPreviews(columns, weightDrafts)
-  const rowLabelClass = cn('whitespace-normal bg-surface-2 !px-2 text-xs font-medium leading-tight text-text-muted', frozen && 'sticky left-10 border-r border-border-strong')
+  const rowLabelClass = cn('whitespace-normal bg-surface-2 !px-2 text-xs font-medium leading-tight text-text-muted', frozen && 'sticky left-10')
 
   return (
     <KeyboardNavigableTable
@@ -96,7 +96,7 @@ export function GradebookTable({
       onSelectKey={(id) => { const student = students.find((s) => s.student_id === id); if (student) onStudentSelect(student) }}
       onDeselect={onStudentDeselect}
       getRowId={getGradebookStudentRowId}
-      className="relative isolate h-full min-h-0 min-w-0 overflow-auto overscroll-y-contain rounded-lg border border-border bg-surface"
+      className="relative isolate h-full min-h-0 min-w-0 overflow-auto overscroll-y-contain rounded-lg bg-surface"
       data-testid="gradebook-student-scroll-pane"
       onScroll={onScroll}
     >
@@ -110,20 +110,20 @@ export function GradebookTable({
             {filler ? <col /> : null}
             <col style={{ width: columnWidths.final }} />
           </colgroup>
-          <DataTableHead sticky>
+          <DataTableHead sticky dividers={false}>
             <DataTableRow>
-              <TableSelectionHeaderCell className={cn('border-b border-border bg-surface-2', frozen && 'sticky left-0 z-sticky-table')} checked={allSelected} indeterminate={someSelected} onChange={toggleSelectAll} ariaLabel="Select all students" />
+              <TableSelectionHeaderCell className={cn('bg-surface-3', frozen && 'sticky left-0 z-sticky-table')} checked={allSelected} indeterminate={someSelected} onChange={toggleSelectAll} ariaLabel="Select all students" />
               {names.map((column, index) => (
                 <SortableHeaderCell
                   key={column.key} label={column.label} isActive={sortColumn === column.key}
                   direction={sortDirection} onClick={() => onSort(column.key)}
-                  className={cn('border-b border-border bg-surface-2', frozen && index === 0 && 'sticky left-10 z-sticky-table border-r border-border-strong')}
+                  className={cn('bg-surface-3', frozen && index === 0 && 'sticky left-10 z-sticky-table')}
                   resize={{ value: columnWidths[column.key], min: 72, max: 220, onChange: (width) => onColumnWidthChange(column.key, width) }}
                 />
               ))}
-              {showStudentIds ? <SortableHeaderCell label="ID" isActive={sortColumn === 'id'} direction={sortDirection} onClick={() => onSort('id')} className="border-b border-border bg-surface-2" /> : null}
+              {showStudentIds ? <SortableHeaderCell label="ID" isActive={sortColumn === 'id'} direction={sortDirection} onClick={() => onSort('id')} className="bg-surface-3" /> : null}
               {columns.map((column) => (
-                <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" className="overflow-hidden border-b border-border bg-surface-2 !px-1">
+                <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" className="overflow-hidden bg-surface-3 !px-1">
                   <Tooltip content={column.title} side="bottom">
                     <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit ${column.code}: ${column.title}`} className="w-full overflow-hidden px-1 font-normal text-text-default">
                       <span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{ultraCompact ? column.code : column.title}</span>
@@ -131,8 +131,8 @@ export function GradebookTable({
                   </Tooltip>
                 </DataTableHeaderCell>
               ))}
-              {filler ? <DataTableHeaderCell align="center" className="border-b border-border bg-surface-2">{columns.length ? <span className="sr-only">Unused assessment space</span> : 'Assessments'}</DataTableHeaderCell> : null}
-              <DataTableHeaderCell align="right" className={cn('border-b border-border bg-surface-2', frozen && 'sticky right-0 z-sticky-table border-l border-border-strong')}>Final</DataTableHeaderCell>
+              {filler ? <DataTableHeaderCell align="center" className="bg-surface-3">{columns.length ? <span className="sr-only">Unused assessment space</span> : 'Assessments'}</DataTableHeaderCell> : null}
+              <DataTableHeaderCell align="right" className={cn('bg-gradebook-final', frozen && 'sticky right-0 z-sticky-table')}>Final</DataTableHeaderCell>
             </DataTableRow>
           </DataTableHead>
           {(showWeights || displayMode === 'raw') && columns.length > 0 ? (
@@ -148,7 +148,7 @@ export function GradebookTable({
                   </Button>
                 </DataTableCell>)}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
+                <DataTableCell className={cn('bg-gradebook-final', frozen && 'sticky right-0')}>{null}</DataTableCell>
               </DataTableRow> : null}
               {displayMode === 'raw' ? <DataTableRow aria-label="Max mark">
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
@@ -165,7 +165,7 @@ export function GradebookTable({
                   </Button>
                 </DataTableCell>)}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
+                <DataTableCell className={cn('bg-gradebook-final', frozen && 'sticky right-0')}>{null}</DataTableCell>
               </DataTableRow> : null}
               {showWeights ? <>
                 <DataTableRow aria-label="Weight">
@@ -188,23 +188,23 @@ export function GradebookTable({
                     </DataTableCell>
                   })}
                   {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                  <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
+                  <DataTableCell className={cn('bg-gradebook-final', frozen && 'sticky right-0')}>{null}</DataTableCell>
                 </DataTableRow>
                 <DataTableRow aria-label="Course %">
-                  <DataTableCell className={cn('border-b border-border-strong bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
-                  <DataTableHeaderCell scope="row" align="right" className={cn(rowLabelClass, 'border-b border-border-strong')}>Course %</DataTableHeaderCell>
-                  {!ultraCompact ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
-                  {showStudentIds ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
-                  {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="border-b border-border-strong bg-surface-2 !px-1 text-xs font-medium tabular-nums">
+                  <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
+                  <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Course %</DataTableHeaderCell>
+                  {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
+                  {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
+                  {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="bg-surface-2 !px-1 text-xs font-medium tabular-nums">
                     <output aria-label={`Course weight for ${column.title}`}>{courseWeights[getAssessmentColumnKey(column)] == null ? '—' : (ultraCompact ? formatWholePercent(courseWeights[getAssessmentColumnKey(column)]) : `${courseWeights[getAssessmentColumnKey(column)]}%`)}</output>
                   </DataTableCell>)}
-                  {filler ? <DataTableCell className="border-b border-border-strong bg-surface-2">{null}</DataTableCell> : null}
-                  <DataTableCell className={cn('border-b border-border-strong bg-surface-2', frozen && 'sticky right-0 border-l border-border-strong')}>{null}</DataTableCell>
+                  {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
+                  <DataTableCell className={cn('bg-gradebook-final', frozen && 'sticky right-0')}>{null}</DataTableCell>
                 </DataTableRow>
               </> : null}
             </tbody>
           ) : null}
-          <DataTableBody>
+          <DataTableBody dividers={false}>
             {students.map((student) => {
               const active = selectedStudentId === student.student_id
               const selected = selectedIds.has(student.student_id)
@@ -213,7 +213,7 @@ export function GradebookTable({
                 className={cn('group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary', active || selected ? 'bg-surface-3' : 'hover:bg-surface-hover')}
                 onClick={(event) => { if (!(event.target as HTMLElement).closest('button,input,a,label,select,textarea')) onStudentSelect(student) }}>
                 <TableSelectionCell className={cn(frozen && 'sticky left-0', surface)} checked={selected} onChange={() => toggleSelect(student.student_id)} ariaLabel={`Select ${getStudentName(student)}`} />
-                {names.map((column, index) => <DataTableCell key={column.key} title={getStudentIdentityValue(student, column.key)} className={cn('truncate whitespace-nowrap', frozen && index === 0 && 'sticky left-10 border-r border-border-strong', frozen && index === 0 && surface)}>{getStudentIdentityValue(student, column.key)}</DataTableCell>)}
+                {names.map((column, index) => <DataTableCell key={column.key} title={getStudentIdentityValue(student, column.key)} className={cn('truncate whitespace-nowrap', frozen && index === 0 && 'sticky left-10', frozen && index === 0 && surface)}>{getStudentIdentityValue(student, column.key)}</DataTableCell>)}
                 {showStudentIds ? <DataTableCell className="truncate">{getStudentDisplayId(student)}</DataTableCell> : null}
                 {columns.map((column) => {
                   const cell = getAssessmentCell(student, column)
@@ -243,7 +243,7 @@ export function GradebookTable({
                   </DataTableCell>
                 })}
                 {filler ? <DataTableCell aria-label={columns.length ? undefined : 'No assessments'}>{null}</DataTableCell> : null}
-                <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold tabular-nums', frozen && 'sticky right-0 border-l border-border-strong', frozen && surface)}>
+                <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold tabular-nums', frozen && 'sticky right-0', active || selected ? 'bg-surface-3' : 'bg-gradebook-final group-hover:bg-surface-hover')}>
                   <Button
                     type="button"
                     variant="ghost"
@@ -265,21 +265,21 @@ export function GradebookTable({
           {students.length > 0 && columns.length > 0 ? (
             <tfoot className="sticky bottom-0 z-sticky-table bg-surface-2" data-testid="gradebook-summary-footer">
               <DataTableRow aria-label="Class average">
-                <DataTableCell className={cn('border-t border-border-strong bg-surface-2 !px-1 text-center text-xs font-semibold uppercase text-text-muted', frozen && 'sticky left-0 z-sticky-table')}>Avg</DataTableCell>
-                {names.map((column, index) => <DataTableCell key={column.key} className={cn('border-t border-border-strong bg-surface-2', frozen && index === 0 && 'sticky left-10 z-sticky-table')}>{null}</DataTableCell>)}
-                {showStudentIds ? <DataTableCell className="border-t border-border-strong bg-surface-2">{null}</DataTableCell> : null}
+                <DataTableCell className={cn('bg-surface-2 !px-1 text-center text-xs font-semibold uppercase text-text-muted', frozen && 'sticky left-0 z-sticky-table')}>Avg</DataTableCell>
+                {names.map((column, index) => <DataTableCell key={column.key} className={cn('bg-surface-2', frozen && index === 0 && 'sticky left-10 z-sticky-table')}>{null}</DataTableCell>)}
+                {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => {
                   const stats = getColumnStats(students, column)
                   const overMaximum = isGradeAboveMaximum(stats.averagePercent) || (stats.averageEarned != null && column.possible > 0 && isGradeAboveMaximum(stats.averageEarned / column.possible * 100))
-                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap border-t border-border-strong bg-surface-2 text-xs tabular-nums', getGradePercentTextClass(stats.averagePercent))}>
+                  return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap bg-surface-2 text-xs tabular-nums', getGradePercentTextClass(stats.averagePercent))}>
                     <span data-above-maximum={overMaximum || undefined} title={overMaximum ? formatAboveMaximumDescription(stats.averagePercent) : undefined} className={cn(getGradePercentTextClass(stats.averagePercent), overMaximum && 'inline-flex items-center gap-0.5 px-0.5 py-1', overMaximum && ABOVE_MAXIMUM_CLASS)}>
                       {overMaximum ? <span className="sr-only">{formatAboveMaximumDescription(stats.averagePercent)}: </span> : null}
                       {displayMode === 'raw' ? (stats.averageEarned == null ? '—' : formatPoints(stats.averageEarned)) : ultraCompact ? formatWholePercent(stats.averagePercent) : formatColumnStat(stats, column, 'average', displayMode)}
                     </span>
                   </DataTableCell>
                 })}
-                {filler ? <DataTableCell className="border-t border-border-strong bg-surface-2">{null}</DataTableCell> : null}
-                <DataTableCell align="right" className={cn('border-t border-border-strong bg-surface-2 font-semibold tabular-nums', getGradePercentTextClass(finalAverage), frozen && 'sticky right-0 z-sticky-table')}><span data-above-maximum={isGradeAboveMaximum(finalAverage) || undefined} title={isGradeAboveMaximum(finalAverage) ? formatAboveMaximumDescription(finalAverage) : undefined} className={cn(getGradePercentTextClass(finalAverage), isGradeAboveMaximum(finalAverage) && 'inline-flex items-center gap-0.5 px-1 py-1', isGradeAboveMaximum(finalAverage) && ABOVE_MAXIMUM_CLASS)}>
+                {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
+                <DataTableCell align="right" className={cn('bg-gradebook-final font-semibold tabular-nums', getGradePercentTextClass(finalAverage), frozen && 'sticky right-0 z-sticky-table')}><span data-above-maximum={isGradeAboveMaximum(finalAverage) || undefined} title={isGradeAboveMaximum(finalAverage) ? formatAboveMaximumDescription(finalAverage) : undefined} className={cn(getGradePercentTextClass(finalAverage), isGradeAboveMaximum(finalAverage) && 'inline-flex items-center gap-0.5 px-1 py-1', isGradeAboveMaximum(finalAverage) && ABOVE_MAXIMUM_CLASS)}>
                   {isGradeAboveMaximum(finalAverage) ? <span className="sr-only">{formatAboveMaximumDescription(finalAverage)}: </span> : null}
                   {formatCompactPercent(finalAverage)}
                 </span></DataTableCell>
