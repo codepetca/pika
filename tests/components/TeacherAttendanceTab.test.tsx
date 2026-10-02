@@ -694,6 +694,33 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeInTheDocument()
   })
 
+  it('disables manual settings during a mark save while keeping row corrections available', async () => {
+    const fetchMock = mockManualAttendanceFetch()
+    const baseFetch = fetchMock.getMockImplementation()!
+    const saving = deferred<Response>()
+    fetchMock.mockImplementation((input, init) => {
+      if (String(input) === '/api/teacher/manual-attendance' && init?.method === 'POST') return saving.promise
+      return baseFetch(input, init)
+    })
+    const user = userEvent.setup()
+    render(<TooltipProvider><AppMessageProvider>
+      <TeacherAttendanceTab classroom={classroom} manualAttendanceEnabled />
+    </AppMessageProvider></TooltipProvider>)
+    await user.click(await screen.findByRole('button', { name: 'Mark Student2 Test absent' }))
+    expect(screen.getByRole('button', { name: 'Mark Student1 Test absent' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Mark Student2 Test present' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: /Attendance from log/ })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: /Edit time/ })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeEnabled()
+    await act(async () => { saving.resolve(await mockJson({ savedCount: 1 })) })
+    await waitFor(() => expect(screen.getByRole('menuitemcheckbox', { name: /Attendance from log/ }))
+      .toBeEnabled())
+    await user.click(screen.getByRole('menuitemcheckbox', { name: /Attendance from log/ }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(true))
+  })
+
   it('blocks passive attendance times longer than 12 hours', async () => {
     mockManualAttendanceFetch()
     const user = userEvent.setup()

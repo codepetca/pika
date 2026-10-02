@@ -3561,11 +3561,20 @@ for (const surface of ['manual', 'integrated', 'live'] as const) {
     await expect(mark(0, 'Present')).toBeEnabled()
     await expect.poll(() => writes.some(write => write.id === ids[1])).toBe(true)
     expect(writes.filter(write => write.id === ids[0])).toEqual([{ id: ids[0], status: 'absent' }])
+    if (surface === 'manual') {
+      await expect(page.getByRole('button', { name: /Edit attendance time/ })).toBeDisabled()
+      await page.getByRole('button', { name: 'More actions' }).click()
+      await expect(page.getByRole('menuitemcheckbox', { name: /Attendance from log/ })).toBeDisabled()
+      await expect(page.getByRole('menuitem', { name: 'Edit time', exact: true })).toBeDisabled()
+      await page.screenshot({ path: testInfo.outputPath('attendance-manual-pending-settings.png'), animations: 'disabled' })
+      await page.keyboard.press('Escape')
+    }
     await verifyProjectContract(page, testInfo)
     await page.screenshot({ path: testInfo.outputPath(`attendance-${surface}-rapid-pending.png`), animations: 'disabled' })
     releaseFirst()
     await expect.poll(() => saved.get(ids[0])).toBe('late')
     expect(writes.filter(write => write.id === ids[0]).map(write => write.status)).toEqual(['absent', 'late'])
+    if (surface === 'manual') await expect(page.getByRole('button', { name: /Edit attendance time/ })).toBeEnabled()
     // One failed row must not undo the correction already saved on another row.
     failNext = true
     await mark(1, 'Present').click()
