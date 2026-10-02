@@ -391,10 +391,16 @@ Resumed codex/renewal-closeout, preserving prior edits and safety branch before
 rebasing onto main42789d40. Repaired stale dependency symlink; verify-env passes.
 Coordinator owns TS worker/store/runtime/docs; Astra/high owns228 closeout SQL
 and rollback contracts; GPT-6.1Sol/high delivered strict Stripe adapter+fixtures.
-330 billing tests and architecture/lint pass; no actual Stripe writes. Local
+334 billing tests and195 focused tests pass plus architecture/UI/design/audit; no Stripe writes. Local
 history001–227 and sandbox OFF confirmed read-only.227 belongs to classroom
 PR1426; await its merge before228 preview/application and type generation.
 228 is not applied; TypeScript is blocked only by missing generated RPCs.
 No reset/reseed/history repair, activation, production change or merge authorized.
 Next: fixed-candidate independent preapplication review, exact local228 approval,
 then generated contract/database acceptance and bounded draft-first PR lifecycle.
+
+Fixed preapplication candidate9fc266a5 reviewed:3launches (one capacityfailure,
+two completed), initialwavecomplete; batch1 fixes queue starvation, missing
+attention requeue recovery and a protected-plan fixture error. No migration
+application or types workaround. Review ledger /private/tmp/pika-renewal-closeout-review-ledger.json;
+clock starts12:16:19Z,7launches/4batches/60minutes default cap.

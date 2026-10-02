@@ -177,6 +177,11 @@ After correcting an incident, a service operator can invoke the sandbox-gated
 `billing_requeue_subscription_v1` RPC with `subscription_id`, `actor_ref` and
 `reason_code`. It audits the request, resets retry state and schedules work; it
 refuses to take an active worker lease. No browser or admin UI exposes this RPC.
+Migration228 extends that same operator procedure to a held renewal closeout:
+it preserves the invoice and mutation stage, checks the original plan/access/
+entitlement fences, and resets the bounded retry budget. Changed assignment facts
+remain a conflict. Ordinary work selection excludes active closeouts before its
+limit so one held account cannot starve another account's paid reconciliation.
 
 Consolidated migration209 must precede activation of this application revision: worker
 bindings now require the immutable product and amount supplied by its RPCs.
@@ -295,6 +300,15 @@ migration. No reset/reseed is planned. Current authority covers code, tests and
 PR review/publication, not another merge, production rollout, live Stripe writes,
 activation or email delivery. Use the current `pr-review` skill's bounded budget;
 previous PR extensions are consumed and do not expand this review session.
+
+Preapplication review started2026-10-02T12:16:19Z on `9fc266a5`. Three of seven
+reviewer launches were used (one capacity failure; two completed reviews).
+Batch1 fixes ordinary queue starvation, operator attention recovery and a rollback
+fixture that incorrectly called the protected public plan setter. The production
+setter remains protected.334 billing tests and195 focused tests pass; full focused
+checks stop at the missing generated closeout RPC contract. Local228 application,
+database/SQL warning checks and provider rehearsal remain unverified. No PR is
+published until the generated contract matches the reviewed migration schema.
 
 The following paragraphs retain the historical phase-1 rollout evidence; their
 pending statements describe that earlier slice, not current phase-2 completion.

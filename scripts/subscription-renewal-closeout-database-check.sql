@@ -6,7 +6,8 @@ set local statement_timeout='30s';
 
 do $$ declare fn text; begin
   foreach fn in array array['billing_list_renewal_closeouts_v1','billing_claim_renewal_closeout_v1',
-    'billing_checkpoint_renewal_closeout_v1','billing_finish_renewal_closeout_v1','billing_claim_subscription_v1'] loop
+    'billing_checkpoint_renewal_closeout_v1','billing_finish_renewal_closeout_v1','billing_claim_subscription_v1',
+    'billing_list_work_v1','billing_requeue_subscription_v1'] loop
     if has_function_privilege('anon','public.'||fn||'(jsonb)','execute')
       or has_function_privilege('authenticated','public.'||fn||'(jsonb)','execute')
       or not has_function_privilege('service_role','public.'||fn||'(jsonb)','execute') then raise exception 'Closeout RPC ACL drift: %',fn; end if;
@@ -249,9 +250,21 @@ do $$ declare f record; c jsonb; p public.account_plans%rowtype; ent public.effe
   for f in select * from renewal_closeout_cases where name in ('manual','entitlement') loop
     c:=public.billing_claim_renewal_closeout_v1(jsonb_build_object('subscription_id',f.subscription_id,'lease_seconds',120));
     if c->>'status'<>'claimed' then raise exception 'Override fixture not claimed'; end if;
+    r:=public.billing_requeue_subscription_v1(jsonb_build_object('subscription_id',f.subscription_id,
+      'actor_ref','test:closeout','reason_code','recover_provider'));
+    if r->>'status'<>'busy' then raise exception 'Operator requeue stole an active binding lease'; end if;
     if f.name='manual' then
       select * into p from public.account_plans where subject_user_id=f.subject_id;
-      perform public.set_account_plan_v1(gen_random_uuid(),f.subject_id,'free','test:closeout','manual_override',p.revision);
+      begin
+        perform public.set_account_plan_v1(gen_random_uuid(),f.subject_id,'free','test:closeout','manual_override',p.revision);
+        raise exception 'Public setter allowed an override of billing management';
+      exception when insufficient_privilege then
+        if sqlerrm<>'billing_managed_account_plan' then raise; end if;
+      end;
+      -- Only this privileged, rollback-only synthetic fixture simulates a saved
+      -- override. The public setter must continue to refuse billing-managed rows.
+      update public.account_plans set revision=revision+1,management_source='legacy',billing_offering_version_id=null
+        where subject_user_id=f.subject_id;
     else
       select * into ent from public.effective_feature_entitlements where subject_user_id=f.subject_id and feature_key='classrooms.create';
       perform public.set_effective_feature_entitlement_v1(gen_random_uuid(),f.subject_id,'classrooms.create','manual',false,
@@ -263,6 +276,14 @@ do $$ declare f record; c jsonb; p public.account_plans%rowtype; ent public.effe
     if r->>'status'<>'plan_conflict' then raise exception 'Override did not fence completion'; end if;
     if not exists(select 1 from public.billing_renewal_closeouts where subscription_id=f.subscription_id and stage='queued') then
       raise exception 'Rejected override checkpoint changed stage'; end if;
+    update public.stripe_billing_subscription_bindings set lease_expires_at=clock_timestamp()-interval '1 second'
+      where id=f.subscription_id;
+    r:=public.billing_requeue_subscription_v1(jsonb_build_object('subscription_id',f.subscription_id,
+      'actor_ref','test:closeout','reason_code','recover_provider'));
+    if r->>'status'<>'plan_conflict' then raise exception 'Operator requeue refreshed a manual override fence: %',r; end if;
+    if not exists(select 1 from public.billing_renewal_closeouts where subscription_id=f.subscription_id
+      and expected_account_plan_revision=(c->>'expected_account_plan_revision')::bigint
+      and revision=(c->>'operation_revision')::bigint) then raise exception 'Refused requeue changed saved closeout fences'; end if;
   end loop;
 end $$;
 -- Five deferred completions exhaust the same bounded failure budget as the
@@ -290,5 +311,60 @@ do $$ declare s uuid; c jsonb; r jsonb; n integer; begin
     raise exception 'Exhausted closeout did not retain binding for attention'; end if;
   if public.billing_claim_renewal_closeout_v1(jsonb_build_object('subscription_id',s,'lease_seconds',120))->>'status'<>'busy' then
     raise exception 'Exhausted retry budget allowed another automatic claim'; end if;
+end $$;
+-- An old held webhook and its old reconciliation deadline must both be excluded
+-- before LIMIT 1. The second synthetic account remains eligible in either arm.
+do $$ declare held uuid; eligible uuid; state text; r jsonb; begin
+  select subscription_id into held from renewal_closeout_cases where name='partial';
+  select subscription_id into eligible from renewal_closeout_cases where name='future';
+  update public.stripe_billing_subscription_bindings set reconcile_state='queued',reconcile_attempt_count=0,
+    next_reconcile_at=case when id=held then '2000-01-01 UTC'::timestamptz else '2001-01-01 UTC'::timestamptz end
+    where id in (held,eligible);
+  insert into public.stripe_billing_event_inbox(stripe_account,provider_mode,stripe_event_id,payload_hash,event_type,
+    subscription_id,status,next_attempt_at)
+    values('acct_closeout228','test','evt_closeout228held',repeat('a',64),'invoice.payment_failed',held,'received','2000-01-01 UTC'),
+      ('acct_closeout228','test','evt_closeout228eligible',repeat('b',64),'invoice.payment_failed',eligible,'received','2001-01-01 UTC');
+  foreach state in array array['queued','retry','attention'] loop
+    update public.billing_renewal_closeouts set status=state where subscription_id=held;
+    update public.stripe_billing_event_inbox set status='received' where stripe_event_id in ('evt_closeout228held','evt_closeout228eligible');
+    r:=public.billing_list_work_v1('{"limit":1}');
+    if jsonb_array_length(r->'items')<>1 or r->'items'->0->>'subscription_id' is distinct from eligible::text
+      or r->'items'->0->>'kind'<>'event' or r->'items'->0->'binding'->>'subscription_id' is distinct from eligible::text then
+      raise exception 'Held % event starved another account or changed work shape: %',state,r; end if;
+    update public.stripe_billing_event_inbox set status='completed' where stripe_event_id in ('evt_closeout228held','evt_closeout228eligible');
+    r:=public.billing_list_work_v1('{"limit":1}');
+    if jsonb_array_length(r->'items')<>1 or r->'items'->0->>'subscription_id' is distinct from eligible::text
+      or r->'items'->0->>'kind'<>'reconcile' then
+      raise exception 'Held % reconciliation starved another account: %',state,r; end if;
+  end loop;
+end $$;
+
+-- A transient failure that exhausted the budget can be explicitly requeued
+-- through the existing audited operator action; a late verified payment wins.
+do $$ declare s uuid; old public.billing_renewal_closeouts%rowtype; c jsonb; r jsonb; begin
+  select subscription_id into s from renewal_closeout_cases where name='incomplete';
+  select * into old from public.billing_renewal_closeouts where subscription_id=s;
+  if old.status<>'attention' or old.attempt_count<>5 then raise exception 'Recovery fixture has not exhausted retries'; end if;
+  r:=public.billing_requeue_subscription_v1(jsonb_build_object('subscription_id',s,'actor_ref','test:closeout','reason_code','recover_provider'));
+  if r->>'status'<>'requeued' then raise exception 'Operator could not recover eligible attention: %',r; end if;
+  if not exists(select 1 from public.billing_renewal_closeouts where id=old.id and status='queued' and attempt_count=0
+    and stage=old.stage and invoice_id=old.invoice_id and paid_through=old.paid_through and cutoff=old.cutoff
+    and expected_account_plan_revision=old.expected_account_plan_revision and expected_access_revision=old.expected_access_revision
+    and expected_entitlement_revision=old.expected_entitlement_revision and next_attempt_at<=clock_timestamp()) then
+    raise exception 'Operator requeue lost intent, identity, retry reset, or original fences'; end if;
+  if not exists(select 1 from public.stripe_billing_subscription_audit where subscription_id=s and outcome='requeued'
+    and actor_ref='test:closeout' and reason_code='recover_provider') then raise exception 'Closeout recovery omitted operator audit'; end if;
+  c:=public.billing_claim_renewal_closeout_v1(jsonb_build_object('subscription_id',s,'lease_seconds',120));
+  if c->>'status'<>'claimed' or c->>'operation_id'<>old.id::text or c->>'stage'<>old.stage then
+    raise exception 'Recovered closeout cannot reclaim its original operation'; end if;
+  r:=public.billing_finish_renewal_closeout_v1(pg_temp.closeout_fence(c)||jsonb_build_object('outcome','payment_won',
+    'evidence',jsonb_build_object('kind','paid','invoiceId',c->>'invoice_id','periodStart',c->>'paid_through',
+      'periodEnd',(c->>'paid_through')::timestamptz+interval '30 days','providerStatus','active',
+      'cancelAtPeriodEnd',false,'terminalObligationsCleared',false)));
+  if r->>'status'<>'payment_won' or not exists(select 1 from public.billing_account_access where subscription_id=s
+    and expiry_applied_at is null and failed_renewal_invoice_id is null and last_paid_invoice_id=old.invoice_id) then
+    raise exception 'Late payment did not restore access after attention recovery: %',r; end if;
+  if (select count(*) from public.stripe_billing_invoice_effects where subscription_id=s and stripe_invoice_id=old.invoice_id)<>1 then
+    raise exception 'Attention recovery did not preserve payment deduplication'; end if;
 end $$;
 rollback;

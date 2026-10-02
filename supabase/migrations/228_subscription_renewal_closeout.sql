@@ -320,3 +320,150 @@ revoke all on function public.billing_list_renewal_closeouts_v1(jsonb),public.bi
 grant execute on function public.billing_list_renewal_closeouts_v1(jsonb),public.billing_claim_renewal_closeout_v1(jsonb),
   public.billing_checkpoint_renewal_closeout_v1(jsonb),public.billing_finish_renewal_closeout_v1(jsonb),
   public.billing_claim_subscription_v1(jsonb) to service_role;
+
+
+-- Filter closeout-owned bindings before either candidate arm is ordered/limited.
+-- In particular an old received webhook must not starve unrelated subscriptions.
+-- CREATE OR REPLACE retains the existing validation, response and service ACLs.
+create or replace function public.billing_list_work_v1(p_request jsonb)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with params as (
+    select greatest(1, least(50, coalesce((p_request->>'limit')::integer, 0))) as limit_value
+  ), candidates as (
+    select 'event'::text as kind, event.id as event_inbox_id,
+      event.subscription_id, event.next_attempt_at as due_at
+    from public.stripe_billing_event_inbox event
+    join public.stripe_billing_subscription_bindings binding on binding.id = event.subscription_id
+    where binding.is_current and event.status in ('received', 'exception')
+      and event.attempt_count < 5
+      and event.next_attempt_at <= clock_timestamp()
+      and (binding.lease_expires_at is null or binding.lease_expires_at <= clock_timestamp())
+      and binding.reconcile_state in ('queued', 'retry')
+      and (binding.reconcile_state = 'queued' or binding.next_reconcile_at <= clock_timestamp())
+      and not exists(select 1 from public.billing_renewal_closeouts closeout
+        where closeout.subscription_id=binding.id and closeout.status in ('queued','retry','attention'))
+    union all
+    select 'reconcile'::text, null::uuid, binding.id, binding.next_reconcile_at
+    from public.stripe_billing_subscription_bindings binding
+    where binding.is_current and binding.reconcile_state in ('queued', 'retry')
+      and binding.reconcile_attempt_count < 5
+      and binding.next_reconcile_at <= clock_timestamp()
+      and (binding.lease_expires_at is null or binding.lease_expires_at <= clock_timestamp())
+      and not exists(select 1 from public.billing_renewal_closeouts closeout
+        where closeout.subscription_id=binding.id and closeout.status in ('queued','retry','attention'))
+  ), one_per_subscription as (
+    select candidates.*, row_number() over (
+      partition by subscription_id
+      order by due_at, case kind when 'event' then 0 else 1 end, event_inbox_id nulls last
+    ) as item_rank
+    from candidates
+  ), picked as (
+    select * from one_per_subscription
+    where item_rank = 1
+    order by due_at, subscription_id
+    limit (select limit_value from params)
+  )
+  select jsonb_build_object('items', coalesce(jsonb_agg(jsonb_build_object(
+    'kind', picked.kind,
+    'event_inbox_id', picked.event_inbox_id,
+    'subscription_id', binding.id,
+    'binding', jsonb_build_object(
+      'subscription_id', binding.id,
+      'subject_user_id', binding.subject_user_id,
+      'stripe_account', binding.stripe_account,
+      'stripe_customer_id', binding.stripe_customer_id,
+      'stripe_subscription_id', binding.stripe_subscription_id,
+      'offering_id', offering.id,
+      'offering_version_id', version.id,
+      'stripe_product_id', version.stripe_product_id,
+      'stripe_price_id', version.stripe_price_id,
+      'unit_amount', version.unit_amount,
+      'plan_key', offering.plan_key,
+      'currency', version.currency,
+      'interval', version.interval,
+      'provider_mode', binding.provider_mode
+    ),
+    'next_attempt_at', picked.due_at
+  ) order by picked.due_at, picked.subscription_id), '[]'::jsonb))
+  from picked
+  join public.stripe_billing_subscription_bindings binding on binding.id = picked.subscription_id
+  join public.stripe_billing_offering_versions version on version.id = binding.offering_version_id
+  join public.stripe_billing_offerings offering on offering.id = version.offering_id;
+$$;
+
+-- Existing operator requeue also resumes an eligible closeout with its saved
+-- mutation stage and identity. Its ordinary non-closeout behavior is unchanged.
+create or replace function public.billing_requeue_subscription_v1(p_request jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_binding public.stripe_billing_subscription_bindings%rowtype;
+  v_plan public.account_plans%rowtype;
+  v_access public.billing_account_access%rowtype;
+  v_closeout public.billing_renewal_closeouts%rowtype;
+begin
+  perform private.assert_stripe_billing_sandbox_enabled_v1();
+  if p_request is null or jsonb_typeof(p_request) <> 'object'
+    or (p_request->>'subscription_id') is null
+    or coalesce(p_request->>'actor_ref', '') !~ '^[A-Za-z0-9._~:@-]{1,100}$'
+    or coalesce(p_request->>'reason_code', '') !~ '^[a-z][a-z0-9._-]{0,99}$' then
+    raise exception using errcode = '22023', message = 'stripe_billing_requeue_request_invalid';
+  end if;
+  select * into v_binding from public.stripe_billing_subscription_bindings
+  where id = (p_request->>'subscription_id')::uuid for update;
+  if not found then return jsonb_build_object('status', 'not_found'); end if;
+  if v_binding.lease_expires_at is not null and v_binding.lease_expires_at > clock_timestamp() then
+    return jsonb_build_object('status', 'busy');
+  end if;
+  -- Reuse the existing operator action. Never refresh a saved closeout fence:
+  -- a manual assignment or entitlement override still requires separate review.
+  -- The binding lock serializes the initial existence read and operation lock.
+  if exists(select 1 from public.billing_renewal_closeouts where subscription_id=v_binding.id
+    and status in ('queued','retry','attention')) then
+    perform pg_advisory_xact_lock(hashtextextended('account-plan-subject:'||v_binding.subject_user_id::text,20620260924));
+    select * into v_plan from public.account_plans where subject_user_id=v_binding.subject_user_id for update;
+    select * into v_access from public.billing_account_access where subject_user_id=v_binding.subject_user_id for update;
+    select * into v_closeout from public.billing_renewal_closeouts where subscription_id=v_binding.id
+      and status in ('queued','retry','attention') for update;
+    if not found or not v_binding.is_current or v_binding.provider_mode<>'test'
+      or v_access.source is distinct from 'paid' or v_access.subscription_id is distinct from v_binding.id
+      or v_access.end_reason is distinct from 'renewal_grace'
+      or v_access.failed_renewal_invoice_id is distinct from v_closeout.invoice_id
+      or v_access.paid_through is distinct from v_closeout.paid_through
+      or v_access.access_ends_at is distinct from v_closeout.cutoff
+      or v_access.access_ends_at>clock_timestamp() or v_access.expiry_applied_at is null then
+      return jsonb_build_object('status','superseded'); end if;
+    if v_plan.management_source is distinct from 'billing' or v_plan.plan_key is distinct from 'free'
+      or v_plan.revision is distinct from v_closeout.expected_account_plan_revision
+      or v_access.account_plan_revision is distinct from v_plan.revision
+      or v_access.revision is distinct from v_closeout.expected_access_revision
+      or v_access.entitlement_revision is distinct from v_closeout.expected_entitlement_revision
+      or v_closeout.expected_entitlement_revision is distinct from (select revision from public.effective_feature_entitlements
+        where subject_user_id=v_binding.subject_user_id and feature_key='classrooms.create') then
+      return jsonb_build_object('status','plan_conflict'); end if;
+    update public.billing_renewal_closeouts set status='queued',attempt_count=0,reason=null,
+      next_attempt_at=clock_timestamp(),revision=revision+1,updated_at=clock_timestamp() where id=v_closeout.id;
+  end if;
+  update public.stripe_billing_subscription_bindings
+  set lease_token = null, lease_expires_at = null, reconcile_state = 'queued',
+      reconcile_attempt_count = 0, reconcile_attention_at = null,
+      next_reconcile_at = clock_timestamp(), revision = revision + 1,
+      updated_at = clock_timestamp()
+  where id = v_binding.id returning * into v_binding;
+  update public.stripe_billing_event_inbox
+  set status = 'received', attempt_count = 0, attention_at = null,
+      exception_code = null, next_attempt_at = clock_timestamp()
+  where subscription_id = v_binding.id and status = 'attention';
+  insert into public.stripe_billing_subscription_audit (subscription_id, outcome, subscription_revision, reason_code, actor_ref)
+  values (v_binding.id, 'requeued', v_binding.revision, p_request->>'reason_code', p_request->>'actor_ref');
+  return jsonb_build_object('status', 'requeued');
+end;
+$$;
