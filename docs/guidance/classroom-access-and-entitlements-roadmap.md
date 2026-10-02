@@ -594,6 +594,11 @@ The local read-only preview found installed228 absent from this branch/main;
 billing owns228 and must merge/reconcile first. Do not repair history or apply229
 out of order. New exact local229 approval, SQL review and full draft-first PR review
 remain required; production stays held. This does not advance batch1's exit gate.
+Independent GPT-5.6 Sol/high SQL/security/concurrency preapplication review of
+1d3ff46f againsta101fb28 is clean.32 source/legacy tests, architecture and audit
+pass. The only broader workflow failure was a68-character startup-document excess;
+CURRENT is compressed without changing the16,000-character gate. Runtime/type
+generation and full PR review remain held, not waived by preapplication review.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
