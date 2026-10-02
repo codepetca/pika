@@ -17,7 +17,8 @@ describe('billing handler boundaries', () => {
     const load = vi.fn()
     const purchases = vi.fn()
     const lifecycle = vi.fn()
-    const handlers = createBillingHandlers(() => ({ stripeAccount: 'acct_fixture', workerSecret: secret }), load, purchases, lifecycle)
+    const closeouts = vi.fn()
+    const handlers = createBillingHandlers(() => ({ stripeAccount: 'acct_fixture', workerSecret: secret }), load, purchases, lifecycle, closeouts)
     const response = await handlers.process(new NextRequest('http://localhost/process', {
       method: 'POST', headers: { Authorization: 'Bearer wrong' },
     }), context)
@@ -25,6 +26,7 @@ describe('billing handler boundaries', () => {
     expect(load).not.toHaveBeenCalled()
     expect(purchases).not.toHaveBeenCalled()
     expect(lifecycle).not.toHaveBeenCalled()
+    expect(closeouts).not.toHaveBeenCalled()
   })
   it('bounds each authorized worker request to one subscription', async () => {
     const listWork = vi.fn().mockResolvedValue({ items: [] })
@@ -69,5 +71,22 @@ describe('billing handler boundaries', () => {
     expect(response.status).toBe(200)
     expect(applyDue).toHaveBeenCalledWith({ limit: 25 })
     expect(await response.json()).toMatchObject({ lifecycle: { processed: 1 } })
+  })
+  it('closes at most one due renewal after local expiry without trusting request limits', async () => {
+    const order: string[] = []
+    const applyDue = vi.fn().mockImplementation(async () => { order.push('expiry'); return { processed: 1 } })
+    const closeDueRenewals = vi.fn().mockImplementation(async () => { order.push('closeout'); return { processed: 1, closed: 1 } })
+    const handlers = createBillingHandlers(
+      () => ({ stripeAccount: 'acct_fixture', workerSecret: secret }),
+      vi.fn().mockResolvedValue({ store: { listWork: vi.fn().mockResolvedValue({ items: [] }) } }),
+      undefined, vi.fn().mockResolvedValue({ applyDue }), vi.fn().mockResolvedValue({ closeDueRenewals }),
+    )
+    const response = await handlers.process(new NextRequest('http://localhost/process?limit=99999', {
+      method: 'POST', headers: { Authorization: `Bearer ${secret}` },
+    }), context)
+    expect(response.status).toBe(200)
+    expect(order).toEqual(['expiry', 'closeout'])
+    expect(closeDueRenewals).toHaveBeenCalledWith({ limit: 1 })
+    expect(await response.json()).toMatchObject({ closeouts: { processed: 1, closed: 1 } })
   })
 })
