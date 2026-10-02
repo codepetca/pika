@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Reconcile dormant Daily Log saves with current main
-
-Owner requested pull/reconciliation. Rebased PR1380 onto main32ad59f5, preserving both histories in the sole archive conflict. Resequenced the branch migration from218 to223 because main now occupies218–222; updated harnesses, regressions and rollout receipts. SQL checksum and Daily Log runtime code match the previously reviewed1eda5574. PR returned to draft before reconciliation; backup branch retains the original SHA. Current local history is through220 with Blueprint218 and no Daily Log function; Sep27 local218 proof is historical. No database application, reset/history repair, production promotion or cohort activation. Focused verification and targeted stable-SHA integration review remain pending.
-
-## 2026-09-30 — Authorized local migrations 221–223 applied
-
-Owner explicitly approved exactly221–223 locally. Verified exact local project/container/port, matching001–220 history, and dry-run containing only the approved set; one application succeeded. Approval is consumed. Local history now matches001–223, Daily Log function exists, generated types match and security advisor reports no issues. Exact-head PR1380 CI36745657706 and final independent integration review passed at656a9a1e. Pinned local Blueprint provenance/adoption and lifecycle-lock contracts pass; Daily Log rollback behavior and all eight concurrency cases pass, with synthetic fixtures removed. The initial Blueprint helper selected a similarly named scratch database; stopped that chain and pinned the verification target to supabase_db_pika. Docker execution delays resolved without restarting or resetting. No reset, reseed, history repair, production write or admission activation. Receipt changes are local documentation only; reviewed remote SHA remains unchanged.
-
 ## 2026-09-30 — Pull reveals new applied migration collision
 
 Pulled hub main to3e4d9f1b; feature remote remains656a9a1e. PR1380 is open with prior exact-head CI green but now conflicting with main. Main223 is stop_assignment_grade_conflict_retries; fresh local history223 remains contextual_daily_log_save. Preserve the applied SQL/history and local verification receipts. Next source reconciliation must allocate a new Daily number and explicitly plan local history alignment; no renumber, application, reset or history repair was performed during this report-only request. Shared full-experience admission remains dormant; Daily reads and the remaining five-batch integrations are unfinished.
@@ -333,6 +325,7 @@ unchanged; no schema/promotion/activation. User-authorized billing coordination
 confirmed227 taken,228 planned by billing; its applications remain separately gated.
 
 Owner explicitly approved the final extension: one main sync/screenshot batch, one final independent review, fresh CI and merge to main if green. Integrated main a101fb28 cleanly; all owned UI source remains byte-identical to9c8e5302. Full canonical union passes191files/2012tests plus architecture/UI/design/TypeScript/lint. Matched Linux Playwright1.58 browser and CI system font (DejaVu Sans); all four teacher contract screenshots pass. Visually inspected current captures; refreshed only two light teacher-contract references for the subtle header shade, retaining dark/student/dialog references and all thresholds. Desktop change is confined to the table heading; mobile captures include tolerated low-amplitude font antialiasing with identical dimensions/no layout movement. Initial container font mismatch was discarded. One isolated final integration reviewer (launch7, sync batch5) now checks current owner follow-ups, screenshot acceptance and main compatibility before ready CI. Merge permission is main-only; no promotion or migration application.
+
 ## 2026-10-02 — Failed-renewal closeout resumed
 
 Resumed codex/renewal-closeout, preserving prior edits and safety branch before
@@ -400,3 +393,17 @@ Existing users/classrooms/bindings counts/digests unchanged; closeout rows0 and
 sandboxOFF. Generated contract/check and prior lint/security checks pass. Full
 billing/focused rerun and fixed-candidate final integration review precede ready CI.
 Two total correction batches; four reviewer launches before final integration.
+
+## 2026-10-02 — Closeout green CI and authorized main synchronization
+
+Final Astra/high integration review at25f12dfd found no actionable blockers;
+all five exact-head CI gates passed in37019461972, including browser matrix and
+Stripe binding/webhook race. Owner approved one main sync, one20-minute targeted
+review, fresh CI and merge on green at16:52:17UTC (review deadline17:12:17UTC).
+Returned PR1429 to draft; preserved safety branch and rebased cleanly onto main
+a6c23954 (#1428). Billing code/tests/fixtures/generated types/228 remain
+byte-identical. Third correction/sync batch; one sixth reviewer authorized.
+No new migration application, history repair, reset/reseed, production change,
+Stripe write or activation. Local checks and fixed-candidate sync review precede
+fresh ready-event CI and the approved main merge. Remaining billing phases/real
+provider rehearsal stay separate; classroom coordinator awaits228 landing for229.

@@ -207,7 +207,7 @@ requires the exact target-and-migration approval in the schema checklist.
 
 Current execution (2026-10-02): lifecycle PR #1377 merged as `261ee0b1`.
 The coordinator continues phases 2–5 on `codex/renewal-closeout`, rebased onto
-main `a101fb28`. Billing remains disabled. Existing trial, paid conversion,
+main `a6c23954`. Billing remains disabled. Existing trial, paid conversion,
 exact expiry, renewal grace and immutable purchased terms are integrated; financial
 closeout and safe resubscription after unpaid grace are the next deliverable.
 Completing this slice does not complete the launch plan.
@@ -325,10 +325,19 @@ users/classrooms/bindings counts and row digests match before/after, no closeout
 operations remain, and sandbox remainsOFF. No real Stripe rehearsal occurred.
 The owner approved a30-minute extension at14:17:44UTC, ending14:47:44UTC, for one
 fixture correction batch, database rerun and one final integration reviewer.
-The fixture batch is complete (two total correction batches); the final review
-is pending. Cumulative reviewer launches remain4 until that last launch. No new
-migration application, merge or activation is authorized. Real provider lifecycle
-rehearsal and launch scheduler/alert policy remain later acceptance gates.
+The fixture batch and final integration review completed: five reviewer launches
+and two correction batches. Final reviewed source `25f12dfd` passed all five CI
+gates in run37019461972, including the browser matrix and concurrent Stripe
+binding/webhook regression. PR #1429 then required synchronization with newer
+main `a6c23954`; local merge preview was clean although GitHub reported conflicts.
+The owner approved one main sync, one20-minute targeted review, fresh stable-SHA
+CI and merge on green at16:52:17UTC (review deadline17:12:17UTC). The rebase is
+clean; billing source, fixtures, generated types and installed228 remain
+byte-identical. This is the third correction/sync batch; one sixth reviewer
+launch is authorized. Required local checks, targeted sync review and fresh CI
+precede the authorized merge. No new migration application or activation is
+authorized. Real provider lifecycle rehearsal and launch scheduler/alert policy
+remain later acceptance gates.
 
 The following paragraphs retain the historical phase-1 rollout evidence; their
 pending statements describe that earlier slice, not current phase-2 completion.
