@@ -133,6 +133,7 @@ function gradebookResponse() {
   }
 }
 
+// GradebookTable long-roster scrolling is covered in the experience matrix browser suite.
 describe('TeacherGradebookTab', () => {
   const classroom = createMockClassroom()
   let fetchMock: ReturnType<typeof vi.fn>

@@ -7,6 +7,7 @@ import {
 } from '@playwright/test'
 import { PLANNED_COURSE_FIXTURE } from '../scripts/seed-planned-course-fixtures'
 import type { TeacherAttendanceView } from '../src/lib/teacher-attendance'
+import { LONG_ROSTER_SIZE, TABLE_CLASSROOM_ID, mockLongTeacherTable, mockTableShellReads } from './helpers/teacher-student-tables'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -1090,6 +1091,183 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
     animations: 'disabled',
   })
   await verifyProjectContract(page, testInfo)
+})
+
+test.describe('Daily scroll containment', () => {
+  test.use({ storageState: TEACHER_STORAGE })
+  for (const surface of ['fixture', 'classroom'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`contains Daily table scrolling with ${reducedMotion} motion in ${surface}`, async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await page.emulateMedia({ reducedMotion })
+        await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
+
+        await mockTableShellReads(page)
+        const classroomId = surface === 'classroom' ? TABLE_CLASSROOM_ID : ATTENDANCE_FIXTURE_CLASSROOM_ID
+        const logs = Array.from({ length: 45 }, (_, index) => ({
+          student_id: `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+          student_email: `student${index + 1}@example.com`,
+          student_first_name: `Student ${String(index + 1).padStart(2, '0')}`,
+          student_last_name: `Alpha${String(index + 1).padStart(2, '0')}`,
+          entry: null,
+          history_preview: [],
+        }))
+        await page.route(`**/api/classrooms/${classroomId}/class-days`, (route) =>
+          route.fulfill({ json: { class_days: [{
+            id: '50000000-0000-4000-8000-000000000001',
+            classroom_id: classroomId,
+            date: '2026-08-29',
+            prompt_text: null,
+            is_class_day: true,
+          }] } }),
+        )
+        await page.route('**/api/teacher/logs?**', (route) => route.fulfill({ json: { logs } }))
+        await page.route('**/api/teacher/student-history?**', (route) =>
+          route.fulfill({ json: { entries: [] } }),
+        )
+        await page.route('**/api/teacher/log-summary?**', (route) =>
+          route.fulfill({ json: { summary_status: 'no_logs', summary: null } }),
+        )
+        await page.route('**/api/teacher/attendance/policy?**', (route) =>
+          route.fulfill({ json: { policy: null } }),
+        )
+        await page.route('**/api/teacher/attendance/session?**', (route) => route.fulfill({ json: {
+          classroomId,
+          classDate: '2026-08-29',
+          integration: 'not_configured',
+          session: {
+            state: 'not_scheduled', opensAt: null, closesAt: null,
+            sessionStartsAt: null, sessionEndsAt: null, presentThroughAt: null, absentAt: null,
+            revision: null, pendingCommand: false, commandFailed: false,
+          },
+          sync: { state: 'unavailable', confirmedAt: null },
+          students: [],
+        } }))
+        await page.goto(surface === 'classroom'
+          ? '/e2e-fixtures/teacher-student-tables?tab=daily'
+          : '/e2e-fixtures/teacher-daily-attendance')
+        const scrollPane = page.getByTestId('daily-student-scroll-pane')
+        await expect(scrollPane.getByRole('row')).toHaveCount(logs.length + 1)
+        if (surface === 'fixture') {
+          await expect(scrollPane.getByText('No QR check-in', { exact: true })).toHaveCount(logs.length)
+        }
+
+        async function verifyScrollContainment(state: 'table' | 'selected') {
+          await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height + 1)
+          // Selection restores remembered scroll in a layout effect; scroll after it settles.
+          await expect.poll(() => scrollPane.evaluate((element) => {
+            element.scrollTop = element.scrollHeight
+            return element.scrollTop
+          })).toBeGreaterThan(0)
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height + 1)
+          await expect.poll(() => scrollPane.evaluate((element) => {
+            const head = element.querySelector('thead')!
+            return Math.abs(head.getBoundingClientRect().y - element.getBoundingClientRect().y)
+          })).toBeLessThanOrEqual(1)
+          const paneBox = await scrollPane.boundingBox()
+          // Scrolling beyond the table must not reveal blank document space.
+          await page.mouse.move(paneBox!.x + paneBox!.width / 2, paneBox!.y + paneBox!.height / 2)
+          await page.mouse.wheel(0, 1000)
+          await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+          const { theme, viewport } = getExperienceMetadata(testInfo)
+          await page.screenshot({
+            path: testInfo.outputPath(`daily-scroll-${surface}-${viewport}-${theme}-${reducedMotion}-${state}.png`),
+            animations: 'disabled',
+          })
+        }
+
+        await verifyScrollContainment('table')
+        await scrollPane.evaluate((element) => { element.scrollTop = 0 })
+        await page.getByRole('cell', { name: 'Student 01', exact: true }).click()
+        await expect(page.getByTestId('daily-selected-student-workspace')).toBeVisible()
+        await verifyScrollContainment('selected')
+      })
+    }
+  }
+})
+
+test.describe('Teacher student-table scroll containment', () => {
+  test.use({ storageState: TEACHER_STORAGE })
+  for (const surface of ['roster', 'gradebook', 'assignment', 'test', 'attendance'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`contains long ${surface} student tables with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await page.emulateMedia({ reducedMotion })
+        const classroomId = TABLE_CLASSROOM_ID
+        await page.clock.setFixedTime(new Date('2026-08-17T15:00:00Z'))
+        await mockTableShellReads(page)
+        const { route, pane } = await mockLongTeacherTable(page, surface, classroomId)
+        await page.goto(surface === 'attendance' ? route : `/e2e-fixtures/teacher-student-tables?${route.split('?')[1]}`)
+        const { viewport } = getExperienceMetadata(testInfo)
+        // Narrow Gradebook replaces the roster with a student selector and assessment panel.
+        if (surface === 'gradebook' && viewport === 'mobile') {
+          const selector = page.getByRole('combobox', { name: 'Student' })
+          await expect(selector.locator('option')).toHaveCount(LONG_ROSTER_SIZE + 1)
+          await selector.selectOption({ label: 'Student 45 Alpha45' })
+          await expect(page.getByRole('region', { name: 'Student 45 Alpha45 assessment details' })).toBeVisible()
+          await page.screenshot({ path: testInfo.outputPath(`long-${surface}-${reducedMotion}-selector.png`), animations: 'disabled' })
+          return
+        }
+        const scrollPane = page.getByTestId(pane)
+        await expect.poll(() => scrollPane.getByRole('row').count()).toBeGreaterThanOrEqual(LONG_ROSTER_SIZE + 1)
+        async function verifyContainment(state: string) {
+          await expect.poll(() => scrollPane.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(page.viewportSize()!.height + 1)
+          await expect.poll(() => scrollPane.evaluate(async element => {
+            element.scrollTop = element.scrollHeight
+            await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+            return Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop)
+          })).toBeLessThanOrEqual(1)
+          // Roster and assignments have regular headers; preserve the other sticky headers.
+          if (surface === 'gradebook' || surface === 'test' || surface === 'attendance') {
+            await expect.poll(() => scrollPane.evaluate(element => {
+              return Math.abs(element.querySelector('thead')!.getBoundingClientRect().y - element.getBoundingClientRect().y)
+            })).toBeLessThanOrEqual(surface === 'gradebook' ? 2 : 1)
+          }
+          const box = await scrollPane.boundingBox()
+          await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2)
+          await page.mouse.wheel(0, 1000)
+          await scrollPane.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+          await page.mouse.move(1, 1)
+          await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+          await expect(scrollPane.getByText('Alpha45', { exact: true }).first()).toBeInViewport()
+          await page.screenshot({ path: testInfo.outputPath(`long-${surface}-${reducedMotion}-${state}.png`), animations: 'disabled' })
+        }
+        await verifyContainment('table')
+        await scrollPane.evaluate(element => { element.scrollTop = 0 })
+        if (surface === 'roster' || surface === 'attendance') {
+          await scrollPane.getByRole('checkbox').nth(1).check()
+        } else {
+          await scrollPane.getByText('Student 01', { exact: true }).first().click()
+        }
+        await verifyContainment('selected')
+        if (surface === 'assignment' || surface === 'test') {
+          // A selected inspector must leave enough table space to browse several students.
+          await expect.poll(() => scrollPane.evaluate(element => element.clientHeight)).toBeGreaterThanOrEqual(120)
+        }
+        if (surface === 'assignment') {
+          const sendComment = page.getByTestId('grading-inspector-pane').getByRole('button', { name: 'Send comment', exact: true })
+          await sendComment.scrollIntoViewIfNeeded()
+          await expect(sendComment).toBeInViewport()
+          await expect(scrollPane.getByText('Alpha45', { exact: true }).first()).toBeInViewport()
+          await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+          await page.screenshot({ path: testInfo.outputPath(`long-assignment-${reducedMotion}-inspector-scrolled.png`), animations: 'disabled' })
+        }
+      })
+    }
+  }
+})
+
+test('preserves student Daily layout with long past logs', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-17T15:00:00Z'))
+  await mockTableShellReads(page, 'student')
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=today')
+  await expect(page.getByRole('heading', { name: 'Past logs' })).toBeVisible()
+  await expect(page.getByText('Past daily log 1', { exact: true })).toBeVisible()
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('student-daily-long-history.png'), animations: 'disabled' })
 })
 
 test('shows manual attendance marks optimistically', async ({ page }, testInfo) => {
@@ -2956,6 +3134,7 @@ test.describe('student experience matrix', () => {
     await expect(page.getByRole('heading', { name: 'Past logs' })).toBeVisible()
     await verifyActiveClassroomTab(page, testInfo, 'Daily')
     await verifyProjectContract(page, testInfo)
+    await page.screenshot({ path: testInfo.outputPath('student-today.png'), animations: 'disabled' })
   })
 
   test('reads the Course Guide as a clean in-Pika document', async ({ page }, testInfo) => {

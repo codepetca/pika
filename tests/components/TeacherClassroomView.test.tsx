@@ -654,6 +654,7 @@ function getSelectedStudentAction(
   return screen.getByRole('menuitem', { name: new RegExp(`^${name}`) })
 }
 
+// Assignment table scroll containment is covered in the experience matrix browser suite.
 describe('TeacherClassroomView', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())

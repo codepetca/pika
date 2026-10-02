@@ -242,6 +242,21 @@ jobs:
       - name: Verify contextual Daily Log concurrent access and revisions
         run: node scripts/check-contextual-daily-log-save-concurrency.mjs
 
+      - name: Verify contextual Daily Log joined reads and revocation
+        run: pnpm exec tsx scripts/check-contextual-daily-log-read.ts
+
+      - name: Verify contextual lesson-plan reads and current relationship visibility
+        run: pnpm exec tsx scripts/check-contextual-lesson-plan-read.ts
+
+      - name: Verify contextual teacher Daily Log reads and current ownership
+        run: pnpm exec tsx scripts/check-contextual-teacher-daily-read.ts
+
+      - name: Verify contextual teacher Daily roster logs and previews
+        run: pnpm exec tsx scripts/check-contextual-teacher-daily-logs.ts
+
+      - name: Verify contextual teacher cached Daily summaries and current ownership
+        run: pnpm exec tsx scripts/check-contextual-teacher-daily-summary.ts
+
       - name: Verify contextual learner assignment submit and unsubmit atomicity
         run: bash scripts/check-contextual-assignment-doc-submission-database.sh
 

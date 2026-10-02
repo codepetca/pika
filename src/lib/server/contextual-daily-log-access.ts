@@ -16,8 +16,8 @@ export type ContextualDailyLogAccess =
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
 
 /**
- * Dormant shared-admission guard for Daily Log writes. GET remains on its
- * existing legacy authorization path. Contextual actors must be active members;
+ * Dormant shared-admission guard for Daily Log writes. GET uses its separate
+ * contextual read adapter. Contextual actors must be active members;
  * an owner relationship always wins over any redundant enrollment row.
  */
 export async function authorizeContextualDailyLogRequest(

@@ -11,49 +11,24 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Teacher Test split-pane scrollbar parity
+## 2026-09-25 — Test reference image production promotion
 
-Applied the existing assignment `scrollbar-hover` utility to the teacher Test grading student table and selected-student inspector. Both panes retain independent scrolling; the visible inspector scrollbar is hidden at rest, matching assignments. Local seeded teacher browser verification covered selected desktop light/dark and mobile light/dark, with the student mobile route checked for regression. The desktop page stayed at viewport height while the inspector scrolled; no horizontal overflow appeared on mobile. Focused checks passed 221 tests plus architecture, UI/design policy, TypeScript, and lint. Risk profile: none. Model recommendation: GPT-6 Sol for this localized UI change.
+- User authorized deploying merged PNG/JPEG test reference attachments from main PR #1355. Production migration 208 was applied and verified before the app promotion: the private test-documents bucket permits image/png and image/jpeg, retains its 25 MB limit, and migration history matches through 208.
+- Draft production PR #1359 batches the reviewed image feature, account-plan documentation, and title-editor PR #1358, which joined main during promotion preparation. The promotion merge preserves both branch histories; its only conflict was archive bookkeeping. The runtime source tree matches main commit 74648fd8. Cumulative promotion review and PR Gate precede merge.
 
-## 2026-09-29 — Teacher Test question review formatting
+## 2026-09-27 — Main production promotion
 
-Changed the selected-student Test grading question comment placeholder from `Comment (optional)` to `Comment`. Coding open responses now use the existing `response_monospace` results field to show a Code label and a monospace, indentation-preserving response block with internal horizontal scroll; prose open responses retain their styling. No scoring or autosave behavior changed. Rebasing draft PR #1391 onto the latest main resolved the session archive marker conflict while retaining both log entries. Focused checks passed 234 tests plus architecture, UI/design policy, TypeScript, and lint. The owner visually verified the selected teacher pane and accepted the result. Risk profile: none. Model recommendation: GPT-6 Sol for the localized teacher UI change.
+- Owner authorized main-to-production release PR1369. Batch main402f8028 contains admin prototype, local-only Stripe foundation, subscription policy and compact Gradebook changes. Reconciled only CURRENT and journal history conflicts, preserving both histories. Fresh production read confirms migrations206–210 and strict automatic Free signup active for183 classified accounts. No migration or feature switch changed.
+- Risk runtime-platform. One independent Sol security and Terra compatibility wave; local focused verification and final reviewed-head CI precede merge. Billing/admin and maximum-edit activation remain separate gates.
 
-## 2026-09-29 — MC choice corrections after Test Start
+## 2026-09-27 — Deploy reference-preservation fix
 
-Allowed teachers to edit existing multiple-choice option text after the first student Start while keeping question identity/count, option count, marked answer, points, grading and response settings locked. Updated teacher editor, draft-save policy, database trigger migration 219, notices and authoring guidance. Focused route, component, policy and migration tests pass; teacher/student preview was inspected on desktop/mobile in light/dark, and an edited choice appeared in the student view. Draft PR #1392 received independent security and compatibility review. First remediation limited post-Start saves to one changed MC choice string per question, rejected direct reorder/multi-choice replacements, and added API plus rollback-only database contract cases to the existing CI harness. Targeted review identified a non-text JSON choice gap; second remediation rejects non-text replacements and clarifies the per-question scope. Final integration review identified a quick-edit autosave merge; third remediation immediately saves each choice correction, briefly disables the other choice inputs, and restores prior text on save failure. Targeted review then found a queued title save could revive failed choice text; the user approved a fourth batch, which rebases queued saves on the prior option text. Its targeted review found a Markdown edit to a second choice could prevent rollback; fifth batch restores only the failed option index and rebuilds queued Markdown source. Migration 219 was applied to local with one-time user authorization and its rollback-only database harness passed. Local generated-types check still fails on unrelated course blueprint/daily-log drift. Students already in the Test retain loaded wording until reload. Risk profiles: workspace-state and exam-mode, with database concurrency/rollout risk. Model recommendation: GPT-6 Sol for the feature owner and GPT-5.6 Sol/Terra for independent migration and compatibility review.
+User authorized production release of the merged fix. PR1373 promotes reviewed main6650e76a, including default-off checkout foundation PR1368 and reference-preservation PR1370. Independent Sol safety and Terra compatibility reviews found no application blockers; resolved continuity archive conflict by retaining both histories, with application/schema blobs unchanged. No migrations, billing flags, provider configuration, or worker scheduling are authorized or performed. Exact-head release CI and Vercel readiness precede completion.
 
-Final review found that a failed-choice rollback marker persisted into a later valid retry. The owner approved a sixth correction without another independent reviewer. Rollback now applies only to saves queued during the failure, and the integration test covers retrying the same option text after the queue settles. Focused checks pass 499 tests plus architecture, UI/design policy, TypeScript, and lint. Exact-head CI and merge remain pending.
+## 2026-09-27 — Promote seven main PRs to production
 
-After background test grading took migration number 219 on main, rebased the PR branch and renamed this feature's migration to 220. The local database had already recorded the earlier 219 choice migration; its history was not altered. The PR remains draft because CI also found a separate shared-trigger failure on student availability inserts.
-
-After the other task reset and reseeded local through main's 219, corrected migration 220's shared trigger so question-only option fields are evaluated only for question updates. Added an availability insert to the rollback-only Test editing contract and verified both it and the CI-failing removed-student contract against migration 220 inside separate rollback transactions. Local migration history and seeded data remain unchanged; exact-head CI is pending.
-
-## 2026-09-29 — Hide unreleased assessments in Gradebook
-
-Added a default-on, persisted More actions option to hide draft Assignment and Test columns from the teacher Gradebook table, student detail panel, and CSV export. The Pattern Lab fixture now includes both draft types. Focused checks passed 299 tests plus architecture, UI/design policy, TypeScript, and lint; Playwright confirmed the checked menu and draft-column toggle in desktop/mobile light/dark views. Risk profile: none. Model recommendation: GPT-6 Sol for this localized Gradebook UI change.
-
-## 2026-09-29 — Classroom Blueprint tab
-
-Added a teacher-only Blueprint item to the existing classroom sidebar and a content pane for that classroom's saved Blueprint Version. The pane shows course outline, assignment and test titles, and private authoring guidance, with loading, retry, and unlinked-classroom states. It reads the existing ownership-checked frozen Version endpoint; later edits to the source Draft do not silently change the classroom. Student navigation excludes the tab and direct student URLs return to Daily. Teacher desktop/mobile light/dark views, a populated Version fixture, and student desktop/mobile navigation were visually checked. Focused checks passed 3,488 tests plus architecture, UI/design policy, TypeScript, and lint. PR #1387 is draft during review; migrations 218/219 remain unapplied locally.
-
-The independent cumulative review found no blockers. After a documentation-only rebase onto current main, exact-head CI passed Test & Build and database contracts but the browser gate found four outdated Pattern Lab snapshots: the shared classroom navigation catalog now includes Blueprint. Updated the four Linux baselines from deterministic CI actuals and the four Darwin baselines from the local Pattern Lab runner; all four focused visual cases pass without snapshot update mode. The three other browser retries were flaky and passed. PR remains draft for the snapshot correction and new exact-head CI.
-
-Main advanced with a separate test-grading migration numbered 219 before the snapshot correction's ready run. Rebased the classroom branch and resequenced its additive provenance migration to 220; the source SQL remains unchanged. The latest PR head must pass clean migration replay, generated type checks, browser matrix, and PR Gate. Neither feature migration has been applied to the shared local database.
-
-The 220 Test editing migration merged into main during the next exact-head CI run. That CI passed Test & Build, database contracts, Browser Experience Matrix, and PR Gate, but the PR became conflicting. Rebased again and resequenced the classroom provenance migration to 221, still with identical SQL. The first focused run hit an unrelated Pal timing failure that passed in isolation; the full rerun passed 3,495 tests plus architecture, UI/design policy, TypeScript, and lint. The branch awaits another stable exact-head gate; local migration history remains untouched.
-
-## 2026-09-29 — Classroom Blueprint Settings-style navigation
-
-Changed the teacher classroom Blueprint sidebar icon to Lucide Factory and moved Overview, Content, and Authoring Guidance into the Settings-style segmented control at the top of the pane. Section choice now follows the classroom URL, so refresh and browser navigation retain it. The control remains visible through loading and unlinked-Version states. Teacher desktop/mobile light/dark and populated-Version views were visually checked; direct student navigation still resolves to Daily without Blueprint. Focused checks passed 3,503 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. The composite widget checklist was reviewed: the shared control supplies arrow-key focus behavior, while tests cover the group label and pressed state. Updated the four Darwin Pattern Lab snapshots locally and the four Linux snapshots from deterministic CI actuals; the four local visual cases pass without update mode. CI at e7fb6d4c passed build, database, browser, and PR Gate. After main advanced with Gradebook changes, rebased without application-code changes and passed 3,505 focused tests plus all static gates. The rebased head needs exact-head CI. Risk profile: none. Model recommendation: GPT-6 Sol for this localized UI change.
-
-## 2026-09-29 — Stacked test diagrams and course guidance check
-
-Replaced the test-authoring guide’s side-by-side transformation rule with vertically stacked generated diagrams: starting state above ending state, clear labels, and reference-pane legibility. Read-only production inspection of ICS3U-4 found Draft revision 3 / latest Version 3 on the legacy Blueprint page, without Authoring Guidance controls. The earlier populated classroom screenshots used sample fixture guidance, not saved ICS3U rules. Production export verification was interrupted; no course guidance, classroom Version link, quiz image, or database change was made. Classroom implementation resolves guidance from the linked immutable Version, so editing the source Draft alone cannot update an existing classroom. Focused checks pass 3,505 tests (7 skipped), architecture, UI/design policies, TypeScript and lint; diff and session-log validation pass. PR1387 remains draft; its existing eight-reviewer session cap remains in effect.
-
-## 2026-09-29 — Resume Blueprint rollout orchestration
-
-User authorized completion through release and actual ICS3U guidance. Rebased PR1387 onto main27ddf09a; resolved continuity duplicates and regenerated combined Pattern Lab snapshots on Darwin and Linux. Focused checks pass3,507tests/7skipped and all static gates; eight snapshot cases pass without update mode. Verified production through220, empty Pika-managed ICS3U-4 Draft guidance, and P3/P5 frozenVersion3 with no guidance. P5 has1untrackedtest; P3has1untrackedtest/1lesson, so existing full classroom update is blocked. Sol read-only subagent identified adoption seams; coordinator requires separate guidance binding to preserve copied-artifact Version identity. Prepared exact course rules in ignored output/rollout/ics3u-authoring-guidance.md. Updated the single roadmap with the necessary guidance-only adoption phase. Specific approval to exceed the prior eight-reviewer cap is pending; no new PR reviewer, migration, course save, or deployment ran.
+- Owner authorized PR1379 to promote main4d0c4474 over production6904c2ed. The batch includes contextual Assignment image/owner safeguards, billing webhook scope checks, dormant classroom admission, PDF references, fullscreen clock, Test reference pane fixes, and paused Pal UI CI.
+- Production diverged only in continuity notes. Resolved CURRENT to the newer main status and retained four unique production promotion records in the journal; application and migration files match main. No migration, account, feature-flag, or provider configuration is changed by the PR. Risk profile: runtime-platform. Model recommendation: GPT-6 Sol — release coordination and conflict reconciliation. Independent cumulative review and full CI gate are required before merge.
 
 ## 2026-09-29 — Blueprint canonical CI screenshot correction
 
@@ -83,18 +58,6 @@ Added browser visibility guards and Today activity wiring while preserving the m
 ## 2026-09-29 — Merge classroom Blueprint and complete adoption review
 
 PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-approved tenth targeted review and exact-head CI36659661703. One existing assignment-editor test load-timing race passed on the unchanged-candidate rerun; all final lanes and PR Gate passed. Adoption PR1396 security/compatibility review accepted two findings, corrected together; targeted security and final integration passed at5b399e3b. Rebased its three adoption commits onto merged main; conflicts were duplicate archive entries already preserved verbatim. Source/test/migration patch ID remains397b1e4f. Required focused checks and final CI follow. Production preflight through220 previews exactly221/222; direct named migration approval requested but not received. Actual course guidance remains unsaved/unadopted.
-
-## 2026-09-29 — Test grading status order
-
-The selected Test grading roster now toggles its Status header between Submitted → Returned → Not submitted and the reverse. Not submitted groups the API's Not started, In progress, and Closed for grading states while preserving each row's exact label. Follow-up: each group control now shows its status icon beside the total student count; the Not submitted control counts all three underlying states, and Pattern Lab documents the grouping. Focused checks passed 256 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright passed the selected-roster scenario in desktop/mobile and light/dark, including both sort orders and mobile visibility of the status controls. Pattern Lab snapshot baselines were visually reviewed and regenerated for desktop/mobile light/dark on macOS and Linux. Composite-widget checklist reviewed: keyboard and semantic state covered by component tests; no manual follow-up. Risk profile: none. Model recommendation: GPT-5.6 Terra high for a bounded UI behavior review.
-
-## 2026-09-29 — Test grading single status header
-
-Refined the selected Test grading Status header to show one icon and student count at a time. It cycles Submitted, Returned, and Not submitted, with tooltips and accessible names identifying the current group; the Submitted and Not submitted positions retain the requested forward and reverse orders. The column is narrower, and old saved widths use a new storage key. Focused checks passed 256 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright passed the teacher roster in desktop/mobile light/dark, including the tooltip and all three sort positions. Pattern Lab's single-control example and macOS baselines were visually reviewed. Linux desktop/mobile light/dark baselines were updated from CI captures after all twelve original and retry captures matched byte-for-byte within each variant; the light desktop and dark mobile captures were inspected. Exact-head CI remains pending. Student view is n/a because the roster is teacher-only. Composite-widget checklist reviewed: keyboard and semantic state covered by tests; no manual follow-up. Risk profile: none. Model recommendation: GPT-6 Sol for a localized UI interaction.
-
-## 2026-09-29 — Test grading two-state status header
-
-Owner narrowed the selected Test grading Status sort to Submitted and Returned. The one-icon/count control now alternates between those two groups; Not started, In progress, and Closed for grading stay visible after them in both orders. Pattern Lab and semantic/browser tests cover the two states. Focused checks passed 256 tests plus architecture, UI/design policy, TypeScript, and lint; Pika audit passed. Playwright passed the teacher roster in desktop/mobile light/dark; the changed macOS Pattern Lab references and roster screenshots were reviewed. Linux Pattern Lab desktop/mobile light/dark references were inspected and updated from twelve stable CI captures; their differences are confined to the revised example copy. Independent review found no blockers in the two-state behavior. Final CI remains pending. Student view is n/a because the roster is teacher-only. Composite-widget checklist reviewed: keyboard and semantic state covered by tests; no manual follow-up. Risk profile: none. Model recommendation: GPT-6 Sol for a localized UI interaction.
 
 ## 2026-09-29 — Promote polling and pending main changes
 
@@ -242,6 +205,139 @@ The owner created the reviewed Pika-only 90-day scoped token and saved GitHub mi
 - Recorded the owner-authorized application of exactly 224 and 225 on production: GitHub run https://github.com/codepetca/pika/actions/runs/36869449834 passed in 39 seconds with `applied-verified`, source `658ee5f5366c59b4d59b56c18a28dd64442b84d8`, CI proof `36862441326` and verified history count 225. Independent read-only checks matched the exact 225 function body and service-only execution grants. No rollout flag activation or application promotion occurred.
 - Updated CURRENT with the verified production state. Skill validation and all 91 documentation/workflow contract tests passed; independent review and final CI are pending. No runtime, migration SQL, credentials or workflow controls are changed by this PR.
 
+## 2026-10-01 — Dormant contextual learner Daily Log reads
+
+Owner approved the next Daily read slice. Learner GET now consumes the existing shared admission for classroom and broad history; legacy requests remain unchanged. A single joined entry/classroom/enrollment statement binds own identity, active membership and non-owner status; validated rows strip relationship metadata. Unit/API tests pass78 including existing writes and legacy reads. Real local PostgREST proves both account-role values, own-entry isolation, owner precedence, outsider denial and removal/archive committing between preflight and SELECT; all synthetic fixtures removed. Added this contract to ephemeral CI. No schema application, UI, signup, account grant, flag activation or production change. Teacher Daily reads remain next. Risk: runtime-platform. Independent review and stable-head CI remain pending; model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility (Terra unavailable).
+
+## 2026-10-01 — Orchestrate contextual teacher Daily reads
+
+Owner requested orchestration of the remaining five batches, retaining this coordinator and the separate billing/UI owners. Learner PR1418 is merged in main at6c44c254 after two clean reviews and all exact-head CI36901168889 gates passed; no promotion or activation. A bounded source investigation selected teacher entry drill-down and learner history before roster-wide logs/previews and cached summaries. One worker implements only the two routes, helper and focused tests; coordinator owns roadmap, documentation, local PostgREST harness and CI wiring. Same-statement owner evidence governs drill-down; history also joins current target enrollment at the entry read, preserving legacy and archived-owner behavior. Real local checks pass both role values, projection/date isolation, removal/transfer races and exact synthetic cleanup. A separate startup/workflow run has fixture timeouts under host load; canonical focused validation and independent stable-SHA review remain required. No migration, UI, account grant, billing, rollout configuration or production change. Risk: runtime-platform; review risk high. Model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility fallback (Terra unavailable).
+
+Resumed from preserved files after interruption; no worker remained active. Coordinator reproduced the non-owner 503/403 ordering defect with two failing regressions and corrected it before publication. Targeted unit/API and unchanged legacy suites now pass40tests; real PostgREST contract passes again, including archived reads and post-preflight removal/ownership transfer, with cleanup verified. Canonical focused checks and independent review remain pending; no production change.
+
+## 2026-10-01 — Contextual teacher Daily reads merged; roster logs next
+
+PR1420 merged main at3cf01b06 after four bounded independent review launches and one correction batch: joined learner identity/projection and rejected history errors. Final44targeted/135focused tests, static checks and real PostgREST contract passed; exact-head CI36936773832 passed all gates atreviewed5d795bb0. CI took1547run seconds plus3queue seconds. No production, schema, cohort or account change. Hub fast-forwarded and only this slice's finished implementation/four review worktrees cleaned; Git history preserves their contents.
+
+Next worktree codex/contextual-teacher-daily-logs starts from3cf01b06. A bounded read-only proposal plus coordinator schema/SDK checks and a zero-result local PostgREST syntax probe selected enrollment-rooted nested profiles/selected entries/previews; no migration or N+1 fallback. One worker owns helper/route/input and TDD tests; coordinator owns real1001learner/seven-entry fixture contract, CI wiring and docs. Actual per-learner limits, projection, keyset pagination, current membership/owner races and cleanup remain acceptance gates; syntax alone proves none of them. Shared admission remains off; cached summary is next. Risk runtime-platform; high-risk independent review models GPT-5.6 Sol/high security and GPT-6 Sol/high compatibility fallback (Terra unavailable).
+
+Worker completed23focused tests plus TypeScript, architecture and ESLint. Real PostgREST passes every1001learner/pagination/projection/profile/date/archive/denial/removal/transfer contract with exactcleanup. First harness attempt tried to resurrect a closed membership generation; its cleanup passed, fixture rejoin now uses a new enrollment UUID as required by the existing Pal lifecycle, and the rerun is green. No product change or weakened trigger was needed. Canonical focused verification, independent review and exact-head CI remain pending.
+
+## 2026-10-01 Teacher Daily logs review corrections
+
+PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
+correction validates malformed query envelopes and catches builder failures as
+generic 503 (five TDD regressions); both teacher Daily local harnesses now retain
+exact entitlement operation IDs and assert live-state/audit cleanup. Removed only
+six identified synthetic logs-harness audit rows from local, retaining a private
+recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
+119 focused tests and static checks pass. Targeted/final review pending. No
+production, migration, cohort, plan or UI change; summary read remains next.
+
+## 2026-10-01 — Dormant teacher cached Daily summary implementation
+
+While independently reviewed roster-logs PR1421 runs CI, a separate worktree
+codex/contextual-teacher-daily-summary starts from merged1420 actor admission.
+Worker owns only summary route/helper/schema and unit/API tests; coordinator owns
+local fixtures/CI/docs/Git. Every stats/count/cache statement binds current owner,
+classroom and date; existing ready/pending/no_entries/unavailable semantics and
+name restoration remain. Owner caught result-envelope validation gaps before
+initial review; ten TDD regressions now fail closed. 62 targeted/153 focused tests
+and all static checks pass; real local PostgREST verifies both owner role values,
+cache states/isolation, archived owner and transfers before all three reads, with
+exact fixture/audit cleanup. Independent review and final main reconciliation
+pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
+No AI, billing, migration, UI, cohort activation or production change.
+
+## 2026-10-01 — Roster logs merged; cached summary review corrections
+
+PR1421 merged main e87d322a after four independent reviews, one correction batch,
+119 focused tests/static checks, real1001-learner database checks and every exact
+head CI36940960454 gate at5adf5905. Hub is synchronized; no production activation.
+PR1422 initial reviews at6f255b32 accepted microsecond freshness loss and unresolved
+name-map warning suppression. One batch preserves full timestamp precision and
+requires nonblank own map references before restoration (14 new tests,11 red).
+76 targeted/167 focused tests and real PostgreSQL microsecond/map/race/cleanup
+cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
+application source has no rebase conflicts and no migration was renumbered.
+Targeted security and final integration review remain pending. No AI, schema,
+cohort, UI, billing or production change; lesson-plan list reads follow.
+
+## 2026-10-01 — Daily outer-scroll investigation
+
+- User clarified the defect: Daily's whole page scrolls vertically into blank space below the table, in wide and narrow windows; only the table should scroll.
+- Read-only local investigation in app-managed worktree `daily-scroll-containment`; startup verification passed. With 80 mocked roster rows and the full classroom shell, Chromium1440×900 keeps document900px and table578px;1000/390px widths grow document3326px and table3004px because AppShell confinement is desktop-only. Exact wide-window blank-space symptom remains unreproduced; awaiting clarification about table-end versus outside-table scrolling. Product source unchanged.
+- Debug screenshots `/tmp/pika-daily-summary-{1440,1000,390}.png`; reference historical PR775/test-pane overflow and PR578/student-scroll persistence. Automatic DeepSeek delegation paused through2026-12-31 per shared pilot record.
+
+## 2026-10-01 — Daily blank-space cause confirmed in Chrome
+
+- Inspected user's existing production Daily tab read-only. At1152×608, body/AppShell608px but document953px and page scrollY300px, with the table independently scrolled551px. Hidden `No QR check-in` spans in Check-in cells extend to document953px because every ancestor through the scroller is statically positioned.
+- User has reduced motion enabled: Daily entry animation/transform is disabled. The animation otherwise incidentally creates a containing block, explaining why local default-motion screenshots missed the desktop defect. Containment should be explicit for screen-reader labels in both Daily table modes; retain their accessible text. Narrow shell-height issue from earlier investigation is separate.
+- Product source unchanged. Next implementation: regression with reduced-motion and missing check-ins, explicit local positioned containment, compare default/selected Daily states and wide/narrow viewports.
+
+## 2026-10-01 — Daily scroll containment fix
+
+- Made both teacher Daily roster scrollers positioned containers so hidden check-in labels remain inside the table without depending on animation transforms. Added an AppShell narrow-viewport opt-in used only by teacher Daily; reused the Daily/TeacherWorkspaceSplit composition and `/pattern-lab` Daily reference. No new visual pattern or data behavior.
+- Browser regression failed before the fix (reduced-motion document1455px for a900px viewport). Final Playwright matrix passes20: teacher fixture/full classroom, selected/unselected, normal/reduced motion,1440×900/390×844, light/dark; student Daily regression/screenshots pass all4 projects. Exact user-size1152×608 reduced-motion smoke keeps document608px and context bar56px before/after table-end wheel scrolling. Screenshots inspected in `test-results/` and `/tmp/pika-daily-exact-classroom.png`.
+- Focused gate passes223 tests plus architecture, UI/design policy, TypeScript and lint; audit/diff checks pass. An earlier concurrent run timed out two unrelated startup-doc harness tests; serial rerun passes. Risk profile:none. Independent review and final PR CI pending; use one GPT-5.6 Sol/high behavior reviewer because Terra is unavailable. DeepSeek pilot remains paused.
+
+## 2026-10-01 — Contain long student tables across classroom workspaces
+
+Extended the Daily scroll fix to Roster and assignment/test grading, including Tests before student selection. Teacher table workspaces now keep the narrow shell within the viewport; Gradebook retains its existing mobile selector flow. Explicit containing blocks keep hidden row labels inside table scrollers, and vertical gesture containment prevents viewport bounce at the last row. The shared gapped split gives stacked table/inspector panes available height so an open Assignment inspector cannot squeeze the table to one row. Existing Pattern Lab Roster, Gradebook and Workspaces owners are reused; no new UI pattern. Added a strictly development-only full ClassroomPageClient fixture with synthetic identities and mocked read-only data. Production API authorization is unchanged. All 60 teacher/student light/dark desktop/mobile and normal/reduced-motion browser cases pass; 18 additional reduced-motion checks pass at 1152x608, 1000x608 and 390x608. Checks cover last-row reachability, selected states, sticky headers where present, usable table height and inspector bottom controls. Screenshots visually reviewed under ignored artifacts/scroll-audit. Focused checks pass 581 tests in 37 files, architecture, UI/design policy, TypeScript and lint. Legacy teacher dashboard was inspected in source: its normal page flow contains actual content, without the hidden-label empty-tail mechanism. Local authenticated backend verification was unavailable because shared local Pika PostgreSQL was unhealthy; no database changes were made. PR1419 remains draft for expanded independent review. Risk: standard UI behavior; model recommendation: GPT-6 Sol.
+
+## 2026-10-01 — Selected Workspaces reference containment
+
+An extra selected-state Pattern Lab capture after the clean expanded review exposed an unbounded gallery canvas and missing flex display on its active Students panel. Reused the existing h-96 preview size as a bounded canvas for Students, leaving inactive panels hidden and summary/overview sizing unchanged. The shared production split remains unchanged. Browser coverage verifies both panes retain usable height, the last student and inspector content are reachable, and the hidden panel stays hidden. All four desktop/mobile light/dark reference cases pass and screenshots are inspected. Focused checks still pass 581 tests in 37 files plus policy, architecture, TypeScript and lint. PR1419 returned to draft and its previous ready CI was cancelled before this first remediation batch; targeted and final integration review remain pending.
+
+## 2026-10-01 — Approved scrolling PR main synchronization
+
+PR1419 at d03d91f2 passed independent cumulative, targeted and final integration reviews and exact-head CI36938870903, including Test & Build, Browser Experience Matrix and PR Gate. Main advanced during CI, creating archive marker conflicts. Owner approved one bounded main sync, one additional compatibility review and fresh CI. Rebased onto e87d322a, incorporating contextual teacher Daily entry/history and roster-log authorization work without changing its behavior. Resolved three duplicate archive-marker conflicts using main's markers; automated comparisons confirm all historical archive text from both tips is retained and all21 scrolling implementation/test files are byte-identical to the reviewed version. No dependencies, schema, migration application, production promotion or merge is authorized by this synchronization approval. Fresh focused checks pass581 tests/37files plus architecture, policy, TypeScript and lint; all51 incoming Daily API/server tests and four reduced-motion Daily browser cases pass. Screenshots are preserved under ignored artifacts/scroll-audit/main-sync-results. One compatibility review and new stable-head CI remain pending. Review ledger: fourth reviewer launch planned, second correction/sync batch; no broader review loop.
+
+## 2026-10-01 — Student table scrolling merge authorization
+
+Owner requested pull, conflict resolution and merge of PR1419. Rebased onto main7c0ded24 (cached Daily summary reads); archive-only conflicts retain both histories. All21 feature implementation/test blobs remain unchanged from c7a48cb1. Previous exact-head CI36944522875 passed all eligible gates. One additional bounded compatibility reviewer and fresh focused/incoming-summary checks precede fresh final CI and the authorized squash merge to main. No production promotion or database change.
+
+## 2026-10-01 — Final scrolling synchronization without archive churn
+
+Main advanced to478fd94e before the final ready event. Owner's pull/resolve/merge instruction covers this follow-up synchronization. No application conflict; all21 scrolling implementation/test files and cached-summary source remain unchanged. Retained the canonical main archive byte-for-byte and preserved this task's seven unique entries in the recent log, using the supported --keep60 setting within its60-entry cap. All historical bodies from both parents remain present; this avoids rewriting unrelated archive batches. Fresh focused and incoming lesson-plan tests, final fixed-SHA compatibility verification and exact-head CI precede the authorized main squash merge. Production promotion remains separate.
+
+## 2026-10-01 — Dormant shared lesson-plan reads
+
+Continued the authorized five-batch goal without activating it. Teacher logs1421
+is merged at e87d322a; summary1422 passed four bounded independent reviews and is
+awaiting final CI36943420208 at45cecd2a. A GPT-6 Astra/high read-only proposal plus
+coordinator source checks selected classroom-rooted plan reads with same-statement
+owner or membership/visibility evidence. One GPT-6 Sol/high worker completed only
+two GET early branches, named validation/helper and tests in the independent
+codex/contextual-lesson-plan-reads worktree. Existing exact-pair/legacy remainder
+stays unchanged.76 relevant and167 canonical focused tests/static checks pass;
+Pika audit passes7files. Real local PostgREST proves1004plans, short nonterminal
+pages, both role values, empty/out-of-window/archived reads, first/later transfer,
+removal/archive/owner-precedence races, current/terminal visibility changes and
+keyset stability after prior-row deletion; exact synthetic live/audit cleanup
+passes. One pre-publication correction aligns later revocation403 and strengthens
+unknown envelopes/content/identity regressions. Independent fixed-SHA review and
+final CI remain required; main reconciliation after1422 is pending. No migration,
+reset/reseed, hosted/account, billing, UI, write or cohort change. Risk:
+runtime-platform; high authorization/privacy review risk.
+
+Initial PR1423 compatibility review is clean atfb6feb56; security found one
+accepted P2: JSONB literal null bypasses SQL NOTNULL and was incorrectly projected.
+Unit and actual PostgREST regressions reproduced it before the one correction
+batch;77 affected tests/type/scopedlint now pass with required nonnull valid
+content. Actual DB green, targeted/final review and final CI remain acceptance
+gates. No legacy behavior, schema, migration or live configuration change.
+
+Summary1422 is now merged main at7c0ded24 after all exact-head CI36943420208
+gates (0queue/1498run seconds). Hub fast-forwarded. Lesson-plan draft1423 rebased
+onto that main, reconciling only CURRENT/roadmap/archive continuity conflicts;
+kept original archive history once and all CI harnesses, with no application
+source conflict or migration file. No stash was created or consumed. JSONB-null
+real PostgREST cases and all prior database/race/cleanup cases pass; targeted
+security re-review is clean at pre-rebase ba6ca7d7. Reconciled focused checks
+pass168tests/16files and all static gates; the five-group actual database harness
+passes again with exact cleanup. Cumulative integration review remains next.
+
 ## 2026-10-01 — Production continuity alignment for feedback release
 
 Owner authorized production deployment of the assignment AI feedback change. Promotion PR1415 initially conflicted only in AI continuity documents. Preserve both archive/session histories, production's verified001–223 receipt and main's current local repair/Daily rollout summary. Reconcile only these continuity documents in the promotion branch; runtime files remain byte-identical to reviewed main7af07f9e. Runtime, migrations, configuration and rollout gates are unchanged; no schema application or cohort activation. Independent cumulative release review and production deployment remain pending.
@@ -249,3 +345,7 @@ Owner authorized production deployment of the assignment AI feedback change. Pro
 ## 2026-10-01 — Promote Assignment AI grading confirmation
 
 Owner authorized deployment of PR1414. Promotion PR1417 includes the counted overwrite confirmation and the reviewed migration-workflow documentation from PR1416. Reconciled only CURRENT and archive continuity conflicts against production, retaining main’s verified225 receipt and both archive histories. Application source and all SQL/flags match reviewed main78bf84e4; no migration or AI grading request. Required cumulative review and full CI run on the reconciled promotion SHA before production merge. Risk profile: runtime-platform (application promotion). Model recommendation: GPT-6 for bounded coordination, DeepSeek read-only cumulative compatibility review under the standing low-usage preference.
+
+## 2026-10-01 — Promote classroom scrolling and reviewed read adapters
+
+Owner requested deployment after PR1419 merged. Promotion PR1425 batches the reviewed scrolling fix with learner/teacher Daily and lesson-plan read adapters from PR1418/1420–1423. Reconciled only the production archive/session continuity conflict, preserving all main bodies and17 production-only dated bodies. Runtime, tests, schema, dependency, Next/Vercel configuration and gates remain byte-identical to reviewed main1220d586 (the same tree as passing source CI36949840558). Production env metadata confirms PIKA_CLASSROOM_EXPERIENCE_ADMISSION, PIKA_E2E_FIXTURES and ENABLE_UI_GALLERY are absent; shared rollout stays dormant. No migration or flag change. Two independent GPT-5.6 Sol/high cumulative specialists found no code blocker, and local focused checks passed926tests/59files plus all static gates after repairing isolated installed dependencies. The reconciled fixed SHA requires final structural/history compatibility review and full exact-head CI before the authorized production PR merge and Vercel deployment. Review budget: initial2 specialists, one continuity batch, final compatibility pass next;60-minute session/30-minute reviewer limits. Risk profile: runtime-platform; release includes dormant authorization adapters.

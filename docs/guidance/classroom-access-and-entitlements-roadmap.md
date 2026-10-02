@@ -410,7 +410,9 @@ both codes. A rollback-only fault-injection contract covers the defensive branch
 PR1380 records application and final-review outcomes; these must pass before merge.
 The one-time225 approval does not authorize production. Production Daily Log
 application remains pending; no reset, reseed or production repair was performed.
-Daily reads and other batch-1 domains remain subsequent work;
+The [learner Daily Log read slice](contextual-daily-log-read.md) integrates scoped
+and broad own-entry history behind the same dormant shared admission, without a
+migration. Teacher Daily reads and other batch-1 domains remain subsequent work;
 no cohort or home/page activation is authorized by this slice.
 
 The shared cohort grants admission to the compatible experience, never classroom
@@ -434,6 +436,98 @@ The design reference remains `src/app/__ui/OwnedJoinedHomeMockup.tsx`: Teaching 
 Joined without count badges or an All/Teaching/Joined filter; one top-right menu;
 owner archive/restore and member hide/unhide, with Hidden below Archived. Apply the
 UI-change and visual-verification workflow when implementing its live consumer.
+
+### Coordinator checkpoint — 2026-10-01
+
+This checkpoint supersedes pending-state statements in the historical sequence
+above; it does not change the five-batch plan or authorize activation. Main baseline
+is `6c44c254d7412e5a4c574c4c5d03a8b0ca1aeff1` (PR #1418). Learner Daily Log
+reads passed two independent reviews, the real local PostgREST revocation contract
+and every exact-head CI lane, including PR Gate. The slice is merged into main,
+not independently promoted to production. Daily saves PR #1380 is merged; production
+migrations 224–225 were installed and semantically verified through the separately
+approved GitHub run `36869449834`. Shared admission remains dormant.
+
+Teacher entry/history PR #1420 is now merged in main at
+`3cf01b06200819d8df53a41cf469973b102c8c7e`. Initial security/compatibility reviews,
+one correction batch, targeted security re-review and cumulative integration
+review passed; 44 focused tests, 135 canonical focused tests/static checks and
+the real PostgREST contract passed. Every exact-head CI lane, including PR Gate,
+passed in run `36936773832` on reviewed SHA `5d795bb0`. No promotion or activation.
+
+Roster logs/previews PR1421 is merged at
+`e87d322a0aca946730b5949b720a42261052bfab`. Four independent review launches and
+one correction batch resolved builder/envelope errors and synthetic audit cleanup;
+28 targeted/119 focused tests, static checks, the real1001-learner PostgREST
+contract and all exact-head CI36940960454 gates passed on reviewed5adf5905.
+The keyset roster read and per-learner previews require no schema. No promotion
+or activation occurred. The hub is synchronized; merged Git retains the work.
+
+The **Teacher vs student login** task retains overall coordination. Its current
+worktree is `codex/contextual-teacher-daily-summary`; the coordinator owns Git,
+roadmap, verification, independent review and integration. One implementation
+worker owns the summary route/helper/schema and tests; the coordinator owns the
+local PostgREST harness, CI and docs. Every data statement independently binds
+current ownership, classroom and date. No AI generation or schema change.
+See the [entry/history contract](contextual-teacher-daily-log-read.md) and
+[roster-wide logs contract](contextual-teacher-daily-logs.md).
+Implementation must preserve absent and
+non-admitted legacy behavior, accept either account-role value for an admitted
+owner, enforce current owner/resource binding at the data read, retain existing
+projections and archive rules, and fail closed on unverified evidence. Do not
+substitute an earlier owner or roster preflight for a bound data query.
+
+The independent [cached summary read](contextual-teacher-daily-summary.md) began
+in parallel from the already-merged1420 actor helper, then rebased onto merged1421.
+Continuity and CI-placement conflicts retain both slices; no migration was added
+or renumbered. Initial security/compatibility review found two accepted blockers:
+microsecond freshness truncation and silently dropped unresolved name-map warnings.
+One correction batch retains full timestamp precision and validates nonblank own
+map references before restoration. Targeted/final reviews passed on45cecd2a;
+every exact-head CI36943420208 lane passed (0queue/1498run seconds). PR1422 is
+merged in main at `7c0ded24a4746e383a80a26d4649e81d2c3ed259`; no activation.
+The real local contract proves owner-bound
+stats, HEAD count and cache queries, including transfers before each statement;
+no summary/name payload may rely on an earlier preflight. No AI or schema change.
+
+A read-only lesson-plan inventory, verified by the coordinator, establishes the
+next domain after summaries: first current-relationship-bound list reads using
+shared admission while retaining pair/legacy fallback, then transaction-bound
+owner writes. Existing pair/legacy list queries trust earlier owner/member/visibility
+preflights; the ordered writer checks sequence but has no actor/owner/archive
+boundary. Date, bulk and copy writes therefore need separately reviewed additive
+actor-bound transactions and real race tests, not just role-gate replacement.
+Migration application retains its separate exact-target authorization.
+
+The coordinator's next independent worktree is `codex/contextual-lesson-plan-reads`,
+initially e87d322a, now reconciled with merged1422. A bounded GPT-6 Astra/high proposal selected
+classroom-rooted left plans and inner current-membership/visibility evidence, with
+date keyset pages through the terminal empty page. One GPT-6 Sol/high worker owns
+the two GET early branches, feature schemas/helper and TDD tests; coordinator owns
+the actual1004-plan PostgREST harness, CI/docs/Git and risk-matched independent
+review. The accepted design and verified source inventory are retained privately;
+the executable contract is [lesson-plan reads](contextual-classroom-lesson-plan-reads.md).
+All current-owner/member, visibility, pagination and exact cleanup database cases
+pass;77 targeted/168 canonical focused tests and static checks pass after one
+accepted JSONB-null content correction, reproduced by unit and actual PostgREST
+regressions. Compatibility and targeted security re-review are clean; final
+cumulative review and exact-head CI remain required. No application-code rebase
+conflict or migration resequencing. No applied SQL, account grants, writes, UI or hosted
+configuration changes; transaction-bound lesson-plan mutations remain subsequent.
+
+Execution follows the table above: finish batch 1's teacher Daily reads and other
+everyday operations first; then batch 2's assessment/grade integrations. Batch 3
+may run alongside independent batch-2 work only after concrete file/subsystem
+ownership and dependencies are established. Batch 4's live consumer waits for
+batches 1–3; batch 5 requires their full integrated rehearsal and an explicitly
+authorized release. The separate billing task owns subscription implementation;
+the separate Daily scrolling task owns its UI-only work. Do not duplicate either.
+
+Each bounded implementation returns tests, real database evidence where required,
+an exact reviewed SHA and merged-PR evidence before phase advancement. Use the
+draft-first stable-SHA review budget; stop for a required owner decision, migration
+authorization, release authority or exhausted review budget. Do not enable cohorts,
+change account plans or deploy production merely because an individual slice passes.
 
 ### Current bounded integration slice — Assignment inline images
 

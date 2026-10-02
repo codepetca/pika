@@ -179,6 +179,7 @@ function getRequestBody(call: unknown[]) {
   return JSON.parse(String((call[1] as RequestInit).body))
 }
 
+// Long-roster scrolling is covered in the experience matrix browser suite.
 describe('TeacherRosterTab', () => {
   afterEach(() => {
     cleanup()
