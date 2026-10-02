@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Password-free hosted migration authentication
-
-Replaced the manual rollout's permanent database-password requirement with pinned CLI native temporary logins from a production-project scoped PAT. The runner checks token syntax and rejects password fallback, isolates PostgreSQL environment variables, and binds the authentication strategy into format-2 preview digests. Existing exact migration authorization remains required. Documented six token capabilities, Database Read-write authority, temporary-role creation during preview, Beta endpoint dependency, and server-enforced denial of network-ban removal. The owner declined password reset; none was performed. A targeted review corrected prefix-based scope assurance: legacy tokens can share the prefix, so Dashboard review is the scope control. Offline rollout tests pass43; focused checks, independent review, owner approval for expanded token authority, credential replacement and hosted preview remain pending. No production migration was applied.
-
 ## 2026-09-30 — Reconcile dormant Daily Log saves with current main
 
 Owner requested pull/reconciliation. Rebased PR1380 onto main32ad59f5, preserving both histories in the sole archive conflict. Resequenced the branch migration from218 to223 because main now occupies218–222; updated harnesses, regressions and rollout receipts. SQL checksum and Daily Log runtime code match the previously reviewed1eda5574. PR returned to draft before reconciliation; backup branch retains the original SHA. Current local history is through220 with Blueprint218 and no Daily Log function; Sep27 local218 proof is historical. No database application, reset/history repair, production promotion or cohort activation. Focused verification and targeted stable-SHA integration review remain pending.
@@ -391,3 +387,16 @@ bindings counts/digests unchanged, closeout rows0 and sandboxOFF after rollback.
 No reset/reseed/history repair, production write, Stripe call or activation.
 Review cap remains exhausted4launches/1fixbatch; proposed30-minute extension for
 one fixture correction batch, rerun and one final integration review before PR.
+
+## 2026-10-02 — Closeout fixture correction and full database acceptance
+
+Owner approved30-minute extension14:17:44–14:47:44UTC for one fixture batch,
+database rerun and one final integration reviewer. Added checkout catalog_key and
+selected-offering identity assertion; subsequent rerun exposed retry assertion
+CASE parsing ambiguity, parenthesized in the same batch. Complete closeout rollback
+harness now passes, including late-paid recovery, held-account queue fairness and
+audited requeue. Migration228 SQL remains byte-identical; no application repeated.
+Existing users/classrooms/bindings counts/digests unchanged; closeout rows0 and
+sandboxOFF. Generated contract/check and prior lint/security checks pass. Full
+billing/focused rerun and fixed-candidate final integration review precede ready CI.
+Two total correction batches; four reviewer launches before final integration.

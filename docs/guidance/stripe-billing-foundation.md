@@ -314,19 +314,21 @@ Approved SQL SHA256:
 `7aba5de53766e5988284ae3f446c495954f171fadf83c64cc5bd053a25078f5a`.
 Installed history is001–228; actual generated types/check pass. Foundation,
 checkout and subscription lifecycle rollback checks pass; warning-level schema
-lint and security advisor report no issues. The new closeout harness reaches
-resubscription then fails `checkout_request_invalid`: its synthetic offering has
-empty features, but checkout requires `features.catalog_key`. Fix that fixture
-and assert an available offering before rerunning the complete closeout harness;
-later contracts in that harness remain unexecuted. All fixtures rolled back;
+lint and security advisor report no issues. The initial closeout harness failed
+because its synthetic offering lacked `features.catalog_key`; the approved
+fixture batch adds that metadata and verifies the selected offering identity.
+The full rerun then exposed an ambiguous PL/pgSQL CASE expression in the retry
+assertion; parentheses resolve it in the same batch. The complete closeout
+harness now passes, including terminal/resubscription, late payment, durable
+retry escalation, queue fairness and audited attention recovery. All fixtures rolled back;
 users/classrooms/bindings counts and row digests match before/after, no closeout
 operations remain, and sandbox remainsOFF. No real Stripe rehearsal occurred.
-The60-minute review window expired at13:16:19UTC; the migration approval does not
-extend it. Further reviewer launches or remediation batches require an explicit
-review-budget extension. Proposed next scope: one fixture correction batch,
-database rerun and one final integration reviewer in a30-minute extension.
-Final integration review and draft publication remain pending after database
-acceptance. No new migration application, merge or activation is authorized.
+The owner approved a30-minute extension at14:17:44UTC, ending14:47:44UTC, for one
+fixture correction batch, database rerun and one final integration reviewer.
+The fixture batch is complete (two total correction batches); the final review
+is pending. Cumulative reviewer launches remain4 until that last launch. No new
+migration application, merge or activation is authorized. Real provider lifecycle
+rehearsal and launch scheduler/alert policy remain later acceptance gates.
 
 The following paragraphs retain the historical phase-1 rollout evidence; their
 pending statements describe that earlier slice, not current phase-2 completion.

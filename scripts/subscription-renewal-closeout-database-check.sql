@@ -45,7 +45,8 @@ do $$ declare offering jsonb; binding jsonb; c jsonb; r jsonb; req jsonb; name t
   offering:=public.billing_register_offering_v1(jsonb_build_object('plan_key','plus','version',9228,
     'stripe_account','acct_closeout228','provider_mode','test','stripe_product_id','prod_closeout228',
     'stripe_price_id','price_closeout228','currency','usd','unit_amount',1900,'interval','month',
-    'classroom_limit',7,'features','{}'::jsonb,'ai_definition',null,'availability',jsonb_build_object('is_available',true)));
+    'classroom_limit',7,'features',jsonb_build_object('catalog_key','closeout228-pro-monthly'),
+    'ai_definition',null,'availability',jsonb_build_object('is_available',true)));
   foreach name in array array['closed','paid','manual','entitlement','partial','future','incomplete'] loop
     u:=gen_random_uuid();
     insert into public.users(id,email,role) values(u,'closeout228-'||name||'@example.invalid','teacher');
@@ -181,6 +182,8 @@ end $$;
 do $$ declare f record; offering jsonb; r jsonb; begin
   select * into f from renewal_closeout_cases where name='closed';
   offering:=public.billing_get_checkout_offering_v1(jsonb_build_object('offering_version_id',f.version_id,'stripe_account','acct_closeout228'));
+  if offering is null or offering->>'offering_version_id' is distinct from f.version_id::text then
+    raise exception 'Resubscription fixture offering is unavailable or mismatched'; end if;
   r:=public.billing_reserve_checkout_v1(jsonb_build_object('subject_user_id',f.subject_id,'attempt_id',gen_random_uuid(),
     'offering',offering,'lookup_key','closeout228-resubscribe',
     'success_url','http://localhost:3000/billing?checkout=success','cancel_url','http://localhost:3000/billing?checkout=cancel'));
@@ -300,7 +303,7 @@ do $$ declare s uuid; c jsonb; r jsonb; n integer; begin
       c:=public.billing_checkpoint_renewal_closeout_v1(pg_temp.closeout_fence(c)||'{"stage":"void_requested"}');
     end if;
     r:=public.billing_finish_renewal_closeout_v1(pg_temp.closeout_fence(c)||'{"outcome":"deferred","reason":"provider_unavailable"}');
-    if r->>'status' is distinct from case when n=5 then 'attention' else 'deferred' end then
+    if r->>'status' is distinct from (case when n=5 then 'attention' else 'deferred' end) then
       raise exception 'Retry budget outcome incorrect at %: %',n,r; end if;
     if not exists(select 1 from public.billing_renewal_closeouts where subscription_id=s
       and attempt_count=n and stage='void_requested') then raise exception 'Retry budget lost count or durable intent'; end if;
