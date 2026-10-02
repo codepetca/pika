@@ -44,6 +44,17 @@ describe('contextual lesson-plan bulk write migration source', () => {
 const harness = readFileSync('scripts/check-contextual-lesson-plan-bulk-write-concurrency.mjs', 'utf8')
 
 describe('contextual lesson-plan bulk synthetic cleanup source', () => {
+  it('uses owner cascade for Blueprint teardown without bypassing lifecycle guards', () => {
+    expect(harness).not.toContain('delete from public.course_blueprints')
+    expect(harness).toContain('delete from public.users')
+  })
+
+  it('proves the earlier late-conflict save is accepted rather than already stale', () => {
+    expect(harness).toContain('const rollbackClient = randomUUID()')
+    expect(harness).toContain('assert.equal(earlierProof.results[0].applied, true)')
+    expect(harness).toContain('p_client_id: rollbackClient')
+  })
+
   it('handles strict automatic Free audit rows for all three tagged synthetic users', () => {
     expect(harness).toContain('default_free_account_provisioning')
     expect(harness).toContain('system:user-provisioning')

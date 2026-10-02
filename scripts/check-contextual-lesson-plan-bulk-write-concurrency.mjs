@@ -18,6 +18,7 @@ const classroom = randomUUID()
 const teacherClassroom = randomUUID()
 const client = randomUUID()
 const otherClient = randomUUID()
+const rollbackClient = randomUUID()
 const blueprint = randomUUID()
 const blueprintVersion = randomUUID()
 const sourceArtifact = randomUUID()
@@ -415,9 +416,20 @@ try {
   await blueprintHolder.run(`begin; select pg_advisory_xact_lock(hashtextextended(
     jsonb_build_array('course_blueprint_purge','${blueprint}'::uuid)::text,0));`)
   const beforeConflict = state(classroom)
+  // A fresh nonce prevents earlier concurrency cases from making this save
+  // stale. Prove this exact earlier write would apply, then roll back the probe.
+  assert(!beforeConflict.heads.some((head) => head.client_id === rollbackClient))
+  const earlierProbe = new Session('earlier_save_probe')
+  const earlierProof = JSON.parse(await earlierProbe.run(`begin; ${serviceSave(
+    ownerStudent, classroom, [{ date: second, markdown: 'Earlier save' }], [], 1, rollbackClient
+  )}`))
+  assert.equal(earlierProof.results[0].applied, true)
+  await earlierProbe.run('rollback;')
+  await earlierProbe.close()
+  assert.deepEqual(state(classroom), beforeConflict)
   try {
     assert.throws(() => sql(`begin; ${serviceSave(ownerStudent, classroom,
-      [{ date: second, markdown: 'Earlier save' }], [linked], 5)} commit;`), /PT409/)
+      [{ date: second, markdown: 'Earlier save' }], [linked], 1, rollbackClient)} commit;`), /PT409/)
     assert.deepEqual(state(classroom), beforeConflict,
       'Late Blueprint conflict committed earlier plan, head, or revision')
     const started = Date.now()
@@ -427,7 +439,7 @@ try {
         'Content-Type': 'application/json' },
       body: JSON.stringify({ p_actor_id: ownerStudent, p_classroom_id: classroom,
         p_plans: [{ date: second, content_markdown: 'Earlier REST save', content: doc }],
-        p_cleared_dates: [linked], p_client_id: client, p_sequence: 5 }),
+        p_cleared_dates: [linked], p_client_id: rollbackClient, p_sequence: 1 }),
       signal: AbortSignal.timeout(5000),
     })
     assert.equal(response.status, 409)
@@ -454,7 +466,7 @@ try {
     commit;`)
   const beforePurge = state(classroom)
   assert.throws(() => sql(`begin; ${serviceSave(ownerStudent, classroom,
-    [{ date: second, markdown: 'Purge denied' }], [], 5)} commit;`), /PT409/)
+    [{ date: second, markdown: 'Purge denied' }], [], 1, rollbackClient)} commit;`), /PT409/)
   assert.deepEqual(state(classroom), beforePurge, 'Purge fence changed batch state')
   sql(`begin;
     delete from public.classroom_purge_fences
@@ -465,7 +477,7 @@ try {
         and teacher_id='${ownerStudent}' and status='failed';
     commit;`)
   assert.equal(result(serviceSave(ownerStudent, classroom,
-    [{ date: second, markdown: 'Purge released' }], [], 5)).results[0].applied, true)
+    [{ date: second, markdown: 'Purge released' }], [], 1, rollbackClient)).results[0].applied, true)
   console.log('PASS migration 227 synthetic batch, ordering, lifecycle, contention and rollback contracts')
 } finally {
   const cleanup = observer.closed ? new Session('cleanup') : observer
@@ -532,8 +544,8 @@ try {
         delete from public.classrooms
           where (id='${classroom}' and title='${tag} student' and class_code='${tag}_s')
              or (id='${teacherClassroom}' and title='${tag} teacher' and class_code='${tag}_t');
-        delete from public.course_blueprints where id='${blueprint}'
-          and teacher_id='${ownerStudent}' and title='${tag} blueprint';
+        -- Blueprint guards require the owner deletion cascade, not an
+        -- uncoordinated direct Blueprint DELETE. Keep the guards enabled.
         delete from public.users
           where (id='${ownerStudent}' and email='${tag}_student@example.invalid')
              or (id='${ownerTeacher}' and email='${tag}_teacher@example.invalid')
