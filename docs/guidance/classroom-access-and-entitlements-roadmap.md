@@ -464,11 +464,11 @@ The keyset roster read and per-learner previews require no schema. No promotion
 or activation occurred. The hub is synchronized; merged Git retains the work.
 
 The **Teacher vs student login** task retains overall coordination. Its current
-worktree is `codex/contextual-teacher-daily-summary`; the coordinator owns Git,
+worktree is `codex/contextual-lesson-plan-date-writes`; the coordinator owns Git,
 roadmap, verification, independent review and integration. One implementation
-worker owns the summary route/helper/schema and tests; the coordinator owns the
-local PostgREST harness, CI and docs. Every data statement independently binds
-current ownership, classroom and date. No AI generation or schema change.
+worker owns the date route/helper/schema, tests and synthetic concurrency harness;
+the coordinator owns migration application, generated types, CI and continuity.
+Current-relationship checks must bind each read or mutation. No AI or activation.
 See the [entry/history contract](contextual-teacher-daily-log-read.md) and
 [roster-wide logs contract](contextual-teacher-daily-logs.md).
 Implementation must preserve absent and
@@ -499,8 +499,8 @@ boundary. Date, bulk and copy writes therefore need separately reviewed additive
 actor-bound transactions and real race tests, not just role-gate replacement.
 Migration application retains its separate exact-target authorization.
 
-The coordinator's next independent worktree is `codex/contextual-lesson-plan-reads`,
-initially e87d322a, now reconciled with merged1422. A bounded GPT-6 Astra/high proposal selected
+The independent `codex/contextual-lesson-plan-reads` worktree began at e87d322a
+and reconciled with merged1422. A bounded GPT-6 Astra/high proposal selected
 classroom-rooted left plans and inner current-membership/visibility evidence, with
 date keyset pages through the terminal empty page. One GPT-6 Sol/high worker owns
 the two GET early branches, feature schemas/helper and TDD tests; coordinator owns
@@ -510,10 +510,23 @@ the executable contract is [lesson-plan reads](contextual-classroom-lesson-plan-
 All current-owner/member, visibility, pagination and exact cleanup database cases
 pass;77 targeted/168 canonical focused tests and static checks pass after one
 accepted JSONB-null content correction, reproduced by unit and actual PostgREST
-regressions. Compatibility and targeted security re-review are clean; final
-cumulative review and exact-head CI remain required. No application-code rebase
-conflict or migration resequencing. No applied SQL, account grants, writes, UI or hosted
-configuration changes; transaction-bound lesson-plan mutations remain subsequent.
+regressions. Compatibility, targeted security and final cumulative reviews are
+clean; all exact-head CI36946345369 lanes passed (0queue/1499run seconds).
+PR1423 is merged main at478fd94ed24f0db202bbaa8fa23190a780d4f17d; hub is
+fast-forwarded and finished worktrees cleaned. No activation or production change.
+
+The next bounded slice is [single-date owner saves/clears](contextual-lesson-plan-date-writes.md),
+PUT/POST only. A read-only GPT-6 Astra/high design selected an additive service-only
+transaction using the existing classroom-operation fence, current parent owner/archive
+checks and NOWAIT row locks; the ordered branch reuses unchanged SQL125. Bulk and
+copy retain legacy semantics pending their own transactions. User explicitly approved
+226 locally; preview contained only226, one application succeeded, service-only grants
+and generated types were verified. Production remains225. Do not edit installed226
+or infer permission for another migration/application. Current synthetic proofs cover
+both owner role values, stale/equal no-side-effects, artifact/Blueprint lineage,
+archive/transfer orderings, row contention and translated Blueprint conflicts with
+head/plan/revision rollback and exact fixture/audit cleanup. Final SDK-boundary and
+lifecycle-fence verification, independent review and exact-head CI remain gates.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import {
+  authorizeContextualLessonPlanMutationActor,
+  preflightContextualLessonPlanMutation,
+  saveContextualLessonPlan,
+} from '@/lib/server/contextual-lesson-plan-mutation'
 import type { TableRow } from '@/types/database'
 import type { Json } from '@/types/database.generated'
 import {
@@ -20,7 +24,38 @@ export const revalidate = 0
 
 // PUT /api/teacher/classrooms/[id]/lesson-plans/[date] - Upsert lesson plan for a date
 export const PUT = withErrorHandler('PutUpsertLessonPlan', async (request, context) => {
-  const user = await requireRole('teacher')
+  const actor = await authorizeContextualLessonPlanMutationActor()
+  if (actor.mode === 'contextual') {
+    const scope = await preflightContextualLessonPlanMutation({
+      actorId: actor.user.id,
+      params: await context.params,
+    })
+    const { content_markdown, content, mutation } = lessonPlanMutationBodySchema.parse(await request.json())
+    const markdown = typeof content_markdown === 'string'
+      ? content_markdown
+      : content && content.type === 'doc'
+        ? getLessonPlanMarkdown({ content_markdown: null, content }).markdown
+        : null
+    if (markdown === null) {
+      return NextResponse.json({ error: 'Invalid content format' }, { status: 400 })
+    }
+    const fields = buildLessonPlanContentFields(markdown)
+    const shouldDelete = normalizeLessonPlanMarkdown(markdown).trim().length === 0
+    const result = await saveContextualLessonPlan({
+      actorId: scope.actorId,
+      classroomId: scope.classroomId,
+      date: scope.date,
+      markdown: fields.content_markdown,
+      content: fields.content,
+      shouldDelete,
+      mutation,
+    })
+    if (mutation) return NextResponse.json(result)
+    if (shouldDelete) return NextResponse.json({ lesson_plan: null, date: scope.date })
+    return NextResponse.json({ lesson_plan: result.lesson_plan })
+  }
+
+  const user = actor.user
   const { id: classroomId, date } = await context.params
   const { content_markdown, content, mutation: mutationVersion } = lessonPlanMutationBodySchema.parse(
     await request.json(),

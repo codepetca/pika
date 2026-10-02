@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Blueprint canonical CI screenshot correction
-
-Owner explicitly approved one correction batch and one additional targeted screenshot review after the ninth parent review passed. PR1387 exact-head run36653542032 passed Test & Build and Database contracts, but four Linux Pattern Lab references used different Docker fonts. Replaced only those references with the canonical GitHub CI captures; each original attempt and both retries produced the same image hash. Desktop/mobile light/dark captures preserve Factory and the current Test status-sort examples. Application, test assertions and migration221 are unchanged. Required focused checks and the approved screenshot review precede a fresh exact-head CI; production guidance and migrations remain untouched.
-
 ## 2026-09-29 — Pause hidden authentication and attendance polling
 
 Added browser visibility guards and Today activity wiring while preserving the mounted student workspace. Returning forces one current-identity read; stale pre-hide responses are ignored, including batched visibility events. Visible attendance and auth cadences, server authorization and Toronto expiry contracts remain unchanged. Risk: workspace-state and client authentication lifecycle. Focused regressions cover hidden timers/retries, return coalescing, identity changes, expiry and Today activity. Reused existing attendance rendering and Pattern Lab page-state reference; teacher/student desktop/mobile light/dark verification and independent stable-SHA review required before merge. Production promotion and subsequent savings remain separate.
@@ -297,3 +293,29 @@ real PostgREST cases and all prior database/race/cleanup cases pass; targeted
 security re-review is clean at pre-rebase ba6ca7d7. Reconciled focused checks
 pass168tests/16files and all static gates; the five-group actual database harness
 passes again with exact cleanup. Cumulative integration review remains next.
+
+## 2026-10-01 — Lesson reads merged; local226 and single-date writes
+
+PR1423 final cumulative review passed on c89fe016; all exact-head CI36946345369
+lanes passed (0queue/1499run seconds). Squash-merged main478fd94e; hub FF clean.
+Removed only its finished six worktrees/branch; merged code and private evidence
+retained. No production/cohort change. Next date-write branch FF'd onto main while
+preserving its owned edits; no stash or branch switch. Bulk/copy remain legacy.
+User explicitly approved226 local. Verified pika container/ports and exact history;
+dry run listed only226, one local application succeeded. Function is definer with
+empty search_path and service-only grants; generated types/check match local schema.
+Installed SQL SHA256 b9b774dd01dfb349dade0cb068f902d28b6c578808e4f7e53b11a7072b0ddd7d;
+do not rewrite it or reuse approval. Source TDD and39 affected tests pass; real
+synthetic state/race/Blueprint conflict checks and exact cleanup pass. Actual SDK
+probe exposed nullable error detail/hint fields rejected by mocks; correcting that
+boundary and finishing lifecycle-fence proof before draft/review/CI. No real-account,
+AI, billing, UI, reset/reseed, hosted schema or release change. Goal remains batch1
+of five, not complete. Coordinator owns continuity/CI/Git; one worker owns source.
+
+Post-main source checks pass42tests/type/lint/generated types. SDK nullable-field
+regression reproduced404/403/409 incorrectly becoming503; named schemas now accept
+real null metadata while malformed success envelopes still fail closed. Actual
+SDK adapter and synthetic purge-fence checks pass with full state rollback and
+zero residue;226 unchanged. Added synthetic-target guards to the denial probe.
+Full decommission transition remains a later integrated gate, not claimed here.
+Canonical focused checks and draft-first independent review/CI remain next.
