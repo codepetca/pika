@@ -784,4 +784,44 @@ describe('TeacherLiveAttendanceTab', () => {
       name: 'Student actions (select students to enable)',
     })).toBeDisabled()
   })
+
+  it('keeps keyboard controls available during saves and orders rapid corrections per student', async () => {
+    let releaseFirst!: (response: Response) => void
+    const firstWrite = new Promise<Response>(resolve => { releaseFirst = resolve })
+    const writes: Array<{ student_id: string; status: string }> = []
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      if (String(input) === '/api/teacher/attendance/marks') {
+        const { marks } = JSON.parse(String(init?.body))
+        writes.push(marks[0])
+        if (writes.length === 1) return firstWrite
+        return jsonResponse({ outcome: 'applied', appliedCount: 1 })
+      }
+      return jsonResponse(attendanceView())
+    })
+    renderTab()
+    await screen.findByText('Ada')
+    const ada = screen.getByRole('group', { name: 'Attendance status for Ada Lovelace' })
+    const grace = screen.getByRole('group', { name: 'Attendance status for Grace Hopper' })
+    fireEvent.click(within(ada).getByRole('button', { name: 'Absent' }))
+    await waitFor(() => expect(writes).toHaveLength(1))
+    const late = within(ada).getByRole('button', { name: 'Late' })
+    expect(late).toBeEnabled()
+    late.focus()
+    expect(late).toHaveFocus()
+    fireEvent.click(late)
+    fireEvent.click(within(grace).getByRole('button', { name: 'Absent' }))
+    expect(late).toHaveAttribute('aria-pressed', 'true')
+    expect(within(grace).getByRole('button', { name: 'Absent' })).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() => expect(writes).toHaveLength(2))
+    expect(writes.map(write => write.student_id)).toEqual([
+      attendanceView().students[0].studentId, attendanceView().students[1].studentId,
+    ])
+    await act(async () => { releaseFirst(jsonResponse({ outcome: 'applied', appliedCount: 1 })) })
+    await waitFor(() => expect(writes).toHaveLength(3))
+    expect(writes.filter(write => write.student_id === attendanceView().students[0].studentId)
+      .map(write => write.status)).toEqual(['absent', 'late'])
+    expect(late).toBeEnabled()
+    expect(late).toHaveAttribute('aria-pressed', 'true')
+  })
+
 })

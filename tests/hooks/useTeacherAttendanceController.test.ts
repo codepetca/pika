@@ -312,7 +312,7 @@ describe('useTeacherAttendanceController', () => {
     })
   })
 
-  it('rejects another command for a student who still owns a pending confirmation', async () => {
+  it('accepts another correction after the commit receipt while a stale read is unconfirmed', async () => {
     const fetchMock = mockPendingMarksFetch()
     const { result } = renderHook(() => useTeacherAttendanceController({
       classroom,
@@ -334,7 +334,7 @@ describe('useTeacherAttendanceController', () => {
       await vi.advanceTimersByTimeAsync(5_250)
       await firstCommand
     })
-    expect(result.current.pendingStudentIds.has(studentId)).toBe(true)
+    expect(result.current.pendingStudentIds.has(studentId)).toBe(false)
 
     await act(async () => {
       void result.current.submitMarks([studentId], 'absent')
@@ -345,7 +345,7 @@ describe('useTeacherAttendanceController', () => {
     expect(fetchMock.mock.calls.filter(([input, init]) => (
       new URL(String(input), 'http://localhost').pathname === '/api/teacher/attendance/marks'
       && init?.method === 'POST'
-    ))).toHaveLength(1)
+    ))).toHaveLength(2)
   })
 
   it('preserves an earlier optimistic mark while a different student is confirmed', async () => {
@@ -418,7 +418,7 @@ describe('useTeacherAttendanceController', () => {
       source: 'staff',
       hasManualOverride: true,
     })
-    expect(result.current.pendingStudentIds.has(studentId)).toBe(true)
+    expect(result.current.pendingStudentIds.has(studentId)).toBe(false)
   })
 
   it('preserves two unresolved optimistic marks through background revalidation', async () => {
@@ -482,7 +482,7 @@ describe('useTeacherAttendanceController', () => {
     expect(result.current.studentsById.get(secondStudentId)).toMatchObject({
       status: 'absent', source: 'staff', hasManualOverride: true,
     })
-    expect(result.current.pendingStudentIds).toEqual(new Set([studentId, secondStudentId]))
+    expect(result.current.pendingStudentIds.size).toBe(0)
   })
 
   it.each([

@@ -413,3 +413,10 @@ changing production history or weakening the contract. Billing source/228 remain
 unchanged. Fourth correction batch; focused/current-history checks precede a
 brief additional independent review, which needs authorization because the one
 approved sync reviewer is consumed. Existing merge-on-green authority remains.
+## 2026-10-02 — Responsive teacher attendance marking
+
+Removed roster-wide mark locks. Feature-owned optimistic queue saves independent students concurrently, orders overlapping corrections, protects projections from stale reads, and rolls back only failed/unsaved rows; scope disposal cancels queued writes. Manual and integrated controllers share the queue; Live now reuses the integrated controller while preserving its open/closed gate and table presentation. Commit receipts release writes immediately; roster reads run in the background after the queue drains.
+
+UI brief: existing Attendance table + Pattern Lab status-colors reference; reuse status controls, extend controller behavior, create shared feature queue for manual/integrated adopters. Teacher desktop/mobile light/dark; student n/a (no student rendering changes). Default, keyboard focus, optimistic concurrent saves, same-row corrections, failure/recovery checked. Primary signal remains pressed status dot; no new visual pattern. Composite checklist reviewed, keyboard/semantic coverage present, no manual follow-up.
+
+Evidence: focused 249 tests and static checks passed; targeted controller/component/queue tests passed; Playwright 20/20 across four projects, screenshots inspected (local test-results and /tmp/pika-attendance-{manual,integrated,live}-matrix.png). Audit passed. Independent stable-SHA PR review/CI follows; no migration/deployment.

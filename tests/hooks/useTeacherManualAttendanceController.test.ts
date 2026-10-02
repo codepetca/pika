@@ -440,6 +440,7 @@ describe('useTeacherManualAttendanceController', () => {
     act(() => {
       command = result.current.submitMarks([studentId], 'absent')
     })
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true))
     rerender({ selectedDate: '2026-05-07' })
     await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-07'))
     rerender({ selectedDate: '2026-05-06' })

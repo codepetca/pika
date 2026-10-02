@@ -1181,7 +1181,7 @@ describe('TeacherAttendanceTab', () => {
     })
   })
 
-  it('keeps revalidating a pending mark until confirmation arrives after the bounded poll', async () => {
+  it('reconciles a committed mark in the background while keeping controls responsive', async () => {
     let attendanceReadCount = 0
     const initialAttendance = combinedAttendanceView()
     const confirmedAttendance = combinedAttendanceView({
@@ -1211,10 +1211,10 @@ describe('TeacherAttendanceTab', () => {
       }
       if (url.startsWith('/api/teacher/attendance/session?')) {
         attendanceReadCount += 1
-        return mockJson(attendanceReadCount >= 10 ? confirmedAttendance : initialAttendance)
+        return mockJson(attendanceReadCount >= 4 ? confirmedAttendance : initialAttendance)
       }
       if (url === '/api/teacher/attendance/marks' && init?.method === 'POST') {
-        return mockJson({ outcome: 'accepted', appliedCount: 0 })
+        return mockJson({ outcome: 'applied', appliedCount: 1 })
       }
       throw new Error(`Unhandled fetch: ${url}`)
     })
@@ -1245,11 +1245,11 @@ describe('TeacherAttendanceTab', () => {
     })
 
     const waitingLateButton = screen.getByRole('button', { name: 'Mark Student1 Test late' })
-    expect(attendanceReadCount).toBe(9)
-    expect(waitingLateButton).toBeDisabled()
+    expect(attendanceReadCount).toBe(3)
+    expect(waitingLateButton).toBeEnabled()
     expect(waitingLateButton).toHaveAttribute('aria-pressed', 'true')
     expect(appMessageMock.showMessage).toHaveBeenCalledWith({
-      text: 'Update sent; waiting for attendance confirmation',
+      text: '1 student marked late',
       tone: 'info',
     })
 
@@ -1258,7 +1258,7 @@ describe('TeacherAttendanceTab', () => {
     })
 
     const confirmedLateButton = screen.getByRole('button', { name: 'Mark Student1 Test late' })
-    expect(attendanceReadCount).toBe(10)
+    expect(attendanceReadCount).toBe(4)
     expect(confirmedLateButton).toBeEnabled()
     expect(confirmedLateButton).toHaveAttribute('aria-pressed', 'true')
     expect(appMessageMock.showMessage).toHaveBeenCalledWith({

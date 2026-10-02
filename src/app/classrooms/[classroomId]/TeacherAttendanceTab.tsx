@@ -444,14 +444,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       }),
       hasManualOverride: Boolean(override),
       checkedInAt: null,
-      pending: manualAttendance.activeCommand === 'marks',
+      pending: manualAttendance.pendingStudentIds.has(row.student_id),
     }] as const
   })), [
     attendance.pendingStudentIds,
     attendance.studentsById,
     attendanceEnabled,
     logs,
-    manualAttendance.activeCommand,
+    manualAttendance.pendingStudentIds,
     manualAttendanceEnabled,
     manualAttendance.overridesByStudentId,
     manualAttendance.settings.sourceMode,
@@ -1076,7 +1076,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 const attendanceStudent = attendanceRowsById.get(row.student_id)
                 const attendancePending = attendanceStudent?.pending ?? false
                 const attendanceEditable = Boolean(
-                  attendanceStudent && canMarkAttendance && !attendancePending && !attendanceCommandActive
+                  attendanceStudent && canMarkAttendance && !attendanceCommandActive
+                  && (!attendanceEnabled || !attendance.blockedStudentIds.has(row.student_id))
                 )
                 const hasLog = Boolean(row.entry && entryHasContent(row.entry))
                 const logText = hasLog ? row.entry?.text || '' : ''

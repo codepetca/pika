@@ -1341,7 +1341,7 @@ test('shows manual attendance marks optimistically', async ({ page }, testInfo) 
   await expect(absent).toHaveAttribute('aria-pressed', 'false')
   await absent.click()
   await expect(absent).toHaveAttribute('aria-pressed', 'true')
-  await expect(absent).toBeDisabled()
+  await expect(absent).toBeEnabled()
   await verifyProjectContract(page, testInfo)
   const { theme, viewport } = getExperienceMetadata(testInfo)
   await page.screenshot({
@@ -1350,7 +1350,7 @@ test('shows manual attendance marks optimistically', async ({ page }, testInfo) 
   })
 
   finishSave()
-  await expect(page.getByText('Attendance updated')).toBeVisible()
+  await expect(page.getByText('Updating attendance', { exact: true })).toHaveCount(0)
 })
 
 test('shows integrated attendance marks and restores optimistically', async ({ page }, testInfo) => {
@@ -1478,7 +1478,7 @@ test('shows integrated attendance marks and restores optimistically', async ({ p
   const absent = page.getByRole('button', { name: 'Mark Student 01 Alpha01 absent' })
   await absent.click()
   await expect(absent).toHaveAttribute('aria-pressed', 'true')
-  await expect(absent).toBeDisabled()
+  await expect(absent).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Undo override for Student 01 Alpha01' })).toBeVisible()
   await verifyProjectContract(page, testInfo)
   const { theme, viewport } = getExperienceMetadata(testInfo)
@@ -1494,7 +1494,7 @@ test('shows integrated attendance marks and restores optimistically', async ({ p
   await expect(undo).toHaveCount(0)
   const restoredLate = page.getByRole('button', { name: 'Mark Student 02 Alpha02 late' })
   await expect(restoredLate).toHaveAttribute('aria-pressed', 'true')
-  await expect(restoredLate).toBeDisabled()
+  await expect(restoredLate).toBeEnabled()
   await page.screenshot({
     path: `/tmp/pika-integrated-attendance-${viewport}-${theme}-optimistic-restore.png`,
     animations: 'disabled',
@@ -3492,3 +3492,85 @@ test('student long test scroll reaches final questions and submit', async ({ pag
   }
   await page.screenshot({ path: testInfo.outputPath('student-test-scroll-reference.png'), animations: 'disabled' })
 })
+
+for (const surface of ['manual', 'integrated', 'live'] as const) {
+  test(`keeps rapid attendance marking responsive on ${surface}`, async ({ page }, testInfo) => {
+    await applyProjectTheme(page, testInfo)
+    await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
+    const ids = ['40000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000002']
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>(resolve => { releaseFirst = resolve })
+    const writes: Array<{ id: string; status: string }> = []
+    const saved = new Map(ids.map(id => [id, 'present']))
+    let failNext = false
+    const json = async (route: import('@playwright/test').Route, body: unknown, status = 200) => {
+      await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+    }
+    await page.route(`**/api/classrooms/${ATTENDANCE_FIXTURE_CLASSROOM_ID}/class-days`, route => json(route, {
+      class_days: [{ id: 'day-1', classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID,
+        date: '2026-08-29', prompt_text: null, is_class_day: true }],
+    }))
+    await page.route('**/api/teacher/logs?**', route => json(route, {
+      logs: ids.map((id, index) => ({ student_id: id, student_email: `s${index}@example.com`,
+        student_first_name: `Student 0${index + 1}`, student_last_name: `Alpha0${index + 1}`,
+        entry: null, history_preview: [] })),
+    }))
+    await page.route('**/api/teacher/log-summary?**', route => json(route, { summary_status: 'no_logs', summary: null }))
+    await page.route('**/api/teacher/attendance/session?**', route => json(route, {
+      classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, classDate: '2026-08-29', integration: 'ready',
+      session: { state: 'open', opensAt: '2026-08-29T12:45:00Z', closesAt: '2026-08-29T14:00:00Z',
+        sessionStartsAt: '2026-08-29T13:00:00Z', sessionEndsAt: '2026-08-29T14:00:00Z',
+        presentThroughAt: '2026-08-29T13:10:00Z', absentAt: '2026-08-29T14:00:00Z',
+        revision: 1, pendingCommand: false, commandFailed: false },
+      sync: { state: 'current', confirmedAt: '2026-08-29T15:00:00Z' },
+      students: ids.map((id, index) => ({ studentId: id, firstName: `Student 0${index + 1}`,
+        lastName: `Alpha0${index + 1}`, status: saved.get(id), source: 'staff', checkedInAt: null,
+        revision: writes.length + 1, hasQrCheckIn: false, hasManualOverride: true,
+        pendingCommand: false, commandFailed: false })),
+    }))
+    const handleWrite = async (route: import('@playwright/test').Route) => {
+      const body = route.request().postDataJSON()
+      const id = surface === 'manual' ? body.student_ids[0] : body.marks[0].student_id
+      const status = surface === 'manual' ? body.status : body.marks[0].status
+      writes.push({ id, status })
+      if (writes.length === 1) await firstGate
+      if (failNext) { failNext = false; await json(route, { error: 'Save failed' }, 503); return }
+      saved.set(id, status)
+      await json(route, surface === 'manual' ? { ok: true } : { outcome: 'applied', appliedCount: 1, unchangedCount: 0 })
+    }
+    await page.route('**/api/teacher/attendance/marks', handleWrite)
+    await page.route('**/api/teacher/manual-attendance**', async route => {
+      if (route.request().method() === 'POST') { await handleWrite(route); return }
+      await json(route, { classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, classDate: '2026-08-29',
+        settings: { sourceMode: 'manual', sessionStartsLocal: '09:00', sessionEndsLocal: '10:00', revision: 1 },
+        overrides: [...saved].map(([studentId, status]) => ({ studentId, status })) })
+    })
+    await page.goto(surface === 'live' ? '/e2e-fixtures/teacher-live-attendance'
+      : `/e2e-fixtures/teacher-daily-attendance${surface === 'manual' ? '?attendance=manual' : ''}`)
+    const mark = (index: number, status: string) => surface === 'live'
+      ? page.getByRole('group', { name: `Attendance status for Student 0${index + 1} Alpha0${index + 1}` })
+        .getByRole('button', { name: status, exact: true })
+      : page.getByRole('button', { name: `Mark Student 0${index + 1} Alpha0${index + 1} ${status.toLowerCase()}` })
+    await mark(0, 'Absent').click()
+    await expect.poll(() => writes.length).toBe(1)
+    await mark(0, 'Late').focus()
+    await mark(0, 'Late').press('Space')
+    await mark(1, 'Absent').click()
+    await expect(mark(0, 'Late')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mark(1, 'Absent')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mark(0, 'Present')).toBeEnabled()
+    await expect.poll(() => writes.some(write => write.id === ids[1])).toBe(true)
+    expect(writes.filter(write => write.id === ids[0])).toEqual([{ id: ids[0], status: 'absent' }])
+    await verifyProjectContract(page, testInfo)
+    await page.screenshot({ path: testInfo.outputPath(`attendance-${surface}-rapid-pending.png`), animations: 'disabled' })
+    releaseFirst()
+    await expect.poll(() => saved.get(ids[0])).toBe('late')
+    expect(writes.filter(write => write.id === ids[0]).map(write => write.status)).toEqual(['absent', 'late'])
+    // One failed row must not undo the correction already saved on another row.
+    failNext = true
+    await mark(1, 'Present').click()
+    await expect(mark(1, 'Absent')).toHaveAttribute('aria-pressed', 'true')
+    await expect(mark(0, 'Late')).toHaveAttribute('aria-pressed', 'true')
+    await page.screenshot({ path: testInfo.outputPath(`attendance-${surface}-failed-save.png`), animations: 'disabled' })
+  })
+}
