@@ -404,3 +404,9 @@ two completed), initialwavecomplete; batch1 fixes queue starvation, missing
 attention requeue recovery and a protected-plan fixture error. No migration
 application or types workaround. Review ledger /private/tmp/pika-renewal-closeout-review-ledger.json;
 clock starts12:16:19Z,7launches/4batches/60minutes default cap.
+
+Batch1 committed8ebecac6; targetedAstra/high review is clean.4launches total
+(onecapacityfailure),1fixbatch; finalintegration reservedafterDB/types.
+Source/code334tests andfocused195tests pass; noSQLexecution. Nextsafeaction
+is227reviewedmerge/rebase, exactlocal228approval andpreview, oneapply, then
+types/DB/warnings/PRacceptance. Sourceanddata/gates preserved; noPRpublishedyet.

@@ -301,14 +301,18 @@ PR review/publication, not another merge, production rollout, live Stripe writes
 activation or email delivery. Use the current `pr-review` skill's bounded budget;
 previous PR extensions are consumed and do not expand this review session.
 
-Preapplication review started2026-10-02T12:16:19Z on `9fc266a5`. Three of seven
-reviewer launches were used (one capacity failure; two completed reviews).
-Batch1 fixes ordinary queue starvation, operator attention recovery and a rollback
-fixture that incorrectly called the protected public plan setter. The production
-setter remains protected.334 billing tests and195 focused tests pass; full focused
-checks stop at the missing generated closeout RPC contract. Local228 application,
-database/SQL warning checks and provider rehearsal remain unverified. No PR is
-published until the generated contract matches the reviewed migration schema.
+Preapplication review started2026-10-02T12:16:19Z. Four of seven reviewer
+launches were used (one capacity failure; two initial reviews and one targeted
+review). Batch1 resolved ordinary queue starvation, operator attention recovery
+and a rollback fixture that called the protected public plan setter. The setter
+remains protected. Targeted review of source `8ebecac6` found no actionable blockers.
+334 billing tests and195 focused tests pass; full focused checks stop at the
+missing generated closeout RPC contract. Local228 is not applied, and database/
+SQL warning checks and provider rehearsal remain unverified. Wait for227's
+reviewed merge, rebase, preview only228, then obtain/consume exact local application
+permission. Generate types from that actual schema and complete database checks
+before publishing a draft PR. Reserve final integration review for that completed
+candidate. No new merge or activation is authorized.
 
 The following paragraphs retain the historical phase-1 rollout evidence; their
 pending statements describe that earlier slice, not current phase-2 completion.
