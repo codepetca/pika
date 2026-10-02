@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { processUpgrade } from '@/lib/server/billing/upgrade-service'
+import { UpgradeProviderContractError } from '@/lib/server/billing/upgrade-contracts'
 import type { UpgradeClaim, UpgradeProvider, UpgradeStore } from '@/lib/server/billing/upgrade-contracts'
 
 const id = '11111111-1111-4111-8111-111111111111'
@@ -126,9 +127,61 @@ describe('frozen upgrade coordinator', () => {
     expect(await f.run()).toEqual({ kind: 'lost_claim' })
     expect(f.provider.createInvoice).not.toHaveBeenCalled()
   })
-  it('never extends a quote across its original paid term', async () => {
+  it('replays an unresolved payment intent after a crash before the provider request', async () => {
     const f = fixture()
     Object.assign(f.claim.operation, { stage: 'payment_requested', quote, invoice_id: 'in_upgrade', confirmed: true })
+    expect(await f.run()).toEqual({ kind: 'payment_pending' })
+    expect(f.provider.payInvoice).toHaveBeenCalledOnce()
+    expect(f.provider.payInvoice).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: `pika-upgrade-${id}-payment` }))
+    expect(f.provider.applyTarget).not.toHaveBeenCalled()
+  })
+  it('recovers a payment timeout before arrival with exactly the original request key', async () => {
+    const f = fixture()
+    Object.assign(f.claim.operation, { stage: 'quoted', quote, invoice_id: 'in_upgrade', confirmed: true })
+    vi.mocked(f.provider.payInvoice).mockRejectedValueOnce(new Error('network'))
+    expect(await f.run()).toEqual({ kind: 'deferred' })
+    expect(f.claim.operation.stage).toBe('payment_requested')
+    expect(await f.run()).toEqual({ kind: 'payment_pending' })
+    expect(f.provider.payInvoice).toHaveBeenCalledTimes(2)
+    const calls = vi.mocked(f.provider.payInvoice).mock.calls
+    expect(calls[1][0].idempotencyKey).toBe(calls[0][0].idempotencyKey)
+  })
+  it('holds a definite decline without granting access or retrying another charge', async () => {
+    const f = fixture()
+    Object.assign(f.claim.operation, { stage: 'payment_requested', quote, invoice_id: 'in_upgrade', confirmed: true })
+    vi.mocked(f.provider.payInvoice).mockRejectedValue(new UpgradeProviderContractError('payment_declined'))
+    expect(await f.run()).toEqual({ kind: 'attention', reason: 'payment_declined' })
+    expect(f.provider.payInvoice).toHaveBeenCalledOnce()
+    expect(f.provider.applyTarget).not.toHaveBeenCalled()
+  })
+  it.each(['quoted', 'invoice_created'] as const)('cleans a known unpaid %s invoice when expiry equals the paid-term end', async stage => {
+    const f = fixture()
+    Object.assign(f.claim.operation, { stage, quote, invoice_id: 'in_upgrade', expires_at: end })
+    vi.mocked(f.provider.voidInvoice).mockImplementation(async input => {
+      await input.beforeMutation()
+      vi.mocked(f.provider.readEvidence).mockResolvedValue({ kind: 'voided', invoiceId: 'in_upgrade' })
+    })
+    expect(await processUpgrade({ store: f.store, provider: f.provider, operationId: id, now: () => end,
+      leaseSeconds: 120 })).toEqual({ kind: 'expired' })
+    expect(f.provider.voidInvoice).toHaveBeenCalledOnce()
+    expect(f.provider.payInvoice).not.toHaveBeenCalled()
+    expect(f.provider.applyTarget).not.toHaveBeenCalled()
+    expect(f.store.finish).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: 'expired', evidence: { kind: 'voided', invoiceId: 'in_upgrade' } }))
+  })
+  it.each(['payment_pending', 'paid'] as const)('holds %s money at the term boundary without voiding', async kind => {
+    const f = fixture()
+    Object.assign(f.claim.operation, { stage: 'payment_requested', quote, invoice_id: 'in_upgrade', confirmed: true })
+    vi.mocked(f.provider.readEvidence).mockResolvedValue(kind === 'paid' ? { kind, evidence: paid, targetApplied: false }
+      : { kind, invoiceId: 'in_upgrade' })
+    expect(await processUpgrade({ store: f.store, provider: f.provider, operationId: id, now: () => end,
+      leaseSeconds: 120 })).toMatchObject({ kind: 'attention' })
+    expect(f.provider.voidInvoice).not.toHaveBeenCalled()
+    expect(f.provider.payInvoice).not.toHaveBeenCalled()
+    expect(f.provider.applyTarget).not.toHaveBeenCalled()
+  })
+  it('never extends a quote across its original paid term', async () => {
+    const f = fixture()
+    Object.assign(f.claim.operation, { stage: 'payment_verified', quote, invoice_id: 'in_upgrade', payment_intent_id: 'pi_upgrade', confirmed: true })
     expect(await processUpgrade({ store: f.store, provider: f.provider, operationId: id, now: () => end,
       leaseSeconds: 120 })).toEqual({ kind: 'attention', reason: 'paid_period_ended' })
     expect(f.provider.payInvoice).not.toHaveBeenCalled()

@@ -228,6 +228,10 @@ reviewers, maximum seven launches, four fix batches and60minutes elapsed.
 Security/financial review uses GPT-5.6 Sol/high; compatibility uses GPT-6.1
 Sol/high because the preferred Terra model is unavailable. This review begins
 with the concrete preapplication candidate; no database application is included.
+Both initial reviewers completed a2e2d730 and its231 upgrade tests. Batch1 fixes
+interrupted payment-request recovery and expiry cleanup at the paid boundary,
+with coordinator/provider regressions and an ordinary-claim release SQL fixture.
+Targeted financial review follows on the corrected fixed source.
 
 `codex/subscription-plan-changes` implements a dormant backend slice backed by
 additive migration230 (`230_subscription_prorated_upgrades.sql`). It has not been
@@ -268,8 +272,13 @@ local230 authorization and reviewed integration of the classroom task's229.
   Awaiting confirmation or payment does not consume that error budget. An unknown
   invoice-creation response can reuse its original key only within 23 hours of
   the quote and before the original term ends, never with a fresh key afterward.
-  Expired, definitively unpaid invoices are safely finalized without collection
-  if necessary and voided; pending or captured payments are never blindly voided.
+  Known expired, definitively unpaid invoices are verified independently of the
+  subscription period, completed with exact frozen lines if necessary, finalized
+  without collection and voided even after renewal. Missing line writes retain
+  their23-hour key window. Pending or captured money is held for attention.
+  Unresolved payment requests replay the same key under fresh fences while the
+  quote remains valid; definite card declines hold attention without another
+  payment attempt.
 
 This candidate is not a complete launch implementation. Repeated upgrades within
 one paid term still need verified receipt-chain support; the current reserve gate

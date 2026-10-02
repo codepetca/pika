@@ -1,4 +1,4 @@
-import type Stripe from 'stripe'
+import Stripe from 'stripe'
 import { z } from 'zod'
 import { UpgradeOperationSchema, UpgradeProviderContractError, type UpgradeMutation, type UpgradeOperation, type UpgradeProvider,
   type UpgradeProviderEvidence } from './upgrade-contracts'
@@ -128,10 +128,13 @@ function validateLines(invoice: Invoice, operation: QuotedOperation, partial = f
 
 export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradeProvider {
   const quoteProvider = createStripeUpgradeQuoteProvider(port)
+  async function accountIdentity(operation: QuotedOperation) {
+    const account = decode(z.object({ id: ref }), await port.accounts.retrieve())
+    requireFact(account.id === operation.source_binding.stripe_account, 'identity_mismatch')
+  }
   async function current(operation: QuotedOperation) {
     const binding = operation.source_binding
-    const account = decode(z.object({ id: ref }), await port.accounts.retrieve())
-    requireFact(account.id === binding.stripe_account, 'identity_mismatch')
+    await accountIdentity(operation)
     const subscription = decode(subscriptionSchema, await port.subscriptions.retrieve(binding.stripe_subscription_id))
     const item = subscription.items.data[0]
     requireFact(subscription.id === binding.stripe_subscription_id && subscription.customer === binding.stripe_customer_id
@@ -152,7 +155,7 @@ export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradePro
   }
   async function readInvoice(operation: QuotedOperation, id: string, partial = false) {
     const invoice = decode(invoiceSchema, await port.invoices.retrieve(id))
-    invoiceIdentity(invoice, operation, id); validateLines(invoice, operation, partial)
+    invoiceIdentity(invoice, operation, id); validateLines(invoice, operation, partial && invoice.status === 'draft')
     return invoice
   }
   async function verifySourcePayment(operation: QuotedOperation) {
@@ -225,9 +228,11 @@ export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradePro
     try {
       const operation = quoted(candidate)
       requireFact(operation.invoice_id !== null, 'invoice_missing')
-      const state = await current(operation)
-      const invoice = await readInvoice(operation, operation.invoice_id)
+      const cleanup = operation.stage === 'void_requested'
+      const state = cleanup ? (await accountIdentity(operation), { targetApplied: false }) : await current(operation)
+      const invoice = await readInvoice(operation, operation.invoice_id, cleanup)
       const payment = await paymentEvidence(invoice, operation)
+      if (cleanup && payment !== 'unpaid') return { kind: 'attention', reason: payment === 'pending' ? 'payment_pending_at_expiry' : 'unexpected_payment_at_expiry' }
       if (payment === 'pending') return { kind: 'payment_pending', invoiceId: invoice.id }
       if (payment !== 'unpaid') return { kind: 'paid', targetApplied: state.targetApplied, evidence: {
         invoiceId: invoice.id, paymentIntentId: payment, subscriptionId: operation.source_binding.stripe_subscription_id,
@@ -249,7 +254,7 @@ export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradePro
     requireFact(typeof input.idempotencyKey === 'string' && input.idempotencyKey.length > 0 && input.idempotencyKey.length <= 220)
     return await input.beforeMutation() === true
   }
-  return {
+  const provider: UpgradeProvider = {
     prepareQuote: (operation, now) => quoteProvider.prepareQuote({ binding: operation.source_binding, target: operation.target,
       lifecycle: { paidPeriodStart: operation.paid_period_start, paidThrough: operation.paid_through, lastPaidInvoiceId: operation.last_paid_invoice_id }, now }),
     readEvidence,
@@ -278,18 +283,25 @@ export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradePro
       requireFact(operation.invoice_id !== null && ['invoice_created', 'void_requested'].includes(operation.stage), 'invoice_intent_missing')
       const id = operation.invoice_id
       for (const line of operation.quote.lines) {
-        const fresh = await current(operation)
-        requireFact(!fresh.targetApplied, 'unpaid_target_change')
+        const cleanup = operation.stage === 'void_requested'
+        if (cleanup) {
+          requireFact(!unexpired(operation), 'cleanup_not_expired')
+          await accountIdentity(operation)
+        } else {
+          const fresh = await current(operation)
+          requireFact(!fresh.targetApplied, 'unpaid_target_change')
+        }
         const invoice = await readInvoice(operation, id, true)
         requireFact(invoice.status === 'draft' && invoice.amount_paid === 0 && invoice.payments.data.length === 0, 'incomplete_evidence')
         if (invoice.lines.data.some(actual => matchingLine(actual, line, operation))) continue
         requireFact(await guard(input), 'lost_claim')
-        requireFact(Date.now() < Date.parse(operation.paid_through), 'renewal_boundary_crossed')
+        requireFact(cleanup ? Date.now() < Date.parse(operation.quote.quotedAt) + 23 * 60 * 60 * 1000
+          : Date.now() < Date.parse(operation.paid_through), cleanup ? 'idempotency_window_elapsed' : 'renewal_boundary_crossed')
         await port.invoiceItems.create({ invoice: id, customer: operation.source_binding.stripe_customer_id,
           subscription: operation.source_binding.stripe_subscription_id, currency: operation.quote.currency,
           amount: line.amount, discountable: false, discounts: [], tax_rates: [],
           period: { start: Date.parse(line.periodStart) / 1000, end: Date.parse(line.periodEnd) / 1000 },
-        }, { idempotencyKey: `${input.idempotencyKey}:${line.kind}` })
+        }, { idempotencyKey: `pika-upgrade-${operation.operation_id}-invoice:${line.kind}` })
       }
       await readInvoice(operation, id)
     },
@@ -307,7 +319,14 @@ export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradePro
       if (evidence.kind !== 'unpaid' || evidence.status !== 'open') return
       await verifySourcePayment(operation)
       if (!unexpired(operation) || !await guard(input) || !unexpired(operation)) return
-      await port.invoices.pay(evidence.invoiceId, { off_session: true, paid_out_of_band: false }, { idempotencyKey: input.idempotencyKey })
+      try {
+        await port.invoices.pay(evidence.invoiceId, { off_session: true, paid_out_of_band: false }, { idempotencyKey: input.idempotencyKey })
+      } catch (error) {
+        // A definite declined payment is an exception requiring recovery UX;
+        // only uncertain transport errors retain the original request for replay.
+        if (error instanceof Stripe.errors.StripeCardError) throw new UpgradeProviderContractError('payment_declined')
+        throw error
+      }
     },
     async applyTarget(input) {
       const operation = quoted(input.operation)
@@ -325,7 +344,11 @@ export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradePro
       let evidence = await readEvidence(operation)
       if (evidence.kind !== 'unpaid') return
       if (evidence.status === 'draft') {
-        if (!await guard(input)) return
+        // Recover only known, exact draft lines before non-collecting finalization.
+        // A partial negative draft must never be finalized as a customer credit.
+        await provider.populateInvoice(input)
+        evidence = await readEvidence(operation)
+        if (evidence.kind !== 'unpaid' || evidence.status !== 'draft' || !await guard(input)) return
         await port.invoices.finalizeInvoice(evidence.invoiceId, { auto_advance: false }, { idempotencyKey: `${input.idempotencyKey}:finalize` })
         evidence = await readEvidence(operation)
       }
@@ -333,4 +356,5 @@ export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradePro
       await port.invoices.voidInvoice(evidence.invoiceId, {}, { idempotencyKey: input.idempotencyKey })
     },
   }
+  return provider
 }

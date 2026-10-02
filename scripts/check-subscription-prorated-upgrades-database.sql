@@ -241,7 +241,13 @@ do $$ declare c jsonb; q jsonb; o jsonb; begin
   update upgrade_saved set claim=c where name='zero';
 end $$;
 reset role;
-update public.billing_upgrade_operations set expires_at=clock_timestamp()-interval '1 second' where id=(select operation_id from upgrade_cases where name='zero');
+-- Advance only synthetic fixture time to a quote expiry at the paid boundary.
+do $$ declare boundary timestamptz:=clock_timestamp()-interval '1 second'; begin
+  update public.billing_account_access set paid_through=boundary,access_ends_at=boundary
+    where subject_user_id=(select subject_id from upgrade_cases where name='zero');
+  update public.billing_upgrade_operations set expires_at=boundary,paid_through=boundary
+    where id=(select operation_id from upgrade_cases where name='zero');
+end $$;
 set local role service_role;
 do $$ declare c jsonb; begin
   select claim into c from upgrade_saved where name='zero';
@@ -250,6 +256,8 @@ do $$ declare c jsonb; begin
   exception when invalid_parameter_value then null; end;
   if public.billing_finish_upgrade_v1(pg_temp.upgrade_fence(c)||'{"outcome":"expired","evidence":{"kind":"voided","invoiceId":"in_upgrade230zero"}}')->>'status'<>'expired' then
     raise exception 'Verified void not expired'; end if;
+  if public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',c#>>'{operation,subscription_id}',
+    'lease_seconds',120))->>'status'<>'claimed' then raise exception 'Expired boundary cleanup still blocked ordinary reconciliation'; end if;
 end $$;
 reset role;
 -- Transport errors retain the durable mutation stage and exhaust exactly five

@@ -52,6 +52,7 @@ export async function processUpgrade(args: { store: UpgradeStore; provider: Upgr
   const initial = UpgradeClaimResultSchema.parse(await args.store.claim({ operation_id: args.operationId, lease_seconds: args.leaseSeconds }))
   if (initial.status !== 'claimed') return { kind: initial.status }
   let claim = initial
+  let paymentAttempted = false
   assertOperation(claim.operation, args.operationId)
   async function checkpoint(stage: UpgradeOperation['stage'], facts: Partial<Pick<Parameters<UpgradeStore['checkpoint']>[0],
     'quote' | 'quote_digest' | 'invoice_id' | 'payment_intent_id'>> = {}) {
@@ -81,7 +82,21 @@ export async function processUpgrade(args: { store: UpgradeStore; provider: Upgr
   try {
     for (let step = 0; step < 16; step++) {
       const operation = claim.operation
-      if (Date.parse(now()) >= Date.parse(operation.paid_through)) return finish('attention', 'paid_period_ended')
+      if (Date.parse(now()) >= Date.parse(operation.paid_through)) {
+        if (!operation.invoice_id && ['reserved', 'preview_verified'].includes(operation.stage)) return finish('expired')
+        if (!operation.invoice_id || ['payment_verified', 'change_requested'].includes(operation.stage)) {
+          return finish('attention', 'paid_period_ended')
+        }
+        // A known unpaid invoice remains safely cleanable after renewal. Never
+        // require the old provider period to stay current merely to void it.
+        if (operation.stage !== 'void_requested') await checkpoint('void_requested')
+        const cleanup = await read()
+        if (cleanup.kind === 'attention') return finish('attention', cleanup.reason)
+        if (cleanup.kind === 'voided') return finish('expired', undefined, { kind: 'voided', invoiceId: cleanup.invoiceId })
+        if (cleanup.kind !== 'unpaid') return finish('attention', cleanup.kind === 'paid' ? 'paid_period_ended' : 'payment_pending_at_expiry')
+        await args.provider.voidInvoice(mutation('void'))
+        continue
+      }
       if (operation.stage === 'reserved') {
         if (Date.parse(now()) >= Date.parse(operation.expires_at)) return finish('expired')
         const quote = UpgradeQuoteFactsSchema.parse(await args.provider.prepareQuote(operation, now()))
@@ -101,6 +116,10 @@ export async function processUpgrade(args: { store: UpgradeStore; provider: Upgr
         continue
       }
       if (operation.stage === 'invoice_created') {
+        if (Date.parse(now()) >= Date.parse(operation.expires_at)) {
+          await checkpoint('void_requested')
+          continue
+        }
         // Persist the invoice identity before line writes, so partial preparation is recoverable.
         await args.provider.populateInvoice(mutation('invoice'))
         await checkpoint(Date.parse(now()) >= Date.parse(claim.operation.expires_at) ? 'void_requested' : 'finalize_requested')
@@ -112,8 +131,10 @@ export async function processUpgrade(args: { store: UpgradeStore; provider: Upgr
         if (operation.stage !== 'void_requested') await checkpoint('void_requested')
         return finish('expired', undefined, { kind: 'voided', invoiceId: evidence.invoiceId })
       }
-      if (evidence.kind === 'payment_pending') return finish('payment_pending')
+      if (evidence.kind === 'payment_pending') return operation.stage === 'void_requested'
+        ? finish('attention', 'payment_pending_at_expiry') : finish('payment_pending')
       if (evidence.kind === 'paid') {
+        if (operation.stage === 'void_requested') return finish('attention', 'unexpected_payment_at_expiry')
         if (!operation.confirmed || !operation.quote || evidence.evidence.amountPaid !== operation.quote.amountDue
           || evidence.evidence.targetPriceId !== operation.target.stripe_price_id
           || evidence.evidence.subscriptionId !== operation.source_binding.stripe_subscription_id
@@ -147,12 +168,14 @@ export async function processUpgrade(args: { store: UpgradeStore; provider: Upgr
         return finish('attention', operation.confirmed ? 'confirmed_quote_changed' : 'prepared_quote_changed')
       }
       if (!operation.confirmed) return finish('awaiting_confirmation')
-      if (operation.stage === 'quoted') {
-        await checkpoint('payment_requested')
+      if (operation.stage === 'quoted') await checkpoint('payment_requested')
+      if (claim.operation.stage === 'payment_requested' && !paymentAttempted) {
+        // Recover a persisted intent that may never have reached Stripe. Always
+        // reuse its exact key; pending/captured evidence has already returned.
+        paymentAttempted = true
         await args.provider.payInvoice(mutation('payment'))
         continue
       }
-      // A declined payment is never automatically retried with a fresh intent or request key.
       if (operation.stage === 'payment_requested') return finish('payment_pending')
       return finish('attention', 'provider_state_conflict')
     }
