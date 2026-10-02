@@ -464,9 +464,9 @@ The keyset roster read and per-learner previews require no schema. No promotion
 or activation occurred. The hub is synchronized; merged Git retains the work.
 
 The **Teacher vs student login** task retains overall coordination. Its current
-worktree is `codex/contextual-lesson-plan-date-writes`; the coordinator owns Git,
+worktree is `codex/contextual-lesson-plan-bulk-writes`; the coordinator owns Git,
 roadmap, verification, independent review and integration. One implementation
-worker owns the date route/helper/schema, tests and synthetic concurrency harness;
+worker owns the bulk route/helper/schema, tests and synthetic concurrency harness;
 the coordinator owns migration application, generated types, CI and continuity.
 Current-relationship checks must bind each read or mutation. No AI or activation.
 See the [entry/history contract](contextual-teacher-daily-log-read.md) and
@@ -526,7 +526,23 @@ or infer permission for another migration/application. Current synthetic proofs 
 both owner role values, stale/equal no-side-effects, artifact/Blueprint lineage,
 archive/transfer orderings, row contention and translated Blueprint conflicts with
 head/plan/revision rollback and exact fixture/audit cleanup. Final SDK-boundary and
-lifecycle-fence verification, independent review and exact-head CI remain gates.
+lifecycle-fence verification passes; both initial independent reviewers are clean
+on c1eedd0d. CI36950939593 passed the date database harness but found a CURRENT
+documentation-format regression (9043 unit tests passed, one failed). The single
+missing space was reproduced and corrected in f86d5f85; targeted review and all
+216 focused/static checks pass. PR1424 is draft for cumulative review/new CI. It must merge
+before bulk publication/integration; no activation or production change is implied.
+
+Source/TDD preparation for [bulk owner writes](contextual-lesson-plan-bulk-writes.md)
+can proceed independently in a stacked checkout while date CI runs. The selected
+dedicated bulk wrapper reuses unchanged226 in one transaction, preserving success,
+sequence, count and blank-upsert semantics. The new admitted path intentionally
+rolls back the entire request on database failure; the legacy route stays unchanged.
+A bounded GPT-6 Astra/high proposal is verified; one GPT-6 Sol/high worker owns
+source/tests/harness preparation and the coordinator owns docs/CI/Git. Tentative227
+requires latest-main numbering verification and separate exact-target application
+approval. New-RPC database evidence and legitimate generated types remain pending;
+do not hand-edit generated types, apply schema or claim acceptance prematurely.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3

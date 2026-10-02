@@ -36,6 +36,10 @@ export const contextualLessonPlanDateParamsSchema = z.object({
   date: lessonPlanDateSchema,
 }).strict()
 
+export const contextualLessonPlanBulkParamsSchema = z.object({
+  id: canonicalUuid,
+}).strict()
+
 export const contextualLessonPlanRowSchema = z.object({
   id: canonicalUuid,
   classroom_id: canonicalUuid,
@@ -64,6 +68,31 @@ const sdkResponseMetadata = {
 export const contextualLessonPlanRpcEnvelopeSchema = z.union([
   z.object({
     data: contextualLessonPlanRpcResultSchema,
+    error: z.null(),
+    ...sdkResponseMetadata,
+  }).strict(),
+  z.object({
+    data: z.null(),
+    error: z.object({
+      code: z.string(),
+      message: z.string().nullable().optional(),
+      details: z.string().nullable().optional(),
+      hint: z.string().nullable().optional(),
+    }).strict(),
+    ...sdkResponseMetadata,
+  }).strict(),
+])
+
+export const contextualLessonPlanBulkResultSchema = z.object({
+  date: lessonPlanDateSchema,
+  operation: z.enum(['upsert', 'clear']),
+  applied: z.boolean(),
+  lesson_plan: contextualLessonPlanRowSchema.nullable(),
+}).strict()
+
+export const contextualLessonPlanBulkRpcEnvelopeSchema = z.union([
+  z.object({
+    data: z.object({ results: z.array(contextualLessonPlanBulkResultSchema) }).strict(),
     error: z.null(),
     ...sdkResponseMetadata,
   }).strict(),
