@@ -10,7 +10,7 @@ export default function ClassroomLoading() {
         className="min-h-[calc(100vh-3rem)] bg-page grid grid-cols-1 lg:grid-cols-[52px_1fr_0px]"
       >
         {/* Left sidebar skeleton - matches collapsed LeftSidebar (52px) */}
-        <aside className="hidden lg:flex flex-col sticky top-12 h-[calc(100vh-3rem)] border-r border-border bg-surface">
+        <aside className="hidden lg:flex flex-col sticky top-12 h-[calc(100vh-3rem)] bg-surface">
           <div className="flex-1 py-3 px-0.5 space-y-2">
             <div className="h-12 w-12 mx-auto bg-surface-hover rounded animate-pulse" />
             <div className="h-12 w-12 mx-auto bg-surface-hover rounded animate-pulse" />
