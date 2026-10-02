@@ -249,3 +249,10 @@ unknown envelopes/content/identity regressions. Independent fixed-SHA review and
 final CI remain required; main reconciliation after1422 is pending. No migration,
 reset/reseed, hosted/account, billing, UI, write or cohort change. Risk:
 runtime-platform; high authorization/privacy review risk.
+
+Initial PR1423 compatibility review is clean atfb6feb56; security found one
+accepted P2: JSONB literal null bypasses SQL NOTNULL and was incorrectly projected.
+Unit and actual PostgREST regressions reproduced it before the one correction
+batch;77 affected tests/type/scopedlint now pass with required nonnull valid
+content. Actual DB green, targeted/final review and final CI remain acceptance
+gates. No legacy behavior, schema, migration or live configuration change.

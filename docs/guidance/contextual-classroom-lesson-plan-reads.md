@@ -82,6 +82,12 @@ query/RPC or legacy fallback. Explicitly project the eleven current supported pl
 fields, including Blueprint provenance, with existing markdown conversion; joined
 authorization metadata never appears in the response.
 
+Every plan requires valid Tiptap content using the shared parser/validator;
+missing or JSON null content fails503 instead of becoming an empty plan. PostgreSQL
+JSONB NOT NULL still allows the JSON literal null, so this is verified against
+actual stored JSONB, not only mocks. Valid document and serialized-document
+compatibility remain unchanged.
+
 Acceptance requires TDD/admission/auth-order/unchanged-pair/legacy tests, focused
 static checks and the actual local PostgREST contract. The synthetic harness must
 prove FK/alias semantics, 1001+ plans and short nonterminal pages, empty and

@@ -105,9 +105,11 @@ describe('actor-bound contextual lesson-plan read', () => {
     await expect(readContextualLessonPlans({ ...input, permission: 'member', supabase })).rejects.toMatchObject({ statusCode: 403 })
   })
 
-  it.each([undefined, 'broken', { type: 'not-doc' }])('rejects absent or invalid plan content %#', async content => {
+  it.each([undefined, null, 'broken', { type: 'not-doc' }])('rejects absent or invalid plan content %#', async content => {
     const { supabase } = client([envelope(root([{ ...plan('2026-09-19'), content }])), envelope(root([]))])
-    await expect(readContextualLessonPlans({ ...input, permission: 'member', supabase })).rejects.toMatchObject({ statusCode: 503 })
+    await expect(readContextualLessonPlans({ ...input, permission: 'member', supabase })).rejects.toMatchObject({
+      statusCode: 503, message: 'Unable to verify classroom lesson plans',
+    })
   })
 
   it('rejects duplicate plan identities across pages', async () => {

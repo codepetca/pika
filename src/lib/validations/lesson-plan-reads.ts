@@ -27,7 +27,8 @@ export const lessonPlanReadEnrollmentEnvelopeSchema = z.object({
 export const lessonPlanReadVisibilitySchema = z.enum(['current_week', 'one_week_ahead', 'all']).nullable()
 export const lessonPlanReadPlanSchema = z.object({
   id: uuid, classroom_id: uuid, date: lessonPlanDateSchema,
-  content: z.unknown(), content_markdown: z.string().nullable(),
+  content: z.unknown().refine(value => value !== null && value !== undefined),
+  content_markdown: z.string().nullable(),
   created_at: timestamp, updated_at: timestamp,
   artifact_id: uuid, source_artifact_id: uuid.nullable(),
   source_blueprint_version_id: uuid.nullable(), blueprint_archived_at: timestamp.nullable(),

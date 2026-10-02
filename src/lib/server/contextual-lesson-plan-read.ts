@@ -155,11 +155,11 @@ export async function readContextualLessonPlans(input: {
     for (const plan of page) {
       if (plan.classroom_id !== classroomId || plan.date < start || plan.date > end
         || (previous !== undefined && plan.date <= previous)
-        || seenPlanIds.has(plan.id) || plan.content === undefined) throw unavailable()
+        || seenPlanIds.has(plan.id)) throw unavailable()
       if (typeof plan.content === 'string') {
         try { JSON.parse(plan.content) } catch { throw unavailable() }
       }
-      if (plan.content !== null && !isValidTiptapContent(parseContentField(plan.content))) throw unavailable()
+      if (!isValidTiptapContent(parseContentField(plan.content))) throw unavailable()
       previous = plan.date
       seenPlanIds.add(plan.id)
       if (firstMaxDate === null || firstMaxDate === undefined || plan.date <= firstMaxDate) plans.push(plan)
@@ -168,7 +168,7 @@ export async function readContextualLessonPlans(input: {
     lastDate = previous
   }
   const lesson_plans = plans.map(plan => ({ ...plan, content_markdown: getLessonPlanMarkdown({
-    content: plan.content === null ? null : parseContentField(plan.content),
+    content: parseContentField(plan.content),
     content_markdown: plan.content_markdown,
   }).markdown }))
   return input.permission === 'owner' ? { lesson_plans } : {

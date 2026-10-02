@@ -132,6 +132,15 @@ async function main() {
     resetClass()
     process.stdout.write('PASS actual left-plan/inner-membership embedding, 1001+ keyset pagination, both owner/member role values, projection/isolation, empty ranges, archived owner and owner precedence\n')
 
+    sql(`update public.lesson_plans set content='null'::jsonb where classroom_id='${classA}' and date='${today}';`)
+    for (const [actor, permission] of [[ownerStudent, 'owner'], [memberTeacher, 'member']] as const) {
+      await assert.rejects(read(actor, classA, permission, service, today, today), {
+        statusCode: 503, message: 'Unable to verify classroom lesson plans',
+      }, 'JSON literal null bypasses SQL NOT NULL, but must fail the supported content contract')
+    }
+    sql(`update public.lesson_plans set content='{"type":"doc","content":[]}'::jsonb where classroom_id='${classA}' and date='${today}';`)
+    process.stdout.write('PASS actual PostgreSQL JSONB null rejected as generic503 for owner and member reads\n')
+
     const short = instrument(memberTeacher, classA, 'member', { pageSize: 1 })
     assert.equal((await read(memberTeacher, classA, 'member', short.client, today, later)).lesson_plans.length, 3)
     assert.equal(short.pages(), 4, 'A short nonterminal page must not truncate the list')
