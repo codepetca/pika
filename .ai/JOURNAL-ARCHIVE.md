@@ -34172,3 +34172,10 @@ Student actions now names the selected count (AI Grade 1 student / AI Grade 2 st
 ## 2026-09-30 — Test references stay inside the assessment
 
 Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.
+
+<!-- pika-session-log-archive-batch:058d046511ad10ff827b45deb9e40446d495c481ce84c94a680a7ea1e6a32fea -->
+## 2026-09-30 — Hosted migration workflow (PR1404)
+
+Implemented the manual school-accessible GitHub migration workflow, portable runner, exact source/target/migration/hash approval, CI replay evidence binding, history drift checks, one-attempt failure handling, and minimal trusted CLI configuration. Production is the default target; preview is the default mode. No live migration or billing change is authorized or performed. PR1404 received independent security and operations review; one correction batch pinned actions and verified CLI download checksums before execution, and explicitly reports unknown durable state. The 128-test focused gate and all required CI lanes/PR Gate passed on reviewed d7120d73; four reviewer launches completed with no unresolved findings.
+
+Main advanced during CI. The owner approved one archive-only sync, one focused review, fresh CI and merge on green. Both archive batch markers and current main changes are retained. The dedicated migrations-production environment permits only branch main and is bound to verified Pika/zhioqbapgfcrronyuidm; credentials await secure owner entry. Staging remains deferred; existing Vercel environments are unchanged. Final sync review, exact-head CI and merge are pending; this authorization does not allow hosted SQL application or app promotion.

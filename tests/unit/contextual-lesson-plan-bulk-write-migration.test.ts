@@ -1,4 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync('supabase/migrations/227_contextual_lesson_plan_bulk_write.sql', 'utf8')
@@ -71,5 +74,37 @@ describe('contextual lesson-plan bulk synthetic cleanup source', () => {
     expect(harness).toContain('--verify-cleanup-after-fixture')
     expect(harness).toContain('Forced post-fixture cleanup proof')
     expect(harness).toMatch(/delete from public\.users[\s\S]*?PASS exact synthetic fixture cleanup with zero residual rows/)
+  })
+})
+
+describe('contextual lesson-plan bulk CI cleanup proof', () => {
+  it('uses portable checks and requires both forced-error and zero-residue evidence', () => {
+    const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
+    const step = workflow.split('name: Verify contextual lesson-plan bulk atomicity and failed-fixture cleanup')[1]
+      ?.split('\n      - name:')[0] ?? ''
+    const commands = [...step.matchAll(/^\s+(?:rg|grep) -F .+$/gm)].map(([line]) => line.trim())
+    expect(commands).toEqual([
+      'grep -F \'Error: Forced post-fixture cleanup proof\' "$cleanup_log"',
+      'grep -F \'PASS exact synthetic fixture cleanup with zero residual rows\' "$cleanup_log"',
+    ])
+    const directory = mkdtempSync(join(tmpdir(), 'pika-bulk-ci-proof-'))
+    const logPath = join(directory, 'cleanup.log')
+    const verify = (contents: string) => {
+      writeFileSync(logPath, contents)
+      return spawnSync('bash', ['-e', '-o', 'pipefail', '-c', commands.join('\n')], {
+        encoding: 'utf8',
+        env: { ...process.env, cleanup_log: logPath },
+      }).status
+    }
+    const error = 'Error: Forced post-fixture cleanup proof\n'
+    const cleanup = 'PASS exact synthetic fixture cleanup with zero residual rows\n'
+    try {
+      expect(verify(error + cleanup)).toBe(0)
+      expect(verify(error)).not.toBe(0)
+      expect(verify(cleanup)).not.toBe(0)
+      expect(verify('')).not.toBe(0)
+    } finally {
+      rmSync(directory, { recursive: true })
+    }
   })
 })

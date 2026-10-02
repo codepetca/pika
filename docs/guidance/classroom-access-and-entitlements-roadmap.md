@@ -569,6 +569,13 @@ installed226/227 digests are unchanged. Its draft publication and initial full
 high-risk review now proceed. The user approved a30-minute review-window extension
 after the original elapsed window expired during prerequisite CI; prior counters
 remain3launches/2fixbatches before the full initial wave. No budget reset or rollout.
+Draft1426 was published atde2feb04; full initial security/compatibility reviews clean
+and238 focused/type/audit checks pass. CI36997772883 passed build/browser and the
+positive bulk/forced-failure cleanup contracts, but its final proof wrapper failed
+because GitHub lacked `rg`. Returned to draft. User approved20additional review
+minutes for a portable `grep -F` correction with a strict two-sentinel regression;
+SQL226/227 and application behavior remain unchanged. Targeted/final review and new
+exact-head CI are still required. Billing plans228; no local or production apply.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3

@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Hosted migration workflow (PR1404)
-
-Implemented the manual school-accessible GitHub migration workflow, portable runner, exact source/target/migration/hash approval, CI replay evidence binding, history drift checks, one-attempt failure handling, and minimal trusted CLI configuration. Production is the default target; preview is the default mode. No live migration or billing change is authorized or performed. PR1404 received independent security and operations review; one correction batch pinned actions and verified CLI download checksums before execution, and explicitly reports unknown durable state. The 128-test focused gate and all required CI lanes/PR Gate passed on reviewed d7120d73; four reviewer launches completed with no unresolved findings.
-
-Main advanced during CI. The owner approved one archive-only sync, one focused review, fresh CI and merge on green. Both archive batch markers and current main changes are retained. The dedicated migrations-production environment permits only branch main and is bound to verified Pika/zhioqbapgfcrronyuidm; credentials await secure owner entry. Staging remains deferred; existing Vercel environments are unchanged. Final sync review, exact-head CI and merge are pending; this authorization does not allow hosted SQL application or app promotion.
-
 ## 2026-09-30 Allow today's Class Days correction
 
 - User approved same-day edits: Settings now allows adding today immediately, confirms before excluding today, and disables all past dates to match the API. Existing logs remain stored; Toronto-midnight and archived-classroom guards are retained.
@@ -345,3 +339,14 @@ User explicitly approved30additional elapsed review minutes. Original bulk ledge
 and3launches/2fixbatches retained; resumed10:41:56Z, deadline11:11:56Z. Bulk rebased
 cleanly onto42789d40, installed226/227 unchanged. Draft publication and the single
 full initial security/compatibility wave follow fresh focused/type/audit checks.
+
+## 2026-10-02 — Bulk1426 CI portability correction approved
+
+Full initial security/compatibility reviews clean atde2feb04;238focused/types/audit
+pass. CI36997772883 passed build/browser and both real bulk/cleanup modes, but the
+proof wrapper failed `rg: command not found` on runner. Returned draft; no SQL fault.
+User approved20-minute remediation/review window13:29:24–13:49:24Z with counters
+retained5launches/2prior fixes. Regression reproduced old wrapper failure; portable
+grep preserves both required sentinels and rejects either missing proof. SQL226/227
+unchanged; no schema/promotion/activation. User-authorized billing coordination
+confirmed227 taken,228 planned by billing; its applications remain separately gated.
