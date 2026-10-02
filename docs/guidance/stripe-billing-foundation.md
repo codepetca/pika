@@ -235,7 +235,11 @@ Targeted financial review of ef8c4ece cleared payment replay but found partial
 draft fixtures using completed totals. Batch2 validates actual draft subset
 totals/no payments, completes exact lines, then enforces final frozen totals.
 An integrated coordinator/provider regression covers the boundary. All576
-billing tests pass; targeted follow-up is launch4of7, with two fix batches used.
+billing tests pass. Targeted follow-up cleared c962f622 with73 coordinator/provider
+tests. Four launches and two fix batches are used; final cumulative PR review
+remains after database/types verification. Migration230 is byte-identical to the
+initially reviewed source. Exact local230 approval is pending; the classroom229
+PR also needs its owner-controlled main reconciliation before type generation.
 
 `codex/subscription-plan-changes` implements a dormant backend slice backed by
 additive migration230 (`230_subscription_prorated_upgrades.sql`). It has not been
