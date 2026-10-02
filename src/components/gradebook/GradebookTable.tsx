@@ -142,8 +142,8 @@ export function GradebookTable({
                 <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Category</DataTableHeaderCell>
                 {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="truncate bg-surface-2 !px-1 text-xs text-text-muted">
-                  <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit category for ${column.code}: ${column.title}`} className="w-full min-w-0 truncate px-1 font-normal text-text-muted">
+                {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="truncate bg-surface-2 !px-1 !py-0 text-xs text-text-muted">
+                  <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit category for ${column.code}: ${column.title}`} className="h-6 min-h-0 w-full min-w-0 truncate border-0 px-1 py-0 align-middle font-normal text-text-muted focus-visible:ring-inset focus-visible:ring-offset-0">
                     <span title={column.category_name || 'None'}>{ultraCompact ? (column.category_name || 'None').slice(0, 4) : column.category_name || 'None'}</span>
                   </Button>
                 </DataTableCell>)}
@@ -152,14 +152,14 @@ export function GradebookTable({
               </DataTableRow> : null}
               {displayMode === 'raw' ? <DataTableRow aria-label="Max mark">
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
-                <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Max mark</DataTableHeaderCell>
+                <DataTableHeaderCell scope="row" align="right" aria-label="Max mark" title="Max mark" className={cn(rowLabelClass, 'whitespace-nowrap font-semibold !text-text-default')}>Max</DataTableHeaderCell>
                 {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="bg-surface-2 !px-1 text-xs tabular-nums">
+                {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="bg-surface-2 !px-1 !py-0 text-xs tabular-nums">
                   <Button type="button" variant="ghost" size="xs"
                     disabled={isReadOnly || !onMaxMarkOpen || (!maximumEditsEnabled && !column.is_maximum_override) || savingMaxMarkKeys.has(getAssessmentColumnKey(column))}
                     aria-label={`Maximum mark for ${column.title}${column.is_maximum_override ? ', overridden' : ''}`}
-                    className="w-full min-w-0 gap-0.5 px-0 text-xs tabular-nums"
+                    className="h-6 min-h-0 w-full min-w-0 gap-0.5 border-0 px-0 py-0 align-middle text-xs tabular-nums focus-visible:ring-inset focus-visible:ring-offset-0"
                     onClick={() => onMaxMarkOpen?.(column)}>
                     <span className="min-w-0 truncate" title={formatPoints(column.possible)}>{formatPoints(column.possible)}</span>
                   </Button>
