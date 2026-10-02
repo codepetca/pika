@@ -210,8 +210,8 @@ closeout PR #1429 as `25cc0691`. Its reviewed head `fe228354` passed all five CI
 jobs, including 9,167 tests. Local228 remains applied; billing is disabled.
 The coordinator owns `codex/subscription-plan-changes`, based on that main SHA,
 for authoritative upgrade quotes and approved renewal-scheduled transitions.
-The classroom-copy task owns migration229, already present locally; wait for
-its reviewed main integration before generating types against that schema.
+Classroom-copy PR1431 merged493e752a, preserving applied229. The billing
+branch is rebased onto that main; migration230 remains byte-identical.
 
 Current ownership: three bounded workers completed the provider quote, frozen
 invoice, API/runtime and additive schema implementations. The coordinator owns
@@ -240,15 +240,22 @@ tests. Four launches and two fix batches are used; final cumulative PR review
 remains after database/types verification. Migration230 is byte-identical to the
 initially reviewed source. The owner approved one local230 application on
 2026-10-02, conditional on classroom229 PR1431 merging and a dry run containing
-only230. The permission is unconsumed. Local target Pika/54322 is verified; all
-four existing billing database harnesses passed with rollback, unchanged data
-counts and sandbox OFF. Wait for229 main integration before application/typegen.
+only230. The owner permission was consumed by one successful local230 push after
+1431 merged. Local Pika/54322 history001–230 matches; generated types/check and
+focused TypeScript/lint/architecture gates pass. Four existing database harnesses
+passed after230; security advisor reports no issues. Data counts are unchanged
+and sandbox OFF. The new rollback harness stopped at its first unparenthesized
+CASE assertion; a two-line fixture-only correction is prepared, not applied.
+The original review clock expired during the prerequisite wait; four launches,
+two financial fix batches and one main sync are recorded. A bounded final
+fixture-correction/integration-review extension is pending before PR publication.
 
 `codex/subscription-plan-changes` implements a dormant backend slice backed by
-additive migration230 (`230_subscription_prorated_upgrades.sql`). It has not been
-applied. The existing shared local database is retained; there is no reset or
-reseed. Application and generated-type verification require separate exact
-local230 authorization and reviewed integration of the classroom task's229.
+additive migration230 (`230_subscription_prorated_upgrades.sql`). It was
+applied locally once after the owner-authorized230-only preview. The existing
+shared database is retained without reset/reseed. Types are generated from its
+matching migration schema. The new rollback harness still requires its prepared
+fixture syntax correction and rerun; final review/PR/CI remain pending.
 
 - Require the existing loopback test sandbox, checkout configuration and separate
   `BILLING_UPGRADES_ENABLED=true` gate. No configuration is enabled by this PR.
