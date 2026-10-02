@@ -6,6 +6,29 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  /* Let every scroll track blend into its own page, panel, or editor surface. */
+  * {
+    scrollbar-color: var(--color-text-muted) transparent;
+  }
+
+  /* Older Safari uses the scrollbar pseudo-elements instead of scrollbar-color. */
+  @supports not (scrollbar-color: auto) {
+    @media (forced-colors: none) {
+      ::-webkit-scrollbar,
+      ::-webkit-scrollbar-track,
+      ::-webkit-scrollbar-corner {
+        background: initial;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--color-text-muted);
+        border-radius: var(--radius-badge);
+      }
+    }
+  }
+}
+
 @layer utilities {
   .scrollbar-none {
     scrollbar-width: none;

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Approved Daily Log conflict retry correction
-
-Owner approved narrow225 fix, one seventh targeted review and exactly225 locally after verification. Generated migration via CLI and allocated225; installed224 bytes unchanged. Full replacement differs only in declaration/customPT409 error; service-only grants/security/metadata retained. Adapter accepts PT409 and40001, with one-call/privacy regressions. Tests reproduced missingPT409 mapping before fix; static tests compare complete definition/grants and224hash. Extended existing rollback-only CI harness with a malformed inner-result fault and PT409/no-entry-change assertion; temporary function replacement rolls back. No225 application yet at this implementation checkpoint; focused verification and the one bounded fixed-SHA review precede its approved application. PR1380 will carry latest application/review/CI receipt. Production and admission unchanged. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high targeted correction review.
-
 ## 2026-09-30 — Approved final Daily harness role correction
 
 Seventh review at98d0822c found225/adapter clean but fault-injection DDL still ran as service_role, not postgres owner. Catalog proof confirmed missing ownership. Owner approved two-line correction and eighth/final targeted review: reset role before temporary dependency replacement; set local service_role before save assertion. Static regression covers both transitions. Migration224/225 SQL and application permissions unchanged. Local225 permission remains held, unattempted pending final review; PR1380 contains live application/CI receipt. No production or rollout activation. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high bounded role-correction/integration review.
@@ -417,3 +413,10 @@ Evidence: focused 254 tests and static checks passed; targeted controller/compon
 ## 2026-10-02 — Attendance approved merge synchronization
 
 Owner approved one additional journal reconciliation, targeted review and CI cycle after the bounded review checkpoint. Rebased PR1430 onto main25cc0691 (renewal closeout); preserved both archive histories and removed only duplicate blocks introduced by conflict resolution. All attendance source and tests remain byte-identical to reviewed8bc09489. Prior exact-head CI37038675999 passed every selected lane and PR Gate. Fresh focused verification, the single approved targeted review, final exact-head CI and main merge remain gated. Risk profile:workspace-state. Model recommendation:GPT-6.1 Sol/high for bounded synchronization compatibility.
+
+## 2026-10-02 — Minimal app scrollbar tracks
+
+- Extended `src/app/globals.scss` with transparent app-wide tracks and semantic thumb color; preserved native width, hover/hidden utilities, and forced-color defaults. Older Safari gets a guarded pseudo-element fallback.
+- Reference/reuse: classroom shell and existing transparent document tracks; extend global CSS, reuse utilities. Both roles, desktop/mobile, light/dark, default/hover/focus/hidden covered. No composite behavior, new component, or experimental guidance.
+- Verification: focused checks passed (91 tests, architecture, UI/design policy, TypeScript, lint). Headed Playwright captured all eight role/viewport/theme combinations for Classrooms and Pattern Lab, plus temporary browser-only surface probes; scrolling, hover/focus, hidden scrollbars, and forced colors passed. Evidence: `/tmp/pika-scrollbar-captures/evidence.json`; captures alongside it. Safari fallback not tested in Safari.
+- Risk profile: none. Model recommendation: GPT-6.1 Sol — small global CSS refinement with browser verification. PR1432 independently reviewed without blockers; original exact-head CI37047140437 and PR Gate passed. Owner authorized main merge; rebased onto attendance1430, preserving main history and removing only a newly duplicated archived entry. Scrollbar CSS remains byte-identical; sync checks, targeted review and fresh final CI precede merge.
