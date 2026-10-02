@@ -266,6 +266,20 @@ jobs:
           grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
           grep -F 'PASS exact synthetic fixture cleanup with zero residual rows' "$cleanup_log"
 
+      - name: Verify contextual lesson-plan copy atomicity and failed-fixture cleanup
+        shell: bash
+        run: |
+          node scripts/check-contextual-lesson-plan-copy-write-concurrency.mjs
+          cleanup_log="$(mktemp)"
+          if node scripts/check-contextual-lesson-plan-copy-write-concurrency.mjs --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic fixture cleanup with zero residual rows' "$cleanup_log"
+
       - name: Verify contextual teacher Daily Log reads and current ownership
         run: pnpm exec tsx scripts/check-contextual-teacher-daily-read.ts
 

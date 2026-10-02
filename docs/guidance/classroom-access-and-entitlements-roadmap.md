@@ -577,6 +577,24 @@ minutes for a portable `grep -F` correction with a strict two-sentinel regressio
 SQL226/227 and application behavior remain unchanged. Targeted/final review and new
 exact-head CI are still required. Billing plans228; no local or production apply.
 
+That1426 checkpoint is superseded by targeted/final clean review and all five
+exact-head gates on38c7edfb, CI37014848829. Normal squash mergea101fb28 is verified;
+canonical main fast-forwarded cleanly.239 focused checks pass; installed226/227
+remain unchanged. No production application/promotion or cohort activation occurred.
+
+The authorized next bounded slice is [lesson-plan copy](contextual-lesson-plan-copy-writes.md)
+on `codex/contextual-lesson-plan-copy-writes`, based ona101fb28. A bounded read-only
+GPT-6 Astra/high design and one GPT-6 Sol/high implementation worker prepared the
+owner-bound RPC, strict admitted route and tests; the coordinator owns harness,
+docs, CI and Git. Proposed229 copies raw content plus nullable Markdown atomically,
+preserving destination identity/lineage and untouched ordered heads; legacy copy
+stays unchanged. Recursive persisted-content validation occurs before any write.
+Source/CI-wrapper tests pass, but real runtime evidence/generated types are pending.
+The local read-only preview found installed228 absent from this branch/main;
+billing owns228 and must merge/reconcile first. Do not repair history or apply229
+out of order. New exact local229 approval, SQL review and full draft-first PR review
+remain required; production stays held. This does not advance batch1's exit gate.
+
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem

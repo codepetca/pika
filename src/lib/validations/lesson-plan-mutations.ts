@@ -40,6 +40,14 @@ export const contextualLessonPlanBulkParamsSchema = z.object({
   id: canonicalUuid,
 }).strict()
 
+export const contextualLessonPlanCopyBodySchema = z.object({
+  fromDate: lessonPlanDateSchema,
+  toDate: lessonPlanDateSchema,
+}).strict().refine((value) => value.fromDate !== value.toDate, {
+  message: 'fromDate and toDate must be different',
+  path: ['toDate'],
+})
+
 export const contextualLessonPlanRowSchema = z.object({
   id: canonicalUuid,
   classroom_id: canonicalUuid,
@@ -93,6 +101,24 @@ export const contextualLessonPlanBulkResultSchema = z.object({
 export const contextualLessonPlanBulkRpcEnvelopeSchema = z.union([
   z.object({
     data: z.object({ results: z.array(contextualLessonPlanBulkResultSchema) }).strict(),
+    error: z.null(),
+    ...sdkResponseMetadata,
+  }).strict(),
+  z.object({
+    data: z.null(),
+    error: z.object({
+      code: z.string(),
+      message: z.string().nullable().optional(),
+      details: z.string().nullable().optional(),
+      hint: z.string().nullable().optional(),
+    }).strict(),
+    ...sdkResponseMetadata,
+  }).strict(),
+])
+
+export const contextualLessonPlanCopyRpcEnvelopeSchema = z.union([
+  z.object({
+    data: z.object({ lesson_plan: contextualLessonPlanRowSchema }).strict(),
     error: z.null(),
     ...sdkResponseMetadata,
   }).strict(),

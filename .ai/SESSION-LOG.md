@@ -420,3 +420,18 @@ Owner approved one additional journal reconciliation, targeted review and CI cyc
 - Reference/reuse: classroom shell and existing transparent document tracks; extend global CSS, reuse utilities. Both roles, desktop/mobile, light/dark, default/hover/focus/hidden covered. No composite behavior, new component, or experimental guidance.
 - Verification: focused checks passed (91 tests, architecture, UI/design policy, TypeScript, lint). Headed Playwright captured all eight role/viewport/theme combinations for Classrooms and Pattern Lab, plus temporary browser-only surface probes; scrolling, hover/focus, hidden scrollbars, and forced colors passed. Evidence: `/tmp/pika-scrollbar-captures/evidence.json`; captures alongside it. Safari fallback not tested in Safari.
 - Risk profile: none. Model recommendation: GPT-6.1 Sol — small global CSS refinement with browser verification. PR1432 independently reviewed without blockers; original exact-head CI37047140437 and PR Gate passed. Owner authorized main merge; rebased onto attendance1430, preserving main history and removing only a newly duplicated archived entry. Scrollbar CSS remains byte-identical; sync checks, targeted review and fresh final CI precede merge.
+## 2026-10-02 — Bulk merged; prepare contextual lesson-plan copy
+
+1426 reviewed38c7edfb passed all five exact-head gates in37014848829; normal squash
+mergea101fb28 verified and canonical main fast-forwarded.239 focused checks;226/227
+unchanged. User-authorized billing notification delivered; heartbeat stays paused.
+New managed copy checkout based ona101fb28; startup verified, frozen install only.
+Bounded Astra/high design plus Sol/high writer; coordinator owns docs/harness/CI/Git.
+Prepared229 adds current-owner atomic copy with strict recursive source validation,
+raw content/nullable Markdown, preserved destination identity/lineage and no heads.
+Pre-review inspection fixed nullable node validation and SQL COALESCE syntax.
+CI-wrapper TDD red/green; source tests pass, legacy eight checked separately.
+Read-only local list/preview found installed228 absent from branch/main; dry-run
+stopped on history mismatch. No repair, schema apply, generated-type fabrication,
+production, billing/account or admission changes. Wait billing228 reconciliation,
+SQL preapplication review and fresh exact LOCAL229 approval before runtime tests.
