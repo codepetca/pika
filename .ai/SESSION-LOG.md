@@ -11,6 +11,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-29 — Stacked test diagrams and course guidance check
+
+Replaced the test-authoring guide’s side-by-side transformation rule with vertically stacked generated diagrams: starting state above ending state, clear labels, and reference-pane legibility. Read-only production inspection of ICS3U-4 found Draft revision 3 / latest Version 3 on the legacy Blueprint page, without Authoring Guidance controls. The earlier populated classroom screenshots used sample fixture guidance, not saved ICS3U rules. Production export verification was interrupted; no course guidance, classroom Version link, quiz image, or database change was made. Classroom implementation resolves guidance from the linked immutable Version, so editing the source Draft alone cannot update an existing classroom. Focused checks pass 3,505 tests (7 skipped), architecture, UI/design policies, TypeScript and lint; diff and session-log validation pass. PR1387 remains draft; its existing eight-reviewer session cap remains in effect.
+
 ## 2026-09-29 — Resume Blueprint rollout orchestration
 
 User authorized completion through release and actual ICS3U guidance. Rebased PR1387 onto main27ddf09a; resolved continuity duplicates and regenerated combined Pattern Lab snapshots on Darwin and Linux. Focused checks pass3,507tests/7skipped and all static gates; eight snapshot cases pass without update mode. Verified production through220, empty Pika-managed ICS3U-4 Draft guidance, and P3/P5 frozenVersion3 with no guidance. P5 has1untrackedtest; P3has1untrackedtest/1lesson, so existing full classroom update is blocked. Sol read-only subagent identified adoption seams; coordinator requires separate guidance binding to preserve copied-artifact Version identity. Prepared exact course rules in ignored output/rollout/ics3u-authoring-guidance.md. Updated the single roadmap with the necessary guidance-only adoption phase. Specific approval to exceed the prior eight-reviewer cap is pending; no new PR reviewer, migration, course save, or deployment ran.
@@ -226,3 +230,22 @@ cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
 application source has no rebase conflicts and no migration was renumbered.
 Targeted security and final integration review remain pending. No AI, schema,
 cohort, UI, billing or production change; lesson-plan list reads follow.
+## 2026-10-01 — Dormant shared lesson-plan reads
+
+Continued the authorized five-batch goal without activating it. Teacher logs1421
+is merged at e87d322a; summary1422 passed four bounded independent reviews and is
+awaiting final CI36943420208 at45cecd2a. A GPT-6 Astra/high read-only proposal plus
+coordinator source checks selected classroom-rooted plan reads with same-statement
+owner or membership/visibility evidence. One GPT-6 Sol/high worker completed only
+two GET early branches, named validation/helper and tests in the independent
+codex/contextual-lesson-plan-reads worktree. Existing exact-pair/legacy remainder
+stays unchanged.76 relevant and167 canonical focused tests/static checks pass;
+Pika audit passes7files. Real local PostgREST proves1004plans, short nonterminal
+pages, both role values, empty/out-of-window/archived reads, first/later transfer,
+removal/archive/owner-precedence races, current/terminal visibility changes and
+keyset stability after prior-row deletion; exact synthetic live/audit cleanup
+passes. One pre-publication correction aligns later revocation403 and strengthens
+unknown envelopes/content/identity regressions. Independent fixed-SHA review and
+final CI remain required; main reconciliation after1422 is pending. No migration,
+reset/reseed, hosted/account, billing, UI, write or cohort change. Risk:
+runtime-platform; high authorization/privacy review risk.

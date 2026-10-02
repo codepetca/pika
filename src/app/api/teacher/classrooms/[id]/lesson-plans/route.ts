@@ -7,6 +7,8 @@ import {
   assertContextualLessonPlanRows,
   authorizeClassroomLessonPlanRequest,
 } from '@/lib/server/classroom-lesson-plan-access'
+import { authorizeSharedLessonPlanReadActor, readContextualLessonPlans } from '@/lib/server/contextual-lesson-plan-read'
+import { lessonPlanReadQuerySchema } from '@/lib/validations/lesson-plan-reads'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -14,6 +16,18 @@ export const revalidate = 0
 // GET /api/teacher/classrooms/[id]/lesson-plans?start=YYYY-MM-DD&end=YYYY-MM-DD
 export const GET = withErrorHandler('GetLessonPlans', async (request, context) => {
   const params = context.params
+  const sharedAccess = await authorizeSharedLessonPlanReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = await params
+    const { searchParams } = new URL(request.url)
+    const start = searchParams.get('start')
+    const end = searchParams.get('end')
+    const input = lessonPlanReadQuerySchema.parse({ classroomId, start, end })
+    return NextResponse.json(await readContextualLessonPlans({
+      supabase: getServiceRoleClient(), actorId: sharedAccess.user.id,
+      ...input, permission: 'owner',
+    }))
+  }
   const lessonPlanAccess = await authorizeClassroomLessonPlanRequest(async () => (
     await params
   ).id, {
