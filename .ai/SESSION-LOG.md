@@ -273,6 +273,69 @@ zero residue;226 unchanged. Added synthetic-target guards to the denial probe.
 Full decommission transition remains a later integrated gate, not claimed here.
 Canonical focused checks and draft-first independent review/CI remain next.
 
+## 2026-10-01 — Date review clean; bulk transaction preparation
+
+Date PR1424 published draft atc1eedd0d after42 affected/216 focused tests and
+static checks, generated types and real state/race/SDK/purge-fence proofs passed.
+Both independent security/compatibility reviews clean,2 launches/no corrections;
+unchanged reviewed SHA marked ready, exact-head CI36950939593 running. No merge
+or production receipt is claimed yet. Local226 approval consumed; SQL unchanged.
+Bounded read-only GPT-6 Astra/high proposal selected a dedicated atomic bulk RPC
+reusing226 in one transaction. Preserve legacy route,250+250 limits, success/count,
+per-client sequence and blank-upsert semantics; new admitted failure rolls back
+the whole batch. Separate stacked codex/contextual-lesson-plan-bulk-writes checkout
+owns source/TDD preparation while CI runs;1424 merge precedes bulk publication.
+One GPT-6 Sol/high writer owns bulk source/tests/harness; coordinator docs/CI/Git.
+Tentative227 source needs current-main numbering check and separate exact local
+approval before application. Matching generated types/real DB evidence remain
+pending; no fabricated type aliases or premature ready claim. No new schema,
+reset/reseed, real accounts, UI, AI, billing, production or admission activation.
+
+CI36950939593 passed226 replay/date concurrency but failed one continuity-format
+test among9043 passing unit tests. Returned1424 to draft, retained logs, cancelled
+remaining heavy lanes after diagnosis (0queue/508run seconds). Reproduced missing
+space in `Prod DB001` locally, corrected only CURRENT atf86d5f85;4 regression tests
+and216 focused/static tests pass. Targeted Luna/medium review clean; final Sol/high
+cumulative review pending. Four launches/one correction batch; SQL226 unchanged.
+
+Final cumulative review clean atf86d5f85;1424 ready with final CI36952067498 running.
+Bulk source checkpoint5415cc2 has34 passing API/static/legacy tests; one expected
+missing generated RPC-name TypeScript error, no schema or harness execution. SQL
+preapplication review statically clean, but accepted conditional strict-autoFree
+audit cleanup/outsider/ambiguous-setup gap. Local strictfalse verified read-only;
+no existing residue claimed. One correction batch4759f24b adds exact tagged audit
+pair teardown, unconditional cleanup, forcedpostfixture mode and bounded sessions;
+red/green36tests and targeted independent review clean. SQL227 unchanged digest
+c840869da61aa5a343a225f02d06cd99e428c93cb9a707f7e61f8cbb66097b8a. Two preapply
+review launches/one fix batch; full PR review/realDB acceptance not complete.
+Exact227 LOCAL approval requested, not granted yet. Full/negative/stricttrue proofs
+and generatedtypes pending; no sharedflag, production, UI, billing or AI change.
+
+## 2026-10-01 — Local227 applied and real bulk contracts verified
+
+Consumed exact227 LOCAL approval with one successful application; digest unchanged.
+Catalog confirms service-only execute and hardened definer; generated types/check
+and TypeScript pass. Real harness exposed two test defects, corrected together:
+fresh nonce with accepted-save probe for decisive late rollback; owner cascade for
+Blueprint cleanup without guard bypass.38 affected tests pass. Full database run
+and forced post-fixture failure both prove zero residual rows. The first failed
+run's exact tagged synthetic fixtures were removed and are regenerable; no real
+account/classroom changed. Runtime correctionb2c64b45 targeted Sol/high review clean,
+shared budget3launches/2fixbatches. Local strictfalse: automatic Free audit cleanup
+has static review, not strict-enabled runtime evidence.1424 final browser CI still
+pending; its merge precedes bulk publication. Prod001–225, all activation holds remain.
+
+## 2026-10-01 — Date gate passed; strict main reconciliation required
+
+1424 final CI36952067498 passed all gates, but normal merge denied behind1419main.
+Returned draft, rebased onto1220d586; both patches identical and226 digest unchanged.
+Targeted Luna/medium reconciliation review clean;216 focused checks pass.5date review
+launches/1fixbatch; exact reviewed headd9b7d780 ready, CI36954995904 running. No bypass.
+Bulk rebased onto new date head; resolved CURRENT-only conflict and retained1419
+scrolling/session work.227 digest unchanged; production/admission holds remain.
+Bulk publication/full independent review still waits1424 merge; do not reset either
+review budget (date01:21:30Z, bulk01:41:00Z) across this CI/user checkpoint.
+
 ## 2026-10-02 — Keep Gradebook maximum header on one line
 
 - `codex/gradebook-max-row`: shortened the raw-mark row header to Max with no wrapping; preserved Max mark as its accessible name and title. Extended the existing GradebookTable owner; no shared primitive or experimental pattern. Risk: none.
@@ -299,3 +362,26 @@ Owner follow-up: remove the separators between student Past logs entries. Extend
 Owner follow-up: give table column headers a subtly distinct shade. Reused Attendance bg-surface-3 and extended shared DataTableHead; matched Gradebook frozen header cells and its Pattern Lab fixture, retaining metadata/footer surfaces. Updated existing frozen-column assertions and documented header ownership. Teacher Roster/Gradebook desktop/mobile light/dark captures reviewed (header RGB243/244/246 light,31/41/55 dark); no overflow. Student n/a: no student DataTableHead consumer. Twenty long-table browser contracts pass across5owners/4views, with one mobile-dark assignment navigation timeout passing isolated retry. Focused180files/1864tests and all static gates pass with2workers after concurrent default runs timed out in unchanged gallery contracts. Audit flags whole-file PageMockups composite semantics; the diff changes only header background utilities. Draft integration checkpoint persists; final review/CI and acceptance of affected Linux light-theme screenshots remain pending. No dependency, migration or business-logic change.
 
 Owner follow-up: remove Gradebook grid lines and shade Final marks. Extended GradebookTable/StudentPanel and the corresponding Pattern Lab fixture; shared DataTableHead/Body now support an explicit dividers=false opt-out with unchanged defaults for other tables. Removed decorative header/body/metadata/footer/frozen-column rules and used an opaque semantic pale-blue Final surface (#eff6ff light/#172235 dark), including mobile/inspector summary. Selection/hover, warning treatments, keyboard focus, resize handles and grading behavior remain. Reference: existing production Gradebook/Pattern Lab composition and shaded header canon; teacher desktop/mobile light/dark, percent/raw/weights/selected details. Student n/a because Gradebook is teacher-owned. Eight long-scroll/selection browser contracts pass; refreshed preview visual matrix passes eight states with zero table-cell/outer borders, exact Final RGB and no horizontal overflow. All production and four Pattern Lab captures visually inspected; restarted preview after catching a stale Tailwind stylesheet, then regenerated local auth and recaptured loaded mobile details. Final canonical focused180files/1864tests and architecture/UI/design/TypeScript/lint pass with2workers. Whole-file PageMockups audit heuristic reflects class-only changes. No dependency, migration or business-logic change. PR1428 stays draft under the existing integration checkpoint; current refinements still require independent confirmation, affected Linux screenshot acceptance and final exact-head CI. Tailwind alias makes eventual CI classification full.
+
+## 2026-10-02 — Date merged; bulk full review resumed with explicit extension
+
+1424 exact-head CI36954995904 passed all five gates atd9b7d780; normal squash merge
+42789d40 verified and canonical main synced. Conditional heartbeat paused. Date
+checkout retained while bulk dependency reconciles; no production/schema action.
+User explicitly approved30additional elapsed review minutes. Original bulk ledger
+and3launches/2fixbatches retained; resumed10:41:56Z, deadline11:11:56Z. Bulk rebased
+cleanly onto42789d40, installed226/227 unchanged. Draft publication and the single
+full initial security/compatibility wave follow fresh focused/type/audit checks.
+
+## 2026-10-02 — Bulk1426 CI portability correction approved
+
+Full initial security/compatibility reviews clean atde2feb04;238focused/types/audit
+pass. CI36997772883 passed build/browser and both real bulk/cleanup modes, but the
+proof wrapper failed `rg: command not found` on runner. Returned draft; no SQL fault.
+User approved20-minute remediation/review window13:29:24–13:49:24Z with counters
+retained5launches/2prior fixes. Regression reproduced old wrapper failure; portable
+grep preserves both required sentinels and rejects either missing proof. SQL226/227
+unchanged; no schema/promotion/activation. User-authorized billing coordination
+confirmed227 taken,228 planned by billing; its applications remain separately gated.
+
+Owner explicitly approved the final extension: one main sync/screenshot batch, one final independent review, fresh CI and merge to main if green. Integrated main a101fb28 cleanly; all owned UI source remains byte-identical to9c8e5302. Full canonical union passes191files/2012tests plus architecture/UI/design/TypeScript/lint. Matched Linux Playwright1.58 browser and CI system font (DejaVu Sans); all four teacher contract screenshots pass. Visually inspected current captures; refreshed only two light teacher-contract references for the subtle header shade, retaining dark/student/dialog references and all thresholds. Desktop change is confined to the table heading; mobile captures include tolerated low-amplitude font antialiasing with identical dimensions/no layout movement. Initial container font mismatch was discarded. One isolated final integration reviewer (launch7, sync batch5) now checks current owner follow-ups, screenshot acceptance and main compatibility before ready CI. Merge permission is main-only; no promotion or migration application.

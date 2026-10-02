@@ -464,9 +464,9 @@ The keyset roster read and per-learner previews require no schema. No promotion
 or activation occurred. The hub is synchronized; merged Git retains the work.
 
 The **Teacher vs student login** task retains overall coordination. Its current
-worktree is `codex/contextual-lesson-plan-date-writes`; the coordinator owns Git,
+worktree is `codex/contextual-lesson-plan-bulk-writes`; the coordinator owns Git,
 roadmap, verification, independent review and integration. One implementation
-worker owns the date route/helper/schema, tests and synthetic concurrency harness;
+worker owns the bulk route/helper/schema, tests and synthetic concurrency harness;
 the coordinator owns migration application, generated types, CI and continuity.
 Current-relationship checks must bind each read or mutation. No AI or activation.
 See the [entry/history contract](contextual-teacher-daily-log-read.md) and
@@ -526,7 +526,56 @@ or infer permission for another migration/application. Current synthetic proofs 
 both owner role values, stale/equal no-side-effects, artifact/Blueprint lineage,
 archive/transfer orderings, row contention and translated Blueprint conflicts with
 head/plan/revision rollback and exact fixture/audit cleanup. Final SDK-boundary and
-lifecycle-fence verification, independent review and exact-head CI remain gates.
+lifecycle-fence verification passes; both initial independent reviewers are clean
+on c1eedd0d. CI36950939593 passed the date database harness but found a CURRENT
+documentation-format regression (9043 unit tests passed, one failed). The single
+missing space was reproduced and corrected in f86d5f85; targeted review and all
+216 focused/static checks pass. Targeted and final cumulative reviews are clean;
+PR1424 final CI36952067498 passed every gate atf86d5f85, but GitHub denied merge
+because main advanced through scrolling PR1419. Returned to draft and rebased onto
+1220d586 with both reviewed patches identical. Targeted reconciliation review and
+216 focused checks pass atd9b7d780; ready-event CI36954995904 passed all five gates.
+PR1424 merged as42789d40; canonical main is synced. Its conditional follow-up is
+paused after completion; no admin/auto bypass, production change or activation.
+
+Source/TDD preparation for [bulk owner writes](contextual-lesson-plan-bulk-writes.md)
+can proceed independently in a stacked checkout while date CI runs. The selected
+dedicated bulk wrapper reuses unchanged226 in one transaction, preserving success,
+sequence, count and blank-upsert semantics. The new admitted path intentionally
+rolls back the entire request on database failure; the legacy route stays unchanged.
+A bounded GPT-6 Astra/high proposal is verified; one GPT-6 Sol/high worker owns
+source/tests/harness preparation and the coordinator owns docs/CI/Git. Tentative227
+requires latest-main numbering verification and separate exact-target application
+approval. New-RPC database evidence and legitimate generated types remain pending;
+do not hand-edit generated types, apply schema or claim acceptance prematurely.
+Bulk SQL is statically clean. One accepted harness cleanup gap under strict auto-Free
+provisioning was corrected: exact UUID/tagged provisioning operation pairs, both
+durable audit tables, outsider residual checks, unconditional ambiguous-setup cleanup
+and bounded session termination.36 source tests and targeted independent review pass
+at4759f24b; SQL227 digest remainsc840869da61aa5a343a225f02d06cd99e428c93cb9a707f7e61f8cbb66097b8a.
+Local strict enforcement is currentlyfalse (read-only verified), so that risk is
+conditional, not a claim of existing residue. No harness or227 application occurred.
+That preparation checkpoint is superseded by owner-approved LOCAL227 application
+on2026-10-01, once, with unchanged SQL digest. Matching generated types, TypeScript,
+service-only privileges and the full synthetic atomicity/concurrency harness pass.
+The deliberate post-fixture failure also proves zero residual rows. Runtime tests
+exposed stale test sequencing and an invalid direct Blueprint teardown; one batched
+harness-only correction uses a fresh nonce plus an accepted-save probe and guarded
+owner cascade.38 affected tests and targeted independent review pass. Strict-enabled
+auto-Free cleanup remains statically reviewed, not locally exercised. Full-PR review
+and final CI follow1424 merge. Production and admission activation are not authorized.
+The prepared bulk branch is reconciled onto merged main42789d40, preserving1419;
+installed226/227 digests are unchanged. Its draft publication and initial full
+high-risk review now proceed. The user approved a30-minute review-window extension
+after the original elapsed window expired during prerequisite CI; prior counters
+remain3launches/2fixbatches before the full initial wave. No budget reset or rollout.
+Draft1426 was published atde2feb04; full initial security/compatibility reviews clean
+and238 focused/type/audit checks pass. CI36997772883 passed build/browser and the
+positive bulk/forced-failure cleanup contracts, but its final proof wrapper failed
+because GitHub lacked `rg`. Returned to draft. User approved20additional review
+minutes for a portable `grep -F` correction with a strict two-sentinel regression;
+SQL226/227 and application behavior remain unchanged. Targeted/final review and new
+exact-head CI are still required. Billing plans228; no local or production apply.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3

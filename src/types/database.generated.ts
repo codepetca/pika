@@ -12770,6 +12770,17 @@ export type Database = {
         }
         Returns: Json
       }
+      save_lesson_plans_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_cleared_dates: string[]
+          p_client_id?: string
+          p_plans: Json
+          p_sequence?: number
+        }
+        Returns: Json
+      }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
         Returns: Json
