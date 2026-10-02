@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Approved final Daily harness role correction
-
-Seventh review at98d0822c found225/adapter clean but fault-injection DDL still ran as service_role, not postgres owner. Catalog proof confirmed missing ownership. Owner approved two-line correction and eighth/final targeted review: reset role before temporary dependency replacement; set local service_role before save assertion. Static regression covers both transitions. Migration224/225 SQL and application permissions unchanged. Local225 permission remains held, unattempted pending final review; PR1380 contains live application/CI receipt. No production or rollout activation. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high bounded role-correction/integration review.
-
-## 2026-10-01 — Confirm Assignment AI grading
-
-Assignments now opens the same counted danger ConfirmDialog as Tests before AI grading. The Student actions label and title show the selected count; the warning reads “This will overwrite existing grade, comments and teacher edits.” Cancel focus, focus trapping, Escape/return focus and red confirmation reuse the canonical dialog, inspected in Pattern Lab Settings. UI brief: teacher Assignment grading, desktop1440x900/mobile390x844, light/dark, one/two selections/open/cancel/confirm; student n/a because its interface is unchanged. Component regressions cover no request on open/cancel, disabled confirmation after selection clears, and one confirmed selected-ID request plus existing run polling. Four browser cases pass with mocked grading only; eight captures visually reviewed. Backend/model/schema unchanged. Risk profile: none. Model recommendation: GPT-6 for this localized confirmation gate. Draft PR and stable-SHA independent review follow; no production promotion.
-
-## 2026-10-01 — Hosted migration authentication main sync
-
-The owner approved one additional main sync, bounded compatibility review, fresh CI, and merge for PR #1411. Integrated main `4399bd7f`, retaining both archive histories and all new Daily Log migrations and CI checks. The previously reviewed scoped-token temporary-login implementation remains unchanged. Hosted credential activation and the first production preview remain pending; no database password reset or production migration application is authorized.
-
-## 2026-10-01 — Hosted migration CLI companion diagnosis
-
-The owner created the reviewed Pika-only 90-day scoped token and saved GitHub migrations-production/SUPABASE_ACCESS_TOKEN at 08:02 Toronto time. The first hosted preview, run36859514133 at merged5f74d08d with verified CI36853538954, failed before a migration plan. Reproduced the installer defect using a fake credential: CLI2.103.0 ships a supabase shim plus supabase-go engine, but the installer extracted only the shim. With both checksum-verified binaries present, linking reaches the expected Unauthorized response for the fake token. Prepared a narrow installer correction and engine-version preflight without changing credentials, scopes, target bindings or migration approval policy. The focused gate passed95 tests plus architecture, UI/design policy, TypeScript and lint; the Linux archive contains both regular x86_64 executables under the unchanged checksum, and the installer shell/version preflight passes. A bounded independent operations review, required CI and the production preview retry remain pending. No production migration or password reset occurred. Risk profile: runtime-platform.
-
-## 2026-10-01 — Assignment AI feedback wording
-
-- Removed the assignment prompt's required `Next Step:` line without adding a prohibition; retained Strength/Missed/optional Tip and all scoring rules. Prompt provenance advanced to v4.
-- Verified: 20 focused grading tests; `pnpm check:focused -- --base origin/main` (250 tests plus architecture, UI/design policy, TypeScript and lint). Teacher/student feedback visually inspected at desktop/mobile in light/dark with intercepted local fixture feedback; captures in `output/playwright/`.
-
 ## 2026-10-01 — Production migrations skill and rollout receipt
 
 - Added repository skill `pika-prod-migrations`, routed from AGENTS and the AI instructions. Future production migration work defaults to the existing manual GitHub workflow, with exact one-time authorization, compatible CI proof, preview-bound approval, one apply attempt and read-only semantic verification. Local migrations and app promotion retain their own procedures.
@@ -260,6 +239,18 @@ scrolling/session work.227 digest unchanged; production/admission holds remain.
 Bulk publication/full independent review still waits1424 merge; do not reset either
 review budget (date01:21:30Z, bulk01:41:00Z) across this CI/user checkpoint.
 
+## 2026-10-01 — Production continuity alignment for feedback release
+
+Owner authorized production deployment of the assignment AI feedback change. Promotion PR1415 initially conflicted only in AI continuity documents. Preserve both archive/session histories, production's verified001–223 receipt and main's current local repair/Daily rollout summary. Reconcile only these continuity documents in the promotion branch; runtime files remain byte-identical to reviewed main7af07f9e. Runtime, migrations, configuration and rollout gates are unchanged; no schema application or cohort activation. Independent cumulative release review and production deployment remain pending.
+
+## 2026-10-01 — Promote Assignment AI grading confirmation
+
+Owner authorized deployment of PR1414. Promotion PR1417 includes the counted overwrite confirmation and the reviewed migration-workflow documentation from PR1416. Reconciled only CURRENT and archive continuity conflicts against production, retaining main’s verified225 receipt and both archive histories. Application source and all SQL/flags match reviewed main78bf84e4; no migration or AI grading request. Required cumulative review and full CI run on the reconciled promotion SHA before production merge. Risk profile: runtime-platform (application promotion). Model recommendation: GPT-6 for bounded coordination, DeepSeek read-only cumulative compatibility review under the standing low-usage preference.
+
+## 2026-10-01 — Promote classroom scrolling and reviewed read adapters
+
+Owner requested deployment after PR1419 merged. Promotion PR1425 batches the reviewed scrolling fix with learner/teacher Daily and lesson-plan read adapters from PR1418/1420–1423. Reconciled only the production archive/session continuity conflict, preserving all main bodies and17 production-only dated bodies. Runtime, tests, schema, dependency, Next/Vercel configuration and gates remain byte-identical to reviewed main1220d586 (the same tree as passing source CI36949840558). Production env metadata confirms PIKA_CLASSROOM_EXPERIENCE_ADMISSION, PIKA_E2E_FIXTURES and ENABLE_UI_GALLERY are absent; shared rollout stays dormant. No migration or flag change. Two independent GPT-5.6 Sol/high cumulative specialists found no code blocker, and local focused checks passed926tests/59files plus all static gates after repairing isolated installed dependencies. The reconciled fixed SHA requires final structural/history compatibility review and full exact-head CI before the authorized production PR merge and Vercel deployment. Review budget: initial2 specialists, one continuity batch, final compatibility pass next;60-minute session/30-minute reviewer limits. Risk profile: runtime-platform; release includes dormant authorization adapters.
+
 ## 2026-10-02 — Keep Gradebook maximum header on one line
 
 - `codex/gradebook-max-row`: shortened the raw-mark row header to Max with no wrapping; preserved Max mark as its accessible name and title. Extended the existing GradebookTable owner; no shared primitive or experimental pattern. Risk: none.
@@ -420,3 +411,11 @@ Owner approved one additional journal reconciliation, targeted review and CI cyc
 - Reference/reuse: classroom shell and existing transparent document tracks; extend global CSS, reuse utilities. Both roles, desktop/mobile, light/dark, default/hover/focus/hidden covered. No composite behavior, new component, or experimental guidance.
 - Verification: focused checks passed (91 tests, architecture, UI/design policy, TypeScript, lint). Headed Playwright captured all eight role/viewport/theme combinations for Classrooms and Pattern Lab, plus temporary browser-only surface probes; scrolling, hover/focus, hidden scrollbars, and forced colors passed. Evidence: `/tmp/pika-scrollbar-captures/evidence.json`; captures alongside it. Safari fallback not tested in Safari.
 - Risk profile: none. Model recommendation: GPT-6.1 Sol — small global CSS refinement with browser verification. PR1432 independently reviewed without blockers; original exact-head CI37047140437 and PR Gate passed. Owner authorized main merge; rebased onto attendance1430, preserving main history and removing only a newly duplicated archived entry. Scrollbar CSS remains byte-identical; sync checks, targeted review and fresh final CI precede merge.
+
+## 2026-10-02 — Attendance main-to-production promotion
+
+Owner requested production promotion after attendance PR1430 merged to main8dc05d47. Draft release PR1433 batches reviewed main PRs1424,1426,1427,1428,1429,1430. Reconciled the single archive conflict in an ephemeral detached promotion worktree while preserving both histories. Application, tests, schema files and configuration match reviewed main exactly. Main exact-head CI37045983716 passed all lanes and PR Gate. One cumulative release compatibility review and fresh full promotion CI precede merge; no database migration application or flag activation is included. Risk profile:runtime-platform. Model recommendation:GPT-5.6 Sol/high for gated database/runtime release compatibility.
+
+## 2026-10-02 — Deploy current main after attendance release
+
+Owner requested deploying main to production after the attendance promotion merged. Production47970e41 is already building in Vercel; mainbf3754c4 additionally contains reviewed scrollbar PR1432. Draft promotion1434 includes that source change and preserves both journal histories in its sole continuity conflict. Application/configuration/schema/tests match reviewed mainbf3754c4 exactly; no database application or flag change. One bounded promotion compatibility review, focused checks and exact-head CI precede merge, then Vercel production deployment is verified. Risk profile:runtime-platform. Model recommendation:GPT-6 Luna/medium for mechanical release/source equivalence and continuity verification.
