@@ -11,53 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Pause hidden authentication and attendance polling
-
-Added browser visibility guards and Today activity wiring while preserving the mounted student workspace. Returning forces one current-identity read; stale pre-hide responses are ignored, including batched visibility events. Visible attendance and auth cadences, server authorization and Toronto expiry contracts remain unchanged. Risk: workspace-state and client authentication lifecycle. Focused regressions cover hidden timers/retries, return coalescing, identity changes, expiry and Today activity. Reused existing attendance rendering and Pattern Lab page-state reference; teacher/student desktop/mobile light/dark verification and independent stable-SHA review required before merge. Production promotion and subsequent savings remain separate.
-
-## 2026-09-29 — Independent classroom guidance adoption
-
-- Implemented explicit teacher guidance preview/adoption on `codex/classroom-blueprint-guidance-updates`; Content Version and copied artifacts retain structural lineage while a separate immutable Guidance Version supplies future drafts. Signed proof and atomic sidecar creation bind both context identities.
-- Migration 222 adds pointer, ownership/revision/lifecycle guards, archive defaults, content-reset and purge protections. Isolated replay/type generation, warning lint, 273-edge schema audit, adoption/concurrency/purge contracts passed. Focused gate: 3,518 tests; final affected checks: 41 + 17 archive tests. Visual teacher desktop/mobile light/dark and student exclusion checked at localhost:3012 with deterministic guidance fixtures.
-- No shared/production migration, seed, or publication. Coordinator owns PR review, release, exact migration permission and actual ICS3U rollout. Historical standalone archive restore fixture stops on already-retired quizzes; current archive preservation/defaults have focused coverage.
-
-## 2026-09-29 — Guidance adoption frozen-context test correction
-
-- Final coordinator checks found a related model-input test still expecting one Blueprint Version. Updated its typed fixture to separate Content Version 1 and Guidance Version 2, and assert both provenance identities plus the current model source label. Both affected tests pass. No runtime or snapshot changes.
-- PR1387 is back in draft: Test & Build and Database contracts passed, but four Linux Pattern Lab goldens differ because Docker and CI font environments differ. Coordinator identified the canonical capture correction without changing snapshots; a tenth parent review needs a checkpoint. Adoption remains separate, and visual samples do not define production seed rules.
-
-## 2026-09-29 — Guidance adoption initial review corrections
-
-- Batched both accepted findings: removed the private guidance Version pointer from legacy/contextual student detail responses and server-rendered student detail/list props; labelled comparison rules with the fresh preview's Version. Teacher records and access gates retain their behavior. Audited explicit student list/join and nested assessment classroom shapes.
-- Regressions cover distinct content/guidance IDs, legacy/contextual API and page serialization, teacher preservation, and stale tab Version 3 with fresh preview Version 4. Targeted checks passed 116 tests; final focused gate passed 3,554 tests (7 skipped), architecture, UI/design policy, TypeScript and lint. Desktop/mobile light/dark fresh-preview screenshots inspected in the existing temporary evidence directory.
-- Migration and generated schema unchanged; frozen database contracts reused. No parent PR1387 source/snapshot change, PR lifecycle action, shared database mutation, or production write.
-
-## 2026-09-29 — Merge classroom Blueprint and complete adoption review
-
-PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-approved tenth targeted review and exact-head CI36659661703. One existing assignment-editor test load-timing race passed on the unchanged-candidate rerun; all final lanes and PR Gate passed. Adoption PR1396 security/compatibility review accepted two findings, corrected together; targeted security and final integration passed at5b399e3b. Rebased its three adoption commits onto merged main; conflicts were duplicate archive entries already preserved verbatim. Source/test/migration patch ID remains397b1e4f. Required focused checks and final CI follow. Production preflight through220 previews exactly221/222; direct named migration approval requested but not received. Actual course guidance remains unsaved/unadopted.
-
-## 2026-09-30 — Retire remaining hosted staging workflow
-
-- Replaced obsolete staging/Preview rollout prerequisites with local app + local Supabase checks → reviewed main PR → production; updated startup/setup/rollout guidance and documented retirement evidence.
-- Production-only Vercel Git deployment; local attendance HTTP load target guards; removed `.env.staging` setup default and renamed seed/test fixtures. WorkOS provider test configuration and archive/attendance operation buffers remain distinct contracts.
-- Confirmed staging Supabase/Vercel projects already absent; removed two empty January-era GitHub staging environment records and preserved the ignored legacy local env in a private credential backup outside the checkout.
-- Synced newly merged PR1404 and removed its staging target/creation guidance. The manual migration workflow is pinned to production; direct staging requests fail before preparation or database contact. Production approval/digest/source safeguards remain intact.
-- Risk profile runtime-platform. Model recommendation: GPT-6.1 Sol — bounded workflow/configuration cleanup. Validation and stable-SHA PR evidence recorded in the PR.
-
-## 2026-09-30 — Blueprint rollout and complete Content lists
-
-Adoption PR1396 merged as b754bd69 after all exact-head CI36702895411 gates passed. Production PR1398 is draft at6fc43e4a; security review clean, compatibility found the teacher Content reader's 40-title truncation. Removed that presentation limit, covering all500assignment/200test titles from the structural Version; AI input retains its separate40-title cap. Updated the canonical plan. Actual ICS3U-4 guidance saved and read-verified through the production teacher editor at Draft revision4; classroom adoption and migrations remain pending. Production review consumed2launches/0fixbatches and reached45minutes; the correction and final release review need an explicit time extension. Focused checks passed121tests; Playwright desktop/mobile light/dark Content captures show item41 and no overflow. No production migration or classroom content changes occurred.
-
-Owner approved the45-minute correction/final-release review extension and one production221/222 application after checks on2026-09-30. Correction reviewer found stale instructions later in the canonical plan; marked the historical Draft3 baseline and completed main merges/Draft4 save explicitly, retaining release/class adoption pending. Runtime and regression review clean; final integration will confirm the documentation correction.
-
-## 2026-09-30 — AI regrade overwrite warning
-
-Added explicit copy to the existing teacher AI Grade scope dialog: Regrade all overwrites existing grades and comments, including teacher edits. Grading behavior and scope buttons remain unchanged. Reused DialogPanel/Button and existing semantic text styles; reference: selected Test grading actions and Pattern Lab shared dialog. Teacher desktop/mobile in light/dark verified with four passing Playwright cases and reviewed screenshots; student n/a because its interface is unchanged. Focused checks pass 224 tests plus architecture, UI/design policy, TypeScript and lint; Pika audit passes. Risk profile: none. Independent low-risk review and ready PR Gate remain pending. Model recommendation: GPT-6 Sol for this localized wording change.
-
-## 2026-09-30 — Simplify AI grading confirmation
-
-Owner replaced the two grade-scope choices with one AI grade confirmation. Reused the existing teacher DialogPanel and buttons; Cancel plus AI grade now requests all eligible answers for selected students and explicitly warns that existing grades/comments, including teacher edits, are overwritten. The existing component test asserts all scope and absence of the old options; four desktop/mobile light/dark Playwright cases pass and screenshots were reviewed. Focused224tests plus architecture/UI/design/TypeScript/lint and audit pass. Student interface and backend grading contracts unchanged; no paid grading calls or schema changes. PR1400 returned to draft before correction; independent review of new stable SHA pending. Risk profile: none. Model recommendation: GPT-6 Sol for the localized grading confirmation change.
-
 ## 2026-09-30 — Open local single-action grading preview
 
 Started reviewed PR1400 worktree fedf1824 locally on port3117 using the canonical local Supabase launcher. Local login HTTP200; signed into seeded teacher account via Dev Quick Login, opened Test Classroom → Seed Test - AI Grading Demo, selected Student1 Test and left AI grade confirmation open in the app browser. Verified modal has Cancel and AI grade with overwrite warning; no grading was started. Server session remains running for owner preview, URL http://127.0.0.1:3117. No application code, schema or grading data changes.
@@ -319,3 +272,8 @@ SDK adapter and synthetic purge-fence checks pass with full state rollback and
 zero residue;226 unchanged. Added synthetic-target guards to the denial probe.
 Full decommission transition remains a later integrated gate, not claimed here.
 Canonical focused checks and draft-first independent review/CI remain next.
+
+## 2026-10-02 — Keep Gradebook maximum header on one line
+
+- `codex/gradebook-max-row`: shortened the raw-mark row header to Max with no wrapping; preserved Max mark as its accessible name and title. Extended the existing GradebookTable owner; no shared primitive or experimental pattern. Risk: none.
+- Pattern Lab production Gradebook fixture: eight Playwright captures at 1440×900 / 390×844, light/dark, normal/ultra-compact; one text line, no clipping, existing 52px control row height, maximum edit focus/open/Escape verified. Student n/a: this table is teacher-only. Evidence: worktree `output/playwright/max-row`; focused checks and independent review before ready PR.

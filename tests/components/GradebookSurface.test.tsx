@@ -127,6 +127,7 @@ describe('Gradebook surface owners', () => {
     const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
     expect(screen.getByLabelText('Maximum mark for Essay')).toHaveTextContent(/^12.5$/)
     const maxRow = screen.getByRole('row', { name: 'Max mark' })
+    expect(within(maxRow).getByRole('rowheader', { name: 'Max mark' })).toHaveTextContent(/^Max$/)
     expect(maxRow.nextElementSibling).toBe(screen.getByRole('row', { name: 'Weight' }))
     expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 0/12.5' })).toHaveTextContent(/^0$/)
     expect(screen.getByRole('row', { name: 'Class average' })).not.toHaveTextContent('/')
