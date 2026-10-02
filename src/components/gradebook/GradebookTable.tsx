@@ -152,7 +152,7 @@ export function GradebookTable({
               </DataTableRow> : null}
               {displayMode === 'raw' ? <DataTableRow aria-label="Max mark">
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
-                <DataTableHeaderCell scope="row" align="right" aria-label="Max mark" title="Max mark" className={cn(rowLabelClass, 'whitespace-nowrap')}>Max</DataTableHeaderCell>
+                <DataTableHeaderCell scope="row" align="right" aria-label="Max mark" title="Max mark" className={cn(rowLabelClass, 'whitespace-nowrap font-semibold !text-text-default')}>Max</DataTableHeaderCell>
                 {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="bg-surface-2 !px-1 text-xs tabular-nums">

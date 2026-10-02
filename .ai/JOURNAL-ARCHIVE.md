@@ -34157,3 +34157,8 @@ Added explicit copy to the existing teacher AI Grade scope dialog: Regrade all o
 ## 2026-09-30 — Simplify AI grading confirmation
 
 Owner replaced the two grade-scope choices with one AI grade confirmation. Reused the existing teacher DialogPanel and buttons; Cancel plus AI grade now requests all eligible answers for selected students and explicitly warns that existing grades/comments, including teacher edits, are overwritten. The existing component test asserts all scope and absence of the old options; four desktop/mobile light/dark Playwright cases pass and screenshots were reviewed. Focused224tests plus architecture/UI/design/TypeScript/lint and audit pass. Student interface and backend grading contracts unchanged; no paid grading calls or schema changes. PR1400 returned to draft before correction; independent review of new stable SHA pending. Risk profile: none. Model recommendation: GPT-6 Sol for the localized grading confirmation change.
+
+<!-- pika-session-log-archive-batch:a58e0e657eb6be22fe66510b4a25724cfab1d3ea1008f668c20f806c12a29e23 -->
+## 2026-09-30 — Open local single-action grading preview
+
+Started reviewed PR1400 worktree fedf1824 locally on port3117 using the canonical local Supabase launcher. Local login HTTP200; signed into seeded teacher account via Dev Quick Login, opened Test Classroom → Seed Test - AI Grading Demo, selected Student1 Test and left AI grade confirmation open in the app browser. Verified modal has Cancel and AI grade with overwrite warning; no grading was started. Server session remains running for owner preview, URL http://127.0.0.1:3117. No application code, schema or grading data changes.
