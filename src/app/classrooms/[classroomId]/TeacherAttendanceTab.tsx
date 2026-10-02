@@ -444,14 +444,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       }),
       hasManualOverride: Boolean(override),
       checkedInAt: null,
-      pending: manualAttendance.activeCommand === 'marks',
+      pending: manualAttendance.pendingStudentIds.has(row.student_id),
     }] as const
   })), [
     attendance.pendingStudentIds,
     attendance.studentsById,
     attendanceEnabled,
     logs,
-    manualAttendance.activeCommand,
+    manualAttendance.pendingStudentIds,
     manualAttendanceEnabled,
     manualAttendance.overridesByStudentId,
     manualAttendance.settings.sourceMode,
@@ -464,6 +464,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const attendanceCommandActive = attendanceEnabled
     ? Boolean(attendance.activeCommand)
     : Boolean(manualAttendance.activeCommand)
+
+  const manualSettingsPending = Boolean(manualAttendance.activeCommand)
+    || manualAttendance.pendingStudentIds.size > 0
+  const attendanceSettingsPending = attendanceEnabled ? attendanceCommandActive : manualSettingsPending
 
   const submitAttendanceMarks = useCallback((
     studentIds: string[],
@@ -792,7 +796,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       id: 'edit-attendance-time',
       label: 'Edit time',
       icon: <Clock3 className="h-4 w-4" aria-hidden="true" />,
-      disabled: attendanceCommandActive || Boolean(classroom.archived_at),
+      disabled: attendanceSettingsPending || Boolean(classroom.archived_at),
       onSelect: openTimeEditor,
     }] : []),
     ...(manualAttendanceEnabled ? [
@@ -803,7 +807,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         checked: manualAttendance.settings.sourceMode === 'log',
         checkedRole: 'menuitemcheckbox' as const,
         dividerBefore: true,
-        disabled: attendanceCommandActive || Boolean(classroom.archived_at),
+        disabled: attendanceSettingsPending || Boolean(classroom.archived_at),
         onSelect: () => void manualAttendance.saveSettings({
           sourceMode: manualAttendance.settings.sourceMode === 'log' ? 'manual' : 'log',
         }),
@@ -895,7 +899,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   ? `Attendance hours, ${qrTimeLabel.replace(' - ', ' to ')}`
                   : hoursActionLabel
                 : `${manualTimeLabel ? 'Edit' : 'Set'} attendance time, manual attendance${manualTimeLabel ? `, ${manualTimeLabel}` : ''}`}
-              disabled={attendanceCommandActive || Boolean(classroom.archived_at)}
+              disabled={attendanceSettingsPending || Boolean(classroom.archived_at)}
               onClick={openTimeEditor}
               className={cn(
                 'min-h-control rounded-none border-0 px-2 text-xs font-medium sm:px-3 sm:text-sm',
@@ -1076,7 +1080,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 const attendanceStudent = attendanceRowsById.get(row.student_id)
                 const attendancePending = attendanceStudent?.pending ?? false
                 const attendanceEditable = Boolean(
-                  attendanceStudent && canMarkAttendance && !attendancePending && !attendanceCommandActive
+                  attendanceStudent && canMarkAttendance && !attendanceCommandActive
+                  && (!attendanceEnabled || !attendance.blockedStudentIds.has(row.student_id))
                 )
                 const hasLog = Boolean(row.entry && entryHasContent(row.entry))
                 const logText = hasLog ? row.entry?.text || '' : ''
@@ -1577,7 +1582,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           className="space-y-4"
           onSubmit={(event) => {
             event.preventDefault()
-            if (manualTimeValidationError) return
+            if (manualSettingsPending || manualTimeValidationError) return
             void manualAttendance.saveSettings({
               sessionStartsLocal: manualDraftStartsAt,
               sessionEndsLocal: manualDraftEndsAt,
@@ -1589,7 +1594,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               <Input
                 type="time"
                 value={manualDraftStartsAt}
-                disabled={manualAttendance.activeCommand === 'settings'}
+                disabled={manualSettingsPending}
                 onChange={(event) => setManualDraftStartsAt(event.target.value)}
               />
             </FormField>
@@ -1597,7 +1602,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               <Input
                 type="time"
                 value={manualDraftEndsAt}
-                disabled={manualAttendance.activeCommand === 'settings'}
+                disabled={manualSettingsPending}
                 onChange={(event) => setManualDraftEndsAt(event.target.value)}
               />
             </FormField>
@@ -1608,7 +1613,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               variant="ghost"
               size="sm"
               className="w-full sm:w-auto"
-              disabled={manualAttendance.activeCommand === 'settings'}
+              disabled={manualSettingsPending}
               onClick={() => {
                 void manualAttendance.saveSettings({
                   sessionStartsLocal: null,
@@ -1633,7 +1638,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               size="sm"
               className="w-full sm:w-auto"
               loading={manualAttendance.activeCommand === 'settings'}
-              disabled={Boolean(manualTimeValidationError)}
+              disabled={manualSettingsPending || Boolean(manualTimeValidationError)}
             >
               Save time
             </Button>

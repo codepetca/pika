@@ -34203,6 +34203,11 @@ Classroom guided assignment previews now normalize generated prose that resemble
 <!-- pika-session-log-archive-batch:0ec4b44fbf02954ae7312c5fa7cc8e9285f4f5fd38473433e92ce276c61b9f4f -->
 
 <!-- pika-session-log-archive-batch:e2d42c888b90496ffca36d22edac763d0a3202f52d68eb716d8c5d0a42e5a134 -->
+<!-- pika-session-log-archive-batch:8339ec9a2478e6925e7f19c7c75b3a4dcdd2bfb0d09b9335f0503a28aaeae3c4 -->
+## 2026-09-30 — Open local single-action grading preview
+
+Started reviewed PR1400 worktree fedf1824 locally on port3117 using the canonical local Supabase launcher. Local login HTTP200; signed into seeded teacher account via Dev Quick Login, opened Test Classroom → Seed Test - AI Grading Demo, selected Student1 Test and left AI grade confirmation open in the app browser. Verified modal has Cancel and AI grade with overwrite warning; no grading was started. Server session remains running for owner preview, URL http://127.0.0.1:3117. No application code, schema or grading data changes.
+
 ## 2026-09-30 — Counted danger confirmation for AI grading
 
 Student actions now names the selected count (AI Grade 1 student / AI Grade 2 students). Reused the canonical compact danger ConfirmDialog, with the matching count in its title, the owner's exact overwrite warning, initial Cancel focus and red AI grade confirmation. Existing all-scope grading behavior and concurrency guards remain unchanged. Component coverage verifies no grading request before confirmation or after Cancel; focused224tests and architecture/UI/design/TypeScript/lint plus audit pass. Four desktop/mobile light/dark browser cases pass, with eight one/two-student dialog captures visually reviewed. Actual seeded teacher preview remains open locally on port3117; no grading was started. PR1400 remains draft for stable-SHA independent review; merge/promotion not authorized for this PR. Risk profile: none. Model recommendation: GPT-6 Sol for the localized interaction update.
@@ -34266,3 +34271,33 @@ Owner explicitly approved exactly221–223 locally. Verified exact local project
 ## 2026-09-30 — Pull reveals new applied migration collision
 
 Pulled hub main to3e4d9f1b; feature remote remains656a9a1e. PR1380 is open with prior exact-head CI green but now conflicting with main. Main223 is stop_assignment_grade_conflict_retries; fresh local history223 remains contextual_daily_log_save. Preserve the applied SQL/history and local verification receipts. Next source reconciliation must allocate a new Daily number and explicitly plan local history alignment; no renumber, application, reset or history repair was performed during this report-only request. Shared full-experience admission remains dormant; Daily reads and the remaining five-batch integrations are unfinished.
+<!-- pika-session-log-archive-batch:ab345c622fcef3621bc12efbe958b534a9115f84c282be2e59bf7f9d88657dc7 -->
+
+<!-- pika-session-log-archive-batch:e33a9034c03a0d6b561854793e5b2e6fce779d5ff96c78cdbcd1706f81d30102 -->
+## 2026-09-30 — Guided assignment documentation checkpoint
+
+Owner approved one documentation correction/main sync and one brief review after the review-budget checkpoint. Restored the missing space in CURRENT migration history while retaining verified production 222 and the new main deployment flow. Application changes remain unchanged; exact-head checks and main merge remain gated.
+
+## 2026-09-30 — Password-free hosted migration authentication
+
+Replaced the manual rollout's permanent database-password requirement with pinned CLI native temporary logins from a production-project scoped PAT. The runner checks token syntax and rejects password fallback, isolates PostgreSQL environment variables, and binds the authentication strategy into format-2 preview digests. Existing exact migration authorization remains required. Documented six token capabilities, Database Read-write authority, temporary-role creation during preview, Beta endpoint dependency, and server-enforced denial of network-ban removal. The owner declined password reset; none was performed. A targeted review corrected prefix-based scope assurance: legacy tokens can share the prefix, so Dashboard review is the scope control. Offline rollout tests pass43; focused checks, independent review, owner approval for expanded token authority, credential replacement and hosted preview remain pending. No production migration was applied.
+
+## 2026-09-30 — Reconcile dormant Daily Log saves with current main
+
+Owner requested pull/reconciliation. Rebased PR1380 onto main32ad59f5, preserving both histories in the sole archive conflict. Resequenced the branch migration from218 to223 because main now occupies218–222; updated harnesses, regressions and rollout receipts. SQL checksum and Daily Log runtime code match the previously reviewed1eda5574. PR returned to draft before reconciliation; backup branch retains the original SHA. Current local history is through220 with Blueprint218 and no Daily Log function; Sep27 local218 proof is historical. No database application, reset/history repair, production promotion or cohort activation. Focused verification and targeted stable-SHA integration review remain pending.
+
+## 2026-09-30 — Authorized local migrations 221–223 applied
+
+Owner explicitly approved exactly221–223 locally. Verified exact local project/container/port, matching001–220 history, and dry-run containing only the approved set; one application succeeded. Approval is consumed. Local history now matches001–223, Daily Log function exists, generated types match and security advisor reports no issues. Exact-head PR1380 CI36745657706 and final independent integration review passed at656a9a1e. Pinned local Blueprint provenance/adoption and lifecycle-lock contracts pass; Daily Log rollback behavior and all eight concurrency cases pass, with synthetic fixtures removed. The initial Blueprint helper selected a similarly named scratch database; stopped that chain and pinned the verification target to supabase_db_pika. Docker execution delays resolved without restarting or resetting. No reset, reseed, history repair, production write or admission activation. Receipt changes are local documentation only; reviewed remote SHA remains unchanged.
+
+## 2026-09-30 — Pull reveals new applied migration collision
+
+Pulled hub main to3e4d9f1b; feature remote remains656a9a1e. PR1380 is open with prior exact-head CI green but now conflicting with main. Main223 is stop_assignment_grade_conflict_retries; fresh local history223 remains contextual_daily_log_save. Preserve the applied SQL/history and local verification receipts. Next source reconciliation must allocate a new Daily number and explicitly plan local history alignment; no renumber, application, reset or history repair was performed during this report-only request. Shared full-experience admission remains dormant; Daily reads and the remaining five-batch integrations are unfinished.
+
+## 2026-09-30 — Resolve source 223 collision without changing local history
+
+Owner requested resolution. Preserved old reviewed SHA656a9a1e and local application receipts, folded its three commits without a tree change, and rebased onto main1b5430b3. Resolved CURRENT/history conflicts preserving main's production222 and retired-staging guidance, old Daily history and local receipts. Canonical Daily migration is224 with unchanged SQL; harnesses, numbering regressions and runbook follow224. Local still records Daily under223; documented an exact proposed history-only rebinding plus main223 application, not executed or authorized. No database reset/reseed, schema/history repair, production mutation or rollout activation. Focused checks and one bounded final reconciliation review remain before ready CI.
+
+## 2026-09-30 — Local Daily history repair verified; retry-risk review checkpoint
+
+Owner approved one replacement final review and the exact local223 receipt removal/local224 recording/main223 include-all application. Sol/high review at57ccc26f confirmed the repair safe but found a merge blocker: Daily's custom40001 defensive binding error risks PostgREST14 infinite retries; preserve224 and add an additivePT409 correction plus adapter compatibility and regressions. No source remediation yet; six reviewer launches consumed, one further targeted review requires extension. Both repairs and one canonical223 push succeeded after exact target/body/grant proof and preview. All224 history identities and installed function bodies match source; generated types/security advisor, stale/fresh grade rollback, Daily rollback and all eight concurrency contracts pass. Counts and digests of seven existing-data tables remain unchanged after fixture cleanup. Focused208 tests and static checks passed before repair; three assignment-conflict regressions pass. PR1380 remains draft; no reset/reseed, production write or activation. Repair/application approval consumed.
