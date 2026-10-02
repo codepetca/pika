@@ -238,8 +238,11 @@ An integrated coordinator/provider regression covers the boundary. All576
 billing tests pass. Targeted follow-up cleared c962f622 with73 coordinator/provider
 tests. Four launches and two fix batches are used; final cumulative PR review
 remains after database/types verification. Migration230 is byte-identical to the
-initially reviewed source. Exact local230 approval is pending; the classroom229
-PR also needs its owner-controlled main reconciliation before type generation.
+initially reviewed source. The owner approved one local230 application on
+2026-10-02, conditional on classroom229 PR1431 merging and a dry run containing
+only230. The permission is unconsumed. Local target Pika/54322 is verified; all
+four existing billing database harnesses passed with rollback, unchanged data
+counts and sandbox OFF. Wait for229 main integration before application/typegen.
 
 `codex/subscription-plan-changes` implements a dormant backend slice backed by
 additive migration230 (`230_subscription_prorated_upgrades.sql`). It has not been
