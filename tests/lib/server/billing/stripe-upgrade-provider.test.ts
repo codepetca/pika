@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { UpgradeOperation } from '@/lib/server/billing/upgrade-contracts'
+import { upgradeQuoteDigest, processUpgrade } from '@/lib/server/billing/upgrade-service'
+import type { UpgradeOperation, UpgradeClaim, UpgradeStore } from '@/lib/server/billing/upgrade-contracts'
 import { createStripeUpgradeProvider, UpgradeProviderContractError } from '@/lib/server/billing/stripe-upgrade-provider'
 
 const start = '2026-10-01T00:00:00.000Z'
@@ -91,6 +92,10 @@ function fixture() {
     write: { operation: op, idempotencyKey: 'upgrade-fixture', beforeMutation: guard } }
 }
 type Fixture = ReturnType<typeof fixture>
+function draftTotals(f: Fixture) {
+  const sum = f.invoice.lines.data.reduce((total, item) => total + item.amount, 0)
+  Object.assign(f.invoice, { subtotal: sum, total: sum, amount_due: Math.max(0, sum), amount_remaining: Math.max(0, sum), ending_balance: Math.min(0, sum) })
+}
 function addPayment(f: Fixture, status = 'requires_action') {
   f.invoice.payments.data = [{ invoice: 'in_upgrade', livemode: false, currency: 'usd', status: 'open', amount_paid: 0,
     amount_requested: 500, payment: { type: 'payment_intent', payment_intent: 'pi_upgrade' } }]
@@ -112,8 +117,9 @@ describe('frozen Stripe upgrade invoice', () => {
   it('persists the noncollecting invoice identity before adding frozen lines', async () => {
     const f = fixture(); f.op.invoice_id = null; f.op.stage = 'invoice_requested'; f.invoice.status = 'draft'; f.invoice.ending_balance = null
     f.invoice.lines.data = []; f.sdk.invoiceItems.create.mockImplementation(async input => {
-      f.invoice.lines.data.push(line(input.amount)); return { id: 'ii_created' }
+      f.invoice.lines.data.push(line(input.amount)); draftTotals(f); return { id: 'ii_created' }
     })
+    draftTotals(f)
     await expect(f.provider.createInvoice(f.write)).resolves.toEqual({ invoiceId: 'in_upgrade' })
     expect(f.sdk.invoiceItems.create).not.toHaveBeenCalled()
     expect(f.sdk.invoices.create).toHaveBeenCalledWith(expect.objectContaining({ customer: 'cus_fixture', subscription: 'sub_fixture',
@@ -129,9 +135,9 @@ describe('frozen Stripe upgrade invoice', () => {
     expect(f.sdk.invoiceItems.create).toHaveBeenCalledTimes(2)
   })
   it('resumes a known partially populated invoice after a timeout and quote expiry', async () => {
-    const f = fixture(); f.op.stage = 'invoice_created'; f.invoice.status = 'draft'; f.invoice.lines.data = []
-    f.sdk.invoiceItems.create.mockImplementationOnce(async input => { f.invoice.lines.data.push(line(input.amount)); throw new Error('timeout') })
-      .mockImplementation(async input => { f.invoice.lines.data.push(line(input.amount)); return {} })
+    const f = fixture(); f.op.stage = 'invoice_created'; f.invoice.status = 'draft'; f.invoice.lines.data = []; draftTotals(f)
+    f.sdk.invoiceItems.create.mockImplementationOnce(async input => { f.invoice.lines.data.push(line(input.amount)); draftTotals(f); throw new Error('timeout') })
+      .mockImplementation(async input => { f.invoice.lines.data.push(line(input.amount)); draftTotals(f); return {} })
     await expect(f.provider.populateInvoice(f.write)).rejects.toThrow('timeout')
     vi.setSystemTime(expires)
     await expect(f.provider.populateInvoice(f.write)).resolves.toBeUndefined()
@@ -154,7 +160,7 @@ describe('frozen Stripe upgrade invoice', () => {
     const f = fixture(); f.op.stage = 'void_requested'; f.op.expires_at = end
     f.op.quote!.expiresAt = end
     if (status !== 'open') f.invoice.status = 'draft'
-    if (status === 'partial') f.invoice.lines.data = [line(-450)]
+    if (status === 'partial') { f.invoice.lines.data = [line(-450)]; draftTotals(f) }
     vi.setSystemTime(end)
     f.subscription.items.data[0].current_period_start = seconds(end)
     f.subscription.items.data[0].current_period_end = seconds('2026-12-01T00:00:00.000Z')
@@ -163,7 +169,7 @@ describe('frozen Stripe upgrade invoice', () => {
     f.op.quote!.prorationDate = seconds(f.op.quote!.quotedAt)
     for (const l of f.op.quote!.lines) l.periodStart = f.op.quote!.quotedAt
     for (const l of f.invoice.lines.data) l.period.start = seconds(f.op.quote!.quotedAt)
-    f.sdk.invoiceItems.create.mockImplementation(async input => { const added = line(input.amount); added.period.start = seconds(f.op.quote!.quotedAt); f.invoice.lines.data.push(added); return {} })
+    f.sdk.invoiceItems.create.mockImplementation(async input => { const added = line(input.amount); added.period.start = seconds(f.op.quote!.quotedAt); f.invoice.lines.data.push(added); draftTotals(f); return {} })
     f.sdk.invoices.finalizeInvoice.mockImplementation(async () => { f.invoice.status = 'open'; return {} })
     f.sdk.invoices.voidInvoice.mockImplementation(async () => { f.invoice.status = 'void'; f.invoice.amount_remaining = 0; return {} })
     await f.provider.voidInvoice(f.write)
@@ -172,6 +178,36 @@ describe('frozen Stripe upgrade invoice', () => {
       { idempotencyKey: `pika-upgrade-${f.op.operation_id}-invoice:target_debit` })
     expect(f.sdk.invoices.finalizeInvoice).toHaveBeenCalledTimes(status === 'open' ? 0 : 1)
     await expect(f.provider.readEvidence(f.op)).resolves.toEqual({ kind: 'voided', invoiceId: 'in_upgrade' })
+    expect(f.sdk.invoices.pay).not.toHaveBeenCalled()
+    expect(f.sdk.subscriptions.update).not.toHaveBeenCalled()
+    expect(f.sdk.subscriptions.retrieve).not.toHaveBeenCalled()
+  })
+  it('expires a realistic partial credit draft through the coordinator at paid-through', async () => {
+    const f = fixture(); f.op.stage = 'invoice_created'; f.op.expires_at = end; f.invoice.status = 'draft'
+    Object.assign(f.op.quote!, { quotedAt: '2026-10-31T23:50:00.000Z', prorationDate: seconds('2026-10-31T23:50:00.000Z'), expiresAt: end })
+    for (const l of f.op.quote!.lines) l.periodStart = f.op.quote!.quotedAt
+    f.invoice.lines.data = [line(-450)]; f.invoice.lines.data[0].period.start = seconds(f.op.quote!.quotedAt); draftTotals(f)
+    expect(f.invoice.amount_remaining).toBe(0)
+    expect(f.invoice.ending_balance).toBe(-450)
+    vi.setSystemTime(end)
+    f.sdk.invoiceItems.create.mockImplementation(async input => {
+      const added = line(input.amount); added.period.start = seconds(f.op.quote!.quotedAt); f.invoice.lines.data.push(added); draftTotals(f); return {}
+    })
+    f.sdk.invoices.finalizeInvoice.mockImplementation(async () => { f.invoice.status = 'open'; return {} })
+    f.sdk.invoices.voidInvoice.mockImplementation(async () => { f.invoice.status = 'void'; f.invoice.amount_remaining = 0; return {} })
+    const claim: UpgradeClaim = { status: 'claimed', operation: f.op, lease_token: binding.subscription_id, fencing_token: 1,
+      lease_expires_at: '2026-11-01T00:02:00.000Z', subscription_revision: 1, expected_account_plan_revision: 1,
+      expected_access_revision: 1, expected_entitlement_revision: 1 }
+    const store: UpgradeStore = { reserve: vi.fn(), get: vi.fn(), confirm: vi.fn(), list: vi.fn(), getApplied: vi.fn(),
+      claim: vi.fn().mockImplementation(async () => structuredClone(claim)),
+      checkpoint: vi.fn().mockImplementation(async input => { f.op.stage = input.stage; f.op.revision++; return structuredClone(claim) }),
+      finish: vi.fn().mockImplementation(async input => ({ status: input.outcome })) }
+    f.op.quote_digest = upgradeQuoteDigest(f.op.quote)
+    expect(await processUpgrade({ store, provider: f.provider, operationId: f.op.operation_id, leaseSeconds: 120,
+      now: () => end })).toEqual({ kind: 'expired' })
+    expect(f.sdk.invoices.finalizeInvoice).toHaveBeenCalledOnce()
+    expect(f.sdk.invoices.voidInvoice).toHaveBeenCalledOnce()
+    expect(f.invoice.total).toBe(500)
     expect(f.sdk.invoices.pay).not.toHaveBeenCalled()
     expect(f.sdk.subscriptions.update).not.toHaveBeenCalled()
     expect(f.sdk.subscriptions.retrieve).not.toHaveBeenCalled()

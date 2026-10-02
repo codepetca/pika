@@ -231,7 +231,11 @@ with the concrete preapplication candidate; no database application is included.
 Both initial reviewers completed a2e2d730 and its231 upgrade tests. Batch1 fixes
 interrupted payment-request recovery and expiry cleanup at the paid boundary,
 with coordinator/provider regressions and an ordinary-claim release SQL fixture.
-Targeted financial review follows on the corrected fixed source.
+Targeted financial review of ef8c4ece cleared payment replay but found partial
+draft fixtures using completed totals. Batch2 validates actual draft subset
+totals/no payments, completes exact lines, then enforces final frozen totals.
+An integrated coordinator/provider regression covers the boundary. All576
+billing tests pass; targeted follow-up is launch4of7, with two fix batches used.
 
 `codex/subscription-plan-changes` implements a dormant backend slice backed by
 additive migration230 (`230_subscription_prorated_upgrades.sql`). It has not been

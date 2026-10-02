@@ -70,7 +70,7 @@ const invoiceSchema = z.object({ id: ref, livemode: z.literal(false), status: z.
   customer: ref, currency: z.string(), auto_advance: z.literal(false), collection_method: z.literal('charge_automatically'),
   billing_reason: z.literal('manual'), amount_due: money, amount_paid: money, amount_remaining: money,
   amount_paid_off_stripe: z.literal(0).optional(), amount_shipping: z.literal(0), subtotal: integer, total: integer,
-  starting_balance: z.literal(0), ending_balance: z.literal(0).nullable(), automatic_tax: z.object({ enabled: z.literal(false) }),
+  starting_balance: z.literal(0), ending_balance: integer.nullable(), automatic_tax: z.object({ enabled: z.literal(false) }),
   default_tax_rates: empty, discounts: empty, total_discount_amounts: empty.nullable(), total_taxes: empty.nullable(),
   total_pretax_credit_amounts: empty.nullable(), pre_payment_credit_notes_amount: z.literal(0), post_payment_credit_notes_amount: z.literal(0),
   parent: z.object({ type: z.literal('subscription_details'), subscription_details: z.object({ subscription: ref }) }),
@@ -122,8 +122,15 @@ function validateLines(invoice: Invoice, operation: QuotedOperation, partial = f
   const matches = operation.quote.lines.map(expected => invoice.lines.data.filter(actual => matchingLine(actual, expected, operation)).length)
   requireFact(matches.every(count => count <= 1) && matches.reduce((sum, count) => sum + count, 0) === invoice.lines.data.length
     && (partial || matches.every(count => count === 1)), 'quote_mismatch')
+  if (partial) {
+    const subtotal = invoice.lines.data.reduce((sum, line) => sum + line.amount, 0)
+    requireFact(invoice.status === 'draft' && invoice.amount_paid === 0 && invoice.payments.data.length === 0
+      && invoice.subtotal === subtotal && invoice.total === subtotal
+      && invoice.amount_due === Math.max(0, subtotal) && invoice.amount_remaining === Math.max(0, subtotal)
+      && (invoice.ending_balance === null || invoice.ending_balance === 0 || invoice.ending_balance === Math.min(0, subtotal)), 'quote_mismatch')
+  }
   if (!partial) requireFact(invoice.subtotal === operation.quote.amountDue && invoice.total === operation.quote.amountDue
-    && invoice.amount_due === operation.quote.amountDue && (invoice.status === 'draft' || invoice.ending_balance === 0), 'quote_mismatch')
+    && invoice.amount_due === operation.quote.amountDue && (invoice.ending_balance === 0 || (invoice.status === 'draft' && invoice.ending_balance === null)), 'quote_mismatch')
 }
 
 export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradeProvider {
@@ -231,6 +238,10 @@ export function createStripeUpgradeProvider(port: StripeUpgradePort): UpgradePro
       const cleanup = operation.stage === 'void_requested'
       const state = cleanup ? (await accountIdentity(operation), { targetApplied: false }) : await current(operation)
       const invoice = await readInvoice(operation, operation.invoice_id, cleanup)
+      // A draft subset has its own current totals (a lone credit may owe zero).
+      // Exact subset, zero paid money and no payment records were validated above.
+      // Complete frozen totals are mandatory after population, before finalization.
+      if (cleanup && invoice.status === 'draft') return { kind: 'unpaid', invoiceId: invoice.id, status: 'draft', quote: operation.quote }
       const payment = await paymentEvidence(invoice, operation)
       if (cleanup && payment !== 'unpaid') return { kind: 'attention', reason: payment === 'pending' ? 'payment_pending_at_expiry' : 'unexpected_payment_at_expiry' }
       if (payment === 'pending') return { kind: 'payment_pending', invoiceId: invoice.id }
