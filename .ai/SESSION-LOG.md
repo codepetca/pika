@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Approved final Daily harness role correction
-
-Seventh review at98d0822c found225/adapter clean but fault-injection DDL still ran as service_role, not postgres owner. Catalog proof confirmed missing ownership. Owner approved two-line correction and eighth/final targeted review: reset role before temporary dependency replacement; set local service_role before save assertion. Static regression covers both transitions. Migration224/225 SQL and application permissions unchanged. Local225 permission remains held, unattempted pending final review; PR1380 contains live application/CI receipt. No production or rollout activation. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high bounded role-correction/integration review.
-
-## 2026-10-01 — Confirm Assignment AI grading
-
-Assignments now opens the same counted danger ConfirmDialog as Tests before AI grading. The Student actions label and title show the selected count; the warning reads “This will overwrite existing grade, comments and teacher edits.” Cancel focus, focus trapping, Escape/return focus and red confirmation reuse the canonical dialog, inspected in Pattern Lab Settings. UI brief: teacher Assignment grading, desktop1440x900/mobile390x844, light/dark, one/two selections/open/cancel/confirm; student n/a because its interface is unchanged. Component regressions cover no request on open/cancel, disabled confirmation after selection clears, and one confirmed selected-ID request plus existing run polling. Four browser cases pass with mocked grading only; eight captures visually reviewed. Backend/model/schema unchanged. Risk profile: none. Model recommendation: GPT-6 for this localized confirmation gate. Draft PR and stable-SHA independent review follow; no production promotion.
-
-## 2026-10-01 — Hosted migration authentication main sync
-
-The owner approved one additional main sync, bounded compatibility review, fresh CI, and merge for PR #1411. Integrated main `4399bd7f`, retaining both archive histories and all new Daily Log migrations and CI checks. The previously reviewed scoped-token temporary-login implementation remains unchanged. Hosted credential activation and the first production preview remain pending; no database password reset or production migration application is authorized.
-
 ## 2026-10-01 — Hosted migration CLI companion diagnosis
 
 The owner created the reviewed Pika-only 90-day scoped token and saved GitHub migrations-production/SUPABASE_ACCESS_TOKEN at 08:02 Toronto time. The first hosted preview, run36859514133 at merged5f74d08d with verified CI36853538954, failed before a migration plan. Reproduced the installer defect using a fake credential: CLI2.103.0 ships a supabase shim plus supabase-go engine, but the installer extracted only the shim. With both checksum-verified binaries present, linking reaches the expected Unauthorized response for the fake token. Prepared a narrow installer correction and engine-version preflight without changing credentials, scopes, target bindings or migration approval policy. The focused gate passed95 tests plus architecture, UI/design policy, TypeScript and lint; the Linux archive contains both regular x86_64 executables under the unchanged checksum, and the installer shell/version preflight passes. A bounded independent operations review, required CI and the production preview retry remain pending. No production migration or password reset occurred. Risk profile: runtime-platform.
@@ -468,3 +456,15 @@ late rollback verified before outer rollback.263focused+architecture/policies/
 TypeScript/lint pass.229 digest9b4c9b8b unchanged/immutable. Draft/full PR review next;
 1review/3fixbatches, extension ends17:50:54Z after prerequisite CI. No production,
 account plan, billing activation or admission changes.
+
+## 2026-10-02 — Reconcile copy1431 after green CI and attendance1430
+
+Both independent full reviews clean at4516bc85; all five CI gates pass on
+37046563313. Final merge gate caught1430 advancing main to8dc05d47 and one
+JOURNAL-ARCHIVE conflict. Returned1431 to draft; no bypass or stale-head merge.
+Owner approved20more review minutes18:55:24–19:15:24Z; counters retained.
+Rebased onto1430 preserving both histories. All16 non-log owned files match
+the reviewed candidate before receipt updates; installed229 digest9b4c9b8b
+unchanged/immutable, local001–229 unchanged. Batch4 records reconciliation;
+no further default fix batch. One final changed-base integration review and
+fresh exact-head CI remain. Production, accounts, billing and admission held.
