@@ -11,6 +11,25 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-09-25 — Test reference image production promotion
+
+- User authorized deploying merged PNG/JPEG test reference attachments from main PR #1355. Production migration 208 was applied and verified before the app promotion: the private test-documents bucket permits image/png and image/jpeg, retains its 25 MB limit, and migration history matches through 208.
+- Draft production PR #1359 batches the reviewed image feature, account-plan documentation, and title-editor PR #1358, which joined main during promotion preparation. The promotion merge preserves both branch histories; its only conflict was archive bookkeeping. The runtime source tree matches main commit 74648fd8. Cumulative promotion review and PR Gate precede merge.
+
+## 2026-09-27 — Main production promotion
+
+- Owner authorized main-to-production release PR1369. Batch main402f8028 contains admin prototype, local-only Stripe foundation, subscription policy and compact Gradebook changes. Reconciled only CURRENT and journal history conflicts, preserving both histories. Fresh production read confirms migrations206–210 and strict automatic Free signup active for183 classified accounts. No migration or feature switch changed.
+- Risk runtime-platform. One independent Sol security and Terra compatibility wave; local focused verification and final reviewed-head CI precede merge. Billing/admin and maximum-edit activation remain separate gates.
+
+## 2026-09-27 — Deploy reference-preservation fix
+
+User authorized production release of the merged fix. PR1373 promotes reviewed main6650e76a, including default-off checkout foundation PR1368 and reference-preservation PR1370. Independent Sol safety and Terra compatibility reviews found no application blockers; resolved continuity archive conflict by retaining both histories, with application/schema blobs unchanged. No migrations, billing flags, provider configuration, or worker scheduling are authorized or performed. Exact-head release CI and Vercel readiness precede completion.
+
+## 2026-09-27 — Promote seven main PRs to production
+
+- Owner authorized PR1379 to promote main4d0c4474 over production6904c2ed. The batch includes contextual Assignment image/owner safeguards, billing webhook scope checks, dormant classroom admission, PDF references, fullscreen clock, Test reference pane fixes, and paused Pal UI CI.
+- Production diverged only in continuity notes. Resolved CURRENT to the newer main status and retained four unique production promotion records in the journal; application and migration files match main. No migration, account, feature-flag, or provider configuration is changed by the PR. Risk profile: runtime-platform. Model recommendation: GPT-6 Sol — release coordination and conflict reconciliation. Independent cumulative review and full CI gate are required before merge.
+
 ## 2026-09-29 — Blueprint canonical CI screenshot correction
 
 Owner explicitly approved one correction batch and one additional targeted screenshot review after the ninth parent review passed. PR1387 exact-head run36653542032 passed Test & Build and Database contracts, but four Linux Pattern Lab references used different Docker fonts. Replaced only those references with the canonical GitHub CI captures; each original attempt and both retries produced the same image hash. Desktop/mobile light/dark captures preserve Factory and the current Test status-sort examples. Application, test assertions and migration221 are unchanged. Required focused checks and the approved screenshot review precede a fresh exact-head CI; production guidance and migrations remain untouched.
@@ -39,6 +58,11 @@ Added browser visibility guards and Today activity wiring while preserving the m
 ## 2026-09-29 — Merge classroom Blueprint and complete adoption review
 
 PR1387 merged as50cbbc5a after canonical CI screenshot correction, the owner-approved tenth targeted review and exact-head CI36659661703. One existing assignment-editor test load-timing race passed on the unchanged-candidate rerun; all final lanes and PR Gate passed. Adoption PR1396 security/compatibility review accepted two findings, corrected together; targeted security and final integration passed at5b399e3b. Rebased its three adoption commits onto merged main; conflicts were duplicate archive entries already preserved verbatim. Source/test/migration patch ID remains397b1e4f. Required focused checks and final CI follow. Production preflight through220 previews exactly221/222; direct named migration approval requested but not received. Actual course guidance remains unsaved/unadopted.
+
+## 2026-09-29 — Promote polling and pending main changes
+
+- Owner authorized production PR1397 after polling PR1395 merged main. Batch main de7a629d includes16 pending PRs. Independent security and compatibility reviews passed runtime interactions; corrected stale production schema summary and retained both production/main continuity histories. Application, migration, dependency and test bytes remain identical to reviewed main.
+- Production migrations215–220 already applied and verified; no schema/reset, billing activation, Vault configuration, benchmark grades or paid provider calls are part of this release. Background grading dispatch still requires separate URL/secret activation and a small canary; class completion target and CPU savings remain unmeasured. Final reviewed SHA, green PR Gate and production deployment readiness are required before completion.
 
 ## 2026-09-30 — Retire remaining hosted staging workflow
 
@@ -141,6 +165,22 @@ Owner approved narrow225 fix, one seventh targeted review and exactly225 locally
 ## 2026-09-30 — Approved final Daily harness role correction
 
 Seventh review at98d0822c found225/adapter clean but fault-injection DDL still ran as service_role, not postgres owner. Catalog proof confirmed missing ownership. Owner approved two-line correction and eighth/final targeted review: reset role before temporary dependency replacement; set local service_role before save assertion. Static regression covers both transitions. Migration224/225 SQL and application permissions unchanged. Local225 permission remains held, unattempted pending final review; PR1380 contains live application/CI receipt. No production or rollout activation. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high bounded role-correction/integration review.
+
+## 2026-09-30 — Prepare Blueprint production release
+
+PR1396 merged asb754bd69 after fixed-head CI36702895411 passed every lane and PR Gate. Production advanced via1397 while the release was preparing; promotion1398 now combines only classroom Blueprint drafting and guidance adoption. Production's current-state summary is preserved. Conflict resolution removes only duplicate historical archive entries already present verbatim; application/test/migration tree remains identical to reviewed main. Cumulative release review and final CI follow; production migrations221/222 now have direct one-time owner approval after checks. Actual ICS3U guidance was saved/read-verified at Draft4; P3/P5 adoption remains pending. Fresh linked DB preflight currently cannot connect; no application attempted.
+
+## 2026-09-30 — Production release after migrations 221/222
+
+Owner authorized production deployment. Production migrations221/222 applied once successfully from reviewed8b317736; linked postflight222history entries aligned, no drift. Read-only columns/RLS/service-only grants and guidance triggers verified. Updating existing releasePR1398 with reviewed main3eed5324 (AI grade confirmation, test-reference policy, same-day Class Days corrections). Only merge conflict is archived continuity; both sides preserved. Migration/application source matches current main. Cumulative integration review and exact-head CI precede merge.
+
+## 2026-09-30 — Production disk I/O fix rollout (PR1408)
+
+Owner authorized migration223 on production followed by application promotion. Linked history and dry-run confirmed221/222 already applied and only223 pending. Applied223 once successfully; the live function source hash matches the reviewed migration exactly, with PT409 and unchanged service-only ACL, security definer and empty search path. Main fixPR1406 merged as112c1c73 after independent review and green CI36771557844. PromotionPR1408 batches reviewed hosted toolingPR1404 and the grading compatibility fix. Resolved archive continuity by retaining the production narrative (which contains every main narrative line) and all main-only batch markers; runtime and Supabase files remain identical to main. Cumulative review and final CI precede the authorized production merge.
+
+## 2026-09-30 — Guided assignment production promotion (PR1410)
+
+Promoting reviewed main1b5430b3 after PR1407 passed8758 CI tests, database/browser contracts and PR Gate. One continuity conflict batch retains production verified223 and both historical narratives; application, tests, schema and configuration stay byte-identical to reviewed main. Production223 was applied by its separately authorized owner; this task applies no migrations. One cumulative promotion review and exact-head CI precede release. Final teacher guided-assignment proof remains pending sign-in.
 
 ## 2026-10-01 — Confirm Assignment AI grading
 
@@ -297,3 +337,15 @@ real PostgREST cases and all prior database/race/cleanup cases pass; targeted
 security re-review is clean at pre-rebase ba6ca7d7. Reconciled focused checks
 pass168tests/16files and all static gates; the five-group actual database harness
 passes again with exact cleanup. Cumulative integration review remains next.
+
+## 2026-10-01 — Production continuity alignment for feedback release
+
+Owner authorized production deployment of the assignment AI feedback change. Promotion PR1415 initially conflicted only in AI continuity documents. Preserve both archive/session histories, production's verified001–223 receipt and main's current local repair/Daily rollout summary. Reconcile only these continuity documents in the promotion branch; runtime files remain byte-identical to reviewed main7af07f9e. Runtime, migrations, configuration and rollout gates are unchanged; no schema application or cohort activation. Independent cumulative release review and production deployment remain pending.
+
+## 2026-10-01 — Promote Assignment AI grading confirmation
+
+Owner authorized deployment of PR1414. Promotion PR1417 includes the counted overwrite confirmation and the reviewed migration-workflow documentation from PR1416. Reconciled only CURRENT and archive continuity conflicts against production, retaining main’s verified225 receipt and both archive histories. Application source and all SQL/flags match reviewed main78bf84e4; no migration or AI grading request. Required cumulative review and full CI run on the reconciled promotion SHA before production merge. Risk profile: runtime-platform (application promotion). Model recommendation: GPT-6 for bounded coordination, DeepSeek read-only cumulative compatibility review under the standing low-usage preference.
+
+## 2026-10-01 — Promote classroom scrolling and reviewed read adapters
+
+Owner requested deployment after PR1419 merged. Promotion PR1425 batches the reviewed scrolling fix with learner/teacher Daily and lesson-plan read adapters from PR1418/1420–1423. Reconciled only the production archive/session continuity conflict, preserving all main bodies and17 production-only dated bodies. Runtime, tests, schema, dependency, Next/Vercel configuration and gates remain byte-identical to reviewed main1220d586 (the same tree as passing source CI36949840558). Production env metadata confirms PIKA_CLASSROOM_EXPERIENCE_ADMISSION, PIKA_E2E_FIXTURES and ENABLE_UI_GALLERY are absent; shared rollout stays dormant. No migration or flag change. Two independent GPT-5.6 Sol/high cumulative specialists found no code blocker, and local focused checks passed926tests/59files plus all static gates after repairing isolated installed dependencies. The reconciled fixed SHA requires final structural/history compatibility review and full exact-head CI before the authorized production PR merge and Vercel deployment. Review budget: initial2 specialists, one continuity batch, final compatibility pass next;60-minute session/30-minute reviewer limits. Risk profile: runtime-platform; release includes dormant authorization adapters.
