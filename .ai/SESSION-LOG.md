@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-29 — Resume Blueprint rollout orchestration
-
-User authorized completion through release and actual ICS3U guidance. Rebased PR1387 onto main27ddf09a; resolved continuity duplicates and regenerated combined Pattern Lab snapshots on Darwin and Linux. Focused checks pass3,507tests/7skipped and all static gates; eight snapshot cases pass without update mode. Verified production through220, empty Pika-managed ICS3U-4 Draft guidance, and P3/P5 frozenVersion3 with no guidance. P5 has1untrackedtest; P3has1untrackedtest/1lesson, so existing full classroom update is blocked. Sol read-only subagent identified adoption seams; coordinator requires separate guidance binding to preserve copied-artifact Version identity. Prepared exact course rules in ignored output/rollout/ics3u-authoring-guidance.md. Updated the single roadmap with the necessary guidance-only adoption phase. Specific approval to exceed the prior eight-reviewer cap is pending; no new PR reviewer, migration, course save, or deployment ran.
-
 ## 2026-09-29 — Blueprint canonical CI screenshot correction
 
 Owner explicitly approved one correction batch and one additional targeted screenshot review after the ninth parent review passed. PR1387 exact-head run36653542032 passed Test & Build and Database contracts, but four Linux Pattern Lab references used different Docker fonts. Replaced only those references with the canonical GitHub CI captures; each original attempt and both retries produced the same image hash. Desktop/mobile light/dark captures preserve Factory and the current Test status-sort examples. Application, test assertions and migration221 are unchanged. Required focused checks and the approved screenshot review precede a fresh exact-head CI; production guidance and migrations remain untouched.
@@ -226,3 +222,40 @@ cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
 application source has no rebase conflicts and no migration was renumbered.
 Targeted security and final integration review remain pending. No AI, schema,
 cohort, UI, billing or production change; lesson-plan list reads follow.
+
+## 2026-10-01 — Dormant shared lesson-plan reads
+
+Continued the authorized five-batch goal without activating it. Teacher logs1421
+is merged at e87d322a; summary1422 passed four bounded independent reviews and is
+awaiting final CI36943420208 at45cecd2a. A GPT-6 Astra/high read-only proposal plus
+coordinator source checks selected classroom-rooted plan reads with same-statement
+owner or membership/visibility evidence. One GPT-6 Sol/high worker completed only
+two GET early branches, named validation/helper and tests in the independent
+codex/contextual-lesson-plan-reads worktree. Existing exact-pair/legacy remainder
+stays unchanged.76 relevant and167 canonical focused tests/static checks pass;
+Pika audit passes7files. Real local PostgREST proves1004plans, short nonterminal
+pages, both role values, empty/out-of-window/archived reads, first/later transfer,
+removal/archive/owner-precedence races, current/terminal visibility changes and
+keyset stability after prior-row deletion; exact synthetic live/audit cleanup
+passes. One pre-publication correction aligns later revocation403 and strengthens
+unknown envelopes/content/identity regressions. Independent fixed-SHA review and
+final CI remain required; main reconciliation after1422 is pending. No migration,
+reset/reseed, hosted/account, billing, UI, write or cohort change. Risk:
+runtime-platform; high authorization/privacy review risk.
+
+Initial PR1423 compatibility review is clean atfb6feb56; security found one
+accepted P2: JSONB literal null bypasses SQL NOTNULL and was incorrectly projected.
+Unit and actual PostgREST regressions reproduced it before the one correction
+batch;77 affected tests/type/scopedlint now pass with required nonnull valid
+content. Actual DB green, targeted/final review and final CI remain acceptance
+gates. No legacy behavior, schema, migration or live configuration change.
+
+Summary1422 is now merged main at7c0ded24 after all exact-head CI36943420208
+gates (0queue/1498run seconds). Hub fast-forwarded. Lesson-plan draft1423 rebased
+onto that main, reconciling only CURRENT/roadmap/archive continuity conflicts;
+kept original archive history once and all CI harnesses, with no application
+source conflict or migration file. No stash was created or consumed. JSONB-null
+real PostgREST cases and all prior database/race/cleanup cases pass; targeted
+security re-review is clean at pre-rebase ba6ca7d7. Reconciled focused checks
+pass168tests/16files and all static gates; the five-group actual database harness
+passes again with exact cleanup. Cumulative integration review remains next.

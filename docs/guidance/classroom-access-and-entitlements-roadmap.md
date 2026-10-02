@@ -483,7 +483,9 @@ Continuity and CI-placement conflicts retain both slices; no migration was added
 or renumbered. Initial security/compatibility review found two accepted blockers:
 microsecond freshness truncation and silently dropped unresolved name-map warnings.
 One correction batch retains full timestamp precision and validates nonblank own
-map references before restoration. Targeted/final reviews remain acceptance gates.
+map references before restoration. Targeted/final reviews passed on45cecd2a;
+every exact-head CI36943420208 lane passed (0queue/1498run seconds). PR1422 is
+merged in main at `7c0ded24a4746e383a80a26d4649e81d2c3ed259`; no activation.
 The real local contract proves owner-bound
 stats, HEAD count and cache queries, including transfers before each statement;
 no summary/name payload may rely on an earlier preflight. No AI or schema change.
@@ -491,11 +493,27 @@ no summary/name payload may rely on an earlier preflight. No AI or schema change
 A read-only lesson-plan inventory, verified by the coordinator, establishes the
 next domain after summaries: first current-relationship-bound list reads using
 shared admission while retaining pair/legacy fallback, then transaction-bound
-owner writes. Existing list payload queries trust earlier owner/member/visibility
+owner writes. Existing pair/legacy list queries trust earlier owner/member/visibility
 preflights; the ordered writer checks sequence but has no actor/owner/archive
 boundary. Date, bulk and copy writes therefore need separately reviewed additive
 actor-bound transactions and real race tests, not just role-gate replacement.
 Migration application retains its separate exact-target authorization.
+
+The coordinator's next independent worktree is `codex/contextual-lesson-plan-reads`,
+initially e87d322a, now reconciled with merged1422. A bounded GPT-6 Astra/high proposal selected
+classroom-rooted left plans and inner current-membership/visibility evidence, with
+date keyset pages through the terminal empty page. One GPT-6 Sol/high worker owns
+the two GET early branches, feature schemas/helper and TDD tests; coordinator owns
+the actual1004-plan PostgREST harness, CI/docs/Git and risk-matched independent
+review. The accepted design and verified source inventory are retained privately;
+the executable contract is [lesson-plan reads](contextual-classroom-lesson-plan-reads.md).
+All current-owner/member, visibility, pagination and exact cleanup database cases
+pass;77 targeted/168 canonical focused tests and static checks pass after one
+accepted JSONB-null content correction, reproduced by unit and actual PostgREST
+regressions. Compatibility and targeted security re-review are clean; final
+cumulative review and exact-head CI remain required. No application-code rebase
+conflict or migration resequencing. No applied SQL, account grants, writes, UI or hosted
+configuration changes; transaction-bound lesson-plan mutations remain subsequent.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3

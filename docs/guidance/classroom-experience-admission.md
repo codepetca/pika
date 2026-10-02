@@ -9,8 +9,11 @@ is merged and production migrations 224–225 are installed and verified via
 GitHub run `36869449834`. The pending migration statements below describe their
 earlier review history, not current application state. Shared admission remains
 off. The [teacher entry/history read slice](contextual-teacher-daily-log-read.md)
-is merged in PR #1420. The [roster-wide logs/preview slice](contextual-teacher-daily-logs.md)
-is in development; cached summaries remain subsequent work.
+is merged in PR #1420. [Roster-wide logs/previews](contextual-teacher-daily-logs.md)
+are merged in1421; [cached summaries](contextual-teacher-daily-summary.md) are
+merged in1422 after exact-head CI36943420208. [Lesson-plan owner/member reads](contextual-classroom-lesson-plan-reads.md)
+are in draft PR1423; current-relationship/visibility database checks pass, with
+final review/CI required. No cohort or production activation is authorized.
 
 The existing owner/member material-list GET routes consume this policy. The
 [Daily Log save slice](contextual-daily-log-save.md) adds dormant POST/PATCH
@@ -28,8 +31,10 @@ The [learner Daily Log read slice](contextual-daily-log-read.md) adds dormant GE
 integration for own classroom history and the broad active-membership feed.
 The teacher entry/history GETs also use shared admission, with current-owner
 evidence bound to their data reads. Roster-wide logs/previews are being integrated
-with current-owner and enrollment evidence in each data page. Cached summary reads,
-material writes, other domains, home/page routing and enrollment retain their
+with current-owner and enrollment evidence in each data page. Cached summary GET
+also independently binds owner/class/date at stats, count and cache reads.
+Lesson-plan shared reads are dormant; writes, material writes, other domains,
+home/page routing and enrollment retain their
 existing authorization. No environment is configured by this change.
 
 Do **not** configure a live cohort until the roadmap's full integrated release
