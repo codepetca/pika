@@ -9,7 +9,6 @@
   "src/app/api/teacher/classrooms/[id]/announcements/[announcementId]/route.ts",
   "src/app/api/teacher/classrooms/[id]/announcements/route.ts",
   "src/app/api/teacher/classrooms/[id]/classwork/reorder/route.ts",
-  "src/app/api/teacher/classrooms/[id]/lesson-plans/copy/route.ts",
   "src/app/api/teacher/classrooms/[id]/materials/[materialId]/route.ts",
   "src/app/api/teacher/classrooms/[id]/resources/route.ts",
   "src/app/api/teacher/classrooms/[id]/roster/add/route.ts",

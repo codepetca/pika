@@ -1,15 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
+import { authorizeContextualLessonPlanMutationActor } from '@/lib/server/contextual-lesson-plan-mutation'
+import { preflightContextualLessonPlanBulkMutation } from '@/lib/server/contextual-lesson-plan-bulk-mutation'
+import { copyContextualLessonPlan } from '@/lib/server/contextual-lesson-plan-copy-mutation'
+import { contextualLessonPlanCopyBodySchema } from '@/lib/validations/lesson-plan-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // POST /api/teacher/classrooms/[id]/lesson-plans/copy - Copy a lesson plan from one date to another
 export const POST = withErrorHandler('PostCopyLessonPlan', async (request, context) => {
-  const user = await requireRole('teacher')
+  const actor = await authorizeContextualLessonPlanMutationActor()
+  if (actor.mode === 'contextual') {
+    const scope = await preflightContextualLessonPlanBulkMutation({
+      actorId: actor.user.id,
+      params: await context.params,
+    })
+    const { fromDate, toDate } = contextualLessonPlanCopyBodySchema.parse(await request.json())
+    const lessonPlan = await copyContextualLessonPlan({
+      actorId: scope.actorId,
+      classroomId: scope.classroomId,
+      fromDate,
+      toDate,
+    })
+    return NextResponse.json({ lesson_plan: lessonPlan }, { status: 201 })
+  }
+
+  const user = actor.user
   const { id: classroomId } = await context.params
   const body = await request.json()
   const { fromDate, toDate } = body as { fromDate: string; toDate: string }

@@ -577,6 +577,51 @@ minutes for a portable `grep -F` correction with a strict two-sentinel regressio
 SQL226/227 and application behavior remain unchanged. Targeted/final review and new
 exact-head CI are still required. Billing plans228; no local or production apply.
 
+That1426 checkpoint is superseded by targeted/final clean review and all five
+exact-head gates on38c7edfb, CI37014848829. Normal squash mergea101fb28 is verified;
+canonical main fast-forwarded cleanly.239 focused checks pass; installed226/227
+remain unchanged. No production application/promotion or cohort activation occurred.
+
+The authorized next bounded slice is [lesson-plan copy](contextual-lesson-plan-copy-writes.md)
+on `codex/contextual-lesson-plan-copy-writes`, based ona101fb28. A bounded read-only
+GPT-6 Astra/high design and one GPT-6 Sol/high implementation worker prepared the
+owner-bound RPC, strict admitted route and tests; the coordinator owns harness,
+docs, CI and Git. Proposed229 copies raw content plus nullable Markdown atomically,
+preserving destination identity/lineage and untouched ordered heads; legacy copy
+stays unchanged. Recursive persisted-content validation occurs before any write.
+Source/CI-wrapper tests pass, but real runtime evidence/generated types are pending.
+The local read-only preview found installed228 absent from this branch/main;
+billing owns228 and must merge/reconcile first. Do not repair history or apply229
+out of order. New exact local229 approval, SQL review and full draft-first PR review
+remain required; production stays held. This does not advance batch1's exit gate.
+Independent GPT-5.6 Sol/high SQL/security/concurrency preapplication review of
+1d3ff46f againsta101fb28 is clean.32 source/legacy tests, architecture and audit
+pass. The only broader workflow failure was a68-character startup-document excess;
+CURRENT is compressed without changing the16,000-character gate. Runtime/type
+generation and full PR review remain held, not waived by preapplication review.
+The owner subsequently approved LOCAL229 after billing228 merge/reconciliation and
+60additional copy-review minutes16:50:54–17:50:54Z; counters retained. Explicit
+billing coordination dispatched without assuming production or billing activation.
+Own branch rebased cleanly on1428/a6c23954 with copy source and229 digest unchanged.
+Billing1429's independently approved sync is separately owned. Local229 remains
+unapplied until that prerequisite lands; no duplicate review/CI watcher or takeover.
+Superseded by billing1429/25cc0691 merge and one approved LOCAL229 application:
+229-only preview, matching228 digest, pika/54322 and001–228 history verified first.
+Local001–229/types/service-only grants,263focused checks and both positive/forced
+cleanup harnesses pass; zero residue and pre-outer-rollback late-failure proof.
+Fixture-only lineage collision fixed with distinct source artifact IDs; installed
+229 digest9b4c9b8b immutable. Full PR review/CI still pending; production/admission held.
+
+PR1431's full independent security and compatibility reviews are clean at4516bc85;
+all five exact-head gates passed on CI37046563313. The final merge gate found
+attendance1430 had advanced main to8dc05d47; only JOURNAL-ARCHIVE conflicted.
+Returned1431 to draft. Owner approved20additional review minutes18:55:24–19:15:24Z,
+retaining counters. Rebased onto1430 preserving both histories; all16 non-log owned
+files and installed229 digest match the reviewed candidate before receipt updates.
+Reconciliation is batch4; one final changed-base integration review and fresh CI
+remain mandatory. No further default remediation batch remains. No SQL changes,
+schema application, production promotion, billing or admission activation occurred.
+
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem

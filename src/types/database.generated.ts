@@ -10549,6 +10549,15 @@ export type Database = {
         }
         Returns: number
       }
+      copy_lesson_plan_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_from_date: string
+          p_to_date: string
+        }
+        Returns: Json
+      }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
       count_pal_membership_outbox_ready: { Args: never; Returns: number }
       course_blueprint_canonical_jsonb_text: {

@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Approved final Daily harness role correction
-
-Seventh review at98d0822c found225/adapter clean but fault-injection DDL still ran as service_role, not postgres owner. Catalog proof confirmed missing ownership. Owner approved two-line correction and eighth/final targeted review: reset role before temporary dependency replacement; set local service_role before save assertion. Static regression covers both transitions. Migration224/225 SQL and application permissions unchanged. Local225 permission remains held, unattempted pending final review; PR1380 contains live application/CI receipt. No production or rollout activation. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high bounded role-correction/integration review.
-
-## 2026-10-01 — Confirm Assignment AI grading
-
-Assignments now opens the same counted danger ConfirmDialog as Tests before AI grading. The Student actions label and title show the selected count; the warning reads “This will overwrite existing grade, comments and teacher edits.” Cancel focus, focus trapping, Escape/return focus and red confirmation reuse the canonical dialog, inspected in Pattern Lab Settings. UI brief: teacher Assignment grading, desktop1440x900/mobile390x844, light/dark, one/two selections/open/cancel/confirm; student n/a because its interface is unchanged. Component regressions cover no request on open/cancel, disabled confirmation after selection clears, and one confirmed selected-ID request plus existing run polling. Four browser cases pass with mocked grading only; eight captures visually reviewed. Backend/model/schema unchanged. Risk profile: none. Model recommendation: GPT-6 for this localized confirmation gate. Draft PR and stable-SHA independent review follow; no production promotion.
-
-## 2026-10-01 — Hosted migration authentication main sync
-
-The owner approved one additional main sync, bounded compatibility review, fresh CI, and merge for PR #1411. Integrated main `4399bd7f`, retaining both archive histories and all new Daily Log migrations and CI checks. The previously reviewed scoped-token temporary-login implementation remains unchanged. Hosted credential activation and the first production preview remain pending; no database password reset or production migration application is authorized.
-
-## 2026-10-01 — Hosted migration CLI companion diagnosis
-
-The owner created the reviewed Pika-only 90-day scoped token and saved GitHub migrations-production/SUPABASE_ACCESS_TOKEN at 08:02 Toronto time. The first hosted preview, run36859514133 at merged5f74d08d with verified CI36853538954, failed before a migration plan. Reproduced the installer defect using a fake credential: CLI2.103.0 ships a supabase shim plus supabase-go engine, but the installer extracted only the shim. With both checksum-verified binaries present, linking reaches the expected Unauthorized response for the fake token. Prepared a narrow installer correction and engine-version preflight without changing credentials, scopes, target bindings or migration approval policy. The focused gate passed95 tests plus architecture, UI/design policy, TypeScript and lint; the Linux archive contains both regular x86_64 executables under the unchanged checksum, and the installer shell/version preflight passes. A bounded independent operations review, required CI and the production preview retry remain pending. No production migration or password reset occurred. Risk profile: runtime-platform.
-
-## 2026-10-01 — Assignment AI feedback wording
-
-- Removed the assignment prompt's required `Next Step:` line without adding a prohibition; retained Strength/Missed/optional Tip and all scoring rules. Prompt provenance advanced to v4.
-- Verified: 20 focused grading tests; `pnpm check:focused -- --base origin/main` (250 tests plus architecture, UI/design policy, TypeScript and lint). Teacher/student feedback visually inspected at desktop/mobile in light/dark with intercepted local fixture feedback; captures in `output/playwright/`.
-
-## 2026-10-01 — Production migrations skill and rollout receipt
-
-- Added repository skill `pika-prod-migrations`, routed from AGENTS and the AI instructions. Future production migration work defaults to the existing manual GitHub workflow, with exact one-time authorization, compatible CI proof, preview-bound approval, one apply attempt and read-only semantic verification. Local migrations and app promotion retain their own procedures.
-- Recorded the owner-authorized application of exactly 224 and 225 on production: GitHub run https://github.com/codepetca/pika/actions/runs/36869449834 passed in 39 seconds with `applied-verified`, source `658ee5f5366c59b4d59b56c18a28dd64442b84d8`, CI proof `36862441326` and verified history count 225. Independent read-only checks matched the exact 225 function body and service-only execution grants. No rollout flag activation or application promotion occurred.
-- Updated CURRENT with the verified production state. Skill validation and all 91 documentation/workflow contract tests passed; independent review and final CI are pending. No runtime, migration SQL, credentials or workflow controls are changed by this PR.
-
 ## 2026-10-01 — Dormant contextual learner Daily Log reads
 
 Owner approved the next Daily read slice. Learner GET now consumes the existing shared admission for classroom and broad history; legacy requests remain unchanged. A single joined entry/classroom/enrollment statement binds own identity, active membership and non-owner status; validated rows strip relationship metadata. Unit/API tests pass78 including existing writes and legacy reads. Real local PostgREST proves both account-role values, own-entry isolation, owner precedence, outsider denial and removal/archive committing between preflight and SELECT; all synthetic fixtures removed. Added this contract to ephemeral CI. No schema application, UI, signup, account grant, flag activation or production change. Teacher Daily reads remain next. Risk: runtime-platform. Independent review and stable-head CI remain pending; model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility (Terra unavailable).
@@ -420,3 +393,87 @@ Owner approved one additional journal reconciliation, targeted review and CI cyc
 - Reference/reuse: classroom shell and existing transparent document tracks; extend global CSS, reuse utilities. Both roles, desktop/mobile, light/dark, default/hover/focus/hidden covered. No composite behavior, new component, or experimental guidance.
 - Verification: focused checks passed (91 tests, architecture, UI/design policy, TypeScript, lint). Headed Playwright captured all eight role/viewport/theme combinations for Classrooms and Pattern Lab, plus temporary browser-only surface probes; scrolling, hover/focus, hidden scrollbars, and forced colors passed. Evidence: `/tmp/pika-scrollbar-captures/evidence.json`; captures alongside it. Safari fallback not tested in Safari.
 - Risk profile: none. Model recommendation: GPT-6.1 Sol — small global CSS refinement with browser verification. PR1432 independently reviewed without blockers; original exact-head CI37047140437 and PR Gate passed. Owner authorized main merge; rebased onto attendance1430, preserving main history and removing only a newly duplicated archived entry. Scrollbar CSS remains byte-identical; sync checks, targeted review and fresh final CI precede merge.
+
+## 2026-10-02 — Bulk merged; prepare contextual lesson-plan copy
+
+1426 reviewed38c7edfb passed all five exact-head gates in37014848829; normal squash
+mergea101fb28 verified and canonical main fast-forwarded.239 focused checks;226/227
+unchanged. User-authorized billing notification delivered; heartbeat stays paused.
+New managed copy checkout based ona101fb28; startup verified, frozen install only.
+Bounded Astra/high design plus Sol/high writer; coordinator owns docs/harness/CI/Git.
+Prepared229 adds current-owner atomic copy with strict recursive source validation,
+raw content/nullable Markdown, preserved destination identity/lineage and no heads.
+Pre-review inspection fixed nullable node validation and SQL COALESCE syntax.
+CI-wrapper TDD red/green; source tests pass, legacy eight checked separately.
+Read-only local list/preview found installed228 absent from branch/main; dry-run
+stopped on history mismatch. No repair, schema apply, generated-type fabrication,
+production, billing/account or admission changes. Wait billing228 reconciliation,
+SQL preapplication review and fresh exact LOCAL229 approval before runtime tests.
+Sol/high independent preapplication review at1d3ff46f is clean; no DB operation.
+32 source/legacy tests, architecture and audit pass. Full focused workflow checks
+found only CURRENT/startup cap68characters over; compact handoff fixes that limit.
+TypeScript still has the expected unapplied-RPC generated-type error. Review ledger
+started14:37:47Z,1launch/0fullwaves; preserve the budget across the owner checkpoint.
+After compression262workflow/affected tests and architecture/UI/design policy pass;
+focused gate stops at the expected generated-RPC type error, not a green gate.
+
+## 2026-10-02 — Local copy approval and prerequisite reconciliation
+
+Human approved LOCAL229 only after billing228 reconciliation; no apply attempt.
+Human authorized billing coordination and60additional copy review minutes from
+16:50:54Z to17:50:54Z; original1review/1docfix counters retained, not reset.
+Sent bounded request to billing-owned task; separate human billing approval verified.
+Own branch rebased cleanly onto maina6c23954/1428; copy source/SQL unchanged,
+only incoming SESSION-LOG histories differ. Billing1429 sync review clean at87007a8e;
+fresh CI exposed required Prod DB summary prefix. Reproduced same omission in copy
+handoff with existing Bara policy test, restored the prefix without weakening the
+startup byte cap or tests. Migration229 digest9b4c9b8b unchanged. Wait billing merge;
+no production, plan/account, billing activation, history repair/reset/reseed changes.
+
+## 2026-10-02 — Apply and verify local copy229
+
+Billing1429 merged25cc0691; all five gates onfe228354/run37039171724. Rebased copy,
+retaining both histories. Matching228 digest7aba5de5, pika/54322,001–228 history and
+229-only preview verified; approved LOCAL229 applied once, permission consumed.
+Local001–229/service-only grants/legitimate generated types pass. Fixture active
+lineage uniqueness collision reproduced red/green; distinct source artifact fix,
+no SQL/guard changes. Positive and forced-failure harness pass with zero residue;
+late rollback verified before outer rollback.263focused+architecture/policies/
+TypeScript/lint pass.229 digest9b4c9b8b unchanged/immutable. Draft/full PR review next;
+1review/3fixbatches, extension ends17:50:54Z after prerequisite CI. No production,
+account plan, billing activation or admission changes.
+
+## 2026-10-02 — Reconcile copy1431 after green CI and attendance1430
+
+Both independent full reviews clean at4516bc85; all five CI gates pass on
+37046563313. Final merge gate caught1430 advancing main to8dc05d47 and one
+JOURNAL-ARCHIVE conflict. Returned1431 to draft; no bypass or stale-head merge.
+Owner approved20more review minutes18:55:24–19:15:24Z; counters retained.
+Rebased onto1430 preserving both histories. All16 non-log owned files match
+the reviewed candidate before receipt updates; installed229 digest9b4c9b8b
+unchanged/immutable, local001–229 unchanged. Batch4 records reconciliation;
+no further default fix batch. One final changed-base integration review and
+fresh exact-head CI remain. Production, accounts, billing and admission held.
+
+## 2026-10-02 — Approved copy1431 continuity cleanup
+
+Final integration review confirmed source/SQL preservation and found two surplus
+historical Daily entries from reconciliation. Owner approved exactly one extra
+documentation-only batch5 and one final recheck, plus10review minutes; counters
+retained. Removed only the later duplicates, preserving each original record.
+263focused tests and all local gates passed at a60a2db9. No application/SQL/type/CI
+changes, migration application, production promotion or activation. Frozen final
+recheck and new exact-head CI must pass before normal main merge.
+
+## 2026-10-02 — Approved copy1431 scrollbar-main reconciliation
+
+Owner approved one synchronization batch6, one changed-base final recheck and
+15review minutes19:34:36–19:49:36Z, plus a temporary main-merge hold request to
+the attendance and billing chats during final CI. Both can continue independent
+work; no task pause or production authority was transferred. Rebased onto1432
+bf3754c4; journal conflict only. Removed one surplus exact historical entry,
+preserving its original. Combined history equals6ad8140f+bf3754c4−8dc05d47
+plus this receipt. All16 non-log owned files and installed229 bytes unchanged.
+263focused tests and architecture/UI/design/TypeScript/lint pass. Final frozen
+recheck and fresh exact-head CI remain before normal main merge. No schema
+application, production promotion, account/billing changes or admission activation.
