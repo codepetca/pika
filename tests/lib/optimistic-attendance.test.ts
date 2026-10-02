@@ -74,7 +74,7 @@ describe('optimistic attendance queue', () => {
     expect(rendered()).toEqual({ a: 'absent', b: 'present' })
   })
 
-  it('cancels queued writes on disposal and ignores responses from the old scope', async () => {
+  it('preserves accepted writes while detached and republishes them on return', async () => {
     const { queue, rendered } = setup()
     const first = deferred()
     let writes = 0
@@ -82,10 +82,14 @@ describe('optimistic attendance queue', () => {
     const b = queue.run(['a'], 'late', async ids => { writes++; return ids })
     await Promise.resolve()
     await Promise.resolve()
-    queue.dispose()
+    queue.deactivate()
+    queue.accept({ a: 'present', b: 'present' }, queue.version)
     first.resolve()
     await Promise.all([a, b])
-    expect(writes).toBe(1)
+    expect(writes).toBe(2)
     expect(rendered().a).toBe('late')
+    queue.activate()
+    expect(rendered().a).toBe('late')
+    expect(queue.hasUnconfirmedMarks).toBe(true)
   })
 })

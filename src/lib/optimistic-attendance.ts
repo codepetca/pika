@@ -10,7 +10,6 @@ export class OptimisticAttendanceQueue<View, Status> {
   private operations: MarkOperation<Status>[] = []
   private tails = new Map<string, Promise<void>>()
   private active = true
-  private epoch = 0
   version = 0
 
   constructor(private readonly adapter: {
@@ -61,13 +60,11 @@ export class OptimisticAttendanceQueue<View, Status> {
 
   activate() {
     this.active = true
+    this.publish()
   }
 
-  dispose() {
+  deactivate() {
     this.active = false
-    this.epoch++
-    this.operations = []
-    this.tails.clear()
   }
 
   run(
@@ -77,15 +74,12 @@ export class OptimisticAttendanceQueue<View, Status> {
   ): Promise<void> {
     if (!this.active || this.base === null || studentIds.length === 0) return Promise.resolve()
     const ids = [...new Set(studentIds)]
-    const epoch = this.epoch
     const operation: MarkOperation<Status> = { studentIds: ids, status, committedAt: null }
     const dependencies = [...new Set(ids.map(id => this.tails.get(id)).filter(Boolean))]
     this.operations.push(operation)
     this.version++
     this.publish()
-    const isCurrent = () => this.active && this.epoch === epoch
     const commit = (savedIds: string[]) => {
-      if (!isCurrent()) return
       const saved = new Set(savedIds)
       const index = this.operations.indexOf(operation)
       if (index === -1) return
@@ -105,20 +99,16 @@ export class OptimisticAttendanceQueue<View, Status> {
     }
     const command = Promise.resolve().then(async () => {
       await Promise.all(dependencies)
-      if (!isCurrent()) return
       try {
         commit(await write(ids, commit))
       } finally {
-        if (isCurrent()) {
-          this.operations = this.operations.filter(op => op !== operation && op.studentIds.length > 0)
-          this.version++
-          this.publish()
-        }
+        this.operations = this.operations.filter(op => op !== operation && op.studentIds.length > 0)
+        this.version++
+        this.publish()
       }
     })
     // A failed write must not poison a later correction for the same student.
     const settled = command.catch(() => {}).finally(() => {
-      if (!isCurrent()) return
       ids.forEach(id => { if (this.tails.get(id) === settled) this.tails.delete(id) })
     })
     ids.forEach(id => this.tails.set(id, settled))

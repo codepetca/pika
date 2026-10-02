@@ -621,10 +621,9 @@ export function useTeacherAttendanceController({
         })
         return studentIds
       })
-      if (mountedRef.current && currentViewKeyRef.current === commandViewKey
-        && viewGenerationRef.current === commandGeneration && markQueue.isActive) {
-        if (options?.clearSelectionAfter) clearSelection()
-        if (!ids.some(id => markQueue.pendingStudentIds.has(id))) showMessage({ text: options?.successText ?? (status === 'automatic'
+      if (mountedRef.current && currentViewKeyRef.current === commandViewKey && markQueue.isActive) {
+        if (viewGenerationRef.current === commandGeneration && options?.clearSelectionAfter) clearSelection()
+        if (viewGenerationRef.current === commandGeneration && !ids.some(id => markQueue.pendingStudentIds.has(id))) showMessage({ text: options?.successText ?? (status === 'automatic'
           ? `Automatic status restored for ${ids.length} ${ids.length === 1 ? 'student' : 'students'}`
           : `${ids.length} ${ids.length === 1 ? 'student' : 'students'} marked ${STATUS_LABELS[status].toLowerCase()}`), tone: 'info' })
         // The POST is the commit receipt. Reconcile in the background without

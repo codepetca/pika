@@ -775,4 +775,49 @@ describe('useTeacherAttendanceController', () => {
       tone: 'info',
     })
   })
+
+  it.each(['date', 'activity'] as const)('saves accepted corrections in order through an A to B to A %s transition', async transition => {
+    let releaseFirst!: () => void
+    const gate = new Promise<void>(resolve => { releaseFirst = resolve })
+    const writes: Array<{ date: string; status: string }> = []
+    let saved = 'present'
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), 'http://localhost')
+      if (init?.method === 'POST') {
+        const body = JSON.parse(String(init.body))
+        writes.push({ date: body.date, status: body.marks[0].status })
+        if (writes.length === 1) await gate
+        saved = body.marks[0].status
+        return new Response(JSON.stringify({ outcome: 'applied', appliedCount: 1 }), { status: 200 })
+      }
+      const next = attendanceView(url.searchParams.get('date')!)
+      if (next.classDate === '2026-05-05') {
+        next.students[0].status = saved as 'present'
+        next.students[0].hasManualOverride = true
+      }
+      return new Response(JSON.stringify(next), { status: 200 })
+    }))
+    const { result, rerender } = renderHook(({ selectedDate, isActive }) => useTeacherAttendanceController({
+      classroom, selectedDate, isActive, enabled: true,
+    }), { initialProps: { selectedDate: '2026-05-05', isActive: true } })
+    await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-05'))
+    let first!: Promise<void>
+    let correction!: Promise<void>
+    act(() => { first = result.current.submitMarks([studentId], 'absent') })
+    await waitFor(() => expect(writes).toHaveLength(1))
+    act(() => { correction = result.current.submitMarks([studentId], 'late') })
+    expect(result.current.view?.students[0].status).toBe('late')
+    rerender(transition === 'date' ? { selectedDate: '2026-05-06', isActive: true }
+      : { selectedDate: '2026-05-05', isActive: false })
+    if (transition === 'date') await waitFor(() => expect(result.current.view?.classDate).toBe('2026-05-06'))
+    rerender({ selectedDate: '2026-05-05', isActive: true })
+    await waitFor(() => expect(result.current.pendingStudentIds.has(studentId)).toBe(true))
+    expect(result.current.view?.students[0].status).toBe('late')
+    await act(async () => { releaseFirst(); await Promise.all([first, correction]) })
+    expect(writes).toEqual([{ date: '2026-05-05', status: 'absent' }, { date: '2026-05-05', status: 'late' }])
+    await waitFor(() => expect(result.current.pendingStudentIds.size).toBe(0))
+    expect(result.current.view?.students[0].status).toBe('late')
+    expect(saved).toBe('late')
+  })
+
 })

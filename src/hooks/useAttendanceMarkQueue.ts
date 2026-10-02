@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { OptimisticAttendanceQueue } from '@/lib/optimistic-attendance'
 
 export function useAttendanceMarkQueue<View, Status>(
@@ -8,22 +8,34 @@ export function useAttendanceMarkQueue<View, Status>(
   project: (view: View, studentIds: string[], status: Status) => View,
   matches: (view: View, studentId: string, status: Status) => boolean,
 ) {
+  const queues = useRef(new Map<string, OptimisticAttendanceQueue<View, Status>>())
   const [state, setState] = useState<{
     queue: OptimisticAttendanceQueue<View, Status>
     view: View
     pendingStudentIds: Set<string>
   } | null>(null)
-  const queue = useMemo(() => new OptimisticAttendanceQueue<View, Status>({
-    project, matches,
-    onChange: (view, pendingStudentIds) => setState({ queue, view, pendingStudentIds }),
-    // scopeKey intentionally creates a new queue for each classroom/date activation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [scopeKey, project, matches])
+  const queue = useMemo(() => {
+    const retained = queues.current.get(scopeKey)
+    if (retained) return retained
+    const created = new OptimisticAttendanceQueue<View, Status>({
+      project, matches,
+      onChange: (view, pendingStudentIds) => setState({ queue: created, view, pendingStudentIds }),
+    })
+    queues.current.set(scopeKey, created)
+    return created
+  }, [scopeKey, project, matches])
 
   useEffect(() => {
+    const registry = queues.current
+    registry.set(scopeKey, queue)
     queue.activate()
-    return () => queue.dispose()
-  }, [queue])
+    return () => {
+      // Navigation detaches presentation, but accepted writes keep their order.
+      // Retain outstanding receipts so returning before commit cannot show a stale row.
+      queue.deactivate()
+      if (queue.pendingStudentIds.size === 0 && !queue.hasUnconfirmedMarks) registry.delete(scopeKey)
+    }
+  }, [queue, scopeKey])
 
   const accept = useCallback((view: View, version: number) => queue.accept(view, version), [queue])
   return {

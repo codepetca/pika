@@ -3571,6 +3571,11 @@ for (const surface of ['manual', 'integrated', 'live'] as const) {
     }
     await verifyProjectContract(page, testInfo)
     await page.screenshot({ path: testInfo.outputPath(`attendance-${surface}-rapid-pending.png`), animations: 'disabled' })
+    // Accepted corrections must survive leaving and re-entering the date before commit.
+    await page.getByRole('button', { name: 'Previous day', exact: true }).click()
+    await page.getByRole('button', { name: 'Next day', exact: true }).click()
+    await expect(mark(0, 'Late')).toHaveAttribute('aria-pressed', 'true')
+    await page.screenshot({ path: testInfo.outputPath(`attendance-${surface}-returned-pending.png`), animations: 'disabled' })
     releaseFirst()
     await expect.poll(() => saved.get(ids[0])).toBe('late')
     expect(writes.filter(write => write.id === ids[0]).map(write => write.status)).toEqual(['absent', 'late'])

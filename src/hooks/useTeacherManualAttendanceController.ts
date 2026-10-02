@@ -171,11 +171,11 @@ export function useTeacherManualAttendanceController(input: {
       || studentIds.some(id => !input.visibleStudentIds.includes(id))
     ) return
     const commandScope = scopeRef.current
+    const commandGeneration = commandSequence.current
     let completedChunks = 0
     try {
       await markQueue.run(studentIds, status, async (ids, commit) => {
         for (let offset = 0; offset < ids.length; offset += MAX_MANUAL_ATTENDANCE_MARKS_PER_REQUEST) {
-          if (!markQueue.isActive || scopeRef.current.key !== commandScope.key || !mountedRef.current) break
           const chunk = ids.slice(offset, offset + MAX_MANUAL_ATTENDANCE_MARKS_PER_REQUEST)
           await fetchJSON('/api/teacher/manual-attendance', {
             init: {
@@ -191,7 +191,7 @@ export function useTeacherManualAttendanceController(input: {
         return []
       })
       if (mountedRef.current && markQueue.isActive && scopeRef.current.key === commandScope.key) {
-        if (!studentIds.some(id => markQueue.pendingStudentIds.has(id))) showMessage({ text: options.successText ?? (status === 'automatic'
+        if (commandSequence.current === commandGeneration && !studentIds.some(id => markQueue.pendingStudentIds.has(id))) showMessage({ text: options.successText ?? (status === 'automatic'
           ? 'Manual changes reverted' : 'Attendance updated'), tone: 'success' })
         if (markQueue.pendingStudentIds.size === 0) void loadScope(commandScope, true)
       }
@@ -199,11 +199,11 @@ export function useTeacherManualAttendanceController(input: {
       if (mountedRef.current && markQueue.isActive && scopeRef.current.key === commandScope.key) {
         if (completedChunks > 0) {
           const refreshed = await loadScope(commandScope, true)
-          if (!mountedRef.current || scopeRef.current.key !== commandScope.key) return
+          if (!mountedRef.current || scopeRef.current.key !== commandScope.key || commandSequence.current !== commandGeneration) return
           showMessage({ text: refreshed
             ? 'Some attendance changes were saved; the current attendance has been refreshed'
             : 'Some attendance changes were saved; the current attendance could not be refreshed', tone: 'warning' })
-        } else {
+        } else if (commandSequence.current === commandGeneration) {
           showMessage({ text: reason instanceof Error ? reason.message
             : 'Manual attendance could not be updated', tone: 'warning' })
         }
