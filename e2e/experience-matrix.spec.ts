@@ -322,12 +322,13 @@ test('keeps the Attendance roster compact with inline status controls', async ({
   })
 
   await page.route('**/api/teacher/attendance/session?**', async (route) => {
+    const classDate = new URL(route.request().url()).searchParams.get('date')
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
-        classDate: '2026-08-17',
+        classDate,
         integration: 'ready',
         session: {
           state: hasAttendanceWindow ? attendanceSessionState : 'not_scheduled',
