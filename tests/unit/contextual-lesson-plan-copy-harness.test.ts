@@ -4,6 +4,11 @@ import { describe, expect, it } from 'vitest'
 const harness = readFileSync('scripts/check-contextual-lesson-plan-copy-write-concurrency.mjs', 'utf8')
 
 describe('contextual lesson-plan copy synthetic verification', () => {
+  it('uses distinct source artifacts when both synthetic plans have active Blueprint lineage', () => {
+    expect(harness).toContain('const sourceLineage = randomUUID()')
+    expect(harness).toContain("set source_artifact_id='${sourceLineage}',source_blueprint_version_id='${version}'")
+  })
+
   it('requires the explicit local project, port and already-applied migration', () => {
     expect(harness).toContain("const container = 'supabase_db_pika'")
     expect(harness).toContain('com.supabase.cli.project')

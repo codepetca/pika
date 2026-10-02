@@ -2,7 +2,8 @@
 
 This is a bounded batch-1 preparation slice, not cohort activation or a new UI.
 Date PR1424 and bulk PR1426 are merged; installed226/227 stay immutable. Copy229
-is proposed, not applied. The local preview on2026-10-02 discovered billing228
+is installed locally once with exact owner approval; the earlier preparation
+checkpoints below are superseded by the final local receipts. The preview discovered billing228
 already installed but absent from this branch/main, so reconciliation with the
 billing-owned merge must precede another local application or type generation.
 No history repair, reset, out-of-order apply or adoption of billing work is allowed.
@@ -91,3 +92,19 @@ counters retained. Own branch reconciles main1428 cleanly; billing1429 is separa
 owned and undergoing its approved sync/review/CI. No application attempt is consumed.
 The required `Prod DB 001–…` handoff prefix is restored after a regression reproduced
 in the existing Bara rollout-policy test; the startup byte cap remains unchanged.
+
+## Superseding local receipts — 2026-10-02
+
+Billing1429 merged25cc0691 after all five gates onfe228354/run37039171724. Reconciled
+both continuity histories; billing source/228 unchanged at digest7aba5de5. Pika/54322
+binding,001–228 history and229-only dry-run verified; approved229 applied once.
+Local floor001–229, legitimate generated types/check and service-only execute grants
+pass. The positive harness and forced-failure mode pass with exact zero residue,
+including the late rollback comparison before outer rollback. A fixture-only active
+lineage collision was reproduced red/green and corrected with distinct source
+artifact IDs; no SQL or guard changes.263focused checks plus architecture/policies/
+TypeScript/lint pass. Strict-enabled automatic-Free provisioning is not claimed.
+Installed229 remains immutable at SHA256
+`9b4c9b8b9eb4837d209d4c29a65533049adcd2575d82d9d64a83687afaea6e10`.
+Full initial independent PR review and exact-head CI remain pending; production,
+account plans, billing activation and admission stay held. Application approval is consumed.

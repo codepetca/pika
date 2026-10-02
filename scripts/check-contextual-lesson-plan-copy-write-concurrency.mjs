@@ -19,6 +19,7 @@ const nonce = randomUUID()
 const blueprint = randomUUID()
 const version = randomUUID()
 const lineage = randomUUID()
+const sourceLineage = randomUUID()
 const purge = randomUUID()
 const entitlementPairs = [student, teacher].map((subject) => ({ subject, operation: randomUUID() }))
 const entitlementValues = entitlementPairs.map(({ subject, operation }) => `('${operation}'::uuid,'${subject}'::uuid)`).join(',')
@@ -344,7 +345,7 @@ try {
   for (const key of ['id', 'artifact_id', 'created_at', 'source_artifact_id', 'source_blueprint_version_id', 'blueprint_archived_at']) {
     assert.equal(linkedCopy[key], linked[key])
   }
-  sql(`update public.lesson_plans set source_artifact_id='${lineage}',source_blueprint_version_id='${version}'
+  sql(`update public.lesson_plans set source_artifact_id='${sourceLineage}',source_blueprint_version_id='${version}'
     where classroom_id='${classroom}' and date='${from}';`)
   const linkedSource = plan(classroom, from)
   const unlinkedDestination = result(serviceCopy(student, classroom, from, spare)).lesson_plan

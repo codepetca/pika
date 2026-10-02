@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Password-free hosted migration authentication
-
-Replaced the manual rollout's permanent database-password requirement with pinned CLI native temporary logins from a production-project scoped PAT. The runner checks token syntax and rejects password fallback, isolates PostgreSQL environment variables, and binds the authentication strategy into format-2 preview digests. Existing exact migration authorization remains required. Documented six token capabilities, Database Read-write authority, temporary-role creation during preview, Beta endpoint dependency, and server-enforced denial of network-ban removal. The owner declined password reset; none was performed. A targeted review corrected prefix-based scope assurance: legacy tokens can share the prefix, so Dashboard review is the scope control. Offline rollout tests pass43; focused checks, independent review, owner approval for expanded token authority, credential replacement and hosted preview remain pending. No production migration was applied.
-
-## 2026-09-30 — Reconcile dormant Daily Log saves with current main
-
-Owner requested pull/reconciliation. Rebased PR1380 onto main32ad59f5, preserving both histories in the sole archive conflict. Resequenced the branch migration from218 to223 because main now occupies218–222; updated harnesses, regressions and rollout receipts. SQL checksum and Daily Log runtime code match the previously reviewed1eda5574. PR returned to draft before reconciliation; backup branch retains the original SHA. Current local history is through220 with Blueprint218 and no Daily Log function; Sep27 local218 proof is historical. No database application, reset/history repair, production promotion or cohort activation. Focused verification and targeted stable-SHA integration review remain pending.
-
-## 2026-09-30 — Authorized local migrations 221–223 applied
-
-Owner explicitly approved exactly221–223 locally. Verified exact local project/container/port, matching001–220 history, and dry-run containing only the approved set; one application succeeded. Approval is consumed. Local history now matches001–223, Daily Log function exists, generated types match and security advisor reports no issues. Exact-head PR1380 CI36745657706 and final independent integration review passed at656a9a1e. Pinned local Blueprint provenance/adoption and lifecycle-lock contracts pass; Daily Log rollback behavior and all eight concurrency cases pass, with synthetic fixtures removed. The initial Blueprint helper selected a similarly named scratch database; stopped that chain and pinned the verification target to supabase_db_pika. Docker execution delays resolved without restarting or resetting. No reset, reseed, history repair, production write or admission activation. Receipt changes are local documentation only; reviewed remote SHA remains unchanged.
-
-## 2026-09-30 — Pull reveals new applied migration collision
-
-Pulled hub main to3e4d9f1b; feature remote remains656a9a1e. PR1380 is open with prior exact-head CI green but now conflicting with main. Main223 is stop_assignment_grade_conflict_retries; fresh local history223 remains contextual_daily_log_save. Preserve the applied SQL/history and local verification receipts. Next source reconciliation must allocate a new Daily number and explicitly plan local history alignment; no renumber, application, reset or history repair was performed during this report-only request. Shared full-experience admission remains dormant; Daily reads and the remaining five-batch integrations are unfinished.
-
-## 2026-09-30 — Resolve source 223 collision without changing local history
-
-Owner requested resolution. Preserved old reviewed SHA656a9a1e and local application receipts, folded its three commits without a tree change, and rebased onto main1b5430b3. Resolved CURRENT/history conflicts preserving main's production222 and retired-staging guidance, old Daily history and local receipts. Canonical Daily migration is224 with unchanged SQL; harnesses, numbering regressions and runbook follow224. Local still records Daily under223; documented an exact proposed history-only rebinding plus main223 application, not executed or authorized. No database reset/reseed, schema/history repair, production mutation or rollout activation. Focused checks and one bounded final reconciliation review remain before ready CI.
-
-## 2026-09-30 — Local Daily history repair verified; retry-risk review checkpoint
-
-Owner approved one replacement final review and the exact local223 receipt removal/local224 recording/main223 include-all application. Sol/high review at57ccc26f confirmed the repair safe but found a merge blocker: Daily's custom40001 defensive binding error risks PostgREST14 infinite retries; preserve224 and add an additivePT409 correction plus adapter compatibility and regressions. No source remediation yet; six reviewer launches consumed, one further targeted review requires extension. Both repairs and one canonical223 push succeeded after exact target/body/grant proof and preview. All224 history identities and installed function bodies match source; generated types/security advisor, stale/fresh grade rollback, Daily rollback and all eight concurrency contracts pass. Counts and digests of seven existing-data tables remain unchanged after fixture cleanup. Focused208 tests and static checks passed before repair; three assignment-conflict regressions pass. PR1380 remains draft; no reset/reseed, production write or activation. Repair/application approval consumed.
-
-## 2026-09-30 — Approved Daily Log conflict retry correction
-
-Owner approved narrow225 fix, one seventh targeted review and exactly225 locally after verification. Generated migration via CLI and allocated225; installed224 bytes unchanged. Full replacement differs only in declaration/customPT409 error; service-only grants/security/metadata retained. Adapter accepts PT409 and40001, with one-call/privacy regressions. Tests reproduced missingPT409 mapping before fix; static tests compare complete definition/grants and224hash. Extended existing rollback-only CI harness with a malformed inner-result fault and PT409/no-entry-change assertion; temporary function replacement rolls back. No225 application yet at this implementation checkpoint; focused verification and the one bounded fixed-SHA review precede its approved application. PR1380 will carry latest application/review/CI receipt. Production and admission unchanged. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high targeted correction review.
-
 ## 2026-09-30 — Approved final Daily harness role correction
 
 Seventh review at98d0822c found225/adapter clean but fault-injection DDL still ran as service_role, not postgres owner. Catalog proof confirmed missing ownership. Owner approved two-line correction and eighth/final targeted review: reset role before temporary dependency replacement; set local service_role before save assertion. Static regression covers both transitions. Migration224/225 SQL and application permissions unchanged. Local225 permission remains held, unattempted pending final review; PR1380 contains live application/CI receipt. No production or rollout activation. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high bounded role-correction/integration review.
@@ -483,3 +455,16 @@ fresh CI exposed required Prod DB summary prefix. Reproduced same omission in co
 handoff with existing Bara policy test, restored the prefix without weakening the
 startup byte cap or tests. Migration229 digest9b4c9b8b unchanged. Wait billing merge;
 no production, plan/account, billing activation, history repair/reset/reseed changes.
+
+## 2026-10-02 — Apply and verify local copy229
+
+Billing1429 merged25cc0691; all five gates onfe228354/run37039171724. Rebased copy,
+retaining both histories. Matching228 digest7aba5de5, pika/54322,001–228 history and
+229-only preview verified; approved LOCAL229 applied once, permission consumed.
+Local001–229/service-only grants/legitimate generated types pass. Fixture active
+lineage uniqueness collision reproduced red/green; distinct source artifact fix,
+no SQL/guard changes. Positive and forced-failure harness pass with zero residue;
+late rollback verified before outer rollback.263focused+architecture/policies/
+TypeScript/lint pass.229 digest9b4c9b8b unchanged/immutable. Draft/full PR review next;
+1review/3fixbatches, extension ends17:50:54Z after prerequisite CI. No production,
+account plan, billing activation or admission changes.

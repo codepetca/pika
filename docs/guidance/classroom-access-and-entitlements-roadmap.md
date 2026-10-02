@@ -605,6 +605,12 @@ billing coordination dispatched without assuming production or billing activatio
 Own branch rebased cleanly on1428/a6c23954 with copy source and229 digest unchanged.
 Billing1429's independently approved sync is separately owned. Local229 remains
 unapplied until that prerequisite lands; no duplicate review/CI watcher or takeover.
+Superseded by billing1429/25cc0691 merge and one approved LOCAL229 application:
+229-only preview, matching228 digest, pika/54322 and001–228 history verified first.
+Local001–229/types/service-only grants,263focused checks and both positive/forced
+cleanup harnesses pass; zero residue and pre-outer-rollback late-failure proof.
+Fixture-only lineage collision fixed with distinct source artifact IDs; installed
+229 digest9b4c9b8b immutable. Full PR review/CI still pending; production/admission held.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
