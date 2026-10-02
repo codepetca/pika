@@ -19,6 +19,7 @@ export function createBillingHandlers(
   loadPurchases?: () => Promise<{ reconcileCheckouts(input: { limit: number }): Promise<unknown> } | null>,
   loadLifecycle?: () => Promise<{ applyDue(input: { limit: number }): Promise<{ processed: number }> } | null>,
   loadCloseouts?: () => Promise<{ closeDueRenewals(input: { limit: number }): Promise<unknown> } | null>,
+  loadUpgrades?: () => Promise<{ processDue(input: { limit: number }): Promise<unknown> } | null>,
 ) {
   function requireConfiguration() {
     const config = configuration()
@@ -42,6 +43,8 @@ export function createBillingHandlers(
         throw new ApiError(401, 'Unauthorized')
       }
       const runtime = await loadRuntime()
+      const upgradeRuntime = loadUpgrades ? await loadUpgrades() : null
+      const upgrades = upgradeRuntime ? await upgradeRuntime.processDue({ limit: 1 }) : undefined
       const result = await reconcileBillingSubscriptions({
         store: runtime.store, provider: runtime.provider, limit: 1, leaseSeconds: 120,
       })
@@ -54,7 +57,7 @@ export function createBillingHandlers(
       const closeoutRuntime = loadCloseouts ? await loadCloseouts() : null
       const closeouts = closeoutRuntime ? await closeoutRuntime.closeDueRenewals({ limit: 1 }) : undefined
       return NextResponse.json({ ...result, ...(purchases ? { purchases } : {}), ...(lifecycle ? { lifecycle } : {}),
-        ...(closeouts ? { closeouts } : {}) })
+        ...(closeouts ? { closeouts } : {}), ...(upgrades ? { upgrades } : {}) })
     }),
   }
 }

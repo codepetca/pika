@@ -8,16 +8,20 @@ import {
   type BillingSubscriptionBinding,
   type BillingSynchronizationReason,
 } from '@/lib/server/billing/contracts'
+import { z } from 'zod'
+import { UpgradeOperationSchema, UpgradeProviderEvidenceSchema, type UpgradeOperation } from './upgrade-contracts'
 
 export type BillingProvider = {
   /** Returns only the normalized snapshot, never an SDK object. */
   retrieveSubscription(binding: BillingSubscriptionBinding): Promise<unknown>
+  retrieveAppliedUpgrade?(operation: UpgradeOperation): Promise<unknown>
 }
 
 export type BillingStore = {
   claimSubscription(input: { subscription_id: string; lease_seconds: number }): Promise<unknown>
   finishSubscription(input: BillingFinishInput): Promise<unknown>
   listWork(input: { limit: number }): Promise<unknown>
+  getAppliedUpgrade?(input: { subscription_id: string }): Promise<unknown>
 }
 
 export type BillingSynchronizationResult =
@@ -272,6 +276,41 @@ async function finishException(
   return result.kind === 'applied' || result.kind === 'replayed' ? exception(reason) : result
 }
 
+/** A manual upgrade receipt proves a version transition, never an additional paid period. */
+async function observeAppliedUpgrade(args: { store: BillingStore; provider: BillingProvider }, claim: BillingClaimedSubscription,
+  eventInboxId: string | null): Promise<BillingSynchronizationResult | null> {
+  if (!args.store.getAppliedUpgrade || !args.provider.retrieveAppliedUpgrade || !claim.lifecycle?.is_current) return null
+  const stored = z.object({ operation: UpgradeOperationSchema.nullable() }).strict().safeParse(
+    await args.store.getAppliedUpgrade({ subscription_id: claim.subscription_id }),
+  )
+  if (!stored.success || !stored.data.operation) return null
+  const operation = stored.data.operation
+  const binding = claim.binding
+  if (operation.status !== 'applied' || operation.stage !== 'applied' || !operation.confirmed || !operation.quote
+    || operation.subscription_id !== claim.subscription_id || operation.subject_user_id !== binding.subject_user_id
+    || operation.source_binding.stripe_account !== binding.stripe_account
+    || operation.source_binding.stripe_customer_id !== binding.stripe_customer_id
+    || operation.source_binding.stripe_subscription_id !== binding.stripe_subscription_id
+    || operation.target.offering_version_id !== binding.offering_version_id
+    || operation.target.stripe_price_id !== binding.stripe_price_id
+    || operation.target.stripe_product_id !== binding.stripe_product_id || operation.target.unit_amount !== binding.unit_amount
+    || operation.target.currency !== binding.currency || operation.target.interval !== binding.interval
+    || !claim.lifecycle.paid_through || !claim.lifecycle.paid_period_start
+    || !equalTimestamp(operation.paid_through, claim.lifecycle.paid_through)
+    || !equalTimestamp(operation.paid_period_start, claim.lifecycle.paid_period_start)
+    || operation.last_paid_invoice_id !== claim.lifecycle.last_paid_invoice_id) return null
+  const result = UpgradeProviderEvidenceSchema.safeParse(await args.provider.retrieveAppliedUpgrade(operation))
+  if (!result.success || result.data.kind !== 'paid' || !result.data.targetApplied) return null
+  const evidence = result.data.evidence
+  if (evidence.invoiceId !== operation.invoice_id || evidence.paymentIntentId !== operation.payment_intent_id
+    || evidence.subscriptionId !== binding.stripe_subscription_id || evidence.subscriptionItemId !== operation.quote.subscriptionItemId
+    || evidence.targetPriceId !== binding.stripe_price_id || evidence.amountPaid !== operation.quote.amountDue
+    || evidence.currency !== binding.currency || !equalTimestamp(evidence.paidThrough, operation.paid_through)
+    || !equalTimestamp(evidence.paidPeriodStart, operation.paid_period_start)) return null
+  return finish(args.store, claim, { outcome: 'observed', event_inbox_id: eventInboxId, invoice_id: null,
+    period_start: null, period_end: null, reason_code: null, provider_status: 'active', cancel_at_period_end: false })
+}
+
 /**
  * Fetches authoritative current state only after obtaining a per-subscription
  * claim. Every completion includes the fencing token and account-plan revision
@@ -312,7 +351,13 @@ export async function synchronizeBillingSubscription(args: {
 
   if (claim.data.lifecycle) {
     const lifecycle = verifyBillingLifecycleSnapshot(claim.data, snapshot)
-    if (typeof lifecycle === 'string') return finishException(args.store, claim.data, args.eventInboxId, lifecycle)
+    if (typeof lifecycle === 'string') {
+      try {
+        const upgraded = await observeAppliedUpgrade(args, claim.data, args.eventInboxId)
+        if (upgraded) return upgraded
+      } catch { return finishException(args.store, claim.data, args.eventInboxId, 'provider_unavailable') }
+      return finishException(args.store, claim.data, args.eventInboxId, lifecycle)
+    }
     return finish(args.store, claim.data, { ...lifecycle, event_inbox_id: args.eventInboxId })
   }
 

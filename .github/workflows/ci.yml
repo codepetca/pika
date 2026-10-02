@@ -140,6 +140,7 @@ jobs:
           bash scripts/check-stripe-checkout-database.sh
           bash scripts/check-subscription-lifecycle-database.sh
           bash scripts/check-subscription-renewal-closeout-database.sh
+          bash scripts/check-subscription-prorated-upgrades-database.sh
 
       - name: Verify Gradebook score override deletion lifecycle
         run: bash scripts/check-gradebook-score-overrides-database.sh
