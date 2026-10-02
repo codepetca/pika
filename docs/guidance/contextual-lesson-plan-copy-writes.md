@@ -84,3 +84,10 @@ Exact local229 approval after228 reconciliation, legitimate
 generated types, real database runs, full focused checks, independent final reviewed
 SHA and main PR Gate are still required. No production application, promotion,
 account changes or cohort activation follows merely from this slice passing.
+
+The owner has now approved LOCAL229 only after billing228 is merged/reconciled,
+and authorized60additional copy-review minutes,16:50:54–17:50:54Z, with prior
+counters retained. Own branch reconciles main1428 cleanly; billing1429 is separately
+owned and undergoing its approved sync/review/CI. No application attempt is consumed.
+The required `Prod DB 001–…` handoff prefix is restored after a regression reproduced
+in the existing Bara rollout-policy test; the startup byte cap remains unchanged.
