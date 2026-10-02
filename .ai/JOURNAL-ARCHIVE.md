@@ -34377,10 +34377,6 @@ Owner explicitly approved exactly221–223 locally. Verified exact local project
 
 Pulled hub main to3e4d9f1b; feature remote remains656a9a1e. PR1380 is open with prior exact-head CI green but now conflicting with main. Main223 is stop_assignment_grade_conflict_retries; fresh local history223 remains contextual_daily_log_save. Preserve the applied SQL/history and local verification receipts. Next source reconciliation must allocate a new Daily number and explicitly plan local history alignment; no renumber, application, reset or history repair was performed during this report-only request. Shared full-experience admission remains dormant; Daily reads and the remaining five-batch integrations are unfinished.
 
-## 2026-09-30 — Approved Daily Log conflict retry correction
-
-Owner approved narrow225 fix, one seventh targeted review and exactly225 locally after verification. Generated migration via CLI and allocated225; installed224 bytes unchanged. Full replacement differs only in declaration/customPT409 error; service-only grants/security/metadata retained. Adapter accepts PT409 and40001, with one-call/privacy regressions. Tests reproduced missingPT409 mapping before fix; static tests compare complete definition/grants and224hash. Extended existing rollback-only CI harness with a malformed inner-result fault and PT409/no-entry-change assertion; temporary function replacement rolls back. No225 application yet at this implementation checkpoint; focused verification and the one bounded fixed-SHA review precede its approved application. PR1380 will carry latest application/review/CI receipt. Production and admission unchanged. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high targeted correction review.
-
 <!-- pika-session-log-archive-batch:546dd2a044d9b210c8ea3fc2a54cc9c6d57985663f72e4777f75b8df3bee457c -->
 ## 2026-09-30 — Approved final Daily harness role correction
 
@@ -34398,3 +34394,15 @@ The owner approved one additional main sync, bounded compatibility review, fresh
 ## 2026-10-01 — Hosted migration CLI companion diagnosis
 
 The owner created the reviewed Pika-only 90-day scoped token and saved GitHub migrations-production/SUPABASE_ACCESS_TOKEN at 08:02 Toronto time. The first hosted preview, run36859514133 at merged5f74d08d with verified CI36853538954, failed before a migration plan. Reproduced the installer defect using a fake credential: CLI2.103.0 ships a supabase shim plus supabase-go engine, but the installer extracted only the shim. With both checksum-verified binaries present, linking reaches the expected Unauthorized response for the fake token. Prepared a narrow installer correction and engine-version preflight without changing credentials, scopes, target bindings or migration approval policy. The focused gate passed95 tests plus architecture, UI/design policy, TypeScript and lint; the Linux archive contains both regular x86_64 executables under the unchanged checksum, and the installer shell/version preflight passes. A bounded independent operations review, required CI and the production preview retry remain pending. No production migration or password reset occurred. Risk profile: runtime-platform.
+
+<!-- pika-session-log-archive-batch:2f887313e47a9542d95a176047b729e0f7fb66b6129763e94df3708de031fc85 -->
+## 2026-10-01 — Assignment AI feedback wording
+
+- Removed the assignment prompt's required `Next Step:` line without adding a prohibition; retained Strength/Missed/optional Tip and all scoring rules. Prompt provenance advanced to v4.
+- Verified: 20 focused grading tests; `pnpm check:focused -- --base origin/main` (250 tests plus architecture, UI/design policy, TypeScript and lint). Teacher/student feedback visually inspected at desktop/mobile in light/dark with intercepted local fixture feedback; captures in `output/playwright/`.
+
+## 2026-10-01 — Production migrations skill and rollout receipt
+
+- Added repository skill `pika-prod-migrations`, routed from AGENTS and the AI instructions. Future production migration work defaults to the existing manual GitHub workflow, with exact one-time authorization, compatible CI proof, preview-bound approval, one apply attempt and read-only semantic verification. Local migrations and app promotion retain their own procedures.
+- Recorded the owner-authorized application of exactly 224 and 225 on production: GitHub run https://github.com/codepetca/pika/actions/runs/36869449834 passed in 39 seconds with `applied-verified`, source `658ee5f5366c59b4d59b56c18a28dd64442b84d8`, CI proof `36862441326` and verified history count 225. Independent read-only checks matched the exact 225 function body and service-only execution grants. No rollout flag activation or application promotion occurred.
+- Updated CURRENT with the verified production state. Skill validation and all 91 documentation/workflow contract tests passed; independent review and final CI are pending. No runtime, migration SQL, credentials or workflow controls are changed by this PR.

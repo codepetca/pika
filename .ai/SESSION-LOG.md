@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Assignment AI feedback wording
-
-- Removed the assignment prompt's required `Next Step:` line without adding a prohibition; retained Strength/Missed/optional Tip and all scoring rules. Prompt provenance advanced to v4.
-- Verified: 20 focused grading tests; `pnpm check:focused -- --base origin/main` (250 tests plus architecture, UI/design policy, TypeScript and lint). Teacher/student feedback visually inspected at desktop/mobile in light/dark with intercepted local fixture feedback; captures in `output/playwright/`.
-
-## 2026-10-01 — Production migrations skill and rollout receipt
-
-- Added repository skill `pika-prod-migrations`, routed from AGENTS and the AI instructions. Future production migration work defaults to the existing manual GitHub workflow, with exact one-time authorization, compatible CI proof, preview-bound approval, one apply attempt and read-only semantic verification. Local migrations and app promotion retain their own procedures.
-- Recorded the owner-authorized application of exactly 224 and 225 on production: GitHub run https://github.com/codepetca/pika/actions/runs/36869449834 passed in 39 seconds with `applied-verified`, source `658ee5f5366c59b4d59b56c18a28dd64442b84d8`, CI proof `36862441326` and verified history count 225. Independent read-only checks matched the exact 225 function body and service-only execution grants. No rollout flag activation or application promotion occurred.
-- Updated CURRENT with the verified production state. Skill validation and all 91 documentation/workflow contract tests passed; independent review and final CI are pending. No runtime, migration SQL, credentials or workflow controls are changed by this PR.
-
 ## 2026-10-01 — Dormant contextual learner Daily Log reads
 
 Owner approved the next Daily read slice. Learner GET now consumes the existing shared admission for classroom and broad history; legacy requests remain unchanged. A single joined entry/classroom/enrollment statement binds own identity, active membership and non-owner status; validated rows strip relationship metadata. Unit/API tests pass78 including existing writes and legacy reads. Real local PostgREST proves both account-role values, own-entry isolation, owner precedence, outsider denial and removal/archive committing between preflight and SELECT; all synthetic fixtures removed. Added this contract to ephemeral CI. No schema application, UI, signup, account grant, flag activation or production change. Teacher Daily reads remain next. Risk: runtime-platform. Independent review and stable-head CI remain pending; model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility (Terra unavailable).
@@ -404,6 +393,7 @@ Owner approved one additional journal reconciliation, targeted review and CI cyc
 - Reference/reuse: classroom shell and existing transparent document tracks; extend global CSS, reuse utilities. Both roles, desktop/mobile, light/dark, default/hover/focus/hidden covered. No composite behavior, new component, or experimental guidance.
 - Verification: focused checks passed (91 tests, architecture, UI/design policy, TypeScript, lint). Headed Playwright captured all eight role/viewport/theme combinations for Classrooms and Pattern Lab, plus temporary browser-only surface probes; scrolling, hover/focus, hidden scrollbars, and forced colors passed. Evidence: `/tmp/pika-scrollbar-captures/evidence.json`; captures alongside it. Safari fallback not tested in Safari.
 - Risk profile: none. Model recommendation: GPT-6.1 Sol — small global CSS refinement with browser verification. PR1432 independently reviewed without blockers; original exact-head CI37047140437 and PR Gate passed. Owner authorized main merge; rebased onto attendance1430, preserving main history and removing only a newly duplicated archived entry. Scrollbar CSS remains byte-identical; sync checks, targeted review and fresh final CI precede merge.
+
 ## 2026-10-02 — Bulk merged; prepare contextual lesson-plan copy
 
 1426 reviewed38c7edfb passed all five exact-head gates in37014848829; normal squash
@@ -474,3 +464,16 @@ retained. Removed only the later duplicates, preserving each original record.
 263focused tests and all local gates passed at a60a2db9. No application/SQL/type/CI
 changes, migration application, production promotion or activation. Frozen final
 recheck and new exact-head CI must pass before normal main merge.
+
+## 2026-10-02 — Approved copy1431 scrollbar-main reconciliation
+
+Owner approved one synchronization batch6, one changed-base final recheck and
+15review minutes19:34:36–19:49:36Z, plus a temporary main-merge hold request to
+the attendance and billing chats during final CI. Both can continue independent
+work; no task pause or production authority was transferred. Rebased onto1432
+bf3754c4; journal conflict only. Removed one surplus exact historical entry,
+preserving its original. Combined history equals6ad8140f+bf3754c4−8dc05d47
+plus this receipt. All16 non-log owned files and installed229 bytes unchanged.
+263focused tests and architecture/UI/design/TypeScript/lint pass. Final frozen
+recheck and fresh exact-head CI remain before normal main merge. No schema
+application, production promotion, account/billing changes or admission activation.
