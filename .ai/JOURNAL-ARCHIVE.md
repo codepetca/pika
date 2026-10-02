@@ -34162,3 +34162,8 @@ Owner replaced the two grade-scope choices with one AI grade confirmation. Reuse
 ## 2026-09-30 — Open local single-action grading preview
 
 Started reviewed PR1400 worktree fedf1824 locally on port3117 using the canonical local Supabase launcher. Local login HTTP200; signed into seeded teacher account via Dev Quick Login, opened Test Classroom → Seed Test - AI Grading Demo, selected Student1 Test and left AI grade confirmation open in the app browser. Verified modal has Cancel and AI grade with overwrite warning; no grading was started. Server session remains running for owner preview, URL http://127.0.0.1:3117. No application code, schema or grading data changes.
+
+<!-- pika-session-log-archive-batch:b06f9850da3050de85fdd6eae3567d28278a011a3f438ae8736afeebafc3f6ea -->
+## 2026-09-30 — Counted danger confirmation for AI grading
+
+Student actions now names the selected count (AI Grade 1 student / AI Grade 2 students). Reused the canonical compact danger ConfirmDialog, with the matching count in its title, the owner's exact overwrite warning, initial Cancel focus and red AI grade confirmation. Existing all-scope grading behavior and concurrency guards remain unchanged. Component coverage verifies no grading request before confirmation or after Cancel; focused224tests and architecture/UI/design/TypeScript/lint plus audit pass. Four desktop/mobile light/dark browser cases pass, with eight one/two-student dialog captures visually reviewed. Actual seeded teacher preview remains open locally on port3117; no grading was started. PR1400 remains draft for stable-SHA independent review; merge/promotion not authorized for this PR. Risk profile: none. Model recommendation: GPT-6 Sol for the localized interaction update.

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-09-30 — Counted danger confirmation for AI grading
-
-Student actions now names the selected count (AI Grade 1 student / AI Grade 2 students). Reused the canonical compact danger ConfirmDialog, with the matching count in its title, the owner's exact overwrite warning, initial Cancel focus and red AI grade confirmation. Existing all-scope grading behavior and concurrency guards remain unchanged. Component coverage verifies no grading request before confirmation or after Cancel; focused224tests and architecture/UI/design/TypeScript/lint plus audit pass. Four desktop/mobile light/dark browser cases pass, with eight one/two-student dialog captures visually reviewed. Actual seeded teacher preview remains open locally on port3117; no grading was started. PR1400 remains draft for stable-SHA independent review; merge/promotion not authorized for this PR. Risk profile: none. Model recommendation: GPT-6 Sol for the localized interaction update.
-
 ## 2026-09-30 — Test references stay inside the assessment
 
 Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.
@@ -277,3 +273,7 @@ Canonical focused checks and draft-first independent review/CI remain next.
 ## 2026-10-02 — Strengthen Gradebook Max label
 
 - Follow-up on PR1427 / `codex/gradebook-max-row`: use semantic default text color and semibold weight on Max so the one-line header reads clearly. Same production GradebookTable/Pattern Lab reference and eight-view visual matrix; teacher-only, risk none. Return PR to draft and review the updated stable SHA before CI.
+
+## 2026-10-02 — Compact Gradebook metadata rows
+
+- User requested Category and Max density consistent with Course %. Scoped 24px targets and zero vertical cell padding to those two GradebookTable metadata rows; retained Max emphasis, labels, shared focus treatment and edit permissions. Course % / Pattern Lab Gradebook is the reference; shared Button contract unchanged. Teacher-only, risk none; desktop/mobile, light/dark, normal/ultra-compact visual and keyboard verification before ready PR.

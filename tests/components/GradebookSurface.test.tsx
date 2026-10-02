@@ -265,14 +265,18 @@ describe('Gradebook surface owners', () => {
     expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Meeting: 70%' }).querySelector('span')).toHaveClass('text-text-default')
   })
 
-  it('opens the assessment dialog from its Category cell', () => {
+  it.each([false, true])('opens the assessment dialog from its Category cell with the keyboard (compact=%s)', async (ultraCompact) => {
+    const user = userEvent.setup()
     const onAssessmentOpen = vi.fn()
     const column = {
       assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay',
       possible: 10, weight: 10, include_in_final: true, category_name: 'Term',
     }
-    render(<TooltipProvider><GradebookTable {...makeTableProps({ columns: [column], showWeights: true, onAssessmentOpen })} /></TooltipProvider>)
-    fireEvent.click(screen.getByRole('button', { name: 'Edit category for A1: Essay' }))
+    render(<TooltipProvider><GradebookTable {...makeTableProps({ columns: [column], showWeights: true, ultraCompact, onAssessmentOpen })} /></TooltipProvider>)
+    const categoryButton = screen.getByRole('button', { name: 'Edit category for A1: Essay' })
+    categoryButton.focus()
+    expect(categoryButton).toHaveFocus()
+    await user.keyboard('{Enter}')
     expect(onAssessmentOpen).toHaveBeenCalledWith(column)
   })
 
