@@ -686,6 +686,14 @@ Production application and activation remain separately controlled.
 Linked Blueprint reads, other classwork boundaries and roster operations remain
 separate work; this does not satisfy batch1's whole-experience exit criteria.
 
+Independent next preparation: [linked Blueprint material reads](contextual-linked-blueprint-material-reads.md)
+bind the current classroom/link/Blueprint owner and latest saved version in one
+payload statement. Both global-role owners are allowed; members are denied. The
+actual SDK proof passes1,001-version ordering/limit, current source/owner changes,
+500/501 bounds and normal/forced zero-residual cleanup. No new schema or UI change;
+publication/review follows verified1441 merge and reconciliation. This does not
+complete batch1 or activate shared admission.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;

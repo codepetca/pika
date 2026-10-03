@@ -511,3 +511,14 @@ ReturnedPR to draft. Reproduced1red/3green locally, restored `Prod DB 001–225`
 without changing rollout state or weakening the test. Batch4 is documentation-only;
 all runtime/schema/types/workflow/proof source remains unchanged. Last bounded
 targeted review and corrected-head CI required; original clock/limits retained.
+
+Independent linked Blueprint material read prepared in a separate worktree seeded
+at reviewed1441 head74995349. Shared-only GET binds current classroom/link/Blueprint
+owners and latest saved version in one actual SDK statement; unmatched legacy is
+unchanged. Both role owners, archived/no-link, frozen/Draft exclusion,1,001-version
+ordering/limit, owner/link transitions, malformed evidence,500/501 and purge-shaped
+detach pass locally. Corrected proof facade targets the actual GET wire array before
+maybeSingle unwrapping. Normal exit0 and forced exit1 prove zero residual fixtures
+and baseline equality.402focused tests21files and all policy/type/lint gates pass.
+No new schema/types/UI/activation; publication and formal review wait verified1441
+merge/reconciliation. Production unchanged; this does not complete batch1.
