@@ -61,6 +61,31 @@ describe('metadata proof source contracts (no database execution)', () => {
     expect(cleanup).toContain('to_jsonb(a)=to_jsonb(s)')
     expect(cleanup).not.toMatch(/lock table|pg_advisory_xact_lock|disable trigger/i)
   })
+  it('accepts only the three untouched automatic default categories per synthetic classroom', () => {
+    const cleanup = sdk.slice(sdk.indexOf('const createdValues = classes.map'))
+    const lock = cleanup.indexOf('select 1 from public.gradebook_categories')
+    const snapshot = cleanup.indexOf('create temp table metadata_category_snapshot')
+    const scan = cleanup.indexOf('for dependency in select jsonb_object_keys')
+    expect(lock).toBeGreaterThan(cleanup.indexOf('public.classroom_purge_try_lock'))
+    expect(lock).toBeLessThan(cleanup.indexOf('create temp table metadata_class_snapshot'))
+    expect(cleanup.slice(lock, snapshot)).toContain('order by id FOR UPDATE NOWAIT;')
+    expect(snapshot).toBeLessThan(scan)
+    expect(cleanup).toContain('insert into fixture_ids select id::text from metadata_category_snapshot')
+    expect(cleanup.indexOf('insert into fixture_ids select id::text from metadata_category_snapshot')).toBeLessThan(scan)
+    for (const token of [
+      "'public.gradebook_categories'", 'metadata_default_category_expected',
+      "('Attendance'::text,10::numeric,10,0,false)", "('Term'::text,65::numeric,10,1,true)", "('Final'::text,25::numeric,10,2,false)",
+      '3*(select count(*) from metadata_class_snapshot)',
+      'g.percentage is distinct from e.percentage', 'g.default_assessment_weight is distinct from e.default_assessment_weight',
+      'g.position is distinct from e.position', 'g.is_default is distinct from e.is_default',
+      'g.created_at is distinct from c.created_at', 'g.updated_at is distinct from g.created_at',
+      'Unexpected synthetic default gradebook categories',
+      'g.id=s.id and g.classroom_id=s.classroom_id and to_jsonb(g)=to_jsonb(s)',
+      'get diagnostics removed=ROW_COUNT', 'Synthetic default category deletion differs',
+    ]) expect(cleanup).toContain(token)
+    expect(cleanup.indexOf('delete from public.gradebook_categories')).toBeLessThan(cleanup.indexOf('delete from public.classrooms'))
+    expect(cleanup).not.toMatch(/delete from public\.gradebook_categories[^;]*(?:like|name\s*=)/i)
+  })
   it.each(['--verify-cleanup-after-fixture', '--verify-cleanup-after-commit-before-capture'])('has exact failure and cleanup markers for %s', flag => {
     expect(sdk).toContain(flag)
     expect(sdk).toContain(`(expected for ${flag})`)

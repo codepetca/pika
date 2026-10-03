@@ -268,16 +268,33 @@ async function main() {
       select 1 from public.effective_feature_entitlements where subject_user_id in (${ids(userIds)}) order by subject_user_id,feature_key FOR UPDATE NOWAIT;
       select 1 from public.effective_feature_entitlement_audit where subject_user_id in (${ids(userIds)}) order by id FOR UPDATE NOWAIT;
       select 1 from public.classroom_archive_revisions where classroom_id in (${ids(classIds)}) order by classroom_id FOR UPDATE NOWAIT;
+      select 1 from public.gradebook_categories where classroom_id in (${ids(classIds)}) order by id FOR UPDATE NOWAIT;
       create temp table metadata_class_snapshot on commit drop as select c.* from public.classrooms c where id in (${ids(classIds)});
       create temp table metadata_user_snapshot on commit drop as select u.* from public.users u where id in (${ids(userIds)});
       create temp table metadata_entitlement_audit_snapshot on commit drop as select a.* from public.effective_feature_entitlement_audit a where subject_user_id in (${ids(userIds)});
       create temp table metadata_plan_audit_snapshot on commit drop as select a.* from public.account_plan_audit a where subject_user_id in (${ids(userIds)});
+      create temp table metadata_category_snapshot on commit drop as select g.* from public.gradebook_categories g where classroom_id in (${ids(classIds)});
+      -- Include generated category identities so even a foreign-class reference denies cleanup.
+      insert into fixture_ids select id::text from metadata_category_snapshot on conflict do nothing;
+      create temp table metadata_default_category_expected on commit drop as
+        select c.id classroom_id,d.* from metadata_class_snapshot c cross join
+        (values ('Attendance'::text,10::numeric,10,0,false),('Term'::text,65::numeric,10,1,true),('Final'::text,25::numeric,10,2,false))
+        d(name,percentage,default_assessment_weight,position,is_default);
       do $guard$ declare dependency text;begin
         if (select tgenabled from pg_trigger where tgrelid='private.pal_membership_generations'::regclass and tgname='guard_pal_membership_evidence') is distinct from 'O' then raise exception 'Generation guard differs';end if;
         for dependency in select jsonb_object_keys(pg_temp.metadata_residue()) loop
-          if dependency not in ('public.users','public.student_profiles','public.account_plans','public.account_plan_audit','public.effective_feature_entitlements','public.effective_feature_entitlement_audit','public.classrooms','public.classroom_archive_revisions') then
+          if dependency not in ('public.users','public.student_profiles','public.account_plans','public.account_plan_audit','public.effective_feature_entitlements','public.effective_feature_entitlement_audit','public.classrooms','public.classroom_archive_revisions','public.gradebook_categories') then
             raise exception 'Unexpected private/Storage fixture dependency';end if;
         end loop;
+        if (select count(*) from metadata_category_snapshot)<>3*(select count(*) from metadata_class_snapshot)
+          or exists(select 1 from metadata_category_snapshot g full join metadata_default_category_expected e
+            on g.classroom_id=e.classroom_id and g.name=e.name
+            left join metadata_class_snapshot c on c.id=g.classroom_id
+            where g.id is null or e.classroom_id is null
+              or g.percentage is distinct from e.percentage or g.default_assessment_weight is distinct from e.default_assessment_weight
+              or g.position is distinct from e.position or g.is_default is distinct from e.is_default
+              or g.created_at is distinct from c.created_at or g.updated_at is distinct from g.created_at)
+          then raise exception 'Unexpected synthetic default gradebook categories';end if;
         if exists(select 1 from metadata_user_snapshot u join (values ${peopleValues}) f(id,email,role) on u.id=f.id where u.email is distinct from f.email or u.role is distinct from f.role) then raise exception 'Synthetic user differs';end if;
         if exists(select 1 from metadata_class_snapshot c join (values ${createdValues}) f(id,created) on c.id=f.id where c.teacher_id not in (${ids(userIds)}) or (f.created is not null and c.created_at is distinct from f.created)) then raise exception 'Synthetic class differs';end if;
         if exists(select 1 from public.pal_event_outbox where student_id in (${ids(userIds)})) or exists(select 1 from private.removed_student_cleanup_jobs where classroom_id in (${ids(classIds)})) then raise exception 'Unexpected provider fixture state';end if;
@@ -290,6 +307,12 @@ async function main() {
       delete from public.effective_feature_entitlement_audit a using metadata_entitlement_audit_snapshot s,(values ${grantValues}) f(op,u) where a.id=s.id and to_jsonb(a)=to_jsonb(s) and a.operation_id=f.op and a.subject_user_id=f.u and a.actor_ref='test:classroom-metadata' and a.reason_code=${q(tag)} and a.feature_key='classrooms.create';
       delete from public.effective_feature_entitlement_audit a using metadata_entitlement_audit_snapshot s,metadata_provision_ops p where a.id=s.id and to_jsonb(a)=to_jsonb(s) and a.operation_id=p.operation_id and a.subject_user_id=p.subject_user_id and a.actor_ref='system:user-provisioning' and a.reason_code='default_free_account_provisioning';
       delete from public.account_plan_audit a using metadata_plan_audit_snapshot s,metadata_provision_ops p where a.id=s.id and to_jsonb(a)=to_jsonb(s) and a.operation_id=p.operation_id and a.subject_user_id=p.subject_user_id and a.actor_ref='system:user-provisioning' and a.reason_code='default_free_account_provisioning';
+      do $categories$ declare removed bigint;begin
+        delete from public.gradebook_categories g using metadata_category_snapshot s
+          where g.id=s.id and g.classroom_id=s.classroom_id and to_jsonb(g)=to_jsonb(s);
+        get diagnostics removed=ROW_COUNT;
+        if removed<>(select count(*) from metadata_category_snapshot) then raise exception 'Synthetic default category deletion differs';end if;
+      end;$categories$;
       delete from public.classrooms c using metadata_class_snapshot s where c.id=s.id and to_jsonb(c)=to_jsonb(s);
       delete from public.users u using metadata_user_snapshot s where u.id=s.id and to_jsonb(u)=to_jsonb(s);
       ${fingerprintSql()}
