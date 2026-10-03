@@ -622,6 +622,24 @@ Reconciliation is batch4; one final changed-base integration review and fresh CI
 remain mandatory. No further default remediation batch remains. No SQL changes,
 schema application, production promotion, billing or admission activation occurred.
 
+Superseded by the verified normal squash merge of PR1431 at493e752a on2026-10-02,
+after the owner-approved unchanged-head CI retry37076238068 passed all five gates
+on reviewedca403202. Canonical main fast-forwarded cleanly; copy/date/bulk worktrees
+remain preserved. Source229 stays immutable. Production and admission remain held.
+
+The next bounded batch1 slice integrates announcement owner/member GETs with shared
+admission and binds every payload page to the current relationship. No new schema,
+UI, cohort or mutation is included. Astra/high performed a read-only query design;
+Sol6.1/high owns helper/schema/GET regression implementation, while this coordinator
+owns the real PostgREST fixture contract, CI, documentation and acceptance. Evidence
+must include empty/hidden lists, precise publication keysets beyond1,000 rows,
+short pages and revocation before first/later/terminal payload statements. Local
+history001–230 was observed;230 is installed by the billing task but not merged into
+this base. Do not regenerate types from that mismatch, reapply/repair230 or reset
+the database. Owner create/edit/delete and member read receipts follow as separate
+atomic-write slices with exact-target schema permission when needed. Shared admission
+and page activation remain dormant throughout this integration.
+
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem
