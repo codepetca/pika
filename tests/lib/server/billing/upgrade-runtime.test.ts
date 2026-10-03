@@ -89,6 +89,25 @@ describe('upgrade application runtime', () => {
     const f = setup(); f.operation.stage = stage; f.operation.confirmed = true
     expect(await f.runtime.getUpgrade({ subjectUserId, operationId })).toMatchObject({ status: 'synchronizing', quote: null })
   })
+  it('projects a post-charge revision conflict as durable attention on confirmation and replay', async () => {
+    const f = setup()
+    f.operation.confirmed = true
+    mocks.process.mockImplementationOnce(async () => {
+      f.operation.stage = 'payment_requested'
+      f.operation.status = 'attention'
+      f.operation.revision += 1
+      return { kind: 'plan_conflict' }
+    })
+    const result = await f.runtime.confirmUpgrade({ subjectUserId, operationId,
+      quoteRevision: 3, quoteDigest: f.operation.quote_digest })
+    expect(result).toEqual({ operationId, status: 'attention', quote: null })
+    expect(await f.runtime.getUpgrade({ subjectUserId, operationId })).toEqual(result)
+    await f.runtime.confirmUpgrade({ subjectUserId, operationId,
+      quoteRevision: 3, quoteDigest: f.operation.quote_digest })
+    expect(mocks.process).toHaveBeenCalledTimes(1)
+    expect(f.provider.payInvoice).not.toHaveBeenCalled()
+    expect(f.provider.applyTarget).not.toHaveBeenCalled()
+  })
   it('status reads never invoke the mutation processor', async () => {
     const f = setup(); await f.runtime.getUpgrade({ subjectUserId, operationId })
     expect(mocks.process).not.toHaveBeenCalled(); expect(f.store.confirm).not.toHaveBeenCalled()

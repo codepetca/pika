@@ -34426,3 +34426,31 @@ PR1420 merged main at3cf01b06 after four bounded independent review launches and
 Next worktree codex/contextual-teacher-daily-logs starts from3cf01b06. A bounded read-only proposal plus coordinator schema/SDK checks and a zero-result local PostgREST syntax probe selected enrollment-rooted nested profiles/selected entries/previews; no migration or N+1 fallback. One worker owns helper/route/input and TDD tests; coordinator owns real1001learner/seven-entry fixture contract, CI wiring and docs. Actual per-learner limits, projection, keyset pagination, current membership/owner races and cleanup remain acceptance gates; syntax alone proves none of them. Shared admission remains off; cached summary is next. Risk runtime-platform; high-risk independent review models GPT-5.6 Sol/high security and GPT-6 Sol/high compatibility fallback (Terra unavailable).
 
 Worker completed23focused tests plus TypeScript, architecture and ESLint. Real PostgREST passes every1001learner/pagination/projection/profile/date/archive/denial/removal/transfer contract with exactcleanup. First harness attempt tried to resurrect a closed membership generation; its cleanup passed, fixture rejoin now uses a new enrollment UUID as required by the existing Pal lifecycle, and the rerun is green. No product change or weakened trigger was needed. Canonical focused verification, independent review and exact-head CI remain pending.
+
+<!-- pika-session-log-archive-batch:30b0cc85ee49d1c7c09a46b941c469987907e30fb4c536a4838525c96c7b30c4 -->
+## 2026-10-01 Teacher Daily logs review corrections
+
+PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
+correction validates malformed query envelopes and catches builder failures as
+generic 503 (five TDD regressions); both teacher Daily local harnesses now retain
+exact entitlement operation IDs and assert live-state/audit cleanup. Removed only
+six identified synthetic logs-harness audit rows from local, retaining a private
+recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
+119 focused tests and static checks pass. Targeted/final review pending. No
+production, migration, cohort, plan or UI change; summary read remains next.
+
+<!-- pika-session-log-archive-batch:f5007bfe0f3c5c2da2e0e5fbb379b7dc18b80759ba7bd1ce3204a368c96fa229 -->
+## 2026-10-01 — Dormant teacher cached Daily summary implementation
+
+While independently reviewed roster-logs PR1421 runs CI, a separate worktree
+codex/contextual-teacher-daily-summary starts from merged1420 actor admission.
+Worker owns only summary route/helper/schema and unit/API tests; coordinator owns
+local fixtures/CI/docs/Git. Every stats/count/cache statement binds current owner,
+classroom and date; existing ready/pending/no_entries/unavailable semantics and
+name restoration remain. Owner caught result-envelope validation gaps before
+initial review; ten TDD regressions now fail closed. 62 targeted/153 focused tests
+and all static checks pass; real local PostgREST verifies both owner role values,
+cache states/isolation, archived owner and transfers before all three reads, with
+exact fixture/audit cleanup. Independent review and final main reconciliation
+pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
+No AI, billing, migration, UI, cohort activation or production change.

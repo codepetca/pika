@@ -255,7 +255,24 @@ additive migration230 (`230_subscription_prorated_upgrades.sql`). It was
 applied locally once after the owner-authorized230-only preview. The existing
 shared database is retained without reset/reseed. Types are generated from its
 matching migration schema. The corrected upgrade rollback harness passes; final
-independent review, draft publication and stable-SHA CI remain pending.
+integration review found a P1 conflict-recovery blocker in draft PR1435. Five
+review launches are consumed; CI is not started. A revision-conflicted upgrade
+can stay queued while being excluded from its queue and monopolizing ordinary
+subscription work. The next authorized correction must be additive because230
+is already applied; exact application approval and targeted review are separate
+gates. The owner approved one correction batch and one targeted GPT-5.6 Sol/high review
+on2026-10-03, with30minutes from08:09:58Z to08:39:58Z. Migration231 is
+prepared, not applied: current-claim conflicts become audited attention after
+invoice intent; safely untouched pre-invoice operations expire. Queue discovery
+includes conflicts/retired bindings; stale workers and altered request revisions
+cannot quarantine a valid operation. Ordinary requeue cannot erase upgrade
+recovery ownership. Main66fa5de3 integration preserves all billing behavior/230 bytes. The
+corrected candidate passes521focused tests and TypeScript/lint/architecture
+gates. Migration231 has not been applied; its rollback harness correctly refuses
+to run on230. One targeted financial review is next (launch6); no second final
+wave is authorized. Uncertain invoice/payment conflicts intentionally retain
+attention ownership until evidence-backed resolution; compensation and operator
+attention resolution remain explicit launch gates, not automatic requeue.
 
 - Require the existing loopback test sandbox, checkout configuration and separate
   `BILLING_UPGRADES_ENABLED=true` gate. No configuration is enabled by this PR.

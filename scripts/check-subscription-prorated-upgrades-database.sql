@@ -1,15 +1,20 @@
 -- Fixtures first: rollback-only database contracts, no provider calls.
--- Execute only after separately authorized migration 230 application.
+-- Execute only after separately authorized migrations 230 and 231 application.
 begin;
 set local lock_timeout='3s';
 set local statement_timeout='30s';
 do $$ declare fn text; begin
   foreach fn in array array['billing_reserve_upgrade_v1','billing_get_upgrade_v1','billing_claim_upgrade_v1',
     'billing_list_upgrades_v1','billing_checkpoint_upgrade_v1','billing_confirm_upgrade_v1','billing_finish_upgrade_v1',
-    'billing_get_applied_upgrade_v1'] loop
+    'billing_get_applied_upgrade_v1','billing_requeue_subscription_v1'] loop
     if has_function_privilege('anon','public.'||fn||'(jsonb)','execute')
       or has_function_privilege('authenticated','public.'||fn||'(jsonb)','execute')
       or not has_function_privilege('service_role','public.'||fn||'(jsonb)','execute') then raise exception 'Upgrade RPC ACL: %',fn; end if;
+  end loop;
+  foreach fn in array array['billing_check_upgrade_fence_v1(jsonb)','billing_resolve_upgrade_conflict_v1(uuid)',
+    'billing_check_upgrade_fence_before_conflict_v1(jsonb)','billing_requeue_subscription_before_upgrade_conflict_v1(jsonb)'] loop
+    if has_function_privilege('anon','private.'||fn,'execute') or has_function_privilege('authenticated','private.'||fn,'execute')
+      or has_function_privilege('service_role','private.'||fn,'execute') then raise exception 'Conflict helper ACL: %',fn; end if;
   end loop;
   foreach fn in array array['billing_upgrade_operations','billing_upgrade_receipts'] loop
     if has_table_privilege('anon','public.'||fn,'select') or has_table_privilege('authenticated','public.'||fn,'select')
@@ -44,7 +49,8 @@ do $$ declare src jsonb; dst jsonb; b jsonb; c jsonb; r jsonb; u uuid; n text; t
     'provider_mode','test','stripe_product_id','prod_upgrade230plus','stripe_price_id','price_upgrade230plus','currency','usd',
     'unit_amount',1900,'interval','month','classroom_limit',5,'features','{"catalog_key":"upgrade230-plus"}'::jsonb,
     'ai_definition',null,'availability','{"is_available":true}'::jsonb));
-  foreach n in array array['applied','lease','override','entitlement','access','expiry','attention','unpaid','cancel','queue','zero','retry'] loop
+  foreach n in array array['applied','lease','override','entitlement','access','expiry','attention','unpaid','cancel','queue','zero','retry',
+    'conflict_payment','conflict_unknown','conflict_claim','conflict_stale','conflict_tampered','conflict_quoted','conflict_retired'] loop
     u:=gen_random_uuid(); insert into public.users(id,email,role) values(u,'upgrade230-'||n||'@example.invalid','teacher');
     if not exists(select 1 from public.account_plans where subject_user_id=u) then
       perform public.set_account_plan_v1(gen_random_uuid(),u,'free','test:upgrade','fixture',0); end if;
@@ -193,6 +199,9 @@ do $$ declare f record; c jsonb; r jsonb; begin
     r:=public.billing_finish_upgrade_v1(pg_temp.upgrade_fence(f.claim)||'{"outcome":"deferred"}');
     if r->>'status'<>(case when f.name='lease' then 'lost_claim' else 'plan_conflict' end) then raise exception 'Fence failed: % %',f.name,r; end if;
   end loop;
+  if exists(select 1 from public.billing_upgrade_operations where id in
+    (select operation_id from upgrade_cases where name in ('override','entitlement','access'))
+    and (status<>'expired' or reason<>'plan_conflict')) then raise exception 'Safe conflicts retained ownership'; end if;
   select claim into c from upgrade_saved where name='lease';
   r:=public.billing_claim_upgrade_v1(jsonb_build_object('operation_id',c#>>'{operation,operation_id}','lease_seconds',120));
   if r->>'status'<>'claimed' or (r->>'fencing_token')::bigint<=(c->>'fencing_token')::bigint then raise exception 'Reclaim did not fence'; end if;
@@ -278,4 +287,100 @@ do $$ declare c jsonb; q jsonb; r jsonb; i integer; begin
     end if;
   end loop;
 end $$;
+
+-- Forward repair231: revision conflicts are durable, discoverable and audited.
+set local role service_role;
+do $$ declare f record; c jsonb; q jsonb; o jsonb; r jsonb; begin
+  for f in select * from upgrade_saved where name like 'conflict_%' and name<>'conflict_tampered' loop
+    c:=f.claim; q:=pg_temp.upgrade_quote(c->'operation');
+    c:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||jsonb_build_object('stage','preview_verified','quote',q,'quote_digest',repeat('a',64)));
+    if f.name<>'conflict_claim' then
+      c:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||'{"stage":"invoice_requested"}');
+    end if;
+    if f.name in ('conflict_payment','conflict_stale','conflict_quoted') then
+      c:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||jsonb_build_object('stage','invoice_created','invoice_id','in_upgrade231'||replace(f.name,'_','')));
+      c:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||'{"stage":"finalize_requested"}');
+      c:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||jsonb_build_object('stage','quoted','quote',q,'quote_digest',repeat('b',64)));
+      o:=c->'operation';
+      r:=public.billing_finish_upgrade_v1(pg_temp.upgrade_fence(c)||'{"outcome":"awaiting_confirmation"}');
+      if r->>'status'<>'awaiting_confirmation' then raise exception 'Conflict fixture quote failed'; end if;
+      if f.name<>'conflict_quoted' then
+        r:=public.billing_confirm_upgrade_v1(jsonb_build_object('subject_user_id',o->>'subject_user_id','operation_id',o->>'operation_id',
+          'quote_revision',o->'quote_revision','quote_digest',o->>'quote_digest'));
+        c:=public.billing_claim_upgrade_v1(jsonb_build_object('operation_id',o->>'operation_id','lease_seconds',120));
+        c:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||'{"stage":"payment_requested"}');
+      end if;
+    end if;
+    update upgrade_saved set claim=c where name=f.name;
+  end loop;
+end $$;
+reset role;
+-- Three independent fence dimensions, an unconfirmed future quote and a retired
+-- binding. An unknown invoice response must not be assumed to mean no charge.
+update public.account_plans set revision=revision+1 where subject_user_id in
+  (select subject_id from upgrade_cases where name in ('conflict_payment','conflict_stale','conflict_claim','conflict_quoted'));
+update public.billing_account_access set revision=revision+1 where subject_user_id=(select subject_id from upgrade_cases where name='conflict_unknown');
+update public.effective_feature_entitlements set revision=revision+1 where subject_user_id=(select subject_id from upgrade_cases where name='conflict_retired') and feature_key='classrooms.create';
+update public.stripe_billing_subscription_bindings set is_current=false where id=(select subscription_id from upgrade_cases where name='conflict_retired');
+update public.stripe_billing_subscription_bindings set lease_expires_at=clock_timestamp()-interval '1 second' where id in
+  (select subscription_id from upgrade_cases where name in ('conflict_stale','conflict_claim','conflict_retired'));
+set local role service_role;
+do $$ declare f record; c jsonb; r jsonb; old_revision bigint; i integer; begin
+  select claim into c from upgrade_saved where name='conflict_tampered';
+  old_revision:=(c#>>'{operation,revision}')::bigint;
+  r:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||jsonb_build_object('stage','preview_verified',
+    'expected_account_plan_revision',(c->>'expected_account_plan_revision')::bigint+1));
+  if r->>'status'<>'plan_conflict' or not exists(select 1 from public.billing_upgrade_operations
+    where id=(c#>>'{operation,operation_id}')::uuid and status='queued' and revision=old_revision) then raise exception 'Caller mismatch quarantined a valid operation'; end if;
+  select claim into c from upgrade_saved where name='conflict_stale';
+  r:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||'{"stage":"payment_verified","payment_intent_id":"pi_upgrade231stale"}');
+  if r->>'status'<>'lost_claim' or exists(select 1 from public.billing_lifecycle_audit where operation_id=(c#>>'{operation,operation_id}')::uuid) then
+    raise exception 'Stale worker quarantined newer ownership'; end if;
+  select claim into c from upgrade_saved where name='conflict_payment';
+  if public.billing_claim_upgrade_v1(jsonb_build_object('operation_id',c#>>'{operation,operation_id}','lease_seconds',120))->>'status'<>'busy'
+    or exists(select 1 from public.billing_lifecycle_audit where operation_id=(c#>>'{operation,operation_id}')::uuid) then
+    raise exception 'Queue claimant stole an active provider lease'; end if;
+  -- Verified current claims can persist conflict quarantine even after a pay
+  -- response. The receipt and purchased benefits are deliberately untouched.
+  for f in select * from upgrade_saved where name in ('conflict_payment','conflict_unknown') loop
+    c:=f.claim;
+    r:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||jsonb_build_object('stage',c#>>'{operation,stage}'));
+    if r->>'status'<>'plan_conflict' then raise exception 'Conflict not reported: %',f.name; end if;
+    if public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||jsonb_build_object('stage',c#>>'{operation,stage}'))->>'status'<>'lost_claim' then
+      raise exception 'Conflict left a usable provider-write fence'; end if;
+  end loop;
+  -- Claim and queue drain also recover conflicts missed by a post-write worker.
+  for i in 1..4 loop
+    r:=public.billing_list_upgrades_v1('{"limit":1}');
+    if jsonb_array_length(r->'items')<>1 or not exists(select 1 from upgrade_cases
+      where operation_id=(r#>>'{items,0,operation_id}')::uuid
+      and name in ('conflict_stale','conflict_claim','conflict_retired','conflict_quoted')) then
+      raise exception 'Conflicting upgrades disappeared from their queue: %',r; end if;
+    r:=public.billing_claim_upgrade_v1(jsonb_build_object('operation_id',r#>>'{items,0,operation_id}','lease_seconds',120));
+    if r->>'status'<>'plan_conflict' then raise exception 'Conflict queue claim failed: %',r; end if;
+  end loop;
+  for f in select * from upgrade_cases where name like 'conflict_%' and name<>'conflict_tampered' loop
+    if not exists(select 1 from public.billing_upgrade_operations where id=f.operation_id
+      and status=case when f.name='conflict_claim' then 'expired' else 'attention' end
+      and reason='plan_conflict' and next_attempt_at is null) then raise exception 'Conflict remained hidden: %',f.name; end if;
+    if (select count(*) from public.billing_lifecycle_audit where operation_id=f.operation_id and reason='upgrade_plan_conflict')<>1
+      or exists(select 1 from public.billing_upgrade_receipts where operation_id=f.operation_id) then raise exception 'Conflict audit/evidence failed: %',f.name; end if;
+    if exists(select 1 from public.stripe_billing_subscription_bindings where id=f.subscription_id and (lease_token is not null or lease_expires_at is not null)) then
+      raise exception 'Conflict kept a live lease: %',f.name; end if;
+    if f.name<>'conflict_claim' then
+      if public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',f.subscription_id,'lease_seconds',120))->>'status'<>'busy' then
+        raise exception 'Ordinary worker stole unresolved financial evidence: %',f.name; end if;
+      if public.billing_requeue_subscription_v1(jsonb_build_object('subscription_id',f.subscription_id,'actor_ref','fixture231','reason_code','conflict_review'))->>'status'<>'plan_conflict' then
+        raise exception 'Ordinary requeue bypassed upgrade recovery: %',f.name; end if;
+      r:=public.billing_reserve_upgrade_v1(jsonb_build_object('subject_user_id',f.subject_id,'operation_id',gen_random_uuid(),'offering_version_id',f.target_id));
+      if f.name<>'conflict_retired' and r->>'status'<>'busy' then raise exception 'Conflict permitted a duplicate charge: %',f.name; end if;
+      if exists(select 1 from jsonb_array_elements(public.billing_list_work_v1('{"limit":50}')->'items') i where i->>'subscription_id'=f.subscription_id::text) then
+        raise exception 'Ordinary queue bypassed conflict attention'; end if;
+    else
+      r:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',f.subscription_id,'lease_seconds',120));
+      if r->>'status'='busy' then raise exception 'Never-requested invoice retained upgrade ownership'; end if;
+    end if;
+  end loop;
+end $$;
+reset role;
 rollback;

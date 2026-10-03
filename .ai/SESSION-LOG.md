@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 Teacher Daily logs review corrections
-
-PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
-correction validates malformed query envelopes and catches builder failures as
-generic 503 (five TDD regressions); both teacher Daily local harnesses now retain
-exact entitlement operation IDs and assert live-state/audit cleanup. Removed only
-six identified synthetic logs-harness audit rows from local, retaining a private
-recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
-119 focused tests and static checks pass. Targeted/final review pending. No
-production, migration, cohort, plan or UI change; summary read remains next.
-
-## 2026-10-01 — Dormant teacher cached Daily summary implementation
-
-While independently reviewed roster-logs PR1421 runs CI, a separate worktree
-codex/contextual-teacher-daily-summary starts from merged1420 actor admission.
-Worker owns only summary route/helper/schema and unit/API tests; coordinator owns
-local fixtures/CI/docs/Git. Every stats/count/cache statement binds current owner,
-classroom and date; existing ready/pending/no_entries/unavailable semantics and
-name restoration remain. Owner caught result-envelope validation gaps before
-initial review; ten TDD regressions now fail closed. 62 targeted/153 focused tests
-and all static checks pass; real local PostgREST verifies both owner role values,
-cache states/isolation, archived owner and transfers before all three reads, with
-exact fixture/audit cleanup. Independent review and final main reconciliation
-pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
-No AI, billing, migration, UI, cohort activation or production change.
-
 ## 2026-10-01 — Roster logs merged; cached summary review corrections
 
 PR1421 merged main e87d322a after four independent reviews, one correction batch,
@@ -506,3 +480,30 @@ are unchanged; no migration reapplication, Stripe writes or activation occurred.
 Four prior review launches, two financial fixes and one main sync remain counted;
 this fixture correction and one final integration reviewer are the bounded next
 step before stable-SHA CI.
+
+## 2026-10-02 — Upgrade final integration review checkpoint
+
+Draft PR1435 publishes cc2217bc after520focused tests,53continuity tests, matching
+generated types and the corrected rollback harness. Final GPT-5.6 Sol/high review
+(launch5;48targeted tests) found one verified P1: revision conflicts leave active
+upgrade rows queued but undiscoverable, hiding attention and blocking ordinary
+subscription processing. No other blockers reported. CI remains unstarted and
+billing OFF. Five launches, two financial fixes, one main sync and one fixture
+correction are used. Owner checkpoint required for additive conflict-recovery
+correction and targeted review; applied230 must remain immutable. These handoff
+notes are local and uncommitted; the published candidate remains cc2217bc.
+
+## 2026-10-03 — Approved upgrade conflict recovery batch
+
+The owner approved one correction and one targeted financial review with30minutes
+from08:09:58Z to08:39:58Z. Forward231 keeps applied230 immutable, durably audits
+conflicts, closes only operations before invoice intent, quarantines uncertain
+provider writes, preserves stale-claim fences and blocks ordinary requeue from
+erasing financial recovery. Expanded rollback fixtures cover each revision,
+unknown invoice/pay outcomes, quote queue visibility and retired bindings.
+49targeted runtime/service/reconciliation and521focused tests pass, including
+TypeScript/lint/architecture gates. Main66fa5de3 integrated with only continuity
+conflicts; all billing source and230 remain byte-identical to the prepared fix.
+231 application and database regressions await separate exact approval; the
+harness correctly refuses230. One targeted fixed-SHA financial reviewer is next
+(launch6); no further correction or final wave is authorized. Billing OFF; no provider calls or reset.
