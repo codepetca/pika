@@ -27,7 +27,10 @@ begin
   foreach v_signature in array array[
     'private.material_owner_write_title_v1(text)',
     'private.material_owner_write_utf16_length_v1(text)',
-    'private.valid_material_owner_write_content_v1(jsonb)'
+    'private.valid_material_owner_write_content_v1(jsonb)',
+    'private.valid_material_owner_write_uuid_v1(uuid)',
+    'private.valid_material_owner_write_timestamp_v1(timestamp with time zone)',
+    'private.valid_material_owner_write_row_v1(public.classwork_materials)'
   ] loop
     if has_function_privilege('anon', v_signature, 'execute')
       or has_function_privilege('authenticated', v_signature, 'execute')
@@ -35,6 +38,22 @@ begin
       raise exception 'Private helper directly executable: %', v_signature;
     end if;
   end loop;
+  if private.valid_material_owner_write_uuid_v1('11111111-1111-0111-8111-111111111111')
+    or private.valid_material_owner_write_uuid_v1('11111111-1111-9111-8111-111111111111')
+    or private.valid_material_owner_write_uuid_v1('11111111-1111-4111-1111-111111111111')
+    or not private.valid_material_owner_write_uuid_v1('00000000-0000-0000-0000-000000000000')
+    or not private.valid_material_owner_write_uuid_v1('ffffffff-ffff-ffff-ffff-ffffffffffff')
+    or private.valid_material_owner_write_timestamp_v1('infinity')
+    or private.valid_material_owner_write_timestamp_v1('-infinity')
+    or private.valid_material_owner_write_timestamp_v1('10000-01-01T00:00:00Z')
+    or private.valid_material_owner_write_timestamp_v1('0001-01-01 BC')
+    or not private.valid_material_owner_write_timestamp_v1('2026-10-03T12:00:00.123456Z')
+    or exists(select 1 from pg_proc where oid in (
+      'private.valid_material_owner_write_timestamp_v1(timestamptz)'::regprocedure,
+      'private.valid_material_owner_write_row_v1(public.classwork_materials)'::regprocedure)
+      and provolatile <> 's') then
+    raise exception 'SQL UUID/timestamp transport validators differ from the installed SDK contracts';
+  end if;
   if private.material_owner_write_utf16_length_v1('') <> 0
     or private.material_owner_write_utf16_length_v1('a😀汉') <> 4
     or private.material_owner_write_title_v1(chr(160) || chr(12288)) <> ''
@@ -49,7 +68,8 @@ $security$;
 insert into public.users(id,email,role) values
   ('c2340000-0000-4000-8000-000000000001','material-owner-234-student@example.invalid','student'),
   ('c2340000-0000-4000-8000-000000000002','material-owner-234-teacher@example.invalid','teacher'),
-  ('c2340000-0000-4000-8000-000000000003','material-owner-234-member@example.invalid','teacher');
+  ('c2340000-0000-4000-8000-000000000003','material-owner-234-member@example.invalid','teacher'),
+  ('c2340000-0000-0000-0000-000000000099','material-owner-234-historical-author@example.invalid','teacher');
 set local role service_role;
 select public.set_effective_feature_entitlement_v1(gen_random_uuid(), owner_id, 'classrooms.create',
   'manual', true, clock_timestamp(), null, 10, 'test:material-owner-234', 'material_owner_rollback',
@@ -68,6 +88,10 @@ insert into public.course_blueprints(id,teacher_id,title)
 insert into public.course_blueprint_versions(id,course_blueprint_id,version_number,
   source_draft_revision,snapshot_json,snapshot_sha256,created_by)
   select 'c2340000-0000-4000-8000-000000000021',id,1,content_revision,'{}',repeat('a',64),teacher_id
+  from public.course_blueprints where id = 'c2340000-0000-4000-8000-000000000020';
+insert into public.course_blueprint_versions(id,course_blueprint_id,version_number,
+  source_draft_revision,snapshot_json,snapshot_sha256,created_by)
+  select 'c2340000-0000-0000-0000-000000000021',id,2,content_revision,'{}',repeat('b',64),teacher_id
   from public.course_blueprints where id = 'c2340000-0000-4000-8000-000000000020';
 
 create temp table material_owner_fixture(material_id uuid);
@@ -253,6 +277,120 @@ returns jsonb language sql as $function$
     'blueprint',(select jsonb_agg(jsonb_build_object('id',id,'revision',blueprint_source_revision) order by id)
       from public.classrooms where id in ('c2340000-0000-4000-8000-000000000010','c2340000-0000-4000-8000-000000000011')));
 $function$;
+do $historical_transport$
+declare
+  v_owner uuid := 'c2340000-0000-4000-8000-000000000002';
+  v_class uuid := 'c2340000-0000-4000-8000-000000000010';
+  v_id uuid := (select material_id from material_owner_fixture);
+  v_bad_id uuid;
+  v_field text;
+  v_timestamp timestamptz;
+  v_patch jsonb;
+  v_row jsonb;
+  v_before jsonb;
+  v_corrupt jsonb;
+  v_timezone text := current_setting('TimeZone');
+begin
+  -- Genuine legacy input: creator193 accepts a root doc with malformed nodes.
+  v_row := public.create_classwork_material_for_owner_v1(v_owner,v_class,'Legacy malformed document',
+    '{"type":"doc","content":[{}]}',true)->'material';
+  v_bad_id := (v_row->>'id')::uuid;
+  foreach v_patch in array array['{"title":"Must roll back"}'::jsonb,
+    '{"is_draft":false}'::jsonb,'{"is_draft":true}'::jsonb] loop
+    v_before := pg_temp.material_owner_state();
+    begin
+      perform public.update_classwork_material_for_owner_v1(v_owner,v_class,v_bad_id,v_patch);
+      raise exception 'Malformed legacy content committed before failed response validation';
+    exception when sqlstate 'PT503' then null; end;
+    if pg_temp.material_owner_state() is distinct from v_before then
+      raise exception 'Malformed content changed row/archive/Blueprint before PT503';
+    end if;
+  end loop;
+  -- Only explicitly supplied valid content repairs the legacy document.
+  v_patch := '{"content":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Explicit historical repair 汉😀"}]}]}}';
+  v_row := public.update_classwork_material_for_owner_v1(v_owner,v_class,v_bad_id,v_patch)->'material';
+  if v_row->'content' is distinct from v_patch->'content' then raise exception 'Explicit content repair was not applied'; end if;
+  v_row := public.create_classwork_material_for_owner_v1(v_owner,v_class,'Delete malformed document',
+    '{"type":"doc","content":[{}]}',true)->'material';
+  v_bad_id := (v_row->>'id')::uuid;
+  if public.delete_classwork_material_for_owner_v1(v_owner,v_class,v_bad_id)->>'deleted' <> 'true'
+    or exists(select 1 from public.classwork_materials where id = v_bad_id) then
+    raise exception 'Deletion could not remove a malformed historical document';
+  end if;
+
+  -- Malformed historical UUIDs are legal PostgreSQL UUID values. Persist each
+  -- synthetic old row inside a rollback subtransaction, then require PT503
+  -- without any extra row or either revision change from the attempted PATCH.
+  foreach v_field in array array['created_by','artifact_id','source_artifact_id','source_blueprint_version_id'] loop
+    v_before := pg_temp.material_owner_state();
+    begin
+      v_bad_id := case when v_field = 'created_by' then 'c2340000-0000-0000-0000-000000000099'::uuid
+        when v_field = 'source_blueprint_version_id' then 'c2340000-0000-0000-0000-000000000021'::uuid
+        else '11111111-1111-0111-1111-111111111111'::uuid end;
+      execute format('update public.classwork_materials set %I=$1 where id=$2',v_field) using v_bad_id,v_id;
+      v_corrupt := pg_temp.material_owner_state();
+      begin
+        perform public.update_classwork_material_for_owner_v1(v_owner,v_class,v_id,'{"title":"Reject UUID transport"}');
+        raise exception 'Malformed historical % UUID admitted',v_field;
+      exception when sqlstate 'PT503' then null; end;
+      if pg_temp.material_owner_state() is distinct from v_corrupt then
+        raise exception 'Malformed UUID rejection changed row/archive/Blueprint for %',v_field;
+      end if;
+      raise exception using errcode = 'ZX001', message = 'Rollback synthetic historical UUID';
+    exception when sqlstate 'ZX001' then null; end;
+    if pg_temp.material_owner_state() is distinct from v_before then raise exception 'UUID corruption fixture escaped rollback'; end if;
+  end loop;
+
+  foreach v_field in array array['created_at','released_at','blueprint_archived_at'] loop
+    foreach v_timestamp in array array['infinity'::timestamptz,'-infinity'::timestamptz,
+      '10000-01-01'::timestamptz,'0001-01-01 BC'::timestamptz] loop
+      v_before := pg_temp.material_owner_state();
+      begin
+        execute format('update public.classwork_materials set %I=$1 where id=$2',v_field) using v_timestamp,v_id;
+        v_corrupt := pg_temp.material_owner_state();
+        foreach v_patch in array array['{"title":"Reject timestamp transport"}'::jsonb,'{"is_draft":false}'::jsonb] loop
+          begin
+            perform public.update_classwork_material_for_owner_v1(v_owner,v_class,v_id,v_patch);
+            raise exception 'Nonrepresentable retained timestamp admitted for % %',v_field,v_timestamp;
+          exception when sqlstate 'PT503' then null; end;
+          if pg_temp.material_owner_state() is distinct from v_corrupt then
+            raise exception 'Timestamp rejection changed row/archive/Blueprint for %',v_field;
+          end if;
+        end loop;
+        if v_field = 'released_at' then
+          -- Explicit draft=true may repair the invalid release by clearing it.
+          v_row := public.update_classwork_material_for_owner_v1(v_owner,v_class,v_id,'{"is_draft":true}')->'material';
+          if v_row->>'released_at' is not null then raise exception 'Explicit invalid-release clearing failed'; end if;
+        end if;
+        raise exception using errcode = 'ZX001', message = 'Rollback synthetic historical timestamp';
+      exception when sqlstate 'ZX001' then null; end;
+      if pg_temp.material_owner_state() is distinct from v_before then raise exception 'Timestamp corruption fixture escaped rollback'; end if;
+    end loop;
+  end loop;
+  -- Historical Kolkata renders an offset containing seconds, which the SDK
+  -- rejects even though the retained timestamptz itself is finite/in range.
+  v_before := pg_temp.material_owner_state();
+  begin
+    update public.classwork_materials set released_at = '1900-01-01T00:00:00Z' where id = v_id;
+    perform set_config('TimeZone','Asia/Kolkata',true);
+    if private.valid_material_owner_write_timestamp_v1('1900-01-01T00:00:00Z') then
+      raise exception 'Historical offset-seconds fixture did not exercise transport rejection';
+    end if;
+    v_corrupt := pg_temp.material_owner_state();
+    begin
+      perform public.update_classwork_material_for_owner_v1(v_owner,v_class,v_id,'{"title":"Reject historical offset"}');
+      raise exception 'Historical offset-seconds timestamp admitted';
+    exception when sqlstate 'PT503' then null; end;
+    if pg_temp.material_owner_state() is distinct from v_corrupt then raise exception 'Offset rejection changed row/revisions'; end if;
+    v_row := public.update_classwork_material_for_owner_v1(v_owner,v_class,v_id,'{"is_draft":true}')->'material';
+    if v_row->>'released_at' is not null then raise exception 'Explicit historical-offset release clearing failed'; end if;
+    raise exception using errcode = 'ZX001', message = 'Rollback historical offset fixture';
+  exception when sqlstate 'ZX001' then null; end;
+  if current_setting('TimeZone') <> v_timezone or pg_temp.material_owner_state() is distinct from v_before then
+    raise exception 'Historical offset fixture escaped rollback';
+  end if;
+end;
+$historical_transport$;
 create function pg_temp.material_owner_probe()
 returns trigger language plpgsql as $function$
 declare v_mode text := current_setting('pika.material_owner_probe',true);
@@ -266,6 +404,8 @@ begin
     elsif v_mode = 'before_rebind' and tg_op <> 'DELETE' then
       new.classroom_id := 'c2340000-0000-4000-8000-000000000011';
     elsif v_mode = 'immutable' and tg_op = 'UPDATE' then new.artifact_id := gen_random_uuid();
+    elsif v_mode = 'bad_transport_create' and tg_op = 'INSERT' then
+      new.artifact_id := '11111111-1111-0111-1111-111111111111';
     end if;
     return coalesce(new,old);
   end if;
@@ -314,6 +454,14 @@ begin
       end if;
     end loop;
   end loop;
+  v_before := pg_temp.material_owner_state();
+  perform set_config('pika.material_owner_probe','bad_transport_create',true);
+  begin
+    perform public.create_classwork_material_for_owner_v2(v_owner,v_class,'Reject created transport','{"type":"doc"}',true);
+    raise exception 'Malformed created artifact UUID committed before SDK rejection';
+  exception when sqlstate 'PT503' then null; end;
+  perform set_config('pika.material_owner_probe','',true);
+  if pg_temp.material_owner_state() is distinct from v_before then raise exception 'Malformed created transport changed row/revisions'; end if;
   if public.delete_classwork_material_for_owner_v1(v_owner,v_class,v_id)
     <> jsonb_build_object('deleted',true,'actor_id',v_owner,'classroom_id',v_class,'material_id',v_id)
     or exists(select 1 from public.classwork_materials where id = v_id) then
@@ -325,15 +473,19 @@ rollback;
 do $cleanup$
 begin
   if exists(select 1 from public.users where id in ('c2340000-0000-4000-8000-000000000001',
-      'c2340000-0000-4000-8000-000000000002','c2340000-0000-4000-8000-000000000003'))
+      'c2340000-0000-4000-8000-000000000002','c2340000-0000-4000-8000-000000000003',
+      'c2340000-0000-0000-0000-000000000099'))
     or exists(select 1 from public.classrooms where id in
       ('c2340000-0000-4000-8000-000000000010','c2340000-0000-4000-8000-000000000011'))
     or exists(select 1 from public.course_blueprints where id = 'c2340000-0000-4000-8000-000000000020')
-    or exists(select 1 from public.course_blueprint_versions where id = 'c2340000-0000-4000-8000-000000000021')
+    or exists(select 1 from public.course_blueprint_versions where id in
+      ('c2340000-0000-4000-8000-000000000021','c2340000-0000-0000-0000-000000000021'))
     or exists(select 1 from public.account_plan_audit where subject_user_id in
-      ('c2340000-0000-4000-8000-000000000001','c2340000-0000-4000-8000-000000000002','c2340000-0000-4000-8000-000000000003'))
+      ('c2340000-0000-4000-8000-000000000001','c2340000-0000-4000-8000-000000000002','c2340000-0000-4000-8000-000000000003',
+        'c2340000-0000-0000-0000-000000000099'))
     or exists(select 1 from public.effective_feature_entitlement_audit where subject_user_id in
-      ('c2340000-0000-4000-8000-000000000001','c2340000-0000-4000-8000-000000000002','c2340000-0000-4000-8000-000000000003')) then
+      ('c2340000-0000-4000-8000-000000000001','c2340000-0000-4000-8000-000000000002','c2340000-0000-4000-8000-000000000003',
+        'c2340000-0000-0000-0000-000000000099')) then
     raise exception 'Rollback fixture left durable row/audit residue';
   end if;
 end;

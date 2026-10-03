@@ -80,7 +80,7 @@ describe('shared material owner write routes', () => {
     expect((await handler(request(method, body), { params: Promise.resolve({ id: 'bad', ...(method === 'POST' ? {} : { materialId }) }) })).status).toBe(400)
     expect(rpc).not.toHaveBeenCalled()
   })
-  it.each(operations.flatMap(operation => ['42501', 'P0002', 'PT404', 'PT409', '55000', 'PGRST202'].map(code => ({ ...operation, code }))))('fails closed for $method $code without legacy fallback', async ({ handler, method, body, code }) => {
+  it.each(operations.flatMap(operation => ['42501', 'P0002', 'PT404', 'PT409', 'PT503', '55000', 'PGRST202'].map(code => ({ ...operation, code }))))('fails closed for $method $code without legacy fallback', async ({ handler, method, body, code }) => {
     vi.mocked(requireAuth).mockResolvedValue(user('student'))
     rpc.mockResolvedValue({ data: null, error: { code, message: 'private' } })
     const response = await handler(request(method, body), method === 'POST'

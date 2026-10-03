@@ -61,6 +61,14 @@ Suppressed, substituted or malformed DML evidence is rejected inside the transac
 rolling back the material and associated revision changes. Deletion verifies the
 exact bound material disappeared; it does not delete Storage objects.
 
+Creation and editing validate the complete persisted material against the strict
+14-field response contract before returning from the transaction. This includes
+preserved historical content, UUIDs and timestamps as actually serialized by
+PostgreSQL. Invalid historical data returns503 and rolls back the row and both
+revision counters; it cannot commit successfully and then fail SDK validation.
+An authorized explicit content replacement can repair malformed historical
+content. Deletion does not require the deleted row to satisfy a read payload.
+
 Expected outcomes are403 for owner/archive denial,404 for missing classroom or bound
 material,400 for invalid requests and409 for retryable contention. Retryable SQL
 states are converted inside the RPC to prevent transparent PostgREST retries.

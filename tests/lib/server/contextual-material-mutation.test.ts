@@ -73,7 +73,7 @@ describe('shared material owner RPC contracts', () => {
     rpc.mockResolvedValue(success({ ...row(), content: JSON.parse(JSON.stringify(requested)) }))
     expect((await update(materialUpdateBodySchema.parse({ content: requested }))).material.content).toEqual(JSON.parse(JSON.stringify(requested)))
   })
-  it.each(['42501', 'P0002', 'PT404', '22023', 'PT409', '40001', '40P01', '55P03', '55000', 'PGRST202', 'PGRST204', 'PGRST205', 'XX000'])('maps database code %s without leaking details', async code => {
+  it.each(['42501', 'P0002', 'PT404', '22023', 'PT409', 'PT503', '40001', '40P01', '55P03', '55000', 'PGRST202', 'PGRST204', 'PGRST205', 'XX000'])('maps database code %s without leaking details', async code => {
     rpc.mockResolvedValue({ data: null, error: { code, message: 'private', details: null, hint: null } })
     const statusCode = ({ '42501': 403, P0002: 404, PT404: 404, '22023': 400, PT409: 409, '40001': 409, '40P01': 409, '55P03': 409, '55000': 409 } as Record<string, number>)[code] ?? 503
     await expect(update()).rejects.toMatchObject({ statusCode })
@@ -96,6 +96,25 @@ describe('shared material owner RPC contracts', () => {
     delete incomplete[key]
     rpc.mockResolvedValue(success(incomplete))
     await expect(update()).rejects.toMatchObject({ statusCode: 503 })
+  })
+  it.each(['created_at', 'updated_at', 'released_at', 'blueprint_archived_at'].flatMap(field => [
+    'infinity', '-infinity', '10000-01-01T00:00:00+00:00', '0001-01-01T00:00:00+00:00 BC',
+    '1900-01-01T00:00:00+05:21:10',
+  ].map(value => ({ field, value }))))('rejects nonrepresentable $field $value', async ({ field, value }) => {
+    rpc.mockResolvedValue(success({ ...row(), [field]: value }))
+    await expect(update()).rejects.toMatchObject({ statusCode: 503 })
+  })
+  it.each(['created_by', 'artifact_id', 'source_artifact_id', 'source_blueprint_version_id'].flatMap(field => [
+    '11111111-1111-0111-8111-111111111111', '11111111-1111-9111-8111-111111111111',
+    '11111111-1111-4111-1111-111111111111',
+  ].map(value => ({ field, value }))))('rejects stored non-RFC UUID $field $value', async ({ field, value }) => {
+    rpc.mockResolvedValue(success({ ...row(), [field]: value }))
+    await expect(update()).rejects.toMatchObject({ statusCode: 503 })
+  })
+  it.each(['00000000-0000-0000-0000-000000000000', 'ffffffff-ffff-ffff-ffff-ffffffffffff'])('retains the installed UUID schema exception %s', async value => {
+    rpc.mockResolvedValue(success({ ...row(), created_by: value, artifact_id: value,
+      source_artifact_id: value, source_blueprint_version_id: value }))
+    expect((await update()).material.artifact_id).toBe(value)
   })
   it('rejects unapplied requested content', async () => {
     await expect(update(materialUpdateBodySchema.parse({ content: { type: 'doc', content: [] } }))).rejects.toMatchObject({ statusCode: 503 })

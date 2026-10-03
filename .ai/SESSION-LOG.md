@@ -473,3 +473,13 @@ review precedes exact local history/one-file preview/application under the expli
 local approval waiver, genuine types and serialized rollback/SDK/forced-cleanup proofs.
 No production/provider/real-account/plan/activation authority is inferred. Batch1 of
 five remains incomplete; linked Blueprint/material-adjacent/roster boundaries follow.
+
+Draft PR1441 initial compatibility review clean; security accepted one HIGH partial-save
+blocker for preserved legacy malformed content/timestamps. Remediation1 validates the
+complete14-field persisted transport inside create/update transactions, including SDK
+UUID and actual serialized timestamp constraints; malformed history returnsPT503 with
+row/archive/Blueprint revisions unchanged. Explicit valid content repairs remain possible;
+delete does not need a read payload.245tests/10suites pass; candidate234 corrected SHA256
+aca48e5b00c1642f487799771a8278bd411c46f40fdec1f6edf9849936078f20 remains UNAPPLIED.
+Two initial reviewers completed before editing. Targeted review/local proof next; original
+ledger start12:20:40Z/deadline13:20:40Z retained,2launches/1batch. No production changes.

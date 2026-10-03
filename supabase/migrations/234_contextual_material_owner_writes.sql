@@ -63,6 +63,49 @@ returns boolean language sql immutable set search_path = '' as $function$
     ), false);
 $function$;
 
+create function private.valid_material_owner_write_uuid_v1(p_uuid uuid)
+returns boolean language sql immutable set search_path = '' as $function$
+  -- Match installed Zod4 z.string().uuid(), including its nil/max exceptions.
+  select coalesce(p_uuid::text ~ '^([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$', false);
+$function$;
+
+create function private.valid_material_owner_write_timestamp_v1(p_timestamp timestamptz)
+returns boolean language sql stable set search_path = '' as $function$
+  -- Check the actual emitted JSON string under this transaction's TimeZone.
+  -- PostgreSQL supplies valid calendar dates, but finite BC/>9999 years and
+  -- historical zones with offset seconds do not satisfy the SDK datetime schema.
+  select coalesce(pg_catalog.isfinite(p_timestamp)
+    and extract(year from p_timestamp) between 1 and 9999
+    and (pg_catalog.to_jsonb(p_timestamp) #>> '{}') ~
+      '^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]([.][0-9]+)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$', false);
+$function$;
+
+create function private.valid_material_owner_write_row_v1(p_material public.classwork_materials)
+returns boolean language sql stable set search_path = '' as $function$
+  -- Validate the complete materialReadRowSchema transport before committing.
+  -- This also fails closed if a future table column widens to_jsonb's payload.
+  select coalesce(
+    (select count(*) = 14 from pg_catalog.jsonb_object_keys(pg_catalog.to_jsonb(p_material)))
+    and not exists(select 1 from pg_catalog.jsonb_object_keys(pg_catalog.to_jsonb(p_material)) field(key)
+      where field.key not in ('id','classroom_id','title','content','is_draft','released_at',
+        'created_by','created_at','updated_at','position','artifact_id','source_artifact_id',
+        'blueprint_archived_at','source_blueprint_version_id'))
+    and private.valid_material_owner_write_uuid_v1((p_material).id)
+    and private.valid_material_owner_write_uuid_v1((p_material).classroom_id)
+    and (p_material).title is not null
+    and private.valid_material_owner_write_content_v1((p_material).content)
+    and (p_material).is_draft is not null
+    and ((p_material).released_at is null or private.valid_material_owner_write_timestamp_v1((p_material).released_at))
+    and private.valid_material_owner_write_uuid_v1((p_material).created_by)
+    and private.valid_material_owner_write_timestamp_v1((p_material).created_at)
+    and private.valid_material_owner_write_timestamp_v1((p_material).updated_at)
+    and (p_material).position is not null and (p_material).position between -2147483648 and 2147483647
+    and private.valid_material_owner_write_uuid_v1((p_material).artifact_id)
+    and ((p_material).source_artifact_id is null or private.valid_material_owner_write_uuid_v1((p_material).source_artifact_id))
+    and ((p_material).blueprint_archived_at is null or private.valid_material_owner_write_timestamp_v1((p_material).blueprint_archived_at))
+    and ((p_material).source_blueprint_version_id is null or private.valid_material_owner_write_uuid_v1((p_material).source_blueprint_version_id)), false);
+$function$;
+
 create function public.create_classwork_material_for_owner_v2(
   p_actor_id uuid, p_classroom_id uuid, p_title text, p_content jsonb, p_is_draft boolean
 ) returns jsonb language plpgsql security definer set search_path = '' as $function$
@@ -73,7 +116,8 @@ declare
   v_row public.classwork_materials%rowtype;
   v_next_position integer;
 begin
-  if p_actor_id is null or p_classroom_id is null or p_title is null
+  if not private.valid_material_owner_write_uuid_v1(p_actor_id)
+    or not private.valid_material_owner_write_uuid_v1(p_classroom_id) or p_title is null
     or private.material_owner_write_title_v1(p_title) = ''
     or p_title is distinct from private.material_owner_write_title_v1(p_title)
     or private.material_owner_write_utf16_length_v1(p_title) > 500
@@ -107,7 +151,7 @@ begin
       or v_row.content is distinct from p_content or v_row.is_draft is distinct from p_is_draft
       or (p_is_draft and v_row.released_at is not null)
       or (not p_is_draft and v_row.released_at is null)
-      or v_row.position is distinct from v_next_position or v_row.artifact_id is null
+      or v_row.position is distinct from v_next_position
       or v_row.source_artifact_id is not null or v_row.source_blueprint_version_id is not null
       or v_row.blueprint_archived_at is not null
       or v_row.created_at is distinct from pg_catalog.transaction_timestamp()
@@ -118,6 +162,9 @@ begin
     perform 1 from public.classrooms where id = p_classroom_id
       and teacher_id = p_actor_id and archived_at is null;
     if not found then raise exception using errcode = 'PT409', message = 'Classroom binding changed'; end if;
+    if not private.valid_material_owner_write_row_v1(v_row) then
+      raise exception using errcode = 'PT503', message = 'Unable to verify material mutation';
+    end if;
     return pg_catalog.jsonb_build_object('actor_id', p_actor_id, 'classroom_id', p_classroom_id,
       'material', pg_catalog.to_jsonb(v_row));
   exception when sqlstate '40001' or sqlstate '40P01' or sqlstate '55P03' or sqlstate '55000' then
@@ -137,7 +184,9 @@ declare
   v_returned public.classwork_materials%rowtype;
   v_row public.classwork_materials%rowtype;
 begin
-  if p_actor_id is null or p_classroom_id is null or p_material_id is null
+  if not private.valid_material_owner_write_uuid_v1(p_actor_id)
+    or not private.valid_material_owner_write_uuid_v1(p_classroom_id)
+    or not private.valid_material_owner_write_uuid_v1(p_material_id)
     or p_patch is null or pg_catalog.jsonb_typeof(p_patch) is distinct from 'object'
     or p_patch = '{}'::jsonb then
     raise exception using errcode = '22023', message = 'Invalid material update request';
@@ -186,7 +235,7 @@ begin
         is distinct from (v_before.id, v_before.classroom_id, v_before.created_by, v_before.created_at,
           v_before.position, v_before.artifact_id, v_before.source_artifact_id,
           v_before.source_blueprint_version_id, v_before.blueprint_archived_at)
-      or v_row.artifact_id is null or v_row.updated_at is distinct from pg_catalog.transaction_timestamp()
+      or v_row.updated_at is distinct from pg_catalog.transaction_timestamp()
       or (v_row.title, v_row.content, v_row.is_draft, v_row.released_at)
         is distinct from (v_expected.title, v_expected.content, v_expected.is_draft, v_expected.released_at) then
       raise exception using errcode = 'PT409', message = 'Material binding changed';
@@ -194,6 +243,9 @@ begin
     perform 1 from public.classrooms where id = p_classroom_id
       and teacher_id = p_actor_id and archived_at is null;
     if not found then raise exception using errcode = 'PT409', message = 'Classroom binding changed'; end if;
+    if not private.valid_material_owner_write_row_v1(v_row) then
+      raise exception using errcode = 'PT503', message = 'Unable to verify material mutation';
+    end if;
     return pg_catalog.jsonb_build_object('actor_id', p_actor_id, 'classroom_id', p_classroom_id,
       'material', pg_catalog.to_jsonb(v_row));
   exception when sqlstate '40001' or sqlstate '40P01' or sqlstate '55P03' or sqlstate '55000' then
@@ -211,7 +263,9 @@ declare
   v_before public.classwork_materials%rowtype;
   v_deleted public.classwork_materials%rowtype;
 begin
-  if p_actor_id is null or p_classroom_id is null or p_material_id is null then
+  if not private.valid_material_owner_write_uuid_v1(p_actor_id)
+    or not private.valid_material_owner_write_uuid_v1(p_classroom_id)
+    or not private.valid_material_owner_write_uuid_v1(p_material_id) then
     raise exception using errcode = '22023', message = 'Invalid material deletion request';
   end if;
   begin
@@ -248,6 +302,9 @@ $function$;
 revoke all on function private.material_owner_write_title_v1(text) from public, anon, authenticated, service_role;
 revoke all on function private.material_owner_write_utf16_length_v1(text) from public, anon, authenticated, service_role;
 revoke all on function private.valid_material_owner_write_content_v1(jsonb) from public, anon, authenticated, service_role;
+revoke all on function private.valid_material_owner_write_uuid_v1(uuid) from public, anon, authenticated, service_role;
+revoke all on function private.valid_material_owner_write_timestamp_v1(timestamptz) from public, anon, authenticated, service_role;
+revoke all on function private.valid_material_owner_write_row_v1(public.classwork_materials) from public, anon, authenticated, service_role;
 revoke all on function public.create_classwork_material_for_owner_v2(uuid,uuid,text,jsonb,boolean) from public, anon, authenticated;
 revoke all on function public.update_classwork_material_for_owner_v1(uuid,uuid,uuid,jsonb) from public, anon, authenticated;
 revoke all on function public.delete_classwork_material_for_owner_v1(uuid,uuid,uuid) from public, anon, authenticated;
