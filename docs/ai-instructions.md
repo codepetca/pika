@@ -37,7 +37,7 @@ History: append/trim `.ai/SESSION-LOG.md`; archive for investigation only.
 | Course blueprint package import/export | [Blueprint packages](./guidance/course-blueprint-packages.md) |
 | Feature-specific behavior | `docs/guidance/*.md` or the closest focused spec |
 
-Read routed docs before edits.
+Read routed docs first.
 
 ## Repo Invariants
 
