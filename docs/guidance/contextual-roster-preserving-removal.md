@@ -71,8 +71,17 @@ GPT-5.6 Sol/high security review is CLEAN; 77 independent source tests passed.
 Actual generated types add only this RPC (eight lines), and drift verification
 passes. No generated signature was invented or hand edited.
 
-Actual rollback/security/concurrency contracts, real SDK normal/forced cleanup,
-focused checks, full independent PR review and exact-head CI remain pending.
+Actual rollback-only SQL passed ACL, identity, exact purge fences, retained-history
+and fault rollback checks with zero residual rows and an unchanged global baseline.
+The actual SDK normal run passed both owner roles, bound/unbound teacher learners,
+retained identity/history, retry/invitation isolation and observed lock races.
+All three forced failures returned exactly exit 1 with their expected failure and
+cleanup sentinels, including a suppressed-delete probe proving complete cleanup
+rollback and restored generation guards. Full-row teardown checks passed before
+commit and afterward. Earlier synthetic-fixture cleanup defects were corrected;
+the exact abandoned fixture closure was independently reviewed and recovered
+without changing unrelated database rows. Migration 236 itself was unchanged.
+Final focused checks, full independent PR review and exact-head CI remain pending.
 The CI hook's regression was reproduced RED then passes all seven workflow tests;
 it requires normal SQL/SDK proofs plus exact forced exit 1 and both failure/cleanup
 sentinels. Local schema is 001–236; production is 001–225.
