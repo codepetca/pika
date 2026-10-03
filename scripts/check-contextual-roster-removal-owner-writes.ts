@@ -424,6 +424,28 @@ async function main() {
           or exists(select 1 from private.removed_student_cleanup_jobs where classroom_id in (${ids(classIds)})) then
           raise exception 'Unexpected provider outbox/cleanup job; refuse automatic deletion'; end if;
       end;$outbox_guard$;
+      --127 deliberately refuses classroom deletion while attendance state
+      -- exists. Remove only the four exact synthetic mappings, without
+      -- disabling that protection or inventing a provider decommission receipt.
+      create temp table removal_mapping_snapshot on commit drop as
+        select m.* from public.attendance_participant_mappings m
+        join (values (${q(classroom)}::uuid,${q(bound)}::uuid),(${q(classroom)}::uuid,${q(unbound)}::uuid),
+          (${q(classroom)}::uuid,${q(mate)}::uuid),(${q(otherClassroom)}::uuid,${q(bound)}::uuid)) f(c,u)
+          on m.classroom_id=f.c and m.student_id=f.u for update of m nowait;
+      do $mapping_guard$ begin
+        if (select count(*) from public.attendance_participant_mappings where classroom_id in (${ids(classIds)}))
+          <> (select count(*) from removal_mapping_snapshot)
+          or exists(select 1 from removal_mapping_snapshot where participant_ref !~ '^participant_[a-f0-9]{32}$')
+          or exists(select 1 from private.attendance_membership_generations where generation_id in
+            (${ids(generations.map(([id]) => id))})) then
+          raise exception 'Unexpected attendance state; refuse synthetic cleanup'; end if;
+      end;$mapping_guard$;
+      delete from public.attendance_participant_mappings m using removal_mapping_snapshot s
+        where m.classroom_id=s.classroom_id and m.student_id=s.student_id and to_jsonb(m)=to_jsonb(s);
+      do $mapping_complete$ begin
+        if exists(select 1 from public.attendance_participant_mappings where classroom_id in (${ids(classIds)})) then
+          raise exception 'Synthetic attendance mapping cleanup incomplete'; end if;
+      end;$mapping_complete$;
       delete from public.classrooms c using (values ${classes.map(([id, , label, suffix]) =>
         `(${q(id)}::uuid,${q(`${tag} ${label}`)},${q(`${tag}_${suffix}`)})`).join(',')}) f(id,title,class_code)
         where c.id=f.id and c.title=f.title and c.class_code=f.class_code and c.teacher_id in (${ids([owner, teacher])});
