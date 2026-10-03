@@ -276,7 +276,7 @@ begin
       select * into v_row from public.classroom_roster where id=v_id and classroom_id=p_classroom_id;
       if not found or pg_catalog.to_jsonb(v_row) is distinct from pg_catalog.to_jsonb(v_returned)
         or private.roster_owner_write_values_v1(v_row) is distinct from v_item-'email'
-        or v_row.join_source is distinct from case when p_mode='manual' then 'manual' else 'csv' end
+        or v_row.join_source is distinct from (case when p_mode='manual' then 'manual' else 'csv' end)
         or v_row.updated_at is distinct from pg_catalog.transaction_timestamp() then
         raise exception using errcode='PT409',message='Roster write binding changed';
       end if;

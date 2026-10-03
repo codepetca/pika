@@ -72,6 +72,13 @@ describe('roster owner write migration source contract (database proof is separa
     expect(sql).toContain('count(*) = 16')
     expect(sql).toContain('private.valid_material_owner_write_timestamp_v1((p_row).updated_at)')
   })
+  it('parenthesizes CASE expressions used as PL/pgSQL IF comparison operands', () => {
+    // Bare CASE's THEN/END can terminate the surrounding PL/pgSQL IF parser.
+    // SQL-language BETWEEN expressions and INSERT values are separate syntax.
+    const upsert = body('public.upsert_classroom_roster_for_owner_v1')
+    expect(upsert).not.toMatch(/\bis distinct from\s+case\b/i)
+    expect(upsert).toContain("v_row.join_source is distinct from (case when p_mode='manual' then 'manual' else 'csv' end)")
+  })
   it('bounds rows and normalized duplicate emails before acquiring locks', () => {
     const upsert = body('public.upsert_classroom_roster_for_owner_v1')
     expect(upsert.indexOf('not between 1 and 1000')).toBeLessThan(upsert.indexOf('private.lock_roster_owner_context_v1('))
