@@ -651,6 +651,25 @@ fast-forwarded; source/local232 immutable, production unchanged. Next bounded sl
 is transaction-safe member mark-all-announcements-read POST. Owner/member global
 roles remain separate from classroom permissions; full five-batch cutover is held.
 
+Member receipts now merged in PR1439 at98887743 on2026-10-03. Initial and final
+integration reviews clean on2166a3c6; exact-head CI37118772779 passes all five gates.
+Local233 was applied once from reviewed source; generated types, rollback,
+concurrency, real SDK/adapter and forced-fixture cleanup pass. Canonical main cleanly
+fast-forwarded. Production remains001–225; shared admission and cutover are OFF.
+
+The next independent batch-1 preparation is the shared
+[material-list read consumer](contextual-classroom-material-reads.md). It binds
+current classroom ownership or active non-owner membership into every payload
+statement, keeps all 14 fields and existing publication/order rules, and uses
+precise keysets beyond 1,000 rows. Missing-table/position fallbacks remain only in
+unmatched legacy/exact-pair paths. Native implementation and SDK-proof workers
+have separate source/script ownership; the coordinator owns documentation, CI,
+acceptance and merge order. No schema or UI change is included. The material
+candidate reconciles onto the verified1439 merge before publication/review.
+Material owner mutations, linked Blueprint reads and
+roster operations remain separate boundaries; this does not satisfy batch 1's
+whole-experience exit criteria or authorize activation.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
@@ -664,13 +683,14 @@ the database. Owner create/edit/delete and member read receipts follow as separa
 atomic-write slices with exact-target schema permission when needed. Shared admission
 and page activation remain dormant throughout this integration.
 
-Member receipt implementation is now prepared separately on
+Member receipt implementation was prepared separately on
 `codex/contextual-announcement-member-receipts`; see
 [its atomicity contract](contextual-announcement-member-receipts.md). PR1439 initial
 high-risk source reviews are clean;233 applied locally once under the explicit task
 waiver, after exact history/binding and one-file preview. SQL is immutable and
 genuine generated types match; installed races/SDK/forced cleanup pass. Final
-integration review and CI remain pending.
+integration and exact-head CI37118772779 passed on2166a3c6; main merge98887743
+is verified above.
 The shared classroom experience remains dormant.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
