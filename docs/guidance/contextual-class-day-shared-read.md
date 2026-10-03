@@ -39,6 +39,9 @@ TDD captured initial failures and follow-up malformed-envelope/duplicate-query
 failures. 97 new tests and 218 existing class-day/core/calendar tests pass, with
 TypeScript, scoped lint, architecture and diff checks. The installed-SDK fake
 fetch checks actual serialized nested filters, ordering and composite cursors.
+The complete focused gate passed 555 tests across 25 files plus all static/lint
+checks. A five-character startup-context budget overrun after receipt updates
+was corrected by shortening only continuity text, not weakening the budget test.
 
 The separate `scripts/check-contextual-class-day-read.ts` actual local-SDK proof
 is bound to the Pika Docker project and local API. Its normal run on 2026-10-03
