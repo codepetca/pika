@@ -6,7 +6,7 @@ create temp table removal_fixture as select gen_random_uuid() owner,gen_random_u
   gen_random_uuid() learner_roster,gen_random_uuid() classmate_roster,
   gen_random_uuid() invite_roster,gen_random_uuid() removed_roster,
   gen_random_uuid() other_roster,gen_random_uuid() item,gen_random_uuid() assignment,
-  gen_random_uuid() document,gen_random_uuid() test,gen_random_uuid() attempt,
+  gen_random_uuid() document,gen_random_uuid() test,gen_random_uuid() attempt,gen_random_uuid() purge_operation,
   replace(gen_random_uuid()::text,'-','') tag;
 
 -- Hash real installed table rows; nothing private or identity-bearing is printed.
@@ -92,6 +92,12 @@ insert into public.classroom_roster(id,classroom_id,email,first_name,last_name,r
   removed_enrollment_id,removed_enrolled_at,retained_manual_attendance_marks)
   select removed_roster,classroom,'historical-'||tag||'@example.invalid','Removed','Historical',clock_timestamp(),removed,gen_random_uuid(),
     '2026-01-01T00:00:00Z'::timestamptz,'{"2026-01-01":"absent"}'::jsonb from removal_fixture;
+-- Provision the precise rollback-only fence operation before127/171 attendance
+-- state exists. Never disable those guards or fabricate a provider binding.
+insert into public.student_purge_operations(id,teacher_id,classroom_id,student_id,student_email,student_binding_sha256,
+  request_sha256,status,source_revision,retryable)
+  select purge_operation,owner,classroom,learner,'learner-'||tag||'@example.invalid',repeat('a',64),repeat('b',64),'failed',1,true
+  from removal_fixture;
 insert into public.attendance_participant_mappings(classroom_id,student_id)
   select classroom,learner from removal_fixture union all select classroom,classmate from removal_fixture union all
   select other_classroom,learner from removal_fixture;
@@ -180,10 +186,7 @@ begin
   exception when sqlstate 'ZX001' then null; end;
   -- Exact purge fences block only the subject; safe classmate removal succeeds.
   begin
-    operation:=gen_random_uuid();
-    insert into public.student_purge_operations(id,teacher_id,classroom_id,student_id,student_email,student_binding_sha256,
-      request_sha256,status,source_revision,retryable)
-      values(operation,f.owner,f.classroom,f.learner,'learner-'||f.tag||'@example.invalid',repeat('a',64),repeat('b',64),'failed',1,true);
+    operation:=f.purge_operation;
     insert into public.student_purge_fences(classroom_id,student_id,operation_id,teacher_id) values(f.classroom,f.learner,operation,f.owner);
     perform pg_temp.removal_rejected(f.owner,f.classroom,array[f.learner_roster],'PT409');
     result:=pg_temp.removal_call(f.owner,f.classroom,array[f.classmate_roster]);
