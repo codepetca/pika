@@ -138,7 +138,8 @@ describe('shared classroom detail GET admission', () => {
     expect(f.urls[1].pathname).toBe('/rest/v1/classroom_enrollments')
   })
 
-  it('does not use shared admission to widen PATCH', async () => {
+  it('keeps absent-admission PATCH on the original teacher guard', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
     const response = await PATCH(new NextRequest(`http://localhost/api/classrooms/${classroomId}`, { method: 'PATCH', body: JSON.stringify({ title: 'Changed' }) }), params())
     expect(response.status).toBe(403)
     expect(requireRole).toHaveBeenCalledWith('teacher')
@@ -146,12 +147,15 @@ describe('shared classroom detail GET admission', () => {
     expect(resolveAdmission).not.toHaveBeenCalled()
   })
 
-  it('leaves PATCH validation unchanged even with malformed shared admission', async () => {
+  it('rejects malformed shared metadata admission before body validation', async () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{bad')
     vi.mocked(requireAuth).mockResolvedValue({ id: actorId, email: 'actor@example.test', role: 'teacher' })
     const response = await PATCH(new NextRequest(`http://localhost/api/classrooms/${classroomId}`, { method: 'PATCH', body: '{}' }), params())
-    expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: 'No fields to update' })
-    expect(resolveAdmission).not.toHaveBeenCalled()
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Classroom experience admission configuration is unavailable' })
+    expect(resolveAdmission).toHaveBeenCalledTimes(1)
+    expect(requireAuth).toHaveBeenCalledTimes(1)
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(getServiceRoleClient).not.toHaveBeenCalled()
   })
 })
