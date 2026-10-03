@@ -104,6 +104,21 @@ remain byte-exact. Preapplication review, application and execution of these new
 regressions are coordinator-owned and pending. Prior runtime receipts above do
 not certify this correction. Exact-head CI and main integration remain gates.
 
+Superseding forward238 receipt: targeted Sol5.6/high review was CLEAN on frozen
+metadata d1322acb/removal4390ea03, exact238 digest47a9bf5d. The ordinary local238-only
+application succeeded once after matching001–237 history and exact target/preview.
+Actual001–238 catalog matches the corrected metadata body with unchanged owner,
+service-only ACL, security-definer/search path and signature; private validator
+body/ACL also remained unchanged except volatilitySTABLE. Genuine type generation
+and drift check match40d0289d; warning-free database lint passes. Serial actualSQL
+now passes the empty-saved-slug rejection with unchanged fullclassroom/archive and
+Blueprint revisions. ActualSDK normal passes both owner labels and the new400/
+no-partial-commit/unpublish regressions plus existing contention/uncertain-response
+checks. Both serial forced modes exit exactly1 with their own expectedFAIL and
+whole-row cleanupPASS. All359focused assertions/20files and static checks pass.
+Final cumulative review, actual pending-parent integration and exact-headCI remain
+required. Immutable236/237 remain unchanged; production/cohort/cutover unchanged.
+
 CI runs the SQL proof, normal SDK proof, then both forced modes serially. Normal
 success requires every behavior marker and exact whole-row baseline cleanup.
 Each forced mode requires exit exactly 1, its own expected FAIL marker and the
