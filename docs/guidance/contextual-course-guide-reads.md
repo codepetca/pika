@@ -66,14 +66,24 @@ normal execution passed authority/FK/pagination/millisecond and tampered-wire
 sections but exposed a proof-fixture mismatch with migration205: scalar feature
 visibility cannot be persisted. Both the first run and one safe diagnostic run
 completed exact cleanup with unchanged whole-row baselines. Corrected legal
-feature fixtures and rollback-only exact constraint-denial cases need a targeted
-recheck; complete normal/forced execution remains pending. This is a harness
-assumption correction, not a product/schema change. Fixtures are preallocated
+feature fixtures and rollback-only exact constraint-denial cases passed a targeted
+security recheck. Root also caught the synthetic ownership-transfer target's
+creation-capacity prerequisite before rerunning: its exact tagged test grant is
+preallocated and covered by the same teardown; no entitlement guard is bypassed.
+A second targeted recheck passed. Normal execution now passes all four sections,
+including real JSONB/resource wire, both collections beyond1,000 and 40 committed
+revocations before header/first/later/terminal/final statements. Both forced modes
+exit exactly1 with their own expected failure and complete cleanup sentinels.
+Every execution preserves the global whole-row baseline and leaves generation
+guards enabled. These were harness assumptions, not product/schema changes.
+Fixtures are preallocated
 and local-target guarded, with
 exact unconditional teardown, enabled generation guards, zero residue and
 whole-row public/private/storage baselines verified before cleanup commit and
 afterward. Unexpected provider, attendance, private or storage dependencies deny
-cleanup rather than being destroyed. CI registration, full independent PR review,
+cleanup rather than being destroyed. CI registration and its source/fake-shell
+gates pass, including rejection of arbitrary failure reasons and exits0/2.
+Full independent PR review,
 actual-main reconciliation and final exact-head CI remain acceptance gates.
 
 No migration belongs to this slice. Local 001–236 includes other prepared writes;

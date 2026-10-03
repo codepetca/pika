@@ -965,6 +965,9 @@ collection page, empty terminal and final control proves current owner/member
 authority and raw JSONB visibility configuration in its own statement. Its DTO,
 public-site/legacy handlers and assessment publication behavior remain intact;
 no answer-bearing broad site loader, SQL/types, UI or billing changes are included.
-Source TDD/installed-SDK serialization checks pass; root-guarded actual local
-PostgREST normal/forced-cleanup proofs and independent review/CI remain pending.
+Source TDD/installed-SDK serialization checks pass. Root actual local PostgREST
+normal and both forced-cleanup modes now pass, after correcting two fixture
+assumptions without changing product code or weakening existing constraints.
+Whole-row global baselines/zero residue/enabled generation guards are preserved;
+independent full PR review, actual-main reconciliation and final CI remain gates.
 This does not complete everyday work or permit cohort activation.

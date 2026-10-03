@@ -880,3 +880,13 @@ that preallocated test identity to existing tagged manual grants (exact cleanup
 already derives the same grant set). Structural RED1/16 reproduced before tiny
 fixture correction. No trigger/constraint bypass, product/SQL change, real account
 change or additional failed DB execution. Tiny targeted recheck precedes normal.
+
+Tiny recheck CLEAN1777f9f0/16source tests. Actual normal32267 passes all four
+markers and exact cleanup: genuine JSONB/resource wire, both paginated collections,
+millisecond release parity, tamper/transport denials and40 committed revocations
+plus finalclass deletion. Forcedfixture58792 and precapture54830 each exactexit1/
+ownexpectedFAIL/exactcleanupPASS. All whole-row public/private/storage baselines,
+zero residue and guardO preserved; no DBproof overlaps. A combined wrapper was
+rejected before execution because its temporarylog trap used blockedrm-f; that
+deletion was not retried and each proof ran directly instead. No actual proof
+or fixture started in the rejected wrapper. Full initial review/draft/main/CI next.
