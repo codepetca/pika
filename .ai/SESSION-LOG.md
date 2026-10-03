@@ -11,6 +11,137 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-01 — Selected Workspaces reference containment
+
+An extra selected-state Pattern Lab capture after the clean expanded review exposed an unbounded gallery canvas and missing flex display on its active Students panel. Reused the existing h-96 preview size as a bounded canvas for Students, leaving inactive panels hidden and summary/overview sizing unchanged. The shared production split remains unchanged. Browser coverage verifies both panes retain usable height, the last student and inspector content are reachable, and the hidden panel stays hidden. All four desktop/mobile light/dark reference cases pass and screenshots are inspected. Focused checks still pass 581 tests in 37 files plus policy, architecture, TypeScript and lint. PR1419 returned to draft and its previous ready CI was cancelled before this first remediation batch; targeted and final integration review remain pending.
+
+## 2026-10-01 — Approved scrolling PR main synchronization
+
+PR1419 at d03d91f2 passed independent cumulative, targeted and final integration reviews and exact-head CI36938870903, including Test & Build, Browser Experience Matrix and PR Gate. Main advanced during CI, creating archive marker conflicts. Owner approved one bounded main sync, one additional compatibility review and fresh CI. Rebased onto e87d322a, incorporating contextual teacher Daily entry/history and roster-log authorization work without changing its behavior. Resolved three duplicate archive-marker conflicts using main's markers; automated comparisons confirm all historical archive text from both tips is retained and all21 scrolling implementation/test files are byte-identical to the reviewed version. No dependencies, schema, migration application, production promotion or merge is authorized by this synchronization approval. Fresh focused checks pass581 tests/37files plus architecture, policy, TypeScript and lint; all51 incoming Daily API/server tests and four reduced-motion Daily browser cases pass. Screenshots are preserved under ignored artifacts/scroll-audit/main-sync-results. One compatibility review and new stable-head CI remain pending. Review ledger: fourth reviewer launch planned, second correction/sync batch; no broader review loop.
+
+## 2026-10-01 — Student table scrolling merge authorization
+
+Owner requested pull, conflict resolution and merge of PR1419. Rebased onto main7c0ded24 (cached Daily summary reads); archive-only conflicts retain both histories. All21 feature implementation/test blobs remain unchanged from c7a48cb1. Previous exact-head CI36944522875 passed all eligible gates. One additional bounded compatibility reviewer and fresh focused/incoming-summary checks precede fresh final CI and the authorized squash merge to main. No production promotion or database change.
+
+## 2026-10-01 — Final scrolling synchronization without archive churn
+
+Main advanced to478fd94e before the final ready event. Owner's pull/resolve/merge instruction covers this follow-up synchronization. No application conflict; all21 scrolling implementation/test files and cached-summary source remain unchanged. Retained the canonical main archive byte-for-byte and preserved this task's seven unique entries in the recent log, using the supported --keep60 setting within its60-entry cap. All historical bodies from both parents remain present; this avoids rewriting unrelated archive batches. Fresh focused and incoming lesson-plan tests, final fixed-SHA compatibility verification and exact-head CI precede the authorized main squash merge. Production promotion remains separate.
+
+## 2026-10-01 — Dormant shared lesson-plan reads
+
+Continued the authorized five-batch goal without activating it. Teacher logs1421
+is merged at e87d322a; summary1422 passed four bounded independent reviews and is
+awaiting final CI36943420208 at45cecd2a. A GPT-6 Astra/high read-only proposal plus
+coordinator source checks selected classroom-rooted plan reads with same-statement
+owner or membership/visibility evidence. One GPT-6 Sol/high worker completed only
+two GET early branches, named validation/helper and tests in the independent
+codex/contextual-lesson-plan-reads worktree. Existing exact-pair/legacy remainder
+stays unchanged.76 relevant and167 canonical focused tests/static checks pass;
+Pika audit passes7files. Real local PostgREST proves1004plans, short nonterminal
+pages, both role values, empty/out-of-window/archived reads, first/later transfer,
+removal/archive/owner-precedence races, current/terminal visibility changes and
+keyset stability after prior-row deletion; exact synthetic live/audit cleanup
+passes. One pre-publication correction aligns later revocation403 and strengthens
+unknown envelopes/content/identity regressions. Independent fixed-SHA review and
+final CI remain required; main reconciliation after1422 is pending. No migration,
+reset/reseed, hosted/account, billing, UI, write or cohort change. Risk:
+runtime-platform; high authorization/privacy review risk.
+
+Initial PR1423 compatibility review is clean atfb6feb56; security found one
+accepted P2: JSONB literal null bypasses SQL NOTNULL and was incorrectly projected.
+Unit and actual PostgREST regressions reproduced it before the one correction
+batch;77 affected tests/type/scopedlint now pass with required nonnull valid
+content. Actual DB green, targeted/final review and final CI remain acceptance
+gates. No legacy behavior, schema, migration or live configuration change.
+
+Summary1422 is now merged main at7c0ded24 after all exact-head CI36943420208
+gates (0queue/1498run seconds). Hub fast-forwarded. Lesson-plan draft1423 rebased
+onto that main, reconciling only CURRENT/roadmap/archive continuity conflicts;
+kept original archive history once and all CI harnesses, with no application
+source conflict or migration file. No stash was created or consumed. JSONB-null
+real PostgREST cases and all prior database/race/cleanup cases pass; targeted
+security re-review is clean at pre-rebase ba6ca7d7. Reconciled focused checks
+pass168tests/16files and all static gates; the five-group actual database harness
+passes again with exact cleanup. Cumulative integration review remains next.
+
+## 2026-10-01 — Lesson reads merged; local226 and single-date writes
+
+PR1423 final cumulative review passed on c89fe016; all exact-head CI36946345369
+lanes passed (0queue/1499run seconds). Squash-merged main478fd94e; hub FF clean.
+Removed only its finished six worktrees/branch; merged code and private evidence
+retained. No production/cohort change. Next date-write branch FF'd onto main while
+preserving its owned edits; no stash or branch switch. Bulk/copy remain legacy.
+User explicitly approved226 local. Verified pika container/ports and exact history;
+dry run listed only226, one local application succeeded. Function is definer with
+empty search_path and service-only grants; generated types/check match local schema.
+Installed SQL SHA256 b9b774dd01dfb349dade0cb068f902d28b6c578808e4f7e53b11a7072b0ddd7d;
+do not rewrite it or reuse approval. Source TDD and39 affected tests pass; real
+synthetic state/race/Blueprint conflict checks and exact cleanup pass. Actual SDK
+probe exposed nullable error detail/hint fields rejected by mocks; correcting that
+boundary and finishing lifecycle-fence proof before draft/review/CI. No real-account,
+AI, billing, UI, reset/reseed, hosted schema or release change. Goal remains batch1
+of five, not complete. Coordinator owns continuity/CI/Git; one worker owns source.
+
+Post-main source checks pass42tests/type/lint/generated types. SDK nullable-field
+regression reproduced404/403/409 incorrectly becoming503; named schemas now accept
+real null metadata while malformed success envelopes still fail closed. Actual
+SDK adapter and synthetic purge-fence checks pass with full state rollback and
+zero residue;226 unchanged. Added synthetic-target guards to the denial probe.
+Full decommission transition remains a later integrated gate, not claimed here.
+Canonical focused checks and draft-first independent review/CI remain next.
+
+## 2026-10-01 — Date review clean; bulk transaction preparation
+
+Date PR1424 published draft atc1eedd0d after42 affected/216 focused tests and
+static checks, generated types and real state/race/SDK/purge-fence proofs passed.
+Both independent security/compatibility reviews clean,2 launches/no corrections;
+unchanged reviewed SHA marked ready, exact-head CI36950939593 running. No merge
+or production receipt is claimed yet. Local226 approval consumed; SQL unchanged.
+Bounded read-only GPT-6 Astra/high proposal selected a dedicated atomic bulk RPC
+reusing226 in one transaction. Preserve legacy route,250+250 limits, success/count,
+per-client sequence and blank-upsert semantics; new admitted failure rolls back
+the whole batch. Separate stacked codex/contextual-lesson-plan-bulk-writes checkout
+owns source/TDD preparation while CI runs;1424 merge precedes bulk publication.
+One GPT-6 Sol/high writer owns bulk source/tests/harness; coordinator docs/CI/Git.
+Tentative227 source needs current-main numbering check and separate exact local
+approval before application. Matching generated types/real DB evidence remain
+pending; no fabricated type aliases or premature ready claim. No new schema,
+reset/reseed, real accounts, UI, AI, billing, production or admission activation.
+
+CI36950939593 passed226 replay/date concurrency but failed one continuity-format
+test among9043 passing unit tests. Returned1424 to draft, retained logs, cancelled
+remaining heavy lanes after diagnosis (0queue/508run seconds). Reproduced missing
+space in `Prod DB001` locally, corrected only CURRENT atf86d5f85;4 regression tests
+and216 focused/static tests pass. Targeted Luna/medium review clean; final Sol/high
+cumulative review pending. Four launches/one correction batch; SQL226 unchanged.
+
+Final cumulative review clean atf86d5f85;1424 ready with final CI36952067498 running.
+Bulk source checkpoint5415cc2 has34 passing API/static/legacy tests; one expected
+missing generated RPC-name TypeScript error, no schema or harness execution. SQL
+preapplication review statically clean, but accepted conditional strict-autoFree
+audit cleanup/outsider/ambiguous-setup gap. Local strictfalse verified read-only;
+no existing residue claimed. One correction batch4759f24b adds exact tagged audit
+pair teardown, unconditional cleanup, forcedpostfixture mode and bounded sessions;
+red/green36tests and targeted independent review clean. SQL227 unchanged digest
+c840869da61aa5a343a225f02d06cd99e428c93cb9a707f7e61f8cbb66097b8a. Two preapply
+review launches/one fix batch; full PR review/realDB acceptance not complete.
+Exact227 LOCAL approval requested, not granted yet. Full/negative/stricttrue proofs
+and generatedtypes pending; no sharedflag, production, UI, billing or AI change.
+
+## 2026-10-01 — Local227 applied and real bulk contracts verified
+
+Consumed exact227 LOCAL approval with one successful application; digest unchanged.
+Catalog confirms service-only execute and hardened definer; generated types/check
+and TypeScript pass. Real harness exposed two test defects, corrected together:
+fresh nonce with accepted-save probe for decisive late rollback; owner cascade for
+Blueprint cleanup without guard bypass.38 affected tests pass. Full database run
+and forced post-fixture failure both prove zero residual rows. The first failed
+run's exact tagged synthetic fixtures were removed and are regenerable; no real
+account/classroom changed. Runtime correctionb2c64b45 targeted Sol/high review clean,
+shared budget3launches/2fixbatches. Local strictfalse: automatic Free audit cleanup
+has static review, not strict-enabled runtime evidence.1424 final browser CI still
+pending; its merge precedes bulk publication. Prod001–225, all activation holds remain.
+
 ## 2026-10-01 — Date gate passed; strict main reconciliation required
 
 1424 final CI36952067498 passed all gates, but normal merge denied behind1419main.
@@ -368,6 +499,36 @@ Confirmed both P3 - ICS3U and P5 - ICS3U use shared ICS3U-4 Blueprint; both clas
 
 Owner confirmed updating both current classroom Blueprint tabs. Inspected P3/P5 merge suggestions through authenticated Chrome without saving: both contain local Unit 1 tests and Java Material; P3 also has a verification test, P5 a verification assignment. P3 lesson promotion would remove templates 91–95 and change many existing lessons. Source review confirmed preparation blocks on all untracked artifacts and promotion replaces entire selected artifact areas. A Java-only promotion cannot clear the gate; broader promotion is outside this lesson request. No proposal, classroom update, or reconciliation writes made. Asked for scope choice: implement targeted Java-only update support (recommended), review broader reconciliation, or retain current snapshots. Updated lesson README; shared Blueprint Version 5 and both Posted student Materials remain available. Documentation only; no app/runtime/schema/site changes.
 
+## 2026-10-02 — Prorated-upgrade backend candidate
+
+Coordinator owns codex/subscription-plan-changes from merged1429/25cc0691. Added dormant, authenticated frozen-invoice upgrade APIs and recovery; provider preview, signed amounts, confirmation digest, captured-card proof, original-term preservation and version writer. Candidate230 unapplied; shared local229 belongs to classroom task, billing OFF. Three bounded GPT workers completed owned schema/provider/API files; no real provider calls or generated-type edits. Repeated same-term upgrades need receipt chains; scheduled downgrade grace awaits owner decision. Billing tests pass; required compile/type checks blocked only by new RPCs until exact local230 permission/type generation. Preapplication review completed: two independent initial reviews and two targeted passes (four launches/two fix batches). Fixed crash-before-payment replay, invoice cleanup after the paid boundary and realistic partial-credit draft totals. Corrected source c962f622;576 billing/API tests pass, lint/audit pass; tsc retains exactly two pending new-RPC errors. Owner approved one exact local230 application, conditional on classroom229 PR1431 merging and an only230 dry run; permission remains unconsumed. Verified Pika/54322 target through229; four existing billing database harnesses passed with rollback and unchanged counts (3 users/1 classroom/0 plans, bindings or access), sandbox OFF. Classroom229 PR1431 awaits its owner-controlled review/CI/main reconciliation. SQL230 unchanged since initial review. Final cumulative PR review/types/database harness remain; no production/reset/reseed/activation/merge authority.
+
+## 2026-10-02 — Local230 application and generated contracts
+
+1431 merged493e752a; rebased billing with continuity-only conflicts, preserving reviewed230 SHA25627da3d0c09a2566c5a10fc051c225dc6c4f12ef4a250914003355a6eef915d1f and all billing behavior. Owner's conditional approval consumed by one successful local230-only push after matching001–229 history/dry run and629preapplication tests. Local001–230 matches; generated types/check, focused TypeScript/lint/architecture gates and four existing rollback database harnesses pass. Security advisor clean; RLS/service-only ACL probes pass; 3users/1classroom/0plans,bindings,access,upgrade operations/receipts unchanged; sandbox OFF. New230harness rolled back at unparenthesized CASE assertion; prepared two-line fixture patch, not applied. Four prior review launches/two financial fix batches/one main sync; review clock expired during1431wait, so bounded final correction/review extension remains needed. No repeated application, production/reset/reseed/Stripe/payment/activation/merge authority.
+
+## 2026-10-02 — Approved upgrade fixture correction
+
+The owner approved two CASE assertion parentheses and a20-minute final-review
+extension at2026-10-03T00:15:11Z, ending00:35:11Z. The new migration230 upgrade
+database harness now passes with rollback. Installed230 and provider behavior
+are unchanged; no migration reapplication, Stripe writes or activation occurred.
+Four prior review launches, two financial fixes and one main sync remain counted;
+this fixture correction and one final integration reviewer are the bounded next
+step before stable-SHA CI.
+
+## 2026-10-02 — Upgrade final integration review checkpoint
+
+Draft PR1435 publishes cc2217bc after520focused tests,53continuity tests, matching
+generated types and the corrected rollback harness. Final GPT-5.6 Sol/high review
+(launch5;48targeted tests) found one verified P1: revision conflicts leave active
+upgrade rows queued but undiscoverable, hiding attention and blocking ordinary
+subscription processing. No other blockers reported. CI remains unstarted and
+billing OFF. Five launches, two financial fixes, one main sync and one fixture
+correction are used. Owner checkpoint required for additive conflict-recovery
+correction and targeted review; applied230 must remain immutable. These handoff
+notes are local and uncommitted; the published candidate remains cc2217bc.
+
 ## 2026-10-03 — Blueprint Materials visibility
 
 Owner approved addressing Java Explained in both current classroom Blueprint tabs. Source inspection found the tabs omit Materials entirely; refined to a read-only latest-saved linked-Blueprint Materials list rather than changing snapshot provenance or weakening reconciliation. Teacher-only endpoint checks classroom and Blueprint ownership, projects validated materials only, preserves historical missing-Materials snapshots and distinguishes failures from empty lists. Separate source label retains frozen Content/Guidance versions; student Posted Materials and public Sites lesson unchanged. UI brief: existing Blueprint Content and Pattern Lab page states; reuse PageLayout/PageState/Button/RichTextViewer, teacher desktop/mobile light/dark, loaded/focus and desktop loading/error/empty/retry, student UI n/a (teacher-only) with real API rejection covered; composite checklist reviewed, existing segmented semantics retained, new link keyboard focus verified; no experimental patterns or migrations. Focused170 tests, architecture/UI/design/TypeScript/lint and audit pass. Eight unique browser scenarios pass, covering four layouts, loading, error/empty retry, real API null/student403, and Pattern Lab; one broader classroom read failed during dev recompilation and passed targeted rerun after source stabilized. Eight screenshots visually reviewed and retained at /tmp/pika-java-review/blueprint-materials-2026-10-03. Lesson viewer build/syntax checks pass. Lesson/viewer/guidance saved in feature branch; synced origin/main66fa5de3 while preserving both continuity histories. Draft-first independent review follows. Risk profile: none. Model recommendation: GPT-6 Sol for bounded read-only application work.
@@ -375,3 +536,74 @@ Owner approved addressing Java Explained in both current classroom Blueprint tab
 ## 2026-10-03 — Blueprint Materials review correction
 
 PR1437 initial independent GPT-5.6 Sol review at99704ad8 found one blocking malformed-title boundary and stale posting notes. Verified canonical Material writes trim and require nonempty titles; applied matching read validation and two empty/whitespace snapshot regressions, updated teacher notes to Java Explained Posted in P3/P5, and clarified read-only tab visibility rather than snapshot adoption. One batched correction; affected checks and targeted plus final cumulative review follow. No runtime writes, migration or deployment. Review budget: one launch/one initial wave consumed; elapsed initial review about4m30s, coordinator tokens unknown.
+
+## 2026-10-03 — Approved upgrade conflict recovery batch
+
+The owner approved one correction and one targeted financial review with30minutes
+from08:09:58Z to08:39:58Z. Forward231 keeps applied230 immutable, durably audits
+conflicts, closes only operations before invoice intent, quarantines uncertain
+provider writes, preserves stale-claim fences and blocks ordinary requeue from
+erasing financial recovery. Expanded rollback fixtures cover each revision,
+unknown invoice/pay outcomes, quote queue visibility and retired bindings.
+49targeted runtime/service/reconciliation and521focused tests pass, including
+TypeScript/lint/architecture gates. Main66fa5de3 integrated with only continuity
+conflicts; all billing source and230 remain byte-identical to the prepared fix.
+231 application and database regressions await separate exact approval; the
+harness correctly refuses230. One targeted fixed-SHA financial reviewer is next
+(launch6); no further correction or final wave is authorized. Billing OFF; no provider calls or reset.
+
+## 2026-10-03 — Upgrade231 preapplication review cleared
+
+Targeted GPT-5.6 Sol/high reviewer cleared exact4209da62 with no verified blockers
+and246upgrade/API tests. Installed230 checksum unchanged;231 public RPC types
+unchanged. Six launches and five composite correction/sync batches are consumed;
+the30-minute extension's one correction and targeted reviewer are complete. Local
+history001–230 matches and a read-only dry run lists only231. User/classroom/
+upgrade/receipt counts3/1/0/0; sandbox OFF. Exact local231 permission is required
+before one application attempt, rollback DB harness, types/security checks and
+ready-head CI. No merge, production, Stripe writes or reset authority conveyed.
+These review receipts are uncommitted continuity notes; PR1435 remains draft at
+reviewed4209da62.
+
+## 2026-10-03 — Local231 receipt and fixture checkpoint
+
+Direct human local-migration approval override verified in owning classroom task.
+That coordinator applied only reviewed231 once from4209da62; I independently
+verified history001–231 and immutable230/231 checksums. Types match; security
+advisor clean; four existing billing DB harnesses pass. The expanded upgrade
+harness fails initial synthetic Stripe-ID validation because conflict_* fixture
+names include underscores. Transaction rolled back; data3/1/0/0, sandboxOFF.
+Prepared two-line ID normalization patch at/private/tmp/pika-231-stripe-fixture-id.patch
+passes git-apply-check, but source is unchanged. One authorized correction/review
+is consumed (6launches/5composite batches). A bounded fixture-only correction,
+database rerun and brief targeted review need the human budget checkpoint.
+PR1435 remains draft at4209da62; no migration retry, reset, production or Stripe.
+
+## 2026-10-03 — Shared local232 coordination hold
+
+Announcement coordinator reports one successful reviewed232 local application
+and holds the DB writer slot for rollback/SDK/concurrency proof. Independently
+read history tail232/231/230; billing source stays4209da62 and230/231 checksums
+unchanged. Types last matched001–231 before232; current drift is expected and
+must not trigger reset/repair or unrelated232 source adoption into billing. No
+fixtures, generation, migration or provider writes run here. Announcement proof/cleanup completed and its writer slot is now released;
+independent reads confirm local232 and persistent counts3/1/0/0,sandboxfalse.
+Billing fixture-only correction/review approval remains pending; coordinate the
+writer slot before any resumed fixtures. No budget extension inferred. PR1435 stays draft; continuity only dirty.
+
+## 2026-10-03 — Approval override and upgrade database acceptance
+
+Human overrides correction and main-merge approval checkpoints; review and CI
+gates remain. Fixture-only batch6 normalizes synthetic Stripe IDs, isolates an
+earlier valid queue fixture through a real lease, and removes a PL/pgSQL alias
+collision. Full expanded rollback harness passes on local001–232; cleanup counts
+3/1/0/0,sandboxfalse, shared writer slot released. Billing code, installed230/231
+and generated types remain byte-identical to reviewed4209da62. Types last matched
+001–231 before announcement232; branch CI must verify its own schema replay.
+One mechanical fixture reviewer (launch7) follows focused checks/frozen commit;
+no fresh full-diff wave. PR1435 is draft until review/exact-head CI, then authorized
+main merge. Billing OFF; no migration reapplication, reset or provider call.
+
+## 2026-10-03 — Java Materials approved main synchronization
+
+Owner authorized PR1437 main merge. Main advanced to efe4eb3f through dormant billing PR1435, producing only an archive conflict. Kept the canonical main archive and all branch additions byte-for-byte; application files merged without conflict. All lesson/viewer/API/UI/test files remain unchanged from independently reviewed73ff84fb, whose full CI37110290722 passed. One bounded compatibility review, focused checks and fresh stable-head CI precede the authorized squash merge. No production promotion, migration application, billing activation or provider calls are authorized.

@@ -8,6 +8,7 @@ type BillingRpcName =
   | 'billing_claim_subscription_v1'
   | 'billing_finish_lifecycle_v1'
   | 'billing_list_work_v1'
+  | 'billing_get_applied_upgrade_v1'
 
 /** Narrow transport seam; the runtime supplies the generated Supabase client. */
 export type BillingRpcClient = {
@@ -35,6 +36,7 @@ export function createBillingStore(client: BillingRpcClient): BillingStore & {
     claimSubscription: request => call('billing_claim_subscription_v1', request),
     finishSubscription: request => call('billing_finish_lifecycle_v1', request),
     listWork: request => call('billing_list_work_v1', request),
+    getAppliedUpgrade: request => call('billing_get_applied_upgrade_v1', request),
     async recordEvent(receipt) {
       const result = billingEventReceiptResultSchema.safeParse(
         await call('billing_record_event_v1', receipt),

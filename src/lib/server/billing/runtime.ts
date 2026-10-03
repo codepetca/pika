@@ -8,6 +8,7 @@ import {
   createStripeBillingProvider,
   type StripeBillingReadPort,
 } from '@/lib/server/billing/stripe-provider'
+import { createStripeUpgradePort, createStripeUpgradeProvider } from './stripe-upgrade-provider'
 
 /** Pinned to the API version whose response shapes this foundation validates. */
 export const STRIPE_BILLING_API_VERSION = '2026-08-26.dahlia' as const
@@ -44,10 +45,15 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
     fetch: createTargetBoundFetch(config.supabaseOrigin),
   })
   const store = createBillingStore(client)
+  const provider = createStripeBillingProvider(createStripeBillingReadPort(stripe))
+  if (process.env.BILLING_UPGRADES_ENABLED === 'true') {
+    const upgrades = createStripeUpgradeProvider(createStripeUpgradePort(stripe))
+    provider.retrieveAppliedUpgrade = operation => upgrades.readEvidence(operation)
+  }
 
   return {
     store,
-    provider: createStripeBillingProvider(createStripeBillingReadPort(stripe)),
+    provider,
     verify(raw, signature) {
       return stripe.webhooks.constructEvent(raw, signature, config.webhookSecret)
     },

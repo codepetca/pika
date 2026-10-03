@@ -200,23 +200,120 @@ requires the exact target-and-migration approval in the schema checklist.
 | --- | --- | --- |
 | 0 | Land admin, Stripe foundation and policy dependency chain with required PR Gate on each final SHA | Complete: #1360, #1366 and #1367 merged |
 | 1 | Exact 12-variant USD/CAD catalog; authenticated, durable hosted checkout; idempotent creation/recovery; verified payment grants selected version | Merged #1368; local sandbox first-purchase rehearsal passed; customer return UI pending |
-| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | Lifecycle #1377 merged; renewal closeout in progress on `codex/renewal-closeout` |
-| 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | Pending lifecycle integration |
+| 2 | Once-only 30-day Pro trial and paid conversion; exact paid/trial expiry and seven-day renewal grace; safe resubscription | Lifecycle #1377 and renewal closeout #1429 merged; local228 applied and rollback contracts passed |
+| 3 | Prorated upgrades, renewal-scheduled changes, classroom selection/activity fallback archive, publishing/test cutoff and preserved existing-work access | Plan-change architecture in progress; classroom/access integration remains pending |
 | 4 | Billing UI, self-service portal, expiry/failure notifications and missed-schedule recovery; role/theme/viewport visual verification | Pending backend contracts |
 | 5 | Full provider test-mode lifecycle rehearsal, concurrency/retry evidence, AI cost validation and tax setup review | First-purchase rehearsal completed; full lifecycle blocked by phases 2–4 and remaining policy contracts |
 
-Current execution (2026-10-02): lifecycle PR #1377 merged as `261ee0b1`.
-The coordinator continues phases 2–5 on `codex/renewal-closeout`, rebased onto
-main `a6c23954`. Billing remains disabled. Existing trial, paid conversion,
-exact expiry, renewal grace and immutable purchased terms are integrated; financial
-closeout and safe resubscription after unpaid grace are the next deliverable.
-Completing this slice does not complete the launch plan.
+Current execution (2026-10-02): lifecycle PR #1377 merged as `261ee0b1` and
+closeout PR #1429 as `25cc0691`. Its reviewed head `fe228354` passed all five CI
+jobs, including 9,167 tests. Local228 remains applied; billing is disabled.
+The coordinator owns `codex/subscription-plan-changes`, based on that main SHA,
+for authoritative upgrade quotes and approved renewal-scheduled transitions.
+Classroom-copy PR1431 merged493e752a, preserving applied229. The billing
+branch is rebased onto that main; migration230 remains byte-identical.
 
-Current ownership: Astra/high implements the durable closeout schema and rollback
-contracts; GPT-6.1 Sol/high implements the Stripe adapter and provider fixtures
-(the preferred Terra model is unavailable); the coordinator owns service/runtime
-integration, documentation, acceptance and the PR lifecycle. Workers do not apply
-migrations, mutate Stripe, send email, merge or recursively delegate.
+Current ownership: three bounded workers completed the provider quote, frozen
+invoice, API/runtime and additive schema implementations. The coordinator owns
+integration, verification, documentation and the PR lifecycle. Workers did not
+apply migrations, mutate Stripe, send email, merge or recursively delegate.
+Existing closeout review extensions and application permissions are consumed.
+The amount-confirmation design below implements SUB-04; deployment and payment
+activation remain separate gates.
+
+### Phase 3: first prorated upgrade candidate (2026-10-02)
+
+The dormant first-upgrade backend uses migrations230 and231. Both were applied
+locally once, with existing records retained; production remains through225.
+Migration230 is immutable. Forward231 resolves revision conflicts under the
+existing lock order: safe operations before invoice intent expire, while unknown
+invoice/payment outcomes become audited attention. The worker discovers conflicts
+and retired bindings; stale claims and altered expected revisions cannot quarantine
+valid ownership. Ordinary requeue cannot erase financial recovery or adopt override
+revisions. Attention resolution/compensation remain launch gates.
+
+The initial complementary security and compatibility reviews found two financial
+corrections: interrupted payment-intent recovery/expiry cleanup, then actual partial
+draft evidence before completion/void. The final integration reviewer found the
+revision-conflict queue blocker, corrected by231. Targeted GPT-5.6 Sol/high review
+cleared exact4209da62 with246upgrade/API tests and no verified blockers. Main66fa5de3
+integration preserved all billing source and230 bytes. Six reviewer launches and
+five composite correction/sync batches preceded the final fixture batch.
+
+Local acceptance:521focused tests plus architecture, UI/design policy, TypeScript
+and lint; four existing billing database harnesses pass after231. Types matched
+this branch at001–231 and the security advisor found no issues. The announcement
+coordinator subsequently applied232; shared local history is001–232 and expected
+branch/history drift must not trigger reset/repair or unrelated232 source adoption.
+Required CI must replay the exact billing branch and verify its generated types.
+
+The expanded upgrade rollback harness now passes on the shared local database.
+Its fixture-only repair normalizes synthetic Stripe IDs, leases the earlier valid
+queue case through the real RPC before a conflict-only drain, and removes a loop/
+SQL-alias collision. Application code, installed230/231 and generated types remain
+unchanged from reviewed4209da62. All fixture data rolls back; persistent user/
+classroom/upgrade/receipt counts are3/1/0/0 and sandboxfalse. The DB writer slot is
+released after proof.
+
+On2026-10-03 the human directly overrode approval checkpoints for corrections and
+main merges in this billing task. Required independent review and stable-head CI
+remain gates. The fixture batch is composite batch6, followed by one mechanical
+independent review (launch7); no additional initial or final full-diff wave is
+needed. Draft PR1435 remains pending that review and exact-head CI. Billing stays
+OFF; the first-upgrade slice does not complete phase3 scheduling or launch.
+
+- Require the existing loopback test sandbox, checkout configuration and separate
+  `BILLING_UPGRADES_ENABLED=true` gate. No configuration is enabled by this PR.
+  Teacher-only quote/confirmation/status APIs use the authenticated permanent
+  account ID, trusted origin, bounded JSON and private, uncached responses.
+- Resolve an available target offering server-side. Same-interval, same-currency
+  higher-tier upgrades retain the original paid term and renewal date. A
+  captured full-cycle payment for the current purchased version must anchor the
+  operation. Currency changes, interval changes, unpaid renewals and canceled
+  subscriptions cannot create unused-time credit through this path.
+- Stripe previews the two signed proration lines at a fixed second. Persist a
+  dedicated draft invoice identity before populating those exact provider amounts.
+  Exclude unrelated pending items and keep `auto_advance=false`, including during
+  finalization. The quote shown for confirmation is the verified final invoice;
+  no invoice URL or automatic payment is exposed. Unsupported balances, taxes,
+  discounts, credits or extra lines fail closed instead of being approximated.
+- Quotes expire after 15 minutes, bounded by the original paid-through timestamp.
+  Confirmation binds the operation, quote revision and canonical SHA-256 digest;
+  changed payable facts cannot authorize payment. One unfinished operation per
+  subscription serializes confirmation and recovery. Zero-due rounding is held
+  for explicit payment-proof support, not treated as a paid upgrade.
+- Persist intent before paying the exact invoice, verify a captured card payment,
+  then change the exact subscription item with no additional proration and an
+  unchanged anchor. Grant the immutable target version only after verifying both
+  payment and provider item state; preserve the original period and usage boundary.
+  A pending/failed payment keeps the existing paid plan. The ordinary renewal
+  verifier remains strict; an applied upgrade receipt is observed separately and
+  must never extend paid-through as if it were a renewal.
+- Every write rechecks the existing binding lease, operation, plan, access and
+  entitlement revisions immediately before the provider call. Durable stages and
+  stable keys recover lost responses; five transport failures hold attention.
+  Awaiting confirmation or payment does not consume that error budget. An unknown
+  invoice-creation response can reuse its original key only within 23 hours of
+  the quote and before the original term ends, never with a fresh key afterward.
+  Known expired, definitively unpaid invoices are verified independently of the
+  subscription period, completed with exact frozen lines if necessary, finalized
+  without collection and voided even after renewal. Missing line writes retain
+  their23-hour key window. Pending or captured money is held for attention.
+  Unresolved payment requests replay the same key under fresh fences while the
+  quote remains valid; definite card declines hold attention without another
+  payment attempt.
+
+This candidate is not a complete launch implementation. Repeated upgrades within
+one paid term still need verified receipt-chain support; the current reserve gate
+rejects them without creating an operation or charging. This is an implementation
+limitation, not a one-upgrade-per-period product policy. Scheduled downgrade grace
+version/capacity is awaiting an owner decision; scheduled changes and classroom
+archive/access integration remain pending. Cancellation observation after an
+upgrade, payment recovery UX, audited attention recovery, tax support and provider
+rehearsal also need launch evidence. A payment captured before an unfulfillable
+term/override race stays an actionable exception; compensation is not invented.
+No migration, production change, live charge, email or activation is authorized
+by this candidate or its tests.
 
 The following first-lifecycle review evidence is historical; #1377 subsequently
 passed required CI and merged. Its earlier application permissions are consumed.
