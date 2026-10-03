@@ -154,6 +154,8 @@ async function main() {
         if (preflight && body.length) {
           const root = z.record(z.string(), z.unknown()).parse(body[0])
           assert.deepEqual(Object.keys(root).sort(), ['archived_at', 'id', 'teacher_id'])
+          // Zod parses a clone; tampering must reach the actual response body.
+          body[0] = root
           options.preflightTamper?.(body, root)
         } else if (!preflight && body.length) {
           const root = z.record(z.string(), z.unknown()).parse(body[0])
@@ -161,6 +163,7 @@ async function main() {
           if (permission === 'member') {
             assert.deepEqual(root.membership, [{ classroom_id: classroomId, student_id: actorId }], 'Actual FK nested membership array')
           }
+          body[0] = root
           options.tamper?.(body, root)
         }
         const headers = new Headers(response.headers); headers.delete('content-length')
