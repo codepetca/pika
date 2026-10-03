@@ -1,7 +1,9 @@
 # Contextual announcement member read receipts
 
-Status: bounded batch-1 implementation in progress after owner writes PR1438.
-Migration233 is proposed, not installed. Shared admission and live cutover stay off.
+Status: PR1439 draft after clean initial security/compatibility reviews at f7550d57.
+Reviewed migration233 is installed locally and immutable; genuine generated types
+match; installed proofs pass. Final integration/CI remain pending. Shared admission
+and live cutover stay off. This follows owner writes PR1438.
 
 ## Existing handler, current relationship
 
@@ -61,9 +63,28 @@ Source TDD, existing legacy regressions and focused checks are required. The loc
 rollback harness rehearses proposed definitions without applying migration history;
 it checks ACLs, both roles, owner/archive/tenant denials, publication/count semantics,
 actual lifecycle fence rows and late/suppressed-insert rollback before outer rollback.
-Installed-schema concurrency and actual SDK probes, exact synthetic cleanup including
-durable provisioning audits, matching generated types and independent high-risk
-review remain required before a stable-SHA ready PR and normal main merge.
+Installed-schema concurrency, actual application-adapter SDK probes and exact
+synthetic cleanup including durable provisioning audits pass. Final independent
+high-risk integration review and CI remain required before a stable-SHA ready PR
+and normal main merge. Source TDD93 new tests and311 combined announcement regressions pass;
+217 focused checks plus static gates pass. Initial two independent reviews were
+clean. After verifying exact pika/54322 binding, history001–232 and one-file preview,
+coordinator applied233 once under the explicit task-local waiver. Genuine generated
+types/check match001–233; the helper uses the typed RPC without a provisional cast.
+
+233 SHA256:03183be05ca88736cd7558844594ee56dec8161cdd65966b934be04a272efb26.
+The initial live harness exposed an incorrect immediate-removal-conflict expectation;
+real enrollment row locks instead block removal until the receipt transaction ends.
+The corrected proof observes the actual wait/commit order. SDK probes
+exercise the real application adapter, not just raw service RPC envelopes. No SQL
+source alteration, history repair, reset or reapplication is permitted.
+
+Installed harness passes both global roles via the live SDK adapter, current-member
+removal/move in both orders, subject/pair-first purge locking, owner/archive/class
+deletion, legacy row-first resource and contextual owner-RPC serialization, receipt
+contention/duplicates, cutoff crossing and complete1,003-row coverage. Deliberate
+post-fixture failure exits1 with unconditional exact audit/revision cleanup. Baseline
+returns to3 users/1 classroom/0 announcements/0 receipts/0 tagged audits/sessions.
 
 The user's task-scoped local-migration approval waiver applies only after reviewed
 source, exact local target/history and a one-file forward preview. Production

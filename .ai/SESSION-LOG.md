@@ -651,3 +651,28 @@ fixed-SHA review precedes local233 application under the explicit task waiver;
 installed concurrency/SDK, genuine type generation and final CI remain pending.
 Shared admission/cutover, production/provider/billing/account settings remain off
 or unchanged. Goal stays batch1 of five; this slice is not rollout completion.
+
+PR1439 published draft f7550d57; initial Sol5.6/high security and Sol6.1/high
+compatibility reviews clean. Ledger starts10:57:20UTC with original60-minute budget,
+2 launches/no corrections yet. Source233 unchanged and installed once after exact
+pika/54322/history001–232 and one-file preview; no repeated application/reset/repair.
+Genuine generated types add only the receipt RPC and check matches001–233; removed
+the provisional helper cast. Expanded actual SDK proof to call the application
+adapter. Its ESM/TS harness import failed initially and was corrected to the existing
+tsx .ts pattern; exact fixture cleanup passed on failure. Next live run exposed
+an incorrect immediate enrollment-removal conflict assumption: real row locks
+block removal until completion. Correcting the proof, not SQL or authority.
+Main advanced with independent Java/Blueprint PR1437 (af793b2f); reconcile only
+continuity overlaps and retain its source. Installed races/forced cleanup and final
+integration/CI still pending. Local baseline3 users/1 classroom unchanged.
+
+Installed concurrency/real application-adapter SDK proofs now pass for both global
+roles, membership moves/removal in both orders, subject-first locks, owner/archive,
+class/resource deletion/rebind/publication races, contextual owner serialization,
+receipt contention, cutoff waits and1003-row complete-set count. Forcedpostfixture
+failure exits1 as intended with exact cleanup; baseline3/1 and zero announcements,
+receipts, test audits and harness sessions restored. No SQL changes;233 digest
+unchanged. One integration/remediation batch removes provisional RPC casting,
+adds genuine generated types and real adapter SDK proof, corrects actual lock-order
+and publication-valid fixtures, and records lifecycle receipts. Reconcile current
+main, rerun required checks and final fixed-SHA independent integration review next.

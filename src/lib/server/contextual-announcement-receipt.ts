@@ -25,13 +25,8 @@ export async function markContextualAnnouncementsRead(input: {
   let response: unknown
   try {
     const supabase = getServiceRoleClient()
-    // Narrow provisional signature until migration 233's reviewed local schema regenerates the client types.
-    const rpc = supabase.rpc as unknown as (
-      name: 'mark_announcements_read_for_member_v1',
-      args: { p_actor_id: string; p_classroom_id: string; p_cutoff: string },
-    ) => PromiseLike<unknown>
     const cutoff = new Date().toISOString()
-    response = await rpc.call(supabase, 'mark_announcements_read_for_member_v1', {
+    response = await supabase.rpc('mark_announcements_read_for_member_v1', {
       p_actor_id: actor.data, p_classroom_id: classroomId, p_cutoff: cutoff,
     })
   } catch { throw unavailable() }

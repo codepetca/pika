@@ -13,7 +13,7 @@ const tag = `ann_receipt_${randomUUID().slice(0, 8)}`
 const owner = randomUUID(), member = randomUUID(), nextOwner = randomUUID(), outsider = randomUUID()
 const classroom = randomUUID(), otherClassroom = randomUUID(), deletedClassroom = randomUUID()
 const announcement = randomUUID(), scheduled = randomUUID(), draft = randomUUID(), foreign = randomUUID(), deletedAnnouncement = randomUUID()
-const entitlementPairs = [owner, nextOwner].map(subject => ({ subject, operation: randomUUID() }))
+const entitlementPairs = [owner, member, nextOwner].map(subject => ({ subject, operation: randomUUID() }))
 const identities = [[owner, 'owner'], [member, 'member'], [nextOwner, 'next_owner'], [outsider, 'outsider']]
 const classes = [[classroom, 'primary', owner], [otherClassroom, 'other', nextOwner], [deletedClassroom, 'deletion', owner]]
 const q = value => `'${String(value).replaceAll("'", "''")}'`
@@ -150,11 +150,11 @@ try {
     [member, otherClassroom, /42501/], [member, randomUUID(), /P0002/]]) {
     assert.throws(() => sql(`begin; ${service(mark(target, actor))} commit;`), code)
   }
-  assert.match(execFileSync('node', ['scripts/check-contextual-announcement-receipt-sdk.mjs', member, classroom, announcement],
+  assert.match(execFileSync('pnpm', ['exec', 'tsx', 'scripts/check-contextual-announcement-receipt-sdk.ts', member, classroom, announcement],
     { encoding: 'utf8', timeout: 25_000 }), /PASS live receipt SDK binding/)
   reset()
   sql(`update public.users set role='student' where id=${q(member)} and email=${q(`${tag}_member@example.invalid`)};`)
-  assert.match(execFileSync('node', ['scripts/check-contextual-announcement-receipt-sdk.mjs', member, classroom, announcement],
+  assert.match(execFileSync('pnpm', ['exec', 'tsx', 'scripts/check-contextual-announcement-receipt-sdk.ts', member, classroom, announcement],
     { encoding: 'utf8', timeout: 25_000 }), /PASS live receipt SDK binding/)
   sql(`update public.users set role='teacher' where id=${q(member)} and email=${q(`${tag}_member@example.invalid`)};`)
   reset()
@@ -180,7 +180,7 @@ try {
   reset()
   await withSessions('sdk_parent_conflict', async holder => {
     await holder.run(`begin; select id from public.classrooms where id=${q(classroom)} for update;`)
-    assert.match(execFileSync('node', ['scripts/check-contextual-announcement-receipt-sdk.mjs', member, classroom, announcement, 'conflict'],
+    assert.match(execFileSync('pnpm', ['exec', 'tsx', 'scripts/check-contextual-announcement-receipt-sdk.ts', member, classroom, announcement, 'conflict'],
       { encoding: 'utf8', timeout: 25_000 }), /PASS live receipt SDK browser ACL and 409/)
   })
 
@@ -193,11 +193,12 @@ try {
     assert.equal(receiptCount(), 0)
   })
   reset()
-  // Receipt first: the removal cannot commit through the held subject/pair fence.
+  // Receipt first: the enrollment DELETE waits on its FOR SHARE row lock.
   await withSessions('mark_first_remove', async (first, removal) => {
     result(await first.run(`begin; ${service(mark())}`), 1, 1)
-    await assert.rejects(removal.run(`begin; delete from public.classroom_enrollments where classroom_id=${q(classroom)} and student_id=${q(member)};`), /40001/)
-    await first.run('commit;')
+    const pending = removal.run(`begin; delete from public.classroom_enrollments
+      where classroom_id=${q(classroom)} and student_id=${q(member)};`)
+    await blocked(removal, first); await first.run('commit;'); await pending; await removal.run('commit;')
   })
   assert.equal(receiptCount(), 1)
   reset()
@@ -219,14 +220,11 @@ try {
   reset()
   await withSessions('mark_first_rebind', async (reader, move) => {
     result(await reader.run(`begin; ${service(mark())}`), 1, 1)
-    await assert.rejects(move.run(`begin; delete from public.classroom_enrollments
-      where classroom_id=${q(classroom)} and student_id=${q(member)};`), /40001/)
-    await reader.run('commit;')
+    const pending = move.run(`begin;
+      delete from public.classroom_enrollments where classroom_id=${q(classroom)} and student_id=${q(member)};
+      insert into public.classroom_enrollments(classroom_id,student_id) values(${q(otherClassroom)},${q(member)});`)
+    await blocked(move, reader); await reader.run('commit;'); await pending; await move.run('commit;')
   })
-  sql(`begin;
-    delete from public.classroom_enrollments where classroom_id=${q(classroom)} and student_id=${q(member)};
-    insert into public.classroom_enrollments(classroom_id,student_id) values(${q(otherClassroom)},${q(member)});
-    commit;`)
   assert.equal(receiptCount(), 1)
   assert.throws(() => sql(`begin; ${service(mark())} commit;`), /42501/)
   result(sql(`begin; ${service(mark(otherClassroom))} commit;`), 1, 1, otherClassroom)
@@ -291,7 +289,8 @@ try {
     ['delete', `delete from public.announcements where id=${q(announcement)};`],
     ['rebind', `update public.announcements set classroom_id=${q(otherClassroom)} where id=${q(announcement)};`],
     ['draft', `update public.announcements set is_draft=true,published_at=null,scheduled_for=null where id=${q(announcement)};`],
-    ['reschedule', `update public.announcements set scheduled_for='2031-01-01T00:00:00Z' where id=${q(announcement)};`],
+    ['reschedule', `update public.announcements set scheduled_for='2031-01-01T00:00:00Z',
+      published_at='2031-01-01T00:00:00Z' where id=${q(announcement)};`],
   ]) {
     reset()
     await withSessions(`${label}_first`, async (legacy, reader) => {

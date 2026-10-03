@@ -666,8 +666,11 @@ and page activation remain dormant throughout this integration.
 
 Member receipt implementation is now prepared separately on
 `codex/contextual-announcement-member-receipts`; see
-[its atomicity contract](contextual-announcement-member-receipts.md). Proposed233
-has passed a definition-only rollback rehearsal, not an application or PR review.
+[its atomicity contract](contextual-announcement-member-receipts.md). PR1439 initial
+high-risk source reviews are clean;233 applied locally once under the explicit task
+waiver, after exact history/binding and one-file preview. SQL is immutable and
+genuine generated types match; installed races/SDK/forced cleanup pass. Final
+integration review and CI remain pending.
 The shared classroom experience remains dormant.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other

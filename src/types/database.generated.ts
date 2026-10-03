@@ -12158,6 +12158,10 @@ export type Database = {
           storage_path: string
         }[]
       }
+      mark_announcements_read_for_member_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_cutoff: string }
+        Returns: Json
+      }
       mutate_gradebook_item: {
         Args: {
           p_action: string
