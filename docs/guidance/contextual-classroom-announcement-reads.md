@@ -81,17 +81,17 @@ unchanged; code integration alone does not activate either cohort.
 
 ## Deferred mutation boundary
 
-The [owner-write slice](contextual-announcement-owner-writes.md) is in development,
+The [owner-write slice](contextual-announcement-owner-writes.md) merged in PR1438,
 with immutable locally installed migration232 and passing installed database
-concurrency/SDK/cleanup proofs. Final integration review, exact-head CI and merge
-remain; no activation is authorized by those proofs. Until it merges, teacher create/edit/delete and
-member read-receipt POST requests retain their
-existing global-role and classroom guards. They are not safe to widen by replacing
+concurrency/SDK/cleanup proofs and final reviews/all five CI gates passed.
+Shared-admitted owner create/edit/delete use transaction-time ownership checks;
+legacy paths remain unchanged. Member read-receipt POST still retains its
+existing global-role and classroom guards. It is not safe to widen by replacing
 only the top-level role check: owner/archive or enrollment removal can race the
 write. A later mutation slice must use transaction-time relationship and resource
 binding (normally a service-only atomic database operation), preserve publication
 validation and prove removal/archive concurrency before joining shared admission.
-Next bounded slices are owner create/edit/delete and member read-receipt atomicity;
+The next bounded slice is [member read-receipt atomicity](contextual-announcement-member-receipts.md);
 notification/export consumers remain separate boundaries to inventory before rollout.
 
 The current announcement UI is reused unchanged. No navigation, visual pattern,

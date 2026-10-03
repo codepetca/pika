@@ -282,6 +282,21 @@ jobs:
           grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
           grep -F 'PASS exact synthetic announcement fixture cleanup with zero residual rows' "$cleanup_log"
 
+      - name: Verify contextual announcement member receipts and failed-fixture cleanup
+        shell: bash
+        run: |
+          node scripts/check-contextual-announcement-receipt-rollback.mjs
+          node scripts/check-contextual-announcement-receipt-concurrency.mjs
+          cleanup_log="$(mktemp)"
+          if node scripts/check-contextual-announcement-receipt-concurrency.mjs --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic receipt fixture cleanup with zero residual rows' "$cleanup_log"
+
       - name: Verify contextual lesson-plan bulk atomicity and failed-fixture cleanup
         shell: bash
         run: |
