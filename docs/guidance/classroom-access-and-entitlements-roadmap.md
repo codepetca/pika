@@ -822,6 +822,17 @@ The latest owner instruction explicitly carries all routine in-scope work and
 necessary review extensions without repeated prompts; original clocks/counters,
 absolute review caps and all security/exact-head/release gates remain intact.
 
+Superseding removal evidence: installed236 remains immutable; actual rollbackSQL,
+SDKnormal and three forced-cleanup modes passed exact cleanup/global baselines.
+Earlier proof-harness defects were corrected without changing236. PR1448's full
+initial security/compatibility review is CLEAN on reviewed8e81327a. The child is
+now prepared on updated1445parenta9613f46, with all14reviewed child files unchanged.
+This draft stack still awaits actual1445main merge and squash-base reconciliation,
+changed-base review and exact-head CI; parent preparation is not readiness or
+batch1/full-phase completion. Original1448clock15:19:13Z, extension17:19:13Z and
+launch8/initial1/targeted5/fix5 counters remain. Local001–236/production001–225,
+sharedadmission/fullcutoverOFF; duplicate-row lifecycle remains the batch3 limit.
+
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem

@@ -11,62 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Copy1431 merged; announcement shared GET integration
-
-Verified1431 normal squash merge493e752a after all five gates passed on unchanged
-reviewedca403202, CI37076238068. Canonical main fast-forwarded cleanly; no worktree
-cleanup, production promotion or rollout activation. Local001–230 observed;230 is
-billing-owned and unmerged into this base, with no reapply/reset/types regeneration.
-Owner approved continuing batch1 announcement integration. New attached worktree
-codex/contextual-announcement-reads starts at493e752a; startup verifies. Astra/high
-confirmed schema-free current-classroom payload joins and precise composite keysets.
-Sol6.1/high owns helper/schema/GET tests; coordinator owns actual SDK fixture proof,
-CI and docs. Writes, read receipts, notification/export consumers and live activation
-remain deferred. Independent bounded PR review follows local acceptance, not this
-architecture preparation. No migration or UI change is included.
-Local acceptance:65new/134announcement tests;189focused checks plus architecture,
-UI/design policy, TypeScript and lint pass. Actual SDK/PostgREST proves1009rows,
-precise/null keysets, schedules, role-neutral relationships and first/later/terminal
-revocation; positive and forced-failure cleanup leave zero synthetic rows. New
-announcement PR requires its own fixed-SHA high-risk review budget; copy1431's
-closed ledger is not reset or reused. Rollout and production remain held.
-Initial1436 review was clean at5f2bdd3c (2launches,0fixes); CI37082238009 then
-found only api-route-standards debt26vs25: new GET schema parsing incorrectly
-credited an untouched POST at file scope. Returned draft. Batch1 removes redundant
-route parsing; the named feature helper still rejects invalid inputs before any
-SDK query. Baseline, mutation handlers and shared read logic remain unchanged;
-real-helper route regressions plus the standards check cover the correction.
-One targeted compatibility recheck and final integration precede new exact-head CI.
-Batch1 local acceptance passes191focused checks, standards/announcement subset117,
-TypeScript/lint/audit. Shared helper/schema/database contract are unchanged, so
-earlier actual PostgREST and exact cleanup evidence remain applicable.
-
-## 2026-10-02 — Minimal Java lesson viewer
-
-- Removed the header, sidebar, and Previous/Next buttons at the owner's request. All viewer controls now live in a compact fixed footer: page count, Read/Present, fullscreen, print, and three-dot options with Light/Dark appearance. Keyboard navigation remains; reading scroll tracks the current page. Included Lucide icon license alongside generated assets.
-- Visually checked desktop light/dark and phone-width layouts; verified view switching, Arrow/Page keys, menu Escape, no header, and no horizontal overflow. Build/syntax/diff checks pass. Native fullscreen events toggle the control label, though the automated embedded browser does not retain fullscreen. Private deployment succeeded from pushed source 51027a7847c6271f5587e5eff923a4b0391720d7, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_b83acb0cc9f88191929a85adc6460ec6. Same hosted URL and Material draft; audience unchanged. Screenshot: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-minimal-viewer.png.
-
-## 2026-10-02 — Visual Java slides and presenter notes
-
-- Owner requested ultra-simple Present diagrams and a detailed Read view in a separate notes window. Added nine diagram selections to the Markdown with SVG/mobile templates in site/visuals.mjs; original reading explanations retained, downloaded student Markdown strips the visual directives. Footer menu now opens presenter notes as a named popup with normal link fallback. Ephemeral session-scoped BroadcastChannel synchronizes current section/theme and allows notes keyboard navigation to control the presentation. No Pika runtime/schema changes; risk none; weekly remaining53%, prior DeepSeek pause retained.
-- Verified all nine diagrams visually, desktop light/dark and 402px mobile with no horizontal overflow, one diagram/no paragraphs in Present, all nine detailed sections/no slide art in Read, menu access, and actual Chrome popup with slide6→7 notes sync and notes PageDown→slide8. Existing print retains detailed notes through print CSS. Build, syntax, and diff checks pass. Evidence: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-visual-presentation.png and java-presenter-notes.png.
-- Sites helper restored; normal existing-source opening/push/package workflow used. Private deployment succeeded from5997c568b63389585c1a23cf02e89ec56d2bdfdc, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_06ce177f16308191955bc4090a1bf0a2. Same hosted URL and Material draft; audience unchanged. Repository artifacts remain in collaborative review worktree.
-
-## 2026-10-02 — Java viewer icon toggle
-
-- Replaced visible Read/Present labels with existing licensed Lucide book-open/presentation geometry; retained accessible names, titles, pressed states, and 44px touch targets. Verified both view switches, light/dark state, and screenshot java-icon-toggle.png in this task’s visualizations directory. Build/syntax/diff checks pass; standalone artifact, risk none.
-- Normal Sites workflow and private deployment succeeded from ac8c61bd089267634b6cc5b90e41334a90637128, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_a5774f13b6a8819185f0e0a29a3eda90. Same URL, audience, and Material draft.
-
-## 2026-10-02 — Java viewer Print menu
-
-- Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
-- Private deployment succeeded from5d60a47875b85a5f6117acf8926c3b116c85ae7a, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_26ddf43ab1f481919b0befea1c0809c6. Same URL, audience, and Material draft.
-
-## 2026-10-02 — Presentation diagrams in Read notes
-
-- Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
-- Verified nine visible diagrams plus nine detailed sections in Read, Chrome light/dark screenshots, 402px mobile diagram with no overflow, and full-size Present diagram with heading/details hidden. Build/syntax/diff checks pass. Evidence: task visualizations/java-read-diagrams.png. Private deployment succeeded from8225d108361d62b1f14ac470727dbab2e57ce717, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_93b77fe0a0b88191b4130f516c559fbe. Same URL, audience, and Material draft.
-
 ## 2026-10-02 — Release Java lesson to ICS3U students
 
 - Owner explicitly requested course inclusion and student viewing. Verified Stewart Chan teacher session in exact P3 - ICS3U classroom 0a103a76-2b60-4fb6-8158-4a97727bd35f, existing Material title/content, and latest hosted URL. Changed Sites audience from owner-private to public via native access update (revision2); no external viewer invitations. An unauthenticated HTTP request returned200 and the correct title/all9 sections/9 diagrams. No code/build/deployment change.
@@ -722,3 +666,23 @@ rolls back every cleanup mutation and restores the generation guard. Earlier
 proof-only setup/cleanup defects corrected without editing immutable236; exact
 abandoned synthetic closure independently reviewed/recovered, all unrelated
 whole-row fingerprints unchanged. Full draft review/final focused/CI remain gates.
+
+## 2026-10-03 — Removal1448 updated-parent preparation
+
+Rebased reviewed8e81327a onto updated1445parenta9613f46 with oldparenta7613a5f
+as the exact exclusion boundary. Only CURRENT/archive continuity conflicted;
+all14child runtime/schema/SQL/genuine-types/proof/test/guide files remain
+byte-identical, including immutable236. All updatedparent/main and childCIsteps
+are preserved. Removed four surplus exact session copies whose original archive
+entries remain; combined parent+child−oldparent historical multiplicities persist.
+ActualSQL/SDKnormal and three forced-cleanup proofs already PASS;236 itself was
+unchanged by the earlier harness repairs. Full initial security/compat review
+is CLEAN. Original1448clock15:19:13Z/extension17:19:13Z, launch8/initial1/
+targeted5/fix5 retained; no new review launch. This prepares a draft stack only:
+actual1445main squash merge/reconciliation, changed-base review and final exactCI
+remain. Local001–236/prod001–225/sharedadmission/fullcutoverOFF unchanged.
+No DB operations/proofs/types regeneration, publication, PR/CI/provider changes.
+Focused against updatedparenta961 passes183tests/15files plus architecture,
+UI/design policy, TypeScript and lint; startup/diff/history/preservation pass.
+Reconciliation audit reports no TypeScript edits. Actual-main focused checks
+remain required after the parent's eventual squash merge and child reconciliation.
