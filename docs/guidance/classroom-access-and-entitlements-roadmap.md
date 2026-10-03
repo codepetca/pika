@@ -833,6 +833,19 @@ batch1/full-phase completion. Original1448clock15:19:13Z, extension17:19:13Z and
 launch8/initial1/targeted5/fix5 counters remain. Local001–236/production001–225,
 sharedadmission/fullcutoverOFF; duplicate-row lifecycle remains the batch3 limit.
 
+Removal reconciliation now follows verified calendar PR1446 squash merge2095efec
+(2026-10-03T17:40:27Z; reviewed795a528a, all five eligible checks/PR Gate passed
+in37139673399). The two removal paragraphs above remain historical receipts;
+their pending-parent language does not describe the current integrated base.
+All13nonshared reviewed removal files, immutable236 and its genuine eight-line
+generated RPC remain unchanged; CI tests add the original removal block after
+the exact incoming roster/calendar blocks. Whole actual-main runtime,235/curated
+contracts and calendar forced-concurrency CI are retained. This is local
+integration only: changed-base independent review, publication and exact-head CI
+remain pending. Original1448clock15:19:13Z/extended18:19:13Z and launch8/initial1/
+targeted5/fix5 remain; shared local metadata237 is not regenerated into this
+001–236 branch. Production225/sharedadmission/fullcutoverOFF remain unchanged.
+
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem

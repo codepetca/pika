@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Release Java lesson to ICS3U students
-
-- Owner explicitly requested course inclusion and student viewing. Verified Stewart Chan teacher session in exact P3 - ICS3U classroom 0a103a76-2b60-4fb6-8158-4a97727bd35f, existing Material title/content, and latest hosted URL. Changed Sites audience from owner-private to public via native access update (revision2); no external viewer invitations. An unauthenticated HTTP request returned200 and the correct title/all9 sections/9 diagrams. No code/build/deployment change.
-- Posted the existing 1.1 Java explained Material through the teacher UI; verified Posted badge after server save, reload, and reopening, with the correct clickable lesson link. Material has no due date/submission. Renamed local mirror to material.json and set is_draft=false; updated teaching notes/README to record public access and posted state. Evidence: task visualizations/java-material-posted.png. Future site edits must preserve public audience and use ordinary save/deploy, not owner-private deployment.
-
-## 2026-10-02 — Person/code/group icons for Java roles
-
-- Updated Who does what diagram: Programmer uses Lucide user-round, Program uses </>, User uses Lucide users-round. Same mapping in Present, compact Read, and mobile variants; existing labels/arrows retained. License already included; no new dependency. Standalone artifact, risk none.
-- Visual Chrome screenshot verified dark Present; DOM confirmed matching Read/mobile icon geometry and code label. Build/syntax/diff checks pass; evidence task visualizations/java-role-icons.png. Existing public audience verified, source pushed and archive saved; ordinary public save/deploy succeeded from35da6cb671f9f55661d473a754951b044dbac354, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_3a42d83540608191ba94725137d180cd. Posted P3 ICS3U Material already points to the same updated URL.
-
-## 2026-10-02 — Java lesson presentation scale
-
-Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
-
-## 2026-10-02 — Java compiler factory icon
-
-Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.
-
-## 2026-10-02 — Program game controller icon
-
-Replaced the Program code symbol in Who does what (slide 3) with a locally drawn game controller SVG, including reading/mobile variants. Visually verified Present and Read in Chrome. Build, syntax check, and whitespace check passed. Public Sites version appgver_b856dce49cb08191ba15841e9f27ca94 published from source 68c563f63a627b20e7111ccd8d869c85641e7ce0; deployment appgdep_6abfc84610548191ab624a497a4fe005 succeeded. Same student Material URL. No Pika runtime/schema changes.
-
 ## 2026-10-02 — Reusable lesson viewer guidance
 
 Saved docs/curriculum/lesson-viewer-guide.md with the agreed visual Present / detailed Read format, minimal footer, synchronized notes, source file map, Markdown example, reuse steps, visual verification, hosting/audience and Material guidance. Added a compact task route in docs/ai-instructions.md and linked from the Java site README. Documentation only; risk none; direct Codex editing/verification. All 43 ai-startup-docs tests passed after shortening the new route to fit the existing context budget; 10 local links and whitespace validated. Viewer/lesson/guidance remain saved in codex/ics3u-java-intro worktree, uncommitted/unmerged. No public lesson deployment or classroom change required.
@@ -641,6 +619,7 @@ attendance prefix regression4/4 and actual-main-aware audit8files pass. Logs:
 /private/tmp/pika-1446-reconcile.d4sa0y; fullfocused pika-focused-ejT1iX.
 Root-owned changed-base review and exact frozen-head readyCI remain required;
 shared admission and fullcutoverOFF; no batch completion or activation claimed.
+
 ## 2026-10-03 — Preserving removal source and local236
 
 Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
@@ -686,3 +665,30 @@ Focused against updatedparenta961 passes183tests/15files plus architecture,
 UI/design policy, TypeScript and lint; startup/diff/history/preservation pass.
 Reconciliation audit reports no TypeScript edits. Actual-main focused checks
 remain required after the parent's eventual squash merge and child reconciliation.
+
+## 2026-10-03 — Removal1448 actual calendar-main reconciliation
+
+Rebased preparedb47c6fa7 onto actual calendar1446 main2095efec, usinga9613f46
+as the exact old-parent boundary. Root verified1446 squash merge at17:40:27Z,
+reviewed795a528a/all five eligibleCI37139673399 checks and PR Gate passed.
+All13nonshared reviewed8e81327a feature files remain byte-identical: runtime,
+schema, guide, proofs/tests, immutable236 and genuine generated eight-line RPC.
+The approved shared CI test union preserves exact main roster/calendar blocks
+first, unchanged removal block next, and the full common remainder; whole main
+CI plus original removal proof insertion preserves every calendar cleanup gate.
+History full-body multiplicities are actual2095+preparedb47−a961+this one entry.
+Removed only two exact surplus session copies (Release Java and Person/code
+roles), with original full bodies retained in the archive. All main roadmap
+text and both historical child removal paragraphs remain unchanged, plus one
+new reconciliation receipt. Canonical Prod DB 001–225 spacing restored;
+shared local001–237 metadata differs from this source001–236/actualmain235.
+No database/status/proof/type generation/provider/remote publication/CI writes.
+Original clock15:19:13Z/extended18:19:13Z, launch8/initial1/targeted5/fix5 remain.
+Changed-base independent review, publication and final exact-head CI remain
+pending; sharedadmission/fullcutover/billing remainOFF. Actual-main focused
+184tests/15files, architecture/UI/design/TypeScript/lint all PASS; explicit Bara
+spacing regression4/4 and actual-main-aware audit10files PASS. Private full
+preservation verifier/diff/official trim pass,40recent/2092combined entries.
+Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
+pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
+remain untouched. This is implementation evidence, not the independent review.
