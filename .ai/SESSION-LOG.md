@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Apply and verify local copy229
-
-Billing1429 merged25cc0691; all five gates onfe228354/run37039171724. Rebased copy,
-retaining both histories. Matching228 digest7aba5de5, pika/54322,001–228 history and
-229-only preview verified; approved LOCAL229 applied once, permission consumed.
-Local001–229/service-only grants/legitimate generated types pass. Fixture active
-lineage uniqueness collision reproduced red/green; distinct source artifact fix,
-no SQL/guard changes. Positive and forced-failure harness pass with zero residue;
-late rollback verified before outer rollback.263focused+architecture/policies/
-TypeScript/lint pass.229 digest9b4c9b8b unchanged/immutable. Draft/full PR review next;
-1review/3fixbatches, extension ends17:50:54Z after prerequisite CI. No production,
-account plan, billing activation or admission changes.
-
 ## 2026-10-02 — Reconcile copy1431 after green CI and attendance1430
 
 Both independent full reviews clean at4516bc85; all five CI gates pass on
@@ -462,3 +449,27 @@ regressions then pass. Coordinator reruns actualSDKnormal/forcedfailure: both
 owner/member null artifact evidence onpage2 now503 with no partiallist; all prior
 1007/1006/keyset/revocation cases and exactcleanup remain green.245reconciledfocused
 checks and static gates are the batch acceptance before fixed-SHA targeted review.
+
+## 2026-10-03 — Material reads merged; owner-write source preparation
+
+PR1440 normal squash merged04f8d1e3 at12:17:30Z after clean initial/targeted/final
+reviews on5a1df811 and all five ready-event CI37120967402 gates (0queue/1509run).
+Canonical main fast-forwarded cleanly. Lifecycle10events/1correctionpush; active
+time/tokens unknown. Reviewledger closes with4launches/1batch and originaldeadline.
+Local001–233 and production001–225 unchanged; shared admission/cutover remain OFF.
+
+Separate attached codex/contextual-material-owner-writes prepared shared-only
+POST/PATCH/DELETE with strict inputs and actor/class-bound service-only atomicRPCs,
+retaining legacy/exact-pair creator193 and all triggers/publication/lineage semantics.
+Implementation and SDK workers own disjoint files; neither executed database fixtures.
+Coordinator caught and corrected local helper environment binding, complete reorder
+snapshots and valid negative mixed positions before review.207tests/10suites, lint,
+architecture1128modules, shell/diff/audit and API-boundary ratchet pass. TypeScript
+has only3 expected genuine unappliedRPC-name errors; no generated types fabricated.
+Candidate234 SHA256fed955b0557ff461ef79fb22b2372a6672a6ca15df6324059d00dd140ffaf8a7
+remains UNAPPLIED and database behavior UNVERIFIED. Clean rebase onto actual1440
+merge skips stacked read commits; runtime/script/SQL trees byte-identical. Independent
+review precedes exact local history/one-file preview/application under the explicit
+local approval waiver, genuine types and serialized rollback/SDK/forced-cleanup proofs.
+No production/provider/real-account/plan/activation authority is inferred. Batch1 of
+five remains incomplete; linked Blueprint/material-adjacent/roster boundaries follow.

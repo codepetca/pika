@@ -35118,3 +35118,17 @@ fresh CI exposed required Prod DB summary prefix. Reproduced same omission in co
 handoff with existing Bara policy test, restored the prefix without weakening the
 startup byte cap or tests. Migration229 digest9b4c9b8b unchanged. Wait billing merge;
 no production, plan/account, billing activation, history repair/reset/reseed changes.
+
+<!-- pika-session-log-archive-batch:94def65bf24d36742123a7b0d201c6f9a964e85143e7aaabc20f66a2935bc792 -->
+## 2026-10-02 — Apply and verify local copy229
+
+Billing1429 merged25cc0691; all five gates onfe228354/run37039171724. Rebased copy,
+retaining both histories. Matching228 digest7aba5de5, pika/54322,001–228 history and
+229-only preview verified; approved LOCAL229 applied once, permission consumed.
+Local001–229/service-only grants/legitimate generated types pass. Fixture active
+lineage uniqueness collision reproduced red/green; distinct source artifact fix,
+no SQL/guard changes. Positive and forced-failure harness pass with zero residue;
+late rollback verified before outer rollback.263focused+architecture/policies/
+TypeScript/lint pass.229 digest9b4c9b8b unchanged/immutable. Draft/full PR review next;
+1review/3fixbatches, extension ends17:50:54Z after prerequisite CI. No production,
+account plan, billing activation or admission changes.
