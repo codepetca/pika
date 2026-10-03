@@ -637,10 +637,11 @@ integrated activation evidence still apply. The owner explicitly waived separate
 local migration approvals in this task; production approval remains unchanged.
 Local231/232 are now applied once and immutable after source/target/history checks.
 Both initial1438 reviews at2f6fe7e and installed SDK/concurrency/forced-cleanup
-checks pass, with unchanged existing records and billing disabled. Canonical
-billing230/231 source integration and generated types/CI/merge still wait on1435's
-fixture-only budget checkpoint. No source ownership is transferred and no review
-budget extension is inferred. Member read receipts follow. Shared
+checks pass, with unchanged existing records and billing disabled. Billing1435
+merged efe4eb3f; announcement source rebased and genuine generated types/check
+match001–232. Final integration review, exact-head CI and1438 merge remain.
+The owner clarified the requested bounded elapsed extension; counters stay intact.
+No source ownership is transferred. Member read receipts follow. Shared
 admission and product cutover stay dormant.
 
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared

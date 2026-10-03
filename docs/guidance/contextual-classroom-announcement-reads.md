@@ -82,8 +82,9 @@ unchanged; code integration alone does not activate either cohort.
 ## Deferred mutation boundary
 
 The [owner-write slice](contextual-announcement-owner-writes.md) is in development,
-with provisional migration232 and no activation or completed database concurrency
-claim. Until it merges and is schema-verified, teacher create/edit/delete and
+with immutable locally installed migration232 and passing installed database
+concurrency/SDK/cleanup proofs. Final integration review, exact-head CI and merge
+remain; no activation is authorized by those proofs. Until it merges, teacher create/edit/delete and
 member read-receipt POST requests retain their
 existing global-role and classroom guards. They are not safe to widen by replacing
 only the top-level role check: owner/archive or enrollment removal can race the

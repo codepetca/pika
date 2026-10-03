@@ -11,80 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 Teacher Daily logs review corrections
-
-PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
-correction validates malformed query envelopes and catches builder failures as
-generic 503 (five TDD regressions); both teacher Daily local harnesses now retain
-exact entitlement operation IDs and assert live-state/audit cleanup. Removed only
-six identified synthetic logs-harness audit rows from local, retaining a private
-recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
-119 focused tests and static checks pass. Targeted/final review pending. No
-production, migration, cohort, plan or UI change; summary read remains next.
-
-## 2026-10-01 — Dormant teacher cached Daily summary implementation
-
-While independently reviewed roster-logs PR1421 runs CI, a separate worktree
-codex/contextual-teacher-daily-summary starts from merged1420 actor admission.
-Worker owns only summary route/helper/schema and unit/API tests; coordinator owns
-local fixtures/CI/docs/Git. Every stats/count/cache statement binds current owner,
-classroom and date; existing ready/pending/no_entries/unavailable semantics and
-name restoration remain. Owner caught result-envelope validation gaps before
-initial review; ten TDD regressions now fail closed. 62 targeted/153 focused tests
-and all static checks pass; real local PostgREST verifies both owner role values,
-cache states/isolation, archived owner and transfers before all three reads, with
-exact fixture/audit cleanup. Independent review and final main reconciliation
-pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
-No AI, billing, migration, UI, cohort activation or production change.
-
-## 2026-10-01 — Roster logs merged; cached summary review corrections
-
-PR1421 merged main e87d322a after four independent reviews, one correction batch,
-119 focused tests/static checks, real1001-learner database checks and every exact
-head CI36940960454 gate at5adf5905. Hub is synchronized; no production activation.
-PR1422 initial reviews at6f255b32 accepted microsecond freshness loss and unresolved
-name-map warning suppression. One batch preserves full timestamp precision and
-requires nonblank own map references before restoration (14 new tests,11 red).
-76 targeted/167 focused tests and real PostgreSQL microsecond/map/race/cleanup
-cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
-application source has no rebase conflicts and no migration was renumbered.
-Targeted security and final integration review remain pending. No AI, schema,
-cohort, UI, billing or production change; lesson-plan list reads follow.
-
-## 2026-10-01 — Daily outer-scroll investigation
-
-- User clarified the defect: Daily's whole page scrolls vertically into blank space below the table, in wide and narrow windows; only the table should scroll.
-- Read-only local investigation in app-managed worktree `daily-scroll-containment`; startup verification passed. With 80 mocked roster rows and the full classroom shell, Chromium1440×900 keeps document900px and table578px;1000/390px widths grow document3326px and table3004px because AppShell confinement is desktop-only. Exact wide-window blank-space symptom remains unreproduced; awaiting clarification about table-end versus outside-table scrolling. Product source unchanged.
-- Debug screenshots `/tmp/pika-daily-summary-{1440,1000,390}.png`; reference historical PR775/test-pane overflow and PR578/student-scroll persistence. Automatic DeepSeek delegation paused through2026-12-31 per shared pilot record.
-
-## 2026-10-01 — Daily blank-space cause confirmed in Chrome
-
-- Inspected user's existing production Daily tab read-only. At1152×608, body/AppShell608px but document953px and page scrollY300px, with the table independently scrolled551px. Hidden `No QR check-in` spans in Check-in cells extend to document953px because every ancestor through the scroller is statically positioned.
-- User has reduced motion enabled: Daily entry animation/transform is disabled. The animation otherwise incidentally creates a containing block, explaining why local default-motion screenshots missed the desktop defect. Containment should be explicit for screen-reader labels in both Daily table modes; retain their accessible text. Narrow shell-height issue from earlier investigation is separate.
-- Product source unchanged. Next implementation: regression with reduced-motion and missing check-ins, explicit local positioned containment, compare default/selected Daily states and wide/narrow viewports.
-
-## 2026-10-01 — Daily scroll containment fix
-
-- Made both teacher Daily roster scrollers positioned containers so hidden check-in labels remain inside the table without depending on animation transforms. Added an AppShell narrow-viewport opt-in used only by teacher Daily; reused the Daily/TeacherWorkspaceSplit composition and `/pattern-lab` Daily reference. No new visual pattern or data behavior.
-- Browser regression failed before the fix (reduced-motion document1455px for a900px viewport). Final Playwright matrix passes20: teacher fixture/full classroom, selected/unselected, normal/reduced motion,1440×900/390×844, light/dark; student Daily regression/screenshots pass all4 projects. Exact user-size1152×608 reduced-motion smoke keeps document608px and context bar56px before/after table-end wheel scrolling. Screenshots inspected in `test-results/` and `/tmp/pika-daily-exact-classroom.png`.
-- Focused gate passes223 tests plus architecture, UI/design policy, TypeScript and lint; audit/diff checks pass. An earlier concurrent run timed out two unrelated startup-doc harness tests; serial rerun passes. Risk profile:none. Independent review and final PR CI pending; use one GPT-5.6 Sol/high behavior reviewer because Terra is unavailable. DeepSeek pilot remains paused.
-
-## 2026-10-01 — Contain long student tables across classroom workspaces
-
-Extended the Daily scroll fix to Roster and assignment/test grading, including Tests before student selection. Teacher table workspaces now keep the narrow shell within the viewport; Gradebook retains its existing mobile selector flow. Explicit containing blocks keep hidden row labels inside table scrollers, and vertical gesture containment prevents viewport bounce at the last row. The shared gapped split gives stacked table/inspector panes available height so an open Assignment inspector cannot squeeze the table to one row. Existing Pattern Lab Roster, Gradebook and Workspaces owners are reused; no new UI pattern. Added a strictly development-only full ClassroomPageClient fixture with synthetic identities and mocked read-only data. Production API authorization is unchanged. All 60 teacher/student light/dark desktop/mobile and normal/reduced-motion browser cases pass; 18 additional reduced-motion checks pass at 1152x608, 1000x608 and 390x608. Checks cover last-row reachability, selected states, sticky headers where present, usable table height and inspector bottom controls. Screenshots visually reviewed under ignored artifacts/scroll-audit. Focused checks pass 581 tests in 37 files, architecture, UI/design policy, TypeScript and lint. Legacy teacher dashboard was inspected in source: its normal page flow contains actual content, without the hidden-label empty-tail mechanism. Local authenticated backend verification was unavailable because shared local Pika PostgreSQL was unhealthy; no database changes were made. PR1419 remains draft for expanded independent review. Risk: standard UI behavior; model recommendation: GPT-6 Sol.
-
-## 2026-10-01 — Selected Workspaces reference containment
-
-An extra selected-state Pattern Lab capture after the clean expanded review exposed an unbounded gallery canvas and missing flex display on its active Students panel. Reused the existing h-96 preview size as a bounded canvas for Students, leaving inactive panels hidden and summary/overview sizing unchanged. The shared production split remains unchanged. Browser coverage verifies both panes retain usable height, the last student and inspector content are reachable, and the hidden panel stays hidden. All four desktop/mobile light/dark reference cases pass and screenshots are inspected. Focused checks still pass 581 tests in 37 files plus policy, architecture, TypeScript and lint. PR1419 returned to draft and its previous ready CI was cancelled before this first remediation batch; targeted and final integration review remain pending.
-
-## 2026-10-01 — Approved scrolling PR main synchronization
-
-PR1419 at d03d91f2 passed independent cumulative, targeted and final integration reviews and exact-head CI36938870903, including Test & Build, Browser Experience Matrix and PR Gate. Main advanced during CI, creating archive marker conflicts. Owner approved one bounded main sync, one additional compatibility review and fresh CI. Rebased onto e87d322a, incorporating contextual teacher Daily entry/history and roster-log authorization work without changing its behavior. Resolved three duplicate archive-marker conflicts using main's markers; automated comparisons confirm all historical archive text from both tips is retained and all21 scrolling implementation/test files are byte-identical to the reviewed version. No dependencies, schema, migration application, production promotion or merge is authorized by this synchronization approval. Fresh focused checks pass581 tests/37files plus architecture, policy, TypeScript and lint; all51 incoming Daily API/server tests and four reduced-motion Daily browser cases pass. Screenshots are preserved under ignored artifacts/scroll-audit/main-sync-results. One compatibility review and new stable-head CI remain pending. Review ledger: fourth reviewer launch planned, second correction/sync batch; no broader review loop.
-
-## 2026-10-01 — Student table scrolling merge authorization
-
-Owner requested pull, conflict resolution and merge of PR1419. Rebased onto main7c0ded24 (cached Daily summary reads); archive-only conflicts retain both histories. All21 feature implementation/test blobs remain unchanged from c7a48cb1. Previous exact-head CI36944522875 passed all eligible gates. One additional bounded compatibility reviewer and fresh focused/incoming-summary checks precede fresh final CI and the authorized squash merge to main. No production promotion or database change.
-
 ## 2026-10-01 — Final scrolling synchronization without archive churn
 
 Main advanced to478fd94e before the final ready event. Owner's pull/resolve/merge instruction covers this follow-up synchronization. No application conflict; all21 scrolling implementation/test files and cached-summary source remain unchanged. Retained the canonical main archive byte-for-byte and preserved this task's seven unique entries in the recent log, using the supported --keep60 setting within its60-entry cap. All historical bodies from both parents remain present; this avoids rewriting unrelated archive batches. Fresh focused and incoming lesson-plan tests, final fixed-SHA compatibility verification and exact-head CI precede the authorized main squash merge. Production promotion remains separate.
@@ -586,6 +512,7 @@ and generated types remain byte-identical to reviewed4209da62. Types last matche
 One mechanical fixture reviewer (launch7) follows focused checks/frozen commit;
 no fresh full-diff wave. PR1435 is draft until review/exact-head CI, then authorized
 main merge. Billing OFF; no migration reapplication, reset or provider call.
+
 ## 2026-10-03 — Announcement reads merged; owner-write preparation
 
 PR1436 merged66fa5de3 after clean initial, targeted and final integration reviews,
@@ -642,3 +569,17 @@ CI and normal merge remain. Member read receipts follow; batch1/cutover not comp
 Receipt update initially exceeded the16,000-character startup budget by54; compressed
 CURRENT without weakening the gate.245focused checks,architecture/UI/design/TS/lint
 now pass. One documentation-only correction batch; no SQL/runtime changes.
+
+## 2026-10-03 — Announcement canonical source/type integration
+
+Owner clarification approves the requested30-minute elapsed review extension,
+ending10:03:44UTC; prior3launches/1docsfix/1targetedwave remain counted. Billing1435
+merged efe4eb3f after all five exact-head gates passed on0de5d0ea. Rebased1438 with
+continuity-only conflicts, preserving all historical archive entries, CI steps,
+runtime/SQL and immutable230–232 digests. Genuine type generation/check against
+matching001–232 adds only the three announcement RPCs; generated-key wrapper now
+refines nullable create inputs instead of provisional function declarations.
+Installed SDK/concurrency/rollback/forced-cleanup proofs remain applicable to the
+unchanged runtime/SQL. Fresh focused gate and final integration review are next;
+PR remains draft. No database reapplication, production, billing/provider operation,
+cohort activation or full cutover. Member read receipts follow normal1438 merge.

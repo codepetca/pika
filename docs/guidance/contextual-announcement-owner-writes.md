@@ -1,7 +1,8 @@
 # Contextual announcement owner writes
 
 Status: draft PR1438; initial source reviews and installed-schema local checks pass.
-Not yet source/type-reconciled, ready for CI, merged or approved for cohort activation. This is the next bounded
+Canonical source and generated types now match local001–232; final integration
+review and exact-head CI remain. Not merged or approved for cohort activation. This is the next bounded
 batch-1 slice after announcement reads PR1436, merged as `66fa5de3`.
 
 ## Scope and compatibility
@@ -100,7 +101,7 @@ unconditional exact cleanup including durable provisioning/entitlement audits.
 CI replays canonical migration files in an ephemeral database before these checks.
 
 Local schema001–232 was verified on2026-10-03. Billing owns installed immutable230
-and231; PR1435 remains draft at its fixture-only review-budget checkpoint.
+and231; PR1435 merged as efe4eb3f after exact-head CI37112129981 passed all five gates.
 Initial independent high-risk reviews were clean at2f6fe7e (Sol5.6 security,
 Sol6.1 compatibility fallback);2 initial launches,0 behavioral fixes. The subsequent
 receipt update required one startup-note compression batch (245 focused checks pass).
@@ -113,8 +114,14 @@ checkout containing unchanged reviewed230/231 and byte-identical reviewed232.
 Only each intended forward file was previewed/applied once; no reset/repair/reseed.
 Function ACL/security metadata match; users/classrooms/upgrades/receipts remain3/1/0/0,
 sandboxfalse, zero synthetic residue and no test sessions after both harness modes.
-Canonical billing source integration and owner-write type reconciliation remain pending.
-Do not edit generated database types manually or generate from mismatched history.
+Rebased onto efe4eb3f with continuity-only conflicts; runtime, SQL and installed
+migration digests are unchanged. Genuine generation/check against matching001–232
+adds only three RPC contracts; the wrapper refines nullable create inputs only.
+Existing archive history is preserved. No generated metadata was hand-edited.
+The owner clarified the requested30-minute elapsed extension; the original ledger
+now ends10:03:44UTC with counters retained (3 launches/1 documentation fix/1 targeted
+wave before this canonical integration batch). Final integration review and
+exact-head CI remain required; no review or rollout gate is bypassed.
 Separate local migration approvals are waived by the user for this owning task only;
 exact reviewed source, target/history checks and non-destructive limits still apply.
 Production migration approval remains separate. Production schema, cohort admission and full classroom/home cutover
