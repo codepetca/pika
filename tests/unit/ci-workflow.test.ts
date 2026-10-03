@@ -18,6 +18,9 @@ describe('CI workflow', () => {
     expect(step).toContain("grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts'")
     expect(step).toContain('--verify-cleanup-after-commit-before-capture')
     expect(step).toContain("grep -F 'FAIL Forced roster removal post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)'")
+    expect(step).toContain('--verify-cleanup-suppressed-delete-rollback')
+    expect(step).toContain("grep -F 'FAIL Forced roster removal suppressed-cleanup rollback proof (expected for --verify-cleanup-suppressed-delete-rollback)'")
+    expect(step).toContain("grep -F 'PASS synthetic roster removal suppressed cleanup delete rolled back all cleanup mutations, guard restored'")
   })
 
   it('requires genuine roster owner SQL/SDK proofs and exact failed-fixture cleanup', () => {
