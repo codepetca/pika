@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Java Materials second approved merge synchronization
-
-Main advanced to875316af through reviewed dormant announcement owner writes PR1438 before PR1437 could merge. Resolved only the archive conflict, preserving canonical main and the complete feature append. Lesson, viewer, API, UI, tests and guidance remain byte-identical to reviewed73ff84fb; incoming application/workflow/schema/test files match main exactly. Prior sync CI37115051242 passed browser and database contracts but hit one unchanged TestDetailPanel Markdown confirmation assertion; all57 tests in that file pass locally under coverage instrumentation, while the partial run cannot meet whole-repository coverage floors. One bounded compatibility review and fresh focused/exact-head checks cover the new combined head before the already-authorized squash merge. No production promotion, hosted writes, migration application or activation.
-
 ## 2026-10-03 — Java Materials startup budget correction
 
 Second bounded sync review verified archive/log preservation and unchanged application boundaries, then confirmed the required startup context exceeds16000characters by3 after incoming CURRENT growth. Shortened the existing router sentence from Read routed docs before edits to Read routed docs first, preserving all routing and invariants; the startup set now totals15996. This is the fourth correction/sync batch, with a brief targeted verification and fresh focused gate before final CI. Owner main merge authorization persists; production/migrations remain separate.
@@ -935,3 +931,19 @@ TDD3newRED→13GREEN; cleanup SQL/application/adapters/types/deps unchanged. Ori
 21:00:59→22:00:59 review ledger2launch/1initial/firstfix pending retained; targeted
 fixed-SHA review precedes rerun. Both forced modes, finalintegration/exactCI/merge
 remain pending. No production/migration/activation/provider/account mutation.
+
+## 2026-10-03 — Shared Assignment verified local proofs and CI portability correction
+
+Targeted security and final cumulative integration are CLEAN atb09fb2e9. Focused948/
+68files+staticPASS. Serial actual normal exit0 and both intended forced exit1 modes
+each pass exact whole-row baseline/zero residue/guard168O cleanup; independent final
+SQL confirms238receipts/3users/1class/Palcapture+scheduledOFF. No browser/provider/
+Storage-byte claim. ExactheadCI37154626010 database lane failed new wrapper because
+CI lacksrg; build passed, returntodraft canceled browsers and gatefailed. Root
+verified two closed missing-executable lines and the exact missing-cleanup receipt;
+no CI runtime pass inferred. Second proof-only batch uses existinggrep for identical
+fixed/whole-line sentinels and bounded enum diagnostics. OfflineTDD3RED→14GREEN,
+actualgrep synthetic portability controls/bash/lint/diffPASS. Cleanup SQL/helper/
+integration/app/types/deps/CI unchanged; targeted review and reruns precede newready.
+Original21:00:59clock and consumed4launch/1target/1final/1fix retained, explicit
+extensions authorized with hardcaps intact. No production/migration/activation.

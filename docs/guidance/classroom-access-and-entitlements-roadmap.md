@@ -972,6 +972,16 @@ and adds bounded safe diagnostics; transaction cleanup SQL and application code
 are unchanged. Targeted fixed-source review precedes normal/two forced reruns,
 then cumulative review and stable-head CI/merge. This does not close batch2.
 
+Superseding1451 evidence atb09fb2e9: targeted security and final integration CLEAN;
+948focused/68files+staticPASS. Actual normal and both intended forced modes restore
+the exact whole-row baseline with zero residue/guard168O; final local238receipts/
+3users/1class and Palcapture+scheduledOFF verified. ExactheadCI37154626010 failed
+the new wrapper because the runner lacksrg; the PR returned to draft. A second
+wrapper-only correction uses existinggrep while retaining exact marker/exit/privacy
+checks; targeted review and new local/CI evidence precede merge. Earlier source/
+runtime receipts remain historical, not CI or rollout approval. Original clocks,
+counts and explicit extension authority persist; no permission or migration change.
+
 Execution follows the table above: batch 1's backend is complete; finish batch 2's
 assessment/grade integrations next. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem

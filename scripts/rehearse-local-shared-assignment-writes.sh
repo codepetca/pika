@@ -54,18 +54,18 @@ diagnostic_pattern='^DIAG shared-assignment stage=(unknown|fixture-setup|fixture
 emit_diagnostic() {
   # Closed vocabulary, exact whole line, at most one safe diagnostic. Never
   # display arbitrary captured output, even when cleanup or the runner failed.
-  rg -m 1 -x "$diagnostic_pattern" "$proof_logs/runner.log" || true
+  grep -m 1 -Ex "$diagnostic_pattern" "$proof_logs/runner.log" || true
 }
-if ! rg -F -x "$cleanup" "$proof_logs/runner.log" >/dev/null; then
+if ! grep -Fxq "$cleanup" "$proof_logs/runner.log"; then
   emit_diagnostic
   echo 'FAIL shared-assignment verified cleanup receipt missing (runner output withheld).' >&2; exit 1
 fi
 echo "$cleanup"
-if [[ "$mode" == normal && "$rc" == 0 ]] && rg -F -x "$normal" "$proof_logs/runner.log" >/dev/null; then
+if [[ "$mode" == normal && "$rc" == 0 ]] && grep -Fxq "$normal" "$proof_logs/runner.log"; then
   echo "$normal"; exit 0
 fi
-if [[ "$mode" != normal && "$rc" == 1 ]] && rg -F -x "$forced" "$proof_logs/runner.log" >/dev/null \
-  && ! rg -F -x 'FAIL shared-assignment cleanup (captured data withheld)' "$proof_logs/runner.log" >/dev/null; then
+if [[ "$mode" != normal && "$rc" == 1 ]] && grep -Fxq "$forced" "$proof_logs/runner.log" \
+  && ! grep -Fxq 'FAIL shared-assignment cleanup (captured data withheld)' "$proof_logs/runner.log"; then
   echo "$forced"; exit 1
 fi
 emit_diagnostic

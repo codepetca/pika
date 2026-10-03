@@ -35519,3 +35519,8 @@ Returned1438 to draft before changing that single documentation contract; restor
 the canonical prefix without altering the test, schema, runtime or rollout state.
 Targeted failing test and focused gate rerun; targeted documentation review next.
 Original review ledger retains counters/deadline10:03:44UTC; no reset or new full wave.
+
+<!-- pika-session-log-archive-batch:151de5827f4028eff8d07785358d151ba04266885e2b4f819a3aafcece5330d2 -->
+## 2026-10-03 — Java Materials second approved merge synchronization
+
+Main advanced to875316af through reviewed dormant announcement owner writes PR1438 before PR1437 could merge. Resolved only the archive conflict, preserving canonical main and the complete feature append. Lesson, viewer, API, UI, tests and guidance remain byte-identical to reviewed73ff84fb; incoming application/workflow/schema/test files match main exactly. Prior sync CI37115051242 passed browser and database contracts but hit one unchanged TestDetailPanel Markdown confirmation assertion; all57 tests in that file pass locally under coverage instrumentation, while the partial run cannot meet whole-repository coverage floors. One bounded compatibility review and fresh focused/exact-head checks cover the new combined head before the already-authorized squash merge. No production promotion, hosted writes, migration application or activation.

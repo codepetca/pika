@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import * as proofHelpers from '../../scripts/shared-assignment-write-proof'
@@ -44,8 +45,36 @@ describe('shared Assignment proof offline safety controls (no database execution
       'DIAG shared-assignment stage=save category=status actual=999 expected=200',
       'DIAG shared-assignment stage=save category=status actual=403 expected=200\nraw row',
     ]) expect(safe.test(unsafe)).toBe(false)
-    expect(wrapper).toContain('rg -m 1 -x "$diagnostic_pattern"')
+    expect(wrapper).toContain('grep -m 1 -Ex "$diagnostic_pattern"')
     expect(wrapper).not.toMatch(/cat .*runner\.log|echo .*error\.message/)
+  })
+
+  it('uses portable grep for exact receipts and a bounded closed diagnostic filter', () => {
+    expect(wrapper).not.toMatch(/\brg\b/)
+    const pattern = wrapper.match(/^diagnostic_pattern='([^'\n]+)'$/m)?.[1]
+    expect(pattern).toBeDefined()
+    if (!pattern) return
+    // Synthetic input exercises only the installed grep, never the launcher or
+    // any service. These matches are portability evidence, not runtime proof.
+    for (const marker of [CLEANUP_PASS, NORMAL_PASS, ...Object.values(FORCED)]) {
+      expect(spawnSync('grep', ['-Fxq', marker], { input: `${marker}\n`, encoding: 'utf8' }).status).toBe(0)
+      expect(spawnSync('grep', ['-Fxq', marker], { input: `prefix ${marker}\n${marker} suffix\n`, encoding: 'utf8' }).status).toBe(1)
+    }
+    const safe = 'DIAG shared-assignment stage=grade category=status actual=403 expected=200'
+    const unsafe = [
+      'DIAG shared-assignment stage=https-secret category=status actual=403 expected=200',
+      'DIAG shared-assignment stage=save category=credential actual=403 expected=200',
+      'DIAG shared-assignment stage=save category=status actual=999 expected=200',
+      `${safe} raw-row-placeholder`,
+      `prefix ${safe}`,
+    ].join('\n')
+    const rejected = spawnSync('grep', ['-m', '1', '-Ex', pattern], { input: `${unsafe}\n`, encoding: 'utf8' })
+    expect(rejected.status).toBe(1)
+    expect(rejected.stdout).toBe('')
+    const accepted = spawnSync('grep', ['-m', '1', '-Ex', pattern], { input: `${unsafe}\n${safe}\n${safe}\n`, encoding: 'utf8' })
+    expect(accepted.status).toBe(0)
+    expect(accepted.stdout).toBe(`${safe}\n`)
+    expect(accepted.stderr).toBe('')
   })
 
   it('preserves returned-doc clearing and exact400 unsubmit refusal with unchanged rows', () => {
@@ -194,11 +223,13 @@ describe('shared Assignment proof offline safety controls (no database execution
     expect(wrapper.indexOf('Explicit local synthetic')).toBeLessThan(wrapper.indexOf('supabase status'))
     expect(wrapper).toContain('status_value SERVICE_ROLE_KEY')
     expect(wrapper).not.toContain('.env.local"')
-    expect(wrapper).toContain('rg -F -x "$cleanup"')
+    expect(wrapper).toContain('grep -Fxq "$cleanup"')
+    expect(wrapper).toContain('grep -Fxq "$normal"')
     expect(wrapper).toContain('"$rc" == 0')
     expect(wrapper).toContain('"$rc" == 1')
-    expect(wrapper).toContain('rg -F -x "$forced"')
-    expect(wrapper).not.toMatch(/rg[^\n]*['"]\^?FAIL['"]|cat .*runner\.log/)
+    expect(wrapper).toContain('grep -Fxq "$forced"')
+    expect(wrapper).toContain('! grep -Fxq \'FAIL shared-assignment cleanup (captured data withheld)\'')
+    expect(wrapper).not.toMatch(/grep[^\n]*['"]\^?FAIL['"]|cat .*runner\.log/)
     expect(wrapper).toContain('runner output withheld')
   })
 })
