@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Approved copy1431 continuity cleanup
-
-Final integration review confirmed source/SQL preservation and found two surplus
-historical Daily entries from reconciliation. Owner approved exactly one extra
-documentation-only batch5 and one final recheck, plus10review minutes; counters
-retained. Removed only the later duplicates, preserving each original record.
-263focused tests and all local gates passed at a60a2db9. No application/SQL/type/CI
-changes, migration application, production promotion or activation. Frozen final
-recheck and new exact-head CI must pass before normal main merge.
-
 ## 2026-10-02 — Approved copy1431 scrollbar-main reconciliation
 
 Owner approved one synchronization batch6, one changed-base final recheck and
@@ -549,3 +539,17 @@ before first/later/terminal roster and enrollment pages, actual-array corruption
 and exact safe projection. Forced post-fixture proof exited1 with its expected
 error and exact zero-residual/global baseline cleanup sentinel. No SQL application
 or hosted changes; independent review/final stable-head CI still required.
+
+## 2026-10-03 — Verified material-write merge and read dependency reconciliation
+
+PR1441 normal squash merge d913eebd71e94e6dee4fd0be2d24b7371b5ccb15 verified
+at14:18:23Z after all five exact-reviewed-head74995349 CI37127414505 gates pass
+(observed0queue/1774runseconds). No admin/auto-merge/bypass. Canonical main cleanly
+fast-forwarded. Original review clock and7launch/4batch counters retained under
+the user's explicit review-extension authority; no repeated approval requested.
+Installed234 digest unchanged/immutable; local001–234, production001–225 untouched.
+This child rebased onto actual squash skipping stacked749; full pre-receipt tree
+matches its previous candidate exactly. Only continuity/merge receipts change.
+Main retarget, changed-base review where needed, and final exact-head CI still
+precede child merge. Parent worktree retained while dependents remain. Shared
+admission/cutover OFF; no provider/account/plan/billing activation.
