@@ -750,6 +750,15 @@ additive SQL is not yet applied or reviewed. Source-only implementation and
 proof workers have disjoint file ownership; the coordinator owns review, exact
 local application, real database execution, generated types and integration.
 
+Superseding roster-write evidence: local235 was installed after frozen security
+review and parser correction on2026-10-03; immutableSHA256
+dded003c0fdd92235af163ef73751e1a9442146ee2129015ace83acdc2ff685b. Firstordinary
+attempt rolledback completely; fresh235-onlypreview preceded successfulretry.
+Genuine types, actualSQL rollback and SDKnormal/forcedcleanup pass;273focused
+tests17files+staticlint pass. FullPRreview andfinalCI remain; source rebases onto
+actual1442main3351d85f without changing runtime/proofs/installedSQL. Separate
+rosterGET1443/calendarGET1444 integration order remains; batch1 is notcomplete.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
