@@ -831,6 +831,19 @@ integration and exact-head CI37118772779 passed on2166a3c6; main merge98887743
 is verified above.
 The shared classroom experience remains dormant.
 
+The bounded [Course Guide reader](contextual-course-guide-reads.md) is being
+prepared behind the same dormant shared admission. Every enabled singleton,
+collection page, empty terminal and final control proves current owner/member
+authority and raw JSONB visibility configuration in its own statement. Its DTO,
+public-site/legacy handlers and assessment publication behavior remain intact;
+no answer-bearing broad site loader, SQL/types, UI or billing changes are included.
+Source TDD/installed-SDK serialization checks pass. Root actual local PostgREST
+normal and both forced-cleanup modes now pass, after correcting two fixture
+assumptions without changing product code or weakening existing constraints.
+Whole-row global baselines/zero residue/enabled generation guards are preserved;
+independent full PR review, actual-main reconciliation and final CI remain gates.
+This does not complete everyday work or permit cohort activation.
+
 The next bounded batch-1 source slice is
 [shared preserving roster removal](contextual-roster-preserving-removal.md),
 behind the same dormant admission contract. Proposed236 wraps only the current
@@ -958,16 +971,3 @@ AI unit costs, once-per-teacher trial enforcement, deterministic activity rankin
 archive/completion/retention compatibility, tax configuration, refund entitlement
 and dispute contracts, abuse limits and support authority. School/manual grant
 precedence remains deferred. Product approval does not activate enforcement.
-
-The bounded [Course Guide reader](contextual-course-guide-reads.md) is being
-prepared behind the same dormant shared admission. Every enabled singleton,
-collection page, empty terminal and final control proves current owner/member
-authority and raw JSONB visibility configuration in its own statement. Its DTO,
-public-site/legacy handlers and assessment publication behavior remain intact;
-no answer-bearing broad site loader, SQL/types, UI or billing changes are included.
-Source TDD/installed-SDK serialization checks pass. Root actual local PostgREST
-normal and both forced-cleanup modes now pass, after correcting two fixture
-assumptions without changing product code or weakening existing constraints.
-Whole-row global baselines/zero residue/enabled generation guards are preserved;
-independent full PR review, actual-main reconciliation and final CI remain gates.
-This does not complete everyday work or permit cohort activation.

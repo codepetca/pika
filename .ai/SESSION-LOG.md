@@ -11,58 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Java viewer Print menu
-
-- Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
-- Private deployment succeeded from5d60a47875b85a5f6117acf8926c3b116c85ae7a, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_26ddf43ab1f481919b0befea1c0809c6. Same URL, audience, and Material draft.
-
-## 2026-10-02 — Presentation diagrams in Read notes
-
-- Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
-- Verified nine visible diagrams plus nine detailed sections in Read, Chrome light/dark screenshots, 402px mobile diagram with no overflow, and full-size Present diagram with heading/details hidden. Build/syntax/diff checks pass. Evidence: task visualizations/java-read-diagrams.png. Private deployment succeeded from8225d108361d62b1f14ac470727dbab2e57ce717, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_93b77fe0a0b88191b4130f516c559fbe. Same URL, audience, and Material draft.
-
-## 2026-10-02 — Release Java lesson to ICS3U students
-
-- Owner explicitly requested course inclusion and student viewing. Verified Stewart Chan teacher session in exact P3 - ICS3U classroom 0a103a76-2b60-4fb6-8158-4a97727bd35f, existing Material title/content, and latest hosted URL. Changed Sites audience from owner-private to public via native access update (revision2); no external viewer invitations. An unauthenticated HTTP request returned200 and the correct title/all9 sections/9 diagrams. No code/build/deployment change.
-- Posted the existing 1.1 Java explained Material through the teacher UI; verified Posted badge after server save, reload, and reopening, with the correct clickable lesson link. Material has no due date/submission. Renamed local mirror to material.json and set is_draft=false; updated teaching notes/README to record public access and posted state. Evidence: task visualizations/java-material-posted.png. Future site edits must preserve public audience and use ordinary save/deploy, not owner-private deployment.
-
-## 2026-10-02 — Person/code/group icons for Java roles
-
-- Updated Who does what diagram: Programmer uses Lucide user-round, Program uses </>, User uses Lucide users-round. Same mapping in Present, compact Read, and mobile variants; existing labels/arrows retained. License already included; no new dependency. Standalone artifact, risk none.
-- Visual Chrome screenshot verified dark Present; DOM confirmed matching Read/mobile icon geometry and code label. Build/syntax/diff checks pass; evidence task visualizations/java-role-icons.png. Existing public audience verified, source pushed and archive saved; ordinary public save/deploy succeeded from35da6cb671f9f55661d473a754951b044dbac354, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_3a42d83540608191ba94725137d180cd. Posted P3 ICS3U Material already points to the same updated URL.
-
-## 2026-10-02 — Java lesson presentation scale
-
-Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
-
-## 2026-10-02 — Java compiler factory icon
-
-Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.
-
-## 2026-10-02 — Program game controller icon
-
-Replaced the Program code symbol in Who does what (slide 3) with a locally drawn game controller SVG, including reading/mobile variants. Visually verified Present and Read in Chrome. Build, syntax check, and whitespace check passed. Public Sites version appgver_b856dce49cb08191ba15841e9f27ca94 published from source 68c563f63a627b20e7111ccd8d869c85641e7ce0; deployment appgdep_6abfc84610548191ab624a497a4fe005 succeeded. Same student Material URL. No Pika runtime/schema changes.
-
-## 2026-10-02 — Reusable lesson viewer guidance
-
-Saved docs/curriculum/lesson-viewer-guide.md with the agreed visual Present / detailed Read format, minimal footer, synchronized notes, source file map, Markdown example, reuse steps, visual verification, hosting/audience and Material guidance. Added a compact task route in docs/ai-instructions.md and linked from the Java site README. Documentation only; risk none; direct Codex editing/verification. All 43 ai-startup-docs tests passed after shortening the new route to fit the existing context budget; 10 local links and whitespace validated. Viewer/lesson/guidance remain saved in codex/ics3u-java-intro worktree, uncommitted/unmerged. No public lesson deployment or classroom change required.
-
-## 2026-10-02 — Java lesson in ICS3U Blueprint
-
-Added Java Explained as a Material in the P3-linked ICS3U-4 Blueprint through the signed-in teacher UI. Materials were empty; assignments occupied positions 0–13 and the survey position 14, so the new Material uses position 15 without altering existing classwork. Artifact ID 8ad9cfa1-1c8e-4733-a16f-90cbc0a35111 links the public Java lesson. Export Course Package saved Version 5 from Draft revision 6, verified after reloading, with persisted Material Markdown and screenshots in /tmp/pika-java-review/blueprint-{version-5,java-material}.png. CLI production session was unavailable; used existing authenticated Chrome session. Mirrored blueprint Material beside lesson source and refreshed the classroom Material title to the observed Java Explained. Existing classrooms were not updated or created. Documentation/data mirror only; no Pika runtime, schema, or site changes.
-
-## 2026-10-02 — P3/P5 Blueprint scope verification
-
-Confirmed both P3 - ICS3U and P5 - ICS3U use shared ICS3U-4 Blueprint; both classroom Blueprint tabs show Content Version 3 / Guidance Version 4. Shared Blueprint already contains Java Explained (version 5). Java Explained is Posted in both classrooms; P5 Material opens the same public URL. Preparing P5 inverse Blueprint update was blocked by new classroom artifacts requiring promotion/reconciliation; no proposal/classroom content update applied. P5 has a classroom-only verification assignment in addition to local Java Material, so unrelated promotion was not attempted. Asked whether the user means the shared reusable Blueprint or both current classroom Blueprint tabs; clarification pending. Updated lesson README with verified scope and classroom IDs. No app/source/site changes.
-
-## 2026-10-02 — Classroom Blueprint reconciliation review
-
-Owner confirmed updating both current classroom Blueprint tabs. Inspected P3/P5 merge suggestions through authenticated Chrome without saving: both contain local Unit 1 tests and Java Material; P3 also has a verification test, P5 a verification assignment. P3 lesson promotion would remove templates 91–95 and change many existing lessons. Source review confirmed preparation blocks on all untracked artifacts and promotion replaces entire selected artifact areas. A Java-only promotion cannot clear the gate; broader promotion is outside this lesson request. No proposal, classroom update, or reconciliation writes made. Asked for scope choice: implement targeted Java-only update support (recommended), review broader reconciliation, or retain current snapshots. Updated lesson README; shared Blueprint Version 5 and both Posted student Materials remain available. Documentation only; no app/runtime/schema/site changes.
-
-## 2026-10-02 — Prorated-upgrade backend candidate
-
-Coordinator owns codex/subscription-plan-changes from merged1429/25cc0691. Added dormant, authenticated frozen-invoice upgrade APIs and recovery; provider preview, signed amounts, confirmation digest, captured-card proof, original-term preservation and version writer. Candidate230 unapplied; shared local229 belongs to classroom task, billing OFF. Three bounded GPT workers completed owned schema/provider/API files; no real provider calls or generated-type edits. Repeated same-term upgrades need receipt chains; scheduled downgrade grace awaits owner decision. Billing tests pass; required compile/type checks blocked only by new RPCs until exact local230 permission/type generation. Preapplication review completed: two independent initial reviews and two targeted passes (four launches/two fix batches). Fixed crash-before-payment replay, invoice cleanup after the paid boundary and realistic partial-credit draft totals. Corrected source c962f622;576 billing/API tests pass, lint/audit pass; tsc retains exactly two pending new-RPC errors. Owner approved one exact local230 application, conditional on classroom229 PR1431 merging and an only230 dry run; permission remains unconsumed. Verified Pika/54322 target through229; four existing billing database harnesses passed with rollback and unchanged counts (3 users/1 classroom/0 plans, bindings or access), sandbox OFF. Classroom229 PR1431 awaits its owner-controlled review/CI/main reconciliation. SQL230 unchanged since initial review. Final cumulative PR review/types/database harness remain; no production/reset/reseed/activation/merge authority.
-
 ## 2026-10-02 — Local230 application and generated contracts
 
 1431 merged493e752a; rebased billing with continuity-only conflicts, preserving reviewed230 SHA25627da3d0c09a2566c5a10fc051c225dc6c4f12ef4a250914003355a6eef915d1f and all billing behavior. Owner's conditional approval consumed by one successful local230-only push after matching001–229 history/dry run and629preapplication tests. Local001–230 matches; generated types/check, focused TypeScript/lint/architecture gates and four existing rollback database harnesses pass. Security advisor clean; RLS/service-only ACL probes pass; 3users/1classroom/0plans,bindings,access,upgrade operations/receipts unchanged; sandbox OFF. New230harness rolled back at unparenthesized CASE assertion; prepared two-line fixture patch, not applied. Four prior review launches/two financial fix batches/one main sync; review clock expired during1431wait, so bounded final correction/review extension remains needed. No repeated application, production/reset/reseed/Stripe/payment/activation/merge authority.
@@ -898,3 +846,24 @@ and cleanup unchanged. Batch3/launch5 retains original16:28:17 clock and hard ca
 targeted review, serial runtime recheck and final integration precede readiness.
 Shared admission/cutover remainOFF; latest human explicitly authorizes routine
 steps and review extensions without repeated prompts.
+
+## 2026-10-03 — Course Guide prepared removal-parent reconciliation
+
+Prepared the unchanged bd0 Course Guide source onto reviewed pending1448 parent
+88a1bfd6; this is NOT merged main (actual2095), and parent CI remains pending.
+Every incoming runtime, genuine generated40d contract, curated types and immutable
+SQL001–238 is preserved; whole parent CI plus the original Guide step and original
+Guide source guards remain intact. The old ci-workflow test has no Guide block:
+retain incoming88 test whole, original Guide proof-unit guards byte-exact.
+Full history arithmetic is 88+bd0−a8 plus this one receipt, official40-entry trim.
+No database/status/runtime proofs/type generation/providers/network/remote Git,
+review or CI launch. Root owns actual-parent reconciliation after1448/1447 squash
+merges, then changed-base review and exact-head CI. Sharedadmission/fullcutover
+and billing remain OFF; original review clocks/caps retained. Prepared-parent
+focused218tests/15files and architecture/UI/design/TypeScript/lint all PASS.
+Startup/environment PASS; startup/Bara47PASS (including canonical Prod spacing).
+Prepared-base audit7files PASS; diff/full preservation PASS: Guide8/incoming45,
+2097historical entries/recent40, only9 copied-surplus duplicates removed while
+original full bodies retained. Evidence/private verifier:
+/private/tmp/pika-guide-prepared-removal.UOmGQg; focused pika-focused-AaWC7U.
+This prepared dependency state is not ready/merged/activated.
