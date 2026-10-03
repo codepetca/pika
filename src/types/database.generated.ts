@@ -12582,6 +12582,14 @@ export type Database = {
         Args: { p_classroom_id: string; p_roster_ids: string[] }
         Returns: Json
       }
+      remove_classroom_students_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_roster_ids: string[]
+        }
+        Returns: Json
+      }
       remove_classroom_students_preserving_data: {
         Args: {
           p_classroom_id: string
@@ -13643,6 +13651,10 @@ export type Database = {
       }
       update_assignment_with_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json; p_updates: Json }
+        Returns: Json
+      }
+      update_classroom_metadata_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_patch: Json }
         Returns: Json
       }
       update_classroom_roster_counselor_for_owner_v1: {

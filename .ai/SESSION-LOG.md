@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Java lesson presentation scale
-
-Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
-
-## 2026-10-02 — Java compiler factory icon
-
-Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.
-
-## 2026-10-02 — Program game controller icon
-
-Replaced the Program code symbol in Who does what (slide 3) with a locally drawn game controller SVG, including reading/mobile variants. Visually verified Present and Read in Chrome. Build, syntax check, and whitespace check passed. Public Sites version appgver_b856dce49cb08191ba15841e9f27ca94 published from source 68c563f63a627b20e7111ccd8d869c85641e7ce0; deployment appgdep_6abfc84610548191ab624a497a4fe005 succeeded. Same student Material URL. No Pika runtime/schema changes.
-
-## 2026-10-02 — Reusable lesson viewer guidance
-
-Saved docs/curriculum/lesson-viewer-guide.md with the agreed visual Present / detailed Read format, minimal footer, synchronized notes, source file map, Markdown example, reuse steps, visual verification, hosting/audience and Material guidance. Added a compact task route in docs/ai-instructions.md and linked from the Java site README. Documentation only; risk none; direct Codex editing/verification. All 43 ai-startup-docs tests passed after shortening the new route to fit the existing context budget; 10 local links and whitespace validated. Viewer/lesson/guidance remain saved in codex/ics3u-java-intro worktree, uncommitted/unmerged. No public lesson deployment or classroom change required.
-
-## 2026-10-02 — Java lesson in ICS3U Blueprint
-
-Added Java Explained as a Material in the P3-linked ICS3U-4 Blueprint through the signed-in teacher UI. Materials were empty; assignments occupied positions 0–13 and the survey position 14, so the new Material uses position 15 without altering existing classwork. Artifact ID 8ad9cfa1-1c8e-4733-a16f-90cbc0a35111 links the public Java lesson. Export Course Package saved Version 5 from Draft revision 6, verified after reloading, with persisted Material Markdown and screenshots in /tmp/pika-java-review/blueprint-{version-5,java-material}.png. CLI production session was unavailable; used existing authenticated Chrome session. Mirrored blueprint Material beside lesson source and refreshed the classroom Material title to the observed Java Explained. Existing classrooms were not updated or created. Documentation/data mirror only; no Pika runtime, schema, or site changes.
-
 ## 2026-10-02 — P3/P5 Blueprint scope verification
 
 Confirmed both P3 - ICS3U and P5 - ICS3U use shared ICS3U-4 Blueprint; both classroom Blueprint tabs show Content Version 3 / Guidance Version 4. Shared Blueprint already contains Java Explained (version 5). Java Explained is Posted in both classrooms; P5 Material opens the same public URL. Preparing P5 inverse Blueprint update was blocked by new classroom artifacts requiring promotion/reconciliation; no proposal/classroom content update applied. P5 has a classroom-only verification assignment in addition to local Java Material, so unrelated promotion was not attempted. Asked whether the user means the shared reusable Blueprint or both current classroom Blueprint tabs; clarification pending. Updated lesson README with verified scope and classroom IDs. No app/source/site changes.
@@ -631,3 +611,110 @@ attendance prefix regression4/4 and actual-main-aware audit8files pass. Logs:
 /private/tmp/pika-1446-reconcile.d4sa0y; fullfocused pika-focused-ejT1iX.
 Root-owned changed-base review and exact frozen-head readyCI remain required;
 shared admission and fullcutoverOFF; no batch completion or activation claimed.
+
+## 2026-10-03 — Preserving removal source and local236
+
+Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
+preapplication GPT5.6Sol/high review CLEAN with77source tests. Exactpika54322,
+001–235matched/currentmain3351numbering/236-onlydryrun preceded one successful
+ordinarylocal236push. ImmutableSHA24e23667b21580fdcadb7a64ca251725f87040fa52bf9a1fbe71e0c7b3c22249;
+service-only privileges, genuinegenerated eight-lineRPC/type drift/TypeScript pass.
+ActualSQL/SDK/cleanup/concurrency and fullPR lifecycle remain pending; proof worker
+owns onlyscripts, root ownsapplication/types/CI/docs/Git. Duplicate selected one
+or all rows fails withoutDML: immutable164index/173cleanupcontrols remain, with
+coordinated multirow retained-lifecycle prerequisite inbatch3 beforecutover.
+1445/1446 fullinitialreviews clean;1443exactCI/1444draft predecessor order retained.
+Latesthuman explicitlywaives repeatedroutineapprovals inclnecessaryreviewextensions;
+original clocks/counters andabsolute caps/merge/release gates preserved. Production
+001–225/sharedadmission/fullcutoverOFF unchanged; no accounts/provider/billing edits.
+
+Serial actual SQL proof passed ACL, identity, purge fences, retained history and
+fault rollback with zero residue/global baseline unchanged. Actual SDK normal
+passed both owner labels, bound/unbound learners, retained history, idempotent
+retry/invitation isolation and observed lock races. Three forced modes each exit1
+with exact expected failure and complete cleanup sentinels; suppressed deletion
+rolls back every cleanup mutation and restores the generation guard. Earlier
+proof-only setup/cleanup defects corrected without editing immutable236; exact
+abandoned synthetic closure independently reviewed/recovered, all unrelated
+whole-row fingerprints unchanged. Full draft review/final focused/CI remain gates.
+
+## 2026-10-03 — Removal1448 updated-parent preparation
+
+Rebased reviewed8e81327a onto updated1445parenta9613f46 with oldparenta7613a5f
+as the exact exclusion boundary. Only CURRENT/archive continuity conflicted;
+all14child runtime/schema/SQL/genuine-types/proof/test/guide files remain
+byte-identical, including immutable236. All updatedparent/main and childCIsteps
+are preserved. Removed four surplus exact session copies whose original archive
+entries remain; combined parent+child−oldparent historical multiplicities persist.
+ActualSQL/SDKnormal and three forced-cleanup proofs already PASS;236 itself was
+unchanged by the earlier harness repairs. Full initial security/compat review
+is CLEAN. Original1448clock15:19:13Z/extension17:19:13Z, launch8/initial1/
+targeted5/fix5 retained; no new review launch. This prepares a draft stack only:
+actual1445main squash merge/reconciliation, changed-base review and final exactCI
+remain. Local001–236/prod001–225/sharedadmission/fullcutoverOFF unchanged.
+No DB operations/proofs/types regeneration, publication, PR/CI/provider changes.
+Focused against updatedparenta961 passes183tests/15files plus architecture,
+UI/design policy, TypeScript and lint; startup/diff/history/preservation pass.
+Reconciliation audit reports no TypeScript edits. Actual-main focused checks
+remain required after the parent's eventual squash merge and child reconciliation.
+
+## 2026-10-03 — Removal1448 actual calendar-main reconciliation
+
+Rebased preparedb47c6fa7 onto actual calendar1446 main2095efec, usinga9613f46
+as the exact old-parent boundary. Root verified1446 squash merge at17:40:27Z,
+reviewed795a528a/all five eligibleCI37139673399 checks and PR Gate passed.
+All13nonshared reviewed8e81327a feature files remain byte-identical: runtime,
+schema, guide, proofs/tests, immutable236 and genuine generated eight-line RPC.
+The approved shared CI test union preserves exact main roster/calendar blocks
+first, unchanged removal block next, and the full common remainder; whole main
+CI plus original removal proof insertion preserves every calendar cleanup gate.
+History full-body multiplicities are actual2095+preparedb47−a961+this one entry.
+Removed only two exact surplus session copies (Release Java and Person/code
+roles), with original full bodies retained in the archive. All main roadmap
+text and both historical child removal paragraphs remain unchanged, plus one
+new reconciliation receipt. Canonical Prod DB 001–225 spacing restored;
+shared local001–237 metadata differs from this source001–236/actualmain235.
+No database/status/proof/type generation/provider/remote publication/CI writes.
+Original clock15:19:13Z/extended18:19:13Z, launch8/initial1/targeted5/fix5 remain.
+Changed-base independent review, publication and final exact-head CI remain
+pending; sharedadmission/fullcutover/billing remainOFF. Actual-main focused
+184tests/15files, architecture/UI/design/TypeScript/lint all PASS; explicit Bara
+spacing regression4/4 and actual-main-aware audit10files PASS. Private full
+preservation verifier/diff/official trim pass,40recent/2092combined entries.
+Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
+pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
+remain untouched. This is implementation evidence, not the independent review.
+
+## 2026-10-03 — Removal1448 forward-only database lint correction
+
+Exact reviewed787e623f CI37141937671 failed warning-free lint for private result
+validator IMMUTABLE/STABLE mismatch; returned1448 to draft. Run cancelled after
+566seconds, database andPRGate failed, no merge. Preserve immutable236/237.
+Contiguous inventory requires exact237 dormant service-role SQL dependency and
+atomic238: only validator ALTER STABLE plus metadata empty-effective-slug guard.
+No metadata app/helper/UI imported and no cohort/account/production activation.
+Whole genuine001–237 generated artifact copied byte-exact40d0289d; root will
+regenerate/check from matching001–238 history after reviewed local application.
+New direct regression/source gates14PASS, root full208line metadata replacement
+and existing236validator body/ACL/call graph inspected. Metadata rollback-only
+proof runs before unchanged removal SQL/SDK/three forced modes in CI. Review
+clock/counters retained: original15:19:13Z; launch9/target6/fix6, deadline19:19:13.
+Source/preapply review, local238-only application, actual serial regression proofs,
+final focused/cumulative independent review and exact-headCI remain pending.
+
+## 2026-10-03 — Forward238 local catalog and serial regression receipts
+
+Reviewed23847a9bf5d ordinarylocalpush ONCE EXIT0, source/history001–237 matched,
+only238 preview/projectpika54322/API54321 guards verified. Posthistory001–238;
+private validator body5af12d2f owner/ACL/security/search/arguments unchanged,
+only volatilitys; metadata sourcefde368b5 matchesreviewed238/service-only ACL.
+Genuine generation/drift40d0289d unchanged; warning-free lintPASS. Strictserial
+81872SQL metadata+roster PASS by18:07:17Z, exactnewempty-slugPT400/fullrows/revisions.
+55752metadataSDKnormal EXIT0/all4markers;33554twoforcedeachEXIT1 exactFAIL+cleanup.
+12656rosterSDKnormal EXIT0/all4markers;4693threeforcedeachEXIT1 exactFAIL+cleanup,
+suppressed-delete complete rollback+guardrestored. No duplicateDBproofs/recovery.
+Startupfirstfocused187PASS/onebudgetFAIL16022 correctedcompactCURRENT without
+changing16000threshold orhistory. Final188tests16files/allstaticTSC/lint PASS.
+TargetedSol5.6/high CLEAN439+d132 (69+110offline); original review clocks/caps
+retained. Docs/startupreceipt batch7; pendingone final cumulative reviewer launch11
+andstableSHA CI. No production/account/cohort/feature activation; main2095 unchanged.

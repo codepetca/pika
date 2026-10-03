@@ -35240,3 +35240,26 @@ earlier actual PostgREST and exact cleanup evidence remain applicable.
 
 - Updated Who does what diagram: Programmer uses Lucide user-round, Program uses </>, User uses Lucide users-round. Same mapping in Present, compact Read, and mobile variants; existing labels/arrows retained. License already included; no new dependency. Standalone artifact, risk none.
 - Visual Chrome screenshot verified dark Present; DOM confirmed matching Read/mobile icon geometry and code label. Build/syntax/diff checks pass; evidence task visualizations/java-role-icons.png. Existing public audience verified, source pushed and archive saved; ordinary public save/deploy succeeded from35da6cb671f9f55661d473a754951b044dbac354, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_3a42d83540608191ba94725137d180cd. Posted P3 ICS3U Material already points to the same updated URL.
+
+<!-- pika-session-log-archive-batch:6eb4a95ec3f0b49a36bd5e198d0a76935a23878ef44e6dfbb697e74b76d85f1a -->
+## 2026-10-02 — Java lesson presentation scale
+
+Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
+
+## 2026-10-02 — Java compiler factory icon
+
+Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.
+
+## 2026-10-02 — Program game controller icon
+
+Replaced the Program code symbol in Who does what (slide 3) with a locally drawn game controller SVG, including reading/mobile variants. Visually verified Present and Read in Chrome. Build, syntax check, and whitespace check passed. Public Sites version appgver_b856dce49cb08191ba15841e9f27ca94 published from source 68c563f63a627b20e7111ccd8d869c85641e7ce0; deployment appgdep_6abfc84610548191ab624a497a4fe005 succeeded. Same student Material URL. No Pika runtime/schema changes.
+
+<!-- pika-session-log-archive-batch:be3337f210dcb9302d3bcf072c53198f285627ca085c269b83237e7a36cc44e7 -->
+## 2026-10-02 — Reusable lesson viewer guidance
+
+Saved docs/curriculum/lesson-viewer-guide.md with the agreed visual Present / detailed Read format, minimal footer, synchronized notes, source file map, Markdown example, reuse steps, visual verification, hosting/audience and Material guidance. Added a compact task route in docs/ai-instructions.md and linked from the Java site README. Documentation only; risk none; direct Codex editing/verification. All 43 ai-startup-docs tests passed after shortening the new route to fit the existing context budget; 10 local links and whitespace validated. Viewer/lesson/guidance remain saved in codex/ics3u-java-intro worktree, uncommitted/unmerged. No public lesson deployment or classroom change required.
+
+<!-- pika-session-log-archive-batch:a97a60e6a3648844a2e6f8d0b121a4fc05639703f5b35fca1bd91abe75107d8a -->
+## 2026-10-02 — Java lesson in ICS3U Blueprint
+
+Added Java Explained as a Material in the P3-linked ICS3U-4 Blueprint through the signed-in teacher UI. Materials were empty; assignments occupied positions 0–13 and the survey position 14, so the new Material uses position 15 without altering existing classwork. Artifact ID 8ad9cfa1-1c8e-4733-a16f-90cbc0a35111 links the public Java lesson. Export Course Package saved Version 5 from Draft revision 6, verified after reloading, with persisted Material Markdown and screenshots in /tmp/pika-java-review/blueprint-{version-5,java-material}.png. CLI production session was unavailable; used existing authenticated Chrome session. Mirrored blueprint Material beside lesson source and refreshed the classroom Material title to the observed Java Explained. Existing classrooms were not updated or created. Documentation/data mirror only; no Pika runtime, schema, or site changes.
