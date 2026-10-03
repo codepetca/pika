@@ -16,4 +16,12 @@ describe('preserving-removal local proof compatibility', () => {
       .toBeLessThan(sql.indexOf('insert into public.attendance_participant_mappings'))
     expect(sql).toContain('operation:=f.purge_operation;')
   })
+
+  it('cleans only verified synthetic attendance mappings before deleting a fixture class', () => {
+    const sdk = readFileSync(resolve('scripts/check-contextual-roster-removal-owner-writes.ts'), 'utf8')
+    expect(sdk.includes('delete from public.attendance_participant_mappings m using removal_mapping_snapshot')).toBe(true)
+    expect(sdk.indexOf('delete from public.attendance_participant_mappings m using removal_mapping_snapshot'))
+      .toBeLessThan(sdk.indexOf('delete from public.classrooms c using'))
+    expect(sdk.includes('disable trigger reject_attendance')).toBe(false)
+  })
 })
