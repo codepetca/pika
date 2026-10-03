@@ -12582,6 +12582,14 @@ export type Database = {
         Args: { p_classroom_id: string; p_roster_ids: string[] }
         Returns: Json
       }
+      remove_classroom_students_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_roster_ids: string[]
+        }
+        Returns: Json
+      }
       remove_classroom_students_preserving_data: {
         Args: {
           p_classroom_id: string

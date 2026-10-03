@@ -805,6 +805,23 @@ integration and exact-head CI37118772779 passed on2166a3c6; main merge98887743
 is verified above.
 The shared classroom experience remains dormant.
 
+The next bounded batch-1 source slice is
+[shared preserving roster removal](contextual-roster-preserving-removal.md),
+behind the same dormant admission contract. Proposed236 wraps only the current
+active-owner removal transaction; legacy164/bulk/purge/restore remain unchanged.
+Frozen preapplication security review is CLEAN and236 was applied locally once
+after exact target/history/digest/one-file preview. Source tests and genuine type
+generation/drift pass; actual local SQL/SDK evidence and full PR lifecycle remain
+pending. Installed236 is immutable; production remains225/admission OFF.
+Installed164 retained-row uniqueness and173/175 exact-one cleanup checks are
+preserved. Duplicate active roster identities fail closed whether one or all rows
+are selected, without DML or discarded history. Coordinated multirow removal and
+retained-generation/cleanup/re-add/Pal/purge compatibility are a batch3 prerequisite
+before full cutover, not completed support in this defensive batch1 slice.
+The latest owner instruction explicitly carries all routine in-scope work and
+necessary review extensions without repeated prompts; original clocks/counters,
+absolute review caps and all security/exact-head/release gates remain intact.
+
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem
