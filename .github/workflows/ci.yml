@@ -310,6 +310,20 @@ jobs:
           grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
           grep -F 'PASS exact synthetic linked Blueprint material fixture cleanup with zero residual rows and global baseline equality' "$cleanup_log"
 
+      - name: Verify contextual roster management reads and failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-classroom-roster-read.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-classroom-roster-read.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster fixture cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
       - name: Verify contextual announcement owner contracts and concurrency
         shell: bash
         run: |

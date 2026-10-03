@@ -702,6 +702,17 @@ actual SDK proof passes1,001-version ordering/limit, current source/owner change
 a stacked draft review may run while1441CI completes; ready/merge waits verified
 parent merge and reconciliation. The batch3 Blueprint tab still needs its separate
 authoring-guidance boundary. This does not complete batch1 or activate shared admission.
+The next batch-1 read preparation is
+[shared roster management GET](contextual-classroom-roster-management-read.md).
+Every roster/enrollment page, including each terminal empty page, binds the
+current classroom owner; real nested bindings retain stable learner identity
+without turning email-only matches into mutation authority. Both global-role
+owners are supported, members denied, and archived owner reads retained.
+This changes no schema or UI and leaves legacy handlers and purge mutations
+unchanged. Source tests are not database evidence: actual installed-SDK normal
+and forced-cleanup proofs, independent review and exact-head CI precede merge.
+Roster write fences and class-day/core reconciliation remain batch-1 work;
+linked Blueprint material reads are adjacent batch-3 work, not phase closure.
 
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
