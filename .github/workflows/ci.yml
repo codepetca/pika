@@ -281,6 +281,21 @@ jobs:
           grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
           grep -F 'PASS exact synthetic material fixture cleanup with zero residual rows' "$cleanup_log"
 
+      - name: Verify contextual material owner writes and failed-fixture cleanup
+        shell: bash
+        run: |
+          bash scripts/check-contextual-material-owner-writes-database.sh
+          pnpm exec tsx scripts/check-contextual-material-owner-writes.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-material-owner-writes.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic material owner-write fixture cleanup with zero residual rows' "$cleanup_log"
+
       - name: Verify contextual announcement owner contracts and concurrency
         shell: bash
         run: |
