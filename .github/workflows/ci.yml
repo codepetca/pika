@@ -448,6 +448,42 @@ jobs:
           grep -Fx 'FAIL Forced course guide post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$course_guide_log"
           grep -Fx 'PASS exact synthetic course guide cleanup, zero residual rows and global whole-row baseline counts' "$course_guide_log"
 
+      - name: Verify contextual classroom metadata and exact failed-fixture cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata_sql_log="$(mktemp)"
+          metadata_sdk_log="$(mktemp)"
+          metadata_cleanup_log="$(mktemp)"
+          trap 'rm -f -- "$metadata_sql_log" "$metadata_sdk_log" "$metadata_cleanup_log"' EXIT
+          if ! bash scripts/check-contextual-classroom-metadata-database.sh > "$metadata_sql_log" 2>&1; then
+            cat "$metadata_sql_log"
+            exit 1
+          fi
+          cat "$metadata_sql_log"
+          grep -Fx 'PASS metadata rollback-only direct contracts, full owner output, genuine slug collision and suppression/substitution/late trigger faults restore metadata and both revision effects' "$metadata_sql_log"
+          if ! pnpm exec tsx scripts/check-contextual-classroom-metadata.ts > "$metadata_sdk_log" 2>&1; then
+            cat "$metadata_sdk_log"
+            exit 1
+          fi
+          cat "$metadata_sdk_log"
+          grep -Fx 'PASS metadata actual SDK both owner roles, exact normalized body/full owner hydration and strict wire failures without replay' "$metadata_sdk_log"
+          grep -Fx 'PASS metadata deterministic observed-blocking transfer/archive/slug/publication races preserve current authority and publishing invariants' "$metadata_sdk_log"
+          grep -Fx 'PASS metadata committed-write lost-response uncertainty is reported without replay and no creation entitlement is required' "$metadata_sdk_log"
+          grep -Fx 'PASS exact synthetic metadata cleanup, zero residual rows and global whole-row baseline counts' "$metadata_sdk_log"
+          metadata_cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-classroom-metadata.ts --verify-cleanup-after-fixture > "$metadata_cleanup_log" 2>&1 || metadata_cleanup_status=$?
+          cat "$metadata_cleanup_log"
+          [[ "$metadata_cleanup_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL Forced metadata post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)' "$metadata_cleanup_log"
+          grep -Fx 'PASS exact synthetic metadata cleanup, zero residual rows and global whole-row baseline counts' "$metadata_cleanup_log"
+          metadata_cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-classroom-metadata.ts --verify-cleanup-after-commit-before-capture > "$metadata_cleanup_log" 2>&1 || metadata_cleanup_status=$?
+          cat "$metadata_cleanup_log"
+          [[ "$metadata_cleanup_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL Forced metadata post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$metadata_cleanup_log"
+          grep -Fx 'PASS exact synthetic metadata cleanup, zero residual rows and global whole-row baseline counts' "$metadata_cleanup_log"
+
       - name: Verify contextual announcement owner contracts and concurrency
         shell: bash
         run: |

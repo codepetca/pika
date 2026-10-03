@@ -789,6 +789,31 @@ Metadata PATCH, Course Guide assembly and SSR/home routing are not widened.
 Actual SDK cleanup, independent review and final CI remain release gates;
 no source-only result activates shared admission or closes the phase.
 
+[Contextual classroom metadata PATCH](../guides/contextual-classroom-metadata.md)
+is a separate bounded batch1 mutation: strict13 metadata fields, current active
+owner authority and service-only transactional full30/revision postconditions.
+Local immutable237, rollback SQL/genuine types and corrected SDKnormal/twoforced
+exact cleanup proofs pass after independently reviewed proof-only recovery of
+the first fixture-whitelist failure. Full initial source review, exact-head CI and
+actual-main integration remain gates. Explicit archive keys are reserved400 for batch3; existing GETs and
+legacy PATCH remain unchanged. Production001–225/sharedadmission/fullcutoverOFF.
+
+Metadata1450 preparation receipt: source0cfb4c26 is prepared locally on PENDING Guide d0db1331
+and detaila653d0ac, NOT merged. Actualmain remains73a85f26/PR1448. All eleven
+metadata-owned files retain source bytes; incoming GET/legacy PATCH and GET tests
+retain exact remainder with only the approved metadata additions/two PATCH tests.
+Whole incoming CI plus the original metadata step and full history are preserved.
+Immutable001–238/genuine types remain incoming bytes. Actual-parent reconciliation,
+final cumulative independent review and exact-head CI remain required. No new DB,
+proof replay, generation, production promotion or shared-admission/full-cutover activation.
+
+Metadata1450 actual-parent receipt: prepared f8b91ec3 is reconciled onto actual
+Guide1449 squash668912ab, merged2026-10-03T20:03:52Z after all five exact reviewed
+ce68b9e1 CI37148238240 checks succeeded (0queue/1871s). Squash and reviewed Guide
+trees are identical. Original metadata bytes, incoming source/SQL/types, whole CI
+and earlier prepared receipt remain unchanged. Final cumulative independent review
+and metadata exact-head CI remain required; no rollout or production activation.
+
 Superseding class-day-read receipt: PR1444 normal squash mergea8c4e9b at16:04:51Z
 on2026-10-03 followed all five exact7d341d23 CI37133784223 checks
 (0queue/1697runseconds); canonicalmain cleanFF. Roster1445/calendar1446 remain

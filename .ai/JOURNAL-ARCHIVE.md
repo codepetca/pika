@@ -35214,6 +35214,8 @@ earlier actual PostgREST and exact cleanup evidence remain applicable.
 - Verified all nine diagrams visually, desktop light/dark and 402px mobile with no horizontal overflow, one diagram/no paragraphs in Present, all nine detailed sections/no slide art in Read, menu access, and actual Chrome popup with slide6→7 notes sync and notes PageDown→slide8. Existing print retains detailed notes through print CSS. Build, syntax, and diff checks pass. Evidence: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-visual-presentation.png and java-presenter-notes.png.
 - Sites helper restored; normal existing-source opening/push/package workflow used. Private deployment succeeded from5997c568b63389585c1a23cf02e89ec56d2bdfdc, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_06ce177f16308191955bc4090a1bf0a2. Same hosted URL and Material draft; audience unchanged. Repository artifacts remain in collaborative review worktree.
 
+
+<!-- pika-session-log-archive-batch:330f6e1b7086dbf7a3fea0d187663a94a77e7672e14b4c185c7bdb9585e3118e -->
 ## 2026-10-02 — Java viewer icon toggle
 
 - Replaced visible Read/Present labels with existing licensed Lucide book-open/presentation geometry; retained accessible names, titles, pressed states, and 44px touch targets. Verified both view switches, light/dark state, and screenshot java-icon-toggle.png in this task’s visualizations directory. Build/syntax/diff checks pass; standalone artifact, risk none.
@@ -35234,11 +35236,15 @@ earlier actual PostgREST and exact cleanup evidence remain applicable.
 <!-- pika-session-log-archive-batch:a97a60e6a3648844a2e6f8d0b121a4fc05639703f5b35fca1bd91abe75107d8a -->
 
 <!-- pika-session-log-archive-batch:299ee82729ecc0aa35c4b8bc2b185aebd8e07c8663025cbcab852c48e04af07a -->
+<!-- pika-session-log-archive-batch:af30cacb7baa74e80feb65b2c225a5a3d9ad5d5e82bb9ba66a636b0c4c28fe93 -->
 ## 2026-10-02 — Java viewer Print menu
 
 - Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
 - Private deployment succeeded from5d60a47875b85a5f6117acf8926c3b116c85ae7a, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_26ddf43ab1f481919b0befea1c0809c6. Same URL, audience, and Material draft.
 
+<!-- pika-session-log-archive-batch:7f3105d7c726d7b4d01d2a3819d75fd6a11659682648098c43cd1065b0c5223b -->
+
+<!-- pika-session-log-archive-batch:df3d8d8053cc8cebd57de06eb26693cffd2f7826b18777af52f3cadcfb10f01a -->
 ## 2026-10-02 — Presentation diagrams in Read notes
 
 - Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
@@ -35253,26 +35259,6 @@ earlier actual PostgREST and exact cleanup evidence remain applicable.
 
 - Updated Who does what diagram: Programmer uses Lucide user-round, Program uses </>, User uses Lucide users-round. Same mapping in Present, compact Read, and mobile variants; existing labels/arrows retained. License already included; no new dependency. Standalone artifact, risk none.
 - Visual Chrome screenshot verified dark Present; DOM confirmed matching Read/mobile icon geometry and code label. Build/syntax/diff checks pass; evidence task visualizations/java-role-icons.png. Existing public audience verified, source pushed and archive saved; ordinary public save/deploy succeeded from35da6cb671f9f55661d473a754951b044dbac354, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_3a42d83540608191ba94725137d180cd. Posted P3 ICS3U Material already points to the same updated URL.
-
-## 2026-10-02 — Java lesson presentation scale
-
-Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
-
-## 2026-10-02 — Java compiler factory icon
-
-Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.
-
-## 2026-10-02 — Program game controller icon
-
-Replaced the Program code symbol in Who does what (slide 3) with a locally drawn game controller SVG, including reading/mobile variants. Visually verified Present and Read in Chrome. Build, syntax check, and whitespace check passed. Public Sites version appgver_b856dce49cb08191ba15841e9f27ca94 published from source 68c563f63a627b20e7111ccd8d869c85641e7ce0; deployment appgdep_6abfc84610548191ab624a497a4fe005 succeeded. Same student Material URL. No Pika runtime/schema changes.
-
-## 2026-10-02 — Reusable lesson viewer guidance
-
-Saved docs/curriculum/lesson-viewer-guide.md with the agreed visual Present / detailed Read format, minimal footer, synchronized notes, source file map, Markdown example, reuse steps, visual verification, hosting/audience and Material guidance. Added a compact task route in docs/ai-instructions.md and linked from the Java site README. Documentation only; risk none; direct Codex editing/verification. All 43 ai-startup-docs tests passed after shortening the new route to fit the existing context budget; 10 local links and whitespace validated. Viewer/lesson/guidance remain saved in codex/ics3u-java-intro worktree, uncommitted/unmerged. No public lesson deployment or classroom change required.
-
-## 2026-10-02 — Java lesson in ICS3U Blueprint
-
-Added Java Explained as a Material in the P3-linked ICS3U-4 Blueprint through the signed-in teacher UI. Materials were empty; assignments occupied positions 0–13 and the survey position 14, so the new Material uses position 15 without altering existing classwork. Artifact ID 8ad9cfa1-1c8e-4733-a16f-90cbc0a35111 links the public Java lesson. Export Course Package saved Version 5 from Draft revision 6, verified after reloading, with persisted Material Markdown and screenshots in /tmp/pika-java-review/blueprint-{version-5,java-material}.png. CLI production session was unavailable; used existing authenticated Chrome session. Mirrored blueprint Material beside lesson source and refreshed the classroom Material title to the observed Java Explained. Existing classrooms were not updated or created. Documentation/data mirror only; no Pika runtime, schema, or site changes.
 
 <!-- pika-session-log-archive-batch:119db6bf8c2e33027f2f64f635a69831094a5201bcef695622862dd92a014f52 -->
 ## 2026-10-02 — Prorated-upgrade backend candidate
@@ -35306,19 +35292,204 @@ correction are used. Owner checkpoint required for additive conflict-recovery
 correction and targeted review; applied230 must remain immutable. These handoff
 notes are local and uncommitted; the published candidate remains cc2217bc.
 
-## 2026-10-02 — P3/P5 Blueprint scope verification
-
-Confirmed both P3 - ICS3U and P5 - ICS3U use shared ICS3U-4 Blueprint; both classroom Blueprint tabs show Content Version 3 / Guidance Version 4. Shared Blueprint already contains Java Explained (version 5). Java Explained is Posted in both classrooms; P5 Material opens the same public URL. Preparing P5 inverse Blueprint update was blocked by new classroom artifacts requiring promotion/reconciliation; no proposal/classroom content update applied. P5 has a classroom-only verification assignment in addition to local Java Material, so unrelated promotion was not attempted. Asked whether the user means the shared reusable Blueprint or both current classroom Blueprint tabs; clarification pending. Updated lesson README with verified scope and classroom IDs. No app/source/site changes.
-
-## 2026-10-02 — Classroom Blueprint reconciliation review
-
-Owner confirmed updating both current classroom Blueprint tabs. Inspected P3/P5 merge suggestions through authenticated Chrome without saving: both contain local Unit 1 tests and Java Material; P3 also has a verification test, P5 a verification assignment. P3 lesson promotion would remove templates 91–95 and change many existing lessons. Source review confirmed preparation blocks on all untracked artifacts and promotion replaces entire selected artifact areas. A Java-only promotion cannot clear the gate; broader promotion is outside this lesson request. No proposal, classroom update, or reconciliation writes made. Asked for scope choice: implement targeted Java-only update support (recommended), review broader reconciliation, or retain current snapshots. Updated lesson README; shared Blueprint Version 5 and both Posted student Materials remain available. Documentation only; no app/runtime/schema/site changes.
-
 ## 2026-10-03 — Blueprint Materials visibility
 
 Owner approved addressing Java Explained in both current classroom Blueprint tabs. Source inspection found the tabs omit Materials entirely; refined to a read-only latest-saved linked-Blueprint Materials list rather than changing snapshot provenance or weakening reconciliation. Teacher-only endpoint checks classroom and Blueprint ownership, projects validated materials only, preserves historical missing-Materials snapshots and distinguishes failures from empty lists. Separate source label retains frozen Content/Guidance versions; student Posted Materials and public Sites lesson unchanged. UI brief: existing Blueprint Content and Pattern Lab page states; reuse PageLayout/PageState/Button/RichTextViewer, teacher desktop/mobile light/dark, loaded/focus and desktop loading/error/empty/retry, student UI n/a (teacher-only) with real API rejection covered; composite checklist reviewed, existing segmented semantics retained, new link keyboard focus verified; no experimental patterns or migrations. Focused170 tests, architecture/UI/design/TypeScript/lint and audit pass. Eight unique browser scenarios pass, covering four layouts, loading, error/empty retry, real API null/student403, and Pattern Lab; one broader classroom read failed during dev recompilation and passed targeted rerun after source stabilized. Eight screenshots visually reviewed and retained at /tmp/pika-java-review/blueprint-materials-2026-10-03. Lesson viewer build/syntax checks pass. Lesson/viewer/guidance saved in feature branch; synced origin/main66fa5de3 while preserving both continuity histories. Draft-first independent review follows. Risk profile: none. Model recommendation: GPT-6 Sol for bounded read-only application work.
 
 <!-- pika-session-log-archive-batch:46a816ee257ea3c407000cd48fa9108e5e88ab6990ec5a586acfac23c0e4ed91 -->
+## 2026-10-02 — Java lesson presentation scale
+
+Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
+
+<!-- pika-session-log-archive-batch:64dd6c3b71d34d49e82eef49552d6e00ecfbf81be17928f9bf786e300fb85944 -->
+## 2026-10-02 — Java compiler factory icon
+
+Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.
+
+<!-- pika-session-log-archive-batch:316a1412ae8f00ef984bbc0e66762546eac9c956068483331403c98f37dfa8a5 -->
+## 2026-10-02 — Program game controller icon
+
+Replaced the Program code symbol in Who does what (slide 3) with a locally drawn game controller SVG, including reading/mobile variants. Visually verified Present and Read in Chrome. Build, syntax check, and whitespace check passed. Public Sites version appgver_b856dce49cb08191ba15841e9f27ca94 published from source 68c563f63a627b20e7111ccd8d869c85641e7ce0; deployment appgdep_6abfc84610548191ab624a497a4fe005 succeeded. Same student Material URL. No Pika runtime/schema changes.
+
+## 2026-10-02 — Reusable lesson viewer guidance
+
+Saved docs/curriculum/lesson-viewer-guide.md with the agreed visual Present / detailed Read format, minimal footer, synchronized notes, source file map, Markdown example, reuse steps, visual verification, hosting/audience and Material guidance. Added a compact task route in docs/ai-instructions.md and linked from the Java site README. Documentation only; risk none; direct Codex editing/verification. All 43 ai-startup-docs tests passed after shortening the new route to fit the existing context budget; 10 local links and whitespace validated. Viewer/lesson/guidance remain saved in codex/ics3u-java-intro worktree, uncommitted/unmerged. No public lesson deployment or classroom change required.
+
+## 2026-10-02 — Java lesson in ICS3U Blueprint
+
+Added Java Explained as a Material in the P3-linked ICS3U-4 Blueprint through the signed-in teacher UI. Materials were empty; assignments occupied positions 0–13 and the survey position 14, so the new Material uses position 15 without altering existing classwork. Artifact ID 8ad9cfa1-1c8e-4733-a16f-90cbc0a35111 links the public Java lesson. Export Course Package saved Version 5 from Draft revision 6, verified after reloading, with persisted Material Markdown and screenshots in /tmp/pika-java-review/blueprint-{version-5,java-material}.png. CLI production session was unavailable; used existing authenticated Chrome session. Mirrored blueprint Material beside lesson source and refreshed the classroom Material title to the observed Java Explained. Existing classrooms were not updated or created. Documentation/data mirror only; no Pika runtime, schema, or site changes.
+
+## 2026-10-02 — P3/P5 Blueprint scope verification
+
+Confirmed both P3 - ICS3U and P5 - ICS3U use shared ICS3U-4 Blueprint; both classroom Blueprint tabs show Content Version 3 / Guidance Version 4. Shared Blueprint already contains Java Explained (version 5). Java Explained is Posted in both classrooms; P5 Material opens the same public URL. Preparing P5 inverse Blueprint update was blocked by new classroom artifacts requiring promotion/reconciliation; no proposal/classroom content update applied. P5 has a classroom-only verification assignment in addition to local Java Material, so unrelated promotion was not attempted. Asked whether the user means the shared reusable Blueprint or both current classroom Blueprint tabs; clarification pending. Updated lesson README with verified scope and classroom IDs. No app/source/site changes.
+
+<!-- pika-session-log-archive-batch:e052888504ab5729a98fc20ab32031aa016956780fb59a4e7996208f25589897 -->
+## 2026-10-02 — Classroom Blueprint reconciliation review
+
+Owner confirmed updating both current classroom Blueprint tabs. Inspected P3/P5 merge suggestions through authenticated Chrome without saving: both contain local Unit 1 tests and Java Material; P3 also has a verification test, P5 a verification assignment. P3 lesson promotion would remove templates 91–95 and change many existing lessons. Source review confirmed preparation blocks on all untracked artifacts and promotion replaces entire selected artifact areas. A Java-only promotion cannot clear the gate; broader promotion is outside this lesson request. No proposal, classroom update, or reconciliation writes made. Asked for scope choice: implement targeted Java-only update support (recommended), review broader reconciliation, or retain current snapshots. Updated lesson README; shared Blueprint Version 5 and both Posted student Materials remain available. Documentation only; no app/runtime/schema/site changes.
+
+## 2026-10-03 — Shared classroom-detail read preparation
+
+PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
+allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
+normal squash/no bypass and clean canonical main fast-forward. Classday1444
+ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
+initial security/compatibility reviews are clean, pending actual-parent integration.
+This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
+current relationship bound in the full30field payload, real enrollment FK inner
+join, archive-owner reads and owner-self-participation denial, preserved hydration
+and member guide-draft/guidance privacy projection. Original fallback/pair GETs
+and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
+TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
+CI hook prepared; actual execution and independent review still pending.
+Local236 installed by separate preserving-removal work; no schema/types here.
+Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
+attendance protection; coordinator repairs only synthetic teardown before more
+DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
+The owner's all-work/review-extension authorization retains original clocks,
+counters, absolute review caps and normal technical/release gates.
+
+1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
+(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
+ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
+replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
+unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
+and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
+Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
+allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
+entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
+integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
+
+<!-- pika-session-log-archive-batch:152d9c238a06df3559d67049e933071c78591a07da1e6543d265c8dce98dd7e8 -->
 ## 2026-10-03 — Blueprint Materials review correction
 
 PR1437 initial independent GPT-5.6 Sol review at99704ad8 found one blocking malformed-title boundary and stale posting notes. Verified canonical Material writes trim and require nonempty titles; applied matching read validation and two empty/whitespace snapshot regressions, updated teacher notes to Java Explained Posted in P3/P5, and clarified read-only tab visibility rather than snapshot adoption. One batched correction; affected checks and targeted plus final cumulative review follow. No runtime writes, migration or deployment. Review budget: one launch/one initial wave consumed; elapsed initial review about4m30s, coordinator tokens unknown.
+
+## 2026-10-03 — Approved upgrade conflict recovery batch
+
+The owner approved one correction and one targeted financial review with30minutes
+from08:09:58Z to08:39:58Z. Forward231 keeps applied230 immutable, durably audits
+conflicts, closes only operations before invoice intent, quarantines uncertain
+provider writes, preserves stale-claim fences and blocks ordinary requeue from
+erasing financial recovery. Expanded rollback fixtures cover each revision,
+unknown invoice/pay outcomes, quote queue visibility and retired bindings.
+49targeted runtime/service/reconciliation and521focused tests pass, including
+TypeScript/lint/architecture gates. Main66fa5de3 integrated with only continuity
+conflicts; all billing source and230 remain byte-identical to the prepared fix.
+231 application and database regressions await separate exact approval; the
+harness correctly refuses230. One targeted fixed-SHA financial reviewer is next
+(launch6); no further correction or final wave is authorized. Billing OFF; no provider calls or reset.
+
+## 2026-10-03 — Upgrade231 preapplication review cleared
+
+Targeted GPT-5.6 Sol/high reviewer cleared exact4209da62 with no verified blockers
+and246upgrade/API tests. Installed230 checksum unchanged;231 public RPC types
+unchanged. Six launches and five composite correction/sync batches are consumed;
+the30-minute extension's one correction and targeted reviewer are complete. Local
+history001–230 matches and a read-only dry run lists only231. User/classroom/
+upgrade/receipt counts3/1/0/0; sandbox OFF. Exact local231 permission is required
+before one application attempt, rollback DB harness, types/security checks and
+ready-head CI. No merge, production, Stripe writes or reset authority conveyed.
+These review receipts are uncommitted continuity notes; PR1435 remains draft at
+reviewed4209da62.
+
+## 2026-10-03 — Local231 receipt and fixture checkpoint
+
+Direct human local-migration approval override verified in owning classroom task.
+That coordinator applied only reviewed231 once from4209da62; I independently
+verified history001–231 and immutable230/231 checksums. Types match; security
+advisor clean; four existing billing DB harnesses pass. The expanded upgrade
+harness fails initial synthetic Stripe-ID validation because conflict_* fixture
+names include underscores. Transaction rolled back; data3/1/0/0, sandboxOFF.
+Prepared two-line ID normalization patch at/private/tmp/pika-231-stripe-fixture-id.patch
+passes git-apply-check, but source is unchanged. One authorized correction/review
+is consumed (6launches/5composite batches). A bounded fixture-only correction,
+database rerun and brief targeted review need the human budget checkpoint.
+PR1435 remains draft at4209da62; no migration retry, reset, production or Stripe.
+
+## 2026-10-03 — Shared local232 coordination hold
+
+Announcement coordinator reports one successful reviewed232 local application
+and holds the DB writer slot for rollback/SDK/concurrency proof. Independently
+read history tail232/231/230; billing source stays4209da62 and230/231 checksums
+unchanged. Types last matched001–231 before232; current drift is expected and
+must not trigger reset/repair or unrelated232 source adoption into billing. No
+fixtures, generation, migration or provider writes run here. Announcement proof/cleanup completed and its writer slot is now released;
+independent reads confirm local232 and persistent counts3/1/0/0,sandboxfalse.
+Billing fixture-only correction/review approval remains pending; coordinate the
+writer slot before any resumed fixtures. No budget extension inferred. PR1435 stays draft; continuity only dirty.
+
+## 2026-10-03 — Approval override and upgrade database acceptance
+
+Human overrides correction and main-merge approval checkpoints; review and CI
+gates remain. Fixture-only batch6 normalizes synthetic Stripe IDs, isolates an
+earlier valid queue fixture through a real lease, and removes a PL/pgSQL alias
+collision. Full expanded rollback harness passes on local001–232; cleanup counts
+3/1/0/0,sandboxfalse, shared writer slot released. Billing code, installed230/231
+and generated types remain byte-identical to reviewed4209da62. Types last matched
+001–231 before announcement232; branch CI must verify its own schema replay.
+One mechanical fixture reviewer (launch7) follows focused checks/frozen commit;
+no fresh full-diff wave. PR1435 is draft until review/exact-head CI, then authorized
+main merge. Billing OFF; no migration reapplication, reset or provider call.
+
+## 2026-10-03 — Java Materials approved main synchronization
+
+Owner authorized PR1437 main merge. Main advanced to efe4eb3f through dormant billing PR1435, producing only an archive conflict. Kept the canonical main archive and all branch additions byte-for-byte; application files merged without conflict. All lesson/viewer/API/UI/test files remain unchanged from independently reviewed73ff84fb, whose full CI37110290722 passed. One bounded compatibility review, focused checks and fresh stable-head CI precede the authorized squash merge. No production promotion, migration application, billing activation or provider calls are authorized.
+
+<!-- pika-session-log-archive-batch:d6bc09006baa6fc574de7b3645826e9111e876fddbae208ce91c9f6b2a801ee8 -->
+## 2026-10-03 — Announcement reads merged; owner-write preparation
+
+PR1436 merged66fa5de3 after clean initial, targeted and final integration reviews,
+191 focused checks and all exact-head CI37083358161 gates; hub fast-forwarded clean.
+Owner authorizes routine implementation/review/normal main merges through integrated
+cutover, retaining failed-gate, exact migration and bounded-review checkpoints.
+New worktree codex/contextual-announcement-owner-writes starts66fa5de3; startup passes.
+Astra/high designed transaction/legacy concurrency semantics; Sol6.1/high implements
+only schemas/helper/owner routes/tests while coordinator owns SQL/harnesses/CI/docs.
+Prepared service-only current-owner create/edit/delete under shared admission; legacy
+GETs and mutations unchanged.209 announcement tests, TypeScript and lint pass.
+Rollback-only definition rehearsal proves owner/publication/transfer/privileges,
+UTF16 title limits, hot/decommission fences and receipt cascade with zero residue and
+no installed schema/history change. Actual local SDK proves legacy empty PATCH406,
+unchanged time/revision and exact cleanup even after forced failure; shared path
+intentionally corrects this to successful no-op. New concurrency/SDK harness prepared
+but unrun until authorized schema installation.232 provisional; billing retains
+installed immutable230 and reviewed forward231, PR1435 draft pending local apply.
+No generated-type edits, new cohort, production promotion or activation. Independent
+source review, canonical numbering/types, actual concurrency, CI and merge remain.
+Risk runtime-platform; high auth/schema review uses Sol5.6/high and Sol6.1/high
+compatibility fallback (Terra unavailable). Current roadmap remains five batches;
+this does not close batch1 or authorize partial classroom/home cutover.
+Final preparation passes245focused checks plus architecture/UI/design policy,
+TypeScript/lint and rollback rehearsal. Billing231 source4209da62 has one clean
+targeted financial review; actual schema/concurrency and main dependency still wait.
+Requested exact local231/232 approval asynchronously. Formal owner-write review
+budget is not started while that checkpoint remains unresolved; draft source may
+be published for continuity, never marked ready or merged before complete evidence.
+
+## 2026-10-03 — Local migration override; announcement owner runtime proof
+
+Owner explicitly overrides separate local migration approvals for this task only;
+exact reviewed source, local target/history checks and non-destructive limits remain.
+Production permission, review budgets and integrated cutover gates are unchanged.
+Coordinator applied reviewed billing231 once from4209da62 after sole-file preview,
+Pika/54322 binding and matching230/231 digests; local history advanced001–231.
+Billing independently verified the receipt/types/security; four existing rollback
+harnesses pass. Its new fixture uses invalid synthetic Stripe IDs and rolled back;
+the fixture-only correction/review is held at its already-consumed budget checkpoint.
+No billing source edit or implied budget extension by the classroom coordinator.
+PR1438 initial Sol5.6 security and Sol6.1 compatibility reviews clean at2f6fe7e;
+ledger08:33:44UTC,2launches/0fixes,60-minute elapsed limit retains dependency waits.
+After billing released the shared writer slot, applied sole232 once from application-only
+checkout4209da62 plus byte-identical reviewed232, SHA2563f57cc55ac37cf5338edf78b988278339e3044cee582a12e56dc142c164218c7.
+Local001–232 matches application checkout; service-only definer/empty-path ACLs pass.
+Installed rollback contract and cross-role SDK/concurrency/publication/403/404/409,
+parent/resource contention, lifecycle/class-delete/resource races and late rollback pass.
+Forced post-fixture error exits1 after exact cleanup; users/classrooms/upgrades/receipts
+remain3/1/0/0,sandboxfalse, zero synthetic rows/test sessions. Shared writer released.
+No reset/repair/reseed, manual generated types, production or cohort/UI changes.
+1438 stays draft: canonical1435 source dependency/types, final integration, exact-head
+CI and normal merge remain. Member read receipts follow; batch1/cutover not complete.
+Receipt update initially exceeded the16,000-character startup budget by54; compressed
+CURRENT without weakening the gate.245focused checks,architecture/UI/design/TS/lint
+now pass. One documentation-only correction batch; no SQL/runtime changes.
