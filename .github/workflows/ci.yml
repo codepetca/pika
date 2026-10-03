@@ -423,6 +423,31 @@ jobs:
           grep -F 'FAIL Forced classroom detail post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$cleanup_log"
           grep -F 'PASS exact synthetic classroom detail cleanup, zero residual rows and global baseline counts' "$cleanup_log"
 
+      - name: Verify contextual Course Guide SDK reads and exact failed-fixture cleanup
+        shell: bash
+        run: |
+          course_guide_log="$(mktemp)"
+          trap 'rm -f -- "$course_guide_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-course-guide-read.ts > "$course_guide_log" 2>&1 || { cat "$course_guide_log"; exit 1; }
+          cat "$course_guide_log"
+          grep -Fx 'PASS course guide actual SDK mixed-role authority, genuine resource FK, both collections beyond 1000, terminal pages and millisecond release precision' "$course_guide_log"
+          grep -Fx 'PASS course guide real SDK wire tampering, cardinality, cursor, resource/config bounds and transport failures deny without retries or partial DTO' "$course_guide_log"
+          grep -Fx 'PASS course guide actual-site JSONB null/scalar/default/semantic equality, legal member feature controls and constraint denial, hidden projections, resource compatibility and current member syllabus' "$course_guide_log"
+          grep -Fx 'PASS course guide committed owner/archive/enrollment/config/visibility/syllabus revocations before header, first/later/terminal pages and final control deny all partial output' "$course_guide_log"
+          grep -Fx 'PASS exact synthetic course guide cleanup, zero residual rows and global whole-row baseline counts' "$course_guide_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-course-guide-read.ts --verify-cleanup-after-fixture > "$course_guide_log" 2>&1 || cleanup_status=$?
+          cat "$course_guide_log"
+          [[ "$cleanup_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL Forced course guide post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)' "$course_guide_log"
+          grep -Fx 'PASS exact synthetic course guide cleanup, zero residual rows and global whole-row baseline counts' "$course_guide_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-course-guide-read.ts --verify-cleanup-after-commit-before-capture > "$course_guide_log" 2>&1 || cleanup_status=$?
+          cat "$course_guide_log"
+          [[ "$cleanup_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL Forced course guide post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$course_guide_log"
+          grep -Fx 'PASS exact synthetic course guide cleanup, zero residual rows and global whole-row baseline counts' "$course_guide_log"
+
       - name: Verify contextual announcement owner contracts and concurrency
         shell: bash
         run: |

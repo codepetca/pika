@@ -958,3 +958,13 @@ AI unit costs, once-per-teacher trial enforcement, deterministic activity rankin
 archive/completion/retention compatibility, tax configuration, refund entitlement
 and dispute contracts, abuse limits and support authority. School/manual grant
 precedence remains deferred. Product approval does not activate enforcement.
+
+The bounded [Course Guide reader](contextual-course-guide-reads.md) is being
+prepared behind the same dormant shared admission. Every enabled singleton,
+collection page, empty terminal and final control proves current owner/member
+authority and raw JSONB visibility configuration in its own statement. Its DTO,
+public-site/legacy handlers and assessment publication behavior remain intact;
+no answer-bearing broad site loader, SQL/types, UI or billing changes are included.
+Source TDD/installed-SDK serialization checks pass; root-guarded actual local
+PostgREST normal/forced-cleanup proofs and independent review/CI remain pending.
+This does not complete everyday work or permit cohort activation.

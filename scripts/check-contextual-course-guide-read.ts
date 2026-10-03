@@ -260,6 +260,7 @@ async function main() {
 
     // Persisted JSONB null/scalar/default values, key-order independence and
     // independently hidden projections use actual PostgREST equality filters.
+    process.stdout.write('CHECK course guide persisted actual-site configuration\n')
     for(const config of [null,true,7,'historical scalar',{}, {overview:'nonboolean',resources:null},
       {overview:false},{resources:false},{assignments:false},{tests:false},
       {overview:false,resources:false,assignments:false,tests:false}]){
@@ -278,12 +279,47 @@ async function main() {
       tamper:(stage,_body,root)=>{if(stage!=='preflight')root.actual_site_config={tests:true,assignments:true,resources:true,overview:true}}})
     assert.deepEqual((await read(ownerStudent,classA,reordered.client)).assignments,expectedKeys(expectedAssignments,'assignment'))
     sql(`update public.classrooms set actual_site_config='{}'::jsonb where id=${q(classA)};`)
-    for(const rawFeature of [null,true,7,'historical feature scalar',{}, {syllabus:'nonboolean'},{syllabus:true}]){
+    //205 constrains feature_visibility, unlike actual_site_config. Missing
+    //known keys yield SQL UNKNOWN and retain legacy defaults; present known
+    //keys must be booleans. Unknown extra keys are not authorization controls.
+    for(const rawFeature of [{}, {syllabus:true},
+      {attendance:true,classwork:true,tests:true,gradebook:true,student_grades:false,
+        calendar:true,syllabus:true,announcements:true,achievements:true},
+      {syllabus:true,historical_extra:{value:'non-authorizing'}},
+      {extra_flag:null,extra_scalar:7}]){
       sql(`update public.classrooms set feature_visibility=${q(JSON.stringify(rawFeature))}::jsonb where id=${q(classA)};`)
       const observed=trace(memberTeacher);assert.deepEqual((await read(memberTeacher,classA,observed.client)).assignments,expectedKeys(expectedAssignments,'assignment'))
       assert.equal(observed.counts.get('final'),1)
     }
     sql(`update public.classrooms set feature_visibility='{}'::jsonb where id=${q(classA)};`)
+    process.stdout.write('CHECK course guide feature constraint denial\n')
+    const featureBaseline=fingerprint()
+    const featureRowBefore=row(JSON.parse(sql(`select to_jsonb(c) from public.classrooms c where id=${q(classA)};`)))
+    for(const forbiddenFeature of [null,true,7,'historical feature scalar',{syllabus:'nonboolean'},{syllabus:null}]){
+      const denialBaseline=fingerprint();assert.deepEqual(denialBaseline,featureBaseline)
+      // The inner EXCEPTION block is a PostgreSQL subtransaction: only the
+      // exact23514 constraint failure is accepted, and all UPDATE/trigger work
+      // rolls back. No schema alteration, trigger suppression or retry occurs.
+      sql(`do $feature_denial$ declare rejected boolean:=false; violated text; failure_state text; original jsonb; begin
+        select to_jsonb(c) into original from public.classrooms c where id=${q(classA)} and teacher_id=${q(ownerStudent)} for update of c nowait;
+        if original is null then raise exception 'Exact feature fixture is absent'; end if;
+        begin
+          update public.classrooms set feature_visibility=${q(JSON.stringify(forbiddenFeature))}::jsonb
+            where id=${q(classA)} and teacher_id=${q(ownerStudent)};
+        exception when check_violation then
+          get stacked diagnostics violated=constraint_name,failure_state=returned_sqlstate;
+          if violated is distinct from 'classrooms_feature_visibility_shape_check' or failure_state is distinct from '23514'
+            then raise exception 'Unexpected feature constraint failure'; end if;
+          rejected:=true;
+        end;
+        if not rejected then raise exception using errcode='ZX205',message='Invalid persisted feature shape unexpectedly accepted'; end if;
+        if (select to_jsonb(c) from public.classrooms c where id=${q(classA)}) is distinct from original
+          then raise exception 'Feature denial changed fixture row'; end if;
+      end;$feature_denial$;`)
+      assert.deepEqual(row(JSON.parse(sql(`select to_jsonb(c) from public.classrooms c where id=${q(classA)};`))),featureRowBefore)
+      assert.deepEqual(fingerprint(),denialBaseline,'Expected feature constraint denial must preserve every whole row')
+    }
+    process.stdout.write('CHECK course guide persisted resource compatibility\n')
     for(const raw of [null,'not valid JSON',JSON.stringify(content),{type:'doc',content:[]},{type:'doc',content:[{type:'image',attrs:{src:'https://example.invalid/image'}}]}]){
       sql(`update public.classroom_resources set content=${q(JSON.stringify(raw))}::jsonb where id=${q(resource)} and classroom_id=${q(classA)};`)
       const guide=await read(ownerStudent);assert.deepEqual(guide.resourcesContent,typeof raw==='string'&&raw===JSON.stringify(content)?content:null)
@@ -295,8 +331,9 @@ async function main() {
     sql(`update public.classrooms set archived_at=null where id=${q(classB)};`)
     await assert.rejects(read(memberTeacher,classB),statusIs(403));await read(ownerTeacher,classB)
     sql(`update public.classrooms set feature_visibility='{}'::jsonb where id=${q(classB)};`)
-    process.stdout.write('PASS course guide persisted JSONB null/scalar/default/semantic equality, hidden projection omission, resource compatibility and current member syllabus\n')
+    process.stdout.write('PASS course guide actual-site JSONB null/scalar/default/semantic equality, legal member feature controls and constraint denial, hidden projections, resource compatibility and current member syllabus\n')
 
+    process.stdout.write('CHECK course guide committed revocation boundaries\n')
     const boundaries:Stage[]=['header','assignments:1','assignments:2','assignments:3','tests:1','tests:2','tests:3','final']
     for(const boundary of boundaries){
       for(const kind of ['owner','archive','config','syllabus'] as const){
