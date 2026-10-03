@@ -11,54 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Approved copy1431 scrollbar-main reconciliation
-
-Owner approved one synchronization batch6, one changed-base final recheck and
-15review minutes19:34:36–19:49:36Z, plus a temporary main-merge hold request to
-the attendance and billing chats during final CI. Both can continue independent
-work; no task pause or production authority was transferred. Rebased onto1432
-bf3754c4; journal conflict only. Removed one surplus exact historical entry,
-preserving its original. Combined history equals6ad8140f+bf3754c4−8dc05d47
-plus this receipt. All16 non-log owned files and installed229 bytes unchanged.
-263focused tests and architecture/UI/design/TypeScript/lint pass. Final frozen
-recheck and fresh exact-head CI remain before normal main merge. No schema
-application, production promotion, account/billing changes or admission activation.
-
-## 2026-10-02 — Copy1431 merged; announcement shared GET integration
-
-Verified1431 normal squash merge493e752a after all five gates passed on unchanged
-reviewedca403202, CI37076238068. Canonical main fast-forwarded cleanly; no worktree
-cleanup, production promotion or rollout activation. Local001–230 observed;230 is
-billing-owned and unmerged into this base, with no reapply/reset/types regeneration.
-Owner approved continuing batch1 announcement integration. New attached worktree
-codex/contextual-announcement-reads starts at493e752a; startup verifies. Astra/high
-confirmed schema-free current-classroom payload joins and precise composite keysets.
-Sol6.1/high owns helper/schema/GET tests; coordinator owns actual SDK fixture proof,
-CI and docs. Writes, read receipts, notification/export consumers and live activation
-remain deferred. Independent bounded PR review follows local acceptance, not this
-architecture preparation. No migration or UI change is included.
-Local acceptance:65new/134announcement tests;189focused checks plus architecture,
-UI/design policy, TypeScript and lint pass. Actual SDK/PostgREST proves1009rows,
-precise/null keysets, schedules, role-neutral relationships and first/later/terminal
-revocation; positive and forced-failure cleanup leave zero synthetic rows. New
-announcement PR requires its own fixed-SHA high-risk review budget; copy1431's
-closed ledger is not reset or reused. Rollout and production remain held.
-Initial1436 review was clean at5f2bdd3c (2launches,0fixes); CI37082238009 then
-found only api-route-standards debt26vs25: new GET schema parsing incorrectly
-credited an untouched POST at file scope. Returned draft. Batch1 removes redundant
-route parsing; the named feature helper still rejects invalid inputs before any
-SDK query. Baseline, mutation handlers and shared read logic remain unchanged;
-real-helper route regressions plus the standards check cover the correction.
-One targeted compatibility recheck and final integration precede new exact-head CI.
-Batch1 local acceptance passes191focused checks, standards/announcement subset117,
-TypeScript/lint/audit. Shared helper/schema/database contract are unchanged, so
-earlier actual PostgREST and exact cleanup evidence remain applicable.
-
-## 2026-10-02 — Minimal Java lesson viewer
-
-- Removed the header, sidebar, and Previous/Next buttons at the owner's request. All viewer controls now live in a compact fixed footer: page count, Read/Present, fullscreen, print, and three-dot options with Light/Dark appearance. Keyboard navigation remains; reading scroll tracks the current page. Included Lucide icon license alongside generated assets.
-- Visually checked desktop light/dark and phone-width layouts; verified view switching, Arrow/Page keys, menu Escape, no header, and no horizontal overflow. Build/syntax/diff checks pass. Native fullscreen events toggle the control label, though the automated embedded browser does not retain fullscreen. Private deployment succeeded from pushed source 51027a7847c6271f5587e5eff923a4b0391720d7, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_b83acb0cc9f88191929a85adc6460ec6. Same hosted URL and Material draft; audience unchanged. Screenshot: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-minimal-viewer.png.
-
 ## 2026-10-02 — Visual Java slides and presenter notes
 
 - Owner requested ultra-simple Present diagrams and a detailed Read view in a separate notes window. Added nine diagram selections to the Markdown with SVG/mobile templates in site/visuals.mjs; original reading explanations retained, downloaded student Markdown strips the visual directives. Footer menu now opens presenter notes as a named popup with normal link fallback. Ephemeral session-scoped BroadcastChannel synchronizes current section/theme and allows notes keyboard navigation to control the presentation. No Pika runtime/schema changes; risk none; weekly remaining53%, prior DeepSeek pause retained.
@@ -552,6 +504,7 @@ and retains original historical records. Targeted reconciliation review precedes
 new exact-head CI. Original1443 review clock14:12:06Z/counters retained, necessary
 time extension authorized without repeat ask. Local235 installed by separate
 roster-owner-write work; this GET slice adds no schema. Prod001–225/sharedadmissionOFF.
+
 ## 2026-10-03 — Shared class-day GET consolidation
 
 Prepared dormant shared GETs for neutral class-day and teacher compatibility
@@ -572,16 +525,15 @@ transaction fences remain batch1; linkedBlueprintGET is batch3-adjacent. Human
 authorizes in-scope work/local/reviews/extensions/main without repeated prompts;
 original budgets/counters and absolute skill caps/security/merge gates remain.
 
-## 2026-10-03 — Verified material-write merge and read dependency reconciliation
+## 2026-10-03 — Roster1443 merged; class-day1444 actual-main reconciliation
 
-PR1441 normal squash merge d913eebd71e94e6dee4fd0be2d24b7371b5ccb15 verified
-at14:18:23Z after all five exact-reviewed-head74995349 CI37127414505 gates pass
-(observed0queue/1774runseconds). No admin/auto-merge/bypass. Canonical main cleanly
-fast-forwarded. Original review clock and7launch/4batch counters retained under
-the user's explicit review-extension authority; no repeated approval requested.
-Installed234 digest unchanged/immutable; local001–234, production001–225 untouched.
-This child rebased onto actual squash skipping stacked749; full pre-receipt tree
-matches its previous candidate exactly. Only continuity/merge receipts change.
-Main retarget, changed-base review where needed, and final exact-head CI still
-precede child merge. Parent worktree retained while dependents remain. Shared
-admission/cutover OFF; no provider/account/plan/billing activation.
+PR1443 normal squash merge7e5c6422 verified15:28:30Z after all five77995c95
+CI37131666194 gates (0queue/1642runseconds). Canonicalmain cleanFF. This1444
+candidate rebases onto actual7e5main; all eight runtime/schema/proof/test/doc
+files and every main/childCIstep byte-preserved. Continuity conflicts preserve
+both histories; duplicate identical1441receipt and copied already-archived
+copy1431entry removed onlyonce, originals retained. Original14:26:22clock and
+counters remain; documented human-authorized60minute extension ends16:26:22Z.
+Targeted changed-base review/final exact-head CI stillprecede merge. Local236
+is installedby separate preservingremoval work; thisread addsnoSQL/types/UI.
+Production001–225/sharedadmission/fullcutoverOFF; no provider/account/billing edits.

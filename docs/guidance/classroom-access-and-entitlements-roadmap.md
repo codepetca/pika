@@ -730,6 +730,13 @@ calendar writes still need migration-152 boundary consolidation. Roster write
 fences also remain batch-1 work. Linked Blueprint material reads are batch-3
 adjacent and do not replace those everyday-access dependencies.
 
+Superseding roster-read receipt: PR1443 normal squash merge7e5c6422 at15:28:30Z
+on2026-10-03 follows all five exact77995c95 CI37131666194 gates (0queue/1642run).
+Canonicalmain cleanFF. Class-day1444 nowreconciles onto that actualmain; original
+runtime/proof/CIsteps remain unchanged, with targeted changed-base review and
+fresh readyCI required. Local236 is installedby separate preservingremoval work;
+thisGET addsnoSQL/types. Production001–225/sharedadmission/fullcutoverOFF remain.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
