@@ -195,4 +195,10 @@ describe('actor-bound shared announcement reads', () => {
     await expect(readContextualAnnouncements({ ...input, classroomId: 'bad', permission: 'member', supabase: fixture.supabase })).rejects.toMatchObject({ statusCode: 400 })
     await expect(readContextualAnnouncements({ ...input, now: new Date('bad'), permission: 'member', supabase: fixture.supabase })).rejects.toMatchObject({ statusCode: 503 })
   })
+
+  it.each([{ actorId: 'bad' }, { classroomId: 'bad' }])('rejects invalid UUIDs before any SDK query %#', async invalid => {
+    const fixture = client([])
+    await expect(readContextualAnnouncements({ ...input, ...invalid, permission: 'member', supabase: fixture.supabase })).rejects.toMatchObject({ statusCode: 400 })
+    expect(fixture.from).not.toHaveBeenCalled()
+  })
 })

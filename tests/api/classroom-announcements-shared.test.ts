@@ -26,7 +26,7 @@ const routes = [
 
 describe('shared announcement GET admission', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
     vi.mocked(getServiceRoleClient).mockReturnValue({ from: vi.fn() } as unknown as ReturnType<typeof getServiceRoleClient>)
     vi.mocked(readContextualAnnouncements).mockResolvedValue({ announcements: [] })
@@ -62,8 +62,14 @@ describe('shared announcement GET admission', () => {
 
   it.each(routes)('rejects invalid $permission IDs after authentication', async ({ handler, role }) => {
     vi.mocked(requireAuth).mockResolvedValue(user(role))
+    const actual = await vi.importActual<typeof import('@/lib/server/contextual-announcement-read')>('@/lib/server/contextual-announcement-read')
+    vi.mocked(readContextualAnnouncements).mockImplementationOnce(actual.readContextualAnnouncements)
+    const from = vi.fn()
+    vi.mocked(getServiceRoleClient).mockReturnValue({ from } as unknown as ReturnType<typeof getServiceRoleClient>)
     expect((await handler(request(), { params: Promise.resolve({ id: 'bad' }) })).status).toBe(400)
-    expect(readContextualAnnouncements).not.toHaveBeenCalled()
+    expect(readContextualAnnouncements).toHaveBeenCalledWith(expect.objectContaining({ actorId, classroomId: 'bad' }))
+    expect(vi.mocked(requireAuth).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(readContextualAnnouncements).mock.invocationCallOrder[0])
+    expect(from).not.toHaveBeenCalled()
   })
 
   it.each(routes)('retains helper errors for $permission', async ({ handler, role }) => {

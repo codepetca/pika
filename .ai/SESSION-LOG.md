@@ -493,3 +493,13 @@ precise/null keysets, schedules, role-neutral relationships and first/later/term
 revocation; positive and forced-failure cleanup leave zero synthetic rows. New
 announcement PR requires its own fixed-SHA high-risk review budget; copy1431's
 closed ledger is not reset or reused. Rollout and production remain held.
+Initial1436 review was clean at5f2bdd3c (2launches,0fixes); CI37082238009 then
+found only api-route-standards debt26vs25: new GET schema parsing incorrectly
+credited an untouched POST at file scope. Returned draft. Batch1 removes redundant
+route parsing; the named feature helper still rejects invalid inputs before any
+SDK query. Baseline, mutation handlers and shared read logic remain unchanged;
+real-helper route regressions plus the standards check cover the correction.
+One targeted compatibility recheck and final integration precede new exact-head CI.
+Batch1 local acceptance passes191focused checks, standards/announcement subset117,
+TypeScript/lint/audit. Shared helper/schema/database contract are unchanged, so
+earlier actual PostgREST and exact cleanup evidence remain applicable.

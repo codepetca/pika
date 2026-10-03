@@ -12,7 +12,6 @@ import {
   authorizeClassroomAnnouncementRequest,
 } from '@/lib/server/classroom-announcement-access'
 import { authorizeSharedAnnouncementReadActor, readContextualAnnouncements } from '@/lib/server/contextual-announcement-read'
-import { announcementReadQuerySchema } from '@/lib/validations/announcement-reads'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -23,10 +22,9 @@ export const GET = withErrorHandler('GetAnnouncements', async (_request, context
   const sharedAccess = await authorizeSharedAnnouncementReadActor()
   if (sharedAccess.mode === 'shared') {
     const { id: classroomId } = await params
-    const input = announcementReadQuerySchema.parse({ classroomId })
     return NextResponse.json(await readContextualAnnouncements({
       supabase: getServiceRoleClient(), actorId: sharedAccess.user.id,
-      ...input, permission: 'owner',
+      classroomId, permission: 'owner',
     }))
   }
   const announcementAccess = await authorizeClassroomAnnouncementRequest(async () => (
