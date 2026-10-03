@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Apply and verify local copy229
-
-Billing1429 merged25cc0691; all five gates onfe228354/run37039171724. Rebased copy,
-retaining both histories. Matching228 digest7aba5de5, pika/54322,001–228 history and
-229-only preview verified; approved LOCAL229 applied once, permission consumed.
-Local001–229/service-only grants/legitimate generated types pass. Fixture active
-lineage uniqueness collision reproduced red/green; distinct source artifact fix,
-no SQL/guard changes. Positive and forced-failure harness pass with zero residue;
-late rollback verified before outer rollback.263focused+architecture/policies/
-TypeScript/lint pass.229 digest9b4c9b8b unchanged/immutable. Draft/full PR review next;
-1review/3fixbatches, extension ends17:50:54Z after prerequisite CI. No production,
-account plan, billing activation or admission changes.
-
 ## 2026-10-02 — Reconcile copy1431 after green CI and attendance1430
 
 Both independent full reviews clean at4516bc85; all five CI gates pass on
@@ -462,3 +449,65 @@ regressions then pass. Coordinator reruns actualSDKnormal/forcedfailure: both
 owner/member null artifact evidence onpage2 now503 with no partiallist; all prior
 1007/1006/keyset/revocation cases and exactcleanup remain green.245reconciledfocused
 checks and static gates are the batch acceptance before fixed-SHA targeted review.
+
+## 2026-10-03 — Material reads merged; owner-write source preparation
+
+PR1440 normal squash merged04f8d1e3 at12:17:30Z after clean initial/targeted/final
+reviews on5a1df811 and all five ready-event CI37120967402 gates (0queue/1509run).
+Canonical main fast-forwarded cleanly. Lifecycle10events/1correctionpush; active
+time/tokens unknown. Reviewledger closes with4launches/1batch and originaldeadline.
+Local001–233 and production001–225 unchanged; shared admission/cutover remain OFF.
+
+Separate attached codex/contextual-material-owner-writes prepared shared-only
+POST/PATCH/DELETE with strict inputs and actor/class-bound service-only atomicRPCs,
+retaining legacy/exact-pair creator193 and all triggers/publication/lineage semantics.
+Implementation and SDK workers own disjoint files; neither executed database fixtures.
+Coordinator caught and corrected local helper environment binding, complete reorder
+snapshots and valid negative mixed positions before review.207tests/10suites, lint,
+architecture1128modules, shell/diff/audit and API-boundary ratchet pass. TypeScript
+has only3 expected genuine unappliedRPC-name errors; no generated types fabricated.
+Candidate234 SHA256fed955b0557ff461ef79fb22b2372a6672a6ca15df6324059d00dd140ffaf8a7
+remains UNAPPLIED and database behavior UNVERIFIED. Clean rebase onto actual1440
+merge skips stacked read commits; runtime/script/SQL trees byte-identical. Independent
+review precedes exact local history/one-file preview/application under the explicit
+local approval waiver, genuine types and serialized rollback/SDK/forced-cleanup proofs.
+No production/provider/real-account/plan/activation authority is inferred. Batch1 of
+five remains incomplete; linked Blueprint/material-adjacent/roster boundaries follow.
+
+Draft PR1441 initial compatibility review clean; security accepted one HIGH partial-save
+blocker for preserved legacy malformed content/timestamps. Remediation1 validates the
+complete14-field persisted transport inside create/update transactions, including SDK
+UUID and actual serialized timestamp constraints; malformed history returnsPT503 with
+row/archive/Blueprint revisions unchanged. Explicit valid content repairs remain possible;
+delete does not need a read payload.245tests/10suites pass; candidate234 corrected SHA256
+aca48e5b00c1642f487799771a8278bd411c46f40fdec1f6edf9849936078f20 remains UNAPPLIED.
+Two initial reviewers completed before editing. Targeted review/local proof next; original
+ledger start12:20:40Z/deadline13:20:40Z retained,2launches/1batch. No production changes.
+
+Targeted security review clean atf3d879ca and exactaca48e5b SQL. Strict localpika54322
+target/history/latestmain/234-only preview confirmed; one normalpush applied234,
+001–234 matches and genuine generatedtypes add only3RPCs. InstalledSQL immutable.
+Local DB execution revealed fixture-role and mutation/subquery evaluation issues;
+batched harness correction usespostgres only for synthetic fence setup, restores
+service_role before testedRPCs and checks deletion in a separate statement. Genuine
+Json transport refinements fix2real compiler errors without fabricated contracts.
+322tests/18files+allfocusedstatic/lint gates, type drift and audit pass. Standalone
+SQL rollback harness passes malformed historical transports/repair and exact both-
+revision rollback. ActualSDK normal/concurrency proof exits0; forcedfailure exits1
+with expectederror and exactcleanupPASS. All syntheticfixtures absent afterward.
+Reviewlaunch3clean; batch2 now ready for targeted/final review. Production001–225,
+shared admission/cutover OFF, provider/account/plan untouched; no repeated localask.
+
+Targeted batch2 and final cumulative reviews CLEAN atf4b7efcf, ready once for exact
+CI37123589006. Database job failed before material-write proofs because runner lacks
+rg at the harness's port check; returnedPR1441 to draft immediately. Batch3 changes
+only that shell check to standardgrep; standalone rollback proofs pass with rg absent
+fromPATH. Runtime/installedSQL/generatedcontracts unchanged. Fresh targeted portability
+review and exact corrected-head CI required; original review budget retained.
+
+Corrected CI37124061293 coverage job passed10024 tests but failed one existing
+continuity-format assertion: CURRENT production-history prefix had lost spaces.
+ReturnedPR to draft. Reproduced1red/3green locally, restored `Prod DB 001–225`
+without changing rollout state or weakening the test. Batch4 is documentation-only;
+all runtime/schema/types/workflow/proof source remains unchanged. Last bounded
+targeted review and corrected-head CI required; original clock/limits retained.

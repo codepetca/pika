@@ -666,9 +666,25 @@ unmatched legacy/exact-pair paths. Native implementation and SDK-proof workers
 have separate source/script ownership; the coordinator owns documentation, CI,
 acceptance and merge order. No schema or UI change is included. The material
 candidate reconciles onto the verified1439 merge before publication/review.
-Material owner mutations, linked Blueprint reads and
-roster operations remain separate boundaries; this does not satisfy batch 1's
-whole-experience exit criteria or authorize activation.
+Superseded by PR1440 squash merge04f8d1e3 at12:17:30Z on2026-10-03. Security,
+targeted remediation and cumulative integration reviews clean at5a1df811;
+all five exact-head CI37120967402 gates pass (0queue/1509run seconds). Main cleanly
+fast-forwarded. Local001–233 and production001–225 unchanged, shared admission OFF.
+
+The next bounded slice is [shared material owner writes](contextual-material-owner-writes.md):
+POST/PATCH/DELETE with service-only transaction-time current-owner/active/resource
+binding, retaining creator193, historical identity/lineage and publication presence.
+Prepared source has245tests, complete mixed-classwork/reorder and rollback/SDK
+harnesses. Exact reviewed234 is applied locally once; local001–234 matches and
+genuine generated types add only the three public RPCs. Installed SQL is immutable.
+Draft PR1441 reconciles onto1440. Initial compatibility review is clean; accepted
+security finding is corrected by full-row transport validation inside the transaction,
+with historical malformed-content/UUID/timestamp no-effects regressions. Targeted
+security review is clean.322 focused checks, SQL rollback and actual SDK concurrency,
+normal/forced exact cleanup and type drift checks pass; final integration/CI pending.
+Production application and activation remain separately controlled.
+Linked Blueprint reads, other classwork boundaries and roster operations remain
+separate work; this does not satisfy batch1's whole-experience exit criteria.
 
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,

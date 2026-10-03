@@ -3,6 +3,8 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { TiptapContent } from '@/types'
+import { authorizeSharedMaterialMutationActor, updateContextualMaterial, deleteContextualMaterial } from '@/lib/server/contextual-material-mutation'
+import { parseMaterialMutationParams, parseMaterialUpdateBody } from '@/lib/validations/material-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -39,6 +41,14 @@ async function verifyMaterialOwnership(userId: string, classroomId: string, mate
 }
 
 export const PATCH = withErrorHandler('PatchTeacherClassworkMaterial', async (request, context) => {
+  const sharedAccess = await authorizeSharedMaterialMutationActor()
+  if (sharedAccess.mode === 'shared') {
+    const params = parseMaterialMutationParams(await context.params)
+    const body = parseMaterialUpdateBody(await request.json())
+    return NextResponse.json(await updateContextualMaterial({
+      actorId: sharedAccess.user.id, classroomId: params.id, materialId: params.materialId, body,
+    }))
+  }
   const user = await requireRole('teacher')
   const { id: classroomId, materialId } = await context.params
   const body = await request.json()
@@ -103,6 +113,13 @@ export const PATCH = withErrorHandler('PatchTeacherClassworkMaterial', async (re
 })
 
 export const DELETE = withErrorHandler('DeleteTeacherClassworkMaterial', async (_request, context) => {
+  const sharedAccess = await authorizeSharedMaterialMutationActor()
+  if (sharedAccess.mode === 'shared') {
+    const params = parseMaterialMutationParams(await context.params)
+    return NextResponse.json(await deleteContextualMaterial({
+      actorId: sharedAccess.user.id, classroomId: params.id, materialId: params.materialId,
+    }))
+  }
   const user = await requireRole('teacher')
   const { id: classroomId, materialId } = await context.params
 

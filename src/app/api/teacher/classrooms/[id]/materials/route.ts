@@ -14,6 +14,8 @@ import { createClassworkMaterialForOwner } from '@/lib/server/contextual-classwo
 import { contextualMaterialCreateSchema } from '@/lib/validations/classwork-authoring'
 import type { Json } from '@/types/database.generated'
 import { authorizeSharedMaterialReadActor, readContextualMaterials } from '@/lib/server/contextual-material-read'
+import { authorizeSharedMaterialMutationActor, createContextualMaterial } from '@/lib/server/contextual-material-mutation'
+import { parseMaterialCreateParams } from '@/lib/validations/material-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -93,6 +95,14 @@ export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_requ
 })
 
 export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (request, context) => {
+  const sharedAccess = await authorizeSharedMaterialMutationActor()
+  if (sharedAccess.mode === 'shared') {
+    const params = parseMaterialCreateParams(await context.params)
+    const body = contextualMaterialCreateSchema.parse(await request.json())
+    return NextResponse.json(await createContextualMaterial({
+      actorId: sharedAccess.user.id, classroomId: params.id, body,
+    }), { status: 201 })
+  }
   const materialAccess = await authorizeContextualClassworkCreationRequest(async () => (
     await context.params
   ).id)

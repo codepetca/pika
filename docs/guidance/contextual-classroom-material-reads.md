@@ -4,8 +4,8 @@ Status: implemented behind an off-by-default exact-pair gate; not approved for
 rollout. This is a read-only phase 2 compatibility slice. It does not make the
 classroom page or combined Teaching / Joined home safe to enable.
 
-The shared-admission extension described below is being prepared separately.
-Neither preparation nor merging its dormant consumer authorizes activation.
+The shared-admission extension below merged in PR1440 at04f8d1e3 after independent
+review and all five exact-head CI gates. Its dormant consumer remains unactivated.
 
 ## Endpoint contract
 
@@ -89,11 +89,13 @@ it is not widened by this material-list consumer.
 
 ## Deferred mutation boundary
 
-Teacher material create/edit/delete requests retain their existing global-role and
-classroom guards. They are not safe to widen by replacing only the top-level role
+Legacy and unmatched material create/edit/delete requests retain their existing
+global-role and classroom guards. They are not safe to widen by replacing only the top-level role
 check: ownership, archive state or material binding can change between a resolver
 read and a write. A later mutation slice must enforce relationship and resource
-binding at transaction time and prove archive/resource-substitution races.
+binding at transaction time and prove archive/resource-substitution races. The
+separate [shared owner-write preparation](contextual-material-owner-writes.md)
+does not authorize this read consumer or the classroom shell to be activated.
 
 The current material UI is reused unchanged. No navigation, visual pattern, signup,
 creation, joining, entitlement, migration or production setting changes in this slice.
