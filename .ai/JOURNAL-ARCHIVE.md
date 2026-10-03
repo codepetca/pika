@@ -34569,3 +34569,8 @@ PR1419 at d03d91f2 passed independent cumulative, targeted and final integration
 ## 2026-10-01 — Student table scrolling merge authorization
 
 Owner requested pull, conflict resolution and merge of PR1419. Rebased onto main7c0ded24 (cached Daily summary reads); archive-only conflicts retain both histories. All21 feature implementation/test blobs remain unchanged from c7a48cb1. Previous exact-head CI36944522875 passed all eligible gates. One additional bounded compatibility reviewer and fresh focused/incoming-summary checks precede fresh final CI and the authorized squash merge to main. No production promotion or database change.
+
+<!-- pika-session-log-archive-batch:f656d2416d785fbec053abb78d103eb9eb9a74332698fc087d1a5d38313844e2 -->
+## 2026-10-01 — Final scrolling synchronization without archive churn
+
+Main advanced to478fd94e before the final ready event. Owner's pull/resolve/merge instruction covers this follow-up synchronization. No application conflict; all21 scrolling implementation/test files and cached-summary source remain unchanged. Retained the canonical main archive byte-for-byte and preserved this task's seven unique entries in the recent log, using the supported --keep60 setting within its60-entry cap. All historical bodies from both parents remain present; this avoids rewriting unrelated archive batches. Fresh focused and incoming lesson-plan tests, final fixed-SHA compatibility verification and exact-head CI precede the authorized main squash merge. Production promotion remains separate.

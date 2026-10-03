@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Final scrolling synchronization without archive churn
-
-Main advanced to478fd94e before the final ready event. Owner's pull/resolve/merge instruction covers this follow-up synchronization. No application conflict; all21 scrolling implementation/test files and cached-summary source remain unchanged. Retained the canonical main archive byte-for-byte and preserved this task's seven unique entries in the recent log, using the supported --keep60 setting within its60-entry cap. All historical bodies from both parents remain present; this avoids rewriting unrelated archive batches. Fresh focused and incoming lesson-plan tests, final fixed-SHA compatibility verification and exact-head CI precede the authorized main squash merge. Production promotion remains separate.
-
 ## 2026-10-01 — Dormant shared lesson-plan reads
 
 Continued the authorized five-batch goal without activating it. Teacher logs1421
@@ -583,3 +579,13 @@ Installed SDK/concurrency/rollback/forced-cleanup proofs remain applicable to th
 unchanged runtime/SQL. Fresh focused gate and final integration review are next;
 PR remains draft. No database reapplication, production, billing/provider operation,
 cohort activation or full cutover. Member read receipts follow normal1438 merge.
+
+## 2026-10-03 — Announcement CI continuity-format correction
+
+Final Sol5.6/high integration clean at c30273a2; exact ready CI37114314545 started.
+Test lane passed9618 tests but failed the attendance continuity contract because
+CURRENT's compressed production-history prefix omitted its required ` DB ` label.
+Returned1438 to draft before changing that single documentation contract; restored
+the canonical prefix without altering the test, schema, runtime or rollout state.
+Targeted failing test and focused gate rerun; targeted documentation review next.
+Original review ledger retains counters/deadline10:03:44UTC; no reset or new full wave.
