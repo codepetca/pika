@@ -379,6 +379,19 @@ independently once that contract is stable. Batch 4 remains dormant until batche
 batch may contain bounded reviewable PRs; do not add unrelated infrastructure or
 a new per-feature rollout switch for each route family.
 
+Current2026-10-03 checkpoint: batch1 exited after actual metadata1450 squash
+`e86283f8` and all five exact-head CI37150788872 gates. Batch2's shared Assignment
+write bridge1451 is reviewed at9af304a0, with949 focused checks and real mounted
+route/RPC normal plus two deterministic cleanup-failure proofs. Its single
+unchanged-head CI37156761577 retry follows three timeouts in unchanged UiGallery
+tests (the two files pass23/23 locally); no merged/production claim yet. Next
+assessment reads must bind every payload page to current authority/visibility.
+Independent batch3 [retained group consumers](retained-roster-group-consumers.md)
+prepare239 before a later coordinated grouped-removal invariant/writer.239 remains
+source-only pending review and actual local proof;164 singleton uniqueness and236
+duplicate rejection remain. Full experience/cohort/UI/provider/billing activation
+stays off, and historical preparation receipts below are retained.
+
 The first bounded batch-1 implementation is the
 [retained shared admission contract](classroom-experience-admission.md) and its
 material-list read consumer. It uses one strict server-managed actor cohort;

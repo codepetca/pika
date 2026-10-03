@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Java Materials startup budget correction
-
-Second bounded sync review verified archive/log preservation and unchanged application boundaries, then confirmed the required startup context exceeds16000characters by3 after incoming CURRENT growth. Shortened the existing router sentence from Read routed docs before edits to Read routed docs first, preserving all routing and invariants; the startup set now totals15996. This is the fourth correction/sync batch, with a brief targeted verification and fresh focused gate before final CI. Owner main merge authorization persists; production/migrations remain separate.
-
 ## 2026-10-03 — Announcement owner slice merged
 
 Final cumulative Sol5.6/high review clean c30273a2; docs-only production-history
@@ -947,3 +943,22 @@ actualgrep synthetic portability controls/bash/lint/diffPASS. Cleanup SQL/helper
 integration/app/types/deps/CI unchanged; targeted review and reruns precede newready.
 Original21:00:59clock and consumed4launch/1target/1final/1fix retained, explicit
 extensions authorized with hardcaps intact. No production/migration/activation.
+
+## 2026-10-03 — Retained group consumer source preparation
+
+1450 actually merged as e86283f8 after all5CI37150788872; batch1 exit verified.
+1451 reviewed9af shared Assignment writes remain ready on singleunchanged-head
+CI37156761577 retry: prior three unchangedUiGallery5000/5000/15000ms timeouts;
+both files locally23/23PASS. No source/gate weakening or repeatedreview; original
+ledger21:00:59/counters retained under explicit review-extension authorization.
+Recovered frozen SliceA source after interruption, then6.1Sol/high finished source
+only: coherent retained generations, exact finalization and OLD/NEW binding fences,
+first-insert queue kick and owner-bound digest/keyset discovery.239 remains NOT
+APPLIED;164singleton/236duplicate guards unchanged. Offline related150/12 and full
+focused180/18/TSC/lint/architecture/audit5/bash/diffPASS. New rollback proof transient
+indexdrop/callback-counter/101groups/faults requires independent frozen-source
+review BEFORE rootexecution; wrapperforcedfailure afterteardown, not committedcrash.
+Root updates existingremovalproof acceptance for239 without openingduplicatewriter.
+No SQL/provider/Storage execution, generatedtypes, production, account/plan/billing,
+cohort/UI/fullcutover activation or worktree/stash cleanup. Independent source-only
+assignmentlist reader proceeds in separate ownedWT; root owns integration/numbering.

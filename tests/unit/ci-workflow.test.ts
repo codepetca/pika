@@ -30,6 +30,18 @@ describe('CI workflow', () => {
     expect(workflow.indexOf('      - name: Rehearse contextual Assignment routes against local Supabase')).toBeLessThan(workflow.indexOf(name))
   })
 
+  it('requires group consumer rollback and exact intentional post-teardown failure', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify retained roster group consumer rollback contracts')[1]?.split('      - name:')[0]
+    expect(step).toContain('bash scripts/check-retained-roster-group-cleanup-database.sh\n')
+    expect(step).toContain('bash scripts/check-retained-roster-group-cleanup-database.sh --force-failure')
+    expect(step).toContain('[[ "$group_cleanup_status" -eq 1 ]]')
+    expect(step).toContain("grep -Fxq 'FAIL forced retained roster group cleanup wrapper failure.'")
+    expect(step).toContain("grep -Fxq 'PASS retained roster group cleanup exact teardown.'")
+    expect(step).toContain("echo 'FAIL unexpected retained group forced teardown proof.'")
+    expect(step).not.toContain('post-commit')
+  })
+
   it('requires genuine roster owner SQL/SDK proofs and exact failed-fixture cleanup', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const step = workflow.split('      - name: Verify contextual roster owner writes and failed-fixture cleanup')[1]?.split('      - name:')[0]

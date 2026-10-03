@@ -172,6 +172,21 @@ jobs:
       - name: Automatic cleanup gate serialization contracts
         run: bash scripts/check-automatic-removed-student-cleanup-concurrency.sh
 
+      - name: Verify retained roster group consumer rollback contracts
+        run: |
+          bash scripts/check-retained-roster-group-cleanup-database.sh
+          set +e
+          group_cleanup_output=$(bash scripts/check-retained-roster-group-cleanup-database.sh --force-failure 2>&1)
+          group_cleanup_status=$?
+          set -e
+          if ! [[ "$group_cleanup_status" -eq 1 ]] \
+            || ! grep -Fxq 'FAIL forced retained roster group cleanup wrapper failure.' <<< "$group_cleanup_output" \
+            || ! grep -Fxq 'PASS retained roster group cleanup exact teardown.' <<< "$group_cleanup_output"; then
+            echo 'FAIL unexpected retained group forced teardown proof.'
+            exit 1
+          fi
+          echo 'PASS exact retained group intentional post-teardown failure.'
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 

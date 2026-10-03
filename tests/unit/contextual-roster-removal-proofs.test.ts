@@ -3,6 +3,15 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('preserving-removal local proof compatibility', () => {
+  it('accepts reviewed group consumers without opening singleton removal', () => {
+    const sql = readFileSync(resolve('scripts/check-contextual-roster-removal-owner-writes-database.sql'), 'utf8')
+    expect(sql).toContain("where version='239'")
+    expect(sql).toContain('private.retained_roster_cleanup_group(uuid,uuid,uuid,uuid)')
+    expect(sql).toContain('classroom_roster_one_removed_membership_per_student')
+    expect(sql).toContain('This student has multiple roster rows. Resolve the duplicate roster entries before removing them.')
+    expect(sql).toContain('164 singleton removal /239 group consumer guard changed')
+  })
+
   it('uses the installed Zod 4 record key/value contract', () => {
     const sdk = readFileSync(resolve('scripts/check-contextual-roster-removal-owner-writes.ts'), 'utf8')
     expect(sdk).not.toContain('z.record(z.unknown())')
