@@ -44,7 +44,7 @@ function materialRows(isDraft = false) {
     created_at: timestamp,
     updated_at: timestamp,
     position: 1,
-    artifact_id: null,
+    artifact_id: materialId,
     source_artifact_id: null,
     blueprint_archived_at: null,
     source_blueprint_version_id: null,

@@ -12,7 +12,7 @@ const doc = { type: 'doc', content: [{ type: 'paragraph', attrs: { alignment: 'c
 const material = (index = 1, position = 0, released_at: string | null = timestamp) => ({
   id: id(index), classroom_id: classroomId, title: 'Historical title', content: doc,
   is_draft: false, released_at, created_by: otherId, created_at: timestamp, updated_at: timestamp,
-  position, artifact_id: null, source_artifact_id: null, blueprint_archived_at: null, source_blueprint_version_id: null,
+  position, artifact_id: otherId, source_artifact_id: null, blueprint_archived_at: null, source_blueprint_version_id: null,
 })
 type Permission = 'owner' | 'member'
 const envelope = (data: unknown) => ({ data, error: null, status: 200, statusText: 'OK', count: null })
@@ -173,6 +173,11 @@ describe('current-relationship shared material reads', () => {
     { content: { type: 'doc', content: [{ type: 'text', text: 'Text', marks: [{ type: 'bold', attrs: [] }] }] } },
   ])('rejects malformed material fields and draft leakage %#', async patch => {
     await expect(read([envelope(root([{ ...material(), ...patch }]))]).result).rejects.toMatchObject({ statusCode: 503 })
+  })
+
+  it.each(['owner', 'member'] as const)('rejects null artifact identity in a complete authorized %s response', async permission => {
+    const row = { ...material(), artifact_id: null }
+    await expect(read([envelope(root([row], permission)), envelope(root([], permission))], permission).result).rejects.toMatchObject({ statusCode: 503 })
   })
 
   it.each([

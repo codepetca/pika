@@ -65,7 +65,8 @@ The validated projection preserves all 14 database fields: `id`, `classroom_id`,
 `title`, `content`, `is_draft`, `released_at`, `created_by`, `created_at`, `updated_at`,
 `position`, `artifact_id`, `source_artifact_id`, `blueprint_archived_at` and
 `source_blueprint_version_id`. Historical authorship is not required to match the
-current owner. Negative integer positions and nullable lineage/release fields are
+current owner. The canonical `artifact_id` is a required, non-null UUID, matching
+the database row type. Negative integer positions and nullable lineage/release fields are
 valid; null or missing positions are not. Read titles are not subjected to creation
 limits. Content uses the existing bounded Tiptap validator without repairing invalid
 JSON into an empty document. Malformed fields, wrong bindings or SDK errors return

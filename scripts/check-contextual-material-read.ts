@@ -285,6 +285,15 @@ async function main() {
     }
     process.stdout.write('PASS forced short pages and revocation before first, later and terminal payload statements\n')
 
+    for (const [actor, permission] of [[ownerTeacher, 'owner'], [memberTeacher, 'member']] as const) {
+      const invalidIdentity = instrument(actor, classB, permission, { pageSize: 1, tamper: (page, row) => {
+        if (page === 2) (row.materials as Array<Record<string, unknown>>)[0].artifact_id = null
+      } })
+      await assert.rejects(read(actor, classB, permission, invalidIdentity.client), { statusCode: 503 })
+      assert.equal(invalidIdentity.pages(), 2, 'Null artifact identity discards the accumulated first page')
+    }
+    process.stdout.write('PASS owner and member null artifact identities fail closed without partial lists\n')
+
     for (const tamper of [
       (page: number, row: Record<string, unknown>) => { if (page === 2) row.materials = null },
       (page: number, row: Record<string, unknown>) => {

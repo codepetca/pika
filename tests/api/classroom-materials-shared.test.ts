@@ -16,7 +16,7 @@ const actorId = '11111111-1111-4111-8111-111111111111'
 const classroomId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const otherId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const timestamp = '2026-10-03T12:00:00.123456+00:00'
-const material = { id: otherId, classroom_id: classroomId, title: 'Reference', content: { type: 'doc', content: [] }, is_draft: false, released_at: null, created_by: otherId, created_at: timestamp, updated_at: timestamp, position: -1, artifact_id: null, source_artifact_id: null, blueprint_archived_at: timestamp, source_blueprint_version_id: null }
+const material = { id: otherId, classroom_id: classroomId, title: 'Reference', content: { type: 'doc', content: [] }, is_draft: false, released_at: null, created_by: otherId, created_at: timestamp, updated_at: timestamp, position: -1, artifact_id: otherId, source_artifact_id: null, blueprint_archived_at: timestamp, source_blueprint_version_id: null }
 const user = (role: 'student' | 'teacher') => ({ id: actorId, role, email: 'actor@example.test' } as AuthenticatedUser)
 const request = () => new NextRequest(`http://localhost/api/classrooms/${classroomId}/materials`)
 const context = () => ({ params: Promise.resolve({ id: classroomId }) })
@@ -102,6 +102,17 @@ describe('shared material GET admission', () => {
     vi.mocked(getServiceRoleClient).mockReturnValue(db as unknown as ReturnType<typeof getServiceRoleClient>)
     expect((await handler(request(), context())).status).toBe(403)
     expect(resolveClassroomAccess).not.toHaveBeenCalled()
+    expect(db.from).not.toHaveBeenCalledWith('classwork_materials')
+  })
+
+  it.each(routes)('fails closed on null artifact identity in an otherwise authorized $permission list', async ({ handler, permission }) => {
+    vi.mocked(requireAuth).mockResolvedValue(user('student'))
+    const root = { id: classroomId, teacher_id: permission === 'owner' ? actorId : otherId, archived_at: null, ...(permission === 'member' ? { membership: [{ classroom_id: classroomId, student_id: actorId }] } : {}) }
+    const db = database(permission, [envelope({ ...root, materials: [{ ...material, artifact_id: null }] }), envelope({ ...root, materials: [] })])
+    vi.mocked(getServiceRoleClient).mockReturnValue(db as unknown as ReturnType<typeof getServiceRoleClient>)
+    const response = await handler(request(), context())
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Unable to verify classroom materials' })
     expect(db.from).not.toHaveBeenCalledWith('classwork_materials')
   })
 

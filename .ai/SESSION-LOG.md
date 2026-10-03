@@ -446,3 +446,19 @@ archive exactly before trimming, removed only a reintroduced rolling-log copy of
 its already-archived Bulk entry. No stash or migration rename/application. Root
 verified the read-only later material-owner-write design; no implementation yet.
 Reconciled focused checks, fixed-SHA review/CI/merge next; batch1/cutover incomplete.
+
+Reconciled241focused/static and genuine001–233type check pass at09103e47; draft
+PR1440 published and attached. Initial independent compatibility review clean
+with245tests; security found one accepted P2: canonical artifact_id is NOTNULL in
+112/generatedRow but the new response validator allowednull. No other privacy or
+authorization blocker. Initialwave completed before one correctionbatch; root
+liveSDK later-page null-identity probe reproduces Missingexpectedrejection while
+finallycleanup returns baseline. Tightenonlynewvalidator, canonicalizevalidfixtures,
+andaddbothowner/memberunit/API/SDKfail-closedregressions; legacy/exactpair untouched.
+Reviewledger retains11:42:21Z start/12:42:21Z deadline,2launches/1batch inprogress.
+Targeted security re-review and final cumulative integration remain required.
+Correction TDD produces4red/122green before the one-field fix;186 material/API
+regressions then pass. Coordinator reruns actualSDKnormal/forcedfailure: both
+owner/member null artifact evidence onpage2 now503 with no partiallist; all prior
+1007/1006/keyset/revocation cases and exactcleanup remain green.245reconciledfocused
+checks and static gates are the batch acceptance before fixed-SHA targeted review.

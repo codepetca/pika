@@ -20,7 +20,7 @@ export const materialReadRowSchema = z.object({
   created_at: timestamp,
   updated_at: timestamp,
   position: z.number().int().min(-2147483648).max(2147483647),
-  artifact_id: uuid.nullable(),
+  artifact_id: uuid,
   source_artifact_id: uuid.nullable(),
   blueprint_archived_at: timestamp.nullable(),
   source_blueprint_version_id: uuid.nullable(),
