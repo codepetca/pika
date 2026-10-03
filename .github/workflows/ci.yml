@@ -249,6 +249,20 @@ jobs:
       - name: Verify contextual lesson-plan reads and current relationship visibility
         run: pnpm exec tsx scripts/check-contextual-lesson-plan-read.ts
 
+      - name: Verify contextual announcement reads and failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-announcement-read.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-announcement-read.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic fixture cleanup with zero residual rows' "$cleanup_log"
+
       - name: Verify contextual lesson-plan date writes and owner concurrency
         run: node scripts/check-contextual-lesson-plan-date-write-concurrency.mjs
 

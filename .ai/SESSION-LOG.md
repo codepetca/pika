@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Dormant contextual learner Daily Log reads
-
-Owner approved the next Daily read slice. Learner GET now consumes the existing shared admission for classroom and broad history; legacy requests remain unchanged. A single joined entry/classroom/enrollment statement binds own identity, active membership and non-owner status; validated rows strip relationship metadata. Unit/API tests pass78 including existing writes and legacy reads. Real local PostgREST proves both account-role values, own-entry isolation, owner precedence, outsider denial and removal/archive committing between preflight and SELECT; all synthetic fixtures removed. Added this contract to ephemeral CI. No schema application, UI, signup, account grant, flag activation or production change. Teacher Daily reads remain next. Risk: runtime-platform. Independent review and stable-head CI remain pending; model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility (Terra unavailable).
-
 ## 2026-10-01 — Orchestrate contextual teacher Daily reads
 
 Owner requested orchestration of the remaining five batches, retaining this coordinator and the separate billing/UI owners. Learner PR1418 is merged in main at6c44c254 after two clean reviews and all exact-head CI36901168889 gates passed; no promotion or activation. A bounded source investigation selected teacher entry drill-down and learner history before roster-wide logs/previews and cached summaries. One worker implements only the two routes, helper and focused tests; coordinator owns roadmap, documentation, local PostgREST harness and CI wiring. Same-statement owner evidence governs drill-down; history also joins current target enrollment at the entry read, preserving legacy and archived-owner behavior. Real local checks pass both role values, projection/date isolation, removal/transfer races and exact synthetic cleanup. A separate startup/workflow run has fixture timeouts under host load; canonical focused validation and independent stable-SHA review remain required. No migration, UI, account grant, billing, rollout configuration or production change. Risk: runtime-platform; review risk high. Model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility fallback (Terra unavailable).
@@ -477,3 +473,33 @@ plus this receipt. All16 non-log owned files and installed229 bytes unchanged.
 263focused tests and architecture/UI/design/TypeScript/lint pass. Final frozen
 recheck and fresh exact-head CI remain before normal main merge. No schema
 application, production promotion, account/billing changes or admission activation.
+
+## 2026-10-02 — Copy1431 merged; announcement shared GET integration
+
+Verified1431 normal squash merge493e752a after all five gates passed on unchanged
+reviewedca403202, CI37076238068. Canonical main fast-forwarded cleanly; no worktree
+cleanup, production promotion or rollout activation. Local001–230 observed;230 is
+billing-owned and unmerged into this base, with no reapply/reset/types regeneration.
+Owner approved continuing batch1 announcement integration. New attached worktree
+codex/contextual-announcement-reads starts at493e752a; startup verifies. Astra/high
+confirmed schema-free current-classroom payload joins and precise composite keysets.
+Sol6.1/high owns helper/schema/GET tests; coordinator owns actual SDK fixture proof,
+CI and docs. Writes, read receipts, notification/export consumers and live activation
+remain deferred. Independent bounded PR review follows local acceptance, not this
+architecture preparation. No migration or UI change is included.
+Local acceptance:65new/134announcement tests;189focused checks plus architecture,
+UI/design policy, TypeScript and lint pass. Actual SDK/PostgREST proves1009rows,
+precise/null keysets, schedules, role-neutral relationships and first/later/terminal
+revocation; positive and forced-failure cleanup leave zero synthetic rows. New
+announcement PR requires its own fixed-SHA high-risk review budget; copy1431's
+closed ledger is not reset or reused. Rollout and production remain held.
+Initial1436 review was clean at5f2bdd3c (2launches,0fixes); CI37082238009 then
+found only api-route-standards debt26vs25: new GET schema parsing incorrectly
+credited an untouched POST at file scope. Returned draft. Batch1 removes redundant
+route parsing; the named feature helper still rejects invalid inputs before any
+SDK query. Baseline, mutation handlers and shared read logic remain unchanged;
+real-helper route regressions plus the standards check cover the correction.
+One targeted compatibility recheck and final integration precede new exact-head CI.
+Batch1 local acceptance passes191focused checks, standards/announcement subset117,
+TypeScript/lint/audit. Shared helper/schema/database contract are unchanged, so
+earlier actual PostgREST and exact cleanup evidence remain applicable.
