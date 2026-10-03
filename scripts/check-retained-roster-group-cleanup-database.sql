@@ -372,7 +372,18 @@ begin
   begin
     update public.classroom_roster set removed_student_id=f.peer where id=f.second_roster;
     raise exception using errcode='ZX999',message='Roster OLD identity bypass accepted';
+  exception when sqlstate '55000' then if sqlerrm<>'student_class_data_pending_purge' then raise; end if; end;
+  -- The existing final-roster guard sorts first and must retain its deny contract.
+  -- Transactional rename orders the independent new guard first for this one
+  -- additional assertion, with every guard enabled and metadata restored below.
+  alter trigger guard_retained_roster_cleanup_identity on public.classroom_roster
+    rename to a_group_cleanup_proof_retained_identity;
+  begin
+    update public.classroom_roster set removed_student_id=f.peer where id=f.second_roster;
+    raise exception using errcode='ZX999',message='Roster OLD independent identity bypass accepted';
   exception when sqlstate '55000' then if sqlerrm<>'student_purge_active' then raise; end if; end;
+  alter trigger a_group_cleanup_proof_retained_identity on public.classroom_roster
+    rename to guard_retained_roster_cleanup_identity;
   begin
     update public.classroom_roster set removed_at=clock_timestamp(),removed_student_id=f.student,
       removed_enrollment_id=f.generation,removed_enrolled_at=clock_timestamp(),
