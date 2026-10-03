@@ -641,6 +641,9 @@ checks pass, with unchanged existing records and billing disabled. Billing1435
 merged efe4eb3f; announcement source rebased and genuine generated types/check
 match001–232. Final integration review, exact-head CI and1438 merge remain.
 The owner clarified the requested bounded elapsed extension; counters stay intact.
+The owner subsequently explicitly authorized needed review extensions without
+repeat approval requests. Preserve original clocks/counters, document each
+extension and retain absolute skill caps, exact-head CI and normal merge gates.
 No source ownership is transferred. Member read receipts follow. Shared
 admission and product cutover stay dormant.
 
@@ -736,6 +739,16 @@ Canonicalmain cleanFF. Class-day1444 nowreconciles onto that actualmain; origina
 runtime/proof/CIsteps remain unchanged, with targeted changed-base review and
 fresh readyCI required. Local236 is installedby separate preservingremoval work;
 thisGET addsnoSQL/types. Production001–225/sharedadmission/fullcutoverOFF remain.
+PR1441 is now verified merged at `d913eebd` on2026-10-03, after all five gates in
+exact-head CI37127414505 passed on reviewed74995349. Canonical main fast-forwarded
+cleanly; local234 is immutable and production remains001–225. Shared admission
+and the integrated cutover remain OFF. Read slices1442/1443/1444 retain their
+separate draft-first review and merge evidence; their preparation is not rollout.
+The next independent mutation slice is
+[shared roster owner writes](contextual-roster-owner-writes.md). Its proposed
+additive SQL is not yet applied or reviewed. Source-only implementation and
+proof workers have disjoint file ownership; the coordinator owns review, exact
+local application, real database execution, generated types and integration.
 
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
