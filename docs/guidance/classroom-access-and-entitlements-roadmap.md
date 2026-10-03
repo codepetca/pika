@@ -797,6 +797,17 @@ forcedcleanup PASS after a proof-only parsed-clone correction. Removal1448 has
 actual SQL/SDK normal/threeforcedcleanup PASS; full draft reviews remain pending.
 These are bounded batch1 receipts, not complete rollout or cohort activation.
 
+Detail1447 is now prepared locally on reviewed pending1448 head88a1bfd6
+while its one readyCI37143487206 runs. This is NOT a main merge: actual main
+remains2095/calendar1446, and root-owned actual-squash reconciliation, changed-base
+review, publication and exact-head detail CI remain gates. Original detail
+paragraphs and receipts above are preserved as historical evidence; their older
+pending-write language is superseded by this preparation receipt. All10reviewed
+detail files remain unchanged, while the complete parent's roster/calendar/
+removal and dormant237/forward238 SQL, genuine types, proofs/tests and CI gates
+are retained. No detail SQL/types generation, metadata runtime or cohort change;
+shared local001–238/production225/sharedadmission/fullcutoverOFF remain.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
