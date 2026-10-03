@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Selected Workspaces reference containment
-
-An extra selected-state Pattern Lab capture after the clean expanded review exposed an unbounded gallery canvas and missing flex display on its active Students panel. Reused the existing h-96 preview size as a bounded canvas for Students, leaving inactive panels hidden and summary/overview sizing unchanged. The shared production split remains unchanged. Browser coverage verifies both panes retain usable height, the last student and inspector content are reachable, and the hidden panel stays hidden. All four desktop/mobile light/dark reference cases pass and screenshots are inspected. Focused checks still pass 581 tests in 37 files plus policy, architecture, TypeScript and lint. PR1419 returned to draft and its previous ready CI was cancelled before this first remediation batch; targeted and final integration review remain pending.
-
-## 2026-10-01 — Approved scrolling PR main synchronization
-
-PR1419 at d03d91f2 passed independent cumulative, targeted and final integration reviews and exact-head CI36938870903, including Test & Build, Browser Experience Matrix and PR Gate. Main advanced during CI, creating archive marker conflicts. Owner approved one bounded main sync, one additional compatibility review and fresh CI. Rebased onto e87d322a, incorporating contextual teacher Daily entry/history and roster-log authorization work without changing its behavior. Resolved three duplicate archive-marker conflicts using main's markers; automated comparisons confirm all historical archive text from both tips is retained and all21 scrolling implementation/test files are byte-identical to the reviewed version. No dependencies, schema, migration application, production promotion or merge is authorized by this synchronization approval. Fresh focused checks pass581 tests/37files plus architecture, policy, TypeScript and lint; all51 incoming Daily API/server tests and four reduced-motion Daily browser cases pass. Screenshots are preserved under ignored artifacts/scroll-audit/main-sync-results. One compatibility review and new stable-head CI remain pending. Review ledger: fourth reviewer launch planned, second correction/sync batch; no broader review loop.
-
-## 2026-10-01 — Student table scrolling merge authorization
-
-Owner requested pull, conflict resolution and merge of PR1419. Rebased onto main7c0ded24 (cached Daily summary reads); archive-only conflicts retain both histories. All21 feature implementation/test blobs remain unchanged from c7a48cb1. Previous exact-head CI36944522875 passed all eligible gates. One additional bounded compatibility reviewer and fresh focused/incoming-summary checks precede fresh final CI and the authorized squash merge to main. No production promotion or database change.
-
-## 2026-10-01 — Final scrolling synchronization without archive churn
-
-Main advanced to478fd94e before the final ready event. Owner's pull/resolve/merge instruction covers this follow-up synchronization. No application conflict; all21 scrolling implementation/test files and cached-summary source remain unchanged. Retained the canonical main archive byte-for-byte and preserved this task's seven unique entries in the recent log, using the supported --keep60 setting within its60-entry cap. All historical bodies from both parents remain present; this avoids rewriting unrelated archive batches. Fresh focused and incoming lesson-plan tests, final fixed-SHA compatibility verification and exact-head CI precede the authorized main squash merge. Production promotion remains separate.
-
 ## 2026-10-01 — Dormant shared lesson-plan reads
 
 Continued the authorized five-batch goal without activating it. Teacher logs1421
@@ -607,3 +591,88 @@ main merge. Billing OFF; no migration reapplication, reset or provider call.
 ## 2026-10-03 — Java Materials approved main synchronization
 
 Owner authorized PR1437 main merge. Main advanced to efe4eb3f through dormant billing PR1435, producing only an archive conflict. Kept the canonical main archive and all branch additions byte-for-byte; application files merged without conflict. All lesson/viewer/API/UI/test files remain unchanged from independently reviewed73ff84fb, whose full CI37110290722 passed. One bounded compatibility review, focused checks and fresh stable-head CI precede the authorized squash merge. No production promotion, migration application, billing activation or provider calls are authorized.
+
+## 2026-10-03 — Announcement reads merged; owner-write preparation
+
+PR1436 merged66fa5de3 after clean initial, targeted and final integration reviews,
+191 focused checks and all exact-head CI37083358161 gates; hub fast-forwarded clean.
+Owner authorizes routine implementation/review/normal main merges through integrated
+cutover, retaining failed-gate, exact migration and bounded-review checkpoints.
+New worktree codex/contextual-announcement-owner-writes starts66fa5de3; startup passes.
+Astra/high designed transaction/legacy concurrency semantics; Sol6.1/high implements
+only schemas/helper/owner routes/tests while coordinator owns SQL/harnesses/CI/docs.
+Prepared service-only current-owner create/edit/delete under shared admission; legacy
+GETs and mutations unchanged.209 announcement tests, TypeScript and lint pass.
+Rollback-only definition rehearsal proves owner/publication/transfer/privileges,
+UTF16 title limits, hot/decommission fences and receipt cascade with zero residue and
+no installed schema/history change. Actual local SDK proves legacy empty PATCH406,
+unchanged time/revision and exact cleanup even after forced failure; shared path
+intentionally corrects this to successful no-op. New concurrency/SDK harness prepared
+but unrun until authorized schema installation.232 provisional; billing retains
+installed immutable230 and reviewed forward231, PR1435 draft pending local apply.
+No generated-type edits, new cohort, production promotion or activation. Independent
+source review, canonical numbering/types, actual concurrency, CI and merge remain.
+Risk runtime-platform; high auth/schema review uses Sol5.6/high and Sol6.1/high
+compatibility fallback (Terra unavailable). Current roadmap remains five batches;
+this does not close batch1 or authorize partial classroom/home cutover.
+Final preparation passes245focused checks plus architecture/UI/design policy,
+TypeScript/lint and rollback rehearsal. Billing231 source4209da62 has one clean
+targeted financial review; actual schema/concurrency and main dependency still wait.
+Requested exact local231/232 approval asynchronously. Formal owner-write review
+budget is not started while that checkpoint remains unresolved; draft source may
+be published for continuity, never marked ready or merged before complete evidence.
+
+## 2026-10-03 — Local migration override; announcement owner runtime proof
+
+Owner explicitly overrides separate local migration approvals for this task only;
+exact reviewed source, local target/history checks and non-destructive limits remain.
+Production permission, review budgets and integrated cutover gates are unchanged.
+Coordinator applied reviewed billing231 once from4209da62 after sole-file preview,
+Pika/54322 binding and matching230/231 digests; local history advanced001–231.
+Billing independently verified the receipt/types/security; four existing rollback
+harnesses pass. Its new fixture uses invalid synthetic Stripe IDs and rolled back;
+the fixture-only correction/review is held at its already-consumed budget checkpoint.
+No billing source edit or implied budget extension by the classroom coordinator.
+PR1438 initial Sol5.6 security and Sol6.1 compatibility reviews clean at2f6fe7e;
+ledger08:33:44UTC,2launches/0fixes,60-minute elapsed limit retains dependency waits.
+After billing released the shared writer slot, applied sole232 once from application-only
+checkout4209da62 plus byte-identical reviewed232, SHA2563f57cc55ac37cf5338edf78b988278339e3044cee582a12e56dc142c164218c7.
+Local001–232 matches application checkout; service-only definer/empty-path ACLs pass.
+Installed rollback contract and cross-role SDK/concurrency/publication/403/404/409,
+parent/resource contention, lifecycle/class-delete/resource races and late rollback pass.
+Forced post-fixture error exits1 after exact cleanup; users/classrooms/upgrades/receipts
+remain3/1/0/0,sandboxfalse, zero synthetic rows/test sessions. Shared writer released.
+No reset/repair/reseed, manual generated types, production or cohort/UI changes.
+1438 stays draft: canonical1435 source dependency/types, final integration, exact-head
+CI and normal merge remain. Member read receipts follow; batch1/cutover not complete.
+Receipt update initially exceeded the16,000-character startup budget by54; compressed
+CURRENT without weakening the gate.245focused checks,architecture/UI/design/TS/lint
+now pass. One documentation-only correction batch; no SQL/runtime changes.
+
+## 2026-10-03 — Announcement canonical source/type integration
+
+Owner clarification approves the requested30-minute elapsed review extension,
+ending10:03:44UTC; prior3launches/1docsfix/1targetedwave remain counted. Billing1435
+merged efe4eb3f after all five exact-head gates passed on0de5d0ea. Rebased1438 with
+continuity-only conflicts, preserving all historical archive entries, CI steps,
+runtime/SQL and immutable230–232 digests. Genuine type generation/check against
+matching001–232 adds only the three announcement RPCs; generated-key wrapper now
+refines nullable create inputs instead of provisional function declarations.
+Installed SDK/concurrency/rollback/forced-cleanup proofs remain applicable to the
+unchanged runtime/SQL. Fresh focused gate and final integration review are next;
+PR remains draft. No database reapplication, production, billing/provider operation,
+cohort activation or full cutover. Member read receipts follow normal1438 merge.
+
+## 2026-10-03 — Announcement CI continuity-format correction
+
+Final Sol5.6/high integration clean at c30273a2; exact ready CI37114314545 started.
+Test lane passed9618 tests but failed the attendance continuity contract because
+CURRENT's compressed production-history prefix omitted its required ` DB ` label.
+Returned1438 to draft before changing that single documentation contract; restored
+the canonical prefix without altering the test, schema, runtime or rollout state.
+Targeted failing test and focused gate rerun; targeted documentation review next.
+Original review ledger retains counters/deadline10:03:44UTC; no reset or new full wave.
+
+## 2026-10-03 — Java Materials second approved merge synchronization
+
+Main advanced to875316af through reviewed dormant announcement owner writes PR1438 before PR1437 could merge. Resolved only the archive conflict, preserving canonical main and the complete feature append. Lesson, viewer, API, UI, tests and guidance remain byte-identical to reviewed73ff84fb; incoming application/workflow/schema/test files match main exactly. Prior sync CI37115051242 passed browser and database contracts but hit one unchanged TestDetailPanel Markdown confirmation assertion; all57 tests in that file pass locally under coverage instrumentation, while the partial run cannot meet whole-repository coverage floors. One bounded compatibility review and fresh focused/exact-head checks cover the new combined head before the already-authorized squash merge. No production promotion, hosted writes, migration application or activation.

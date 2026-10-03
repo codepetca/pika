@@ -81,7 +81,11 @@ unchanged; code integration alone does not activate either cohort.
 
 ## Deferred mutation boundary
 
-Teacher create/edit/delete and member read-receipt POST requests retain their
+The [owner-write slice](contextual-announcement-owner-writes.md) is in development,
+with immutable locally installed migration232 and passing installed database
+concurrency/SDK/cleanup proofs. Final integration review, exact-head CI and merge
+remain; no activation is authorized by those proofs. Until it merges, teacher create/edit/delete and
+member read-receipt POST requests retain their
 existing global-role and classroom guards. They are not safe to widen by replacing
 only the top-level role check: owner/archive or enrollment removal can race the
 write. A later mutation slice must use transaction-time relationship and resource

@@ -12,6 +12,8 @@ import {
   authorizeClassroomAnnouncementRequest,
 } from '@/lib/server/classroom-announcement-access'
 import { authorizeSharedAnnouncementReadActor, readContextualAnnouncements } from '@/lib/server/contextual-announcement-read'
+import { createContextualAnnouncement } from '@/lib/server/contextual-announcement-mutation'
+import { parseAnnouncementCreateParams, parseAnnouncementCreateBody } from '@/lib/validations/announcement-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -71,6 +73,12 @@ export const GET = withErrorHandler('GetAnnouncements', async (_request, context
 
 // POST /api/teacher/classrooms/[id]/announcements - Create announcement
 export const POST = withErrorHandler('PostCreateAnnouncement', async (request, context) => {
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = parseAnnouncementCreateParams(await context.params)
+    const body = parseAnnouncementCreateBody(await request.json())
+    return NextResponse.json(await createContextualAnnouncement({ actorId: sharedAccess.user.id, classroomId, body }), { status: 201 })
+  }
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()

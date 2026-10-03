@@ -10799,6 +10799,17 @@ export type Database = {
         Args: { p_blueprint_id: string }
         Returns: string
       }
+      create_announcement_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: string
+          p_is_draft: boolean
+          p_scheduled_for: string
+          p_title: string
+        }
+        Returns: Json
+      }
       create_archived_classroom_blueprint_atomic: {
         Args: {
           p_expected_source_revision: number
@@ -11229,6 +11240,14 @@ export type Database = {
           p_teacher_id: string
           p_test_id: string
           p_unanswered_rows: Json
+        }
+        Returns: Json
+      }
+      delete_announcement_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_announcement_id: string
+          p_classroom_id: string
         }
         Returns: Json
       }
@@ -13579,6 +13598,15 @@ export type Database = {
           p_student_ids: string[]
           p_test_id: string
           p_updated_by: string
+        }
+        Returns: Json
+      }
+      update_announcement_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_announcement_id: string
+          p_classroom_id: string
+          p_patch: Json
         }
         Returns: Json
       }
