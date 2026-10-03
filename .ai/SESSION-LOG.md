@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Visual Java slides and presenter notes
-
-- Owner requested ultra-simple Present diagrams and a detailed Read view in a separate notes window. Added nine diagram selections to the Markdown with SVG/mobile templates in site/visuals.mjs; original reading explanations retained, downloaded student Markdown strips the visual directives. Footer menu now opens presenter notes as a named popup with normal link fallback. Ephemeral session-scoped BroadcastChannel synchronizes current section/theme and allows notes keyboard navigation to control the presentation. No Pika runtime/schema changes; risk none; weekly remaining53%, prior DeepSeek pause retained.
-- Verified all nine diagrams visually, desktop light/dark and 402px mobile with no horizontal overflow, one diagram/no paragraphs in Present, all nine detailed sections/no slide art in Read, menu access, and actual Chrome popup with slide6→7 notes sync and notes PageDown→slide8. Existing print retains detailed notes through print CSS. Build, syntax, and diff checks pass. Evidence: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-visual-presentation.png and java-presenter-notes.png.
-- Sites helper restored; normal existing-source opening/push/package workflow used. Private deployment succeeded from5997c568b63389585c1a23cf02e89ec56d2bdfdc, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_06ce177f16308191955bc4090a1bf0a2. Same hosted URL and Material draft; audience unchanged. Repository artifacts remain in collaborative review worktree.
-
-## 2026-10-02 — Java viewer icon toggle
-
-- Replaced visible Read/Present labels with existing licensed Lucide book-open/presentation geometry; retained accessible names, titles, pressed states, and 44px touch targets. Verified both view switches, light/dark state, and screenshot java-icon-toggle.png in this task’s visualizations directory. Build/syntax/diff checks pass; standalone artifact, risk none.
-- Normal Sites workflow and private deployment succeeded from ac8c61bd089267634b6cc5b90e41334a90637128, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_a5774f13b6a8819185f0e0a29a3eda90. Same URL, audience, and Material draft.
-
-## 2026-10-02 — Java viewer Print menu
-
-- Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
-- Private deployment succeeded from5d60a47875b85a5f6117acf8926c3b116c85ae7a, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_26ddf43ab1f481919b0befea1c0809c6. Same URL, audience, and Material draft.
-
 ## 2026-10-02 — Presentation diagrams in Read notes
 
 - Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
@@ -537,3 +521,75 @@ counters remain; documented human-authorized60minute extension ends16:26:22Z.
 Targeted changed-base review/final exact-head CI stillprecede merge. Local236
 is installedby separate preservingremoval work; thisread addsnoSQL/types/UI.
 Production001–225/sharedadmission/fullcutoverOFF; no provider/account/billing edits.
+
+## 2026-10-03 — Shared roster owner-write source preparation
+
+Verified1441 merge d913eebd after all five exact-head37127414505 gates; canonical
+main cleanly fast-forwarded. Local001–234 unchanged, production001–225 and shared
+admission/cutover OFF. Owner explicitly authorizes needed review extensions without
+repeat prompts; original clocks/counters and absolute safety/merge caps remain.
+Disjoint source/proof workers prepare roster add/CSV/counselor transactions.176
+source tests, scoped lint, architecture and API standards pass; two expected new
+RPC-name compiler errors remain until genuine local generation. Candidate235
+SHA256557469c5a86479d4b440d05534bc2f37084355436589f0b8b7f8b13df47b82c4 is UNAPPLIED.
+Archived edits deny403 and stable bindings win over current-email fallback. Actual
+SQL/SDK behavior is unverified; frozen source security check precedes exact local
+preview/application, genuine types, database proofs and full draft-PR lifecycle.
+
+Pre-application Sol review accepted a retained-identity gap for a second stable-
+bound row after first-row removal and account-email change. Batch1 rejects the
+resolved learner after pair locking and before preview/DML; structural RED then
+11green. Source235 remains UNAPPLIED, superseded candidate SHA256
+0a91c5702e5c7a1cbae573e30721d38f8ab90789643983cb242d57422cfd5ebf. Real rollback
+proof now covers all upsert modes and counselor edits through that second row;
+runtime execution remains pending. Targeted security recheck precedes application.
+
+Targeted retained-identity review clean. First ordinary local235 application failed
+SQLSTATE42601 at an unparenthesized CASE within IF; aftermath confirmed235history
+false/newfunctions0/max234, complete atomic rollback. Batch2 parenthesizes onlythe
+operand; RED then12/12green and narrow Sol recheck CLEAN39a4f206. Freshpika54322,
+matching001–234/currentmain234/exact235-onlypreview preceded successful secondpush.
+Installed immutable235 SHA256dded003c0fdd92235af163ef73751e1a9442146ee2129015ace83acdc2ff685b.
+History001–235/publicRPCs2/genuine generatedtypes+driftcheck pass. Serialized SQL
+proofs pass fullrow/binding/revision rollback including retainedsecondboundidentity.
+ActualSDK/focused/fullPR review remain pending;3launches/2targeted/2batches, original
+14:38:45Z clock retained. Production001–225/sharedadmissionOFF unchanged.
+
+ActualSDK normal/forcedfixture proofs pass exactcleanup/globalbaseline after every
+run.273focused tests17files+allstaticlint pass. Genuine235nullabletextmetadata
+refined onlythrough existingcuratedFunctionContract/Replace seam, no casts/newSQL
+or manualgeneratedcontract. Runtime/schema/proofs/newtests byte-identical after
+actual1442main3351d85f rebase; bothCIproofsteps preserved. Narrowpreapplyreviews
+are notfullPRreview: stable draft/fullinitialwave next. User-authorized extensions
+retain originalclock and3launches/2targeted/3fixbatches. Local235immutable/prod225,
+sharedadmissionOFF; no repeatedroutine approval asked.
+
+## 2026-10-03 — Roster1445 actual-main reconciliation after class-day1444
+
+PR1444 merged actual maina8c4e9b2 at16:04:51Z after all fiveCI37133784223 gates.
+Rebased1445 from reviewed a7613a5f onto that actual main. Conflicts only in
+roadmap/current/CI/archive continuity; every reviewed feature source/proof/test,
+generated/curated contract and installed235 byte remains unchanged, alongside
+all main read files and every main/child CI step. Removed only three surplus
+exact historical session copies already preserved in the archive; original
+entries and combined main+child−base historical multiplicities are retained.
+Original review clock/counters remain. Changed-base integration review and fresh
+exact-head CI precede merge. Local001–236 includes separate unmerged removal
+work; production001–225/sharedadmission/fullcutoverOFF.1441–1444merged;
+1445rebased awaiting integration/1446prepared/removal1448draft/detail1447draft.
+No SQL application, DB proofs/reset/reseed or types regeneration performed.
+Focused checks against actual main pass273tests/17files plus architecture,
+UI/design policy, TypeScript and lint. Initial startup-summary budget excess
+was compacted; source preservation, history multiplicities and diff checks pass.
+
+## 2026-10-03 — Roster1445 CI handoff-prefix correction
+
+Exact-head CI37136155311 on reviewed a9613f46 passed10431 tests but failed one
+attendance migration-state documentation contract: CURRENT compacted the required
+`Prod DB 001` prefix to `Prod DB001`. Returned1445 to draft before correction.
+Batch4 restores that single space and records the actual draft status; production
+225/local236 and every rollout control remain unchanged. No runtime, SQL, generated
+types, dependency or test assertion was changed. Original review clock and counters
+retained; narrow independent documentation recheck and focused checks precede the
+replacement exact-head ready CI. Other original CI jobs are allowed to finish for
+observed receipts; no duplicate watcher or dispatch.

@@ -13645,6 +13645,16 @@ export type Database = {
         Args: { p_assignment_id: string; p_requirements: Json; p_updates: Json }
         Returns: Json
       }
+      update_classroom_roster_counselor_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_counselor_email: string
+          p_expected_updated_at: string
+          p_roster_id: string
+        }
+        Returns: Json
+      }
       update_classwork_material_for_owner_v1: {
         Args: {
           p_actor_id: string
@@ -13738,6 +13748,15 @@ export type Database = {
           p_expected_revision?: number
           p_opens_local: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      upsert_classroom_roster_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_mode: string
+          p_students: Json
         }
         Returns: Json
       }

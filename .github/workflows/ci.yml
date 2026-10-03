@@ -338,6 +338,21 @@ jobs:
           grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
           grep -F 'PASS exact synthetic class-day cleanup, zero residual rows and global baseline counts' "$cleanup_log"
 
+      - name: Verify contextual roster owner writes and failed-fixture cleanup
+        shell: bash
+        run: |
+          bash scripts/check-contextual-roster-owner-writes-database.sh
+          pnpm exec tsx scripts/check-contextual-roster-owner-writes.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-roster-owner-writes.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'Forced roster post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster owner-write cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
       - name: Verify contextual announcement owner contracts and concurrency
         shell: bash
         run: |
