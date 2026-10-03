@@ -798,6 +798,15 @@ the first fixture-whitelist failure. Full initial source review, exact-head CI a
 actual-main integration remain gates. Explicit archive keys are reserved400 for batch3; existing GETs and
 legacy PATCH remain unchanged. Production001–225/sharedadmission/fullcutoverOFF.
 
+Metadata1450 preparation receipt: source0cfb4c26 is prepared locally on PENDING Guide d0db1331
+and detaila653d0ac, NOT merged. Actualmain remains73a85f26/PR1448. All eleven
+metadata-owned files retain source bytes; incoming GET/legacy PATCH and GET tests
+retain exact remainder with only the approved metadata additions/two PATCH tests.
+Whole incoming CI plus the original metadata step and full history are preserved.
+Immutable001–238/genuine types remain incoming bytes. Actual-parent reconciliation,
+final cumulative independent review and exact-head CI remain required. No new DB,
+proof replay, generation, production promotion or shared-admission/full-cutover activation.
+
 Superseding class-day-read receipt: PR1444 normal squash mergea8c4e9b at16:04:51Z
 on2026-10-03 followed all five exact7d341d23 CI37133784223 checks
 (0queue/1697runseconds); canonicalmain cleanFF. Roster1445/calendar1446 remain
