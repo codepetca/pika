@@ -35,6 +35,7 @@ const forcedMessage = 'Forced preserving-removal post-fixture cleanup proof'
 const forcedBeforeCaptureMessage = 'Forced preserving-removal post-commit pre-capture cleanup proof'
 const forcedCleanupRollbackMessage = 'Forced preserving-removal suppressed-cleanup rollback proof'
 let capturedFixtureGenerations: Record<string, unknown> = {}
+let proofStage = 'local target verification'
 
 function command(binary: string, args: string[], input?: string): string {
   try {
@@ -73,14 +74,14 @@ function fingerprint(mutable = true): unknown {
   return JSON.parse(sql(`${fingerprintFunctionSql(mutable)} select pg_temp.removal_fingerprint();`))
 }
 function row(table: 'classroom_roster' | 'classroom_enrollments', id: string): Record<string, unknown> {
-  return z.record(z.unknown()).parse(JSON.parse(sql(`select to_jsonb(r) from public.${table} r where id=${q(id)};`)))
+  return z.record(z.string(), z.unknown()).parse(JSON.parse(sql(`select to_jsonb(r) from public.${table} r where id=${q(id)};`)))
 }
 function binding(roster: string): unknown {
   return JSON.parse(sql(`select coalesce((select to_jsonb(b) from public.classroom_roster_student_bindings b where roster_id=${q(roster)}),'null'::jsonb);`))
 }
 const statusIs = (status: number) => (error: unknown) => error instanceof ApiError && error.statusCode === status
 function generationState(): Record<string, unknown> {
-  return z.record(z.unknown()).parse(JSON.parse(sql(`select coalesce(jsonb_object_agg(generation_id::text,to_jsonb(g)),'{}') from private.pal_membership_generations g;`)))
+  return z.record(z.string(), z.unknown()).parse(JSON.parse(sql(`select coalesce(jsonb_object_agg(generation_id::text,to_jsonb(g)),'{}') from private.pal_membership_generations g;`)))
 }
 const remove = (rosterIds: string[], actorId = owner, classroomId = classroom) =>
   removeContextualRosterStudents({ actorId, classroomId, rosterIds })
@@ -168,16 +169,19 @@ async function main() {
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = status.data.ANON_KEY
   process.env.SUPABASE_SECRET_KEY = status.data.SERVICE_ROLE_KEY
   const client = getServiceRoleClient()
+  proofStage = 'installed schema and dormant provider guard'
   assert.equal(sql("select exists(select 1 from supabase_migrations.schema_migrations where version='236');"), 't')
   assert.equal(sql(`select not coalesce((select automatic_enabled or enabled or live_enabled from private.student_provider_cleanup_settings where singleton),false);`), 't')
   assert.equal(sql(`select tgenabled from pg_trigger where tgrelid='private.pal_membership_generations'::regclass
     and tgname='guard_pal_membership_evidence' and not tgisinternal;`), 'O')
   const initialBaseline = fingerprint()
+  proofStage = 'preallocated generation and baseline verification'
   assert.equal(sql(`select count(*) from private.pal_membership_generations where generation_id in
     (${ids(generations.map(([id]) => id))});`), '0', 'Preallocated fixture generations must be absent before setup')
   const initialGenerationBaseline = z.object({ count: z.number().int(), digest: z.string().regex(/^[a-f0-9]{32}$/) })
-    .parse(z.record(z.unknown()).parse(initialBaseline)['private.pal_membership_generations'])
+    .parse(z.record(z.string(), z.unknown()).parse(initialBaseline)['private.pal_membership_generations'])
   try {
+    proofStage = 'synthetic fixture setup'
     sql(`begin;
       insert into public.users(id,email,role) values ${people.map(([id, label, role]) => `(${q(id)},${q(email(label))},${q(role)})`).join(',')};
       set local role service_role;
@@ -213,7 +217,8 @@ async function main() {
       insert into public.test_attempt_history(test_attempt_id,snapshot,trigger) values(${q(attempt)},'{}','baseline');
       commit;`)
     if (process.argv.includes('--verify-cleanup-after-commit-before-capture')) throw new Error(forcedBeforeCaptureMessage)
-    capturedFixtureGenerations = z.record(z.unknown()).parse(JSON.parse(sql(`select coalesce(jsonb_object_agg(generation_id::text,to_jsonb(g)),'{}')
+    proofStage = 'synthetic generation capture'
+    capturedFixtureGenerations = z.record(z.string(), z.unknown()).parse(JSON.parse(sql(`select coalesce(jsonb_object_agg(generation_id::text,to_jsonb(g)),'{}')
       from private.pal_membership_generations g where generation_id in (${ids(generations.map(([id]) => id))});`)))
     assert.equal(Object.keys(capturedFixtureGenerations).length, generations.length)
     if (process.argv.includes('--verify-cleanup-after-fixture')) throw new Error(forcedMessage)
@@ -311,7 +316,7 @@ async function main() {
     assert.equal(sql(`select count(*) from public.classroom_enrollments where id=${q(enrollmentId)};`), '0')
     assert.equal(sql(`select active from public.attendance_participant_mappings where classroom_id=${q(classroom)} and student_id=${q(bound)};`), 'f')
     assert.deepEqual(fingerprint(false), priorWork)
-    expectedGenerations[boundEnrollment] = { ...z.record(z.unknown()).parse(expectedGenerations[boundEnrollment]), state: 'removed' }
+    expectedGenerations[boundEnrollment] = { ...z.record(z.string(), z.unknown()).parse(expectedGenerations[boundEnrollment]), state: 'removed' }
     assert.deepEqual(generationState(), expectedGenerations)
     sql(`update public.users set email=${q(email('mate'))} where id=${q(mate)};
       update public.users set email=${q(email('bound'))} where id=${q(bound)};`)
@@ -320,7 +325,7 @@ async function main() {
     assert.deepEqual(await remove([boundRoster, removedRoster]), { success: true, requested_count: 2, removed_count: 0 })
     assert.deepEqual(fingerprint(), retry)
     assert.deepEqual(await remove([unboundRoster]), { success: true, requested_count: 1, removed_count: 1 })
-    expectedGenerations[unboundEnrollment] = { ...z.record(z.unknown()).parse(expectedGenerations[unboundEnrollment]), state: 'removed' }
+    expectedGenerations[unboundEnrollment] = { ...z.record(z.string(), z.unknown()).parse(expectedGenerations[unboundEnrollment]), state: 'removed' }
     assert.deepEqual(generationState(), expectedGenerations)
     assert.equal(z.object({ student_id: z.string() }).parse(binding(unboundRoster)).student_id, unbound)
     assert.deepEqual(await remove([inviteRoster]), { success: true, requested_count: 1, removed_count: 1 })
@@ -328,11 +333,12 @@ async function main() {
     assert.equal(sql(`select count(*) from public.classroom_enrollments where classroom_id=${q(classroom)} and student_id=${q(mate)};`), '1')
     assert.equal(sql(`select count(*) from public.classroom_enrollments where classroom_id=${q(otherClassroom)} and student_id=${q(bound)};`), '1')
     assert.deepEqual(await remove([otherRoster], teacher, otherClassroom), { success: true, requested_count: 1, removed_count: 1 })
-    expectedGenerations[otherEnrollment] = { ...z.record(z.unknown()).parse(expectedGenerations[otherEnrollment]), state: 'removed' }
+    expectedGenerations[otherEnrollment] = { ...z.record(z.string(), z.unknown()).parse(expectedGenerations[otherEnrollment]), state: 'removed' }
     assert.deepEqual(generationState(), expectedGenerations)
     assert.deepEqual(fingerprint(false), untouched)
     process.stdout.write('PASS actual SDK both owner roles, bound/unbound teacher learners, retained identity/history, dedup/retry/invitation and class isolation\n')
   } finally {
+    proofStage = 'exact synthetic cleanup'
     const closed = await Promise.allSettled(sessions.map(session => session.close()))
     if (closed.some(result => result.status === 'rejected')) throw new Error('Refusing cleanup while a proof session may remain open')
     assert.equal(sql(`select count(*) from pg_stat_activity where application_name like ${q(`${tag}%`)};`), '0')
@@ -521,6 +527,7 @@ async function main() {
   }
 }
 main().catch((error: unknown) => {
+  process.stderr.write(`Proof stage: ${proofStage}\n`)
   process.stderr.write(error instanceof Error && error.message === forcedMessage
     ? 'FAIL Forced roster removal post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)\n'
     : error instanceof Error && error.message === forcedBeforeCaptureMessage
