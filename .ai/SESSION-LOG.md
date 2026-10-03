@@ -873,3 +873,10 @@ SQL and constraints unchanged; accepteddesign correction recorded. CIhook TDD14
 tests with fake-shell exactexit1/ownmarker/cleanup rejection passes; refinednormal
 marker temporarily reproduced one focusedfailure before corresponding CI/test
 update. Targeted recheck and actualserialproofs stillpending.
+
+Targeted Sol recheck CLEANa02fffea/101source assertions. Root inspected166 before
+rerun and found synthetic transfer target also needs creation capacity; add only
+that preallocated test identity to existing tagged manual grants (exact cleanup
+already derives the same grant set). Structural RED1/16 reproduced before tiny
+fixture correction. No trigger/constraint bypass, product/SQL change, real account
+change or additional failed DB execution. Tiny targeted recheck precedes normal.

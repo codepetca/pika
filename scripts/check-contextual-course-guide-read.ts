@@ -29,7 +29,10 @@ const baseEnrollments=[[classA,ownerStudent],[classA,memberStudent],[classA,memb
 // Historical generations are never reactivated or reused.
 const replacementEnrollments=Array.from({length:8},()=>({id:randomUUID(),classroom:classA,student:memberTeacher}))
 const enrollments=[...baseEnrollments,...replacementEnrollments]
-const grants=[ownerStudent,ownerTeacher].map(subject=>({subject,operation:randomUUID()}))
+//166/181 also enforce capacity on ownership transfer. The synthetic outsider
+//needs capacity solely as the target of a committed revocation proof; no guard
+//is bypassed and its exact tagged grant is included in unconditional cleanup.
+const grants=[ownerStudent,ownerTeacher,outsider].map(subject=>({subject,operation:randomUUID()}))
 const now=new Date(), releaseExclusive=new Date(now.getTime()+1).toISOString()
 const withinMillisecond=now.toISOString().replace('Z','999Z')
 const nextMillisecond=releaseExclusive.replace('Z','001Z')

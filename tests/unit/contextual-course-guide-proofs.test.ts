@@ -51,6 +51,12 @@ describe('CourseGuide local SDK proof and CI registration (source only)', () => 
     expect(harness).toContain('createClient<Database>')
     expect(harness).not.toMatch(/supabase.*(?:db reset|db push|migration up)|session_replication_role/i)
   })
+  it('grants only synthetic ownership-transfer fixtures capacity without bypassing the creation guard', () => {
+    expect(harness).toContain('const grants=[ownerStudent,ownerTeacher,outsider].map')
+    expect(harness).toContain("public.set_effective_feature_entitlement_v1(op,u,'classrooms.create','manual'")
+    expect(harness).toContain("a.actor_ref='test:course-guide-read' and a.reason_code=${q(tag)}")
+    expect(harness).not.toMatch(/disable trigger enforce_classroom_creation|set_config\([^\n]*entitlement/i)
+  })
   it('locks real wire shape, old resource FK, Zod clone rebind, authority/config and publication predicates', () => {
     for (const token of [
       'body[0]=root', 'Actual maybeSingle SDK wire array', 'Exact projection; hidden data never selected',
