@@ -550,3 +550,11 @@ SHA256557469c5a86479d4b440d05534bc2f37084355436589f0b8b7f8b13df47b82c4 is UNAPPL
 Archived edits deny403 and stable bindings win over current-email fallback. Actual
 SQL/SDK behavior is unverified; frozen source security check precedes exact local
 preview/application, genuine types, database proofs and full draft-PR lifecycle.
+
+Pre-application Sol review accepted a retained-identity gap for a second stable-
+bound row after first-row removal and account-email change. Batch1 rejects the
+resolved learner after pair locking and before preview/DML; structural RED then
+11green. Source235 remains UNAPPLIED, superseded candidate SHA256
+0a91c5702e5c7a1cbae573e30721d38f8ab90789643983cb242d57422cfd5ebf. Real rollback
+proof now covers all upsert modes and counselor edits through that second row;
+runtime execution remains pending. Targeted security recheck precedes application.

@@ -39,6 +39,25 @@ describe('roster owner write migration source contract (database proof is separa
     expect(context).toContain('pg_catalog.lower(private.material_owner_write_title_v1(u.email))')
     expect(context).toContain('Roster binding changed')
   })
+  it('checks retained removal by resolved learner after the pair lock, before preview or writes', () => {
+    const context = body('private.lock_roster_owner_context_v1')
+    const pairLock = context.indexOf('private.try_lock_classroom_membership_change(p_classroom_id,v_id)')
+    const retainedRemoval = context.indexOf('r.removed_student_id=v_id')
+    expect(retainedRemoval).toBeGreaterThan(pairLock)
+    expect(retainedRemoval).toBeLessThan(context.indexOf('return v_context'))
+    const check = context.slice(context.lastIndexOf('if exists(', retainedRemoval), context.indexOf('end if;', retainedRemoval))
+    expect(check).toContain('public.classroom_roster r')
+    expect(check).toContain('r.classroom_id=p_classroom_id')
+    expect(check).toContain('r.removed_at is not null')
+    expect(check).toContain("raise exception using errcode='PT409',message='Student class data pending purge'")
+    for (const name of ['upsert_classroom_roster_for_owner_v1', 'update_classroom_roster_counselor_for_owner_v1']) {
+      const rpc = body(`public.${name}`)
+      const contextCall = rpc.indexOf('private.lock_roster_owner_context_v1(')
+      expect(contextCall).toBeGreaterThan(-1)
+      expect(contextCall).toBeLessThan(rpc.indexOf('update public.classroom_roster'))
+      if (name.startsWith('upsert_')) expect(contextCall).toBeLessThan(rpc.indexOf("'needs_confirmation',true"))
+    }
+  })
   it('preview returns before DML, with exact value comparison', () => {
     const upsert = body('public.upsert_classroom_roster_for_owner_v1')
     expect(upsert.indexOf("'needs_confirmation',true")).toBeLessThan(upsert.indexOf('insert into public.classroom_roster('))

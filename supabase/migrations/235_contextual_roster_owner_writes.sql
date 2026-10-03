@@ -130,6 +130,12 @@ begin
   for v_id in select distinct (item->>'student_id')::uuid from pg_catalog.jsonb_array_elements(v_context) item
     where item->>'student_id' is not null order by 1 loop
     perform private.try_lock_classroom_membership_change(p_classroom_id,v_id);
+    -- A second stable-bound row can retain a different historical email after
+    -- removal. Deny by the resolved learner, not only tombstone/current emails.
+    if exists(select 1 from public.classroom_roster r where r.classroom_id=p_classroom_id
+      and r.removed_at is not null and r.removed_student_id=v_id) then
+      raise exception using errcode='PT409',message='Student class data pending purge';
+    end if;
     -- Explicit role-independent fence: teacher-valued enrolled learners count.
     if exists(select 1 from public.student_purge_fences where classroom_id=p_classroom_id and student_id=v_id) then
       raise exception using errcode='PT409',message='Student purge active';
