@@ -17,8 +17,16 @@ async function main() {
   assert.equal(execFileSync('docker', ['inspect', container, '--format', '{{ index .Config.Labels "com.supabase.cli.project" }}'],
     { encoding: 'utf8' }).trim(), 'pika')
   assert.match(execFileSync('docker', ['port', container, '5432/tcp'], { encoding: 'utf8' }), /:54322\s*$/m)
-  const status = JSON.parse(execFileSync('supabase', ['status', '-o', 'json'],
-    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }))
+  const status = (() => {
+    try {
+      return JSON.parse(execFileSync('supabase', ['status', '-o', 'json'],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }))
+    } catch {
+      // A failed command can attach captured credential-bearing stdout to its
+      // Error. Neither that error nor malformed status JSON may reach the log.
+      throw new Error('Unable to read local Supabase status safely')
+    }
+  })()
   assert.equal(status.API_URL, 'http://127.0.0.1:54321')
   assert.equal(typeof status.SERVICE_ROLE_KEY, 'string')
   assert(status.SERVICE_ROLE_KEY.length > 20)
