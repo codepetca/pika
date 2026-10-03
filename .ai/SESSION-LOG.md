@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Blueprint Materials review correction
-
-PR1437 initial independent GPT-5.6 Sol review at99704ad8 found one blocking malformed-title boundary and stale posting notes. Verified canonical Material writes trim and require nonempty titles; applied matching read validation and two empty/whitespace snapshot regressions, updated teacher notes to Java Explained Posted in P3/P5, and clarified read-only tab visibility rather than snapshot adoption. One batched correction; affected checks and targeted plus final cumulative review follow. No runtime writes, migration or deployment. Review budget: one launch/one initial wave consumed; elapsed initial review about4m30s, coordinator tokens unknown.
-
 ## 2026-10-03 — Approved upgrade conflict recovery batch
 
 The owner approved one correction and one targeted financial review with30minutes
@@ -859,3 +855,25 @@ diff and official trim PASS: Guide8/incoming11, whole parent158CI plus Guide,
 2101historical entries/recent40; two inherited bodies restored, none discarded.
 Evidence/verifier: /private/tmp/pika-guide-prepared-detail.hL07Ah;
 focused pika-focused-YJl0c9. Prepared state is not reviewed/ready/merged/activated.
+
+## 2026-10-03 — Course Guide actual detail1447-main reconciliation
+
+Actual1447 reviewed a653d0ac passed all5CI37145738614 at19:22:19 (1884s,0queue)
+and merged19:23:04 as db37ca8f; actual squash tree equals reviewed detail tree.
+Guide prepared d0db1331 rebased conflict-free from pendinga653 onto actualdb37
+without source fixes. All8 originalbd0 Guide files, incoming detail/main source,
+whole159-step combined CI, whole CI-unit/Guide guard files, roadmap and immutable
+SQL001–238/genuine generated40d/curated3cf remain byte-exact. Prior prepared
+receipts/historical pending notes retained. History formula db37+d0−a653 plus
+this ONE actual-parent receipt, official40 trim. No DB/proof replay/types/SQL
+application/provider/network/publication/CI/review launch; accepted Guide normal
+25794/twoforced95169/74527 unchanged. Root owns ONE actual changed-base check,
+then draft lease-push/readyCI/merge. Original16:28:17→20:28:17 ledger/7launch3target
+1final3fix/hard12/8/8 retained; no budget reset. Admission/fullcutover/billing and
+production promotion OFF. Actual-origin/main db37 focused219tests/15files and all
+architecture/UI/design/TypeScript/lint PASS; startup/environment PASS. Explicit
+startup/Bara47PASS includes16000cap; actual-base audit7 PASS; diff/full preservation
+PASS. All3199 incoming parent blobs outside the explicit union unchanged; only
+CURRENT/session/journal differ from d0. History2102/recent40; no body discarded.
+Evidence/full optional-checkout verifier: /private/tmp/pika-guide-actual-detail.fmSK7K;
+focused pika-focused-gDDEOx. This is not independent review, readiness or activation.
