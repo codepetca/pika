@@ -11,40 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Local230 application and generated contracts
-
-1431 merged493e752a; rebased billing with continuity-only conflicts, preserving reviewed230 SHA25627da3d0c09a2566c5a10fc051c225dc6c4f12ef4a250914003355a6eef915d1f and all billing behavior. Owner's conditional approval consumed by one successful local230-only push after matching001–229 history/dry run and629preapplication tests. Local001–230 matches; generated types/check, focused TypeScript/lint/architecture gates and four existing rollback database harnesses pass. Security advisor clean; RLS/service-only ACL probes pass; 3users/1classroom/0plans,bindings,access,upgrade operations/receipts unchanged; sandbox OFF. New230harness rolled back at unparenthesized CASE assertion; prepared two-line fixture patch, not applied. Four prior review launches/two financial fix batches/one main sync; review clock expired during1431wait, so bounded final correction/review extension remains needed. No repeated application, production/reset/reseed/Stripe/payment/activation/merge authority.
-
-## 2026-10-02 — Approved upgrade fixture correction
-
-The owner approved two CASE assertion parentheses and a20-minute final-review
-extension at2026-10-03T00:15:11Z, ending00:35:11Z. The new migration230 upgrade
-database harness now passes with rollback. Installed230 and provider behavior
-are unchanged; no migration reapplication, Stripe writes or activation occurred.
-Four prior review launches, two financial fixes and one main sync remain counted;
-this fixture correction and one final integration reviewer are the bounded next
-step before stable-SHA CI.
-
-## 2026-10-02 — Upgrade final integration review checkpoint
-
-Draft PR1435 publishes cc2217bc after520focused tests,53continuity tests, matching
-generated types and the corrected rollback harness. Final GPT-5.6 Sol/high review
-(launch5;48targeted tests) found one verified P1: revision conflicts leave active
-upgrade rows queued but undiscoverable, hiding attention and blocking ordinary
-subscription processing. No other blockers reported. CI remains unstarted and
-billing OFF. Five launches, two financial fixes, one main sync and one fixture
-correction are used. Owner checkpoint required for additive conflict-recovery
-correction and targeted review; applied230 must remain immutable. These handoff
-notes are local and uncommitted; the published candidate remains cc2217bc.
-
-## 2026-10-03 — Blueprint Materials visibility
-
-Owner approved addressing Java Explained in both current classroom Blueprint tabs. Source inspection found the tabs omit Materials entirely; refined to a read-only latest-saved linked-Blueprint Materials list rather than changing snapshot provenance or weakening reconciliation. Teacher-only endpoint checks classroom and Blueprint ownership, projects validated materials only, preserves historical missing-Materials snapshots and distinguishes failures from empty lists. Separate source label retains frozen Content/Guidance versions; student Posted Materials and public Sites lesson unchanged. UI brief: existing Blueprint Content and Pattern Lab page states; reuse PageLayout/PageState/Button/RichTextViewer, teacher desktop/mobile light/dark, loaded/focus and desktop loading/error/empty/retry, student UI n/a (teacher-only) with real API rejection covered; composite checklist reviewed, existing segmented semantics retained, new link keyboard focus verified; no experimental patterns or migrations. Focused170 tests, architecture/UI/design/TypeScript/lint and audit pass. Eight unique browser scenarios pass, covering four layouts, loading, error/empty retry, real API null/student403, and Pattern Lab; one broader classroom read failed during dev recompilation and passed targeted rerun after source stabilized. Eight screenshots visually reviewed and retained at /tmp/pika-java-review/blueprint-materials-2026-10-03. Lesson viewer build/syntax checks pass. Lesson/viewer/guidance saved in feature branch; synced origin/main66fa5de3 while preserving both continuity histories. Draft-first independent review follows. Risk profile: none. Model recommendation: GPT-6 Sol for bounded read-only application work.
-
-## 2026-10-03 — Blueprint Materials review correction
-
-PR1437 initial independent GPT-5.6 Sol review at99704ad8 found one blocking malformed-title boundary and stale posting notes. Verified canonical Material writes trim and require nonempty titles; applied matching read validation and two empty/whitespace snapshot regressions, updated teacher notes to Java Explained Posted in P3/P5, and clarified read-only tab visibility rather than snapshot adoption. One batched correction; affected checks and targeted plus final cumulative review follow. No runtime writes, migration or deployment. Review budget: one launch/one initial wave consumed; elapsed initial review about4m30s, coordinator tokens unknown.
-
 ## 2026-10-03 — Approved upgrade conflict recovery batch
 
 The owner approved one correction and one targeted financial review with30minutes
@@ -790,3 +756,124 @@ lint PASS; startup/CI/Bara56tests/3files PASS, startup15975/16000. Actual-main-a
 audit10files, diff, trim and full preservation verifier PASS. Evidence:
 /private/tmp/pika-1447-actual-removal-reconcile.BKLnlz; fullfocused pika-focused-4MMNPL.
 No migration renumbering or task stash;36unrelated shared stashes untouched.
+
+## 2026-10-03 — Bounded shared Course Guide source preparation
+
+On actual1444 maina8c4e9b2, prepared schema-free Course Guide GET under existing
+shared admission. One feature-owned actor/config-guarded reader selects only
+enabled DTO content; every later/terminal/final statement rechecks authority and
+raw JSONB configuration. Preserves current publication, genuine resource FK,
+negative/tied ordering, duplicate titles and microsecond-to-millisecond release
+behavior without answer-bearing broad loaders. Legacy/public/meta/UI untouched.
+Source TDD RED then125 affected assertions/nine suites, TypeScript, scoped lint,
+architecture, diff and six-file audit PASS. Synthetic local SDK source covers both
+collections beyond1000 and exact cleanup including commit-before-reference-capture.
+Actual DB proofs, CI hook, full independent review and merge remain pending; no
+runtime behavior inferred from serialization tests. Original local001–236 SQL
+remains immutable; production001–225/sharedadmission/fullcutoverOFF. Human approval
+and review extensions carry forward without routine prompts or hard-cap resets.
+
+Pre-execution Sol review CLEAN/81source tests; actual normal then one safe
+diagnostic run passed firsttwo proof sections and completecleanup but failed
+illegal persistedfeaturevisibility fixtures. Read-only live constraint205 confirms
+JSONnull/scalars/presentknownnonbooleans forbidden. Batch1 corrects onlyharness
+fixtures, proves exact23514/constraint denial in rollback-only subtransactions
+with fullrow/globalbaseline preservation, and adds fixedsafephase labels. Reader,
+SQL and constraints unchanged; accepteddesign correction recorded. CIhook TDD14
+tests with fake-shell exactexit1/ownmarker/cleanup rejection passes; refinednormal
+marker temporarily reproduced one focusedfailure before corresponding CI/test
+update. Targeted recheck and actualserialproofs stillpending.
+
+Targeted Sol recheck CLEANa02fffea/101source assertions. Root inspected166 before
+rerun and found synthetic transfer target also needs creation capacity; add only
+that preallocated test identity to existing tagged manual grants (exact cleanup
+already derives the same grant set). Structural RED1/16 reproduced before tiny
+fixture correction. No trigger/constraint bypass, product/SQL change, real account
+change or additional failed DB execution. Tiny targeted recheck precedes normal.
+
+Tiny recheck CLEAN1777f9f0/16source tests. Actual normal32267 passes all four
+markers and exact cleanup: genuine JSONB/resource wire, both paginated collections,
+millisecond release parity, tamper/transport denials and40 committed revocations
+plus finalclass deletion. Forcedfixture58792 and precapture54830 each exactexit1/
+ownexpectedFAIL/exactcleanupPASS. All whole-row public/private/storage baselines,
+zero residue and guardO preserved; no DBproof overlaps. A combined wrapper was
+rejected before execution because its temporarylog trap used blockedrm-f; that
+deletion was not retried and each proof ran directly instead. No actual proof
+or fixture started in the rejected wrapper. Full initial review/draft/main/CI next.
+
+## 2026-10-03 — Course Guide serialized-null compatibility correction
+
+PR1449 full initial security review CLEANbc15/158 assertions; compatibility review
+128 assertions found a reproducible P2: historical TEXT null parses to null, which
+the unchanged builder treats as empty but the new reader rejected503. Root
+confirmed it with regression RED1/72, then added parsed-null-only empty handling
+before unchanged bounded nonnull Tiptap validation and extended the real resource
+fixture matrix. Three affected suites98PASS. Legacy/public/SQL/schema/authority
+and cleanup unchanged. Batch3/launch5 retains original16:28:17 clock and hard caps;
+targeted review, serial runtime recheck and final integration precede readiness.
+Shared admission/cutover remainOFF; latest human explicitly authorizes routine
+steps and review extensions without repeated prompts.
+
+## 2026-10-03 — Course Guide prepared removal-parent reconciliation
+
+Prepared the unchanged bd0 Course Guide source onto reviewed pending1448 parent
+88a1bfd6; this is NOT merged main (actual2095), and parent CI remains pending.
+Every incoming runtime, genuine generated40d contract, curated types and immutable
+SQL001–238 is preserved; whole parent CI plus the original Guide step and original
+Guide source guards remain intact. The old ci-workflow test has no Guide block:
+retain incoming88 test whole, original Guide proof-unit guards byte-exact.
+Full history arithmetic is 88+bd0−a8 plus this one receipt, official40-entry trim.
+No database/status/runtime proofs/type generation/providers/network/remote Git,
+review or CI launch. Root owns actual-parent reconciliation after1448/1447 squash
+merges, then changed-base review and exact-head CI. Sharedadmission/fullcutover
+and billing remain OFF; original review clocks/caps retained. Prepared-parent
+focused218tests/15files and architecture/UI/design/TypeScript/lint all PASS.
+Startup/environment PASS; startup/Bara47PASS (including canonical Prod spacing).
+Prepared-base audit7files PASS; diff/full preservation PASS: Guide8/incoming45,
+2097historical entries/recent40, only9 copied-surplus duplicates removed while
+original full bodies retained. Evidence/private verifier:
+/private/tmp/pika-guide-prepared-removal.UOmGQg; focused pika-focused-AaWC7U.
+This prepared dependency state is not ready/merged/activated.
+
+## 2026-10-03 — Course Guide prepared detail-parent reconciliation
+
+Prepared unchanged Guide61 onto frozen PENDING1447 detail a653d0ac using old
+reviewed88 parent; NOT actual detail main. Actual1448 merged73a85f26 matches88
+tree, all5CI37143487206 passed18:43:24/merged18:43:41; detail1447 remains draft
+and its changed-base review/CI are root-owned. Incoming detail/73 source, whole
+158-step parent CI plus the original Guide step, whole incoming CI-unit file,
+immutable001–238 and genuine generated40d/curated3cf are preserved. All8 Guide
+files remain byte-exactbd0. Prior prepared88 receipt and every full historical
+body/multiplicity retained: a653+61−88 plus this one receipt, official40 trim.
+No DB/status/runtime proofs/types/SQL/provider/network/publication/review/CI work.
+Root owns actual detail-squash reconciliation and later ONE changed-base review.
+Original16:28:17→19:28:17 ledger/7launch3target1final3fix unchanged; DeepSeek paused,
+sharedadmission/fullcutover/billing/production OFF. Explicit pending-parent focused
+219tests/15files and architecture/UI/design/TypeScript/lint PASS. Startup/env PASS;
+startup/Bara47PASS including16000cap; prepared-base audit7 PASS. Full preservation,
+diff and official trim PASS: Guide8/incoming11, whole parent158CI plus Guide,
+2101historical entries/recent40; two inherited bodies restored, none discarded.
+Evidence/verifier: /private/tmp/pika-guide-prepared-detail.hL07Ah;
+focused pika-focused-YJl0c9. Prepared state is not reviewed/ready/merged/activated.
+
+## 2026-10-03 — Course Guide actual detail1447-main reconciliation
+
+Actual1447 reviewed a653d0ac passed all5CI37145738614 at19:22:19 (1884s,0queue)
+and merged19:23:04 as db37ca8f; actual squash tree equals reviewed detail tree.
+Guide prepared d0db1331 rebased conflict-free from pendinga653 onto actualdb37
+without source fixes. All8 originalbd0 Guide files, incoming detail/main source,
+whole159-step combined CI, whole CI-unit/Guide guard files, roadmap and immutable
+SQL001–238/genuine generated40d/curated3cf remain byte-exact. Prior prepared
+receipts/historical pending notes retained. History formula db37+d0−a653 plus
+this ONE actual-parent receipt, official40 trim. No DB/proof replay/types/SQL
+application/provider/network/publication/CI/review launch; accepted Guide normal
+25794/twoforced95169/74527 unchanged. Root owns ONE actual changed-base check,
+then draft lease-push/readyCI/merge. Original16:28:17→20:28:17 ledger/7launch3target
+1final3fix/hard12/8/8 retained; no budget reset. Admission/fullcutover/billing and
+production promotion OFF. Actual-origin/main db37 focused219tests/15files and all
+architecture/UI/design/TypeScript/lint PASS; startup/environment PASS. Explicit
+startup/Bara47PASS includes16000cap; actual-base audit7 PASS; diff/full preservation
+PASS. All3199 incoming parent blobs outside the explicit union unchanged; only
+CURRENT/session/journal differ from d0. History2102/recent40; no body discarded.
+Evidence/full optional-checkout verifier: /private/tmp/pika-guide-actual-detail.fmSK7K;
+focused pika-focused-gDDEOx. This is not independent review, readiness or activation.
