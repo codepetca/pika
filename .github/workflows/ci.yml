@@ -353,6 +353,25 @@ jobs:
           grep -F 'Forced roster post-fixture cleanup proof' "$cleanup_log"
           grep -F 'PASS exact synthetic roster owner-write cleanup, zero residual rows and global baseline counts' "$cleanup_log"
 
+      - name: Verify contextual preserving roster removal and failed-fixture cleanup
+        shell: bash
+        run: |
+          bash scripts/check-contextual-roster-removal-owner-writes-database.sh
+          pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts
+          cleanup_log="$(mktemp)"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced roster removal post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts --verify-cleanup-after-commit-before-capture > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced roster removal post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
       - name: Verify contextual announcement owner contracts and concurrency
         shell: bash
         run: |
