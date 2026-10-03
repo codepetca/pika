@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Prorated-upgrade backend candidate
-
-Coordinator owns codex/subscription-plan-changes from merged1429/25cc0691. Added dormant, authenticated frozen-invoice upgrade APIs and recovery; provider preview, signed amounts, confirmation digest, captured-card proof, original-term preservation and version writer. Candidate230 unapplied; shared local229 belongs to classroom task, billing OFF. Three bounded GPT workers completed owned schema/provider/API files; no real provider calls or generated-type edits. Repeated same-term upgrades need receipt chains; scheduled downgrade grace awaits owner decision. Billing tests pass; required compile/type checks blocked only by new RPCs until exact local230 permission/type generation. Preapplication review completed: two independent initial reviews and two targeted passes (four launches/two fix batches). Fixed crash-before-payment replay, invoice cleanup after the paid boundary and realistic partial-credit draft totals. Corrected source c962f622;576 billing/API tests pass, lint/audit pass; tsc retains exactly two pending new-RPC errors. Owner approved one exact local230 application, conditional on classroom229 PR1431 merging and an only230 dry run; permission remains unconsumed. Verified Pika/54322 target through229; four existing billing database harnesses passed with rollback and unchanged counts (3 users/1 classroom/0 plans, bindings or access), sandbox OFF. Classroom229 PR1431 awaits its owner-controlled review/CI/main reconciliation. SQL230 unchanged since initial review. Final cumulative PR review/types/database harness remain; no production/reset/reseed/activation/merge authority.
-
 ## 2026-10-02 — Local230 application and generated contracts
 
 1431 merged493e752a; rebased billing with continuity-only conflicts, preserving reviewed230 SHA25627da3d0c09a2566c5a10fc051c225dc6c4f12ef4a250914003355a6eef915d1f and all billing behavior. Owner's conditional approval consumed by one successful local230-only push after matching001–229 history/dry run and629preapplication tests. Local001–230 matches; generated types/check, focused TypeScript/lint/architecture gates and four existing rollback database harnesses pass. Security advisor clean; RLS/service-only ACL probes pass; 3users/1classroom/0plans,bindings,access,upgrade operations/receipts unchanged; sandbox OFF. New230harness rolled back at unparenthesized CASE assertion; prepared two-line fixture patch, not applied. Four prior review launches/two financial fix batches/one main sync; review clock expired during1431wait, so bounded final correction/review extension remains needed. No repeated application, production/reset/reseed/Stripe/payment/activation/merge authority.
@@ -768,3 +764,29 @@ at16001chars; CURRENT-only shortening gives15986chars and GREEN56startup/CI/Bara
 tests. Actual-main-aware audit20files, diff/trim and full preservation verifier
 PASS. Evidence /private/tmp/pika-1447-pending-parent-reconcile.oDB0ec; full focused
 pika-focused-psfLyl. No migrations created/renamed,36unrelated stashes untouched.
+
+## 2026-10-03 — Detail1447 actual removal238-main reconciliation
+
+Rebased prepared7b421097 onto verified actual1448 squash73a85f26 using reviewed
+pendingparent88a1bfd6 as the exclusion boundary. Root verified all five exact-head
+CI37143487206 checks SUCCESS (18:15:08–18:43:24Z) and normal merge18:43:41Z;
+canonicalmain clean fast-forwarded73. Actual73 and reviewed88 have identical
+tree0200f897e44b029b0ce12b55b107fdfa5b79e584. Rebase had no conflicts or tree
+changes. All10original293 detail runtime/schema/helper/test/proof/guide files,
+44incoming parent files, whole prepared CI/test unions, entire roadmap and
+immutable235–238/genuine generated40d/curated3cf contracts remain unchanged.
+The pending-parent roadmap/session receipt is retained as historical preparation
+evidence; CURRENT and this receipt supersede its pending-main status. History
+is actual73+prepared7b−old88+this one new receipt; no surplus copies removed here.
+Official trim retains40recent entries, preserving all historical full bodies.
+Local/main001–238 and canonical Prod DB 001–225 recorded without activation.
+No DB/status/proof replay/type generation/migration application/provider/network/
+publication/readyCI/review/merge/stash/cleanup actions. Original detail ledger
+15:54Z/extended19:54Z and all launch/wave/fix counts remain unchanged/root-owned.
+Changed-actual-base independent review, publication and detail exact-head CI
+remain required; sharedadmission/fullcutover/billing/production promotionOFF.
+Actualorigin/main73 focused258tests/17files and architecture/UI/design/TypeScript/
+lint PASS; startup/CI/Bara56tests/3files PASS, startup15975/16000. Actual-main-aware
+audit10files, diff, trim and full preservation verifier PASS. Evidence:
+/private/tmp/pika-1447-actual-removal-reconcile.BKLnlz; fullfocused pika-focused-4MMNPL.
+No migration renumbering or task stash;36unrelated shared stashes untouched.
