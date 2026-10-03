@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { authorizeSharedClassDayMutationActor, createContextualClassDayCalendar, setContextualClassDay } from '@/lib/server/contextual-class-day-mutation'
+import { contextualClassDayMutationBodyIdentitySchema } from '@/lib/validations/contextual-class-day-mutation'
 import { authorizeSharedClassDayReadActor, readContextualClassDays } from '@/lib/server/contextual-class-day-read'
 import { contextualClassDayReadQuerySchema } from '@/lib/validations/contextual-class-day-read'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -85,6 +87,13 @@ export const GET = withErrorHandler('GetTeacherClassDays', async (request, conte
  * Legacy route: prefer POST /api/classrooms/:classroomId/class-days
  */
 export const POST = withErrorHandler('PostTeacherClassDays', async (request, context) => {
+  const shared = await authorizeSharedClassDayMutationActor()
+  if (shared.mode === 'shared') {
+    const body = await request.json()
+    const { classroom_id } = contextualClassDayMutationBodyIdentitySchema.parse(body)
+    const input = createClassroomCalendarSchema.parse(body)
+    return NextResponse.json(await createContextualClassDayCalendar({ supabase: getServiceRoleClient(), actorId: shared.user.id, classroomId: classroom_id, input }))
+  }
   let bodyPromise: Promise<unknown> | undefined
   const access = await authorizeClassroomCoreRequest(async () => {
     bodyPromise = request.json()
@@ -141,6 +150,13 @@ export const POST = withErrorHandler('PostTeacherClassDays', async (request, con
  * Legacy route: prefer PATCH /api/classrooms/:classroomId/class-days
  */
 export const PATCH = withErrorHandler('PatchTeacherClassDays', async (request, context) => {
+  const shared = await authorizeSharedClassDayMutationActor()
+  if (shared.mode === 'shared') {
+    const body = await request.json()
+    const { classroom_id } = contextualClassDayMutationBodyIdentitySchema.parse(body)
+    const input = setClassroomCalendarDaySchema.parse(body)
+    return NextResponse.json(await setContextualClassDay({ supabase: getServiceRoleClient(), actorId: shared.user.id, classroomId: classroom_id, input }))
+  }
   let bodyPromise: Promise<unknown> | undefined
   const access = await authorizeClassroomCoreRequest(async () => {
     bodyPromise = request.json()

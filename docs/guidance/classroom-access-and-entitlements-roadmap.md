@@ -689,6 +689,14 @@ Production application and activation remain separately controlled.
 Linked Blueprint reads, other classwork boundaries and roster operations remain
 separate work; this does not satisfy batch1's whole-experience exit criteria.
 
+Independent batch1 [calendar owner-write preparation](contextual-class-day-owner-writes.md)
+adds only sharedPOST/PATCH branches on both calendar routes, reusing installed152.
+Both owner labels/member/archive/former-owner denial, actualSDK503aftercommit,
+Toronto/bounds/prompt/CTID preservation and normal/forcedcleanup pass. Existing
+SQLrollback and allfive observed-lock concurrency races pass. Fullindependent
+draftreview/currentmain reconciliation/exactCI remain beforemerge. No newSQL,
+globalrole/plan/provider/UI/activation changes;235belongs toseparate rosterwrites.
+
 Superseding merge receipt: PR1441 normal squash merge d913eebd at14:18:23Z on
 2026-10-03 followed all five successful exact-head74995349 CI37127414505 gates
 (0queue/1774runseconds). Canonical main fast-forwarded cleanly. Reviewed234 remains
