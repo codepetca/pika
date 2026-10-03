@@ -323,7 +323,7 @@ async function main() {
       assert.deepEqual(fingerprint(),denialBaseline,'Expected feature constraint denial must preserve every whole row')
     }
     process.stdout.write('CHECK course guide persisted resource compatibility\n')
-    for(const raw of [null,'not valid JSON',JSON.stringify(content),{type:'doc',content:[]},{type:'doc',content:[{type:'image',attrs:{src:'https://example.invalid/image'}}]}]){
+    for(const raw of [null,'null','not valid JSON',JSON.stringify(content),{type:'doc',content:[]},{type:'doc',content:[{type:'image',attrs:{src:'https://example.invalid/image'}}]}]){
       sql(`update public.classroom_resources set content=${q(JSON.stringify(raw))}::jsonb where id=${q(resource)} and classroom_id=${q(classA)};`)
       const guide=await read(ownerStudent);assert.deepEqual(guide.resourcesContent,typeof raw==='string'&&raw===JSON.stringify(content)?content:null)
     }

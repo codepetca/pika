@@ -112,7 +112,7 @@ describe('bounded actor-bound CourseGuide reads (installed SDK, no network)', ()
       expect(f.urls.some(url => url.searchParams.get('select')?.includes(',title'))).toBe(false)
     }
   })
-  it.each([null, 'invalid json', { type: 'doc', content: [] }, { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'image', attrs: { src: '/image' } }] }] }])('retains empty resource semantics %# and object/null FK wire shape', async content => {
+  it.each([null, 'null', 'invalid json', { type: 'doc', content: [] }, { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'image', attrs: { src: '/image' } }] }] }])('retains empty resource semantics %# and object/null FK wire shape', async content => {
     const f = fixture({ config: { ...hidden, resources: true }, content })
     await expect(f.read()).resolves.toMatchObject({ resourcesContent: null })
     expect(f.urls[2].searchParams.get('select')).toContain('resources:classroom_resources!classroom_materials_classroom_id_fkey(id,classroom_id,content)')

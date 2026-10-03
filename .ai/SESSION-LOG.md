@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Java viewer icon toggle
-
-- Replaced visible Read/Present labels with existing licensed Lucide book-open/presentation geometry; retained accessible names, titles, pressed states, and 44px touch targets. Verified both view switches, light/dark state, and screenshot java-icon-toggle.png in this task’s visualizations directory. Build/syntax/diff checks pass; standalone artifact, risk none.
-- Normal Sites workflow and private deployment succeeded from ac8c61bd089267634b6cc5b90e41334a90637128, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_a5774f13b6a8819185f0e0a29a3eda90. Same URL, audience, and Material draft.
-
 ## 2026-10-02 — Java viewer Print menu
 
 - Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
@@ -890,3 +885,16 @@ zero residue and guardO preserved; no DBproof overlaps. A combined wrapper was
 rejected before execution because its temporarylog trap used blockedrm-f; that
 deletion was not retried and each proof ran directly instead. No actual proof
 or fixture started in the rejected wrapper. Full initial review/draft/main/CI next.
+
+## 2026-10-03 — Course Guide serialized-null compatibility correction
+
+PR1449 full initial security review CLEANbc15/158 assertions; compatibility review
+128 assertions found a reproducible P2: historical TEXT null parses to null, which
+the unchanged builder treats as empty but the new reader rejected503. Root
+confirmed it with regression RED1/72, then added parsed-null-only empty handling
+before unchanged bounded nonnull Tiptap validation and extended the real resource
+fixture matrix. Three affected suites98PASS. Legacy/public/SQL/schema/authority
+and cleanup unchanged. Batch3/launch5 retains original16:28:17 clock and hard caps;
+targeted review, serial runtime recheck and final integration precede readiness.
+Shared admission/cutover remainOFF; latest human explicitly authorizes routine
+steps and review extensions without repeated prompts.

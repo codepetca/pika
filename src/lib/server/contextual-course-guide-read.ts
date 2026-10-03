@@ -127,9 +127,13 @@ export async function readContextualCourseGuide(input: {
     let resourcesContent: CourseGuideData['resourcesContent'] = null
     if (visibility.resources && header.resources !== null && header.resources !== undefined) {
       if (header.resources.classroom_id !== classroomId) throw unavailable()
-      const parsed = contextualCourseGuideReadTiptapSchema.safeParse(parseContentField(header.resources.content))
-      if (!parsed.success) throw unavailable()
-      if (!isEmpty(parsed.data)) resourcesContent = parsed.data
+      const content = parseContentField(header.resources.content)
+      // Historical TEXT 'null' parses to null; the existing guide treats it as empty.
+      if (content !== null) {
+        const parsed = contextualCourseGuideReadTiptapSchema.safeParse(content)
+        if (!parsed.success) throw unavailable()
+        if (!isEmpty(parsed.data)) resourcesContent = parsed.data
+      }
     }
     let pages = 0
     async function collection(kind: 'assignments' | 'tests'): Promise<Array<{ key: string; title: string }>> {
