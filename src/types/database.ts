@@ -279,6 +279,15 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // Generated PostgreSQL metadata does not encode nullable input contracts.
+  create_announcement_for_owner_v1: FunctionContract<
+    'create_announcement_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['create_announcement_for_owner_v1']['Args'], {
+      p_scheduled_for: string | null
+      p_title: string | null
+    }>
+  >
   set_gradebook_maximum_override: FunctionContract<
     'set_gradebook_maximum_override',
     Json,
