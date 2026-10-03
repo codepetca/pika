@@ -111,3 +111,6 @@ Normal and intentionally forced-failure cleanup both prove zero residual fixture
 Synthetic fence setup uses postgres only for fixture creation; tested RPCs use the
 service role. The harness evaluates deletion before its separate row-absence check.
 Neither harness applies schema, changes admission or contacts production.
+The CI runner lacks ripgrep; its database-port guard uses standard grep. The SQL
+harness also passes under a restricted local PATH with ripgrep absent. A first
+exact-head CI failure at that guard was returned to draft before correction.

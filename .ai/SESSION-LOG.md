@@ -497,3 +497,10 @@ revision rollback. ActualSDK normal/concurrency proof exits0; forcedfailure exit
 with expectederror and exactcleanupPASS. All syntheticfixtures absent afterward.
 Reviewlaunch3clean; batch2 now ready for targeted/final review. Production001–225,
 shared admission/cutover OFF, provider/account/plan untouched; no repeated localask.
+
+Targeted batch2 and final cumulative reviews CLEAN atf4b7efcf, ready once for exact
+CI37123589006. Database job failed before material-write proofs because runner lacks
+rg at the harness's port check; returnedPR1441 to draft immediately. Batch3 changes
+only that shell check to standardgrep; standalone rollback proofs pass with rg absent
+fromPATH. Runtime/installedSQL/generatedcontracts unchanged. Fresh targeted portability
+review and exact corrected-head CI required; original review budget retained.
