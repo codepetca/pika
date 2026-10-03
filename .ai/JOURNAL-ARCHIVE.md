@@ -34454,3 +34454,43 @@ cache states/isolation, archived owner and transfers before all three reads, wit
 exact fixture/audit cleanup. Independent review and final main reconciliation
 pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
 No AI, billing, migration, UI, cohort activation or production change.
+
+<!-- pika-session-log-archive-batch:5218db0f34ef884fa4f3f4df73e3fffb15c2e083348a6bac51df6f2c2ae19215 -->
+## 2026-10-01 — Roster logs merged; cached summary review corrections
+
+PR1421 merged main e87d322a after four independent reviews, one correction batch,
+119 focused tests/static checks, real1001-learner database checks and every exact
+head CI36940960454 gate at5adf5905. Hub is synchronized; no production activation.
+PR1422 initial reviews at6f255b32 accepted microsecond freshness loss and unresolved
+name-map warning suppression. One batch preserves full timestamp precision and
+requires nonblank own map references before restoration (14 new tests,11 red).
+76 targeted/167 focused tests and real PostgreSQL microsecond/map/race/cleanup
+cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
+application source has no rebase conflicts and no migration was renumbered.
+Targeted security and final integration review remain pending. No AI, schema,
+cohort, UI, billing or production change; lesson-plan list reads follow.
+
+## 2026-10-01 — Daily outer-scroll investigation
+
+- User clarified the defect: Daily's whole page scrolls vertically into blank space below the table, in wide and narrow windows; only the table should scroll.
+- Read-only local investigation in app-managed worktree `daily-scroll-containment`; startup verification passed. With 80 mocked roster rows and the full classroom shell, Chromium1440×900 keeps document900px and table578px;1000/390px widths grow document3326px and table3004px because AppShell confinement is desktop-only. Exact wide-window blank-space symptom remains unreproduced; awaiting clarification about table-end versus outside-table scrolling. Product source unchanged.
+- Debug screenshots `/tmp/pika-daily-summary-{1440,1000,390}.png`; reference historical PR775/test-pane overflow and PR578/student-scroll persistence. Automatic DeepSeek delegation paused through2026-12-31 per shared pilot record.
+
+<!-- pika-session-log-archive-batch:e6f90cd8f628ac87b2591d685dba43a1dc247d1f04ee5f4d1cd6701e7ed0383b -->
+## 2026-10-01 — Daily blank-space cause confirmed in Chrome
+
+- Inspected user's existing production Daily tab read-only. At1152×608, body/AppShell608px but document953px and page scrollY300px, with the table independently scrolled551px. Hidden `No QR check-in` spans in Check-in cells extend to document953px because every ancestor through the scroller is statically positioned.
+- User has reduced motion enabled: Daily entry animation/transform is disabled. The animation otherwise incidentally creates a containing block, explaining why local default-motion screenshots missed the desktop defect. Containment should be explicit for screen-reader labels in both Daily table modes; retain their accessible text. Narrow shell-height issue from earlier investigation is separate.
+- Product source unchanged. Next implementation: regression with reduced-motion and missing check-ins, explicit local positioned containment, compare default/selected Daily states and wide/narrow viewports.
+
+<!-- pika-session-log-archive-batch:f941f705da073568ce2e87c50557d5122b8a724263ae812216f29cf50174f968 -->
+## 2026-10-01 — Daily scroll containment fix
+
+- Made both teacher Daily roster scrollers positioned containers so hidden check-in labels remain inside the table without depending on animation transforms. Added an AppShell narrow-viewport opt-in used only by teacher Daily; reused the Daily/TeacherWorkspaceSplit composition and `/pattern-lab` Daily reference. No new visual pattern or data behavior.
+- Browser regression failed before the fix (reduced-motion document1455px for a900px viewport). Final Playwright matrix passes20: teacher fixture/full classroom, selected/unselected, normal/reduced motion,1440×900/390×844, light/dark; student Daily regression/screenshots pass all4 projects. Exact user-size1152×608 reduced-motion smoke keeps document608px and context bar56px before/after table-end wheel scrolling. Screenshots inspected in `test-results/` and `/tmp/pika-daily-exact-classroom.png`.
+- Focused gate passes223 tests plus architecture, UI/design policy, TypeScript and lint; audit/diff checks pass. An earlier concurrent run timed out two unrelated startup-doc harness tests; serial rerun passes. Risk profile:none. Independent review and final PR CI pending; use one GPT-5.6 Sol/high behavior reviewer because Terra is unavailable. DeepSeek pilot remains paused.
+
+<!-- pika-session-log-archive-batch:05f746c356038e337aa40c4ba3f92186b8399cfad09eee3ef675be1fe94a05ad -->
+## 2026-10-01 — Contain long student tables across classroom workspaces
+
+Extended the Daily scroll fix to Roster and assignment/test grading, including Tests before student selection. Teacher table workspaces now keep the narrow shell within the viewport; Gradebook retains its existing mobile selector flow. Explicit containing blocks keep hidden row labels inside table scrollers, and vertical gesture containment prevents viewport bounce at the last row. The shared gapped split gives stacked table/inspector panes available height so an open Assignment inspector cannot squeeze the table to one row. Existing Pattern Lab Roster, Gradebook and Workspaces owners are reused; no new UI pattern. Added a strictly development-only full ClassroomPageClient fixture with synthetic identities and mocked read-only data. Production API authorization is unchanged. All 60 teacher/student light/dark desktop/mobile and normal/reduced-motion browser cases pass; 18 additional reduced-motion checks pass at 1152x608, 1000x608 and 390x608. Checks cover last-row reachability, selected states, sticky headers where present, usable table height and inspector bottom controls. Screenshots visually reviewed under ignored artifacts/scroll-audit. Focused checks pass 581 tests in 37 files, architecture, UI/design policy, TypeScript and lint. Legacy teacher dashboard was inspected in source: its normal page flow contains actual content, without the hidden-label empty-tail mechanism. Local authenticated backend verification was unavailable because shared local Pika PostgreSQL was unhealthy; no database changes were made. PR1419 remains draft for expanded independent review. Risk: standard UI behavior; model recommendation: GPT-6 Sol.

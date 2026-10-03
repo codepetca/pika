@@ -1,4 +1,4 @@
-Prod DB 001–225(lastverified);local001–230 applied10-02;230 immutable.1435 draft:231 recovery prepared,unapplied.1436 announcement reads merged66fa5de3. Billing OFF;Ent181/Plan206 strict+autoFree ON09-26;A182–200/image213 OFF;shared admission dormant;M201–204 AI/V205 Grades OFF. Plan:classroom-access-and-entitlements-roadmap.md.
+Prod DB 001–225(lastverified);local001–232 applied10-03;230 immutable.1435 draft:231 reviewed;upgrade DB pass,fixture review/CI pending.1436 announcement reads merged66fa5de3. Billing OFF;Ent181/Plan206 strict+autoFree ON09-26;A182–200/image213 OFF;shared admission dormant;M201–204 AI/V205 Grades OFF. Plan:classroom-access-and-entitlements-roadmap.md.
 Attendance timing released;teacher_entitlements smoke 4/4 passed 2026-08-28. CI authority;student purge ON;others OFF. Pal OFF;UI CI off. See docs/integrations/pal-achievements-pilot.md.
 Flow:local app/DB checks → main → production;staging retired.
 WT:$HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika. Env:$HOME/Repos/.env/pika/.env.local;collaborators:.env.example.

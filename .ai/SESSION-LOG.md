@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Roster logs merged; cached summary review corrections
-
-PR1421 merged main e87d322a after four independent reviews, one correction batch,
-119 focused tests/static checks, real1001-learner database checks and every exact
-head CI36940960454 gate at5adf5905. Hub is synchronized; no production activation.
-PR1422 initial reviews at6f255b32 accepted microsecond freshness loss and unresolved
-name-map warning suppression. One batch preserves full timestamp precision and
-requires nonblank own map references before restoration (14 new tests,11 red).
-76 targeted/167 focused tests and real PostgreSQL microsecond/map/race/cleanup
-cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
-application source has no rebase conflicts and no migration was renumbered.
-Targeted security and final integration review remain pending. No AI, schema,
-cohort, UI, billing or production change; lesson-plan list reads follow.
-
-## 2026-10-01 — Daily outer-scroll investigation
-
-- User clarified the defect: Daily's whole page scrolls vertically into blank space below the table, in wide and narrow windows; only the table should scroll.
-- Read-only local investigation in app-managed worktree `daily-scroll-containment`; startup verification passed. With 80 mocked roster rows and the full classroom shell, Chromium1440×900 keeps document900px and table578px;1000/390px widths grow document3326px and table3004px because AppShell confinement is desktop-only. Exact wide-window blank-space symptom remains unreproduced; awaiting clarification about table-end versus outside-table scrolling. Product source unchanged.
-- Debug screenshots `/tmp/pika-daily-summary-{1440,1000,390}.png`; reference historical PR775/test-pane overflow and PR578/student-scroll persistence. Automatic DeepSeek delegation paused through2026-12-31 per shared pilot record.
-
-## 2026-10-01 — Daily blank-space cause confirmed in Chrome
-
-- Inspected user's existing production Daily tab read-only. At1152×608, body/AppShell608px but document953px and page scrollY300px, with the table independently scrolled551px. Hidden `No QR check-in` spans in Check-in cells extend to document953px because every ancestor through the scroller is statically positioned.
-- User has reduced motion enabled: Daily entry animation/transform is disabled. The animation otherwise incidentally creates a containing block, explaining why local default-motion screenshots missed the desktop defect. Containment should be explicit for screen-reader labels in both Daily table modes; retain their accessible text. Narrow shell-height issue from earlier investigation is separate.
-- Product source unchanged. Next implementation: regression with reduced-motion and missing check-ins, explicit local positioned containment, compare default/selected Daily states and wide/narrow viewports.
-
-## 2026-10-01 — Daily scroll containment fix
-
-- Made both teacher Daily roster scrollers positioned containers so hidden check-in labels remain inside the table without depending on animation transforms. Added an AppShell narrow-viewport opt-in used only by teacher Daily; reused the Daily/TeacherWorkspaceSplit composition and `/pattern-lab` Daily reference. No new visual pattern or data behavior.
-- Browser regression failed before the fix (reduced-motion document1455px for a900px viewport). Final Playwright matrix passes20: teacher fixture/full classroom, selected/unselected, normal/reduced motion,1440×900/390×844, light/dark; student Daily regression/screenshots pass all4 projects. Exact user-size1152×608 reduced-motion smoke keeps document608px and context bar56px before/after table-end wheel scrolling. Screenshots inspected in `test-results/` and `/tmp/pika-daily-exact-classroom.png`.
-- Focused gate passes223 tests plus architecture, UI/design policy, TypeScript and lint; audit/diff checks pass. An earlier concurrent run timed out two unrelated startup-doc harness tests; serial rerun passes. Risk profile:none. Independent review and final PR CI pending; use one GPT-5.6 Sol/high behavior reviewer because Terra is unavailable. DeepSeek pilot remains paused.
-
-## 2026-10-01 — Contain long student tables across classroom workspaces
-
-Extended the Daily scroll fix to Roster and assignment/test grading, including Tests before student selection. Teacher table workspaces now keep the narrow shell within the viewport; Gradebook retains its existing mobile selector flow. Explicit containing blocks keep hidden row labels inside table scrollers, and vertical gesture containment prevents viewport bounce at the last row. The shared gapped split gives stacked table/inspector panes available height so an open Assignment inspector cannot squeeze the table to one row. Existing Pattern Lab Roster, Gradebook and Workspaces owners are reused; no new UI pattern. Added a strictly development-only full ClassroomPageClient fixture with synthetic identities and mocked read-only data. Production API authorization is unchanged. All 60 teacher/student light/dark desktop/mobile and normal/reduced-motion browser cases pass; 18 additional reduced-motion checks pass at 1152x608, 1000x608 and 390x608. Checks cover last-row reachability, selected states, sticky headers where present, usable table height and inspector bottom controls. Screenshots visually reviewed under ignored artifacts/scroll-audit. Focused checks pass 581 tests in 37 files, architecture, UI/design policy, TypeScript and lint. Legacy teacher dashboard was inspected in source: its normal page flow contains actual content, without the hidden-label empty-tail mechanism. Local authenticated backend verification was unavailable because shared local Pika PostgreSQL was unhealthy; no database changes were made. PR1419 remains draft for expanded independent review. Risk: standard UI behavior; model recommendation: GPT-6 Sol.
-
 ## 2026-10-01 — Selected Workspaces reference containment
 
 An extra selected-state Pattern Lab capture after the clean expanded review exposed an unbounded gallery canvas and missing flex display on its active Students panel. Reused the existing h-96 preview size as a bounded canvas for Students, leaving inactive panels hidden and summary/overview sizing unchanged. The shared production split remains unchanged. Browser coverage verifies both panes retain usable height, the last student and inspector content are reachable, and the hidden panel stays hidden. All four desktop/mobile light/dark reference cases pass and screenshots are inspected. Focused checks still pass 581 tests in 37 files plus policy, architecture, TypeScript and lint. PR1419 returned to draft and its previous ready CI was cancelled before this first remediation batch; targeted and final integration review remain pending.
@@ -463,6 +427,7 @@ One targeted compatibility recheck and final integration precede new exact-head 
 Batch1 local acceptance passes191focused checks, standards/announcement subset117,
 TypeScript/lint/audit. Shared helper/schema/database contract are unchanged, so
 earlier actual PostgREST and exact cleanup evidence remain applicable.
+
 ## 2026-10-02 — Prorated-upgrade backend candidate
 
 Coordinator owns codex/subscription-plan-changes from merged1429/25cc0691. Added dormant, authenticated frozen-invoice upgrade APIs and recovery; provider preview, signed amounts, confirmation digest, captured-card proof, original-term preservation and version writer. Candidate230 unapplied; shared local229 belongs to classroom task, billing OFF. Three bounded GPT workers completed owned schema/provider/API files; no real provider calls or generated-type edits. Repeated same-term upgrades need receipt chains; scheduled downgrade grace awaits owner decision. Billing tests pass; required compile/type checks blocked only by new RPCs until exact local230 permission/type generation. Preapplication review completed: two independent initial reviews and two targeted passes (four launches/two fix batches). Fixed crash-before-payment replay, invoice cleanup after the paid boundary and realistic partial-credit draft totals. Corrected source c962f622;576 billing/API tests pass, lint/audit pass; tsc retains exactly two pending new-RPC errors. Owner approved one exact local230 application, conditional on classroom229 PR1431 merging and an only230 dry run; permission remains unconsumed. Verified Pika/54322 target through229; four existing billing database harnesses passed with rollback and unchanged counts (3 users/1 classroom/0 plans, bindings or access), sandbox OFF. Classroom229 PR1431 awaits its owner-controlled review/CI/main reconciliation. SQL230 unchanged since initial review. Final cumulative PR review/types/database harness remain; no production/reset/reseed/activation/merge authority.
@@ -507,3 +472,55 @@ conflicts; all billing source and230 remain byte-identical to the prepared fix.
 231 application and database regressions await separate exact approval; the
 harness correctly refuses230. One targeted fixed-SHA financial reviewer is next
 (launch6); no further correction or final wave is authorized. Billing OFF; no provider calls or reset.
+
+## 2026-10-03 — Upgrade231 preapplication review cleared
+
+Targeted GPT-5.6 Sol/high reviewer cleared exact4209da62 with no verified blockers
+and246upgrade/API tests. Installed230 checksum unchanged;231 public RPC types
+unchanged. Six launches and five composite correction/sync batches are consumed;
+the30-minute extension's one correction and targeted reviewer are complete. Local
+history001–230 matches and a read-only dry run lists only231. User/classroom/
+upgrade/receipt counts3/1/0/0; sandbox OFF. Exact local231 permission is required
+before one application attempt, rollback DB harness, types/security checks and
+ready-head CI. No merge, production, Stripe writes or reset authority conveyed.
+These review receipts are uncommitted continuity notes; PR1435 remains draft at
+reviewed4209da62.
+
+## 2026-10-03 — Local231 receipt and fixture checkpoint
+
+Direct human local-migration approval override verified in owning classroom task.
+That coordinator applied only reviewed231 once from4209da62; I independently
+verified history001–231 and immutable230/231 checksums. Types match; security
+advisor clean; four existing billing DB harnesses pass. The expanded upgrade
+harness fails initial synthetic Stripe-ID validation because conflict_* fixture
+names include underscores. Transaction rolled back; data3/1/0/0, sandboxOFF.
+Prepared two-line ID normalization patch at/private/tmp/pika-231-stripe-fixture-id.patch
+passes git-apply-check, but source is unchanged. One authorized correction/review
+is consumed (6launches/5composite batches). A bounded fixture-only correction,
+database rerun and brief targeted review need the human budget checkpoint.
+PR1435 remains draft at4209da62; no migration retry, reset, production or Stripe.
+
+## 2026-10-03 — Shared local232 coordination hold
+
+Announcement coordinator reports one successful reviewed232 local application
+and holds the DB writer slot for rollback/SDK/concurrency proof. Independently
+read history tail232/231/230; billing source stays4209da62 and230/231 checksums
+unchanged. Types last matched001–231 before232; current drift is expected and
+must not trigger reset/repair or unrelated232 source adoption into billing. No
+fixtures, generation, migration or provider writes run here. Announcement proof/cleanup completed and its writer slot is now released;
+independent reads confirm local232 and persistent counts3/1/0/0,sandboxfalse.
+Billing fixture-only correction/review approval remains pending; coordinate the
+writer slot before any resumed fixtures. No budget extension inferred. PR1435 stays draft; continuity only dirty.
+
+## 2026-10-03 — Approval override and upgrade database acceptance
+
+Human overrides correction and main-merge approval checkpoints; review and CI
+gates remain. Fixture-only batch6 normalizes synthetic Stripe IDs, isolates an
+earlier valid queue fixture through a real lease, and removes a PL/pgSQL alias
+collision. Full expanded rollback harness passes on local001–232; cleanup counts
+3/1/0/0,sandboxfalse, shared writer slot released. Billing code, installed230/231
+and generated types remain byte-identical to reviewed4209da62. Types last matched
+001–231 before announcement232; branch CI must verify its own schema replay.
+One mechanical fixture reviewer (launch7) follows focused checks/frozen commit;
+no fresh full-diff wave. PR1435 is draft until review/exact-head CI, then authorized
+main merge. Billing OFF; no migration reapplication, reset or provider call.

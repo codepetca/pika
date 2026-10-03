@@ -223,56 +223,44 @@ activation remain separate gates.
 
 ### Phase 3: first prorated upgrade candidate (2026-10-02)
 
-Initial independent review begins2026-10-02T18:40:20Z: two complementary
-reviewers, maximum seven launches, four fix batches and60minutes elapsed.
-Security/financial review uses GPT-5.6 Sol/high; compatibility uses GPT-6.1
-Sol/high because the preferred Terra model is unavailable. This review begins
-with the concrete preapplication candidate; no database application is included.
-Both initial reviewers completed a2e2d730 and its231 upgrade tests. Batch1 fixes
-interrupted payment-request recovery and expiry cleanup at the paid boundary,
-with coordinator/provider regressions and an ordinary-claim release SQL fixture.
-Targeted financial review of ef8c4ece cleared payment replay but found partial
-draft fixtures using completed totals. Batch2 validates actual draft subset
-totals/no payments, completes exact lines, then enforces final frozen totals.
-An integrated coordinator/provider regression covers the boundary. All576
-billing tests pass. Targeted follow-up cleared c962f622 with73 coordinator/provider
-tests. Four launches and two fix batches are used; final cumulative PR review
-remains after database/types verification. Migration230 is byte-identical to the
-initially reviewed source. The owner approved one local230 application on
-2026-10-02, conditional on classroom229 PR1431 merging and a dry run containing
-only230. The owner permission was consumed by one successful local230 push after
-1431 merged. Local Pika/54322 history001–230 matches; generated types/check and
-focused TypeScript/lint/architecture gates pass. Four existing database harnesses
-passed after230; security advisor reports no issues. Data counts are unchanged
-and sandbox OFF. The owner approved the two-line CASE assertion correction and
-a20-minute extension starting2026-10-03T00:15:11Z (deadline00:35:11Z). The
-corrected new upgrade database harness passes and rolls back its fixtures. Four
-reviewer launches, two financial fix batches, one main sync and this fixture
-correction are recorded; one final integration reviewer is authorized.
+The dormant first-upgrade backend uses migrations230 and231. Both were applied
+locally once, with existing records retained; production remains through225.
+Migration230 is immutable. Forward231 resolves revision conflicts under the
+existing lock order: safe operations before invoice intent expire, while unknown
+invoice/payment outcomes become audited attention. The worker discovers conflicts
+and retired bindings; stale claims and altered expected revisions cannot quarantine
+valid ownership. Ordinary requeue cannot erase financial recovery or adopt override
+revisions. Attention resolution/compensation remain launch gates.
 
-`codex/subscription-plan-changes` implements a dormant backend slice backed by
-additive migration230 (`230_subscription_prorated_upgrades.sql`). It was
-applied locally once after the owner-authorized230-only preview. The existing
-shared database is retained without reset/reseed. Types are generated from its
-matching migration schema. The corrected upgrade rollback harness passes; final
-integration review found a P1 conflict-recovery blocker in draft PR1435. Five
-review launches are consumed; CI is not started. A revision-conflicted upgrade
-can stay queued while being excluded from its queue and monopolizing ordinary
-subscription work. The next authorized correction must be additive because230
-is already applied; exact application approval and targeted review are separate
-gates. The owner approved one correction batch and one targeted GPT-5.6 Sol/high review
-on2026-10-03, with30minutes from08:09:58Z to08:39:58Z. Migration231 is
-prepared, not applied: current-claim conflicts become audited attention after
-invoice intent; safely untouched pre-invoice operations expire. Queue discovery
-includes conflicts/retired bindings; stale workers and altered request revisions
-cannot quarantine a valid operation. Ordinary requeue cannot erase upgrade
-recovery ownership. Main66fa5de3 integration preserves all billing behavior/230 bytes. The
-corrected candidate passes521focused tests and TypeScript/lint/architecture
-gates. Migration231 has not been applied; its rollback harness correctly refuses
-to run on230. One targeted financial review is next (launch6); no second final
-wave is authorized. Uncertain invoice/payment conflicts intentionally retain
-attention ownership until evidence-backed resolution; compensation and operator
-attention resolution remain explicit launch gates, not automatic requeue.
+The initial complementary security and compatibility reviews found two financial
+corrections: interrupted payment-intent recovery/expiry cleanup, then actual partial
+draft evidence before completion/void. The final integration reviewer found the
+revision-conflict queue blocker, corrected by231. Targeted GPT-5.6 Sol/high review
+cleared exact4209da62 with246upgrade/API tests and no verified blockers. Main66fa5de3
+integration preserved all billing source and230 bytes. Six reviewer launches and
+five composite correction/sync batches preceded the final fixture batch.
+
+Local acceptance:521focused tests plus architecture, UI/design policy, TypeScript
+and lint; four existing billing database harnesses pass after231. Types matched
+this branch at001–231 and the security advisor found no issues. The announcement
+coordinator subsequently applied232; shared local history is001–232 and expected
+branch/history drift must not trigger reset/repair or unrelated232 source adoption.
+Required CI must replay the exact billing branch and verify its generated types.
+
+The expanded upgrade rollback harness now passes on the shared local database.
+Its fixture-only repair normalizes synthetic Stripe IDs, leases the earlier valid
+queue case through the real RPC before a conflict-only drain, and removes a loop/
+SQL-alias collision. Application code, installed230/231 and generated types remain
+unchanged from reviewed4209da62. All fixture data rolls back; persistent user/
+classroom/upgrade/receipt counts are3/1/0/0 and sandboxfalse. The DB writer slot is
+released after proof.
+
+On2026-10-03 the human directly overrode approval checkpoints for corrections and
+main merges in this billing task. Required independent review and stable-head CI
+remain gates. The fixture batch is composite batch6, followed by one mechanical
+independent review (launch7); no additional initial or final full-diff wave is
+needed. Draft PR1435 remains pending that review and exact-head CI. Billing stays
+OFF; the first-upgrade slice does not complete phase3 scheduling or launch.
 
 - Require the existing loopback test sandbox, checkout configuration and separate
   `BILLING_UPGRADES_ENABLED=true` gate. No configuration is enabled by this PR.

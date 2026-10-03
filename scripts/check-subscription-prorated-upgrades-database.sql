@@ -55,12 +55,12 @@ do $$ declare src jsonb; dst jsonb; b jsonb; c jsonb; r jsonb; u uuid; n text; t
     if not exists(select 1 from public.account_plans where subject_user_id=u) then
       perform public.set_account_plan_v1(gen_random_uuid(),u,'free','test:upgrade','fixture',0); end if;
     b:=public.billing_bind_customer_v1(jsonb_build_object('subject_user_id',u,'stripe_account','acct_upgrade230','provider_mode','test',
-      'stripe_price_id','price_upgrade230basic','stripe_customer_id','cus_upgrade230'||n,'stripe_subscription_id','sub_upgrade230'||n,
+      'stripe_price_id','price_upgrade230basic','stripe_customer_id','cus_upgrade230'||replace(n,'_',''),'stripe_subscription_id','sub_upgrade230'||replace(n,'_',''),
       'offering_version_id',src->>'offering_version_id'));
     c:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',b->>'subscription_id','lease_seconds',120));
     r:=public.billing_finish_lifecycle_v1(jsonb_build_object('subscription_id',b->>'subscription_id','lease_token',c->>'lease_token',
       'fencing_token',c->'fencing_token','expected_subscription_revision',c->'subscription_revision',
-      'expected_account_plan_revision',c->'expected_account_plan_revision','outcome','paid','invoice_id','in_upgrade230'||n,
+      'expected_account_plan_revision',c->'expected_account_plan_revision','outcome','paid','invoice_id','in_upgrade230'||replace(n,'_',''),
       'period_start',t-interval '15 days','period_end',t+interval '15 days','provider_status','active',
       'cancel_at_period_end',false,'obligations_cleared',false));
     if r->>'status'<>'applied' then raise exception 'Upgrade fixture payment: %',r; end if;
@@ -291,6 +291,11 @@ end $$;
 -- Forward repair231: revision conflicts are durable, discoverable and audited.
 set local role service_role;
 do $$ declare f record; c jsonb; q jsonb; o jsonb; r jsonb; begin
+  -- The earlier queue-order case intentionally left valid work due. Lease it
+  -- through the real RPC so this later drain measures only conflict recovery.
+  r:=public.billing_claim_upgrade_v1(jsonb_build_object('operation_id',
+    (select operation_id from upgrade_cases where name='queue'),'lease_seconds',120));
+  if r->>'status'<>'claimed' then raise exception 'Conflict queue isolation failed: %',r; end if;
   for f in select * from upgrade_saved where name like 'conflict_%' and name<>'conflict_tampered' loop
     c:=f.claim; q:=pg_temp.upgrade_quote(c->'operation');
     c:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||jsonb_build_object('stage','preview_verified','quote',q,'quote_digest',repeat('a',64)));
@@ -374,7 +379,7 @@ do $$ declare f record; c jsonb; r jsonb; old_revision bigint; i integer; begin
         raise exception 'Ordinary requeue bypassed upgrade recovery: %',f.name; end if;
       r:=public.billing_reserve_upgrade_v1(jsonb_build_object('subject_user_id',f.subject_id,'operation_id',gen_random_uuid(),'offering_version_id',f.target_id));
       if f.name<>'conflict_retired' and r->>'status'<>'busy' then raise exception 'Conflict permitted a duplicate charge: %',f.name; end if;
-      if exists(select 1 from jsonb_array_elements(public.billing_list_work_v1('{"limit":50}')->'items') i where i->>'subscription_id'=f.subscription_id::text) then
+      if exists(select 1 from jsonb_array_elements(public.billing_list_work_v1('{"limit":50}')->'items') as work_item(payload) where work_item.payload->>'subscription_id'=f.subscription_id::text) then
         raise exception 'Ordinary queue bypassed conflict attention'; end if;
     else
       r:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',f.subscription_id,'lease_seconds',120));
