@@ -675,13 +675,14 @@ The next bounded slice is [shared material owner writes](contextual-material-own
 POST/PATCH/DELETE with service-only transaction-time current-owner/active/resource
 binding, retaining creator193, historical identity/lineage and publication presence.
 Prepared source has245tests, complete mixed-classwork/reorder and rollback/SDK
-harness sources. Candidate234 is UNAPPLIED; database behavior remains unverified.
+harnesses. Exact reviewed234 is applied locally once; local001–234 matches and
+genuine generated types add only the three public RPCs. Installed SQL is immutable.
 Draft PR1441 reconciles onto1440. Initial compatibility review is clean; accepted
 security finding is corrected by full-row transport validation inside the transaction,
 with historical malformed-content/UUID/timestamp no-effects regressions. Targeted
-review precedes exact local target/history/one-file
-preview and application under the task's local approval waiver. No generated types
-are fabricated. Production application and activation remain separately controlled.
+security review is clean.322 focused checks, SQL rollback and actual SDK concurrency,
+normal/forced exact cleanup and type drift checks pass; final integration/CI pending.
+Production application and activation remain separately controlled.
 Linked Blueprint reads, other classwork boundaries and roster operations remain
 separate work; this does not satisfy batch1's whole-experience exit criteria.
 

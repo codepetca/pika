@@ -10944,6 +10944,16 @@ export type Database = {
         }
         Returns: Json
       }
+      create_classwork_material_for_owner_v2: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_is_draft: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
       create_course_blueprint_atomic: {
         Args: {
           p_expected_source_revision: number
@@ -11268,6 +11278,14 @@ export type Database = {
           p_assignment_id: string
           p_requirement_id: string
           p_student_id: string
+        }
+        Returns: Json
+      }
+      delete_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_material_id: string
         }
         Returns: Json
       }
@@ -13625,6 +13643,15 @@ export type Database = {
       }
       update_assignment_with_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json; p_updates: Json }
+        Returns: Json
+      }
+      update_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_material_id: string
+          p_patch: Json
+        }
         Returns: Json
       }
       update_test_documents_atomic: {

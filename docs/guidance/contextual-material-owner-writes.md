@@ -1,7 +1,7 @@
 # Shared material owner writes
 
-Status: source preparation. No mutation migration has been applied or mutation PR
-merged. Shared admission and the full classroom cutover remain disabled.
+Status: draft PR1441, locally verified; final review and CI pending. Exact migration234
+is applied locally only. Shared admission and the full classroom cutover remain disabled.
 
 This bounded batch-1 slice adds early shared-admission branches to teacher material
 creation, editing and deletion. It does not change the material UI, linked Blueprint
@@ -92,3 +92,22 @@ SHA and all required exact-head CI gates precede a normal main merge.
 Merging this dormant slice does not authorize production migration application,
 cohort activation, billing/provider changes or account/plan changes. Other everyday,
 assessment, lifecycle and shell consumers still need the five-batch exit evidence.
+
+## Observed local verification
+
+The independently reviewed SQL234 SHA256 is
+`aca48e5b00c1642f487799771a8278bd411c46f40fdec1f6edf9849936078f20`.
+One normal application followed exact pika54322 binding, matched001–233 history,
+current-main numbering and a234-only dry run. Local001–234 now matches; installed
+SQL is immutable. Genuine generated types add only the three public RPC contracts.
+
+322 focused tests across18 files, TypeScript, lint, architecture/UI/design policy,
+generated-type drift check and audit pass. The standalone SQL transaction harness
+proves permissions/publication/tenancy and exact row/archive/Blueprint rollback,
+including malformed historical content/UUID/timestamps and explicit valid repair.
+The actual SDK harness passes owner roles, denied relationships, resource/lifecycle
+and legacy-row-first races, mixed creation/reordering, purge fences and late failure.
+Normal and intentionally forced-failure cleanup both prove zero residual fixtures.
+Synthetic fence setup uses postgres only for fixture creation; tested RPCs use the
+service role. The harness evaluates deletion before its separate row-absence check.
+Neither harness applies schema, changes admission or contacts production.

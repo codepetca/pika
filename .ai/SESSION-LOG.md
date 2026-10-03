@@ -483,3 +483,17 @@ delete does not need a read payload.245tests/10suites pass; candidate234 correct
 aca48e5b00c1642f487799771a8278bd411c46f40fdec1f6edf9849936078f20 remains UNAPPLIED.
 Two initial reviewers completed before editing. Targeted review/local proof next; original
 ledger start12:20:40Z/deadline13:20:40Z retained,2launches/1batch. No production changes.
+
+Targeted security review clean atf3d879ca and exactaca48e5b SQL. Strict localpika54322
+target/history/latestmain/234-only preview confirmed; one normalpush applied234,
+001–234 matches and genuine generatedtypes add only3RPCs. InstalledSQL immutable.
+Local DB execution revealed fixture-role and mutation/subquery evaluation issues;
+batched harness correction usespostgres only for synthetic fence setup, restores
+service_role before testedRPCs and checks deletion in a separate statement. Genuine
+Json transport refinements fix2real compiler errors without fabricated contracts.
+322tests/18files+allfocusedstatic/lint gates, type drift and audit pass. Standalone
+SQL rollback harness passes malformed historical transports/repair and exact both-
+revision rollback. ActualSDK normal/concurrency proof exits0; forcedfailure exits1
+with expectederror and exactcleanupPASS. All syntheticfixtures absent afterward.
+Reviewlaunch3clean; batch2 now ready for targeted/final review. Production001–225,
+shared admission/cutover OFF, provider/account/plan untouched; no repeated localask.

@@ -215,33 +215,46 @@ begin
   update public.classrooms set archived_at = null where id = v_class;
   -- Real lifecycle rejection and transaction rollback without changing global settings.
   begin
+    -- Only the synthetic operational fixture uses the database owner role.
+    -- Every tested public RPC is still invoked by its granted service role.
+    set local role postgres;
     v_operation := gen_random_uuid();
     insert into public.classroom_purge_operations(id,teacher_id,classroom_id,classroom_title,
       request_sha256,status,source_revision,impact_summary,retryable,error_code)
       select v_operation,v_teacher,id,title,repeat('9',64),'failed',1,'{}',true,'database_finalize_failed'
       from public.classrooms where id = v_class;
     insert into public.classroom_purge_fences(classroom_id,operation_id,teacher_id) values(v_class,v_operation,v_teacher);
+    set local role service_role;
     begin perform public.update_classwork_material_for_owner_v1(v_teacher,v_class,v_id,'{"title":"fenced"}');
       raise exception 'Lifecycle fenced update admitted'; exception when sqlstate 'PT409' then null; end;
+    set local role service_role;
     begin perform public.delete_classwork_material_for_owner_v1(v_teacher,v_class,v_id);
       raise exception 'Lifecycle fenced delete admitted'; exception when sqlstate 'PT409' then null; end;
+    set local role service_role;
     begin perform public.create_classwork_material_for_owner_v2(v_teacher,v_class,'Fenced','{"type":"doc"}',true);
       raise exception 'Lifecycle fenced create admitted'; exception when sqlstate 'PT409' then null; end;
     raise exception using errcode = 'ZX001', message = 'Rollback synthetic lifecycle fence';
   exception when sqlstate 'ZX001' then null; end;
+  if current_user <> 'service_role' then raise exception 'Lifecycle fixture role escaped rollback'; end if;
   begin
+    set local role postgres;
     insert into public.attendance_decommission_operations(id,classroom_id,teacher_id,
       installation_ref,roster_ref,actor_principal_ref)
       values(gen_random_uuid(),v_class,v_teacher,'material-rollback','material-roster','material-principal');
+    set local role service_role;
     begin perform public.update_classwork_material_for_owner_v1(v_teacher,v_class,v_id,'{"title":"decommission"}');
       raise exception 'Decommission update admitted'; exception when sqlstate 'PT409' then null; end;
+    set local role service_role;
     begin perform public.delete_classwork_material_for_owner_v1(v_teacher,v_class,v_id);
       raise exception 'Decommission delete admitted'; exception when sqlstate 'PT409' then null; end;
+    set local role service_role;
     begin perform public.create_classwork_material_for_owner_v2(v_teacher,v_class,'Decommission','{"type":"doc"}',true);
       raise exception 'Decommission create admitted'; exception when sqlstate 'PT409' then null; end;
     raise exception using errcode = 'ZX001', message = 'Rollback synthetic decommission fence';
   exception when sqlstate 'ZX001' then null; end;
+  if current_user <> 'service_role' then raise exception 'Decommission fixture role escaped rollback'; end if;
   begin
+    set local role postgres;
     v_operation := gen_random_uuid();
     insert into public.course_blueprint_purge_operations(id,course_blueprint_id,teacher_id,
       request_sha256,inventory_sha256,finalization_sha256,source_revision,status,retryable)
@@ -249,6 +262,7 @@ begin
         repeat('9',64),repeat('8',64),repeat('7',64),1,'failed',true);
     insert into public.course_blueprint_purge_fences(course_blueprint_id,operation_id)
       values('c2340000-0000-4000-8000-000000000020',v_operation);
+    set local role service_role;
     v_before := (select to_jsonb(material) from public.classwork_materials material where id = v_id);
     begin perform public.delete_classwork_material_for_owner_v1(v_teacher,v_class,v_id);
       raise exception 'Blueprint-fenced linked delete admitted'; exception when sqlstate 'PT409' then null; end;
@@ -256,6 +270,7 @@ begin
       raise exception 'Blueprint fence rejection changed linked material';
     end if;
     -- UPDATE omits lineage columns, so ordinary copied content stays usable.
+    set local role service_role;
     v_row := public.update_classwork_material_for_owner_v1(v_teacher,v_class,v_id,
       '{"content":{"type":"doc","content":[]}}')->'material';
     if v_row->>'source_blueprint_version_id' is distinct from 'c2340000-0000-4000-8000-000000000021' then
@@ -263,6 +278,7 @@ begin
     end if;
     raise exception using errcode = 'ZX001', message = 'Rollback synthetic Blueprint fence';
   exception when sqlstate 'ZX001' then null; end;
+  if current_user <> 'service_role' then raise exception 'Blueprint fixture role escaped rollback'; end if;
 end;
 $behavior$;
 reset role;
@@ -313,7 +329,8 @@ begin
   v_row := public.create_classwork_material_for_owner_v1(v_owner,v_class,'Delete malformed document',
     '{"type":"doc","content":[{}]}',true)->'material';
   v_bad_id := (v_row->>'id')::uuid;
-  if public.delete_classwork_material_for_owner_v1(v_owner,v_class,v_bad_id)->>'deleted' <> 'true'
+  v_row := public.delete_classwork_material_for_owner_v1(v_owner,v_class,v_bad_id);
+  if v_row->>'deleted' <> 'true'
     or exists(select 1 from public.classwork_materials where id = v_bad_id) then
     raise exception 'Deletion could not remove a malformed historical document';
   end if;
@@ -429,6 +446,7 @@ declare
   v_mode text;
   v_operation text;
   v_before jsonb;
+  v_deleted jsonb;
   v_id uuid := (select material_id from material_owner_fixture);
   v_owner uuid := 'c2340000-0000-4000-8000-000000000002';
   v_class uuid := 'c2340000-0000-4000-8000-000000000010';
@@ -462,7 +480,8 @@ begin
   exception when sqlstate 'PT503' then null; end;
   perform set_config('pika.material_owner_probe','',true);
   if pg_temp.material_owner_state() is distinct from v_before then raise exception 'Malformed created transport changed row/revisions'; end if;
-  if public.delete_classwork_material_for_owner_v1(v_owner,v_class,v_id)
+  v_deleted := public.delete_classwork_material_for_owner_v1(v_owner,v_class,v_id);
+  if v_deleted
     <> jsonb_build_object('deleted',true,'actor_id',v_owner,'classroom_id',v_class,'material_id',v_id)
     or exists(select 1 from public.classwork_materials where id = v_id) then
     raise exception 'Exact final deletion contract failed';

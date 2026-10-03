@@ -11,6 +11,7 @@ import {
   materialMutationEnvelopeSchema, materialDeleteEnvelopeSchema, type MaterialUpdateInput,
 } from '@/lib/validations/material-mutations'
 import type { AuthenticatedUser } from '@/types'
+import type { Json } from '@/types/database.generated'
 
 const unavailable = () => new ApiError(503, 'Unable to verify material mutation')
 export async function authorizeSharedMaterialMutationActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
@@ -64,7 +65,7 @@ export async function createContextualMaterial(input: {
   const { id: classroomId } = materialCreateParamsSchema.parse({ id: input.classroomId })
   const response = await invoke(() => getServiceRoleClient().rpc('create_classwork_material_for_owner_v2', {
     p_actor_id: actor, p_classroom_id: classroomId,
-    p_title: input.body.title, p_content: input.body.content, p_is_draft: input.body.is_draft,
+    p_title: input.body.title, p_content: input.body.content as unknown as Json, p_is_draft: input.body.is_draft,
   }))
   const result = materialResult(response, actor, classroomId, input.body)
   if (result.material.created_by !== actor
@@ -79,7 +80,7 @@ export async function updateContextualMaterial(input: {
   const params = materialMutationParamsSchema.parse({ id: input.classroomId, materialId: input.materialId })
   const patch = Object.fromEntries(Object.entries(input.body).filter(([, value]) => value !== undefined))
   const response = await invoke(() => getServiceRoleClient().rpc('update_classwork_material_for_owner_v1', {
-    p_actor_id: actor, p_classroom_id: params.id, p_material_id: params.materialId, p_patch: patch,
+    p_actor_id: actor, p_classroom_id: params.id, p_material_id: params.materialId, p_patch: patch as unknown as Json,
   }))
   const result = materialResult(response, actor, params.id, input.body)
   if (result.material.id !== params.materialId) throw unavailable()
