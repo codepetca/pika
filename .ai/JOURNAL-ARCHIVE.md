@@ -35218,3 +35218,14 @@ earlier actual PostgREST and exact cleanup evidence remain applicable.
 
 - Replaced visible Read/Present labels with existing licensed Lucide book-open/presentation geometry; retained accessible names, titles, pressed states, and 44px touch targets. Verified both view switches, light/dark state, and screenshot java-icon-toggle.png in this task’s visualizations directory. Build/syntax/diff checks pass; standalone artifact, risk none.
 - Normal Sites workflow and private deployment succeeded from ac8c61bd089267634b6cc5b90e41334a90637128, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_a5774f13b6a8819185f0e0a29a3eda90. Same URL, audience, and Material draft.
+
+<!-- pika-session-log-archive-batch:cc4c8dad8ebe1c8ee262d9f9bd5c416f92883c79ed1a285f96bb073f995e5655 -->
+## 2026-10-02 — Java viewer Print menu
+
+- Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
+- Private deployment succeeded from5d60a47875b85a5f6117acf8926c3b116c85ae7a, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_26ddf43ab1f481919b0befea1c0809c6. Same URL, audience, and Material draft.
+
+## 2026-10-02 — Presentation diagrams in Read notes
+
+- Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
+- Verified nine visible diagrams plus nine detailed sections in Read, Chrome light/dark screenshots, 402px mobile diagram with no overflow, and full-size Present diagram with heading/details hidden. Build/syntax/diff checks pass. Evidence: task visualizations/java-read-diagrams.png. Private deployment succeeded from8225d108361d62b1f14ac470727dbab2e57ce717, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_93b77fe0a0b88191b4130f516c559fbe. Same URL, audience, and Material draft.

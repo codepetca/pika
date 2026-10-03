@@ -6,6 +6,23 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires preserving removal SQL/SDK evidence and the exact failed-fixture cleanup', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify contextual preserving roster removal and failed-fixture cleanup')[1]?.split('      - name:')[0]
+    expect(step).toContain('bash scripts/check-contextual-roster-removal-owner-writes-database.sh')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts\n')
+    expect(step).toContain('--verify-cleanup-after-fixture')
+    expect(step).toContain('cleanup_status=$?')
+    expect(step).toContain('[[ "$cleanup_status" -eq 1 ]]')
+    expect(step).toContain("grep -F 'FAIL Forced roster removal post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)'")
+    expect(step).toContain("grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts'")
+    expect(step).toContain('--verify-cleanup-after-commit-before-capture')
+    expect(step).toContain("grep -F 'FAIL Forced roster removal post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)'")
+    expect(step).toContain('--verify-cleanup-suppressed-delete-rollback')
+    expect(step).toContain("grep -F 'FAIL Forced roster removal suppressed-cleanup rollback proof (expected for --verify-cleanup-suppressed-delete-rollback)'")
+    expect(step).toContain("grep -F 'PASS synthetic roster removal suppressed cleanup delete rolled back all cleanup mutations, guard restored'")
+  })
+
   it('requires genuine roster owner SQL/SDK proofs and exact failed-fixture cleanup', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const step = workflow.split('      - name: Verify contextual roster owner writes and failed-fixture cleanup')[1]?.split('      - name:')[0]

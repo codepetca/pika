@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Java viewer Print menu
-
-- Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
-- Private deployment succeeded from5d60a47875b85a5f6117acf8926c3b116c85ae7a, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_26ddf43ab1f481919b0befea1c0809c6. Same URL, audience, and Material draft.
-
-## 2026-10-02 — Presentation diagrams in Read notes
-
-- Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
-- Verified nine visible diagrams plus nine detailed sections in Read, Chrome light/dark screenshots, 402px mobile diagram with no overflow, and full-size Present diagram with heading/details hidden. Build/syntax/diff checks pass. Evidence: task visualizations/java-read-diagrams.png. Private deployment succeeded from8225d108361d62b1f14ac470727dbab2e57ce717, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_93b77fe0a0b88191b4130f516c559fbe. Same URL, audience, and Material draft.
-
 ## 2026-10-02 — Release Java lesson to ICS3U students
 
 - Owner explicitly requested course inclusion and student viewing. Verified Stewart Chan teacher session in exact P3 - ICS3U classroom 0a103a76-2b60-4fb6-8158-4a97727bd35f, existing Material title/content, and latest hosted URL. Changed Sites audience from owner-private to public via native access update (revision2); no external viewer invitations. An unauthenticated HTTP request returned200 and the correct title/all9 sections/9 diagrams. No code/build/deployment change.
@@ -586,3 +576,49 @@ No SQL application, DB proofs/reset/reseed or types regeneration performed.
 Focused checks against actual main pass273tests/17files plus architecture,
 UI/design policy, TypeScript and lint. Initial startup-summary budget excess
 was compacted; source preservation, history multiplicities and diff checks pass.
+
+## 2026-10-03 — Preserving removal source and local236
+
+Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
+preapplication GPT5.6Sol/high review CLEAN with77source tests. Exactpika54322,
+001–235matched/currentmain3351numbering/236-onlydryrun preceded one successful
+ordinarylocal236push. ImmutableSHA24e23667b21580fdcadb7a64ca251725f87040fa52bf9a1fbe71e0c7b3c22249;
+service-only privileges, genuinegenerated eight-lineRPC/type drift/TypeScript pass.
+ActualSQL/SDK/cleanup/concurrency and fullPR lifecycle remain pending; proof worker
+owns onlyscripts, root ownsapplication/types/CI/docs/Git. Duplicate selected one
+or all rows fails withoutDML: immutable164index/173cleanupcontrols remain, with
+coordinated multirow retained-lifecycle prerequisite inbatch3 beforecutover.
+1445/1446 fullinitialreviews clean;1443exactCI/1444draft predecessor order retained.
+Latesthuman explicitlywaives repeatedroutineapprovals inclnecessaryreviewextensions;
+original clocks/counters andabsolute caps/merge/release gates preserved. Production
+001–225/sharedadmission/fullcutoverOFF unchanged; no accounts/provider/billing edits.
+
+Serial actual SQL proof passed ACL, identity, purge fences, retained history and
+fault rollback with zero residue/global baseline unchanged. Actual SDK normal
+passed both owner labels, bound/unbound learners, retained history, idempotent
+retry/invitation isolation and observed lock races. Three forced modes each exit1
+with exact expected failure and complete cleanup sentinels; suppressed deletion
+rolls back every cleanup mutation and restores the generation guard. Earlier
+proof-only setup/cleanup defects corrected without editing immutable236; exact
+abandoned synthetic closure independently reviewed/recovered, all unrelated
+whole-row fingerprints unchanged. Full draft review/final focused/CI remain gates.
+
+## 2026-10-03 — Removal1448 updated-parent preparation
+
+Rebased reviewed8e81327a onto updated1445parenta9613f46 with oldparenta7613a5f
+as the exact exclusion boundary. Only CURRENT/archive continuity conflicted;
+all14child runtime/schema/SQL/genuine-types/proof/test/guide files remain
+byte-identical, including immutable236. All updatedparent/main and childCIsteps
+are preserved. Removed four surplus exact session copies whose original archive
+entries remain; combined parent+child−oldparent historical multiplicities persist.
+ActualSQL/SDKnormal and three forced-cleanup proofs already PASS;236 itself was
+unchanged by the earlier harness repairs. Full initial security/compat review
+is CLEAN. Original1448clock15:19:13Z/extension17:19:13Z, launch8/initial1/
+targeted5/fix5 retained; no new review launch. This prepares a draft stack only:
+actual1445main squash merge/reconciliation, changed-base review and final exactCI
+remain. Local001–236/prod001–225/sharedadmission/fullcutoverOFF unchanged.
+No DB operations/proofs/types regeneration, publication, PR/CI/provider changes.
+Focused against updatedparenta961 passes183tests/15files plus architecture,
+UI/design policy, TypeScript and lint; startup/diff/history/preservation pass.
+Reconciliation audit reports no TypeScript edits. Actual-main focused checks
+remain required after the parent's eventual squash merge and child reconciliation.
