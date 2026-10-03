@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { authorizeSharedClassDayMutationActor, createContextualClassDayCalendar, setContextualClassDay } from '@/lib/server/contextual-class-day-mutation'
+import { contextualClassDayMutationParamsSchema } from '@/lib/validations/contextual-class-day-mutation'
 import { authorizeSharedClassDayReadActor, readContextualClassDays } from '@/lib/server/contextual-class-day-read'
 import { contextualClassDayReadParamsSchema } from '@/lib/validations/contextual-class-day-read'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -59,6 +61,12 @@ export const GET = withErrorHandler('GetClassDays', async (_request, context) =>
 
 // Generate initial calendar: contextual owner in pilot, legacy teacher otherwise.
 export const POST = withErrorHandler('PostClassDays', async (request, context) => {
+  const shared = await authorizeSharedClassDayMutationActor()
+  if (shared.mode === 'shared') {
+    const { classroomId } = contextualClassDayMutationParamsSchema.parse(await context.params)
+    const input = createClassroomCalendarSchema.parse(await request.json())
+    return NextResponse.json(await createContextualClassDayCalendar({ supabase: getServiceRoleClient(), actorId: shared.user.id, classroomId, input }))
+  }
   const { classroomId } = await context.params
   const access = await authorizeClassroomCoreRequest(classroomId, { permission: 'owner', legacyRole: 'teacher' })
   const { user } = access
@@ -89,6 +97,12 @@ export const POST = withErrorHandler('PostClassDays', async (request, context) =
 
 // Toggle one date: contextual owner in pilot, legacy teacher otherwise.
 export const PATCH = withErrorHandler('PatchClassDay', async (request, context) => {
+  const shared = await authorizeSharedClassDayMutationActor()
+  if (shared.mode === 'shared') {
+    const { classroomId } = contextualClassDayMutationParamsSchema.parse(await context.params)
+    const input = setClassroomCalendarDaySchema.parse(await request.json())
+    return NextResponse.json(await setContextualClassDay({ supabase: getServiceRoleClient(), actorId: shared.user.id, classroomId, input }))
+  }
   const { classroomId } = await context.params
   const access = await authorizeClassroomCoreRequest(classroomId, { permission: 'owner', legacyRole: 'teacher' })
   const { user } = access

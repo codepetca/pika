@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Presentation diagrams in Read notes
-
-- Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
-- Verified nine visible diagrams plus nine detailed sections in Read, Chrome light/dark screenshots, 402px mobile diagram with no overflow, and full-size Present diagram with heading/details hidden. Build/syntax/diff checks pass. Evidence: task visualizations/java-read-diagrams.png. Private deployment succeeded from8225d108361d62b1f14ac470727dbab2e57ce717, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_93b77fe0a0b88191b4130f516c559fbe. Same URL, audience, and Material draft.
-
-## 2026-10-02 — Release Java lesson to ICS3U students
-
-- Owner explicitly requested course inclusion and student viewing. Verified Stewart Chan teacher session in exact P3 - ICS3U classroom 0a103a76-2b60-4fb6-8158-4a97727bd35f, existing Material title/content, and latest hosted URL. Changed Sites audience from owner-private to public via native access update (revision2); no external viewer invitations. An unauthenticated HTTP request returned200 and the correct title/all9 sections/9 diagrams. No code/build/deployment change.
-- Posted the existing 1.1 Java explained Material through the teacher UI; verified Posted badge after server save, reload, and reopening, with the correct clickable lesson link. Material has no due date/submission. Renamed local mirror to material.json and set is_draft=false; updated teaching notes/README to record public access and posted state. Evidence: task visualizations/java-material-posted.png. Future site edits must preserve public audience and use ordinary save/deploy, not owner-private deployment.
-
-## 2026-10-02 — Person/code/group icons for Java roles
-
-- Updated Who does what diagram: Programmer uses Lucide user-round, Program uses </>, User uses Lucide users-round. Same mapping in Present, compact Read, and mobile variants; existing labels/arrows retained. License already included; no new dependency. Standalone artifact, risk none.
-- Visual Chrome screenshot verified dark Present; DOM confirmed matching Read/mobile icon geometry and code label. Build/syntax/diff checks pass; evidence task visualizations/java-role-icons.png. Existing public audience verified, source pushed and archive saved; ordinary public save/deploy succeeded from35da6cb671f9f55661d473a754951b044dbac354, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_3a42d83540608191ba94725137d180cd. Posted P3 ICS3U Material already points to the same updated URL.
-
 ## 2026-10-02 — Java lesson presentation scale
 
 Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
@@ -593,3 +578,56 @@ types, dependency or test assertion was changed. Original review clock and count
 retained; narrow independent documentation recheck and focused checks precede the
 replacement exact-head ready CI. Other original CI jobs are allowed to finish for
 observed receipts; no duplicate watcher or dispatch.
+
+## 2026-10-03 — Shared calendar owner-write source and local verification
+
+Disjointchild of reviewed1444d8c828ad adds onlysharedPOST/PATCH/calendaradapter,
+namedvalidation/source/APItests and proofs.176new+315unchanged assertions pass;
+actualinstalled152SDK owner/member/archive/formerowner/Toronto/bounds/prompt/CTID
+and malformedactualresponse503aftercommit pass. Initialproof wrongly expected
+unchangedarchive revision on identicaltoggle; existing082/095BEFOREINSERT trigger
+bumpsrevisionevenwhen152performsnoUPDATE. Correctedproof explicitlyasserts+1,
+unrelatedclassrevision unchanged andidenticalrow/CTID, no appliedSQL changes.
+RollbackSQL andallfive pg_blocking_pids races pass. Bothnormal/forcedSDK andrace
+fixtures cleanup exactly/globalbaselinePASS. Reusedharness nowprovisions only
+exactsyntheticcreationgrant andremovesmanual/defaultFree audits. Sharedadmission
+OFF/prod225untouched; local235installed byseparate rosterwrites. Fullfocused,
+independentreview andactualparent/main integration precedefinalCI/merge.
+
+## 2026-10-03 — Calendar1446 preparation on actual merged class-day main
+
+1444 actual normalmergea8c4e9b16:04:51Z verified withallfive exact7d341d23
+CI37133784223 SUCCESS (0queue/1697runseconds), canonicalcleanFF. Calendarchild
+rebased ontoactuala8 skippingonlyoldstackedd8 parent; allten ownedruntime/proof/
+test/guide files andmainGET remain byte-preserved. Conflicts onlyCURRENT/archive;
+Two exactsurplussessioncopies removed afterfull equality with retainedarchive;
+one auto-merge glued1441body removed onlyafter exactoriginalreceipt verification.
+Every unmodified main step and reviewed child CI step retained, including the
+previously reviewed calendar-concurrency forced-cleanup extension. Initialfull
+reviewsCLEAN544fe47b, unchanged152SQL/
+actualSDK/race/cleanup evidence reused. Actual235owner-write merge stillprecedes
+calendarfinalreconciliation/review/readyCI, no speculative heavyCI. Original
+15:07:20clock/counters retained; authorized elapsedextension to17:07:20Z.
+Local236 belongsseparatepreparation; noSQL/types/DB/provider/production/cohort edits.
+
+## 2026-10-03 — Calendar1446 actual roster235-main reconciliation
+
+Root verified1445 squashmerge2fe79a8b at17:03:33Z after allfive exact596081dc
+CI37137272675 SUCCESS (0queue/1755runseconds). Calendar preparedb685 rebased
+ontoactualmain2fe, preserving nine reviewed544fe47b ownedfiles byte-exact.
+The sole additive source exception retains both complete reviewed CI test blocks:
+main roster then child calendar, with original remainder unchanged. Every other
+incomingmainfile, genuine235SQL/generated/curatedtypes and every CIstep/order/
+multiplicity remain exact; reviewed concurrency normal+forced supersedes only its
+oldnormal step. History preserves actualmain+preparedchild-a8 bodies/multiplicities;
+removed only one exact JavaPrint session surplus already archived and an exact
+glued1441body whose complete original remains retained. CURRENT keeps canonical
+Prod DB 001 spacing, local001–236 immutable/separate removal and production225.
+Original15:07:20 clock/launch2/fix0 retained under explicit human extension to
+18:07:20Z. No DB/proof/type generation/SQL/remote publication/CI/provider actions.
+Exact preservation verification passes2089 combined history entries/40 recent.
+Focused origin/main gate passes436tests/18files and all static checks; explicit
+attendance prefix regression4/4 and actual-main-aware audit8files pass. Logs:
+/private/tmp/pika-1446-reconcile.d4sa0y; fullfocused pika-focused-ejT1iX.
+Root-owned changed-base review and exact frozen-head readyCI remain required;
+shared admission and fullcutoverOFF; no batch completion or activation claimed.

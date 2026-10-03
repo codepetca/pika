@@ -221,7 +221,32 @@ jobs:
         run: bash scripts/check-contextual-calendar-database.sh
 
       - name: Verify contextual calendar concurrent writers
-        run: node scripts/check-contextual-calendar-concurrency.mjs
+        shell: bash
+        run: |
+          node scripts/check-contextual-calendar-concurrency.mjs
+          cleanup_log="$(mktemp)"
+          if node scripts/check-contextual-calendar-concurrency.mjs --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'FAIL Forced calendar concurrency post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic calendar concurrency cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
+      - name: Verify contextual calendar owner SDK and failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-class-day-owner-writes.ts
+          cleanup_log="$(mktemp)"
+          if pnpm exec tsx scripts/check-contextual-class-day-owner-writes.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1; then
+            cat "$cleanup_log"
+            echo 'Expected the forced post-fixture failure' >&2
+            exit 1
+          fi
+          cat "$cleanup_log"
+          grep -F 'FAIL Forced calendar post-fixture cleanup proof' "$cleanup_log"
+          grep -F 'PASS exact synthetic calendar owner-write cleanup, zero residual rows and global baseline counts' "$cleanup_log"
 
       - name: Verify contextual enrollment atomicity and privileges
         run: bash scripts/check-contextual-enrollment-database.sh
