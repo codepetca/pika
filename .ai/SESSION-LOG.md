@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Java viewer Print menu
-
-- Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
-- Private deployment succeeded from5d60a47875b85a5f6117acf8926c3b116c85ae7a, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_26ddf43ab1f481919b0befea1c0809c6. Same URL, audience, and Material draft.
-
 ## 2026-10-02 — Presentation diagrams in Read notes
 
 - Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
@@ -586,3 +581,15 @@ No SQL application, DB proofs/reset/reseed or types regeneration performed.
 Focused checks against actual main pass273tests/17files plus architecture,
 UI/design policy, TypeScript and lint. Initial startup-summary budget excess
 was compacted; source preservation, history multiplicities and diff checks pass.
+
+## 2026-10-03 — Roster1445 CI handoff-prefix correction
+
+Exact-head CI37136155311 on reviewed a9613f46 passed10431 tests but failed one
+attendance migration-state documentation contract: CURRENT compacted the required
+`Prod DB 001` prefix to `Prod DB001`. Returned1445 to draft before correction.
+Batch4 restores that single space and records the actual draft status; production
+225/local236 and every rollout control remain unchanged. No runtime, SQL, generated
+types, dependency or test assertion was changed. Original review clock and counters
+retained; narrow independent documentation recheck and focused checks precede the
+replacement exact-head ready CI. Other original CI jobs are allowed to finish for
+observed receipts; no duplicate watcher or dispatch.
