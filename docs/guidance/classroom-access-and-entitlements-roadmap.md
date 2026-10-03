@@ -807,6 +807,13 @@ Immutable001–238/genuine types remain incoming bytes. Actual-parent reconcilia
 final cumulative independent review and exact-head CI remain required. No new DB,
 proof replay, generation, production promotion or shared-admission/full-cutover activation.
 
+Metadata1450 actual-parent receipt: prepared f8b91ec3 is reconciled onto actual
+Guide1449 squash668912ab, merged2026-10-03T20:03:52Z after all five exact reviewed
+ce68b9e1 CI37148238240 checks succeeded (0queue/1871s). Squash and reviewed Guide
+trees are identical. Original metadata bytes, incoming source/SQL/types, whole CI
+and earlier prepared receipt remain unchanged. Final cumulative independent review
+and metadata exact-head CI remain required; no rollout or production activation.
+
 Superseding class-day-read receipt: PR1444 normal squash mergea8c4e9b at16:04:51Z
 on2026-10-03 followed all five exact7d341d23 CI37133784223 checks
 (0queue/1697runseconds); canonicalmain cleanFF. Roster1445/calendar1446 remain

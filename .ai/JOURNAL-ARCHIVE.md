@@ -35297,9 +35297,6 @@ notes are local and uncommitted; the published candidate remains cc2217bc.
 Owner approved addressing Java Explained in both current classroom Blueprint tabs. Source inspection found the tabs omit Materials entirely; refined to a read-only latest-saved linked-Blueprint Materials list rather than changing snapshot provenance or weakening reconciliation. Teacher-only endpoint checks classroom and Blueprint ownership, projects validated materials only, preserves historical missing-Materials snapshots and distinguishes failures from empty lists. Separate source label retains frozen Content/Guidance versions; student Posted Materials and public Sites lesson unchanged. UI brief: existing Blueprint Content and Pattern Lab page states; reuse PageLayout/PageState/Button/RichTextViewer, teacher desktop/mobile light/dark, loaded/focus and desktop loading/error/empty/retry, student UI n/a (teacher-only) with real API rejection covered; composite checklist reviewed, existing segmented semantics retained, new link keyboard focus verified; no experimental patterns or migrations. Focused170 tests, architecture/UI/design/TypeScript/lint and audit pass. Eight unique browser scenarios pass, covering four layouts, loading, error/empty retry, real API null/student403, and Pattern Lab; one broader classroom read failed during dev recompilation and passed targeted rerun after source stabilized. Eight screenshots visually reviewed and retained at /tmp/pika-java-review/blueprint-materials-2026-10-03. Lesson viewer build/syntax checks pass. Lesson/viewer/guidance saved in feature branch; synced origin/main66fa5de3 while preserving both continuity histories. Draft-first independent review follows. Risk profile: none. Model recommendation: GPT-6 Sol for bounded read-only application work.
 
 <!-- pika-session-log-archive-batch:46a816ee257ea3c407000cd48fa9108e5e88ab6990ec5a586acfac23c0e4ed91 -->
-## 2026-10-03 — Blueprint Materials review correction
-
-PR1437 initial independent GPT-5.6 Sol review at99704ad8 found one blocking malformed-title boundary and stale posting notes. Verified canonical Material writes trim and require nonempty titles; applied matching read validation and two empty/whitespace snapshot regressions, updated teacher notes to Java Explained Posted in P3/P5, and clarified read-only tab visibility rather than snapshot adoption. One batched correction; affected checks and targeted plus final cumulative review follow. No runtime writes, migration or deployment. Review budget: one launch/one initial wave consumed; elapsed initial review about4m30s, coordinator tokens unknown.
 ## 2026-10-02 — Java lesson presentation scale
 
 Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
@@ -35438,3 +35435,61 @@ main merge. Billing OFF; no migration reapplication, reset or provider call.
 ## 2026-10-03 — Java Materials approved main synchronization
 
 Owner authorized PR1437 main merge. Main advanced to efe4eb3f through dormant billing PR1435, producing only an archive conflict. Kept the canonical main archive and all branch additions byte-for-byte; application files merged without conflict. All lesson/viewer/API/UI/test files remain unchanged from independently reviewed73ff84fb, whose full CI37110290722 passed. One bounded compatibility review, focused checks and fresh stable-head CI precede the authorized squash merge. No production promotion, migration application, billing activation or provider calls are authorized.
+
+<!-- pika-session-log-archive-batch:d6bc09006baa6fc574de7b3645826e9111e876fddbae208ce91c9f6b2a801ee8 -->
+## 2026-10-03 — Announcement reads merged; owner-write preparation
+
+PR1436 merged66fa5de3 after clean initial, targeted and final integration reviews,
+191 focused checks and all exact-head CI37083358161 gates; hub fast-forwarded clean.
+Owner authorizes routine implementation/review/normal main merges through integrated
+cutover, retaining failed-gate, exact migration and bounded-review checkpoints.
+New worktree codex/contextual-announcement-owner-writes starts66fa5de3; startup passes.
+Astra/high designed transaction/legacy concurrency semantics; Sol6.1/high implements
+only schemas/helper/owner routes/tests while coordinator owns SQL/harnesses/CI/docs.
+Prepared service-only current-owner create/edit/delete under shared admission; legacy
+GETs and mutations unchanged.209 announcement tests, TypeScript and lint pass.
+Rollback-only definition rehearsal proves owner/publication/transfer/privileges,
+UTF16 title limits, hot/decommission fences and receipt cascade with zero residue and
+no installed schema/history change. Actual local SDK proves legacy empty PATCH406,
+unchanged time/revision and exact cleanup even after forced failure; shared path
+intentionally corrects this to successful no-op. New concurrency/SDK harness prepared
+but unrun until authorized schema installation.232 provisional; billing retains
+installed immutable230 and reviewed forward231, PR1435 draft pending local apply.
+No generated-type edits, new cohort, production promotion or activation. Independent
+source review, canonical numbering/types, actual concurrency, CI and merge remain.
+Risk runtime-platform; high auth/schema review uses Sol5.6/high and Sol6.1/high
+compatibility fallback (Terra unavailable). Current roadmap remains five batches;
+this does not close batch1 or authorize partial classroom/home cutover.
+Final preparation passes245focused checks plus architecture/UI/design policy,
+TypeScript/lint and rollback rehearsal. Billing231 source4209da62 has one clean
+targeted financial review; actual schema/concurrency and main dependency still wait.
+Requested exact local231/232 approval asynchronously. Formal owner-write review
+budget is not started while that checkpoint remains unresolved; draft source may
+be published for continuity, never marked ready or merged before complete evidence.
+
+## 2026-10-03 — Local migration override; announcement owner runtime proof
+
+Owner explicitly overrides separate local migration approvals for this task only;
+exact reviewed source, local target/history checks and non-destructive limits remain.
+Production permission, review budgets and integrated cutover gates are unchanged.
+Coordinator applied reviewed billing231 once from4209da62 after sole-file preview,
+Pika/54322 binding and matching230/231 digests; local history advanced001–231.
+Billing independently verified the receipt/types/security; four existing rollback
+harnesses pass. Its new fixture uses invalid synthetic Stripe IDs and rolled back;
+the fixture-only correction/review is held at its already-consumed budget checkpoint.
+No billing source edit or implied budget extension by the classroom coordinator.
+PR1438 initial Sol5.6 security and Sol6.1 compatibility reviews clean at2f6fe7e;
+ledger08:33:44UTC,2launches/0fixes,60-minute elapsed limit retains dependency waits.
+After billing released the shared writer slot, applied sole232 once from application-only
+checkout4209da62 plus byte-identical reviewed232, SHA2563f57cc55ac37cf5338edf78b988278339e3044cee582a12e56dc142c164218c7.
+Local001–232 matches application checkout; service-only definer/empty-path ACLs pass.
+Installed rollback contract and cross-role SDK/concurrency/publication/403/404/409,
+parent/resource contention, lifecycle/class-delete/resource races and late rollback pass.
+Forced post-fixture error exits1 after exact cleanup; users/classrooms/upgrades/receipts
+remain3/1/0/0,sandboxfalse, zero synthetic rows/test sessions. Shared writer released.
+No reset/repair/reseed, manual generated types, production or cohort/UI changes.
+1438 stays draft: canonical1435 source dependency/types, final integration, exact-head
+CI and normal merge remain. Member read receipts follow; batch1/cutover not complete.
+Receipt update initially exceeded the16,000-character startup budget by54; compressed
+CURRENT without weakening the gate.245focused checks,architecture/UI/design/TS/lint
+now pass. One documentation-only correction batch; no SQL/runtime changes.

@@ -11,63 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Announcement reads merged; owner-write preparation
-
-PR1436 merged66fa5de3 after clean initial, targeted and final integration reviews,
-191 focused checks and all exact-head CI37083358161 gates; hub fast-forwarded clean.
-Owner authorizes routine implementation/review/normal main merges through integrated
-cutover, retaining failed-gate, exact migration and bounded-review checkpoints.
-New worktree codex/contextual-announcement-owner-writes starts66fa5de3; startup passes.
-Astra/high designed transaction/legacy concurrency semantics; Sol6.1/high implements
-only schemas/helper/owner routes/tests while coordinator owns SQL/harnesses/CI/docs.
-Prepared service-only current-owner create/edit/delete under shared admission; legacy
-GETs and mutations unchanged.209 announcement tests, TypeScript and lint pass.
-Rollback-only definition rehearsal proves owner/publication/transfer/privileges,
-UTF16 title limits, hot/decommission fences and receipt cascade with zero residue and
-no installed schema/history change. Actual local SDK proves legacy empty PATCH406,
-unchanged time/revision and exact cleanup even after forced failure; shared path
-intentionally corrects this to successful no-op. New concurrency/SDK harness prepared
-but unrun until authorized schema installation.232 provisional; billing retains
-installed immutable230 and reviewed forward231, PR1435 draft pending local apply.
-No generated-type edits, new cohort, production promotion or activation. Independent
-source review, canonical numbering/types, actual concurrency, CI and merge remain.
-Risk runtime-platform; high auth/schema review uses Sol5.6/high and Sol6.1/high
-compatibility fallback (Terra unavailable). Current roadmap remains five batches;
-this does not close batch1 or authorize partial classroom/home cutover.
-Final preparation passes245focused checks plus architecture/UI/design policy,
-TypeScript/lint and rollback rehearsal. Billing231 source4209da62 has one clean
-targeted financial review; actual schema/concurrency and main dependency still wait.
-Requested exact local231/232 approval asynchronously. Formal owner-write review
-budget is not started while that checkpoint remains unresolved; draft source may
-be published for continuity, never marked ready or merged before complete evidence.
-
-## 2026-10-03 — Local migration override; announcement owner runtime proof
-
-Owner explicitly overrides separate local migration approvals for this task only;
-exact reviewed source, local target/history checks and non-destructive limits remain.
-Production permission, review budgets and integrated cutover gates are unchanged.
-Coordinator applied reviewed billing231 once from4209da62 after sole-file preview,
-Pika/54322 binding and matching230/231 digests; local history advanced001–231.
-Billing independently verified the receipt/types/security; four existing rollback
-harnesses pass. Its new fixture uses invalid synthetic Stripe IDs and rolled back;
-the fixture-only correction/review is held at its already-consumed budget checkpoint.
-No billing source edit or implied budget extension by the classroom coordinator.
-PR1438 initial Sol5.6 security and Sol6.1 compatibility reviews clean at2f6fe7e;
-ledger08:33:44UTC,2launches/0fixes,60-minute elapsed limit retains dependency waits.
-After billing released the shared writer slot, applied sole232 once from application-only
-checkout4209da62 plus byte-identical reviewed232, SHA2563f57cc55ac37cf5338edf78b988278339e3044cee582a12e56dc142c164218c7.
-Local001–232 matches application checkout; service-only definer/empty-path ACLs pass.
-Installed rollback contract and cross-role SDK/concurrency/publication/403/404/409,
-parent/resource contention, lifecycle/class-delete/resource races and late rollback pass.
-Forced post-fixture error exits1 after exact cleanup; users/classrooms/upgrades/receipts
-remain3/1/0/0,sandboxfalse, zero synthetic rows/test sessions. Shared writer released.
-No reset/repair/reseed, manual generated types, production or cohort/UI changes.
-1438 stays draft: canonical1435 source dependency/types, final integration, exact-head
-CI and normal merge remain. Member read receipts follow; batch1/cutover not complete.
-Receipt update initially exceeded the16,000-character startup budget by54; compressed
-CURRENT without weakening the gate.245focused checks,architecture/UI/design/TS/lint
-now pass. One documentation-only correction batch; no SQL/runtime changes.
-
 ## 2026-10-03 — Announcement canonical source/type integration
 
 Owner clarification approves the requested30-minute elapsed review extension,
@@ -806,6 +749,7 @@ PASS. All3199 incoming parent blobs outside the explicit union unchanged; only
 CURRENT/session/journal differ from d0. History2102/recent40; no body discarded.
 Evidence/full optional-checkout verifier: /private/tmp/pika-guide-actual-detail.fmSK7K;
 focused pika-focused-gDDEOx. This is not independent review, readiness or activation.
+
 ## 2026-10-03 — Contextual classroom metadata source preparation
 
 Accepted bounded architecture and prepared early shared metadata-only PATCH,
@@ -958,3 +902,28 @@ TSC/lint PASS; startup/CI/Bara57tests/3files PASS; pendingbase audit9files PASS.
 Env/session-start, startup15971/16000, full preservation/trim/diff PASS.
 Evidence /private/tmp/pika-1450-pending-guide-reconcile.1YMa74; focused runner
 /var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-PrlXBG.
+
+## 2026-10-03 — Metadata1450 actual Guide1449-main reconciliation
+
+Actual1449 reviewed ce68b9e1 passed all5CI37148238240 (0queue/1871s) and merged
+2026-10-03T20:03:52Z as668912ab; squash tree812b2efc equals reviewed Guide tree.
+Rebased prepared f8b91ec3 from pendingd0 onto actual6689 without feature fixes.
+All11 metadata-owned files exact0cf; approved route imports/early PATCH and two
+PATCH-test replacements preserve whole incoming GET/literal legacy PATCH/GET tests.
+All incoming actual-main blobs outside explicit unions, SQL001–238/gen40d/curated3cf,
+dependencies, whole CI159+metadata=160 and whole CI-unit union remain exact.
+Whole roadmap plus original metadata paragraph/old prepared receipt and ONE current
+receipt retained. Full-body history actual6689+f8−d0+one actual-parent receipt:
+2102+2109−2101+1=2111/recent40; exact bodies/multiplicities checked. Rebase produced
+one proven surplus Blueprint correction copy; removed once, genuine original kept.
+Earlier twelve surplus/restored-detail decisions and historical pending notes remain.
+No DB/status/proof replay/types generation/provider/remote publication/CI/review launch.
+Prior accepted metadata SQL/SDK/two forced238 receipts remain unchanged evidence.
+Production lastverified001–225/shared admission/full cutover/billing remainOFF.
+Original metadata16:57:13→extended20:57:13 ledger6launch/2target/1initial/0final/3fix
+unchanged; root owns ONE final cumulative independent review/publication/exactCI/merge.
+Actual-origin/main focused263tests/17files and architecture/UI/design/TSC/lint PASS;
+startup/CI/Bara57tests/3files PASS; actual-base audit9files PASS; environment/startup
+15975/16000/full preservation/trim/diff PASS. Exact incoming modes/blobs3202 PASS.
+Evidence/full optional-checkout verifier: /private/tmp/pika-1450-actual-guide-reconcile.fXoDni;
+focused runner /var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-Z4AMsV.
