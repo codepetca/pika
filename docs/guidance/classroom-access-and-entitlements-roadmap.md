@@ -782,6 +782,13 @@ work; main migration tail remains234 before this slice.1446 is prepared,
 removal1448draft/detail1447draft. Changed-base review and fresh exact-head CI
 precede1445 merge. Production001–225/sharedadmission/fullcutoverOFF remain.
 
+[Shared classroom-detail GETs](contextual-classroom-detail-reads.md) are the next
+bounded batch1 read integration: explicit30field owner/member payloads bind the
+current relationship in the data query and retain member privacy/hydration.
+Metadata PATCH, Course Guide assembly and SSR/home routing are not widened.
+Actual SDK cleanup, independent review and final CI remain release gates;
+no source-only result activates shared admission or closes the phase.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;

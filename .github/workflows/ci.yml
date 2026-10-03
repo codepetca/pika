@@ -405,6 +405,24 @@ jobs:
           grep -F 'PASS synthetic roster removal suppressed cleanup delete rolled back all cleanup mutations, guard restored' "$cleanup_log"
           grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts' "$cleanup_log"
 
+      - name: Verify contextual classroom detail reads and exact failed-fixture cleanup
+        shell: bash
+        run: |
+          pnpm exec tsx scripts/check-contextual-classroom-detail-read.ts
+          cleanup_log="$(mktemp)"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-classroom-detail-read.ts --verify-cleanup-after-fixture > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced classroom detail post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)' "$cleanup_log"
+          grep -F 'PASS exact synthetic classroom detail cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-classroom-detail-read.ts --verify-cleanup-after-commit-before-capture > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced classroom detail post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$cleanup_log"
+          grep -F 'PASS exact synthetic classroom detail cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
       - name: Verify contextual announcement owner contracts and concurrency
         shell: bash
         run: |
