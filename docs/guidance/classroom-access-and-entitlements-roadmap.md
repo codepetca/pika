@@ -381,14 +381,15 @@ a new per-feature rollout switch for each route family.
 
 Current2026-10-03 checkpoint: batch1 exited after actual metadata1450 squash
 `e86283f8` and all five exact-head CI37150788872 gates. Batch2's shared Assignment
-write bridge1451 is reviewed at9af304a0, with949 focused checks and real mounted
-route/RPC normal plus two deterministic cleanup-failure proofs. Its single
-unchanged-head CI37156761577 retry follows three timeouts in unchanged UiGallery
-tests (the two files pass23/23 locally); no merged/production claim yet. Next
-assessment reads must bind every payload page to current authority/visibility.
+write bridge1451 actually merged as3b62de062 after all five exact-head
+CI37156761577 gates on reviewed9af304a0. Focused949 checks and real mounted
+route/RPC normal plus two deterministic cleanup-failure proofs pass. Next
+assessment reads bind every payload page to current authority/visibility.
 Independent batch3 [retained group consumers](retained-roster-group-consumers.md)
-prepare239 before a later coordinated grouped-removal invariant/writer.239 remains
-source-only pending review and actual local proof;164 singleton uniqueness and236
+prepare239 before a later coordinated grouped-removal invariant/writer.239 is
+applied locally; actual rollbackSQL/SDK normal+forced baseline/types/two-session
+locks pass. PR1452 remains draft after CI exposed a CURRENT receipt-prefix
+contract failure; runtime SQL/SDK gates passed in that run.164 singleton and236
 duplicate rejection remain. Full experience/cohort/UI/provider/billing activation
 stays off, and historical preparation receipts below are retained.
 
