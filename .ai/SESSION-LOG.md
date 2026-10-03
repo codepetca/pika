@@ -11,69 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Dormant shared lesson-plan reads
-
-Continued the authorized five-batch goal without activating it. Teacher logs1421
-is merged at e87d322a; summary1422 passed four bounded independent reviews and is
-awaiting final CI36943420208 at45cecd2a. A GPT-6 Astra/high read-only proposal plus
-coordinator source checks selected classroom-rooted plan reads with same-statement
-owner or membership/visibility evidence. One GPT-6 Sol/high worker completed only
-two GET early branches, named validation/helper and tests in the independent
-codex/contextual-lesson-plan-reads worktree. Existing exact-pair/legacy remainder
-stays unchanged.76 relevant and167 canonical focused tests/static checks pass;
-Pika audit passes7files. Real local PostgREST proves1004plans, short nonterminal
-pages, both role values, empty/out-of-window/archived reads, first/later transfer,
-removal/archive/owner-precedence races, current/terminal visibility changes and
-keyset stability after prior-row deletion; exact synthetic live/audit cleanup
-passes. One pre-publication correction aligns later revocation403 and strengthens
-unknown envelopes/content/identity regressions. Independent fixed-SHA review and
-final CI remain required; main reconciliation after1422 is pending. No migration,
-reset/reseed, hosted/account, billing, UI, write or cohort change. Risk:
-runtime-platform; high authorization/privacy review risk.
-
-Initial PR1423 compatibility review is clean atfb6feb56; security found one
-accepted P2: JSONB literal null bypasses SQL NOTNULL and was incorrectly projected.
-Unit and actual PostgREST regressions reproduced it before the one correction
-batch;77 affected tests/type/scopedlint now pass with required nonnull valid
-content. Actual DB green, targeted/final review and final CI remain acceptance
-gates. No legacy behavior, schema, migration or live configuration change.
-
-Summary1422 is now merged main at7c0ded24 after all exact-head CI36943420208
-gates (0queue/1498run seconds). Hub fast-forwarded. Lesson-plan draft1423 rebased
-onto that main, reconciling only CURRENT/roadmap/archive continuity conflicts;
-kept original archive history once and all CI harnesses, with no application
-source conflict or migration file. No stash was created or consumed. JSONB-null
-real PostgREST cases and all prior database/race/cleanup cases pass; targeted
-security re-review is clean at pre-rebase ba6ca7d7. Reconciled focused checks
-pass168tests/16files and all static gates; the five-group actual database harness
-passes again with exact cleanup. Cumulative integration review remains next.
-
-## 2026-10-01 — Lesson reads merged; local226 and single-date writes
-
-PR1423 final cumulative review passed on c89fe016; all exact-head CI36946345369
-lanes passed (0queue/1499run seconds). Squash-merged main478fd94e; hub FF clean.
-Removed only its finished six worktrees/branch; merged code and private evidence
-retained. No production/cohort change. Next date-write branch FF'd onto main while
-preserving its owned edits; no stash or branch switch. Bulk/copy remain legacy.
-User explicitly approved226 local. Verified pika container/ports and exact history;
-dry run listed only226, one local application succeeded. Function is definer with
-empty search_path and service-only grants; generated types/check match local schema.
-Installed SQL SHA256 b9b774dd01dfb349dade0cb068f902d28b6c578808e4f7e53b11a7072b0ddd7d;
-do not rewrite it or reuse approval. Source TDD and39 affected tests pass; real
-synthetic state/race/Blueprint conflict checks and exact cleanup pass. Actual SDK
-probe exposed nullable error detail/hint fields rejected by mocks; correcting that
-boundary and finishing lifecycle-fence proof before draft/review/CI. No real-account,
-AI, billing, UI, reset/reseed, hosted schema or release change. Goal remains batch1
-of five, not complete. Coordinator owns continuity/CI/Git; one worker owns source.
-
-Post-main source checks pass42tests/type/lint/generated types. SDK nullable-field
-regression reproduced404/403/409 incorrectly becoming503; named schemas now accept
-real null metadata while malformed success envelopes still fail closed. Actual
-SDK adapter and synthetic purge-fence checks pass with full state rollback and
-zero residue;226 unchanged. Added synthetic-target guards to the denial probe.
-Full decommission transition remains a later integrated gate, not claimed here.
-Canonical focused checks and draft-first independent review/CI remain next.
-
 ## 2026-10-01 — Date review clean; bulk transaction preparation
 
 Date PR1424 published draft atc1eedd0d after42 affected/216 focused tests and
@@ -680,3 +617,37 @@ Main advanced to875316af through reviewed dormant announcement owner writes PR14
 ## 2026-10-03 — Java Materials startup budget correction
 
 Second bounded sync review verified archive/log preservation and unchanged application boundaries, then confirmed the required startup context exceeds16000characters by3 after incoming CURRENT growth. Shortened the existing router sentence from Read routed docs before edits to Read routed docs first, preserving all routing and invariants; the startup set now totals15996. This is the fourth correction/sync batch, with a brief targeted verification and fresh focused gate before final CI. Owner main merge authorization persists; production/migrations remain separate.
+## 2026-10-03 — Announcement owner slice merged
+
+Final cumulative Sol5.6/high review clean c30273a2; docs-only production-history
+prefix correction b4eb9801 received clean targeted Luna5.6/medium review. Four
+targeted tests/245focused+all gates pass; no runtime/SQL/types/test weakening.
+Exact-head ready CI37114898975 passed all five gates including installed owner
+contracts/concurrency, canonical generated types, full tests/build and browsers.
+Verified no blocking reviews/threads or head/base drift; normal authorized squash
+merged1438 at10:25:03UTC as875316af9777cece4480e63532f2d27e53a60afb. Canonical
+main fast-forwarded cleanly; worktrees/history preserved. Original ledger retained
+5launches/3batches/2targeted/1final wave with explicit30-minute elapsed extension.
+No migration retry/production/provider/cohort/home activation. Local001–232 and
+production lastverified001–225 unchanged. Member read receipts next; goal incomplete.
+Post-merge continuity notes are uncommitted here, not part of the reviewed SHA.
+
+## 2026-10-03 — Member announcement receipts prepared
+
+New managed codex/contextual-announcement-member-receipts worktree starts875316af;
+startup passes with frozen existing dependencies. Read-only Astra/high design pass
+selected one service-only atomic mark-all RPC. Sol6.1/high owns source/TDD and
+Sol6/high owns bounded concurrency/SDK probes; coordinator owns SQL/CI/docs/Git.
+New API TDD reproduced25 failures before runtime changes;93 new and282 announcement
+regression checks pass. Canonical focused gate passes217 tests plus architecture,
+UI/design policy, TypeScript and lint. No user-visible UI changes.
+Proposed233 SHA25603183be05ca88736cd7558844594ee56dec8161cdd65966b934be04a272efb26
+passes definition-only rollback authorization/publication/1003-row/count/ACL and
+real hot/cold/decommission/member fence proofs, including empty/duplicate sets,
+late-insert and suppressed-receipt rollback of both receipts and revisions.
+No migration application/history change or residue. Installed local001–232,
+baseline3 users/1 classroom unchanged; production lastverified001–225. Independent
+fixed-SHA review precedes local233 application under the explicit task waiver;
+installed concurrency/SDK, genuine type generation and final CI remain pending.
+Shared admission/cutover, production/provider/billing/account settings remain off
+or unchanged. Goal stays batch1 of five; this slice is not rollout completion.

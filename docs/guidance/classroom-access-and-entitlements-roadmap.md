@@ -644,6 +644,13 @@ The owner clarified the requested bounded elapsed extension; counters stay intac
 No source ownership is transferred. Member read receipts follow. Shared
 admission and product cutover stay dormant.
 
+Superseded by PR1438 normal squash merge875316af on2026-10-03: final cumulative
+and targeted documentation review clean, four targeted tests/245focused pass;
+exact-head CI37114898975 passes all five gates on b4eb9801. Canonical main cleanly
+fast-forwarded; source/local232 immutable, production unchanged. Next bounded slice
+is transaction-safe member mark-all-announcements-read POST. Owner/member global
+roles remain separate from classroom permissions; full five-batch cutover is held.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
@@ -656,6 +663,12 @@ this base. Do not regenerate types from that mismatch, reapply/repair230 or rese
 the database. Owner create/edit/delete and member read receipts follow as separate
 atomic-write slices with exact-target schema permission when needed. Shared admission
 and page activation remain dormant throughout this integration.
+
+Member receipt implementation is now prepared separately on
+`codex/contextual-announcement-member-receipts`; see
+[its atomicity contract](contextual-announcement-member-receipts.md). Proposed233
+has passed a definition-only rollback rehearsal, not an application or PR review.
+The shared classroom experience remains dormant.
 
 Execution follows the table above: finish batch 1's teacher Daily reads and other
 everyday operations first; then batch 2's assessment/grade integrations. Batch 3

@@ -8,6 +8,8 @@ import {
   authorizeClassroomAnnouncementRequest,
 } from '@/lib/server/classroom-announcement-access'
 import { authorizeSharedAnnouncementReadActor, readContextualAnnouncements } from '@/lib/server/contextual-announcement-read'
+import { markContextualAnnouncementsRead } from '@/lib/server/contextual-announcement-receipt'
+import { announcementReceiptParamsSchema } from '@/lib/validations/contextual-announcement-receipt'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -69,6 +71,13 @@ export const GET = withErrorHandler('GetStudentAnnouncements', async (request, c
 
 // POST /api/student/classrooms/[id]/announcements - Mark all announcements as read
 export const POST = withErrorHandler('PostStudentAnnouncementsRead', async (request, context) => {
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = announcementReceiptParamsSchema.parse(await context.params)
+    return NextResponse.json(await markContextualAnnouncementsRead({
+      actorId: sharedAccess.user.id, classroomId,
+    }))
+  }
   const user = await requireRole('student')
   const { id: classroomId } = await context.params
 

@@ -1,8 +1,8 @@
 # Contextual announcement owner writes
 
-Status: draft PR1438; initial source reviews and installed-schema local checks pass.
-Canonical source and generated types now match local001–232; final integration
-review and exact-head CI remain. Not merged or approved for cohort activation. This is the next bounded
+Status: PR1438 merged normally as875316af on2026-10-03 after final/targeted reviews
+and exact-head CI37114898975 passed all five gates on b4eb9801. Canonical local001–232
+and genuine generated types/check match; installed-schema proofs pass. No cohort activation. This is the completed bounded
 batch-1 slice after announcement reads PR1436, merged as `66fa5de3`.
 
 ## Scope and compatibility
@@ -126,3 +126,13 @@ Separate local migration approvals are waived by the user for this owning task o
 exact reviewed source, target/history checks and non-destructive limits still apply.
 Production migration approval remains separate. Production schema, cohort admission and full classroom/home cutover
 remain held for the five-batch integrated release gates.
+
+Final cumulative Sol5.6/high review clean c30273a2; subsequent docs-only correction
+restored the canonical production-history prefix after CI37114314545 reported one
+continuity failure (9618 other tests passed). Test/runtime/SQL/types unchanged;
+targeted Luna5.6/medium clean b4eb9801, four targeted tests and245focused/all gates pass.
+Final ready CI37114898975 passed build/tests, database contracts (including installed
+announcement owner/concurrency and genuine types), browser matrix and PR Gate.
+Normal squash merged2026-10-03T10:25:03Z as875316af9777cece4480e63532f2d27e53a60afb;
+clean canonical main fast-forwarded. Review ledger retained5launches/3batches/2targeted
+waves/1final wave; no bypass or deadline reset. Member read receipts are next.
