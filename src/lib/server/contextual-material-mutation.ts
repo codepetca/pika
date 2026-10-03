@@ -67,7 +67,7 @@ export async function createContextualMaterial(input: {
     p_title: input.body.title, p_content: input.body.content, p_is_draft: input.body.is_draft,
   }))
   const result = materialResult(response, actor, classroomId, input.body)
-  if (result.material.created_by !== actor || result.material.position < 0
+  if (result.material.created_by !== actor
     || result.material.source_artifact_id !== null || result.material.source_blueprint_version_id !== null
     || result.material.blueprint_archived_at !== null) throw unavailable()
   return result

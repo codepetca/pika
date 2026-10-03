@@ -149,6 +149,26 @@ begin
   if (v_row - array['title','updated_at']) is distinct from (v_before - array['title','updated_at']) then
     raise exception 'Transfer edit changed historical author/identity/position/lineage';
   end if;
+  -- Creator193 uses max(position)+1 even for historical all-negative ordering.
+  -- The shared wrapper must retain that allocator across every classwork type.
+  perform public.create_assignment_for_owner_v1(v_teacher,v_class,'Negative assignment',
+    '', '', '{"type":"doc"}', clock_timestamp() + interval '7 days', '[]');
+  perform public.create_survey_for_owner_v1(v_teacher,v_class,'Negative survey',false,true);
+  update public.assignments set position = -9 where classroom_id = v_class;
+  update public.surveys set position = -8 where classroom_id = v_class;
+  if (select max(position) from (
+      select position from public.assignments where classroom_id = v_class
+      union all select position from public.classwork_materials where classroom_id = v_class
+      union all select position from public.surveys where classroom_id = v_class
+    ) mixed) is distinct from -5 then
+    raise exception 'All-negative mixed classwork fixture is incorrect';
+  end if;
+  v_row := public.create_classwork_material_for_owner_v2(v_teacher,v_class,
+    'Negative mix allocated','{"type":"doc"}',true)->'material';
+  if (v_row->>'position')::integer is distinct from -4
+    or (select position from public.classwork_materials where id = (v_row->>'id')::uuid) is distinct from -4 then
+    raise exception 'Shared create changed canonical max+1 negative allocation';
+  end if;
   foreach v_patch in array array['{}'::jsonb,'{"created_by":"c2340000-0000-4000-8000-000000000003"}',
     '{"title":""}','{"title":" 　"}','{"is_draft":"false"}','{"content":{"type":"doc","content":[{}]}}',
     '{"released_at":null}','{"position":3}','{"artifact_id":null}','{"source_artifact_id":null}'] loop

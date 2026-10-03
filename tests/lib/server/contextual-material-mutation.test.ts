@@ -32,6 +32,13 @@ describe('shared material owner RPC contracts', () => {
       p_actor_id: actorId, p_classroom_id: classroomId, p_title: 'Reference', p_content: content, p_is_draft: false,
     })
   })
+  it('accepts the canonical allocator result when all existing mixed positions are negative', async () => {
+    const allocated = { ...row(), position: -4 }
+    rpc.mockResolvedValue(success(allocated))
+    expect(await createContextualMaterial({ actorId, classroomId,
+      body: contextualMaterialCreateSchema.parse({ title: 'Reference', content, is_draft: false }),
+    })).toEqual({ material: allocated })
+  })
   it.each([{ title: 'Reference' }, { content }, { is_draft: false }])('forwards only present patch keys: %j', async patch => {
     await update(materialUpdateBodySchema.parse(patch))
     expect(rpc).toHaveBeenCalledWith('update_classwork_material_for_owner_v1', {
@@ -94,7 +101,7 @@ describe('shared material owner RPC contracts', () => {
     await expect(update(materialUpdateBodySchema.parse({ content: { type: 'doc', content: [] } }))).rejects.toMatchObject({ statusCode: 503 })
   })
   it.each(['created_by', 'source_artifact_id', 'source_blueprint_version_id', 'blueprint_archived_at', 'position'])('rejects invalid create invariant %s', async field => {
-    rpc.mockResolvedValue(success({ ...row(), [field]: field === 'position' ? -1 : otherId }))
+    rpc.mockResolvedValue(success({ ...row(), [field]: field === 'position' ? 2.5 : otherId }))
     await expect(createContextualMaterial({ actorId, classroomId, body: contextualMaterialCreateSchema.parse({ title: 'Reference', content, is_draft: false }) })).rejects.toMatchObject({ statusCode: 503 })
   })
   it('requires exact bound deletion evidence and preserves the public API', async () => {
