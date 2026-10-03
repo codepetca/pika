@@ -1,8 +1,8 @@
 # Retained-roster group consumers — compatibility slice
 
-Status:239 applied locally; actual SQL normal/forced teardown and genuine generated
-types pass. SDK/locking source review and execution, PR/CI/merge remain; not rolled
-out. Risk: runtime-platform
+Status:239 applied locally; SQL and SDK normal/forced baseline checks, genuine
+types and two-session locking pass. PR1452 draft; final review/CI/merge remain;
+not rolled out. Risk: runtime-platform
 (authorization, tenant privacy, destructive-finalization exactness, concurrency).
 Model recommendation: GPT-6.1 Sol/high for bounded implementation; GPT-5.6
 Sol/high for security and GPT-6.1 Sol/high for compatibility review (Terra unavailable).
@@ -70,9 +70,12 @@ result; on a fresh empty CI database it verifies owner denial instead. It create
 no fixtures and does not claim101-group SDK pagination. Actual101-group and final-
 deletion faults are covered by the separate SQL proof; client page decoding by
 offline transport tests. SDK forced failure also requires an exact unchanged-
-baseline receipt. These new proofs need fixed-source review before execution.
+baseline receipt. Fixed-source security review passed before execution. Actual
+local SDK empty-owner/anonymous denial, normal/forced unchanged-baseline receipts
+and two-session lock exclusion/owner denial passed. Existing singleton provider
+and live-cleanup rollback regressions also passed without source changes.
 
-Real SDK/ACL, observed two-session execution and exact-head CI remain separate
-gates. This slice alone completes neither grouped removal nor batch3, cutover or
+Final cumulative review and exact-head CI remain gates. This slice alone completes
+neither grouped removal nor batch3, cutover or
 production rollout. Production remains lastverified001–225; no deployment or
 provider/account/plan/AI/billing/cohort activation is included.
