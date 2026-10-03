@@ -6,6 +6,7 @@ import { readBillingPurchaseConfig } from '@/lib/server/billing/purchase-config'
 import { createBillingPurchaseRuntime } from '@/lib/server/billing/purchase-runtime'
 import { createBillingLifecycleRuntime } from '@/lib/server/billing/lifecycle-runtime'
 import { createBillingCloseoutRuntime } from '@/lib/server/billing/closeout-runtime'
+import { createBillingUpgradeRuntime, readBillingUpgradeConfig } from '@/lib/server/billing/upgrade-runtime'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -27,6 +28,10 @@ const billingHandlers = createBillingHandlers(readBillingSandboxConfig, async ()
   const config = readBillingSandboxConfig()
   if (!config) return null
   return createBillingCloseoutRuntime(config)
+}, async () => {
+  const config = readBillingUpgradeConfig()
+  if (!config) return null
+  return createBillingUpgradeRuntime(config)
 })
 
 export const POST = withErrorHandler('PostStripeBillingProcess', async (request, context) => (

@@ -34411,3 +34411,86 @@ The owner created the reviewed Pika-only 90-day scoped token and saved GitHub mi
 ## 2026-10-01 — Dormant contextual learner Daily Log reads
 
 Owner approved the next Daily read slice. Learner GET now consumes the existing shared admission for classroom and broad history; legacy requests remain unchanged. A single joined entry/classroom/enrollment statement binds own identity, active membership and non-owner status; validated rows strip relationship metadata. Unit/API tests pass78 including existing writes and legacy reads. Real local PostgREST proves both account-role values, own-entry isolation, owner precedence, outsider denial and removal/archive committing between preflight and SELECT; all synthetic fixtures removed. Added this contract to ephemeral CI. No schema application, UI, signup, account grant, flag activation or production change. Teacher Daily reads remain next. Risk: runtime-platform. Independent review and stable-head CI remain pending; model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility (Terra unavailable).
+
+## 2026-10-01 — Orchestrate contextual teacher Daily reads
+
+Owner requested orchestration of the remaining five batches, retaining this coordinator and the separate billing/UI owners. Learner PR1418 is merged in main at6c44c254 after two clean reviews and all exact-head CI36901168889 gates passed; no promotion or activation. A bounded source investigation selected teacher entry drill-down and learner history before roster-wide logs/previews and cached summaries. One worker implements only the two routes, helper and focused tests; coordinator owns roadmap, documentation, local PostgREST harness and CI wiring. Same-statement owner evidence governs drill-down; history also joins current target enrollment at the entry read, preserving legacy and archived-owner behavior. Real local checks pass both role values, projection/date isolation, removal/transfer races and exact synthetic cleanup. A separate startup/workflow run has fixture timeouts under host load; canonical focused validation and independent stable-SHA review remain required. No migration, UI, account grant, billing, rollout configuration or production change. Risk: runtime-platform; review risk high. Model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility fallback (Terra unavailable).
+
+Resumed from preserved files after interruption; no worker remained active. Coordinator reproduced the non-owner 503/403 ordering defect with two failing regressions and corrected it before publication. Targeted unit/API and unchanged legacy suites now pass40tests; real PostgREST contract passes again, including archived reads and post-preflight removal/ownership transfer, with cleanup verified. Canonical focused checks and independent review remain pending; no production change.
+
+<!-- pika-session-log-archive-batch:976e9d232cf94af5297802a0437aea43bc57f60c2e2f94e48e10131b56ea76e7 -->
+## 2026-10-01 — Contextual teacher Daily reads merged; roster logs next
+
+PR1420 merged main at3cf01b06 after four bounded independent review launches and one correction batch: joined learner identity/projection and rejected history errors. Final44targeted/135focused tests, static checks and real PostgREST contract passed; exact-head CI36936773832 passed all gates atreviewed5d795bb0. CI took1547run seconds plus3queue seconds. No production, schema, cohort or account change. Hub fast-forwarded and only this slice's finished implementation/four review worktrees cleaned; Git history preserves their contents.
+
+Next worktree codex/contextual-teacher-daily-logs starts from3cf01b06. A bounded read-only proposal plus coordinator schema/SDK checks and a zero-result local PostgREST syntax probe selected enrollment-rooted nested profiles/selected entries/previews; no migration or N+1 fallback. One worker owns helper/route/input and TDD tests; coordinator owns real1001learner/seven-entry fixture contract, CI wiring and docs. Actual per-learner limits, projection, keyset pagination, current membership/owner races and cleanup remain acceptance gates; syntax alone proves none of them. Shared admission remains off; cached summary is next. Risk runtime-platform; high-risk independent review models GPT-5.6 Sol/high security and GPT-6 Sol/high compatibility fallback (Terra unavailable).
+
+Worker completed23focused tests plus TypeScript, architecture and ESLint. Real PostgREST passes every1001learner/pagination/projection/profile/date/archive/denial/removal/transfer contract with exactcleanup. First harness attempt tried to resurrect a closed membership generation; its cleanup passed, fixture rejoin now uses a new enrollment UUID as required by the existing Pal lifecycle, and the rerun is green. No product change or weakened trigger was needed. Canonical focused verification, independent review and exact-head CI remain pending.
+
+<!-- pika-session-log-archive-batch:30b0cc85ee49d1c7c09a46b941c469987907e30fb4c536a4838525c96c7b30c4 -->
+## 2026-10-01 Teacher Daily logs review corrections
+
+PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
+correction validates malformed query envelopes and catches builder failures as
+generic 503 (five TDD regressions); both teacher Daily local harnesses now retain
+exact entitlement operation IDs and assert live-state/audit cleanup. Removed only
+six identified synthetic logs-harness audit rows from local, retaining a private
+recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
+119 focused tests and static checks pass. Targeted/final review pending. No
+production, migration, cohort, plan or UI change; summary read remains next.
+
+<!-- pika-session-log-archive-batch:f5007bfe0f3c5c2da2e0e5fbb379b7dc18b80759ba7bd1ce3204a368c96fa229 -->
+## 2026-10-01 — Dormant teacher cached Daily summary implementation
+
+While independently reviewed roster-logs PR1421 runs CI, a separate worktree
+codex/contextual-teacher-daily-summary starts from merged1420 actor admission.
+Worker owns only summary route/helper/schema and unit/API tests; coordinator owns
+local fixtures/CI/docs/Git. Every stats/count/cache statement binds current owner,
+classroom and date; existing ready/pending/no_entries/unavailable semantics and
+name restoration remain. Owner caught result-envelope validation gaps before
+initial review; ten TDD regressions now fail closed. 62 targeted/153 focused tests
+and all static checks pass; real local PostgREST verifies both owner role values,
+cache states/isolation, archived owner and transfers before all three reads, with
+exact fixture/audit cleanup. Independent review and final main reconciliation
+pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
+No AI, billing, migration, UI, cohort activation or production change.
+
+<!-- pika-session-log-archive-batch:5218db0f34ef884fa4f3f4df73e3fffb15c2e083348a6bac51df6f2c2ae19215 -->
+## 2026-10-01 — Roster logs merged; cached summary review corrections
+
+PR1421 merged main e87d322a after four independent reviews, one correction batch,
+119 focused tests/static checks, real1001-learner database checks and every exact
+head CI36940960454 gate at5adf5905. Hub is synchronized; no production activation.
+PR1422 initial reviews at6f255b32 accepted microsecond freshness loss and unresolved
+name-map warning suppression. One batch preserves full timestamp precision and
+requires nonblank own map references before restoration (14 new tests,11 red).
+76 targeted/167 focused tests and real PostgreSQL microsecond/map/race/cleanup
+cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
+application source has no rebase conflicts and no migration was renumbered.
+Targeted security and final integration review remain pending. No AI, schema,
+cohort, UI, billing or production change; lesson-plan list reads follow.
+
+## 2026-10-01 — Daily outer-scroll investigation
+
+- User clarified the defect: Daily's whole page scrolls vertically into blank space below the table, in wide and narrow windows; only the table should scroll.
+- Read-only local investigation in app-managed worktree `daily-scroll-containment`; startup verification passed. With 80 mocked roster rows and the full classroom shell, Chromium1440×900 keeps document900px and table578px;1000/390px widths grow document3326px and table3004px because AppShell confinement is desktop-only. Exact wide-window blank-space symptom remains unreproduced; awaiting clarification about table-end versus outside-table scrolling. Product source unchanged.
+- Debug screenshots `/tmp/pika-daily-summary-{1440,1000,390}.png`; reference historical PR775/test-pane overflow and PR578/student-scroll persistence. Automatic DeepSeek delegation paused through2026-12-31 per shared pilot record.
+
+<!-- pika-session-log-archive-batch:e6f90cd8f628ac87b2591d685dba43a1dc247d1f04ee5f4d1cd6701e7ed0383b -->
+## 2026-10-01 — Daily blank-space cause confirmed in Chrome
+
+- Inspected user's existing production Daily tab read-only. At1152×608, body/AppShell608px but document953px and page scrollY300px, with the table independently scrolled551px. Hidden `No QR check-in` spans in Check-in cells extend to document953px because every ancestor through the scroller is statically positioned.
+- User has reduced motion enabled: Daily entry animation/transform is disabled. The animation otherwise incidentally creates a containing block, explaining why local default-motion screenshots missed the desktop defect. Containment should be explicit for screen-reader labels in both Daily table modes; retain their accessible text. Narrow shell-height issue from earlier investigation is separate.
+- Product source unchanged. Next implementation: regression with reduced-motion and missing check-ins, explicit local positioned containment, compare default/selected Daily states and wide/narrow viewports.
+
+<!-- pika-session-log-archive-batch:f941f705da073568ce2e87c50557d5122b8a724263ae812216f29cf50174f968 -->
+## 2026-10-01 — Daily scroll containment fix
+
+- Made both teacher Daily roster scrollers positioned containers so hidden check-in labels remain inside the table without depending on animation transforms. Added an AppShell narrow-viewport opt-in used only by teacher Daily; reused the Daily/TeacherWorkspaceSplit composition and `/pattern-lab` Daily reference. No new visual pattern or data behavior.
+- Browser regression failed before the fix (reduced-motion document1455px for a900px viewport). Final Playwright matrix passes20: teacher fixture/full classroom, selected/unselected, normal/reduced motion,1440×900/390×844, light/dark; student Daily regression/screenshots pass all4 projects. Exact user-size1152×608 reduced-motion smoke keeps document608px and context bar56px before/after table-end wheel scrolling. Screenshots inspected in `test-results/` and `/tmp/pika-daily-exact-classroom.png`.
+- Focused gate passes223 tests plus architecture, UI/design policy, TypeScript and lint; audit/diff checks pass. An earlier concurrent run timed out two unrelated startup-doc harness tests; serial rerun passes. Risk profile:none. Independent review and final PR CI pending; use one GPT-5.6 Sol/high behavior reviewer because Terra is unavailable. DeepSeek pilot remains paused.
+
+<!-- pika-session-log-archive-batch:05f746c356038e337aa40c4ba3f92186b8399cfad09eee3ef675be1fe94a05ad -->
+## 2026-10-01 — Contain long student tables across classroom workspaces
+
+Extended the Daily scroll fix to Roster and assignment/test grading, including Tests before student selection. Teacher table workspaces now keep the narrow shell within the viewport; Gradebook retains its existing mobile selector flow. Explicit containing blocks keep hidden row labels inside table scrollers, and vertical gesture containment prevents viewport bounce at the last row. The shared gapped split gives stacked table/inspector panes available height so an open Assignment inspector cannot squeeze the table to one row. Existing Pattern Lab Roster, Gradebook and Workspaces owners are reused; no new UI pattern. Added a strictly development-only full ClassroomPageClient fixture with synthetic identities and mocked read-only data. Production API authorization is unchanged. All 60 teacher/student light/dark desktop/mobile and normal/reduced-motion browser cases pass; 18 additional reduced-motion checks pass at 1152x608, 1000x608 and 390x608. Checks cover last-row reachability, selected states, sticky headers where present, usable table height and inspector bottom controls. Screenshots visually reviewed under ignored artifacts/scroll-audit. Focused checks pass 581 tests in 37 files, architecture, UI/design policy, TypeScript and lint. Legacy teacher dashboard was inspected in source: its normal page flow contains actual content, without the hidden-label empty-tail mechanism. Local authenticated backend verification was unavailable because shared local Pika PostgreSQL was unhealthy; no database changes were made. PR1419 remains draft for expanded independent review. Risk: standard UI behavior; model recommendation: GPT-6 Sol.

@@ -2696,6 +2696,211 @@ export type Database = {
           },
         ]
       }
+      billing_upgrade_operations: {
+        Row: {
+          attempt_count: number
+          completed_at: string | null
+          confirmed: boolean
+          created_at: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          expires_at: string
+          id: string
+          invoice_id: string | null
+          last_paid_invoice_id: string
+          next_attempt_at: string | null
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id: string | null
+          quote: Json | null
+          quote_digest: string | null
+          quote_revision: number | null
+          reason: string | null
+          revision: number
+          source_binding: Json
+          source_offering_version_id: string
+          stage: string
+          status: string
+          subject_user_id: string
+          subscription_id: string
+          target: Json
+          target_offering_version_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          completed_at?: string | null
+          confirmed?: boolean
+          created_at?: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          expires_at: string
+          id: string
+          invoice_id?: string | null
+          last_paid_invoice_id: string
+          next_attempt_at?: string | null
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id?: string | null
+          quote?: Json | null
+          quote_digest?: string | null
+          quote_revision?: number | null
+          reason?: string | null
+          revision?: number
+          source_binding: Json
+          source_offering_version_id: string
+          stage?: string
+          status?: string
+          subject_user_id: string
+          subscription_id: string
+          target: Json
+          target_offering_version_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          completed_at?: string | null
+          confirmed?: boolean
+          created_at?: string
+          expected_access_revision?: number
+          expected_account_plan_revision?: number
+          expected_entitlement_revision?: number
+          expires_at?: string
+          id?: string
+          invoice_id?: string | null
+          last_paid_invoice_id?: string
+          next_attempt_at?: string | null
+          paid_period_start?: string
+          paid_through?: string
+          payment_intent_id?: string | null
+          quote?: Json | null
+          quote_digest?: string | null
+          quote_revision?: number | null
+          reason?: string | null
+          revision?: number
+          source_binding?: Json
+          source_offering_version_id?: string
+          stage?: string
+          status?: string
+          subject_user_id?: string
+          subscription_id?: string
+          target?: Json
+          target_offering_version_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_upgrade_operations_source_offering_version_id_fkey"
+            columns: ["source_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_operations_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_operations_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_operations_target_offering_version_id_fkey"
+            columns: ["target_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_upgrade_receipts: {
+        Row: {
+          account_plan_revision: number
+          amount_paid: number
+          created_at: string
+          currency: string
+          evidence: Json
+          invoice_id: string
+          operation_id: string
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id: string
+          source_offering_version_id: string
+          stripe_account: string
+          subscription_id: string
+          target_offering_version_id: string
+        }
+        Insert: {
+          account_plan_revision: number
+          amount_paid: number
+          created_at?: string
+          currency: string
+          evidence: Json
+          invoice_id: string
+          operation_id: string
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id: string
+          source_offering_version_id: string
+          stripe_account: string
+          subscription_id: string
+          target_offering_version_id: string
+        }
+        Update: {
+          account_plan_revision?: number
+          amount_paid?: number
+          created_at?: string
+          currency?: string
+          evidence?: Json
+          invoice_id?: string
+          operation_id?: string
+          paid_period_start?: string
+          paid_through?: string
+          payment_intent_id?: string
+          source_offering_version_id?: string
+          stripe_account?: string
+          subscription_id?: string
+          target_offering_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_upgrade_receipts_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: true
+            referencedRelation: "billing_upgrade_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_receipts_source_offering_version_id_fkey"
+            columns: ["source_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_receipts_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_receipts_target_offering_version_id_fkey"
+            columns: ["target_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_days: {
         Row: {
           classroom_id: string
@@ -9550,6 +9755,10 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_checkpoint_upgrade_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       billing_claim_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_claim_renewal_closeout_v1: {
         Args: { p_request: Json }
@@ -9559,6 +9768,8 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_claim_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_confirm_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
@@ -9570,12 +9781,18 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_finish_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_get_access_status_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_applied_upgrade_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       billing_get_checkout_offering_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
       billing_get_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_checkout_offerings_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -9588,6 +9805,7 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_list_upgrades_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
       billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
       billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
@@ -9596,6 +9814,7 @@ export type Database = {
         Returns: Json
       }
       billing_reserve_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_reserve_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_save_checkout_progress_v1: {
         Args: { p_request: Json }
         Returns: Json
