@@ -7,7 +7,7 @@ export const classroomBlueprintMaterialsSchema = z.object({
   version_number: z.coerce.number().int().positive(),
   materials: z.array(z.object({
     artifact_id: z.string().uuid(),
-    title: z.string(),
+    title: z.string().trim().min(1, 'Material title is required'),
     content_markdown: z.string(),
     position: z.number().int().nonnegative(),
   })).max(500),

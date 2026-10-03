@@ -83,6 +83,11 @@ describe('linked Blueprint materials', () => {
     expect(await getClassroomBlueprintMaterials('teacher', 'classroom')).toMatchObject({ ok: false, status: 500 })
   })
 
+  it.each(['', '   '])('rejects a blank saved material title %j', async (title) => {
+    setup({ materials: [{ ...material, title }] })
+    expect(await getClassroomBlueprintMaterials('teacher', 'classroom')).toMatchObject({ ok: false, status: 500 })
+  })
+
   it('keeps a failed latest Version read distinct from empty materials', async () => {
     from.mockReturnValueOnce(query({ source_blueprint_id: 'blueprint' })).mockReturnValueOnce(query({ id: 'blueprint' }))
       .mockReturnValueOnce(query(null, { message: 'Unavailable' }))

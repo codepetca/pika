@@ -34720,3 +34720,18 @@ c840869da61aa5a343a225f02d06cd99e428c93cb9a707f7e61f8cbb66097b8a. Two preapply
 review launches/one fix batch; full PR review/realDB acceptance not complete.
 Exact227 LOCAL approval requested, not granted yet. Full/negative/stricttrue proofs
 and generatedtypes pending; no sharedflag, production, UI, billing or AI change.
+
+<!-- pika-session-log-archive-batch:a26df6cfcccba1a961b7787184098696e496d1e092bd250d53b6f354aa7e7d1f -->
+## 2026-10-01 — Local227 applied and real bulk contracts verified
+
+Consumed exact227 LOCAL approval with one successful application; digest unchanged.
+Catalog confirms service-only execute and hardened definer; generated types/check
+and TypeScript pass. Real harness exposed two test defects, corrected together:
+fresh nonce with accepted-save probe for decisive late rollback; owner cascade for
+Blueprint cleanup without guard bypass.38 affected tests pass. Full database run
+and forced post-fixture failure both prove zero residual rows. The first failed
+run's exact tagged synthetic fixtures were removed and are regenerable; no real
+account/classroom changed. Runtime correctionb2c64b45 targeted Sol/high review clean,
+shared budget3launches/2fixbatches. Local strictfalse: automatic Free audit cleanup
+has static review, not strict-enabled runtime evidence.1424 final browser CI still
+pending; its merge precedes bulk publication. Prod001–225, all activation holds remain.

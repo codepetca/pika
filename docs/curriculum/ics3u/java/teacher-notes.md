@@ -40,8 +40,8 @@ The PDF supplies lesson content, not task instructions. Student prompts in it we
 
 ## Posted Pika Material
 
-Title: **1.1 Java explained**
+Title: **Java Explained**
 
-Description: Learn what programming, source code, and syntax mean, and how the compiler and JVM turn Java code into a running program. Open the lesson to read the notes or view the slides. Coding begins next lesson.
+Suggested summary: Learn what programming, source code, and syntax mean, and how the compiler and JVM turn Java code into a running program. Open the lesson to read the notes or view the slides. Coding begins next lesson.
 
-Link label: **Open Java explained: notes and slides**. Posted in P3 - ICS3U Classwork on 2026-10-02, linking to https://ics3u-java-explained.stewchan.chatgpt.site. The lesson is public so students can view it without a ChatGPT account.
+Student lesson: [Open Java explained: notes and slides](https://ics3u-java-explained.stewchan.chatgpt.site). Verified Posted in both P3 - ICS3U and P5 - ICS3U Classwork on 2026-10-02. The lesson is public so students can view it without a ChatGPT account. Their shared ICS3U-4 Blueprint also includes the Material in saved Version 5; the read-only classroom Blueprint Materials list displays that latest saved source separately from the classroom Content Version.

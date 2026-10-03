@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Local227 applied and real bulk contracts verified
-
-Consumed exact227 LOCAL approval with one successful application; digest unchanged.
-Catalog confirms service-only execute and hardened definer; generated types/check
-and TypeScript pass. Real harness exposed two test defects, corrected together:
-fresh nonce with accepted-save probe for decisive late rollback; owner cascade for
-Blueprint cleanup without guard bypass.38 affected tests pass. Full database run
-and forced post-fixture failure both prove zero residual rows. The first failed
-run's exact tagged synthetic fixtures were removed and are regenerable; no real
-account/classroom changed. Runtime correctionb2c64b45 targeted Sol/high review clean,
-shared budget3launches/2fixbatches. Local strictfalse: automatic Free audit cleanup
-has static review, not strict-enabled runtime evidence.1424 final browser CI still
-pending; its merge precedes bulk publication. Prod001–225, all activation holds remain.
-
 ## 2026-10-01 — Date gate passed; strict main reconciliation required
 
 1424 final CI36952067498 passed all gates, but normal merge denied behind1419main.
@@ -385,3 +371,7 @@ Owner confirmed updating both current classroom Blueprint tabs. Inspected P3/P5 
 ## 2026-10-03 — Blueprint Materials visibility
 
 Owner approved addressing Java Explained in both current classroom Blueprint tabs. Source inspection found the tabs omit Materials entirely; refined to a read-only latest-saved linked-Blueprint Materials list rather than changing snapshot provenance or weakening reconciliation. Teacher-only endpoint checks classroom and Blueprint ownership, projects validated materials only, preserves historical missing-Materials snapshots and distinguishes failures from empty lists. Separate source label retains frozen Content/Guidance versions; student Posted Materials and public Sites lesson unchanged. UI brief: existing Blueprint Content and Pattern Lab page states; reuse PageLayout/PageState/Button/RichTextViewer, teacher desktop/mobile light/dark, loaded/focus and desktop loading/error/empty/retry, student UI n/a (teacher-only) with real API rejection covered; composite checklist reviewed, existing segmented semantics retained, new link keyboard focus verified; no experimental patterns or migrations. Focused170 tests, architecture/UI/design/TypeScript/lint and audit pass. Eight unique browser scenarios pass, covering four layouts, loading, error/empty retry, real API null/student403, and Pattern Lab; one broader classroom read failed during dev recompilation and passed targeted rerun after source stabilized. Eight screenshots visually reviewed and retained at /tmp/pika-java-review/blueprint-materials-2026-10-03. Lesson viewer build/syntax checks pass. Lesson/viewer/guidance saved in feature branch; synced origin/main66fa5de3 while preserving both continuity histories. Draft-first independent review follows. Risk profile: none. Model recommendation: GPT-6 Sol for bounded read-only application work.
+
+## 2026-10-03 — Blueprint Materials review correction
+
+PR1437 initial independent GPT-5.6 Sol review at99704ad8 found one blocking malformed-title boundary and stale posting notes. Verified canonical Material writes trim and require nonempty titles; applied matching read validation and two empty/whitespace snapshot regressions, updated teacher notes to Java Explained Posted in P3/P5, and clarified read-only tab visibility rather than snapshot adoption. One batched correction; affected checks and targeted plus final cumulative review follow. No runtime writes, migration or deployment. Review budget: one launch/one initial wave consumed; elapsed initial review about4m30s, coordinator tokens unknown.
