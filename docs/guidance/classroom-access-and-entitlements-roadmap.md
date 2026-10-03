@@ -697,6 +697,12 @@ SQLrollback and allfive observed-lock concurrency races pass. Fullindependent
 draftreview/currentmain reconciliation/exactCI remain beforemerge. No newSQL,
 globalrole/plan/provider/UI/activation changes;235belongs toseparate rosterwrites.
 
+Calendar reconciliation now follows verified roster235 PR1445 squashmerge2fe79a8b
+at17:03:33Z on2026-10-03, after allfive exact596081dc CI37137272675 gates pass.
+Reviewed calendar runtime/proofs remain unchanged; the shared CI test file retains
+both exact roster/calendar blocks. Changed-base review and new exact-head CI still
+precede1446 merge; local001–236/production001–225 and admission/cutoverOFF unchanged.
+
 Superseding merge receipt: PR1441 normal squash merge d913eebd at14:18:23Z on
 2026-10-03 followed all five successful exact-head74995349 CI37127414505 gates
 (0queue/1774runseconds). Canonical main fast-forwarded cleanly. Reviewed234 remains
