@@ -337,6 +337,7 @@ jobs:
           cat "$cleanup_log"
           grep -F 'Error: Forced post-fixture cleanup proof' "$cleanup_log"
           grep -F 'PASS exact synthetic class-day cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+
       - name: Verify contextual roster owner writes and failed-fixture cleanup
         shell: bash
         run: |

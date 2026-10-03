@@ -759,6 +759,15 @@ tests17files+staticlint pass. FullPRreview andfinalCI remain; source rebases ont
 actual1442main3351d85f without changing runtime/proofs/installedSQL. Separate
 rosterGET1443/calendarGET1444 integration order remains; batch1 is notcomplete.
 
+Superseding integration receipt: PR1444 merged actual main `a8c4e9b2` at
+16:04:51Z on2026-10-03 after all five CI37133784223 gates. PR1441–1444 are
+merged; roster-owner writes1445 now reconcile onto that actual main. Reviewed
+runtime, tests, proof scripts, generated/curated contracts and installed235 bytes
+remain unchanged. Local001–236 includes separate unmerged preserving-removal
+work; main migration tail remains234 before this slice.1446 is prepared,
+removal1448draft/detail1447draft. Changed-base review and fresh exact-head CI
+precede1445 merge. Production001–225/sharedadmission/fullcutoverOFF remain.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
