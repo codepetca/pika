@@ -4,6 +4,8 @@ import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { z } from 'zod'
+import { authorizeSharedRosterMutationActor, patchContextualRosterCounselor } from '@/lib/server/contextual-roster-mutation'
+import { rosterRowParamsSchema, rosterCounselorBodySchema } from '@/lib/validations/roster-mutations'
 import {
   getKnownRosterRemovalRpcError,
   removeClassroomRosterEntriesAtomic,
@@ -19,6 +21,13 @@ const patchRosterEntrySchema = z.object({
 
 // PATCH /api/teacher/classrooms/[id]/roster/[rosterId] - Update roster entry (e.g., counselor_email)
 export const PATCH = withErrorHandler('PatchRosterEntry', async (request, context) => {
+  const shared = await authorizeSharedRosterMutationActor()
+  if (shared.mode === 'shared') {
+    const params = rosterRowParamsSchema.parse(await context.params)
+    const body = rosterCounselorBodySchema.parse(await request.json())
+    return NextResponse.json(await patchContextualRosterCounselor({ actorId: shared.user.id,
+      classroomId: params.id, rosterId: params.rosterId, body }))
+  }
   const user = await requireRole('teacher')
   const { id: classroomId, rosterId } = await context.params
   const body = await request.json()

@@ -6,6 +6,18 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires genuine roster owner SQL/SDK proofs and exact failed-fixture cleanup', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify contextual roster owner writes and failed-fixture cleanup')[1]?.split('      - name:')[0]
+    expect(step).toContain('bash scripts/check-contextual-roster-owner-writes-database.sh')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-roster-owner-writes.ts\n')
+    expect(step).toContain('--verify-cleanup-after-fixture')
+    expect(step).toContain("grep -F 'Forced roster post-fixture cleanup proof'")
+    expect(step).toContain("grep -F 'PASS exact synthetic roster owner-write cleanup, zero residual rows and global baseline counts'")
+    expect(step).toContain("echo 'Expected the forced post-fixture failure'")
+    expect(step).toContain('exit 1')
+  })
+
   it('defers heavy draft checks and runs comprehensive validation on a stable ready SHA', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
