@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Reconcile copy1431 after green CI and attendance1430
-
-Both independent full reviews clean at4516bc85; all five CI gates pass on
-37046563313. Final merge gate caught1430 advancing main to8dc05d47 and one
-JOURNAL-ARCHIVE conflict. Returned1431 to draft; no bypass or stale-head merge.
-Owner approved20more review minutes18:55:24–19:15:24Z; counters retained.
-Rebased onto1430 preserving both histories. All16 non-log owned files match
-the reviewed candidate before receipt updates; installed229 digest9b4c9b8b
-unchanged/immutable, local001–229 unchanged. Batch4 records reconciliation;
-no further default fix batch. One final changed-base integration review and
-fresh exact-head CI remain. Production, accounts, billing and admission held.
-
 ## 2026-10-02 — Approved copy1431 continuity cleanup
 
 Final integration review confirmed source/SQL preservation and found two surplus
@@ -524,3 +512,17 @@ No new schema/types/UI/activation. After explicit review-extension authorization
 stacked draft1442 gets independent scope-only review; ready/merge still waits1441
 merge/reconciliation. Blueprint UI's separate guidance is batch3 work; this does
 not complete batch1. Production unchanged.
+
+## 2026-10-03 — Verified material-write merge and read dependency reconciliation
+
+PR1441 normal squash merge d913eebd71e94e6dee4fd0be2d24b7371b5ccb15 verified
+at14:18:23Z after all five exact-reviewed-head74995349 CI37127414505 gates pass
+(observed0queue/1774runseconds). No admin/auto-merge/bypass. Canonical main cleanly
+fast-forwarded. Original review clock and7launch/4batch counters retained under
+the user's explicit review-extension authority; no repeated approval requested.
+Installed234 digest unchanged/immutable; local001–234, production001–225 untouched.
+This child rebased onto actual squash skipping stacked749; full pre-receipt tree
+matches its previous candidate exactly. Only continuity/merge receipts change.
+Main retarget, changed-base review where needed, and final exact-head CI still
+precede child merge. Parent worktree retained while dependents remain. Shared
+admission/cutover OFF; no provider/account/plan/billing activation.
