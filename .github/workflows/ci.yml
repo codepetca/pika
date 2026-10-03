@@ -187,6 +187,22 @@ jobs:
           fi
           echo 'PASS exact retained group intentional post-teardown failure.'
 
+      - name: Verify retained cleanup two-session locks and installed SDK ACL
+        run: |
+          pnpm exec tsx scripts/check-retained-roster-group-locks-database.ts
+          pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts
+          set +e
+          group_sdk_output=$(pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts --force-failure 2>&1)
+          group_sdk_status=$?
+          set -e
+          if ! [[ "$group_sdk_status" -eq 1 ]] \
+            || ! grep -Fxq 'FAIL forced retained cleanup SDK proof.' <<< "$group_sdk_output" \
+            || ! grep -Fxq 'PASS retained cleanup SDK unchanged local baseline.' <<< "$group_sdk_output"; then
+            echo 'FAIL unexpected retained SDK forced baseline proof.'
+            exit 1
+          fi
+          echo 'PASS exact retained SDK intentional failure and unchanged baseline.'
+
       - name: Verify PPZ3C start-date correction lifecycle
         run: bash scripts/check-ppz3c-start-date-correction-database.sh
 

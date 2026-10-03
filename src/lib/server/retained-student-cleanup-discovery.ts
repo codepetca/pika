@@ -14,15 +14,6 @@ const discoveryPageSchema = z.object({
   snapshot_sha256: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict()
 
-// Feature-owned transport until the coordinator generates the genuine DB types.
-interface DiscoveryClient {
-  rpc(name: 'discover_retained_student_cleanup_groups', args: {
-    p_teacher_id: string; p_classroom_id: string; p_student_id: string | null;
-    p_after_student_id: string | null; p_include_unreserved: boolean;
-    p_snapshot_sha256: string | null;
-  }): PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
-}
-
 /** Every page, including an empty terminal page, reauthorizes current ownership.
  * A failed page invalidates the whole projection; it never returns a partial list.
  */
@@ -34,7 +25,7 @@ export async function discoverRetainedStudentCleanupGroups(
   teacherId = teacherId.toLowerCase()
   classroomId = classroomId.toLowerCase()
   studentId = studentId?.toLowerCase() ?? null
-  const client = getServiceRoleClient() as unknown as DiscoveryClient
+  const client = getServiceRoleClient()
   const targets: z.infer<typeof discoveryTargetSchema>[] = []
   const generations = new Set<string>()
   const operations = new Set<string>()

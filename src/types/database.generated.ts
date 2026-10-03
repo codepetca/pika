@@ -11326,6 +11326,17 @@ export type Database = {
         }
         Returns: Json
       }
+      discover_retained_student_cleanup_groups: {
+        Args: {
+          p_after_student_id?: string
+          p_classroom_id: string
+          p_include_unreserved?: boolean
+          p_snapshot_sha256?: string
+          p_student_id?: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       enqueue_assignment_artifact_storage_cleanup_path: {
         Args: { p_delay_seconds?: number; p_storage_path: string }
         Returns: boolean

@@ -6,6 +6,17 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires retained consumer two-session locks and installed-SDK ACL with exact forced baseline receipts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify retained cleanup two-session locks and installed SDK ACL')[1]?.split('      - name:')[0]
+    expect(step).toContain('pnpm exec tsx scripts/check-retained-roster-group-locks-database.ts\n')
+    expect(step).toContain('pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts\n')
+    expect(step).toContain('pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts --force-failure')
+    expect(step).toContain('[[ "$group_sdk_status" -eq 1 ]]')
+    expect(step).toContain("grep -Fxq 'FAIL forced retained cleanup SDK proof.'")
+    expect(step).toContain("grep -Fxq 'PASS retained cleanup SDK unchanged local baseline.'")
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+  })
   it('requires serial shared Assignment real-route proof and exact forced cleanup receipts', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const name = '      - name: Rehearse shared Assignment writes and exact failed-fixture cleanup'

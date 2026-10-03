@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Announcement owner slice merged
-
-Final cumulative Sol5.6/high review clean c30273a2; docs-only production-history
-prefix correction b4eb9801 received clean targeted Luna5.6/medium review. Four
-targeted tests/245focused+all gates pass; no runtime/SQL/types/test weakening.
-Exact-head ready CI37114898975 passed all five gates including installed owner
-contracts/concurrency, canonical generated types, full tests/build and browsers.
-Verified no blocking reviews/threads or head/base drift; normal authorized squash
-merged1438 at10:25:03UTC as875316af9777cece4480e63532f2d27e53a60afb. Canonical
-main fast-forwarded cleanly; worktrees/history preserved. Original ledger retained
-5launches/3batches/2targeted/1final wave with explicit30-minute elapsed extension.
-No migration retry/production/provider/cohort/home activation. Local001–232 and
-production lastverified001–225 unchanged. Member read receipts next; goal incomplete.
-Post-merge continuity notes are uncommitted here, not part of the reviewed SHA.
-
 ## 2026-10-03 — Member announcement receipts prepared
 
 New managed codex/contextual-announcement-member-receipts worktree starts875316af;
@@ -962,3 +947,28 @@ Root updates existingremovalproof acceptance for239 without openingduplicatewrit
 No SQL/provider/Storage execution, generatedtypes, production, account/plan/billing,
 cohort/UI/fullcutover activation or worktree/stash cleanup. Independent source-only
 assignmentlist reader proceeds in separate ownedWT; root owns integration/numbering.
+
+## 2026-10-03 — Retained group actual-main integration and local239
+
+1451 reviewed9af passed all5CI37156761577 (queue0/run1875s), actually squash-merged
+22:30:00UTC as3b62de062; reviewed/squash tree853261be identical, canonicalmain cleanFF.
+Retained consumers initial Sol5.6/high security CLEAN and6.1/high compatibility
+found one proof-only trigger-order expectation. Corrected existing exact deny and
+independently ordered NEWguard withinrollback with everyguardenabled;9checks/target
+CLEAN9bb518d9. Rebased onactual3b62; allnonunion reviewed feature blobs unchanged,
+3216 incoming mode/blobpaths exact;2111base+2114incoming+2112source=2115wholehistory
+bodies/multiplicities preserved. Two proven surplus recent copies removed once,
+canonical archive originals retained. Startupbudget16001 failedby1; CURRENT wording
+compressed, no gate weakening. Fresh190checks/19files+allstaticPASS.
+Verified canonicalPikaAPI127.0.0.1:54321/DBloopback54322/containerpika; exactlocal001238
+and dryrunONLY239. Applied239once viaCLI, exactposthistory001239. Immutable001238
+and239hash7f60164a retained. SQLnormal exit0/exactteardownPASS and intendedforced
+exit1 with ownmarker+exactteardownPASS;101groups/finalizationfaults/OLDNEW fences/
+first-job callbackcounter/whole-row rollback covered. No HTTP or Storage-byte claim.
+Genuinegeneration/check addsONLYdiscoveryRPC; curatednullableinputs retaingenerated
+keys; provisionalSDKcast removed. New read-only installedSDK/2-session source and
+CI/offlinecontrols prepared, notexecuted until targetedsource review. Original
+22:05:32→23:05:32 ledger/counters retained, explicitextensions authorized. Local
+239doesnotactivate groupedwriter (164/236stillclosed) orproduction/cohort/UI. Batch2
+list-source proof usesisolatedfuturetestproject toavoid168 ledgerguard weakening;
+neither SDKfixture provisioning norfinalcutover completed. No worktree/stashcleanup.

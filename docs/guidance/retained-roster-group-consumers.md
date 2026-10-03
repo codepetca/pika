@@ -1,6 +1,8 @@
 # Retained-roster group consumers — compatibility slice
 
-Status: source prepared, not applied or rolled out. Risk: runtime-platform
+Status:239 applied locally; actual SQL normal/forced teardown and genuine generated
+types pass. SDK/locking source review and execution, PR/CI/merge remain; not rolled
+out. Risk: runtime-platform
 (authorization, tenant privacy, destructive-finalization exactness, concurrency).
 Model recommendation: GPT-6.1 Sol/high for bounded implementation; GPT-5.6
 Sol/high for security and GPT-6.1 Sol/high for compatibility review (Terra unavailable).
@@ -54,7 +56,23 @@ one local callback attempt, not HTTP delivery. All provider settings changes rol
 back. No Storage bytes or real provider operation are exercised.
 
 The wrapper's `--force-failure` fails only after actual SQL rollback/teardown;
-it is not a crash-after-commit proof. Actual PostgreSQL execution, genuine generated
-types, real SDK/ACL checks, observed two-session concurrency and exact-head CI remain
-separate evidence gates. This slice alone completes neither grouped removal nor
-batch3, cutover or production rollout.
+it is not a crash-after-commit proof. Actual PostgreSQL normal and forced execution
+and genuine generated types/check passed against local001–239. The caller uses
+generated RPC keys with only nullable SQL-input refinements in the curated contract.
+
+The read-only two-session proof holds the installed membership locks and requires
+exact classroom/subject busy errors from the new consumers, followed by current-
+owner denial after rollback. It does not claim a positive finalization race.
+The installed-SDK probe checks nullable arguments and owner/anonymous ACL while
+hashing every local public/private/storage table and168/settings/index metadata
+before and after. With an existing clean classroom it verifies an empty-owner
+result; on a fresh empty CI database it verifies owner denial instead. It creates
+no fixtures and does not claim101-group SDK pagination. Actual101-group and final-
+deletion faults are covered by the separate SQL proof; client page decoding by
+offline transport tests. SDK forced failure also requires an exact unchanged-
+baseline receipt. These new proofs need fixed-source review before execution.
+
+Real SDK/ACL, observed two-session execution and exact-head CI remain separate
+gates. This slice alone completes neither grouped removal nor batch3, cutover or
+production rollout. Production remains lastverified001–225; no deployment or
+provider/account/plan/AI/billing/cohort activation is included.
