@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Reconcile copy1431 after green CI and attendance1430
-
-Both independent full reviews clean at4516bc85; all five CI gates pass on
-37046563313. Final merge gate caught1430 advancing main to8dc05d47 and one
-JOURNAL-ARCHIVE conflict. Returned1431 to draft; no bypass or stale-head merge.
-Owner approved20more review minutes18:55:24–19:15:24Z; counters retained.
-Rebased onto1430 preserving both histories. All16 non-log owned files match
-the reviewed candidate before receipt updates; installed229 digest9b4c9b8b
-unchanged/immutable, local001–229 unchanged. Batch4 records reconciliation;
-no further default fix batch. One final changed-base integration review and
-fresh exact-head CI remain. Production, accounts, billing and admission held.
-
 ## 2026-10-02 — Approved copy1431 continuity cleanup
 
 Final integration review confirmed source/SQL preservation and found two surplus
@@ -511,3 +499,30 @@ ReturnedPR to draft. Reproduced1red/3green locally, restored `Prod DB 001–225`
 without changing rollout state or weakening the test. Batch4 is documentation-only;
 all runtime/schema/types/workflow/proof source remains unchanged. Last bounded
 targeted review and corrected-head CI required; original clock/limits retained.
+
+Independent linked Blueprint material read prepared in a separate worktree seeded
+at reviewed1441 head74995349. Shared-only GET binds current classroom/link/Blueprint
+owners and latest saved version in one actual SDK statement; unmatched legacy is
+unchanged. Both role owners, archived/no-link, frozen/Draft exclusion,1,001-version
+ordering/limit, owner/link transitions, malformed evidence,500/501 and purge-shaped
+detach pass locally. Corrected proof facade targets the actual GET wire array before
+maybeSingle unwrapping. Normal exit0 and forced exit1 prove zero residual fixtures
+and baseline equality.402focused tests21files and all policy/type/lint gates pass.
+No new schema/types/UI/activation. After explicit review-extension authorization,
+stacked draft1442 gets independent scope-only review; ready/merge still waits1441
+merge/reconciliation. Blueprint UI's separate guidance is batch3 work; this does
+not complete batch1. Production unchanged.
+
+## 2026-10-03 — Verified material-write merge and read dependency reconciliation
+
+PR1441 normal squash merge d913eebd71e94e6dee4fd0be2d24b7371b5ccb15 verified
+at14:18:23Z after all five exact-reviewed-head74995349 CI37127414505 gates pass
+(observed0queue/1774runseconds). No admin/auto-merge/bypass. Canonical main cleanly
+fast-forwarded. Original review clock and7launch/4batch counters retained under
+the user's explicit review-extension authority; no repeated approval requested.
+Installed234 digest unchanged/immutable; local001–234, production001–225 untouched.
+This child rebased onto actual squash skipping stacked749; full pre-receipt tree
+matches its previous candidate exactly. Only continuity/merge receipts change.
+Main retarget, changed-base review where needed, and final exact-head CI still
+precede child merge. Parent worktree retained while dependents remain. Shared
+admission/cutover OFF; no provider/account/plan/billing activation.

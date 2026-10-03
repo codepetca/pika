@@ -686,6 +686,23 @@ Production application and activation remain separately controlled.
 Linked Blueprint reads, other classwork boundaries and roster operations remain
 separate work; this does not satisfy batch1's whole-experience exit criteria.
 
+Superseding merge receipt: PR1441 normal squash merge d913eebd at14:18:23Z on
+2026-10-03 followed all five successful exact-head74995349 CI37127414505 gates
+(0queue/1774runseconds). Canonical main fast-forwarded cleanly. Reviewed234 remains
+immutable and local001–234 matched; production001–225/admission OFF unchanged.
+Queued reads reconcile onto that actual merge; their own reviews/final CI still
+govern acceptance. User expressly authorizes review extensions without repeated
+prompts, with original counters and absolute skill caps/security gates retained.
+
+Independent adjacent preparation: [linked Blueprint material reads](contextual-linked-blueprint-material-reads.md)
+bind the current classroom/link/Blueprint owner and latest saved version in one
+payload statement. Both global-role owners are allowed; members are denied. The
+actual SDK proof passes1,001-version ordering/limit, current source/owner changes,
+500/501 bounds and normal/forced zero-residual cleanup. No new schema or UI change;
+a stacked draft review may run while1441CI completes; ready/merge waits verified
+parent merge and reconciliation. The batch3 Blueprint tab still needs its separate
+authoring-guidance boundary. This does not complete batch1 or activate shared admission.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
