@@ -33,6 +33,7 @@ const grantValues = grants.map(({ subject, operation }) => `(${q(operation)}::uu
 const sessions: Session[] = []
 const forcedMessage = 'Forced preserving-removal post-fixture cleanup proof'
 const forcedBeforeCaptureMessage = 'Forced preserving-removal post-commit pre-capture cleanup proof'
+const forcedCleanupRollbackMessage = 'Forced preserving-removal suppressed-cleanup rollback proof'
 let capturedFixtureGenerations: Record<string, unknown> = {}
 
 function command(binary: string, args: string[], input?: string): string {
@@ -50,8 +51,8 @@ function sql(statement: string) {
 }
 // Read real installed rows, hashing within PostgreSQL. No table contents are logged.
 // The exclude set describes only the operation's authorized membership changes.
-function fingerprint(mutable = true): unknown {
-  return JSON.parse(sql(`create function pg_temp.removal_fingerprint() returns jsonb language plpgsql as $f$
+function fingerprintFunctionSql(mutable = true): string {
+  return `create or replace function pg_temp.removal_fingerprint() returns jsonb language plpgsql as $f$
     declare t record; result jsonb:='{}'; value jsonb;
     begin
       for t in select n.nspname,c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
@@ -66,7 +67,10 @@ function fingerprint(mutable = true): unknown {
         result:=result||jsonb_build_object(t.nspname||'.'||t.relname,value);
       end loop;
       return result;
-    end;$f$;select pg_temp.removal_fingerprint();`))
+    end;$f$;`
+}
+function fingerprint(mutable = true): unknown {
+  return JSON.parse(sql(`${fingerprintFunctionSql(mutable)} select pg_temp.removal_fingerprint();`))
 }
 function row(table: 'classroom_roster' | 'classroom_enrollments', id: string): Record<string, unknown> {
   return z.record(z.unknown()).parse(JSON.parse(sql(`select to_jsonb(r) from public.${table} r where id=${q(id)};`)))
@@ -213,6 +217,7 @@ async function main() {
       from private.pal_membership_generations g where generation_id in (${ids(generations.map(([id]) => id))});`)))
     assert.equal(Object.keys(capturedFixtureGenerations).length, generations.length)
     if (process.argv.includes('--verify-cleanup-after-fixture')) throw new Error(forcedMessage)
+    if (process.argv.includes('--verify-cleanup-suppressed-delete-rollback')) throw new Error(forcedCleanupRollbackMessage)
     for (const actor of [teacher, bound, unbound, mate]) await denied([boundRoster], 403, actor)
     await denied([boundRoster], 403, owner, randomUUID())
     await denied([otherRoster], 409)
@@ -340,9 +345,34 @@ async function main() {
       const reference = parsed.success ? q(parsed.data.pal_reference) : 'null::text'
       return `(${q(id)}::uuid,${q(klass)}::uuid,${q(person)}::uuid,${reference})`
     }).join(',')
+    const residualCountSql = `select (select count(*) from public.users where id in (${ids(personIds)}))+
+      (select count(*) from public.classrooms where id in (${ids(classIds)}))+
+      (select count(*) from public.classroom_roster where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.classroom_roster_student_bindings where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.classroom_enrollments where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.attendance_participant_mappings where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.classroom_archive_revisions where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.student_purge_fences where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.student_purge_operations where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.pal_event_outbox where student_id in (${ids(personIds)}))+
+      (select count(*) from private.removed_student_cleanup_jobs where classroom_id in (${ids(classIds)}))+
+      (select count(*) from private.pal_membership_generations where generation_id in (${ids(generations.map(([id]) => id))}))+
+      (select count(*) from public.account_plans where subject_user_id in (${ids(personIds)}))+
+      (select count(*) from public.account_plan_audit where subject_user_id in (${ids(personIds)}))+
+      (select count(*) from public.effective_feature_entitlements where subject_user_id in (${ids(personIds)}))+
+      (select count(*) from public.effective_feature_entitlement_audit where subject_user_id in (${ids(personIds)}))+
+      (select count(*) from public.entries where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.gradebook_items where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.gradebook_item_scores where classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.assignments where id=${q(assignment)} or classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.assignment_docs where id=${q(document)} or assignment_id=${q(assignment)})+
+      (select count(*) from public.assignment_doc_history where assignment_doc_id=${q(document)})+
+      (select count(*) from public.tests where id=${q(test)} or classroom_id in (${ids(classIds)}))+
+      (select count(*) from public.test_attempts where id=${q(attempt)} or test_id=${q(test)})+
+      (select count(*) from public.test_attempt_history where test_attempt_id=${q(attempt)})`
     // Validate every remaining synthetic user/class before ANY destructive cleanup.
     // Audit rows are non-cascading; capture exact provisioning operation IDs.
-    sql(`begin;
+    const cleanupBody = `
       -- Snapshot uncaptured references BEFORE other deletes, under the same
       -- exclusive NOWAIT lock used for the narrowly scoped168 guard bypass.
       -- All candidate UUIDs were proven absent before fixture setup.
@@ -421,23 +451,71 @@ async function main() {
           from private.pal_membership_generations g) is distinct from ${q(JSON.stringify(initialGenerationBaseline))}::jsonb then
           raise exception 'Untouched generation baseline changed during cleanup'; end if;
       end;$generation_enabled$;
-      commit;`)
+      ${fingerprintFunctionSql()}
+      do $cleanup_complete$ begin
+        if (${residualCountSql})<>0 then
+          if current_setting('pika.removal_cleanup_probe',true)='suppressed_delete' then
+            if (select count(*) from removal_cleanup_probe_hits)<>1
+              or not exists(select 1 from removal_cleanup_probe_hits where user_id=${q(bound)}::uuid) then
+              raise exception using errcode='ZX238',message='Expected exact synthetic cleanup suppression was not observed'; end if;
+          end if;
+          raise exception using errcode='ZX236',message='Synthetic cleanup residual state'; end if;
+        if pg_temp.removal_fingerprint() is distinct from ${q(JSON.stringify(initialBaseline))}::jsonb then
+          raise exception using errcode='ZX237',message='Synthetic cleanup global baseline differs'; end if;
+      end;$cleanup_complete$;`
+    if (process.argv.includes('--verify-cleanup-suppressed-delete-rollback')) {
+      // A deliberate rollback-only probe is separate from the one actual
+      // cleanup attempt. Its trigger targets precisely one synthetic identity.
+      // Catch ONLY the dedicated precommit residual invariant, never arbitrary
+      // SQL, transport, ownership or fixture errors.
+      const probe = sql(`begin;
+        ${fingerprintFunctionSql()}
+        create temp table removal_cleanup_probe_before on commit drop as select pg_temp.removal_fingerprint() fingerprint;
+        create temp table removal_cleanup_probe_hits(user_id uuid primary key) on commit drop;
+        do $probe_mode$ begin perform set_config('pika.removal_cleanup_probe','suppressed_delete',true); end;$probe_mode$;
+        create function pg_temp.removal_cleanup_suppression() returns trigger language plpgsql as $probe_trigger$
+        begin
+          if old.id=${q(bound)}::uuid and old.email in (${ids([email('bound'), email('bound_changed')])}) then
+            insert into removal_cleanup_probe_hits(user_id) values(old.id);
+            return null;
+          end if;
+          return old;
+        end;$probe_trigger$;
+        create trigger zz_roster_removal_cleanup_suppression before delete on public.users
+          for each row execute function pg_temp.removal_cleanup_suppression();
+        do $probe$ begin
+          begin
+            execute ${q(cleanupBody)};
+            raise exception using errcode='ZX999',message='Suppressed cleanup unexpectedly accepted';
+          exception when sqlstate 'ZX236' then
+            if sqlerrm is distinct from 'Synthetic cleanup residual state' then
+              raise exception 'Cleanup refusal marker differs'; end if;
+          end;
+          if pg_temp.removal_fingerprint() is distinct from (select fingerprint from removal_cleanup_probe_before) then
+            raise exception 'Suppressed cleanup did not roll back every persisted mutation'; end if;
+          if exists(select 1 from removal_cleanup_probe_hits) then raise exception 'Cleanup suppression evidence did not roll back'; end if;
+          if (select tgenabled from pg_trigger where tgrelid='private.pal_membership_generations'::regclass
+            and tgname='guard_pal_membership_evidence' and not tgisinternal) is distinct from 'O' then
+            raise exception 'Suppressed cleanup did not restore generation guard'; end if;
+        end;$probe$;
+        rollback;
+        do $probe_teardown$ begin
+          if exists(select 1 from pg_trigger where tgrelid='public.users'::regclass and tgname='zz_roster_removal_cleanup_suppression')
+            or exists(select 1 from pg_proc where pronamespace=pg_my_temp_schema() and proname in
+              ('removal_cleanup_suppression','removal_fingerprint'))
+            or to_regclass('pg_temp.removal_cleanup_probe_hits') is not null
+            or to_regclass('pg_temp.removal_cleanup_probe_before') is not null then
+            raise exception 'Rollback-only cleanup probe left temporary state'; end if;
+        end;$probe_teardown$;
+        select 'PASS synthetic roster removal suppressed cleanup delete rolled back all cleanup mutations, guard restored';`)
+      assert.equal(probe, 'PASS synthetic roster removal suppressed cleanup delete rolled back all cleanup mutations, guard restored')
+      process.stdout.write(`${probe}\n`)
+    }
+    // No retry path for an unexpected failure of this actual cleanup.
+    sql(`begin; ${cleanupBody} commit;`)
     assert.equal(sql(`select tgenabled from pg_trigger where tgrelid='private.pal_membership_generations'::regclass
       and tgname='guard_pal_membership_evidence' and not tgisinternal;`), 'O')
-    assert.equal(sql(`select (select count(*) from public.users where id in (${ids(personIds)}))+
-      (select count(*) from public.classrooms where id in (${ids(classIds)}))+
-      (select count(*) from public.classroom_roster where classroom_id in (${ids(classIds)}))+
-      (select count(*) from public.classroom_roster_student_bindings where classroom_id in (${ids(classIds)}))+
-      (select count(*) from public.classroom_enrollments where classroom_id in (${ids(classIds)}))+
-      (select count(*) from public.attendance_participant_mappings where classroom_id in (${ids(classIds)}))+
-      (select count(*) from public.classroom_archive_revisions where classroom_id in (${ids(classIds)}))+
-      (select count(*) from public.student_purge_fences where classroom_id in (${ids(classIds)}))+
-      (select count(*) from public.student_purge_operations where classroom_id in (${ids(classIds)}))+
-      (select count(*) from public.pal_event_outbox where student_id in (${ids(personIds)}))+
-      (select count(*) from private.removed_student_cleanup_jobs where classroom_id in (${ids(classIds)}))+
-      (select count(*) from private.pal_membership_generations where generation_id in (${ids(generations.map(([id]) => id))}))+
-      (select count(*) from public.account_plan_audit where subject_user_id in (${ids(personIds)}))+
-      (select count(*) from public.effective_feature_entitlement_audit where subject_user_id in (${ids(personIds)}));`), '0')
+    assert.equal(sql(`${residualCountSql};`), '0')
     assert.deepEqual(fingerprint(), initialBaseline)
     process.stdout.write('PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts\n')
   }
@@ -447,6 +525,8 @@ main().catch((error: unknown) => {
     ? 'FAIL Forced roster removal post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)\n'
     : error instanceof Error && error.message === forcedBeforeCaptureMessage
       ? 'FAIL Forced roster removal post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)\n'
+    : error instanceof Error && error.message === forcedCleanupRollbackMessage
+      ? 'FAIL Forced roster removal suppressed-cleanup rollback proof (expected for --verify-cleanup-suppressed-delete-rollback)\n'
     : 'FAIL local preserving-removal SDK proof (captured command/status data withheld)\n')
   process.exitCode = 1
 })

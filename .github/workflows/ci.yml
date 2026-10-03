@@ -371,6 +371,13 @@ jobs:
           [[ "$cleanup_status" -eq 1 ]]
           grep -F 'FAIL Forced roster removal post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)' "$cleanup_log"
           grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts' "$cleanup_log"
+          cleanup_status=0
+          pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts --verify-cleanup-suppressed-delete-rollback > "$cleanup_log" 2>&1 || cleanup_status=$?
+          cat "$cleanup_log"
+          [[ "$cleanup_status" -eq 1 ]]
+          grep -F 'FAIL Forced roster removal suppressed-cleanup rollback proof (expected for --verify-cleanup-suppressed-delete-rollback)' "$cleanup_log"
+          grep -F 'PASS synthetic roster removal suppressed cleanup delete rolled back all cleanup mutations, guard restored' "$cleanup_log"
+          grep -F 'PASS exact synthetic roster removal cleanup, zero residual rows and global baseline counts' "$cleanup_log"
 
       - name: Verify contextual announcement owner contracts and concurrency
         shell: bash
