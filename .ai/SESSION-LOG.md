@@ -11,6 +11,76 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-01 — Contextual teacher Daily reads merged; roster logs next
+
+PR1420 merged main at3cf01b06 after four bounded independent review launches and one correction batch: joined learner identity/projection and rejected history errors. Final44targeted/135focused tests, static checks and real PostgREST contract passed; exact-head CI36936773832 passed all gates atreviewed5d795bb0. CI took1547run seconds plus3queue seconds. No production, schema, cohort or account change. Hub fast-forwarded and only this slice's finished implementation/four review worktrees cleaned; Git history preserves their contents.
+
+Next worktree codex/contextual-teacher-daily-logs starts from3cf01b06. A bounded read-only proposal plus coordinator schema/SDK checks and a zero-result local PostgREST syntax probe selected enrollment-rooted nested profiles/selected entries/previews; no migration or N+1 fallback. One worker owns helper/route/input and TDD tests; coordinator owns real1001learner/seven-entry fixture contract, CI wiring and docs. Actual per-learner limits, projection, keyset pagination, current membership/owner races and cleanup remain acceptance gates; syntax alone proves none of them. Shared admission remains off; cached summary is next. Risk runtime-platform; high-risk independent review models GPT-5.6 Sol/high security and GPT-6 Sol/high compatibility fallback (Terra unavailable).
+
+Worker completed23focused tests plus TypeScript, architecture and ESLint. Real PostgREST passes every1001learner/pagination/projection/profile/date/archive/denial/removal/transfer contract with exactcleanup. First harness attempt tried to resurrect a closed membership generation; its cleanup passed, fixture rejoin now uses a new enrollment UUID as required by the existing Pal lifecycle, and the rerun is green. No product change or weakened trigger was needed. Canonical focused verification, independent review and exact-head CI remain pending.
+
+## 2026-10-01 Teacher Daily logs review corrections
+
+PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
+correction validates malformed query envelopes and catches builder failures as
+generic 503 (five TDD regressions); both teacher Daily local harnesses now retain
+exact entitlement operation IDs and assert live-state/audit cleanup. Removed only
+six identified synthetic logs-harness audit rows from local, retaining a private
+recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
+119 focused tests and static checks pass. Targeted/final review pending. No
+production, migration, cohort, plan or UI change; summary read remains next.
+
+## 2026-10-01 — Dormant teacher cached Daily summary implementation
+
+While independently reviewed roster-logs PR1421 runs CI, a separate worktree
+codex/contextual-teacher-daily-summary starts from merged1420 actor admission.
+Worker owns only summary route/helper/schema and unit/API tests; coordinator owns
+local fixtures/CI/docs/Git. Every stats/count/cache statement binds current owner,
+classroom and date; existing ready/pending/no_entries/unavailable semantics and
+name restoration remain. Owner caught result-envelope validation gaps before
+initial review; ten TDD regressions now fail closed. 62 targeted/153 focused tests
+and all static checks pass; real local PostgREST verifies both owner role values,
+cache states/isolation, archived owner and transfers before all three reads, with
+exact fixture/audit cleanup. Independent review and final main reconciliation
+pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
+No AI, billing, migration, UI, cohort activation or production change.
+
+## 2026-10-01 — Roster logs merged; cached summary review corrections
+
+PR1421 merged main e87d322a after four independent reviews, one correction batch,
+119 focused tests/static checks, real1001-learner database checks and every exact
+head CI36940960454 gate at5adf5905. Hub is synchronized; no production activation.
+PR1422 initial reviews at6f255b32 accepted microsecond freshness loss and unresolved
+name-map warning suppression. One batch preserves full timestamp precision and
+requires nonblank own map references before restoration (14 new tests,11 red).
+76 targeted/167 focused tests and real PostgreSQL microsecond/map/race/cleanup
+cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
+application source has no rebase conflicts and no migration was renumbered.
+Targeted security and final integration review remain pending. No AI, schema,
+cohort, UI, billing or production change; lesson-plan list reads follow.
+
+## 2026-10-01 — Daily outer-scroll investigation
+
+- User clarified the defect: Daily's whole page scrolls vertically into blank space below the table, in wide and narrow windows; only the table should scroll.
+- Read-only local investigation in app-managed worktree `daily-scroll-containment`; startup verification passed. With 80 mocked roster rows and the full classroom shell, Chromium1440×900 keeps document900px and table578px;1000/390px widths grow document3326px and table3004px because AppShell confinement is desktop-only. Exact wide-window blank-space symptom remains unreproduced; awaiting clarification about table-end versus outside-table scrolling. Product source unchanged.
+- Debug screenshots `/tmp/pika-daily-summary-{1440,1000,390}.png`; reference historical PR775/test-pane overflow and PR578/student-scroll persistence. Automatic DeepSeek delegation paused through2026-12-31 per shared pilot record.
+
+## 2026-10-01 — Daily blank-space cause confirmed in Chrome
+
+- Inspected user's existing production Daily tab read-only. At1152×608, body/AppShell608px but document953px and page scrollY300px, with the table independently scrolled551px. Hidden `No QR check-in` spans in Check-in cells extend to document953px because every ancestor through the scroller is statically positioned.
+- User has reduced motion enabled: Daily entry animation/transform is disabled. The animation otherwise incidentally creates a containing block, explaining why local default-motion screenshots missed the desktop defect. Containment should be explicit for screen-reader labels in both Daily table modes; retain their accessible text. Narrow shell-height issue from earlier investigation is separate.
+- Product source unchanged. Next implementation: regression with reduced-motion and missing check-ins, explicit local positioned containment, compare default/selected Daily states and wide/narrow viewports.
+
+## 2026-10-01 — Daily scroll containment fix
+
+- Made both teacher Daily roster scrollers positioned containers so hidden check-in labels remain inside the table without depending on animation transforms. Added an AppShell narrow-viewport opt-in used only by teacher Daily; reused the Daily/TeacherWorkspaceSplit composition and `/pattern-lab` Daily reference. No new visual pattern or data behavior.
+- Browser regression failed before the fix (reduced-motion document1455px for a900px viewport). Final Playwright matrix passes20: teacher fixture/full classroom, selected/unselected, normal/reduced motion,1440×900/390×844, light/dark; student Daily regression/screenshots pass all4 projects. Exact user-size1152×608 reduced-motion smoke keeps document608px and context bar56px before/after table-end wheel scrolling. Screenshots inspected in `test-results/` and `/tmp/pika-daily-exact-classroom.png`.
+- Focused gate passes223 tests plus architecture, UI/design policy, TypeScript and lint; audit/diff checks pass. An earlier concurrent run timed out two unrelated startup-doc harness tests; serial rerun passes. Risk profile:none. Independent review and final PR CI pending; use one GPT-5.6 Sol/high behavior reviewer because Terra is unavailable. DeepSeek pilot remains paused.
+
+## 2026-10-01 — Contain long student tables across classroom workspaces
+
+Extended the Daily scroll fix to Roster and assignment/test grading, including Tests before student selection. Teacher table workspaces now keep the narrow shell within the viewport; Gradebook retains its existing mobile selector flow. Explicit containing blocks keep hidden row labels inside table scrollers, and vertical gesture containment prevents viewport bounce at the last row. The shared gapped split gives stacked table/inspector panes available height so an open Assignment inspector cannot squeeze the table to one row. Existing Pattern Lab Roster, Gradebook and Workspaces owners are reused; no new UI pattern. Added a strictly development-only full ClassroomPageClient fixture with synthetic identities and mocked read-only data. Production API authorization is unchanged. All 60 teacher/student light/dark desktop/mobile and normal/reduced-motion browser cases pass; 18 additional reduced-motion checks pass at 1152x608, 1000x608 and 390x608. Checks cover last-row reachability, selected states, sticky headers where present, usable table height and inspector bottom controls. Screenshots visually reviewed under ignored artifacts/scroll-audit. Focused checks pass 581 tests in 37 files, architecture, UI/design policy, TypeScript and lint. Legacy teacher dashboard was inspected in source: its normal page flow contains actual content, without the hidden-label empty-tail mechanism. Local authenticated backend verification was unavailable because shared local Pika PostgreSQL was unhealthy; no database changes were made. PR1419 remains draft for expanded independent review. Risk: standard UI behavior; model recommendation: GPT-6 Sol.
+
 ## 2026-10-01 — Selected Workspaces reference containment
 
 An extra selected-state Pattern Lab capture after the clean expanded review exposed an unbounded gallery canvas and missing flex display on its active Students panel. Reused the existing h-96 preview size as a bounded canvas for Students, leaving inactive panels hidden and summary/overview sizing unchanged. The shared production split remains unchanged. Browser coverage verifies both panes retain usable height, the last student and inspector content are reachable, and the hidden panel stays hidden. All four desktop/mobile light/dark reference cases pass and screenshots are inspected. Focused checks still pass 581 tests in 37 files plus policy, architecture, TypeScript and lint. PR1419 returned to draft and its previous ready CI was cancelled before this first remediation batch; targeted and final integration review remain pending.
@@ -524,3 +594,32 @@ and generated types remain byte-identical to reviewed4209da62. Types last matche
 One mechanical fixture reviewer (launch7) follows focused checks/frozen commit;
 no fresh full-diff wave. PR1435 is draft until review/exact-head CI, then authorized
 main merge. Billing OFF; no migration reapplication, reset or provider call.
+## 2026-10-03 — Announcement reads merged; owner-write preparation
+
+PR1436 merged66fa5de3 after clean initial, targeted and final integration reviews,
+191 focused checks and all exact-head CI37083358161 gates; hub fast-forwarded clean.
+Owner authorizes routine implementation/review/normal main merges through integrated
+cutover, retaining failed-gate, exact migration and bounded-review checkpoints.
+New worktree codex/contextual-announcement-owner-writes starts66fa5de3; startup passes.
+Astra/high designed transaction/legacy concurrency semantics; Sol6.1/high implements
+only schemas/helper/owner routes/tests while coordinator owns SQL/harnesses/CI/docs.
+Prepared service-only current-owner create/edit/delete under shared admission; legacy
+GETs and mutations unchanged.209 announcement tests, TypeScript and lint pass.
+Rollback-only definition rehearsal proves owner/publication/transfer/privileges,
+UTF16 title limits, hot/decommission fences and receipt cascade with zero residue and
+no installed schema/history change. Actual local SDK proves legacy empty PATCH406,
+unchanged time/revision and exact cleanup even after forced failure; shared path
+intentionally corrects this to successful no-op. New concurrency/SDK harness prepared
+but unrun until authorized schema installation.232 provisional; billing retains
+installed immutable230 and reviewed forward231, PR1435 draft pending local apply.
+No generated-type edits, new cohort, production promotion or activation. Independent
+source review, canonical numbering/types, actual concurrency, CI and merge remain.
+Risk runtime-platform; high auth/schema review uses Sol5.6/high and Sol6.1/high
+compatibility fallback (Terra unavailable). Current roadmap remains five batches;
+this does not close batch1 or authorize partial classroom/home cutover.
+Final preparation passes245focused checks plus architecture/UI/design policy,
+TypeScript/lint and rollback rehearsal. Billing231 source4209da62 has one clean
+targeted financial review; actual schema/concurrency and main dependency still wait.
+Requested exact local231/232 approval asynchronously. Formal owner-write review
+budget is not started while that checkpoint remains unresolved; draft source may
+be published for continuity, never marked ready or merged before complete evidence.

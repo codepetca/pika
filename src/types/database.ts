@@ -279,6 +279,19 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // Provisional service-only contracts; reconcile generated metadata after authorized schema replay.
+  create_announcement_for_owner_v1: {
+    Args: { p_actor_id: string; p_classroom_id: string; p_content: string; p_is_draft: boolean; p_scheduled_for: string | null; p_title: string | null }
+    Returns: Json
+  }
+  update_announcement_for_owner_v1: {
+    Args: { p_actor_id: string; p_classroom_id: string; p_announcement_id: string; p_patch: Json }
+    Returns: Json
+  }
+  delete_announcement_for_owner_v1: {
+    Args: { p_actor_id: string; p_classroom_id: string; p_announcement_id: string }
+    Returns: Json
+  }
   set_gradebook_maximum_override: FunctionContract<
     'set_gradebook_maximum_override',
     Json,

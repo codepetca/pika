@@ -3,6 +3,9 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { parseAnnouncementTitleInput } from '@/lib/announcements'
+import { authorizeSharedAnnouncementReadActor } from '@/lib/server/contextual-announcement-read'
+import { updateContextualAnnouncement, deleteContextualAnnouncement } from '@/lib/server/contextual-announcement-mutation'
+import { parseAnnouncementMutationParams, parseAnnouncementUpdateBody } from '@/lib/validations/announcement-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -43,6 +46,12 @@ async function verifyAnnouncementOwnership(
 
 // PATCH /api/teacher/classrooms/[id]/announcements/[announcementId] - Update announcement
 export const PATCH = withErrorHandler('PatchAnnouncement', async (request, context) => {
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId, announcementId } = parseAnnouncementMutationParams(await context.params)
+    const body = parseAnnouncementUpdateBody(await request.json())
+    return NextResponse.json(await updateContextualAnnouncement({ actorId: sharedAccess.user.id, classroomId, announcementId, body }))
+  }
   const user = await requireRole('teacher')
   const { id: classroomId, announcementId } = await context.params
   const body = await request.json()
@@ -173,6 +182,11 @@ export const PATCH = withErrorHandler('PatchAnnouncement', async (request, conte
 
 // DELETE /api/teacher/classrooms/[id]/announcements/[announcementId] - Delete announcement
 export const DELETE = withErrorHandler('DeleteAnnouncement', async (_request, context) => {
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId, announcementId } = parseAnnouncementMutationParams(await context.params)
+    return NextResponse.json(await deleteContextualAnnouncement({ actorId: sharedAccess.user.id, classroomId, announcementId }))
+  }
   const user = await requireRole('teacher')
   const { id: classroomId, announcementId } = await context.params
 

@@ -627,7 +627,19 @@ after the owner-approved unchanged-head CI retry37076238068 passed all five gate
 on reviewedca403202. Canonical main fast-forwarded cleanly; copy/date/bulk worktrees
 remain preserved. Source229 stays immutable. Production and admission remain held.
 
-The next bounded batch1 slice integrates announcement owner/member GETs with shared
+Announcement owner/member shared GETs merged in PR1436 (`66fa5de3`), with191
+focused checks, real pagination/revocation/zero-residue cleanup proofs and exact-head
+CI37083358161 including PR Gate. No schema, UI or activation changed. The next
+bounded slice is [transaction-safe owner announcement writes](contextual-announcement-owner-writes.md).
+The owner authorized routine implementation, independent review and normal main
+merges through the cutover on2026-10-03; failed gates, review-budget checkpoints,
+exact-target migration permission and integrated activation evidence still apply.
+SQL232 is provisional behind billing-owned installed230 and recovery231; no schema
+application, generated-type reconciliation or live concurrency claim yet. Route
+tests/rollback-definition rehearsal pass; member read receipts follow. Shared
+admission and product cutover stay dormant.
+
+Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
 Sol6.1/high owns helper/schema/GET regression implementation, while this coordinator
