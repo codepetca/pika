@@ -28,6 +28,8 @@ import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contex
 import { createAssignmentForOwner } from '@/lib/server/contextual-assignment-creation'
 import { teacherAssignmentCreateSchema } from '@/lib/validations/assignment-authoring'
 import type { Json } from '@/types/database.generated'
+import { authorizeSharedAssignmentListReadActor, readContextualAssignmentList } from '@/lib/server/contextual-assignment-list-read'
+import { contextualAssignmentListQuerySchema } from '@/lib/validations/contextual-assignment-list-read'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -117,12 +119,22 @@ async function loadAssignmentDocsForListStats(
 
 // GET /api/teacher/assignments?classroom_id=xxx - List assignments for a classroom
 export const GET = withErrorHandler('GetTeacherAssignments', async (request, context) => {
+  const shared = await authorizeSharedAssignmentListReadActor()
   const resolveClassroomId = () => new URL(request.url).searchParams.get('classroom_id')
+  if (shared.mode === 'shared') {
+    const input = contextualAssignmentListQuerySchema.parse({ classroomId: resolveClassroomId() })
+    return NextResponse.json(await readContextualAssignmentList({ supabase: getServiceRoleClient(), actorId: shared.user.id, classroomId: input.classroomId, permission: 'owner' }))
+  }
   const assignmentAccess = await authorizeClassroomAssignmentRequest(resolveClassroomId, {
     legacyRole: 'teacher',
     permission: 'owner',
   })
   const classroomId = resolveClassroomId()
+
+  if (['contextual'].includes(assignmentAccess.mode)) {
+    const input = contextualAssignmentListQuerySchema.parse({ classroomId })
+    return NextResponse.json(await readContextualAssignmentList({ supabase: getServiceRoleClient(), actorId: assignmentAccess.user.id, classroomId: input.classroomId, permission: 'owner' }))
+  }
 
   if (!classroomId) {
     return NextResponse.json(
