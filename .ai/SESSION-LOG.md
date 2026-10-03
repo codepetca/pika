@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Approved copy1431 continuity cleanup
-
-Final integration review confirmed source/SQL preservation and found two surplus
-historical Daily entries from reconciliation. Owner approved exactly one extra
-documentation-only batch5 and one final recheck, plus10review minutes; counters
-retained. Removed only the later duplicates, preserving each original record.
-263focused tests and all local gates passed at a60a2db9. No application/SQL/type/CI
-changes, migration application, production promotion or activation. Frozen final
-recheck and new exact-head CI must pass before normal main merge.
-
-## 2026-10-02 — Approved copy1431 scrollbar-main reconciliation
-
-Owner approved one synchronization batch6, one changed-base final recheck and
-15review minutes19:34:36–19:49:36Z, plus a temporary main-merge hold request to
-the attendance and billing chats during final CI. Both can continue independent
-work; no task pause or production authority was transferred. Rebased onto1432
-bf3754c4; journal conflict only. Removed one surplus exact historical entry,
-preserving its original. Combined history equals6ad8140f+bf3754c4−8dc05d47
-plus this receipt. All16 non-log owned files and installed229 bytes unchanged.
-263focused tests and architecture/UI/design/TypeScript/lint pass. Final frozen
-recheck and fresh exact-head CI remain before normal main merge. No schema
-application, production promotion, account/billing changes or admission activation.
-
 ## 2026-10-02 — Copy1431 merged; announcement shared GET integration
 
 Verified1431 normal squash merge493e752a after all five gates passed on unchanged
@@ -526,3 +503,39 @@ matches its previous candidate exactly. Only continuity/merge receipts change.
 Main retarget, changed-base review where needed, and final exact-head CI still
 precede child merge. Parent worktree retained while dependents remain. Shared
 admission/cutover OFF; no provider/account/plan/billing activation.
+
+## 2026-10-03 — Shared roster management read preparation
+
+Owner explicitly authorized remaining in-scope implementation, reviews, normal
+main merges, local migrations and review extensions without repeated prompts.
+Original review counters remain and absolute hard caps/checks still apply.
+Attached contextual-roster-management-read prepares only the shared owner GET:
+auth before admission/params, current-owner classroom-rooted UUID keyset pages,
+real roster-binding/enrollment-user evidence, strict safe output and unchanged
+legacy/purge mutation contracts. Multiple legitimate roster rows bound to one
+learner remain displayable; availability deduplicates canonical eligible IDs.
+Native source and installed-SDK proof workers own disjoint files; coordinator
+owns actual local execution, CI, docs, independent review and merge evidence.
+No new schema/types/UI, production/provider/account/plan or admission activation.
+Roster write fences and class-day/core reconciliation remain in batch1; linked
+Blueprint material read work is batch3-adjacent, not full-phase completion.
+
+407 focused tests/21files and all static/lint gates pass. Actual local installed
+SDK normal proof passed >1000 learners/bindings/pages, duplicate stable display,
+both global-role owners, archived/removed/member policy, current-owner change
+before first/later/terminal roster and enrollment pages, actual-array corruption
+and exact safe projection. Forced post-fixture proof exited1 with its expected
+error and exact zero-residual/global baseline cleanup sentinel. No SQL application
+or hosted changes; independent review/final stable-head CI still required.
+
+## 2026-10-03 — Verified linked-material merge and roster-read main reconciliation
+
+PR1442 merged3351d85f3c9d47ae6c8a5a0cbdd6ab4b1baef7aa at14:56:00Z after
+allfive exact-reviewed-headcc2681d8 CI37129553521 gates pass (0queue/1757runseconds).
+Normal squash matchhead/no bypass, canonicalcleanFF. This roster child reconciles
+onto that actual main merge; runtime/SDK/test files remain byte-identical todeec268b.
+Both unrelated CI proof steps are preserved; continuity combines receipts once
+and retains original historical records. Targeted reconciliation review precedes
+new exact-head CI. Original1443 review clock14:12:06Z/counters retained, necessary
+time extension authorized without repeat ask. Local235 installed by separate
+roster-owner-write work; this GET slice adds no schema. Prod001–225/sharedadmissionOFF.
