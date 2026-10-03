@@ -34411,3 +34411,86 @@ The owner created the reviewed Pika-only 90-day scoped token and saved GitHub mi
 ## 2026-10-01 — Dormant contextual learner Daily Log reads
 
 Owner approved the next Daily read slice. Learner GET now consumes the existing shared admission for classroom and broad history; legacy requests remain unchanged. A single joined entry/classroom/enrollment statement binds own identity, active membership and non-owner status; validated rows strip relationship metadata. Unit/API tests pass78 including existing writes and legacy reads. Real local PostgREST proves both account-role values, own-entry isolation, owner precedence, outsider denial and removal/archive committing between preflight and SELECT; all synthetic fixtures removed. Added this contract to ephemeral CI. No schema application, UI, signup, account grant, flag activation or production change. Teacher Daily reads remain next. Risk: runtime-platform. Independent review and stable-head CI remain pending; model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility (Terra unavailable).
+
+<!-- pika-session-log-archive-batch:f2eae0d3cca2be682a90e79f791025a2b999237c1103ebbf5bb07284ae78793b -->
+## 2026-09-30 — Test references stay inside the assessment
+
+Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.
+
+<!-- pika-session-log-archive-batch:f3e0abcfcab84793c7ba4f8a0259d1eb892129556959a17ce818e75df3040932 -->
+## 2026-09-30 — Hosted migration workflow (PR1404)
+
+Implemented the manual school-accessible GitHub migration workflow, portable runner, exact source/target/migration/hash approval, CI replay evidence binding, history drift checks, one-attempt failure handling, and minimal trusted CLI configuration. Production is the default target; preview is the default mode. No live migration or billing change is authorized or performed. PR1404 received independent security and operations review; one correction batch pinned actions and verified CLI download checksums before execution, and explicitly reports unknown durable state. The 128-test focused gate and all required CI lanes/PR Gate passed on reviewed d7120d73; four reviewer launches completed with no unresolved findings.
+
+Main advanced during CI. The owner approved one archive-only sync, one focused review, fresh CI and merge on green. Both archive batch markers and current main changes are retained. The dedicated migrations-production environment permits only branch main and is bound to verified Pika/zhioqbapgfcrronyuidm; credentials await secure owner entry. Staging remains deferred; existing Vercel environments are unchanged. Final sync review, exact-head CI and merge are pending; this authorization does not allow hosted SQL application or app promotion.
+
+<!-- pika-session-log-archive-batch:999b1807cb7d8c81d1be7f029ce18980cff06703c9f7c1c60960a054a99703c8 -->
+## 2026-09-30 Allow today's Class Days correction
+
+- User approved same-day edits: Settings now allows adding today immediately, confirms before excluding today, and disables all past dates to match the API. Existing logs remain stored; Toronto-midnight and archived-classroom guards are retained.
+- UI brief: teacher Settings > Class Days; extend the existing calendar and reuse ConfirmDialog, referenced against Pattern Lab's student attachment confirmation. Teacher desktop1440x900/mobile390x844, light/dark, selected/open/cancel/confirm/error/focus states; student n/a (teacher-only editor). No redesign, new shared components, or experimental pattern. Composite accessibility reviewed; Escape, focus trapping/return and pressed state verified.
+- Verification: regression tests reproduced six failures before implementation; final focused checks passed 200 tests, architecture/UI/design policy, TypeScript and lint. Playwright matrix passed with deterministic class-day API fixtures, including missing today, cancellation, restoration and save-error rollback. Evidence: /tmp/pika-class-day-visuals; Pika audit passed. No migration or production application deployment.
+
+- Independent review found past-day colour precedence hid historical class-day status; one remediation batch preserves muted-success past days without hover and adds a visual-state regression. The same batch checks Toronto's current date when clicked so a future class day that becomes today requires confirmation. Synced main and retained continuity history without duplicate archive entries. Final focused200tests, architecture/UI/design/TypeScript/lint, audit and the four-case browser matrix pass; updated past-day visuals inspected. Stable-SHA re-review follows.
+
+- Initial/targeted/final independent review completed (three launches, one code correction batch); exact-head CI36737461379 passed Test & Build, Browser Experience Matrix and PR Gate on5c6de421. Main then advanced with unrelated authoring docs; second synchronization batch retains both continuity histories and leaves the three implementation/test files byte-identical. Focused recheck and bounded synchronization review precede fresh candidate CI.
+
+<!-- pika-session-log-archive-batch:484d7bd583b7091cfade56a8a765ba20e9e15bf6a5cbaf8e588161264443a8a3 -->
+## 2026-09-30 — Supabase grading conflict I/O incident
+
+Read the Disk IO Budget warning and production catalog/log evidence. Confirmed a PostgREST internal retry storm on manual Assignment grading SQLSTATE40001; stopped the exact matched runaway backend. Follow-up shows no runaway process and essentially flat rollbacks. Stored database size remains below the free quota. Prepared migration223 changing only the manual stale-revision error to PT409, dual-code legacy/contextual adapter support, regressions and recovery guidance. Isolated disposable-database replay verifies stale rejection, complete batch rollback, nonowner rejection, fresh save and unchanged grants/security. Production migration and application rollout remain pending explicit authorization; other current custom40001 RPCs need a separate audit.
+
+<!-- pika-session-log-archive-batch:76faf1c27b9aa02ccde3a661db24d119af91fed95bd4ff1991b3c7f2a3692b50 -->
+## 2026-09-30 — Guided assignment Markdown boundaries
+
+Classroom guided assignment previews now normalize generated prose that resembles Blueprint delimiters and protect fenced code during the existing single-assignment create parse. The Karel-shaped task/reference regression and route creation check preserve 10 points, draft status, student content, and verbatim backtick/tilde code examples. Shared Blueprint parser, migrations, and provider settings are unchanged. Affected tests and focused checks passed; PR review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the bounded server serialization fix.
+
+<!-- pika-session-log-archive-batch:a95f896c1356add7b8aac488edef31370b6f9fff2b7f8ab570dd034435006004 -->
+## 2026-09-30 — Guided assignment correction review
+
+Remediated first review findings in classroom guided assignment previews. Ambiguous teacher edits (interior divider, body metadata, or unparseable reserved section) now fail before the create RPC; valid submission requirements remain accepted. LimitedMarkdown recognizes long backtick and tilde fences, preserves inner short markers and following prose, and gives code the existing inverse text token for contrast. The production renderer's Pattern Lab fixture passed eight teacher/student, desktop/mobile, light/dark Playwright captures; screenshots were reviewed. Focused gate, independent review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for this bounded parser/rendering correction.
+
+<!-- pika-session-log-archive-batch:44be43082bf97e06d9d34758726fc203ba0ddc3a033c011505760a71fd2e249d -->
+## 2026-09-30 — Guided assignment parser grammar follow-up
+
+Second targeted review found that spaced field labels, indented reserved section headings, and nonblank pre-title text could bypass the classroom guided preview guard and lose or mutate content. The classroom-only helper now classifies exactly the eight fields accepted by the unchanged legacy parser, recognizes sections after trim, and rejects ignored prefaces before the create RPC. Generated prose with those field and heading forms remains visible and keeps its original points. Focused checks and stable-SHA re-review remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the narrow parser boundary correction.
+
+<!-- pika-session-log-archive-batch:73df341f2bde4cd7e75fc144d4b1d4660177512cdf4ed5b532a2183bb70de639 -->
+## 2026-09-30 — Guided assignment documentation checkpoint
+
+Owner approved one documentation correction/main sync and one brief review after the review-budget checkpoint. Restored the missing space in CURRENT migration history while retaining verified production 222 and the new main deployment flow. Application changes remain unchanged; exact-head checks and main merge remain gated.
+
+<!-- pika-session-log-archive-batch:e6dc97391f123bbcd0d4fa49eafd37c0f4189ffbe55865b4476b66582be863c9 -->
+## 2026-09-30 — Password-free hosted migration authentication
+
+Replaced the manual rollout's permanent database-password requirement with pinned CLI native temporary logins from a production-project scoped PAT. The runner checks token syntax and rejects password fallback, isolates PostgreSQL environment variables, and binds the authentication strategy into format-2 preview digests. Existing exact migration authorization remains required. Documented six token capabilities, Database Read-write authority, temporary-role creation during preview, Beta endpoint dependency, and server-enforced denial of network-ban removal. The owner declined password reset; none was performed. A targeted review corrected prefix-based scope assurance: legacy tokens can share the prefix, so Dashboard review is the scope control. Offline rollout tests pass43; focused checks, independent review, owner approval for expanded token authority, credential replacement and hosted preview remain pending. No production migration was applied.
+
+<!-- pika-session-log-archive-batch:8561876448ecfebbd16b72c7ead3f002985b827ebbad14e8422514b503930940 -->
+## 2026-09-30 — Reconcile dormant Daily Log saves with current main
+
+Owner requested pull/reconciliation. Rebased PR1380 onto main32ad59f5, preserving both histories in the sole archive conflict. Resequenced the branch migration from218 to223 because main now occupies218–222; updated harnesses, regressions and rollout receipts. SQL checksum and Daily Log runtime code match the previously reviewed1eda5574. PR returned to draft before reconciliation; backup branch retains the original SHA. Current local history is through220 with Blueprint218 and no Daily Log function; Sep27 local218 proof is historical. No database application, reset/history repair, production promotion or cohort activation. Focused verification and targeted stable-SHA integration review remain pending.
+
+<!-- pika-session-log-archive-batch:815749fc8a594942a4f589bc3e4d245080adee95c0ee8dcf5ec9a01d70c464e5 -->
+## 2026-09-30 — Authorized local migrations 221–223 applied
+
+Owner explicitly approved exactly221–223 locally. Verified exact local project/container/port, matching001–220 history, and dry-run containing only the approved set; one application succeeded. Approval is consumed. Local history now matches001–223, Daily Log function exists, generated types match and security advisor reports no issues. Exact-head PR1380 CI36745657706 and final independent integration review passed at656a9a1e. Pinned local Blueprint provenance/adoption and lifecycle-lock contracts pass; Daily Log rollback behavior and all eight concurrency cases pass, with synthetic fixtures removed. The initial Blueprint helper selected a similarly named scratch database; stopped that chain and pinned the verification target to supabase_db_pika. Docker execution delays resolved without restarting or resetting. No reset, reseed, history repair, production write or admission activation. Receipt changes are local documentation only; reviewed remote SHA remains unchanged.
+
+<!-- pika-session-log-archive-batch:2f9423e753a9c34424d4b8b3064e54221792f99cce6d780a50e7d0f99ca82632 -->
+## 2026-09-30 — Pull reveals new applied migration collision
+
+Pulled hub main to3e4d9f1b; feature remote remains656a9a1e. PR1380 is open with prior exact-head CI green but now conflicting with main. Main223 is stop_assignment_grade_conflict_retries; fresh local history223 remains contextual_daily_log_save. Preserve the applied SQL/history and local verification receipts. Next source reconciliation must allocate a new Daily number and explicitly plan local history alignment; no renumber, application, reset or history repair was performed during this report-only request. Shared full-experience admission remains dormant; Daily reads and the remaining five-batch integrations are unfinished.
+
+<!-- pika-session-log-archive-batch:69a8734852a12ff5185dc9a59bb570d2440fd11354b5b48e0e533d12327e1dff -->
+## 2026-09-30 — Resolve source 223 collision without changing local history
+
+Owner requested resolution. Preserved old reviewed SHA656a9a1e and local application receipts, folded its three commits without a tree change, and rebased onto main1b5430b3. Resolved CURRENT/history conflicts preserving main's production222 and retired-staging guidance, old Daily history and local receipts. Canonical Daily migration is224 with unchanged SQL; harnesses, numbering regressions and runbook follow224. Local still records Daily under223; documented an exact proposed history-only rebinding plus main223 application, not executed or authorized. No database reset/reseed, schema/history repair, production mutation or rollout activation. Focused checks and one bounded final reconciliation review remain before ready CI.
+
+<!-- pika-session-log-archive-batch:773837fcab9c070fa2d1c355a55e173a2f42a1ac9c60d683592f56af7d0b375b -->
+## 2026-09-30 — Local Daily history repair verified; retry-risk review checkpoint
+
+Owner approved one replacement final review and the exact local223 receipt removal/local224 recording/main223 include-all application. Sol/high review at57ccc26f confirmed the repair safe but found a merge blocker: Daily's custom40001 defensive binding error risks PostgREST14 infinite retries; preserve224 and add an additivePT409 correction plus adapter compatibility and regressions. No source remediation yet; six reviewer launches consumed, one further targeted review requires extension. Both repairs and one canonical223 push succeeded after exact target/body/grant proof and preview. All224 history identities and installed function bodies match source; generated types/security advisor, stale/fresh grade rollback, Daily rollback and all eight concurrency contracts pass. Counts and digests of seven existing-data tables remain unchanged after fixture cleanup. Focused208 tests and static checks passed before repair; three assignment-conflict regressions pass. PR1380 remains draft; no reset/reseed, production write or activation. Repair/application approval consumed.
+
+<!-- pika-session-log-archive-batch:7c57d0d050db21e1da41faa735cb4408b46eaf7a33a5dfe4a4990422825071f7 -->
+## 2026-09-30 — Approved Daily Log conflict retry correction
+
+Owner approved narrow225 fix, one seventh targeted review and exactly225 locally after verification. Generated migration via CLI and allocated225; installed224 bytes unchanged. Full replacement differs only in declaration/customPT409 error; service-only grants/security/metadata retained. Adapter accepts PT409 and40001, with one-call/privacy regressions. Tests reproduced missingPT409 mapping before fix; static tests compare complete definition/grants and224hash. Extended existing rollback-only CI harness with a malformed inner-result fault and PT409/no-entry-change assertion; temporary function replacement rolls back. No225 application yet at this implementation checkpoint; focused verification and the one bounded fixed-SHA review precede its approved application. PR1380 will carry latest application/review/CI receipt. Production and admission unchanged. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high targeted correction review.
