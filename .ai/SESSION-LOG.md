@@ -504,3 +504,10 @@ rg at the harness's port check; returnedPR1441 to draft immediately. Batch3 chan
 only that shell check to standardgrep; standalone rollback proofs pass with rg absent
 fromPATH. Runtime/installedSQL/generatedcontracts unchanged. Fresh targeted portability
 review and exact corrected-head CI required; original review budget retained.
+
+Corrected CI37124061293 coverage job passed10024 tests but failed one existing
+continuity-format assertion: CURRENT production-history prefix had lost spaces.
+ReturnedPR to draft. Reproduced1red/3green locally, restored `Prod DB 001–225`
+without changing rollout state or weakening the test. Batch4 is documentation-only;
+all runtime/schema/types/workflow/proof source remains unchanged. Last bounded
+targeted review and corrected-head CI required; original clock/limits retained.
