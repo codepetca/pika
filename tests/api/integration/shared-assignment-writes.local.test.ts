@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { describe, it, vi } from 'vitest'
 import {
   API, FORCED, NORMAL_PASS, assertContainers, containedFetch, databaseProof,
-  demand, newFixture, q, same, validateLaunch, type Actor,
+  demand, newFixture, q, same, validateLaunch, safeProofDiagnostic, statusForProof, ProofFailure, type Actor,
 } from '../../../scripts/shared-assignment-write-proof'
 
 // Only authentication selection is replaced. Routes, admission readers, access
@@ -36,6 +36,9 @@ localDescribe('LOCAL ONLY: shared Assignment actual mutation routes → installe
     const originalError = console.error, originalWarn = console.warn
     let captured: Record<string, unknown> = {}
     let failure: string | undefined
+    let diagnostic: string | undefined
+    let stage = 'fixture-setup', actualStatus: number | undefined, expectedStatus: number | undefined
+    function at(operation: string) { stage = operation;actualStatus = undefined;expectedStatus = undefined }
     try {
       process.env.NEXT_PUBLIC_SUPABASE_URL = API
       process.env.SUPABASE_SECRET_KEY = launch.secret
@@ -58,10 +61,12 @@ localDescribe('LOCAL ONLY: shared Assignment actual mutation routes → installe
       // independent cleanup, including when no generation capture is available.
       db.setup()
       if (launch.mode === 'before-capture') throw new Error(FORCED['before-capture'])
+      at('fixture-capture')
       captured = db.capture()
       demand(Object.keys(captured).length === fixture.enrollments.length, 'Generation capture cardinality differs')
       if (launch.mode === 'after-fixture') throw new Error(FORCED['after-fixture'])
 
+      at('route-import')
       const routes = {
         create: (await import('@/app/api/teacher/assignments/route')).POST,
         edit: (await import('@/app/api/teacher/assignments/[id]/route')).PATCH,
@@ -82,11 +87,14 @@ localDescribe('LOCAL ONLY: shared Assignment actual mutation routes → installe
       type Handler = typeof routes.save
       async function call(handler: Handler, actor: Actor | null, method: string, path: string,
         body: unknown, params: Record<string, string>, status = 200) {
+        at(Object.entries(routes).find(([, candidate]) => candidate === handler)?.[0] ?? 'unknown')
+        expectedStatus = status
         auth.actor = actor
         const response = await handler(new NextRequest(`http://localhost${path}`, {
           method, ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { 'content-type': 'application/json' } }),
         }), { params: Promise.resolve(params) })
-        demand(response.status === status, 'Actual route returned an unexpected status (response withheld)')
+        actualStatus = response.status
+        statusForProof(response.status, status)
         return response.json() as Promise<Record<string, any>>
       }
       const content = (text: string) => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] })
@@ -120,9 +128,13 @@ localDescribe('LOCAL ONLY: shared Assignment actual mutation routes → installe
         await call(routes.release, owner, 'POST', `${teacherPath}/release`, {}, params)
         // GET/open admission is deliberately out of scope. Seed an exact
         // preallocated document only after the real create/release handlers.
+        at('seed-document')
         db.sql(`insert into public.assignment_docs(id,assignment_id,student_id,content) values
           (${q(fixture.docIds[i])},${q(assignmentId)},${q(member.id)},'{"type":"doc","content":[]}'::jsonb);`)
-        const readDoc = () => JSON.parse(db.sql(`select to_jsonb(d) from public.assignment_docs d where id=${q(fixture.docIds[i])};`)) as Record<string, any>
+        const readDoc = () => {
+          at('read-document')
+          return JSON.parse(db.sql(`select to_jsonb(d) from public.assignment_docs d where id=${q(fixture.docIds[i])};`)) as Record<string, any>
+        }
         const work = content(`Synthetic ${fixture.tag} learner ${i}.`)
         const saveBody = { content: work, expected_updated_at: readDoc().updated_at,
           save_session_id: fixture.sessionIds[i], save_sequence: 1, metric_session_id: fixture.sessionIds[i],
@@ -160,8 +172,16 @@ localDescribe('LOCAL ONLY: shared Assignment actual mutation routes → installe
         }, params)
         const returned = await call(routes.return, owner, 'POST', `${teacherPath}/return`, { student_ids: [member.id] }, params)
         same(returned.returned_student_ids, [member.id], 'Return recipient binding differs')
-        demand(Boolean(readDoc().returned_at), 'Stored return revision missing')
-        await call(routes.unsubmit, member, 'POST', `${docPath}/unsubmit`, undefined, params, 409)
+        const returnedDoc = readDoc()
+        demand(Boolean(returnedDoc.returned_at) && Boolean(returnedDoc.teacher_cleared_at), 'Stored return and clear markers missing')
+        same(readDoc().is_submitted, false, 'Returned document was not cleared')
+        //087 clears submission state.099 checks that state before its returned
+        //409 branch, so preserve the existing exact400 wire contract.
+        const beforeReturnedUnsubmit = db.fingerprint()
+        const returnedUnsubmit = await call(routes.unsubmit, member, 'POST', `${docPath}/unsubmit`, undefined, params, 400)
+        same(returnedUnsubmit.error_code, 'assignment_doc_not_submitted', 'Returned unsubmit rejection code differs')
+        same(db.fingerprint(), beforeReturnedUnsubmit, 'Returned unsubmit rejection changed database state')
+        same(readDoc(), returnedDoc, 'Returned work changed after unsubmit rejection')
         await call(routes.resetRepo, owner, 'PUT', `${teacherPath}/repo-targets/${member.id}`,
           { selection_mode: 'auto', selected_repo_url: '', override_github_username: '' }, { ...params, studentId: member.id })
         // Every denial checks whole-row equality, so a response alone is not proof.
@@ -185,13 +205,16 @@ localDescribe('LOCAL ONLY: shared Assignment actual mutation routes → installe
             content: work, expected_updated_at: readDoc().updated_at,
           }, params, 403)) // Owner precedence despite historical self enrollment.
         }
+        at('archive')
         db.sql(`update public.classrooms set archived_at=clock_timestamp() where id=${q(classroom.id)};`)
         await denied(() => call(routes.edit, owner, 'PATCH', teacherPath, { instructions_markdown: 'Archived write' }, params, 403))
         await denied(() => call(routes.unsubmit, member, 'POST', `${docPath}/unsubmit`, undefined, params, 404))
         // Both preallocated owners have setup-only creation capacity; the
         // outsider deliberately remains Free and is never granted a plan.
+        at('transfer')
         db.sql(`update public.classrooms set archived_at=null,teacher_id=${q(member.id)} where id=${q(classroom.id)};`)
         await denied(() => call(routes.grade, owner, 'POST', `${teacherPath}/grade`, grade, params, 403))
+        at('owner-reset')
         db.sql(`update public.classrooms set teacher_id=${q(owner.id)} where id=${q(classroom.id)};`)
       }
       const owner = fixture.people[1], member = fixture.people[0], classroom = fixture.classes[1]
@@ -204,6 +227,7 @@ localDescribe('LOCAL ONLY: shared Assignment actual mutation routes → installe
       await call(routes.bulk, owner, 'POST', '/api/teacher/assignments/bulk', { ...bulkBody, assignments: [{ ...bulkBody.assignments[0], id: assignmentIds[0] }] }, {}, 400)
       await call(routes.reorder, owner, 'POST', '/api/teacher/assignments/reorder', { classroom_id: classroom.id, assignment_ids: [assignmentIds[0]] }, {}, 400)
       same(db.fingerprint(), crossClassBefore, 'Cross-class resource rejection changed database state')
+      at('remove-membership')
       db.sql(`delete from public.classroom_enrollments where id=${q(fixture.enrollments[1].id)} and classroom_id=${q(classroom.id)} and student_id=${q(member.id)};`)
       const removedBefore = db.fingerprint()
       await call(routes.history, member, 'GET', `/api/assignment-docs/${assignmentId}/history`, undefined, params, 403)
@@ -215,13 +239,18 @@ localDescribe('LOCAL ONLY: shared Assignment actual mutation routes → installe
       auth.actor = owner
       const pathBefore = observed.length
       const forbiddenParams = { then() { throw new Error('Shared config consumed forbidden params') } }
+      at('shared-config');expectedStatus = 503
       const configResponse = await routes.edit(new NextRequest('http://localhost/api/teacher/assignments/ignored', { method: 'PATCH', body: '{' }),
         { params: forbiddenParams as unknown as Promise<Record<string, string>> })
-      demand(configResponse.status === 503 && observed.length === pathBefore, 'Malformed shared admission ordering differs')
+      actualStatus = configResponse.status;statusForProof(configResponse.status, 503)
+      demand(observed.length === pathBefore, 'Malformed shared admission ordering differs')
       auth.actor = null
+      at('auth-config');expectedStatus = 401
       const authResponse = await routes.edit(new NextRequest('http://localhost/api/teacher/assignments/ignored', { method: 'PATCH', body: '{' }),
         { params: forbiddenParams as unknown as Promise<Record<string, string>> })
-      demand(authResponse.status === 401 && observed.length === pathBefore, 'Authentication did not precede malformed shared admission')
+      actualStatus = authResponse.status;statusForProof(authResponse.status, 401)
+      demand(observed.length === pathBefore, 'Authentication did not precede malformed shared admission')
+      at('rpc-observation')
       for (const rpc of ['create_assignment_for_owner_v1', 'update_assignment_for_owner_v1', 'release_assignment_for_owner_v1',
         'save_assignment_doc_for_member_v1', 'submit_assignment_doc_for_member_v1', 'unsubmit_assignment_doc_for_member_v1',
         'get_assignment_doc_history_for_actor_v1', 'restore_assignment_doc_for_member_v1', 'save_assignment_grades_for_owner_v1',
@@ -230,21 +259,28 @@ localDescribe('LOCAL ONLY: shared Assignment actual mutation routes → installe
         'reorder_assignments_for_owner_v1', 'save_assignment_repo_target_for_owner_v1']) {
         demand(observed.includes(`/rest/v1/rpc/${rpc}`), 'Required real contextual RPC was not observed')
       }
+      at('gate-observation')
       demand(!observed.some(path => /open_assignment_doc|grading.*usage|entitlement/.test(path)), 'Unexpected open or paid-enforcement SDK evidence')
       demand(Object.entries(process.env).every(([key, value]) => !/^PIKA_CLASSROOM_.*ACCESS_ENABLED$/.test(key) || value === 'false'), 'Old pair gate unexpectedly enabled')
       process.stdout.write(`${NORMAL_PASS}\n`)
     } catch (error) {
       failure = error instanceof Error && Object.values(FORCED).some(value => value === error.message)
         ? error.message : 'FAIL shared-assignment proof (captured data withheld)'
+      if (failure === 'FAIL shared-assignment proof (captured data withheld)') {
+        diagnostic = safeProofDiagnostic(stage, error instanceof ProofFailure ? error.category : 'unexpected', actualStatus, expectedStatus)
+      }
     } finally {
       try { await db.cleanup(baseline, captured) }
-      catch { failure = 'FAIL shared-assignment cleanup (captured data withheld)' }
+      catch { failure = 'FAIL shared-assignment cleanup (captured data withheld)';diagnostic = safeProofDiagnostic('cleanup', 'cleanup') }
       globalThis.fetch = originalFetch
       console.error = originalError;console.warn = originalWarn
       for (const key of Object.keys(process.env)) if (!(key in originalEnv)) delete process.env[key]
       Object.assign(process.env, originalEnv)
       auth.actor = null
     }
-    if (failure) { process.stdout.write(`${failure}\n`);throw new Error(failure) }
+    if (failure) {
+      if (diagnostic) process.stdout.write(`${diagnostic}\n`)
+      process.stdout.write(`${failure}\n`);throw new Error(failure)
+    }
   }, 480_000)
 })

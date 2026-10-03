@@ -50,7 +50,14 @@ case "$mode" in
   after-fixture) forced='FAIL shared-assignment FORCED_AFTER_FIXTURE' ;;
   before-capture) forced='FAIL shared-assignment FORCED_COMMIT_BEFORE_CAPTURE' ;;
 esac
+diagnostic_pattern='^DIAG shared-assignment stage=(unknown|fixture-setup|fixture-capture|route-import|seed-document|read-document|create|edit|release|save|submit|unsubmit|history|restore|artifact|grade|feedback|return|bulk|reorder|resetRepo|archive|transfer|owner-reset|remove-membership|shared-config|auth-config|rpc-observation|gate-observation|cleanup) category=(status|assertion|command|cleanup|unexpected) actual=(none|[1-5][0-9]{2}) expected=(none|[1-5][0-9]{2})$'
+emit_diagnostic() {
+  # Closed vocabulary, exact whole line, at most one safe diagnostic. Never
+  # display arbitrary captured output, even when cleanup or the runner failed.
+  rg -m 1 -x "$diagnostic_pattern" "$proof_logs/runner.log" || true
+}
 if ! rg -F -x "$cleanup" "$proof_logs/runner.log" >/dev/null; then
+  emit_diagnostic
   echo 'FAIL shared-assignment verified cleanup receipt missing (runner output withheld).' >&2; exit 1
 fi
 echo "$cleanup"
@@ -61,5 +68,6 @@ if [[ "$mode" != normal && "$rc" == 1 ]] && rg -F -x "$forced" "$proof_logs/runn
   && ! rg -F -x 'FAIL shared-assignment cleanup (captured data withheld)' "$proof_logs/runner.log" >/dev/null; then
   echo "$forced"; exit 1
 fi
+emit_diagnostic
 echo 'FAIL shared-assignment unexpected proof outcome (runner output withheld).' >&2
 exit 1

@@ -35508,3 +35508,14 @@ Installed SDK/concurrency/rollback/forced-cleanup proofs remain applicable to th
 unchanged runtime/SQL. Fresh focused gate and final integration review are next;
 PR remains draft. No database reapplication, production, billing/provider operation,
 cohort activation or full cutover. Member read receipts follow normal1438 merge.
+
+<!-- pika-session-log-archive-batch:e8c15d052b6fb05b3023ce84cec9beffb91bc5da690121bd59d81a16c35f10a8 -->
+## 2026-10-03 — Announcement CI continuity-format correction
+
+Final Sol5.6/high integration clean at c30273a2; exact ready CI37114314545 started.
+Test lane passed9618 tests but failed the attendance continuity contract because
+CURRENT's compressed production-history prefix omitted its required ` DB ` label.
+Returned1438 to draft before changing that single documentation contract; restored
+the canonical prefix without altering the test, schema, runtime or rollout state.
+Targeted failing test and focused gate rerun; targeted documentation review next.
+Original review ledger retains counters/deadline10:03:44UTC; no reset or new full wave.

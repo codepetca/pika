@@ -14,8 +14,27 @@ export const FORCED = {
 export type ProofMode = 'normal' | keyof typeof FORCED
 export type Actor = { id: string; email: string; role: 'teacher' | 'student' }
 
+// Closed vocabularies: diagnostics never derive labels from URLs, identities,
+// rows, response/error text or headers. Keep the wrapper's exact filter in sync.
+export const PROOF_STAGES = ['unknown', 'fixture-setup', 'fixture-capture', 'route-import', 'seed-document', 'read-document',
+  'create', 'edit', 'release', 'save', 'submit', 'unsubmit', 'history', 'restore', 'artifact', 'grade', 'feedback', 'return',
+  'bulk', 'reorder', 'resetRepo', 'archive', 'transfer', 'owner-reset', 'remove-membership', 'shared-config', 'auth-config',
+  'rpc-observation', 'gate-observation', 'cleanup'] as const
+export const PROOF_CATEGORIES = ['status', 'assertion', 'command', 'cleanup', 'unexpected'] as const
+export function safeProofDiagnostic(stage: unknown, category: unknown, actual?: unknown, expected?: unknown) {
+  const allowedStage = PROOF_STAGES.find(value => value === stage) ?? 'unknown'
+  const allowedCategory = PROOF_CATEGORIES.find(value => value === category) ?? 'unexpected'
+  const number = (value: unknown) => typeof value === 'number' && Number.isInteger(value) && value >= 100 && value <= 599 ? String(value) : 'none'
+  return `DIAG shared-assignment stage=${allowedStage} category=${allowedCategory} actual=${number(actual)} expected=${number(expected)}`
+}
+export class ProofFailure extends Error {
+  constructor(readonly category: typeof PROOF_CATEGORIES[number], message: string) { super(message) }
+}
+export function statusForProof(actual: number, expected: number) {
+  if (actual !== expected) throw new ProofFailure('status', 'Controlled route status mismatch')
+}
 export function demand(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message)
+  if (!condition) throw new ProofFailure('assertion', message)
 }
 export function same(actual: unknown, expected: unknown, message: string) {
   demand(isDeepStrictEqual(actual, expected), message) // No row contents in assertion diagnostics.
@@ -56,7 +75,7 @@ export function containedFetch(original: typeof fetch, observed: string[]) {
 function command(binary: string, args: string[], input?: string) {
   try { return execFileSync(binary, args, { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
     timeout: 55_000, maxBuffer: 12_000_000 }).trim() }
-  catch { throw new Error('Local proof command failed (captured output withheld)') }
+  catch { throw new ProofFailure('command', 'Local proof command failed (captured output withheld)') }
 }
 export function assertContainers() {
   for (const [container, internalPort, externalPort] of [

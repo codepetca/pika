@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import * as proofHelpers from '../../scripts/shared-assignment-write-proof'
 import {
   ACK, API, CLEANUP_PASS, FORCED, NORMAL_PASS, cleanupSql, containedFetch,
   fingerprintSql, newFixture, ownedTables, validateLaunch,
@@ -21,6 +22,42 @@ function launch(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
 }
 
 describe('shared Assignment proof offline safety controls (no database execution)', () => {
+  it('formats only allowlisted operation/category and bounded numeric statuses', () => {
+    const format = (proofHelpers as unknown as { safeProofDiagnostic?: (stage: unknown, category: unknown, actual?: unknown, expected?: unknown) => string }).safeProofDiagnostic
+    expect(typeof format).toBe('function')
+    if (!format) return
+    expect(format('unsubmit', 'status', 400, 409)).toBe('DIAG shared-assignment stage=unsubmit category=status actual=400 expected=409')
+    expect(format('https://secret.invalid/row-id', 'sb_secret_sensitive', 'credential', 600)).toBe('DIAG shared-assignment stage=unknown category=unexpected actual=none expected=none')
+    expect(format('save\ncredential', 'status', Number.NaN, 200.5)).not.toMatch(/credential|NaN|200\.5/)
+    expect(format('cleanup', 'cleanup', 99, 999)).toBe('DIAG shared-assignment stage=cleanup category=cleanup actual=none expected=none')
+  })
+
+  it('prints only one exact allowlisted diagnostic on unexpected wrapper outcomes', () => {
+    const pattern = wrapper.match(/^diagnostic_pattern='([^'\n]+)'$/m)?.[1]
+    expect(pattern).toBeDefined()
+    if (!pattern) return
+    const safe = new RegExp(pattern)
+    expect(safe.test('DIAG shared-assignment stage=grade category=status actual=403 expected=200')).toBe(true)
+    for (const unsafe of ['DIAG shared-assignment stage=https-secret category=status actual=403 expected=200',
+      'DIAG shared-assignment stage=save category=credential actual=403 expected=200',
+      'DIAG shared-assignment stage=save category=status actual=200 expected=200 secret',
+      'DIAG shared-assignment stage=save category=status actual=999 expected=200',
+      'DIAG shared-assignment stage=save category=status actual=403 expected=200\nraw row',
+    ]) expect(safe.test(unsafe)).toBe(false)
+    expect(wrapper).toContain('rg -m 1 -x "$diagnostic_pattern"')
+    expect(wrapper).not.toMatch(/cat .*runner\.log|echo .*error\.message/)
+  })
+
+  it('preserves returned-doc clearing and exact400 unsubmit refusal with unchanged rows', () => {
+    expect(integration).toContain("returnedUnsubmit.error_code, 'assignment_doc_not_submitted'")
+    expect(integration).toContain("same(readDoc().is_submitted, false, 'Returned document was not cleared')")
+    expect(integration).toContain("same(db.fingerprint(), beforeReturnedUnsubmit, 'Returned unsubmit rejection changed database state')")
+    expect(integration).toContain("'Stored return and clear markers missing'")
+    expect(integration).toContain("statusForProof(response.status, status)")
+    expect(integration).toContain('safeProofDiagnostic(stage,')
+    expect(integration).not.toMatch(/process\.stdout\.write\([^\n]*(?:error\.message|JSON\.stringify\(error)/)
+  })
+
   it('requires explicit acknowledgement, wrapper provenance and a supported deterministic mode', () => {
     expect(validateLaunch(launch()).mode).toBe('normal')
     for (const mode of ['after-fixture', 'before-capture']) expect(validateLaunch(launch({ PIKA_SHARED_ASSIGNMENT_WRITE_MODE: mode })).mode).toBe(mode)

@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Announcement CI continuity-format correction
-
-Final Sol5.6/high integration clean at c30273a2; exact ready CI37114314545 started.
-Test lane passed9618 tests but failed the attendance continuity contract because
-CURRENT's compressed production-history prefix omitted its required ` DB ` label.
-Returned1438 to draft before changing that single documentation contract; restored
-the canonical prefix without altering the test, schema, runtime or rollout state.
-Targeted failing test and focused gate rerun; targeted documentation review next.
-Original review ledger retains counters/deadline10:03:44UTC; no reset or new full wave.
-
 ## 2026-10-03 — Java Materials second approved merge synchronization
 
 Main advanced to875316af through reviewed dormant announcement owner writes PR1438 before PR1437 could merge. Resolved only the archive conflict, preserving canonical main and the complete feature append. Lesson, viewer, API, UI, tests and guidance remain byte-identical to reviewed73ff84fb; incoming application/workflow/schema/test files match main exactly. Prior sync CI37115051242 passed browser and database contracts but hit one unchanged TestDetailPanel Markdown confirmation assertion; all57 tests in that file pass locally under coverage instrumentation, while the partial run cannot meet whole-repository coverage floors. One bounded compatibility review and fresh focused/exact-head checks cover the new combined head before the already-authorized squash merge. No production promotion, hosted writes, migration application or activation.
@@ -931,3 +921,17 @@ No SQL/types/dependency change expected. User explicitly includes review extensi
 in routine task authority; original clocks/counters/absolute caps remain. Local
 001–238 immutable, production lastverified001–225, admission/home/page/fullcutover/
 billing OFF. No production/account/cohort/provider work or worktree cleanup here.
+
+## 2026-10-03 — Shared Assignment proof-only correction
+
+PR1451 draft9843ebe1 passed focused945/68files and independent initial Sol5.6/high
+security + Sol6.1/high compatibility reviews, including fixed-proof cleanup safety.
+Actual local preflight confirms immutable001–238,3users1class,Palcapture/settingsOFF,
+guard168O. Normal real-route run failed without safe stage detail; exact whole-row
+cleanupPASS and independent3/1/zero synthetic identities/guardO verified. No passing
+runtime lifecycle claimed. One proof-only correction preserves087 return clearing
+and099 not-submitted-first400/error_code, and adds closed-vocabulary diagnostics.
+TDD3newRED→13GREEN; cleanup SQL/application/adapters/types/deps unchanged. Original
+21:00:59→22:00:59 review ledger2launch/1initial/firstfix pending retained; targeted
+fixed-SHA review precedes rerun. Both forced modes, finalintegration/exactCI/merge
+remain pending. No production/migration/activation/provider/account mutation.

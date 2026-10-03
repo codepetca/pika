@@ -963,6 +963,15 @@ normal main merges through cutover. Carry that authority forward without repeati
 approval requests; retain original ledger clocks/counters, absolute review hard
 caps, normal security/CI/release gates and required material product decisions.
 
+First batch2 receipt: PR1451 draft `9843ebe1` passed945 focused tests/68files and
+both initial independent security/compatibility reviews. Its first actual local
+normal run failed while exact whole-row cleanup passed; independent baseline3users/
+1class/zero synthetic roots/guard168O is restored. No passing lifecycle is claimed.
+One source-only proof correction retains087 return clearing/099 not-submitted400
+and adds bounded safe diagnostics; transaction cleanup SQL and application code
+are unchanged. Targeted fixed-source review precedes normal/two forced reruns,
+then cumulative review and stable-head CI/merge. This does not close batch2.
+
 Execution follows the table above: batch 1's backend is complete; finish batch 2's
 assessment/grade integrations next. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem
