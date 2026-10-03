@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Visual Java slides and presenter notes
-
-- Owner requested ultra-simple Present diagrams and a detailed Read view in a separate notes window. Added nine diagram selections to the Markdown with SVG/mobile templates in site/visuals.mjs; original reading explanations retained, downloaded student Markdown strips the visual directives. Footer menu now opens presenter notes as a named popup with normal link fallback. Ephemeral session-scoped BroadcastChannel synchronizes current section/theme and allows notes keyboard navigation to control the presentation. No Pika runtime/schema changes; risk none; weekly remaining53%, prior DeepSeek pause retained.
-- Verified all nine diagrams visually, desktop light/dark and 402px mobile with no horizontal overflow, one diagram/no paragraphs in Present, all nine detailed sections/no slide art in Read, menu access, and actual Chrome popup with slide6→7 notes sync and notes PageDown→slide8. Existing print retains detailed notes through print CSS. Build, syntax, and diff checks pass. Evidence: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-visual-presentation.png and java-presenter-notes.png.
-- Sites helper restored; normal existing-source opening/push/package workflow used. Private deployment succeeded from5997c568b63389585c1a23cf02e89ec56d2bdfdc, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_06ce177f16308191955bc4090a1bf0a2. Same hosted URL and Material draft; audience unchanged. Repository artifacts remain in collaborative review worktree.
-
 ## 2026-10-02 — Java viewer icon toggle
 
 - Replaced visible Read/Present labels with existing licensed Lucide book-open/presentation geometry; retained accessible names, titles, pressed states, and 44px touch targets. Verified both view switches, light/dark state, and screenshot java-icon-toggle.png in this task’s visualizations directory. Build/syntax/diff checks pass; standalone artifact, risk none.
@@ -537,3 +531,35 @@ counters remain; documented human-authorized60minute extension ends16:26:22Z.
 Targeted changed-base review/final exact-head CI stillprecede merge. Local236
 is installedby separate preservingremoval work; thisread addsnoSQL/types/UI.
 Production001–225/sharedadmission/fullcutoverOFF; no provider/account/billing edits.
+
+## 2026-10-03 — Shared classroom-detail read preparation
+
+PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
+allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
+normal squash/no bypass and clean canonical main fast-forward. Classday1444
+ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
+initial security/compatibility reviews are clean, pending actual-parent integration.
+This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
+current relationship bound in the full30field payload, real enrollment FK inner
+join, archive-owner reads and owner-self-participation denial, preserved hydration
+and member guide-draft/guidance privacy projection. Original fallback/pair GETs
+and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
+TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
+CI hook prepared; actual execution and independent review still pending.
+Local236 installed by separate preserving-removal work; no schema/types here.
+Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
+attendance protection; coordinator repairs only synthetic teardown before more
+DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
+The owner's all-work/review-extension authorization retains original clocks,
+counters, absolute review caps and normal technical/release gates.
+
+1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
+(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
+ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
+replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
+unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
+and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
+Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
+allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
+entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
+integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
