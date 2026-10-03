@@ -720,6 +720,23 @@ Superseding linked-material receipt: PR1442 merged3351d85f at14:56:00Z on
 actual merge before targeted preservation review/final CI. Local235 is installed
 by the separate roster-write slice; production001–225 and shared admission OFF.
 
+The class-day dependency now has a bounded
+[shared GET consumer](contextual-class-day-shared-read.md) in preparation for both
+neutral and compatibility URLs. Current owner/member predicates bind every
+payload and terminal page, retaining archived owner reads and active unarchived
+member access without global-role routing. Complete date/ID pagination and strict
+safe projection are required. No schema/UI/admission change is included; shared
+calendar writes still need migration-152 boundary consolidation. Roster write
+fences also remain batch-1 work. Linked Blueprint material reads are batch-3
+adjacent and do not replace those everyday-access dependencies.
+
+Superseding roster-read receipt: PR1443 normal squash merge7e5c6422 at15:28:30Z
+on2026-10-03 follows all five exact77995c95 CI37131666194 gates (0queue/1642run).
+Canonicalmain cleanFF. Class-day1444 nowreconciles onto that actualmain; original
+runtime/proof/CIsteps remain unchanged, with targeted changed-base review and
+fresh readyCI required. Local236 is installedby separate preservingremoval work;
+thisGET addsnoSQL/types. Production001–225/sharedadmission/fullcutoverOFF remain.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
