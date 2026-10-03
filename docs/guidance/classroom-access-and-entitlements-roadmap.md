@@ -632,11 +632,15 @@ focused checks, real pagination/revocation/zero-residue cleanup proofs and exact
 CI37083358161 including PR Gate. No schema, UI or activation changed. The next
 bounded slice is [transaction-safe owner announcement writes](contextual-announcement-owner-writes.md).
 The owner authorized routine implementation, independent review and normal main
-merges through the cutover on2026-10-03; failed gates, review-budget checkpoints,
-exact-target migration permission and integrated activation evidence still apply.
-SQL232 is provisional behind billing-owned installed230 and recovery231; no schema
-application, generated-type reconciliation or live concurrency claim yet. Route
-tests/rollback-definition rehearsal pass; member read receipts follow. Shared
+merges through the cutover on2026-10-03; failed gates, review-budget checkpoints and
+integrated activation evidence still apply. The owner explicitly waived separate
+local migration approvals in this task; production approval remains unchanged.
+Local231/232 are now applied once and immutable after source/target/history checks.
+Both initial1438 reviews at2f6fe7e and installed SDK/concurrency/forced-cleanup
+checks pass, with unchanged existing records and billing disabled. Canonical
+billing230/231 source integration and generated types/CI/merge still wait on1435's
+fixture-only budget checkpoint. No source ownership is transferred and no review
+budget extension is inferred. Member read receipts follow. Shared
 admission and product cutover stay dormant.
 
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared

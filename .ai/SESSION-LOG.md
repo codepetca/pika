@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-01 — Contextual teacher Daily reads merged; roster logs next
-
-PR1420 merged main at3cf01b06 after four bounded independent review launches and one correction batch: joined learner identity/projection and rejected history errors. Final44targeted/135focused tests, static checks and real PostgREST contract passed; exact-head CI36936773832 passed all gates atreviewed5d795bb0. CI took1547run seconds plus3queue seconds. No production, schema, cohort or account change. Hub fast-forwarded and only this slice's finished implementation/four review worktrees cleaned; Git history preserves their contents.
-
-Next worktree codex/contextual-teacher-daily-logs starts from3cf01b06. A bounded read-only proposal plus coordinator schema/SDK checks and a zero-result local PostgREST syntax probe selected enrollment-rooted nested profiles/selected entries/previews; no migration or N+1 fallback. One worker owns helper/route/input and TDD tests; coordinator owns real1001learner/seven-entry fixture contract, CI wiring and docs. Actual per-learner limits, projection, keyset pagination, current membership/owner races and cleanup remain acceptance gates; syntax alone proves none of them. Shared admission remains off; cached summary is next. Risk runtime-platform; high-risk independent review models GPT-5.6 Sol/high security and GPT-6 Sol/high compatibility fallback (Terra unavailable).
-
-Worker completed23focused tests plus TypeScript, architecture and ESLint. Real PostgREST passes every1001learner/pagination/projection/profile/date/archive/denial/removal/transfer contract with exactcleanup. First harness attempt tried to resurrect a closed membership generation; its cleanup passed, fixture rejoin now uses a new enrollment UUID as required by the existing Pal lifecycle, and the rerun is green. No product change or weakened trigger was needed. Canonical focused verification, independent review and exact-head CI remain pending.
-
 ## 2026-10-01 Teacher Daily logs review corrections
 
 PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
@@ -623,3 +615,30 @@ targeted financial review; actual schema/concurrency and main dependency still w
 Requested exact local231/232 approval asynchronously. Formal owner-write review
 budget is not started while that checkpoint remains unresolved; draft source may
 be published for continuity, never marked ready or merged before complete evidence.
+
+## 2026-10-03 — Local migration override; announcement owner runtime proof
+
+Owner explicitly overrides separate local migration approvals for this task only;
+exact reviewed source, local target/history checks and non-destructive limits remain.
+Production permission, review budgets and integrated cutover gates are unchanged.
+Coordinator applied reviewed billing231 once from4209da62 after sole-file preview,
+Pika/54322 binding and matching230/231 digests; local history advanced001–231.
+Billing independently verified the receipt/types/security; four existing rollback
+harnesses pass. Its new fixture uses invalid synthetic Stripe IDs and rolled back;
+the fixture-only correction/review is held at its already-consumed budget checkpoint.
+No billing source edit or implied budget extension by the classroom coordinator.
+PR1438 initial Sol5.6 security and Sol6.1 compatibility reviews clean at2f6fe7e;
+ledger08:33:44UTC,2launches/0fixes,60-minute elapsed limit retains dependency waits.
+After billing released the shared writer slot, applied sole232 once from application-only
+checkout4209da62 plus byte-identical reviewed232, SHA2563f57cc55ac37cf5338edf78b988278339e3044cee582a12e56dc142c164218c7.
+Local001–232 matches application checkout; service-only definer/empty-path ACLs pass.
+Installed rollback contract and cross-role SDK/concurrency/publication/403/404/409,
+parent/resource contention, lifecycle/class-delete/resource races and late rollback pass.
+Forced post-fixture error exits1 after exact cleanup; users/classrooms/upgrades/receipts
+remain3/1/0/0,sandboxfalse, zero synthetic rows/test sessions. Shared writer released.
+No reset/repair/reseed, manual generated types, production or cohort/UI changes.
+1438 stays draft: canonical1435 source dependency/types, final integration, exact-head
+CI and normal merge remain. Member read receipts follow; batch1/cutover not complete.
+Receipt update initially exceeded the16,000-character startup budget by54; compressed
+CURRENT without weakening the gate.245focused checks,architecture/UI/design/TS/lint
+now pass. One documentation-only correction batch; no SQL/runtime changes.

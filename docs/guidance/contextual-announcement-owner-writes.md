@@ -1,7 +1,7 @@
 # Contextual announcement owner writes
 
-Status: implementation and rollback-definition rehearsal; not yet reviewed,
-schema-applied, merged or approved for cohort activation. This is the next bounded
+Status: draft PR1438; initial source reviews and installed-schema local checks pass.
+Not yet source/type-reconciled, ready for CI, merged or approved for cohort activation. This is the next bounded
 batch-1 slice after announcement reads PR1436, merged as `66fa5de3`.
 
 ## Scope and compatibility
@@ -47,7 +47,7 @@ saves still invoke the normal update and revision triggers.
 
 ## Atomic database boundary
 
-Provisional migration232 introduces three service-only RPCs:
+Migration232, now installed locally and immutable, introduces three service-only RPCs:
 
 - `create_announcement_for_owner_v1(actor,class,content,draft,schedule,title)`
 - `update_announcement_for_owner_v1(actor,class,announcement,patch)`
@@ -91,15 +91,31 @@ When functions are absent their definitions are rolled back too; when installed,
 the harness uses them without changing schema. It verifies zero synthetic residue
 and unchanged installed-function state; it does not apply a migration.
 
-The prepared concurrency/SDK harness requires separately approved migration232:
-`scripts/check-contextual-announcement-owner-concurrency.mjs`. It is not verified
-until the actual local schema is installed. Its post-fixture failure mode must prove
+The installed-schema `scripts/check-contextual-announcement-owner-concurrency.mjs`
+passed actual SDK operations for both global-role values,403/404/409 mapping,
+parent/resource contention, both transfer/archive/class-deletion orders, legacy
+resource races, contextual serialization, accepted schedule wait and late-failure
+rollback. Its deliberate post-fixture failure exited1 as expected after proving
 unconditional exact cleanup including durable provisioning/entitlement audits.
 CI replays canonical migration files in an ephemeral database before these checks.
 
-Local schema was observed through230; billing owns installed immutable230 and
-provisional231. Keep232 provisional until source/history/numbering are reconciled.
+Local schema001–232 was verified on2026-10-03. Billing owns installed immutable230
+and231; PR1435 remains draft at its fixture-only review-budget checkpoint.
+Initial independent high-risk reviews were clean at2f6fe7e (Sol5.6 security,
+Sol6.1 compatibility fallback);2 initial launches,0 behavioral fixes. The subsequent
+receipt update required one startup-note compression batch (245 focused checks pass).
+The ledger began
+08:33:44UTC with its existing60-minute elapsed limit, not reset by dependency waits.
+After the user's explicit task-scoped local-approval override and billing's writer
+release, coordinator applied231 from reviewed4209da62, then232 from an application-only
+checkout containing unchanged reviewed230/231 and byte-identical reviewed232.
+232 SHA256:3f57cc55ac37cf5338edf78b988278339e3044cee582a12e56dc142c164218c7.
+Only each intended forward file was previewed/applied once; no reset/repair/reseed.
+Function ACL/security metadata match; users/classrooms/upgrades/receipts remain3/1/0/0,
+sandboxfalse, zero synthetic residue and no test sessions after both harness modes.
+Canonical billing source integration and owner-write type reconciliation remain pending.
 Do not edit generated database types manually or generate from mismatched history.
-Exact local migration approval remains required, independent of routine review/main
-merge authority. Production schema, cohort admission and full classroom/home cutover
+Separate local migration approvals are waived by the user for this owning task only;
+exact reviewed source, target/history checks and non-destructive limits still apply.
+Production migration approval remains separate. Production schema, cohort admission and full classroom/home cutover
 remain held for the five-batch integrated release gates.
