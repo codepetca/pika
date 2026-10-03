@@ -569,6 +569,31 @@ jobs:
       - name: Rehearse contextual Assignment routes against local Supabase
         run: bash scripts/rehearse-local-contextual-assignment-lifecycle.sh
 
+      - name: Rehearse shared Assignment writes and exact failed-fixture cleanup
+        shell: bash
+        run: |
+          shared_assignment_log="$(mktemp)"
+          trap 'rm -f -- "$shared_assignment_log"' EXIT
+          if ! bash scripts/rehearse-local-shared-assignment-writes.sh '--ack=I_UNDERSTAND_THIS_CREATES_AND_REMOVES_ONLY_LOCAL_ASSIGNMENT_FIXTURES' normal > "$shared_assignment_log" 2>&1; then
+            cat "$shared_assignment_log"
+            exit 1
+          fi
+          cat "$shared_assignment_log"
+          grep -Fx 'PASS shared-assignment actual routes and real RPCs; shared cohort only; old pair gates OFF' "$shared_assignment_log"
+          grep -Fx 'PASS shared-assignment exact cleanup; whole-row baseline equal; zero residue; guard168 O' "$shared_assignment_log"
+          shared_assignment_status=0
+          bash scripts/rehearse-local-shared-assignment-writes.sh '--ack=I_UNDERSTAND_THIS_CREATES_AND_REMOVES_ONLY_LOCAL_ASSIGNMENT_FIXTURES' after-fixture > "$shared_assignment_log" 2>&1 || shared_assignment_status=$?
+          cat "$shared_assignment_log"
+          [[ "$shared_assignment_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL shared-assignment FORCED_AFTER_FIXTURE' "$shared_assignment_log"
+          grep -Fx 'PASS shared-assignment exact cleanup; whole-row baseline equal; zero residue; guard168 O' "$shared_assignment_log"
+          shared_assignment_status=0
+          bash scripts/rehearse-local-shared-assignment-writes.sh '--ack=I_UNDERSTAND_THIS_CREATES_AND_REMOVES_ONLY_LOCAL_ASSIGNMENT_FIXTURES' before-capture > "$shared_assignment_log" 2>&1 || shared_assignment_status=$?
+          cat "$shared_assignment_log"
+          [[ "$shared_assignment_status" -eq 1 ]] || exit 1
+          grep -Fx 'FAIL shared-assignment FORCED_COMMIT_BEFORE_CAPTURE' "$shared_assignment_log"
+          grep -Fx 'PASS shared-assignment exact cleanup; whole-row baseline equal; zero residue; guard168 O' "$shared_assignment_log"
+
       - name: Verify contextual Assignment owner mutation atomicity
         run: bash scripts/check-contextual-assignment-owner-mutations-database.sh
 

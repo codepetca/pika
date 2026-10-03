@@ -21,6 +21,36 @@ const teacher = { id: actorId, role: 'teacher', email: 'member@example.com' }
 describe('contextual assignment inline-image access', () => {
   afterEach(() => vi.unstubAllEnvs())
 
+  it.each(['teacher', 'student'] as const)('gives admitted %s actors contextual selection while retaining resource validation', (role) => {
+    const user = { ...teacher, role }
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', 'broken')
+    expect(() => assertContextualAssignmentInlineImageConfiguration(user as any)).not.toThrow()
+    expect(authorizeContextualAssignmentInlineImageAccess(user as any, classroomId)).toEqual({ mode: 'contextual', user, classroomId })
+    expect(() => authorizeContextualAssignmentInlineImageAccess(user as any, 'invalid')).toThrow(/Invalid classroom ID/)
+  })
+
+  it.each([{ ids: [] }, { ids: [otherActorId] }])('keeps nonadmitted actors on the literal image pair or legacy path', ({ ids }) => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: ids }))
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'false')
+    expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, 'legacy-id')).toMatchObject({ mode: 'legacy', classroomId: 'legacy-id' })
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', 'broken')
+    expect(() => assertContextualAssignmentInlineImageConfiguration(teacher as any)).toThrow(/Classroom assignment image configuration is unavailable/)
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', JSON.stringify([{ userId: actorId, classroomId }]))
+    expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId)).toMatchObject({ mode: 'contextual' })
+    expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, otherClassroomId)).toMatchObject({ mode: 'legacy' })
+  })
+
+  it.each(['', 'not-json', JSON.stringify({ version: 1, admittedUserIds: [actorId, actorId] })])('validates shared configuration before pair configuration', (raw) => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', raw)
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', 'broken')
+    expect(() => assertContextualAssignmentInlineImageConfiguration(teacher as any)).toThrow(/Classroom experience admission configuration is unavailable/)
+    expect(() => authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId)).toThrow(/Classroom experience admission configuration is unavailable/)
+  })
+
   it('is disabled by default and only admits exact user/Classroom pairs when enabled', () => {
     expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId)).toEqual({
       mode: 'legacy', user: teacher, classroomId,

@@ -35493,3 +35493,34 @@ CI and normal merge remain. Member read receipts follow; batch1/cutover not comp
 Receipt update initially exceeded the16,000-character startup budget by54; compressed
 CURRENT without weakening the gate.245focused checks,architecture/UI/design/TS/lint
 now pass. One documentation-only correction batch; no SQL/runtime changes.
+
+<!-- pika-session-log-archive-batch:98886aef9b916b6570cef269daec5542212c596b7a6dd1dd847fb556aa36f459 -->
+## 2026-10-03 — Announcement canonical source/type integration
+
+Owner clarification approves the requested30-minute elapsed review extension,
+ending10:03:44UTC; prior3launches/1docsfix/1targetedwave remain counted. Billing1435
+merged efe4eb3f after all five exact-head gates passed on0de5d0ea. Rebased1438 with
+continuity-only conflicts, preserving all historical archive entries, CI steps,
+runtime/SQL and immutable230–232 digests. Genuine type generation/check against
+matching001–232 adds only the three announcement RPCs; generated-key wrapper now
+refines nullable create inputs instead of provisional function declarations.
+Installed SDK/concurrency/rollback/forced-cleanup proofs remain applicable to the
+unchanged runtime/SQL. Fresh focused gate and final integration review are next;
+PR remains draft. No database reapplication, production, billing/provider operation,
+cohort activation or full cutover. Member read receipts follow normal1438 merge.
+
+<!-- pika-session-log-archive-batch:e8c15d052b6fb05b3023ce84cec9beffb91bc5da690121bd59d81a16c35f10a8 -->
+## 2026-10-03 — Announcement CI continuity-format correction
+
+Final Sol5.6/high integration clean at c30273a2; exact ready CI37114314545 started.
+Test lane passed9618 tests but failed the attendance continuity contract because
+CURRENT's compressed production-history prefix omitted its required ` DB ` label.
+Returned1438 to draft before changing that single documentation contract; restored
+the canonical prefix without altering the test, schema, runtime or rollout state.
+Targeted failing test and focused gate rerun; targeted documentation review next.
+Original review ledger retains counters/deadline10:03:44UTC; no reset or new full wave.
+
+<!-- pika-session-log-archive-batch:151de5827f4028eff8d07785358d151ba04266885e2b4f819a3aafcece5330d2 -->
+## 2026-10-03 — Java Materials second approved merge synchronization
+
+Main advanced to875316af through reviewed dormant announcement owner writes PR1438 before PR1437 could merge. Resolved only the archive conflict, preserving canonical main and the complete feature append. Lesson, viewer, API, UI, tests and guidance remain byte-identical to reviewed73ff84fb; incoming application/workflow/schema/test files match main exactly. Prior sync CI37115051242 passed browser and database contracts but hit one unchanged TestDetailPanel Markdown confirmation assertion; all57 tests in that file pass locally under coverage instrumentation, while the partial run cannot meet whole-repository coverage floors. One bounded compatibility review and fresh focused/exact-head checks cover the new combined head before the already-authorized squash merge. No production promotion, hosted writes, migration application or activation.

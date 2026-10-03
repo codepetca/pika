@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Announcement canonical source/type integration
-
-Owner clarification approves the requested30-minute elapsed review extension,
-ending10:03:44UTC; prior3launches/1docsfix/1targetedwave remain counted. Billing1435
-merged efe4eb3f after all five exact-head gates passed on0de5d0ea. Rebased1438 with
-continuity-only conflicts, preserving all historical archive entries, CI steps,
-runtime/SQL and immutable230–232 digests. Genuine type generation/check against
-matching001–232 adds only the three announcement RPCs; generated-key wrapper now
-refines nullable create inputs instead of provisional function declarations.
-Installed SDK/concurrency/rollback/forced-cleanup proofs remain applicable to the
-unchanged runtime/SQL. Fresh focused gate and final integration review are next;
-PR remains draft. No database reapplication, production, billing/provider operation,
-cohort activation or full cutover. Member read receipts follow normal1438 merge.
-
-## 2026-10-03 — Announcement CI continuity-format correction
-
-Final Sol5.6/high integration clean at c30273a2; exact ready CI37114314545 started.
-Test lane passed9618 tests but failed the attendance continuity contract because
-CURRENT's compressed production-history prefix omitted its required ` DB ` label.
-Returned1438 to draft before changing that single documentation contract; restored
-the canonical prefix without altering the test, schema, runtime or rollout state.
-Targeted failing test and focused gate rerun; targeted documentation review next.
-Original review ledger retains counters/deadline10:03:44UTC; no reset or new full wave.
-
-## 2026-10-03 — Java Materials second approved merge synchronization
-
-Main advanced to875316af through reviewed dormant announcement owner writes PR1438 before PR1437 could merge. Resolved only the archive conflict, preserving canonical main and the complete feature append. Lesson, viewer, API, UI, tests and guidance remain byte-identical to reviewed73ff84fb; incoming application/workflow/schema/test files match main exactly. Prior sync CI37115051242 passed browser and database contracts but hit one unchanged TestDetailPanel Markdown confirmation assertion; all57 tests in that file pass locally under coverage instrumentation, while the partial run cannot meet whole-repository coverage floors. One bounded compatibility review and fresh focused/exact-head checks cover the new combined head before the already-authorized squash merge. No production promotion, hosted writes, migration application or activation.
-
 ## 2026-10-03 — Java Materials startup budget correction
 
 Second bounded sync review verified archive/log preservation and unchanged application boundaries, then confirmed the required startup context exceeds16000characters by3 after incoming CURRENT growth. Shortened the existing router sentence from Read routed docs before edits to Read routed docs first, preserving all routing and invariants; the startup set now totals15996. This is the fourth correction/sync batch, with a brief targeted verification and fresh focused gate before final CI. Owner main merge authorization persists; production/migrations remain separate.
@@ -927,3 +899,51 @@ startup/CI/Bara57tests/3files PASS; actual-base audit9files PASS; environment/st
 15975/16000/full preservation/trim/diff PASS. Exact incoming modes/blobs3202 PASS.
 Evidence/full optional-checkout verifier: /private/tmp/pika-1450-actual-guide-reconcile.fXoDni;
 focused runner /var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-Z4AMsV.
+
+## 2026-10-03 — Batch1 backend exit and Assignment shared-write start
+
+Metadata1450 reviewedaa27 passed all5exactCI37150788872 (0queue/1823runseconds),
+normal squash-merged20:44:36UTC as e86283f82741078563cd4d1e49710f501c074891.
+Verified merged state/time/SHA, identical reviewed/squash tree and clean canonical
+main fast-forward. Original7launch/2target/1final/3fix ledger retained; prior actual
+238 SQL/SDKnormal/twoforced cleanup accepted without replay. Batch1everyday backend
+exit recorded in existing roadmap; not full rollout. Multirow retained-roster
+lifecycle remains batch3 prerequisite, assessments/grades nowbatch2. New managed
+codex/contextual-assignment-shared-writes starts actuale862; startup/dependencies
+verified before edits. Sol6.1/high owns bounded access-adapter TDD; separate
+Sol6.1/high owns source-only actual-route proof/guarded cleanup. Root owns docs,
+CI/Git/reviews and serialDB execution, held until fixed-proof independent review.
+No SQL/types/dependency change expected. User explicitly includes review extensions
+in routine task authority; original clocks/counters/absolute caps remain. Local
+001–238 immutable, production lastverified001–225, admission/home/page/fullcutover/
+billing OFF. No production/account/cohort/provider work or worktree cleanup here.
+
+## 2026-10-03 — Shared Assignment proof-only correction
+
+PR1451 draft9843ebe1 passed focused945/68files and independent initial Sol5.6/high
+security + Sol6.1/high compatibility reviews, including fixed-proof cleanup safety.
+Actual local preflight confirms immutable001–238,3users1class,Palcapture/settingsOFF,
+guard168O. Normal real-route run failed without safe stage detail; exact whole-row
+cleanupPASS and independent3/1/zero synthetic identities/guardO verified. No passing
+runtime lifecycle claimed. One proof-only correction preserves087 return clearing
+and099 not-submitted-first400/error_code, and adds closed-vocabulary diagnostics.
+TDD3newRED→13GREEN; cleanup SQL/application/adapters/types/deps unchanged. Original
+21:00:59→22:00:59 review ledger2launch/1initial/firstfix pending retained; targeted
+fixed-SHA review precedes rerun. Both forced modes, finalintegration/exactCI/merge
+remain pending. No production/migration/activation/provider/account mutation.
+
+## 2026-10-03 — Shared Assignment verified local proofs and CI portability correction
+
+Targeted security and final cumulative integration are CLEAN atb09fb2e9. Focused948/
+68files+staticPASS. Serial actual normal exit0 and both intended forced exit1 modes
+each pass exact whole-row baseline/zero residue/guard168O cleanup; independent final
+SQL confirms238receipts/3users/1class/Palcapture+scheduledOFF. No browser/provider/
+Storage-byte claim. ExactheadCI37154626010 database lane failed new wrapper because
+CI lacksrg; build passed, returntodraft canceled browsers and gatefailed. Root
+verified two closed missing-executable lines and the exact missing-cleanup receipt;
+no CI runtime pass inferred. Second proof-only batch uses existinggrep for identical
+fixed/whole-line sentinels and bounded enum diagnostics. OfflineTDD3RED→14GREEN,
+actualgrep synthetic portability controls/bash/lint/diffPASS. Cleanup SQL/helper/
+integration/app/types/deps/CI unchanged; targeted review and reruns precede newready.
+Original21:00:59clock and consumed4launch/1target/1final/1fix retained, explicit
+extensions authorized with hardcaps intact. No production/migration/activation.

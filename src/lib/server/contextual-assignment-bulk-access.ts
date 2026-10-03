@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
 import type { AuthenticatedUser } from '@/types'
+import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 
 export type ContextualAssignmentBulkAccess =
   | { mode: 'legacy'; user: AuthenticatedUser; classroomId: string }
@@ -25,10 +26,20 @@ function configuredClassroomPairs(): z.infer<typeof classroomPairsSchema> | null
   }
 }
 
-/** Dormant exact-pair admission for the markdown Assignment bulk editor. */
+/** Shared experience admission precedes the existing bulk-editor pair/legacy paths. */
 export async function authorizeContextualAssignmentBulkRequest(
   classroomId: string | (() => string | Promise<string>),
 ): Promise<ContextualAssignmentBulkAccess> {
+  if (isClassroomExperienceAdmissionConfigured()) {
+    const user = await requireAuth()
+    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+      const rawId = typeof classroomId === 'function' ? await classroomId() : classroomId
+      const requestedId = canonicalUuid.safeParse(rawId)
+      if (!requestedId.success) throw new ApiError(400, 'Invalid classroom ID')
+      return { mode: 'contextual', user, classroomId: requestedId.data }
+    }
+  }
+
   if (process.env.PIKA_CLASSROOM_ASSIGNMENT_BULK_ACCESS_ENABLED !== 'true') {
     const user = await requireRole('teacher')
     const resolvedClassroomId = typeof classroomId === 'function'

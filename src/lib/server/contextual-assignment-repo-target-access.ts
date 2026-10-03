@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
 import type { AuthenticatedUser } from '@/types'
+import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 
 export type ContextualAssignmentRepoTargetAccess =
   | { mode: 'legacy'; user: AuthenticatedUser; assignmentId: string }
@@ -25,10 +26,20 @@ function configuredAssignmentPairs(): z.infer<typeof assignmentPairsSchema> | nu
   }
 }
 
-/** Dormant exact-pair admission for owner repository-target selection. */
+/** Shared experience admission precedes the existing repository-target pair/legacy paths. */
 export async function authorizeContextualAssignmentRepoTargetRequest(
   assignmentId: string | (() => string | Promise<string>),
 ): Promise<ContextualAssignmentRepoTargetAccess> {
+  if (isClassroomExperienceAdmissionConfigured()) {
+    const user = await requireAuth()
+    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+      const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
+      const requestedId = canonicalUuid.safeParse(rawId)
+      if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')
+      return { mode: 'contextual', user, assignmentId: requestedId.data }
+    }
+  }
+
   if (process.env.PIKA_CLASSROOM_ASSIGNMENT_REPO_TARGET_ACCESS_ENABLED !== 'true') {
     const user = await requireRole('teacher')
     const resolvedAssignmentId = typeof assignmentId === 'function'

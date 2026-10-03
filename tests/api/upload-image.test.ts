@@ -131,6 +131,49 @@ describe('/api/upload-image direct storage flow', () => {
 
   afterEach(() => vi.unstubAllEnvs())
 
+  it.each([['POST', POST], ['PATCH', PATCH], ['DELETE', DELETE]] as const)(
+    'validates shared admission after auth and before %s body or discovery',
+    async (method, handler) => {
+      vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', 'malformed')
+      const input = request(method, {})
+      const json = vi.spyOn(input, 'json')
+      expect((await handler(input)).status).toBe(503)
+      expect(json).not.toHaveBeenCalled()
+      expect(getServiceRoleClient).not.toHaveBeenCalled()
+      expect(rpc).not.toHaveBeenCalled()
+      const authError = new Error('Not authenticated')
+      authError.name = 'AuthenticationError'
+      vi.mocked(requireAuth).mockRejectedValueOnce(authError)
+      expect((await handler(input)).status).toBe(401)
+      expect(json).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['teacher', 'student'] as const)('uses contextual image reserve and finalize RPCs for a shared admitted %s', async (role) => {
+    const actorId = '50000000-0000-4000-8000-000000000001'
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', 'broken')
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, email: 'member@example.com', role } as any)
+    managedObject = { ...managedObject, created_by_user_id: actorId, data_subject_user_id: actorId }
+    expect((await POST(request('POST', reservationBody()))).status).toBe(200)
+    expect((await PATCH(request('PATCH', { assignment_doc_id: assignmentDocId, managed_object_id: objectId }))).status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('reserve_assignment_inline_image_for_member_v1', expect.objectContaining({ p_actor_id: actorId }))
+    expect(rpc).toHaveBeenCalledWith('finalize_assignment_inline_image_for_member_v1', expect.objectContaining({ p_actor_id: actorId }))
+    expect(rpc).not.toHaveBeenCalledWith('begin_managed_storage_upload', expect.anything())
+    expect(rpc).not.toHaveBeenCalledWith('verify_managed_storage_upload', expect.anything())
+  })
+
+  it('does not reserve or sign after the contextual transaction denies the admitted actor', async () => {
+    const actorId = '50000000-0000-4000-8000-000000000001'
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, email: 'member@example.com', role: 'teacher' } as any)
+    rpc.mockResolvedValue({ data: { ok: false, status: 403, error: 'Forbidden' }, error: null })
+    expect((await POST(request('POST', reservationBody()))).status).toBe(403)
+    expect(createSignedUploadUrl).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalledWith('begin_managed_storage_upload', expect.anything())
+  })
+
   it('rejects unauthenticated and identity-less sessions', async () => {
     const authError = new Error('Not authenticated')
     authError.name = 'AuthenticationError'

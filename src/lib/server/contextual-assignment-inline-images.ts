@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-handler'
 import type { AuthenticatedUser } from '@/types'
+import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
 const imagePairsSchema = z.array(z.object({
@@ -44,8 +45,11 @@ function configuredImagePairs(): z.infer<typeof imagePairsSchema> | null {
   }
 }
 
-/** Validate an enabled image gate before any compatibility-path disclosure. */
-export function assertContextualAssignmentInlineImageConfiguration(): void {
+/** Validate shared admission, then any existing image gate, before compatibility disclosure. */
+export function assertContextualAssignmentInlineImageConfiguration(user?: AuthenticatedUser): void {
+  if (isClassroomExperienceAdmissionConfigured()
+    && resolveClassroomExperienceAdmission({ id: user?.id ?? '' }).status === 'admitted') return
+
   if (process.env.PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED === 'true'
     && configuredImagePairs() === null) {
     throw new ApiError(503, 'Classroom assignment image configuration is unavailable')
@@ -53,7 +57,7 @@ export function assertContextualAssignmentInlineImageConfiguration(): void {
 }
 
 /**
- * Exact-pair admission only. Callers authenticate and resolve a trusted
+ * Shared experience or existing exact-pair admission only. Callers authenticate and resolve a trusted
  * Assignment/Classroom binding before using this gate; it never accepts IDs
  * supplied by a browser as relationship evidence.
  */
@@ -61,11 +65,18 @@ export function authorizeContextualAssignmentInlineImageAccess(
   user: AuthenticatedUser,
   classroomId: string,
 ): InlineImageAccess {
+  if (isClassroomExperienceAdmissionConfigured()
+    && resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    const requestedId = canonicalUuid.safeParse(classroomId)
+    if (!requestedId.success) throw new ApiError(400, 'Invalid classroom ID')
+    return { mode: 'contextual', user, classroomId: requestedId.data }
+  }
+
   if (process.env.PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED !== 'true') {
     return { mode: 'legacy', user, classroomId }
   }
 
-  assertContextualAssignmentInlineImageConfiguration()
+  assertContextualAssignmentInlineImageConfiguration(user)
   const pairs = configuredImagePairs()
   const identity = canonicalUuid.safeParse(user.id)
   const requestedClassroomId = canonicalUuid.safeParse(classroomId)

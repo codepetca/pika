@@ -910,8 +910,80 @@ remain pending. Original1448clock15:19:13Z/extended18:19:13Z and launch8/initial
 targeted5/fix5 remain; shared local metadata237 is not regenerated into this
 001–236 branch. Production225/sharedadmission/fullcutoverOFF remain unchanged.
 
-Execution follows the table above: finish batch 1's teacher Daily reads and other
-everyday operations first; then batch 2's assessment/grade integrations. Batch 3
+### Superseding coordinator checkpoint — 2026-10-03
+
+Batch 1's everyday-classroom backend is complete on actual canonical main
+`e86283f82741078563cd4d1e49710f501c074891`. PR #1450 normally squash-merged at
+20:44:36Z after all five exact reviewed `aa27ed1e` checks in CI `37150788872`
+passed (0 queue / 1823 run seconds); the squash tree equals the reviewed tree.
+Its initial, targeted and final independent reviews and actual local238 SQL/SDK
+normal/two forced-cleanup receipts remain valid, not rerun for timestamps.
+The original ledger retains 7 launches / 2 targeted / 1 final / 3 fix batches.
+The preceding pending-parent statements are historical, not current merge state.
+
+Delivered backend families: learner Daily reads/saves; teacher entry/history,
+roster logs/previews and cached summary; lesson list/date/bulk/copy; announcement
+read/owner-write/member-receipt; material read/owner-write; roster read/add/CSV/
+counselor/preserving-remove; class-day read/calendar-write; classroom detail,
+Course Guide and strict13-field metadata. Both mounted Resources tabs render the
+Course Guide; unmounted legacy resource sidebars are not another required screen.
+Duplicated active learner roster identities still fail closed without deleting
+history. Coordinated multirow removal/generation/re-add/Pal/purge support remains
+required in batch 3 before cutover; do not merely drop a unique index.
+
+Batch 2 is active on `codex/contextual-assignment-shared-writes`, based on actual
+main `e86283f8`. Its first bounded deliverable, [shared Assignment write admission](shared-assignment-write-admission.md), integrates existing actor-bound
+Assignment/classwork write, history/restore/artifact and inline-image adapters
+with the one strict shared admission reader. No new SQL, dependency, rollout
+flag, entitlement or provider operation is expected. Absent configuration retains
+literal pair/legacy behavior; malformed configuration fails after authentication
+before input discovery or compatibility fallback; admission grants no relationship.
+GET/open supplemental payload reads remain unchanged until their following
+statement-bound read slice. Independent review and an exact-cleanup local
+route-to-RPC proof are required before this deliverable can merge.
+
+Remaining batch-2 groups, in integration order: Assignment list/detail/open
+enrichments; Tests owner operations then learner participation/disclosure; complete
+Surveys owner/member transactions; Gradebook/returned Grades; existing grading
+entrypoint/job authorization and compatibility, without activating AI or billing.
+Existing062/063 actor stamps do not constitute owner checks;143 participation also
+needs owner precedence. Every nested read/page and response/history write must
+bind the current relationship, resource and visibility at its own boundary.
+Subscription-expiry existing-work protections require explicit integration with
+the separately owned billing work; ordinary archive remains a participation denial.
+Inactive/cold-archive/email/deletion policy remains future work.
+
+This is a backend phase exit, not a full experience or production rollout. Local
+001–238 remains immutable; production is last verified001–225, not freshly queried
+for this checkpoint. Shared admission, page/home pilots and full cutover remain
+OFF. No production promotion, plan/cohort mutation or billing/provider activation
+is implied. The epic remains incomplete. The owner explicitly authorizes routine
+in-scope work, local migrations, independent reviews and review extensions, and
+normal main merges through cutover. Carry that authority forward without repeating
+approval requests; retain original ledger clocks/counters, absolute review hard
+caps, normal security/CI/release gates and required material product decisions.
+
+First batch2 receipt: PR1451 draft `9843ebe1` passed945 focused tests/68files and
+both initial independent security/compatibility reviews. Its first actual local
+normal run failed while exact whole-row cleanup passed; independent baseline3users/
+1class/zero synthetic roots/guard168O is restored. No passing lifecycle is claimed.
+One source-only proof correction retains087 return clearing/099 not-submitted400
+and adds bounded safe diagnostics; transaction cleanup SQL and application code
+are unchanged. Targeted fixed-source review precedes normal/two forced reruns,
+then cumulative review and stable-head CI/merge. This does not close batch2.
+
+Superseding1451 evidence atb09fb2e9: targeted security and final integration CLEAN;
+948focused/68files+staticPASS. Actual normal and both intended forced modes restore
+the exact whole-row baseline with zero residue/guard168O; final local238receipts/
+3users/1class and Palcapture+scheduledOFF verified. ExactheadCI37154626010 failed
+the new wrapper because the runner lacksrg; the PR returned to draft. A second
+wrapper-only correction uses existinggrep while retaining exact marker/exit/privacy
+checks; targeted review and new local/CI evidence precede merge. Earlier source/
+runtime receipts remain historical, not CI or rollout approval. Original clocks,
+counts and explicit extension authority persist; no permission or migration change.
+
+Execution follows the table above: batch 1's backend is complete; finish batch 2's
+assessment/grade integrations next. Batch 3
 may run alongside independent batch-2 work only after concrete file/subsystem
 ownership and dependencies are established. Batch 4's live consumer waits for
 batches 1–3; batch 5 requires their full integrated rehearsal and an explicitly
@@ -920,8 +992,9 @@ the separate Daily scrolling task owns its UI-only work. Do not duplicate either
 
 Each bounded implementation returns tests, real database evidence where required,
 an exact reviewed SHA and merged-PR evidence before phase advancement. Use the
-draft-first stable-SHA review budget; stop for a required owner decision, migration
-authorization, release authority or exhausted review budget. Do not enable cohorts,
+draft-first stable-SHA review budget with the owner's explicit extensions; stop for
+a new material owner decision, authority outside the agreed scope or an absolute
+review hard cap. Do not enable cohorts,
 change account plans or deploy production merely because an individual slice passes.
 
 ### Current bounded integration slice — Assignment inline images
