@@ -99,6 +99,45 @@ describe('GET /api/storage/submission-images', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => vi.unstubAllEnvs())
 
+  it.each(['object_id=invalid', 'path=legacy.png'])('rejects malformed shared config before query, lookup or public compatibility (%s)', async (query) => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', 'bad')
+    vi.mocked(requireAuth).mockResolvedValue({ id: '50000000-0000-4000-8000-000000000001', role: 'student' } as any)
+    const { client } = createSupabase({ managedObject: null, bucketPublic: true })
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as any)
+    expect((await GET(new NextRequest(`http://localhost/api/storage/submission-images?${query}`))).status).toBe(503)
+    expect(getServiceRoleClient).not.toHaveBeenCalled()
+    expect(client.from).not.toHaveBeenCalled()
+    expect(client.storage.getBucket).not.toHaveBeenCalled()
+    const error = new Error('Authentication required')
+    error.name = 'AuthenticationError'
+    vi.mocked(requireAuth).mockRejectedValueOnce(error)
+    expect((await GET(new NextRequest(`http://localhost/api/storage/submission-images?${query}`))).status).toBe(401)
+  })
+
+  it.each(['teacher', 'student'] as const)('reads through the current-access RPC for a shared admitted %s', async (role) => {
+    const actorId = '50000000-0000-4000-8000-000000000001'
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', 'broken')
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, role } as any)
+    const { client } = createSupabase()
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as any)
+    expect((await GET(new NextRequest(`http://localhost/api/storage/submission-images?object_id=${OBJECT_ID}`))).status).toBe(302)
+    expect(client.rpc).toHaveBeenCalledWith('read_assignment_inline_image_for_context_v1', expect.objectContaining({ p_actor_id: actorId, p_managed_object_id: OBJECT_ID }))
+    expect(client.from).not.toHaveBeenCalledWith('classrooms')
+  })
+
+  it('never falls back to legacy owner access or delivery after contextual denial', async () => {
+    const actorId = '50000000-0000-4000-8000-000000000001'
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, role: 'teacher' } as any)
+    const { client, createSignedUrl } = createSupabase({ classroomTeacherId: actorId, contextualResult: { ok: false, status: 403, error: 'Forbidden' } })
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as any)
+    expect((await GET(new NextRequest(`http://localhost/api/storage/submission-images?object_id=${OBJECT_ID}`))).status).toBe(404)
+    expect(createSignedUrl).not.toHaveBeenCalled()
+    expect(client.from).not.toHaveBeenCalledWith('classrooms')
+  })
+
   it('delivers an owned student image with private headers', async () => {
     vi.mocked(requireAuth).mockResolvedValue({
       id: 'student-1', email: 'student@example.com', role: 'student',

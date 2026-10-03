@@ -35493,3 +35493,18 @@ CI and normal merge remain. Member read receipts follow; batch1/cutover not comp
 Receipt update initially exceeded the16,000-character startup budget by54; compressed
 CURRENT without weakening the gate.245focused checks,architecture/UI/design/TS/lint
 now pass. One documentation-only correction batch; no SQL/runtime changes.
+
+<!-- pika-session-log-archive-batch:98886aef9b916b6570cef269daec5542212c596b7a6dd1dd847fb556aa36f459 -->
+## 2026-10-03 — Announcement canonical source/type integration
+
+Owner clarification approves the requested30-minute elapsed review extension,
+ending10:03:44UTC; prior3launches/1docsfix/1targetedwave remain counted. Billing1435
+merged efe4eb3f after all five exact-head gates passed on0de5d0ea. Rebased1438 with
+continuity-only conflicts, preserving all historical archive entries, CI steps,
+runtime/SQL and immutable230–232 digests. Genuine type generation/check against
+matching001–232 adds only the three announcement RPCs; generated-key wrapper now
+refines nullable create inputs instead of provisional function declarations.
+Installed SDK/concurrency/rollback/forced-cleanup proofs remain applicable to the
+unchanged runtime/SQL. Fresh focused gate and final integration review are next;
+PR remains draft. No database reapplication, production, billing/provider operation,
+cohort activation or full cutover. Member read receipts follow normal1438 merge.

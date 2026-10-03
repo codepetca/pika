@@ -29,7 +29,7 @@ const imageRequestSchema = z.object({
 
 export const GET = withErrorHandler('GetManagedSubmissionImage', async (request) => {
   const user = await requireAuth()
-  assertContextualAssignmentInlineImageConfiguration()
+  assertContextualAssignmentInlineImageConfiguration(user)
   const input = imageRequestSchema.parse(Object.fromEntries(new URL(request.url).searchParams))
   const supabase = getServiceRoleClient()
 

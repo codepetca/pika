@@ -17,6 +17,14 @@ are in development; migration226 is owner-approved and applied locally, not
 production. Final database/review/CI evidence remains required. No cohort or
 production activation is authorized.
 
+Superseding2026-10-03 checkpoint: the roadmap's batch1 backend is complete through
+PR1450 on actual main `e86283f8`, with all five exact-head CI37150788872 gates
+passed. Everyday Daily/lesson/announcement/material/roster/calendar/detail/Guide/
+metadata consumers are merged; the pending statements below retain their earlier
+history only. Batch2 Assignment write adapters are being integrated with this same
+reader, followed by statement-bound assessment reads, Tests/Surveys/Grades and
+existing grading entrypoints. No cohort, page/home pilot or full cutover is enabled.
+
 The existing owner/member material-list GET routes consume this policy. The
 [Daily Log save slice](contextual-daily-log-save.md) adds dormant POST/PATCH
 integration, with canonical migration 224 pending production. Its identical SQL

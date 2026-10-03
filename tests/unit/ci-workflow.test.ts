@@ -6,6 +6,30 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires serial shared Assignment real-route proof and exact forced cleanup receipts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Rehearse shared Assignment writes and exact failed-fixture cleanup'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    const run = 'bash scripts/rehearse-local-shared-assignment-writes.sh'
+    const ack = '--ack=I_UNDERSTAND_THIS_CREATES_AND_REMOVES_ONLY_LOCAL_ASSIGNMENT_FIXTURES'
+    expect(step).toContain(`${run} '${ack}' normal > "$shared_assignment_log" 2>&1`)
+    expect(step).toContain("grep -Fx 'PASS shared-assignment actual routes and real RPCs; shared cohort only; old pair gates OFF'")
+    for (const [mode, failure] of [
+      ['after-fixture', 'FORCED_AFTER_FIXTURE'],
+      ['before-capture', 'FORCED_COMMIT_BEFORE_CAPTURE'],
+    ]) {
+      expect(step).toContain(`${run} '${ack}' ${mode} > "$shared_assignment_log" 2>&1 || shared_assignment_status=$?`)
+      expect(step).toContain(`grep -Fx 'FAIL shared-assignment ${failure}'`)
+    }
+    expect(step?.match(/shared_assignment_status=0/g)).toHaveLength(2)
+    expect(step?.match(/\[\[ "\$shared_assignment_status" -eq 1 \]\] \|\| exit 1/g)).toHaveLength(2)
+    expect(step?.split("grep -Fx 'PASS shared-assignment exact cleanup; whole-row baseline equal; zero residue; guard168 O'")).toHaveLength(4)
+    expect(step).toContain("trap 'rm -f -- \"$shared_assignment_log\"' EXIT")
+    expect(step).not.toMatch(/wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Rehearse contextual Assignment routes against local Supabase')).toBeLessThan(workflow.indexOf(name))
+  })
+
   it('requires genuine roster owner SQL/SDK proofs and exact failed-fixture cleanup', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const step = workflow.split('      - name: Verify contextual roster owner writes and failed-fixture cleanup')[1]?.split('      - name:')[0]

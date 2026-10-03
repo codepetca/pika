@@ -19,6 +19,7 @@ import {
   reserveContextualAssignmentInlineImage,
 } from '@/lib/server/contextual-assignment-inline-images'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,6 +69,7 @@ async function getOwnedAssignmentContext(userId: string, assignmentDocId: string
 export const POST = withErrorHandler('ReserveUploadImage', async (request: NextRequest) => {
   const user = await requireAuth()
   if (!user.id) throw new ApiError(401, 'Unauthorized')
+  if (isClassroomExperienceAdmissionConfigured()) resolveClassroomExperienceAdmission(user)
   const input = imageReservationSchema.parse(await request.json())
   const { supabase, assignmentDoc, assignment } = await getOwnedAssignmentContext(
     user.id,
@@ -129,6 +131,7 @@ export const POST = withErrorHandler('ReserveUploadImage', async (request: NextR
 export const PATCH = withErrorHandler('FinalizeUploadImage', async (request: NextRequest) => {
   const user = await requireAuth()
   if (!user.id) throw new ApiError(401, 'Unauthorized')
+  if (isClassroomExperienceAdmissionConfigured()) resolveClassroomExperienceAdmission(user)
   const input = imageFinalizationSchema.parse(await request.json())
   const { supabase, assignmentDoc, assignment } = await getOwnedAssignmentContext(
     user.id,
@@ -189,6 +192,7 @@ export const PATCH = withErrorHandler('FinalizeUploadImage', async (request: Nex
 export const DELETE = withErrorHandler('CancelUploadImage', async (request: NextRequest) => {
   const user = await requireAuth()
   if (!user.id) throw new ApiError(401, 'Unauthorized')
+  if (isClassroomExperienceAdmissionConfigured()) resolveClassroomExperienceAdmission(user)
   const input = imageCancellationSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
   const { data: object } = await supabase

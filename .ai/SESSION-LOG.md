@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Announcement canonical source/type integration
-
-Owner clarification approves the requested30-minute elapsed review extension,
-ending10:03:44UTC; prior3launches/1docsfix/1targetedwave remain counted. Billing1435
-merged efe4eb3f after all five exact-head gates passed on0de5d0ea. Rebased1438 with
-continuity-only conflicts, preserving all historical archive entries, CI steps,
-runtime/SQL and immutable230–232 digests. Genuine type generation/check against
-matching001–232 adds only the three announcement RPCs; generated-key wrapper now
-refines nullable create inputs instead of provisional function declarations.
-Installed SDK/concurrency/rollback/forced-cleanup proofs remain applicable to the
-unchanged runtime/SQL. Fresh focused gate and final integration review are next;
-PR remains draft. No database reapplication, production, billing/provider operation,
-cohort activation or full cutover. Member read receipts follow normal1438 merge.
-
 ## 2026-10-03 — Announcement CI continuity-format correction
 
 Final Sol5.6/high integration clean at c30273a2; exact ready CI37114314545 started.
@@ -927,3 +913,21 @@ startup/CI/Bara57tests/3files PASS; actual-base audit9files PASS; environment/st
 15975/16000/full preservation/trim/diff PASS. Exact incoming modes/blobs3202 PASS.
 Evidence/full optional-checkout verifier: /private/tmp/pika-1450-actual-guide-reconcile.fXoDni;
 focused runner /var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-Z4AMsV.
+
+## 2026-10-03 — Batch1 backend exit and Assignment shared-write start
+
+Metadata1450 reviewedaa27 passed all5exactCI37150788872 (0queue/1823runseconds),
+normal squash-merged20:44:36UTC as e86283f82741078563cd4d1e49710f501c074891.
+Verified merged state/time/SHA, identical reviewed/squash tree and clean canonical
+main fast-forward. Original7launch/2target/1final/3fix ledger retained; prior actual
+238 SQL/SDKnormal/twoforced cleanup accepted without replay. Batch1everyday backend
+exit recorded in existing roadmap; not full rollout. Multirow retained-roster
+lifecycle remains batch3 prerequisite, assessments/grades nowbatch2. New managed
+codex/contextual-assignment-shared-writes starts actuale862; startup/dependencies
+verified before edits. Sol6.1/high owns bounded access-adapter TDD; separate
+Sol6.1/high owns source-only actual-route proof/guarded cleanup. Root owns docs,
+CI/Git/reviews and serialDB execution, held until fixed-proof independent review.
+No SQL/types/dependency change expected. User explicitly includes review extensions
+in routine task authority; original clocks/counters/absolute caps remain. Local
+001–238 immutable, production lastverified001–225, admission/home/page/fullcutover/
+billing OFF. No production/account/cohort/provider work or worktree cleanup here.
