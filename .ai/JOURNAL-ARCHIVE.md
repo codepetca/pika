@@ -34900,3 +34900,207 @@ account/classroom changed. Runtime correctionb2c64b45 targeted Sol/high review c
 shared budget3launches/2fixbatches. Local strictfalse: automatic Free audit cleanup
 has static review, not strict-enabled runtime evidence.1424 final browser CI still
 pending; its merge precedes bulk publication. Prod001–225, all activation holds remain.
+
+<!-- pika-session-log-archive-batch:d8a9244ffa73c4a9864791df17f4fd6c71e4b7ae17f5b5264eb41a6992a20683 -->
+
+## 2026-10-01 — Date gate passed; strict main reconciliation required
+
+1424 final CI36952067498 passed all gates, but normal merge denied behind1419main.
+Returned draft, rebased onto1220d586; both patches identical and226 digest unchanged.
+Targeted Luna/medium reconciliation review clean;216 focused checks pass.5date review
+launches/1fixbatch; exact reviewed headd9b7d780 ready, CI36954995904 running. No bypass.
+Bulk rebased onto new date head; resolved CURRENT-only conflict and retained1419
+scrolling/session work.227 digest unchanged; production/admission holds remain.
+Bulk publication/full independent review still waits1424 merge; do not reset either
+review budget (date01:21:30Z, bulk01:41:00Z) across this CI/user checkpoint.
+
+## 2026-10-02 — ICS3U Java lesson review draft
+
+- Reviewed all 15 pages of JavaExplained.pdf. Owner selected concepts-only content, CodeHS/Replit context, and Markdown presented as a site. Created nine-section student lesson, separate teacher notes, and dependency-free reading/presentation site in docs/curriculum/ics3u/java.
+- Dedicated worktree: /Users/stew/.codex/worktrees/ics3u-java-intro/pika; branch codex/ics3u-java-intro. Startup verification passed after frozen-lockfile dependency install; no new dependencies or product runtime/schema changes. DeepSeek remains paused through 2026-12-31; weekly remaining 55%.
+- Verified all nine presentation sections visually and by content bounds, keyboard navigation and Escape, mobile reading layout, syntax checks, and student-only deployment archive. Private hosted review version succeeded: https://ics3u-java-explained.stewchan.chatgpt.site (Sites project appgprj_6abfba35d1488191a95161dc1d5353a6, source 7b4996988647426df5e0d4421734dded0f04cc75). Bundled Sites helpers disappeared during the run; used a credential-safe exact source push and committed-asset archive with native private deployment.
+- Teacher Chrome session verified P3 - ICS3U classroom 0a103a76-2b60-4fb6-8158-4a97727bd35f; saved and reopened Material 1.1 Java explained as a draft; verified the Draft label and clickable hosted lesson link. Public access and student posting await content review. Repo artifacts remain uncommitted for collaborative revision; no PR or classroom release yet.
+
+## 2026-10-02 — Keep Gradebook maximum header on one line
+
+- `codex/gradebook-max-row`: shortened the raw-mark row header to Max with no wrapping; preserved Max mark as its accessible name and title. Extended the existing GradebookTable owner; no shared primitive or experimental pattern. Risk: none.
+- Pattern Lab production Gradebook fixture: eight Playwright captures at 1440×900 / 390×844, light/dark, normal/ultra-compact; one text line, no clipping, existing 52px control row height, maximum edit focus/open/Escape verified. Student n/a: this table is teacher-only. Evidence: worktree `output/playwright/max-row`; focused checks and independent review before ready PR.
+
+## 2026-10-02 — Strengthen Gradebook Max label
+
+- Follow-up on PR1427 / `codex/gradebook-max-row`: use semantic default text color and semibold weight on Max so the one-line header reads clearly. Same production GradebookTable/Pattern Lab reference and eight-view visual matrix; teacher-only, risk none. Return PR to draft and review the updated stable SHA before CI.
+
+## 2026-10-02 — Compact Gradebook metadata rows
+
+- User requested Category and Max density consistent with Course %. Scoped 24px targets and zero vertical cell padding to those two GradebookTable metadata rows; retained Max emphasis, labels, shared focus treatment and edit permissions. Course % / Pattern Lab Gradebook is the reference; shared Button contract unchanged. Teacher-only, risk none; desktop/mobile, light/dark, normal/ultra-compact visual and keyboard verification before ready PR.
+
+## 2026-10-02 — Borderless app framing
+User-selected scope: header/sidebar rules, section dividers, and workspace panel outlines. Extended shared shell/workspace owners; retained control/card borders, table rules, selection, status, focus, and resize handles. Updated Pattern Lab and design guidance. Teacher/student desktop/mobile light/dark captures under output/playwright; selected workspace browser matrix passed. Focused related set:180files/1863tests passed with2workers after default-concurrency timing failures; Past logs related98passed. Architecture/UI/design/TypeScript/lint passed. Audit's whole-file composite heuristic flags unchanged semantics in WorkSurfaceMockup; independent review must verify styling-only diff. No migrations/dependencies. PR1428 draft. Independent review found and fixed the classroom loading rail divider; loading-state tests3passed and design policy passed. Targeted and cumulative review passed at5177e739. CI37007154391 Test & Build passed; browser281passed with4 expected golden mismatches after neutral tablist rule removal. Reviewed stable Linux captures (identical across3 attempts each) and updated only those4 references. Application source unchanged; targeted artifact review and fresh exact-head CI next.
+
+Owner approved one bounded main sync, compatibility review and fresh CI after the review time checkpoint. Rebased onto af566436; the sole archive conflict reused canonical main bytes because every branch-added historical body was already present. All owned application/design/test/snapshot files remain byte-identical to reviewed c8e04825; incoming Gradebook source/test match main exactly. The combined history retains the branch and main entries. Fresh focused checks, one compatibility review and exact-head CI precede ready handoff; no merge or production promotion is authorized.
+Fresh canonical focused checks pass180files/1864tests plus architecture, UI/design policy, TypeScript and lint on the combined branch. No concurrent-worker workaround was needed. Source preservation and both historical-body retention checks pass.
+
+The compatibility review found two pre-existing Gradebook workspace outlines missed by the framing pass. Removed only desktop inspector/mobile wrapper border utilities; resize, controls, selected state and table/card rules remain. Actual teacher Gradebook desktop/mobile light/dark captures show zero panel borders and no horizontal overflow. Student n/a for this teacher-only correction; prior student matrix remains applicable. Fresh canonical focused checks again pass180files/1864tests and all static gates. Targeted correction confirmation and the approved fresh exact-head CI remain before ready handoff.
+
+Owner follow-up: remove the separators between student Past logs entries. Extended existing StudentPastLogs owner by removing only divide-y/divide-border; retained row spacing, dates, click-to-expand, focus and viewport fitting. Reference: current Daily production composition and borderless framing canon; no new shared contract/experimental pattern. Student desktop/mobile light/dark long-history screenshots visually verified; teacher n/a because component is student-only. Existing related98tests and four browser layout contracts plus auth setup pass. Audit composite heuristic flags unchanged semantics in the whole file; the complete source diff is one decorative class removal. Draft PR1428 remains under the existing integration/review checkpoint; prior exact-head CI applies to a30d0bcf, not this follow-up.
+
+Owner follow-up: give table column headers a subtly distinct shade. Reused Attendance bg-surface-3 and extended shared DataTableHead; matched Gradebook frozen header cells and its Pattern Lab fixture, retaining metadata/footer surfaces. Updated existing frozen-column assertions and documented header ownership. Teacher Roster/Gradebook desktop/mobile light/dark captures reviewed (header RGB243/244/246 light,31/41/55 dark); no overflow. Student n/a: no student DataTableHead consumer. Twenty long-table browser contracts pass across5owners/4views, with one mobile-dark assignment navigation timeout passing isolated retry. Focused180files/1864tests and all static gates pass with2workers after concurrent default runs timed out in unchanged gallery contracts. Audit flags whole-file PageMockups composite semantics; the diff changes only header background utilities. Draft integration checkpoint persists; final review/CI and acceptance of affected Linux light-theme screenshots remain pending. No dependency, migration or business-logic change.
+
+Owner follow-up: remove Gradebook grid lines and shade Final marks. Extended GradebookTable/StudentPanel and the corresponding Pattern Lab fixture; shared DataTableHead/Body now support an explicit dividers=false opt-out with unchanged defaults for other tables. Removed decorative header/body/metadata/footer/frozen-column rules and used an opaque semantic pale-blue Final surface (#eff6ff light/#172235 dark), including mobile/inspector summary. Selection/hover, warning treatments, keyboard focus, resize handles and grading behavior remain. Reference: existing production Gradebook/Pattern Lab composition and shaded header canon; teacher desktop/mobile light/dark, percent/raw/weights/selected details. Student n/a because Gradebook is teacher-owned. Eight long-scroll/selection browser contracts pass; refreshed preview visual matrix passes eight states with zero table-cell/outer borders, exact Final RGB and no horizontal overflow. All production and four Pattern Lab captures visually inspected; restarted preview after catching a stale Tailwind stylesheet, then regenerated local auth and recaptured loaded mobile details. Final canonical focused180files/1864tests and architecture/UI/design/TypeScript/lint pass with2workers. Whole-file PageMockups audit heuristic reflects class-only changes. No dependency, migration or business-logic change. PR1428 stays draft under the existing integration checkpoint; current refinements still require independent confirmation, affected Linux screenshot acceptance and final exact-head CI. Tailwind alias makes eventual CI classification full.
+
+## 2026-10-02 — Date merged; bulk full review resumed with explicit extension
+
+1424 exact-head CI36954995904 passed all five gates atd9b7d780; normal squash merge
+42789d40 verified and canonical main synced. Conditional heartbeat paused. Date
+checkout retained while bulk dependency reconciles; no production/schema action.
+User explicitly approved30additional elapsed review minutes. Original bulk ledger
+and3launches/2fixbatches retained; resumed10:41:56Z, deadline11:11:56Z. Bulk rebased
+cleanly onto42789d40, installed226/227 unchanged. Draft publication and the single
+full initial security/compatibility wave follow fresh focused/type/audit checks.
+
+## 2026-10-02 — Bulk1426 CI portability correction approved
+
+Full initial security/compatibility reviews clean atde2feb04;238focused/types/audit
+pass. CI36997772883 passed build/browser and both real bulk/cleanup modes, but the
+proof wrapper failed `rg: command not found` on runner. Returned draft; no SQL fault.
+User approved20-minute remediation/review window13:29:24–13:49:24Z with counters
+retained5launches/2prior fixes. Regression reproduced old wrapper failure; portable
+grep preserves both required sentinels and rejects either missing proof. SQL226/227
+unchanged; no schema/promotion/activation. User-authorized billing coordination
+confirmed227 taken,228 planned by billing; its applications remain separately gated.
+
+Owner explicitly approved the final extension: one main sync/screenshot batch, one final independent review, fresh CI and merge to main if green. Integrated main a101fb28 cleanly; all owned UI source remains byte-identical to9c8e5302. Full canonical union passes191files/2012tests plus architecture/UI/design/TypeScript/lint. Matched Linux Playwright1.58 browser and CI system font (DejaVu Sans); all four teacher contract screenshots pass. Visually inspected current captures; refreshed only two light teacher-contract references for the subtle header shade, retaining dark/student/dialog references and all thresholds. Desktop change is confined to the table heading; mobile captures include tolerated low-amplitude font antialiasing with identical dimensions/no layout movement. Initial container font mismatch was discarded. One isolated final integration reviewer (launch7, sync batch5) now checks current owner follow-ups, screenshot acceptance and main compatibility before ready CI. Merge permission is main-only; no promotion or migration application.
+
+## 2026-10-02 — Failed-renewal closeout resumed
+
+Resumed codex/renewal-closeout, preserving prior edits and safety branch before
+rebasing onto main42789d40. Repaired stale dependency symlink; verify-env passes.
+Coordinator owns TS worker/store/runtime/docs; Astra/high owns228 closeout SQL
+and rollback contracts; GPT-6.1Sol/high delivered strict Stripe adapter+fixtures.
+334 billing tests and195 focused tests pass plus architecture/UI/design/audit; no Stripe writes. Local
+history001–227 and sandbox OFF confirmed read-only.227 belongs to classroom
+PR1426; await its merge before228 preview/application and type generation.
+228 is not applied; TypeScript is blocked only by missing generated RPCs.
+No reset/reseed/history repair, activation, production change or merge authorized.
+Next: fixed-candidate independent preapplication review, exact local228 approval,
+then generated contract/database acceptance and bounded draft-first PR lifecycle.
+
+Fixed preapplication candidate9fc266a5 reviewed:3launches (one capacityfailure,
+two completed), initialwavecomplete; batch1 fixes queue starvation, missing
+attention requeue recovery and a protected-plan fixture error. No migration
+application or types workaround. Review ledger /private/tmp/pika-renewal-closeout-review-ledger.json;
+clock starts12:16:19Z,7launches/4batches/60minutes default cap.
+
+Batch1 committed8ebecac6; targetedAstra/high review is clean.4launches total
+(onecapacityfailure),1fixbatch; finalintegration reservedafterDB/types.
+Source/code334tests andfocused195tests pass; noSQLexecution. Nextsafeaction
+is227reviewedmerge/rebase, exactlocal228approval andpreview, oneapply, then
+types/DB/warnings/PRacceptance. Sourceanddata/gates preserved; noPRpublishedyet.
+
+## 2026-10-02 — Conditional local closeout migration approval
+
+Owner approved one application of228_subscription_renewal_closeout.sql to the
+existing local database after classroom227 merges. Permission remains unconsumed:
+PR1426 is draft/open atde2feb047f07d3c23a3c8c408e98d783eae26ac4 as of13:33UTC.
+228 SQL digest remains7aba5de53766e5988284ae3f446c495954f171fadf83c64cc5bd053a25078f5a.
+Wait for its reviewed merge, rebase, verify history/preview only228, then one
+approved local attempt and actual type generation/database validation. No reset,
+reseed, history repair, production change, activation or merge authorized.
+Source review remains clean at8ebecac6; the60-minute review window expired at
+13:16:19UTC with4launches/1fixbatch used. Migration approval does not extend review;
+additional reviewers/remediation need explicit extension after concrete DB evidence.
+
+## 2026-10-02 — Authorized local closeout migration applied
+
+Verified classroom PR1426 merged asa101fb28; rebased billing onto it, preserving
+both continuity histories and byte-identical reviewed billing source/228 SQL.
+Exact local projectpika/container54322 history001–227 and previewonly228 checked.
+One approved local228 push succeeded; permission consumed. Actual generated
+types/check and full focused195tests/static gates pass. Foundation, checkout and
+lifecycle rollback harnesses pass; warning-level schema lint/security advisor
+report no issues. Closeout harness fails at resubscription: synthetic offering
+features lacks required catalog_key, so checkout offering isnull. Later harness
+contracts unexecuted; no fixture/source correction yet. Existing users/classrooms/
+bindings counts/digests unchanged, closeout rows0 and sandboxOFF after rollback.
+No reset/reseed/history repair, production write, Stripe call or activation.
+Review cap remains exhausted4launches/1fixbatch; proposed30-minute extension for
+one fixture correction batch, rerun and one final integration review before PR.
+
+## 2026-10-02 — Closeout fixture correction and full database acceptance
+
+Owner approved30-minute extension14:17:44–14:47:44UTC for one fixture batch,
+database rerun and one final integration reviewer. Added checkout catalog_key and
+selected-offering identity assertion; subsequent rerun exposed retry assertion
+CASE parsing ambiguity, parenthesized in the same batch. Complete closeout rollback
+harness now passes, including late-paid recovery, held-account queue fairness and
+audited requeue. Migration228 SQL remains byte-identical; no application repeated.
+Existing users/classrooms/bindings counts/digests unchanged; closeout rows0 and
+sandboxOFF. Generated contract/check and prior lint/security checks pass. Full
+billing/focused rerun and fixed-candidate final integration review precede ready CI.
+Two total correction batches; four reviewer launches before final integration.
+
+## 2026-10-02 — Closeout green CI and authorized main synchronization
+
+Final Astra/high integration review at25f12dfd found no actionable blockers;
+all five exact-head CI gates passed in37019461972, including browser matrix and
+Stripe binding/webhook race. Owner approved one main sync, one20-minute targeted
+review, fresh CI and merge on green at16:52:17UTC (review deadline17:12:17UTC).
+Returned PR1429 to draft; preserved safety branch and rebased cleanly onto main
+a6c23954 (#1428). Billing code/tests/fixtures/generated types/228 remain
+byte-identical. Third correction/sync batch; one sixth reviewer authorized.
+No new migration application, history repair, reset/reseed, production change,
+Stripe write or activation. Local checks and fixed-candidate sync review precede
+fresh ready-event CI and the approved main merge. Remaining billing phases/real
+provider rehearsal stay separate; classroom coordinator awaits228 landing for229.
+
+## 2026-10-02 — CI production-history format correction
+
+Targeted sync review at87007a8e passed; freshCI37037586582 found one failure
+among9174tests: compact CURRENT omitted the required `Prod DB 001–` prefix.
+Returned PR1429 to draft and restored the four missing characters without
+changing production history or weakening the contract. Billing source/228 remain
+unchanged. Fourth correction batch; focused/current-history checks precede a
+brief additional independent review, which needs authorization because the one
+approved sync reviewer is consumed. Existing merge-on-green authority remains.
+
+## 2026-10-02 — Responsive teacher attendance marking
+
+Removed roster-wide mark locks. Feature-owned optimistic queue saves independent students concurrently, orders overlapping corrections, protects projections from stale reads, and rolls back only failed/unsaved rows; navigation detaches presentation while accepted writes continue in order and outstanding projections survive re-entry. Manual and integrated controllers share the queue; Live now reuses the integrated controller while preserving its open/closed gate and table presentation. Commit receipts release writes immediately; roster reads run in the background after the queue drains.
+
+UI brief: existing Attendance table + Pattern Lab status-colors reference; reuse status controls, extend controller behavior, create shared feature queue for manual/integrated adopters. Teacher desktop/mobile light/dark; student n/a (no student rendering changes). Default, keyboard focus, optimistic concurrent saves, same-row corrections, failure/recovery checked. Primary signal remains pressed status dot; no new visual pattern. Composite checklist reviewed, keyboard/semantic coverage present, no manual follow-up.
+
+Evidence: focused 254 tests and static checks passed; targeted controller/component/queue tests passed; Playwright 20/20 across four projects, screenshots inspected (local test-results and /tmp/pika-attendance-{manual,integrated,live}-matrix.png). Independent review found manual settings appeared enabled while mark saves blocked their writes; settings controls now visibly disable while row corrections remain available. Component regression plus four manual browser/theme scenarios passed; pending-settings screenshots inspected. Audit passed. Cumulative review found navigation could drop an accepted queued correction; retained per-scope queues now detach UI callbacks without cancelling writes. Four controller date/activity regressions and 12 browser date-return scenarios passed; returned-pending screenshots inspected. Reviews clean through main sync atc99fbdb4. CI37034538288 passed full tests/build and database contracts, but four compact Live browser cases used a fixed roster date against the real selected date. Fixture now echoes the requested date, preserving the controller scope guard; all four scenarios pass locally. Final fixture re-review/CI follows in draft PR1430; no migration/deployment.
+
+## 2026-10-02 — Attendance approved merge synchronization
+
+Owner approved one additional journal reconciliation, targeted review and CI cycle after the bounded review checkpoint. Rebased PR1430 onto main25cc0691 (renewal closeout); preserved both archive histories and removed only duplicate blocks introduced by conflict resolution. All attendance source and tests remain byte-identical to reviewed8bc09489. Prior exact-head CI37038675999 passed every selected lane and PR Gate. Fresh focused verification, the single approved targeted review, final exact-head CI and main merge remain gated. Risk profile:workspace-state. Model recommendation:GPT-6.1 Sol/high for bounded synchronization compatibility.
+
+## 2026-10-02 — Minimal app scrollbar tracks
+
+- Extended `src/app/globals.scss` with transparent app-wide tracks and semantic thumb color; preserved native width, hover/hidden utilities, and forced-color defaults. Older Safari gets a guarded pseudo-element fallback.
+- Reference/reuse: classroom shell and existing transparent document tracks; extend global CSS, reuse utilities. Both roles, desktop/mobile, light/dark, default/hover/focus/hidden covered. No composite behavior, new component, or experimental guidance.
+- Verification: focused checks passed (91 tests, architecture, UI/design policy, TypeScript, lint). Headed Playwright captured all eight role/viewport/theme combinations for Classrooms and Pattern Lab, plus temporary browser-only surface probes; scrolling, hover/focus, hidden scrollbars, and forced colors passed. Evidence: `/tmp/pika-scrollbar-captures/evidence.json`; captures alongside it. Safari fallback not tested in Safari.
+- Risk profile: none. Model recommendation: GPT-6.1 Sol — small global CSS refinement with browser verification. PR1432 independently reviewed without blockers; original exact-head CI37047140437 and PR Gate passed. Owner authorized main merge; rebased onto attendance1430, preserving main history and removing only a newly duplicated archived entry. Scrollbar CSS remains byte-identical; sync checks, targeted review and fresh final CI precede merge.
+
+## 2026-10-02 — Bulk merged; prepare contextual lesson-plan copy
+
+1426 reviewed38c7edfb passed all five exact-head gates in37014848829; normal squash
+mergea101fb28 verified and canonical main fast-forwarded.239 focused checks;226/227
+unchanged. User-authorized billing notification delivered; heartbeat stays paused.
+New managed copy checkout based ona101fb28; startup verified, frozen install only.
+Bounded Astra/high design plus Sol/high writer; coordinator owns docs/harness/CI/Git.
+Prepared229 adds current-owner atomic copy with strict recursive source validation,
+raw content/nullable Markdown, preserved destination identity/lineage and no heads.
+Pre-review inspection fixed nullable node validation and SQL COALESCE syntax.
+CI-wrapper TDD red/green; source tests pass, legacy eight checked separately.
+Read-only local list/preview found installed228 absent from branch/main; dry-run
+stopped on history mismatch. No repair, schema apply, generated-type fabrication,
+production, billing/account or admission changes. Wait billing228 reconciliation,
+SQL preapplication review and fresh exact LOCAL229 approval before runtime tests.
+Sol/high independent preapplication review at1d3ff46f is clean; no DB operation.
+32 source/legacy tests, architecture and audit pass. Full focused workflow checks
+found only CURRENT/startup cap68characters over; compact handoff fixes that limit.
+TypeScript still has the expected unapplied-RPC generated-type error. Review ledger
+started14:37:47Z,1launch/0fullwaves; preserve the budget across the owner checkpoint.
+After compression262workflow/affected tests and architecture/UI/design policy pass;
+focused gate stops at the expected generated-RPC type error, not a green gate.
