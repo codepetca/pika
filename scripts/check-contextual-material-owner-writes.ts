@@ -69,6 +69,8 @@ function baseline() {
     'classrooms',(select count(*) from public.classrooms),
     'enrollments',(select count(*) from public.classroom_enrollments),
     'materials',(select count(*) from public.classwork_materials),
+    'assignments',(select count(*) from public.assignments),
+    'surveys',(select count(*) from public.surveys),
     'blueprints',(select count(*) from public.course_blueprints),
     'blueprint_versions',(select count(*) from public.course_blueprint_versions),
     'revisions',(select count(*) from public.classroom_archive_revisions),
@@ -108,6 +110,24 @@ function row(id = material) {
   return JSON.parse(sql(`select to_jsonb(m) from public.classwork_materials m where id=${q(id)};`)) as Record<string, unknown> | null
 }
 function state(id = material, target = classroom) { return { row: row(id), revisions: revisions(target) } }
+function classworkSnapshot() {
+  const items = JSON.parse(sql(`select coalesce(jsonb_agg(jsonb_build_object('type',item.kind,
+    'id',item.id) order by item.position,item.kind,item.id),'[]'::jsonb)
+    from (select 'assignment'::text kind,id,position from public.assignments where classroom_id=${q(classroom)}
+      union all select 'material',id,position from public.classwork_materials where classroom_id=${q(classroom)}
+      union all select 'survey',id,position from public.surveys where classroom_id=${q(classroom)}) item;`)) as
+    { type: 'assignment' | 'material' | 'survey'; id: string }[]
+  assert(items.some(item => item.type === 'material' && item.id === material))
+  assert(items.every(item => ['assignment', 'material', 'survey'].includes(item.type)
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.id)))
+  assert.equal(new Set(items.map(item => `${item.type}:${item.id}`)).size, items.length)
+  assert.equal(Number(sql(`select
+    (select count(*) from public.assignments where classroom_id=${q(classroom)})+
+    (select count(*) from public.classwork_materials where classroom_id=${q(classroom)})+
+    (select count(*) from public.surveys where classroom_id=${q(classroom)});`)), items.length,
+  'Reorder snapshot must bind every current item to this exact fixture classroom')
+  return items
+}
 function reset() {
   sql(`begin;
     update public.classrooms set teacher_id=${q(owner)},archived_at=null
@@ -428,10 +448,31 @@ async function main() {
       })
     }
     sql(`delete from public.classwork_materials where classroom_id=${q(classroom)} and id in (${ids(mixedIds)});`)
-    const reorder = `select public.reorder_classwork_items_for_owner_v1(${q(owner)},${q(classroom)},
-      ${json([{ type: 'material', id: material }])})::text;`
+    const survey = JSON.parse(sql(`begin; ${service(`select public.create_survey_for_owner_v1(
+      ${q(owner)},${q(classroom)},${q(`${tag} survey`)},true,false)::text;`)} commit;`))
+    assert.equal(survey.ok, true)
+    assert.equal(survey.survey.classroom_id, classroom)
+    const assignment = JSON.parse(sql(`begin; ${service(`select public.create_assignment_for_owner_v1(
+      ${q(owner)},${q(classroom)},${q(`${tag} assignment`)},'','Instructions',${json(emptyDoc)},
+      clock_timestamp()+interval '7 days','[]'::jsonb)::text;`)} commit;`))
+    assert.equal(assignment.ok, true)
+    assert.equal(assignment.assignment.classroom_id, classroom)
+    const priorMax = Number(sql(`select coalesce(max(item.position),-1) from (
+      select position from public.assignments where classroom_id=${q(classroom)}
+      union all select position from public.classwork_materials where classroom_id=${q(classroom)}
+      union all select position from public.surveys where classroom_id=${q(classroom)}) item;`))
+    assert.equal(survey.survey.position + 1, assignment.assignment.position)
+    const crossType = expectResult(sql(`begin; ${service(create(owner, classroom, 'After all three types'))} commit;`),
+      owner, classroom)
+    assert.equal(crossType.position, priorMax + 1)
     for (const reorderFirst of [true, false]) {
       reset()
+      const items = classworkSnapshot()
+      assert(items.some(item => item.type === 'assignment' && item.id === assignment.assignment.id))
+      assert(items.some(item => item.type === 'survey' && item.id === survey.survey.id))
+      assert(items.some(item => item.type === 'material' && item.id === crossType.id))
+      const reorder = `select public.reorder_classwork_items_for_owner_v1(${q(owner)},${q(classroom)},
+        ${json(items)})::text;`
       await withSessions(`reorder_${reorderFirst}`, async (first, second) => {
         await first.run(`begin; ${service(reorderFirst ? reorder : patch({ title: 'Before reorder' }))}`)
         const pending = second.run(`begin; ${service(reorderFirst ? patch({ title: 'After reorder' }) : reorder)}`)
@@ -524,6 +565,8 @@ async function main() {
         or student_id in (${ids(identities.map(([id]) => id))}))+
       (select count(*) from public.classwork_materials where classroom_id in (${ids(classes.map(([id]) => id))})
         or id in (${ids([material,foreign,deletedMaterial])}))+
+      (select count(*) from public.assignments where classroom_id in (${ids(classes.map(([id]) => id))}))+
+      (select count(*) from public.surveys where classroom_id in (${ids(classes.map(([id]) => id))}))+
       (select count(*) from public.course_blueprints where id=${q(blueprint)})+
       (select count(*) from public.course_blueprint_versions where id=${q(blueprintVersion)})+
       (select count(*) from public.classroom_archive_revisions where classroom_id in (${ids(classes.map(([id]) => id))}))+
