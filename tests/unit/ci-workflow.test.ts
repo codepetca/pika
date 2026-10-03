@@ -6,6 +6,18 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires detail SDK proofs and exact fixture/precapture cleanup failures', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify contextual classroom detail reads and exact failed-fixture cleanup')[1]?.split('      - name:')[0]
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-classroom-detail-read.ts\n')
+    expect(step).toContain('--verify-cleanup-after-fixture')
+    expect(step).toContain('--verify-cleanup-after-commit-before-capture')
+    expect(step).toContain('[[ "$cleanup_status" -eq 1 ]]')
+    expect(step).toContain("grep -F 'FAIL Forced classroom detail post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)'")
+    expect(step).toContain("grep -F 'FAIL Forced classroom detail post-commit pre-capture cleanup proof (expected for --verify-cleanup-after-commit-before-capture)'")
+    expect(step).toContain("grep -F 'PASS exact synthetic classroom detail cleanup, zero residual rows and global baseline counts'")
+  })
+
   it('defers heavy draft checks and runs comprehensive validation on a stable ready SHA', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
