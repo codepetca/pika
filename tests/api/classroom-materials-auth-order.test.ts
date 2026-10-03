@@ -39,12 +39,14 @@ function deferredParams(id: string) {
 }
 
 function materialsBuilder() {
+  let joined = false
+  const classroom = { id: classroomId, teacher_id: actorId, archived_at: null }
   const builder = {
-    select: vi.fn(() => builder),
+    select: vi.fn((fields: string) => { joined = fields.includes('materials:'); return builder }),
     eq: vi.fn(() => builder),
-    order: vi.fn()
-      .mockImplementationOnce(() => builder)
-      .mockResolvedValueOnce({ data: [], error: null }),
+    order: vi.fn(() => builder),
+    limit: vi.fn(() => builder),
+    maybeSingle: vi.fn(async () => ({ data: joined ? { ...classroom, materials: [] } : classroom, error: null })),
   }
   return builder
 }
@@ -124,13 +126,6 @@ describe('classroom material route authentication order', () => {
       email: 'private@example.com',
       role: 'student',
     } as AuthenticatedUser)
-    vi.mocked(resolveClassroomAccess).mockResolvedValue({
-      userId: actorId,
-      classroomId,
-      ownerId: actorId,
-      relationship: 'owner',
-      archived: false,
-    })
     const builder = materialsBuilder()
     vi.mocked(getServiceRoleClient).mockReturnValue({
       from: vi.fn(() => builder),
@@ -141,6 +136,11 @@ describe('classroom material route authentication order', () => {
     })
 
     expect(response.status).toBe(200)
-    expect(resolveClassroomAccess).toHaveBeenCalledWith(actorId, classroomId)
+    expect(await response.json()).toEqual({ materials: [] })
+    expect(resolveClassroomAccess).not.toHaveBeenCalled()
+    expect(builder.eq).toHaveBeenCalledWith('id', classroomId)
+    expect(builder.eq).toHaveBeenCalledWith('teacher_id', actorId)
+    expect(builder.select).toHaveBeenCalledWith(expect.stringContaining('materials:classwork_materials!classwork_materials_classroom_id_fkey('))
+    expect(builder.maybeSingle).toHaveBeenCalledTimes(2)
   })
 })

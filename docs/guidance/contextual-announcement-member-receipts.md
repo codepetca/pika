@@ -1,9 +1,10 @@
 # Contextual announcement member read receipts
 
-Status: PR1439 draft after clean initial security/compatibility reviews at f7550d57.
+Status: PR1439 merged main at98887743 on2026-10-03 after clean initial reviews,
+final integration review on2166a3c6 and all five exact-head CI37118772779 gates.
 Reviewed migration233 is installed locally and immutable; genuine generated types
-match; installed proofs pass. Final integration/CI remain pending. Shared admission
-and live cutover stay off. This follows owner writes PR1438.
+match; installed proofs pass. Shared admission and live cutover stay off.
+Production remains001–225. This follows owner writes PR1438.
 
 ## Existing handler, current relationship
 
@@ -65,8 +66,8 @@ it checks ACLs, both roles, owner/archive/tenant denials, publication/count sema
 actual lifecycle fence rows and late/suppressed-insert rollback before outer rollback.
 Installed-schema concurrency, actual application-adapter SDK probes and exact
 synthetic cleanup including durable provisioning audits pass. Final independent
-high-risk integration review and CI remain required before a stable-SHA ready PR
-and normal main merge. Source TDD93 new tests and311 combined announcement regressions pass;
+high-risk integration review and CI passed on2166a3c6 before the normal main merge.
+Source TDD93 new tests and311 combined announcement regressions pass;
 217 focused checks plus static gates pass. Initial two independent reviews were
 clean. After verifying exact pika/54322 binding, history001–232 and one-file preview,
 coordinator applied233 once under the explicit task-local waiver. Genuine generated

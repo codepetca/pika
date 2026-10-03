@@ -35104,3 +35104,17 @@ TypeScript still has the expected unapplied-RPC generated-type error. Review led
 started14:37:47Z,1launch/0fullwaves; preserve the budget across the owner checkpoint.
 After compression262workflow/affected tests and architecture/UI/design policy pass;
 focused gate stops at the expected generated-RPC type error, not a green gate.
+
+<!-- pika-session-log-archive-batch:42ccd7304e78082b6166bc3cf8e6c0820f982096197873dacacba41f28fc6edf -->
+## 2026-10-02 — Local copy approval and prerequisite reconciliation
+
+Human approved LOCAL229 only after billing228 reconciliation; no apply attempt.
+Human authorized billing coordination and60additional copy review minutes from
+16:50:54Z to17:50:54Z; original1review/1docfix counters retained, not reset.
+Sent bounded request to billing-owned task; separate human billing approval verified.
+Own branch rebased cleanly onto maina6c23954/1428; copy source/SQL unchanged,
+only incoming SESSION-LOG histories differ. Billing1429 sync review clean at87007a8e;
+fresh CI exposed required Prod DB summary prefix. Reproduced same omission in copy
+handoff with existing Bara policy test, restored the prefix without weakening the
+startup byte cap or tests. Migration229 digest9b4c9b8b unchanged. Wait billing merge;
+no production, plan/account, billing activation, history repair/reset/reseed changes.

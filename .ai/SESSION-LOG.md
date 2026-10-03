@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Local copy approval and prerequisite reconciliation
-
-Human approved LOCAL229 only after billing228 reconciliation; no apply attempt.
-Human authorized billing coordination and60additional copy review minutes from
-16:50:54Z to17:50:54Z; original1review/1docfix counters retained, not reset.
-Sent bounded request to billing-owned task; separate human billing approval verified.
-Own branch rebased cleanly onto maina6c23954/1428; copy source/SQL unchanged,
-only incoming SESSION-LOG histories differ. Billing1429 sync review clean at87007a8e;
-fresh CI exposed required Prod DB summary prefix. Reproduced same omission in copy
-handoff with existing Bara policy test, restored the prefix without weakening the
-startup byte cap or tests. Migration229 digest9b4c9b8b unchanged. Wait billing merge;
-no production, plan/account, billing activation, history repair/reset/reseed changes.
-
 ## 2026-10-02 — Apply and verify local copy229
 
 Billing1429 merged25cc0691; all five gates onfe228354/run37039171724. Rebased copy,
@@ -430,3 +417,32 @@ trimmed rolling log to40. No stash created/consumed, no migration renamed. Insta
 233 source remains byte-identical. Reconciled startup set exceeded its16,000-character
 budget by43; compressed CURRENT status without changing the production-prefix
 contract or weakening the test. Final focused gate and cumulative review next.
+
+## 2026-10-03 — Shared material-list reads preparation
+
+Prepared the next independent batch-1 consumer while reviewed announcement receipt
+PR1439 runs exact-head CI37118772779 at2166a3c6. No repeated routine approval;
+standing main lifecycle/local migration authority remains bounded to this task,
+with production and cohort activation separate. Native implementation and proof
+workers own disjoint source/script files; coordinator owns docs/CI/acceptance.
+Early shared material GETs bind every classroom-rooted payload to current owner or
+active non-owner membership, retaining14 fields, draft-only member visibility,
+negative positions, rich Tiptap, historical authorship and precise timestamp/null
+keysets. Existing exact-pair/legacy remainder and all mutation endpoints unchanged.
+TDD26cases initially10red/16green;116 new tests then green,182 material regressions,
+TypeScript/scopedlint pass. Worker and coordinator real SDK runs prove1007/1006rows,
+microsecond one-row cursors, empty/draft/archive/transfer semantics, first/later/
+terminal revocation, JSONBnull and malformed/error fail-closed behavior; forced
+setup failure still cleans exact fixtures. Public fixture table counts return to
+baseline3/1/0/2/1/0/0/0/15; no tagged sessions remain. No schema/type generation,
+reset/reseed, real-account, provider or hosted writes. Local installed233 belongs
+to1439; do not regenerate types until its merge and this branch's main reconciliation.
+1439 subsequently squash-merged98887743 at11:39:01Z after final2166a3c6 integration
+review and all five CI37118772779 gates passed (0queue/1715run seconds). Canonical
+main fast-forwarded cleanly;10 lifecycle receipts,1correction/syncpush; active/token
+metrics unknown. Material rebase has continuity-only overlaps, no runtime/schema
+conflicts; all21 branch-archived entries already exist canonically. Preserved main
+archive exactly before trimming, removed only a reintroduced rolling-log copy of
+its already-archived Bulk entry. No stash or migration rename/application. Root
+verified the read-only later material-owner-write design; no implementation yet.
+Reconciled focused checks, fixed-SHA review/CI/merge next; batch1/cutover incomplete.

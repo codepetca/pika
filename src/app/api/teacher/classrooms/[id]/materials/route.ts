@@ -13,6 +13,7 @@ import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contex
 import { createClassworkMaterialForOwner } from '@/lib/server/contextual-classwork-creation'
 import { contextualMaterialCreateSchema } from '@/lib/validations/classwork-authoring'
 import type { Json } from '@/types/database.generated'
+import { authorizeSharedMaterialReadActor, readContextualMaterials } from '@/lib/server/contextual-material-read'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -31,6 +32,14 @@ function isMissingMaterialsPositionError(error: any) {
 }
 
 export const GET = withErrorHandler('GetTeacherClassworkMaterials', async (_request, context) => {
+  const sharedAccess = await authorizeSharedMaterialReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = await context.params
+    return NextResponse.json(await readContextualMaterials({
+      supabase: getServiceRoleClient(), actorId: sharedAccess.user.id,
+      classroomId, permission: 'owner',
+    }))
+  }
   const params = context.params
   const materialAccess = await authorizeClassroomMaterialRequest(async () => (
     await params
