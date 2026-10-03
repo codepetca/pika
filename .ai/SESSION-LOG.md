@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Presentation diagrams in Read notes
-
-- Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
-- Verified nine visible diagrams plus nine detailed sections in Read, Chrome light/dark screenshots, 402px mobile diagram with no overflow, and full-size Present diagram with heading/details hidden. Build/syntax/diff checks pass. Evidence: task visualizations/java-read-diagrams.png. Private deployment succeeded from8225d108361d62b1f14ac470727dbab2e57ce717, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_93b77fe0a0b88191b4130f516c559fbe. Same URL, audience, and Material draft.
-
-## 2026-10-02 — Release Java lesson to ICS3U students
-
-- Owner explicitly requested course inclusion and student viewing. Verified Stewart Chan teacher session in exact P3 - ICS3U classroom 0a103a76-2b60-4fb6-8158-4a97727bd35f, existing Material title/content, and latest hosted URL. Changed Sites audience from owner-private to public via native access update (revision2); no external viewer invitations. An unauthenticated HTTP request returned200 and the correct title/all9 sections/9 diagrams. No code/build/deployment change.
-- Posted the existing 1.1 Java explained Material through the teacher UI; verified Posted badge after server save, reload, and reopening, with the correct clickable lesson link. Material has no due date/submission. Renamed local mirror to material.json and set is_draft=false; updated teaching notes/README to record public access and posted state. Evidence: task visualizations/java-material-posted.png. Future site edits must preserve public audience and use ordinary save/deploy, not owner-private deployment.
-
-## 2026-10-02 — Person/code/group icons for Java roles
-
-- Updated Who does what diagram: Programmer uses Lucide user-round, Program uses </>, User uses Lucide users-round. Same mapping in Present, compact Read, and mobile variants; existing labels/arrows retained. License already included; no new dependency. Standalone artifact, risk none.
-- Visual Chrome screenshot verified dark Present; DOM confirmed matching Read/mobile icon geometry and code label. Build/syntax/diff checks pass; evidence task visualizations/java-role-icons.png. Existing public audience verified, source pushed and archive saved; ordinary public save/deploy succeeded from35da6cb671f9f55661d473a754951b044dbac354, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_3a42d83540608191ba94725137d180cd. Posted P3 ICS3U Material already points to the same updated URL.
-
-## 2026-10-02 — Java lesson presentation scale
-
-Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
-
 ## 2026-10-02 — Java compiler factory icon
 
 Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.
@@ -989,3 +970,22 @@ missing genuine metadata RPC compiler error remains. Independent preexecution
 proof review and exact actual235/pending236 schema reconciliation precede migration
 naming/application/types/runtime evidence. PR1445 merged2fe79a8b with allfiveCI
 checks, canonicalcleanFF. Production/admission/fullcutover remain unchanged/OFF.
+
+## 2026-10-03 — Metadata actual roster235-main and immutable236 dependency receipt
+
+Rebased all five reviewed detail/metadata commits from a8 onto actual PR1445
+main2fe79a8b; retained reviewed130 child runtime/proof/test bytes, main235 runtime
+and genuine generated/curated types, exact main+detail CI/test union and history.
+Imported ONLY reviewed/installed236 source from b47c6fa7, SHA256
+24e23667b21580fdcadb7a64ca251725f87040fa52bf9a1fbe71e0c7b3c22249;
+PR1448 remains pending, not merged. Complete001–236 source supports coordinator
+reconciliation; no repeated application, migration237 naming, generation, database,
+provider, remote, activation or publication. Private metadata SQLf61 unchanged.
+Source checks/logs: /private/tmp/pika-metadata-reconcile.IPpLtQ. Only expected
+missing metadata RPC type contract remains until coordinator application/genuine
+generation. Actual metadata proofs unexecuted; prod001–225/admission/cutover OFF.
+Preservation verifier PASS: 18 child/18 incoming main files, exact CI/test union,
+2090 history entries and immutable235/236/privatef61 hashes. Focused354tests,
+startup+Bara47, architecture1141modules, UI/design policy and scopedlint PASS.
+Focused stops ONLY at helper line30 missing-RPC TS2345. Audit correctly skips
+this dependency/docs-only uncommitted diff; no runtime byte edits or cast fixes.
