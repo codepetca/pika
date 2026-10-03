@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Java lesson in ICS3U Blueprint
-
-Added Java Explained as a Material in the P3-linked ICS3U-4 Blueprint through the signed-in teacher UI. Materials were empty; assignments occupied positions 0–13 and the survey position 14, so the new Material uses position 15 without altering existing classwork. Artifact ID 8ad9cfa1-1c8e-4733-a16f-90cbc0a35111 links the public Java lesson. Export Course Package saved Version 5 from Draft revision 6, verified after reloading, with persisted Material Markdown and screenshots in /tmp/pika-java-review/blueprint-{version-5,java-material}.png. CLI production session was unavailable; used existing authenticated Chrome session. Mirrored blueprint Material beside lesson source and refreshed the classroom Material title to the observed Java Explained. Existing classrooms were not updated or created. Documentation/data mirror only; no Pika runtime, schema, or site changes.
-
 ## 2026-10-02 — P3/P5 Blueprint scope verification
 
 Confirmed both P3 - ICS3U and P5 - ICS3U use shared ICS3U-4 Blueprint; both classroom Blueprint tabs show Content Version 3 / Guidance Version 4. Shared Blueprint already contains Java Explained (version 5). Java Explained is Posted in both classrooms; P5 Material opens the same public URL. Preparing P5 inverse Blueprint update was blocked by new classroom artifacts requiring promotion/reconciliation; no proposal/classroom content update applied. P5 has a classroom-only verification assignment in addition to local Java Material, so unrelated promotion was not attempted. Asked whether the user means the shared reusable Blueprint or both current classroom Blueprint tabs; clarification pending. Updated lesson README with verified scope and classroom IDs. No app/source/site changes.
@@ -705,3 +701,20 @@ proof runs before unchanged removal SQL/SDK/three forced modes in CI. Review
 clock/counters retained: original15:19:13Z; launch9/target6/fix6, deadline19:19:13.
 Source/preapply review, local238-only application, actual serial regression proofs,
 final focused/cumulative independent review and exact-headCI remain pending.
+
+## 2026-10-03 — Forward238 local catalog and serial regression receipts
+
+Reviewed23847a9bf5d ordinarylocalpush ONCE EXIT0, source/history001–237 matched,
+only238 preview/projectpika54322/API54321 guards verified. Posthistory001–238;
+private validator body5af12d2f owner/ACL/security/search/arguments unchanged,
+only volatilitys; metadata sourcefde368b5 matchesreviewed238/service-only ACL.
+Genuine generation/drift40d0289d unchanged; warning-free lintPASS. Strictserial
+81872SQL metadata+roster PASS by18:07:17Z, exactnewempty-slugPT400/fullrows/revisions.
+55752metadataSDKnormal EXIT0/all4markers;33554twoforcedeachEXIT1 exactFAIL+cleanup.
+12656rosterSDKnormal EXIT0/all4markers;4693threeforcedeachEXIT1 exactFAIL+cleanup,
+suppressed-delete complete rollback+guardrestored. No duplicateDBproofs/recovery.
+Startupfirstfocused187PASS/onebudgetFAIL16022 correctedcompactCURRENT without
+changing16000threshold orhistory. Final188tests16files/allstaticTSC/lint PASS.
+TargetedSol5.6/high CLEAN439+d132 (69+110offline); original review clocks/caps
+retained. Docs/startupreceipt batch7; pendingone final cumulative reviewer launch11
+andstableSHA CI. No production/account/cohort/feature activation; main2095 unchanged.

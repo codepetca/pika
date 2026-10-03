@@ -110,3 +110,19 @@ Forward238 preapplication review/application, serial runtime regression proofs,
 targeted correction and cumulative review, focused checks and exact-head CI are
 pending. Earlier receipts do not certify this forward correction. Production
 remains001–225 and shared admission/cutover stays OFF.
+
+Forward238 was applied locally once on2026-10-03 after CLEAN targeted review of
+frozen4390ea03/d1322acb and digest47a9bf5d, exact matched001–237 history and a
+238-only preview. Installed history is001–238. Catalog checks prove the private
+body hash/owner/ACL/security/search path/arguments unchanged with volatility `s`;
+metadata definition matches238 and retains the service-only privileges. Genuine
+generation and strict drift check pass; complete type artifact40d0289d unchanged.
+Warning-free lint passes. Serial metadata and removal rollback-only SQL pass;
+metadata SDK normal/two forced and removal SDK normal/three forced pass, every
+forced child exiting exactly1 with its own expected failure and exact cleanup.
+Suppressed roster cleanup rolls back all mutations and restores the guard.
+No abandoned fixture, real-user change or schema-history repair was needed.
+The first local startup check was22characters over16000; compact CURRENT retained
+the original budget and canonical production marker. All188focused assertions
+across16files and architecture/UI/design/TypeScript/lint now pass. Final cumulative
+independent review and new exact-headCI are still pending; this is not rollout.
