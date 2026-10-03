@@ -446,6 +446,18 @@ not complete batch1. Production unchanged.
 
 ## 2026-10-03 — Verified material-write merge and read dependency reconciliation
 
+PR1441 normal squash merge d913eebd71e94e6dee4fd0be2d24b7371b5ccb15 verified
+at14:18:23Z after all five exact-reviewed-head74995349 CI37127414505 gates pass
+(observed0queue/1774runseconds). No admin/auto-merge/bypass. Canonical main cleanly
+fast-forwarded. Original review clock and7launch/4batch counters retained under
+the user's explicit review-extension authority; no repeated approval requested.
+Installed234 digest unchanged/immutable; local001–234, production001–225 untouched.
+This child rebased onto actual squash skipping stacked749; full pre-receipt tree
+matches its previous candidate exactly. Only continuity/merge receipts change.
+Main retarget, changed-base review where needed, and final exact-head CI still
+precede child merge. Parent worktree retained while dependents remain. Shared
+admission/cutover OFF; no provider/account/plan/billing activation.
+
 ## 2026-10-03 — Shared roster management read preparation
 
 Owner explicitly authorized remaining in-scope implementation, reviews, normal
@@ -514,17 +526,6 @@ counters remain; documented human-authorized60minute extension ends16:26:22Z.
 Targeted changed-base review/final exact-head CI stillprecede merge. Local236
 is installedby separate preservingremoval work; thisread addsnoSQL/types/UI.
 Production001–225/sharedadmission/fullcutoverOFF; no provider/account/billing edits.
-PR1441 normal squash merge d913eebd71e94e6dee4fd0be2d24b7371b5ccb15 verified
-at14:18:23Z after all five exact-reviewed-head74995349 CI37127414505 gates pass
-(observed0queue/1774runseconds). No admin/auto-merge/bypass. Canonical main cleanly
-fast-forwarded. Original review clock and7launch/4batch counters retained under
-the user's explicit review-extension authority; no repeated approval requested.
-Installed234 digest unchanged/immutable; local001–234, production001–225 untouched.
-This child rebased onto actual squash skipping stacked749; full pre-receipt tree
-matches its previous candidate exactly. Only continuity/merge receipts change.
-Main retarget, changed-base review where needed, and final exact-head CI still
-precede child merge. Parent worktree retained while dependents remain. Shared
-admission/cutover OFF; no provider/account/plan/billing activation.
 
 ## 2026-10-03 — Shared calendar owner-write source and local verification
 
