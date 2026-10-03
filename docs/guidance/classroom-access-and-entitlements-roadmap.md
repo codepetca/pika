@@ -782,6 +782,32 @@ work; main migration tail remains234 before this slice.1446 is prepared,
 removal1448draft/detail1447draft. Changed-base review and fresh exact-head CI
 precede1445 merge. Production001–225/sharedadmission/fullcutoverOFF remain.
 
+[Shared classroom-detail GETs](contextual-classroom-detail-reads.md) are the next
+bounded batch1 read integration: explicit30field owner/member payloads bind the
+current relationship in the data query and retain member privacy/hydration.
+Metadata PATCH, Course Guide assembly and SSR/home routing are not widened.
+Actual SDK cleanup, independent review and final CI remain release gates;
+no source-only result activates shared admission or closes the phase.
+
+Superseding class-day-read receipt: PR1444 normal squash mergea8c4e9b at16:04:51Z
+on2026-10-03 followed all five exact7d341d23 CI37133784223 checks
+(0queue/1697runseconds); canonicalmain cleanFF. Roster1445/calendar1446 remain
+prepared writes. Detail1447 has clean initial reviews and actualSDK normal/two
+forcedcleanup PASS after a proof-only parsed-clone correction. Removal1448 has
+actual SQL/SDK normal/threeforcedcleanup PASS; full draft reviews remain pending.
+These are bounded batch1 receipts, not complete rollout or cohort activation.
+
+Detail1447 is now prepared locally on reviewed pending1448 head88a1bfd6
+while its one readyCI37143487206 runs. This is NOT a main merge: actual main
+remains2095/calendar1446, and root-owned actual-squash reconciliation, changed-base
+review, publication and exact-head detail CI remain gates. Original detail
+paragraphs and receipts above are preserved as historical evidence; their older
+pending-write language is superseded by this preparation receipt. All10reviewed
+detail files remain unchanged, while the complete parent's roster/calendar/
+removal and dormant237/forward238 SQL, genuine types, proofs/tests and CI gates
+are retained. No detail SQL/types generation, metadata runtime or cohort change;
+shared local001–238/production225/sharedadmission/fullcutoverOFF remain.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
