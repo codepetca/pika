@@ -1,7 +1,7 @@
 # Shared linked Blueprint material reads
 
 Status: locally verified preparation; independent review and exact-head CI remain.
-This batch-1 API slice stays dormant while shared admission is disabled. It changes
+This bounded material-read boundary stays dormant while shared admission is disabled. It changes
 neither the classroom UI nor the Blueprint authoring, adoption or publishing flows.
 No schema migration or generated database-type change is required.
 
@@ -40,6 +40,10 @@ Absent/unmatched admission leaves the existing global-teacher helper and its
 compatibility behavior unchanged. Malformed configured admission fails closed.
 Blueprint guidance, adoption, previews, material mutations and roster access are
 separate boundaries, not implicitly authorized by this read.
+
+The Blueprint surface belongs to the lifecycle/reuse batch3. Its current UI first
+loads separate authoring guidance, which remains global-teacher guarded. This slice
+does not make that tab cross-role ready or satisfy batch1's everyday-work exit gate.
 
 ## Observed local verification
 

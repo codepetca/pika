@@ -520,5 +520,7 @@ ordering/limit, owner/link transitions, malformed evidence,500/501 and purge-sha
 detach pass locally. Corrected proof facade targets the actual GET wire array before
 maybeSingle unwrapping. Normal exit0 and forced exit1 prove zero residual fixtures
 and baseline equality.402focused tests21files and all policy/type/lint gates pass.
-No new schema/types/UI/activation; publication and formal review wait verified1441
-merge/reconciliation. Production unchanged; this does not complete batch1.
+No new schema/types/UI/activation. After explicit review-extension authorization,
+stacked draft1442 gets independent scope-only review; ready/merge still waits1441
+merge/reconciliation. Blueprint UI's separate guidance is batch3 work; this does
+not complete batch1. Production unchanged.
