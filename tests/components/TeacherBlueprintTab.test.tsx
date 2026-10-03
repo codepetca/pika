@@ -39,6 +39,19 @@ describe('TeacherBlueprintTab', () => {
     vi.clearAllMocks()
   })
 
+  it('shows latest shared materials without changing the classroom frozen Content Version', async () => {
+    vi.mocked(fetchCachedJSON).mockImplementation(async (_key, url) => url.endsWith('/blueprint-materials')
+      ? { materials: { version_id: 'b2d18c61-0714-4e46-b93a-1920fdaaf490', version_number: 5,
+        materials: [{ artifact_id: '8ad9cfa1-1c8e-4733-a16f-90cbc0a35111', title: 'Java Explained',
+          content_markdown: '[Lesson](https://example.com/java)', position: 15 }] } }
+      : { context: linkedContext })
+    render(<TeacherBlueprintTab classroom={classroom} isActive sectionParam="content" />)
+    expect(await screen.findByRole('heading', { name: 'Java Explained' })).toBeInTheDocument()
+    expect(screen.getByText('Latest saved Blueprint · Version 5')).toBeInTheDocument()
+    expect(screen.getByText('Content Version 3')).toBeInTheDocument()
+    expect(screen.getByText('Build a Karel program')).toBeInTheDocument()
+  })
+
   it('shows the linked classroom Version in the content pane with teacher-only guidance', async () => {
     vi.mocked(fetchCachedJSON).mockResolvedValue({ context: linkedContext })
     const onSectionChange = vi.fn()
