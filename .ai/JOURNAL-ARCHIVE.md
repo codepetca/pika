@@ -35156,3 +35156,17 @@ retained. Removed only the later duplicates, preserving each original record.
 263focused tests and all local gates passed at a60a2db9. No application/SQL/type/CI
 changes, migration application, production promotion or activation. Frozen final
 recheck and new exact-head CI must pass before normal main merge.
+
+<!-- pika-session-log-archive-batch:cbf15afe56ac279b39adf97a37be74bbd23412e8278abe378942a3979349c891 -->
+## 2026-10-02 — Approved copy1431 scrollbar-main reconciliation
+
+Owner approved one synchronization batch6, one changed-base final recheck and
+15review minutes19:34:36–19:49:36Z, plus a temporary main-merge hold request to
+the attendance and billing chats during final CI. Both can continue independent
+work; no task pause or production authority was transferred. Rebased onto1432
+bf3754c4; journal conflict only. Removed one surplus exact historical entry,
+preserving its original. Combined history equals6ad8140f+bf3754c4−8dc05d47
+plus this receipt. All16 non-log owned files and installed229 bytes unchanged.
+263focused tests and architecture/UI/design/TypeScript/lint pass. Final frozen
+recheck and fresh exact-head CI remain before normal main merge. No schema
+application, production promotion, account/billing changes or admission activation.

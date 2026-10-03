@@ -714,6 +714,12 @@ and forced-cleanup proofs, independent review and exact-head CI precede merge.
 Roster write fences and class-day/core reconciliation remain batch-1 work;
 linked Blueprint material reads are adjacent batch-3 work, not phase closure.
 
+Superseding linked-material receipt: PR1442 merged3351d85f at14:56:00Z on
+2026-10-03 after all five exact-reviewed-headcc2681d8 CI37129553521 checks
+(0queue/1757runseconds); canonicalmain cleanFF. Roster1443 reconciles onto that
+actual merge before targeted preservation review/final CI. Local235 is installed
+by the separate roster-write slice; production001–225 and shared admission OFF.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
