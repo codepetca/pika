@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server'
+import { authorizeSharedClassDayReadActor, readContextualClassDays } from '@/lib/server/contextual-class-day-read'
+import { contextualClassDayReadQuerySchema } from '@/lib/validations/contextual-class-day-read'
+import { getServiceRoleClient } from '@/lib/supabase'
 import { authorizeClassroomCoreRequest } from '@/lib/server/classroom-core-access'
 import { createContextualClassroomCalendar, setContextualClassroomCalendarDay } from '@/lib/server/contextual-classroom-calendar'
 import { calendarClassroomIdentitySchema, createClassroomCalendarSchema, setClassroomCalendarDaySchema } from '@/lib/validations/classroom-calendar'
@@ -27,6 +30,15 @@ export const revalidate = 0
  * Legacy route: prefer GET /api/classrooms/:classroomId/class-days
  */
 export const GET = withErrorHandler('GetTeacherClassDays', async (request, context) => {
+  const shared = await authorizeSharedClassDayReadActor()
+  if (shared.mode === 'shared') {
+    const sharedQuery = new URL(request.url).searchParams
+    const { classroom_id } = contextualClassDayReadQuerySchema.parse({
+      ...Object.fromEntries(sharedQuery),
+      classroom_id: sharedQuery.getAll('classroom_id').length === 1 ? sharedQuery.get('classroom_id') : undefined,
+    })
+    return NextResponse.json(await readContextualClassDays({ supabase: getServiceRoleClient(), actorId: shared.user.id, classroomId: classroom_id }))
+  }
   const { searchParams } = new URL(request.url)
   const classroomId = searchParams.get('classroom_id')
   const access = await authorizeClassroomCoreRequest(classroomId ?? '', { permission: 'read' })

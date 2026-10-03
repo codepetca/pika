@@ -720,6 +720,16 @@ Superseding linked-material receipt: PR1442 merged3351d85f at14:56:00Z on
 actual merge before targeted preservation review/final CI. Local235 is installed
 by the separate roster-write slice; production001–225 and shared admission OFF.
 
+The class-day dependency now has a bounded
+[shared GET consumer](contextual-class-day-shared-read.md) in preparation for both
+neutral and compatibility URLs. Current owner/member predicates bind every
+payload and terminal page, retaining archived owner reads and active unarchived
+member access without global-role routing. Complete date/ID pagination and strict
+safe projection are required. No schema/UI/admission change is included; shared
+calendar writes still need migration-152 boundary consolidation. Roster write
+fences also remain batch-1 work. Linked Blueprint material reads are batch-3
+adjacent and do not replace those everyday-access dependencies.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;
