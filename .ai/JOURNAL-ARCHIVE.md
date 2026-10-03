@@ -35331,3 +35331,8 @@ PR1437 initial independent GPT-5.6 Sol review at99704ad8 found one blocking malf
 ## 2026-10-02 — Java lesson presentation scale
 
 Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
+
+<!-- pika-session-log-archive-batch:64dd6c3b71d34d49e82eef49552d6e00ecfbf81be17928f9bf786e300fb85944 -->
+## 2026-10-02 — Java compiler factory icon
+
+Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.

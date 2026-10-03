@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Java compiler factory icon
-
-Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.
-
 ## 2026-10-02 — Program game controller icon
 
 Replaced the Program code symbol in Who does what (slide 3) with a locally drawn game controller SVG, including reading/mobile variants. Visually verified Present and Read in Chrome. Build, syntax check, and whitespace check passed. Public Sites version appgver_b856dce49cb08191ba15841e9f27ca94 published from source 68c563f63a627b20e7111ccd8d869c85641e7ce0; deployment appgdep_6abfc84610548191ab624a497a4fe005 succeeded. Same student Material URL. No Pika runtime/schema changes.
@@ -989,3 +985,35 @@ Preservation verifier PASS: 18 child/18 incoming main files, exact CI/test union
 startup+Bara47, architecture1141modules, UI/design policy and scopedlint PASS.
 Focused stops ONLY at helper line30 missing-RPC TS2345. Audit correctly skips
 this dependency/docs-only uncommitted diff; no runtime byte edits or cast fixes.
+
+## 2026-10-03 — Metadata local237 proof checkpoint and serial CI registration
+
+Coordinator applied immutable metadata237/privatef61 locally once after exact
+001–236 reconciliation and a237-only preview. Service-only ACL/full30 verification,
+genuine12RPC generation/type drift/TSC0 and124line rollback SQL EXIT0/complete
+marker17:23:59UTC PASS; serviceTRUE/anon+authenticatedFALSE, no reapplication.
+Normal SDK reached all3behavior/race/uncertain markers but exited1 without cleanup:
+readonly diagnosis found6fixture-created default gradebook categories omitted
+from the teardown whitelist. Cleanup correctly refused and rolled back. Targeted
+Sol5.6 review CLEAN2cf proof-only correction/private9aa5e2b8 recovery; rootexactone
+recovery EXIT0 at17:37:18 removed ONLY20syntheticclosure rows, zero targets/168O,
+current untouched whole-row baseline equal beforeCOMMIT+after—not certification
+of the first process's original baseline. Correctednormal60635 EXIT0 all3behavior
++exactcleanup at17:37:48; then forcedfixture20684 EXIT1 exactownFAIL+cleanupPASS;
+only after closure pre-capture56515 EXIT1 exactownFAIL+cleanupPASS at17:38:31.
+All3corrected modes restore their global full-row baseline/zeroresidue/guardO;
+arbitrary failures do not count. Product/RPC237f61 unchanged by proof correction.
+Added metadata guide, one roadmap paragraph and serial CI SQL→normalSDK→twoforced
+registration, each requiring exact own exit/status/markers and full cleanup.
+CI-hook RED reproduced before insertion; offline source checks only here.
+Runtime237/source proof/installedSQL/types untouched by this docs/CI worker;
+no DB/status/provider/network/Git mutation. Local001–237/prod001–225;
+shared admission/fullcutover OFF. Full initial source review/exact-head CI and
+actual-main integration remain pending; no final-review/merge claim.
+Offline checkpoint63tests/4suites PASS before concurrent proof remediation;
+scopedlint, metadata CI shellsyntax, exact existing CI-byte/one-paragraph roadmap
+preservation and diff PASS. Evidence metadata-ci-doc-tests.log in
+/private/tmp/pika-metadata-reconcile.IPpLtQ; no commit by this worker.
+Final factual receipt update:64offline CI/source/startup/Bara tests PASS;
+exact prior CI/test/roadmap/history preservation, metadata bashsyntax, trim and
+diff PASS. Final log metadata-final-doc-tests.log; no DB or Git mutation here.

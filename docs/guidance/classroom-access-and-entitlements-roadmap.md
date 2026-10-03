@@ -789,6 +789,15 @@ Metadata PATCH, Course Guide assembly and SSR/home routing are not widened.
 Actual SDK cleanup, independent review and final CI remain release gates;
 no source-only result activates shared admission or closes the phase.
 
+[Contextual classroom metadata PATCH](../guides/contextual-classroom-metadata.md)
+is a separate bounded batch1 mutation: strict13 metadata fields, current active
+owner authority and service-only transactional full30/revision postconditions.
+Local immutable237, rollback SQL/genuine types and corrected SDKnormal/twoforced
+exact cleanup proofs pass after independently reviewed proof-only recovery of
+the first fixture-whitelist failure. Full initial source review, exact-head CI and
+actual-main integration remain gates. Explicit archive keys are reserved400 for batch3; existing GETs and
+legacy PATCH remain unchanged. Production001–225/sharedadmission/fullcutoverOFF.
+
 Superseding class-day-read receipt: PR1444 normal squash mergea8c4e9b at16:04:51Z
 on2026-10-03 followed all five exact7d341d23 CI37133784223 checks
 (0queue/1697runseconds); canonicalmain cleanFF. Roster1445/calendar1446 remain

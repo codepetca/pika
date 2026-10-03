@@ -6,6 +6,39 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('registers serial metadata SQL/SDK proofs with complete normal and exact forced cleanup receipts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify contextual classroom metadata and exact failed-fixture cleanup'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toBeDefined()
+    const sql = 'bash scripts/check-contextual-classroom-metadata-database.sh'
+    const sdk = 'pnpm exec tsx scripts/check-contextual-classroom-metadata.ts'
+    expect(step).toContain(sql)
+    expect(step).toContain(`${sdk} > "$metadata_sdk_log"`)
+    expect(step?.indexOf(sql)).toBeLessThan(step?.indexOf(sdk) ?? -1)
+    for (const marker of [
+      'PASS metadata rollback-only direct contracts, full owner output, genuine slug collision and suppression/substitution/late trigger faults restore metadata and both revision effects',
+      'PASS metadata actual SDK both owner roles, exact normalized body/full owner hydration and strict wire failures without replay',
+      'PASS metadata deterministic observed-blocking transfer/archive/slug/publication races preserve current authority and publishing invariants',
+      'PASS metadata committed-write lost-response uncertainty is reported without replay and no creation entitlement is required',
+    ]) expect(step).toContain(`grep -Fx '${marker}'`)
+    const cleanup = "grep -Fx 'PASS exact synthetic metadata cleanup, zero residual rows and global whole-row baseline counts'"
+    expect(step?.split(cleanup)).toHaveLength(4)
+    expect(step?.match(/\[\[ "\$metadata_cleanup_status" -eq 1 \]\] \|\| exit 1/g)).toHaveLength(2)
+    for (const [flag, failure] of [
+      ['--verify-cleanup-after-fixture', 'post-fixture'],
+      ['--verify-cleanup-after-commit-before-capture', 'post-commit pre-capture'],
+    ]) {
+      expect(step).toContain(`${sdk} ${flag} > "$metadata_cleanup_log" 2>&1 || metadata_cleanup_status=$?`)
+      expect(step).toContain(`grep -Fx 'FAIL Forced metadata ${failure} cleanup proof (expected for ${flag})'`)
+    }
+    expect(step?.match(/metadata_cleanup_status=0/g)).toHaveLength(2)
+    expect(step?.match(/="\$\(mktemp\)"/g)).toHaveLength(3)
+    expect(step).toContain("trap 'rm -f -- \"$metadata_sql_log\" \"$metadata_sdk_log\" \"$metadata_cleanup_log\"' EXIT")
+    expect(step).not.toMatch(/wait |tee |\s&\s/)
+  })
+
   it('requires genuine roster owner SQL/SDK proofs and exact failed-fixture cleanup', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const step = workflow.split('      - name: Verify contextual roster owner writes and failed-fixture cleanup')[1]?.split('      - name:')[0]
