@@ -35236,6 +35236,7 @@ earlier actual PostgREST and exact cleanup evidence remain applicable.
 <!-- pika-session-log-archive-batch:a97a60e6a3648844a2e6f8d0b121a4fc05639703f5b35fca1bd91abe75107d8a -->
 
 <!-- pika-session-log-archive-batch:299ee82729ecc0aa35c4b8bc2b185aebd8e07c8663025cbcab852c48e04af07a -->
+<!-- pika-session-log-archive-batch:af30cacb7baa74e80feb65b2c225a5a3d9ad5d5e82bb9ba66a636b0c4c28fe93 -->
 ## 2026-10-02 — Java viewer Print menu
 
 - Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.

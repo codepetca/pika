@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Java viewer Print menu
-
-- Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
-- Private deployment succeeded from5d60a47875b85a5f6117acf8926c3b116c85ae7a, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_26ddf43ab1f481919b0befea1c0809c6. Same URL, audience, and Material draft.
-
 ## 2026-10-02 — Presentation diagrams in Read notes
 
 - Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
@@ -978,3 +973,19 @@ Metadata changes no owner/lifecycle/position/plan; full persisted row and revisi
 postconditions are transactional, not a promise of rollback after lost transport.
 Preapplication security and actual serial rollback/SDK/concurrency/cleanup evidence
 remain gates. Shared admission/cutover OFF; local001–236/prod001–225 unchanged.
+
+## 2026-10-03 — Metadata rollback and SDK proof source safety
+
+Preapplication Sol security CLEANc995/privateSQLdigestf61/110tests, source only.
+Prepared rollback-only SQL124/shell8, SDK312 and sourceguards70; actual execution
+UNEXECUTED. Root full proof inspection found missing cleanup candidate locks
+before snapshots/scans; batch1 adds exact operation locks and deterministic
+synthetic parent/allowed-child NOWAIT row locks, full-row/provenance-bound audit
+deletes, retaining entire precommit/post baseline/residue/guard checks. Regression
+RED7/8→GREEN8/8; four affected suites118PASS, lint/bash/diff PASS. No generation
+guard bypass or committed enrollments in SDK fixtures; rollback SQL covers member
+denial and fault-trigger rollback. SQLRPCbody unchanged/private; only expected
+missing genuine metadata RPC compiler error remains. Independent preexecution
+proof review and exact actual235/pending236 schema reconciliation precede migration
+naming/application/types/runtime evidence. PR1445 merged2fe79a8b with allfiveCI
+checks, canonicalcleanFF. Production/admission/fullcutover remain unchanged/OFF.
