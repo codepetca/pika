@@ -191,7 +191,7 @@ set local role service_role;
 do $$ declare f record; c jsonb; r jsonb; begin
   for f in select * from upgrade_saved where name in ('lease','override','entitlement','access') loop
     r:=public.billing_finish_upgrade_v1(pg_temp.upgrade_fence(f.claim)||'{"outcome":"deferred"}');
-    if r->>'status'<>case when f.name='lease' then 'lost_claim' else 'plan_conflict' end then raise exception 'Fence failed: % %',f.name,r; end if;
+    if r->>'status'<>(case when f.name='lease' then 'lost_claim' else 'plan_conflict' end) then raise exception 'Fence failed: % %',f.name,r; end if;
   end loop;
   select claim into c from upgrade_saved where name='lease';
   r:=public.billing_claim_upgrade_v1(jsonb_build_object('operation_id',c#>>'{operation,operation_id}','lease_seconds',120));
@@ -268,7 +268,7 @@ do $$ declare c jsonb; q jsonb; r jsonb; i integer; begin
   c:=public.billing_checkpoint_upgrade_v1(pg_temp.upgrade_fence(c)||'{"stage":"invoice_requested"}');
   for i in 1..5 loop
     r:=public.billing_finish_upgrade_v1(pg_temp.upgrade_fence(c)||'{"outcome":"deferred","reason":"provider_unavailable"}');
-    if r->>'status'<>case when i=5 then 'attention' else 'deferred' end then raise exception 'Retry bound failed: % %',i,r; end if;
+    if r->>'status'<>(case when i=5 then 'attention' else 'deferred' end) then raise exception 'Retry bound failed: % %',i,r; end if;
     if not exists(select 1 from public.billing_upgrade_operations where id=(c#>>'{operation,operation_id}')::uuid
       and attempt_count=i and stage='invoice_requested') then raise exception 'Retry lost write intent'; end if;
     if i<5 then

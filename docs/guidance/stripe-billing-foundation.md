@@ -244,18 +244,18 @@ only230. The owner permission was consumed by one successful local230 push after
 1431 merged. Local Pika/54322 history001–230 matches; generated types/check and
 focused TypeScript/lint/architecture gates pass. Four existing database harnesses
 passed after230; security advisor reports no issues. Data counts are unchanged
-and sandbox OFF. The new rollback harness stopped at its first unparenthesized
-CASE assertion; a two-line fixture-only correction is prepared, not applied.
-The original review clock expired during the prerequisite wait; four launches,
-two financial fix batches and one main sync are recorded. A bounded final
-fixture-correction/integration-review extension is pending before PR publication.
+and sandbox OFF. The owner approved the two-line CASE assertion correction and
+a20-minute extension starting2026-10-03T00:15:11Z (deadline00:35:11Z). The
+corrected new upgrade database harness passes and rolls back its fixtures. Four
+reviewer launches, two financial fix batches, one main sync and this fixture
+correction are recorded; one final integration reviewer is authorized.
 
 `codex/subscription-plan-changes` implements a dormant backend slice backed by
 additive migration230 (`230_subscription_prorated_upgrades.sql`). It was
 applied locally once after the owner-authorized230-only preview. The existing
 shared database is retained without reset/reseed. Types are generated from its
-matching migration schema. The new rollback harness still requires its prepared
-fixture syntax correction and rerun; final review/PR/CI remain pending.
+matching migration schema. The corrected upgrade rollback harness passes; final
+independent review, draft publication and stable-SHA CI remain pending.
 
 - Require the existing loopback test sandbox, checkout configuration and separate
   `BILLING_UPGRADES_ENABLED=true` gate. No configuration is enabled by this PR.
