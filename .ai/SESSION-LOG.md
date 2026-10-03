@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Visual Java slides and presenter notes
-
-- Owner requested ultra-simple Present diagrams and a detailed Read view in a separate notes window. Added nine diagram selections to the Markdown with SVG/mobile templates in site/visuals.mjs; original reading explanations retained, downloaded student Markdown strips the visual directives. Footer menu now opens presenter notes as a named popup with normal link fallback. Ephemeral session-scoped BroadcastChannel synchronizes current section/theme and allows notes keyboard navigation to control the presentation. No Pika runtime/schema changes; risk none; weekly remaining53%, prior DeepSeek pause retained.
-- Verified all nine diagrams visually, desktop light/dark and 402px mobile with no horizontal overflow, one diagram/no paragraphs in Present, all nine detailed sections/no slide art in Read, menu access, and actual Chrome popup with slide6→7 notes sync and notes PageDown→slide8. Existing print retains detailed notes through print CSS. Build, syntax, and diff checks pass. Evidence: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-visual-presentation.png and java-presenter-notes.png.
-- Sites helper restored; normal existing-source opening/push/package workflow used. Private deployment succeeded from5997c568b63389585c1a23cf02e89ec56d2bdfdc, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_06ce177f16308191955bc4090a1bf0a2. Same hosted URL and Material draft; audience unchanged. Repository artifacts remain in collaborative review worktree.
-
-## 2026-10-02 — Java viewer icon toggle
-
-- Replaced visible Read/Present labels with existing licensed Lucide book-open/presentation geometry; retained accessible names, titles, pressed states, and 44px touch targets. Verified both view switches, light/dark state, and screenshot java-icon-toggle.png in this task’s visualizations directory. Build/syntax/diff checks pass; standalone artifact, risk none.
-- Normal Sites workflow and private deployment succeeded from ac8c61bd089267634b6cc5b90e41334a90637128, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_a5774f13b6a8819185f0e0a29a3eda90. Same URL, audience, and Material draft.
-
 ## 2026-10-02 — Java viewer Print menu
 
 - Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
@@ -537,3 +526,34 @@ counters remain; documented human-authorized60minute extension ends16:26:22Z.
 Targeted changed-base review/final exact-head CI stillprecede merge. Local236
 is installedby separate preservingremoval work; thisread addsnoSQL/types/UI.
 Production001–225/sharedadmission/fullcutoverOFF; no provider/account/billing edits.
+
+## 2026-10-03 — Shared calendar owner-write source and local verification
+
+Disjointchild of reviewed1444d8c828ad adds onlysharedPOST/PATCH/calendaradapter,
+namedvalidation/source/APItests and proofs.176new+315unchanged assertions pass;
+actualinstalled152SDK owner/member/archive/formerowner/Toronto/bounds/prompt/CTID
+and malformedactualresponse503aftercommit pass. Initialproof wrongly expected
+unchangedarchive revision on identicaltoggle; existing082/095BEFOREINSERT trigger
+bumpsrevisionevenwhen152performsnoUPDATE. Correctedproof explicitlyasserts+1,
+unrelatedclassrevision unchanged andidenticalrow/CTID, no appliedSQL changes.
+RollbackSQL andallfive pg_blocking_pids races pass. Bothnormal/forcedSDK andrace
+fixtures cleanup exactly/globalbaselinePASS. Reusedharness nowprovisions only
+exactsyntheticcreationgrant andremovesmanual/defaultFree audits. Sharedadmission
+OFF/prod225untouched; local235installed byseparate rosterwrites. Fullfocused,
+independentreview andactualparent/main integration precedefinalCI/merge.
+
+## 2026-10-03 — Calendar1446 preparation on actual merged class-day main
+
+1444 actual normalmergea8c4e9b16:04:51Z verified withallfive exact7d341d23
+CI37133784223 SUCCESS (0queue/1697runseconds), canonicalcleanFF. Calendarchild
+rebased ontoactuala8 skippingonlyoldstackedd8 parent; allten ownedruntime/proof/
+test/guide files andmainGET remain byte-preserved. Conflicts onlyCURRENT/archive;
+Two exactsurplussessioncopies removed afterfull equality with retainedarchive;
+one auto-merge glued1441body removed onlyafter exactoriginalreceipt verification.
+Every unmodified main step and reviewed child CI step retained, including the
+previously reviewed calendar-concurrency forced-cleanup extension. Initialfull
+reviewsCLEAN544fe47b, unchanged152SQL/
+actualSDK/race/cleanup evidence reused. Actual235owner-write merge stillprecedes
+calendarfinalreconciliation/review/readyCI, no speculative heavyCI. Original
+15:07:20clock/counters retained; authorized elapsedextension to17:07:20Z.
+Local236 belongsseparatepreparation; noSQL/types/DB/provider/production/cohort edits.

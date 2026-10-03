@@ -6,6 +6,24 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires actual calendar owner SDK and exact failed-fixture cleanup for both proof lanes', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const sdk = workflow.split('      - name: Verify contextual calendar owner SDK and failed-fixture cleanup')[1]?.split('      - name:')[0]
+    expect(sdk).toContain('pnpm exec tsx scripts/check-contextual-class-day-owner-writes.ts\n')
+    expect(sdk).toContain('--verify-cleanup-after-fixture')
+    expect(sdk).toContain("grep -F 'FAIL Forced calendar post-fixture cleanup proof'")
+    expect(sdk).toContain("grep -F 'PASS exact synthetic calendar owner-write cleanup, zero residual rows and global baseline counts'")
+    const concurrency = workflow.split('      - name: Verify contextual calendar concurrent writers')[1]?.split('      - name:')[0]
+    expect(concurrency).toContain('node scripts/check-contextual-calendar-concurrency.mjs\n')
+    expect(concurrency).toContain('--verify-cleanup-after-fixture')
+    expect(concurrency).toContain("grep -F 'FAIL Forced calendar concurrency post-fixture cleanup proof'")
+    expect(concurrency).toContain("grep -F 'PASS exact synthetic calendar concurrency cleanup, zero residual rows and global baseline counts'")
+    for (const step of [sdk, concurrency]) {
+      expect(step).toContain("echo 'Expected the forced post-fixture failure'")
+      expect(step).toContain('exit 1')
+    }
+  })
+
   it('defers heavy draft checks and runs comprehensive validation on a stable ready SHA', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
