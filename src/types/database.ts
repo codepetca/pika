@@ -279,6 +279,15 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // Installed235 accepts SQLNULL to clear a counselor; generatedpg metadata
+  // does not encode input nullability. Retain every other genuine RPC argument.
+  update_classroom_roster_counselor_for_owner_v1: FunctionContract<
+    'update_classroom_roster_counselor_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['update_classroom_roster_counselor_for_owner_v1']['Args'], {
+      p_counselor_email: string | null
+    }>
+  >
   // Generated PostgreSQL metadata does not encode nullable input contracts.
   create_announcement_for_owner_v1: FunctionContract<
     'create_announcement_for_owner_v1',

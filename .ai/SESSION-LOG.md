@@ -558,3 +558,14 @@ resolved learner after pair locking and before preview/DML; structural RED then
 0a91c5702e5c7a1cbae573e30721d38f8ab90789643983cb242d57422cfd5ebf. Real rollback
 proof now covers all upsert modes and counselor edits through that second row;
 runtime execution remains pending. Targeted security recheck precedes application.
+
+Targeted retained-identity review clean. First ordinary local235 application failed
+SQLSTATE42601 at an unparenthesized CASE within IF; aftermath confirmed235history
+false/newfunctions0/max234, complete atomic rollback. Batch2 parenthesizes onlythe
+operand; RED then12/12green and narrow Sol recheck CLEAN39a4f206. Freshpika54322,
+matching001–234/currentmain234/exact235-onlypreview preceded successful secondpush.
+Installed immutable235 SHA256dded003c0fdd92235af163ef73751e1a9442146ee2129015ace83acdc2ff685b.
+History001–235/publicRPCs2/genuine generatedtypes+driftcheck pass. Serialized SQL
+proofs pass fullrow/binding/revision rollback including retainedsecondboundidentity.
+ActualSDK/focused/fullPR review remain pending;3launches/2targeted/2batches, original
+14:38:45Z clock retained. Production001–225/sharedadmissionOFF unchanged.

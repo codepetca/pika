@@ -348,4 +348,9 @@ async function main() {
     process.stdout.write('PASS exact synthetic roster owner-write cleanup, zero residual rows and global baseline counts\n')
   }
 }
-main().catch(() => { process.stderr.write('FAIL local roster owner-write SDK proof (captured command and status data withheld)\n'); process.exitCode = 1 })
+main().catch((error: unknown) => {
+  process.stderr.write(error instanceof Error && error.message === 'Forced post-fixture cleanup proof'
+    ? 'FAIL Forced roster post-fixture cleanup proof (expected for --verify-cleanup-after-fixture)\n'
+    : 'FAIL local roster owner-write SDK proof (captured command and status data withheld)\n')
+  process.exitCode = 1
+})

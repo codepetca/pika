@@ -91,8 +91,21 @@ container and loopback API, never hosted endpoints or real accounts. CI must
 replay the additive migration and run both proofs. Genuine generated types must
 match the installed schema; no fabricated function contracts are permitted.
 
-Prepared source and proposed migration are not yet applied or reviewed. Record
-the final migration number/digest, observed local application, checks, reviewed
-head, exact CI and merge receipt here when those steps actually complete.
+Migration235 was applied locally on2026-10-03 after a narrow independent security
+review and two targeted checks. The immutable installed SHA256 is
+`dded003c0fdd92235af163ef73751e1a9442146ee2129015ace83acdc2ff685b`.
+The first ordinary application failed on an unparenthesized PL/pgSQL CASE operand;
+read-only inspection confirmed complete rollback: no235 history or functions and
+latest234. The parser-only correction passed12 structural tests and targeted review.
+A fresh exact235-only preview preceded the successful ordinary second application;
+history now001–235, two publicRPCs present. Genuine generated types match the schema.
+Serialized SQL proofs pass retained-identity denial, exact purge fences, optimistic
+PATCH and full-row/binding/revision rollback. RealSDK normal and forced-cleanup
+proofs pass both roles, CSV/bindings/Unicode/timestamps, observed contention and
+exact cleanup/global baseline.273 focused tests across17 files and allstatic/lint
+checks pass. A curated nullable-input refinement derives from the genuine235RPC
+signature using the existing FunctionContract seam; generated source and installed
+SQL remain unchanged. Full draft-PR review, exactCI and merge remain pending;
+narrow pre-application review is not a fullPR review. Production/rollout unchanged.
 Shared roster GET is separate PR #1443. Mixed-role joining and preserving removal
 remain independent prerequisites; this slice does not complete batch 1.
