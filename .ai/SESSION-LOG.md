@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Classroom Blueprint reconciliation review
-
-Owner confirmed updating both current classroom Blueprint tabs. Inspected P3/P5 merge suggestions through authenticated Chrome without saving: both contain local Unit 1 tests and Java Material; P3 also has a verification test, P5 a verification assignment. P3 lesson promotion would remove templates 91–95 and change many existing lessons. Source review confirmed preparation blocks on all untracked artifacts and promotion replaces entire selected artifact areas. A Java-only promotion cannot clear the gate; broader promotion is outside this lesson request. No proposal, classroom update, or reconciliation writes made. Asked for scope choice: implement targeted Java-only update support (recommended), review broader reconciliation, or retain current snapshots. Updated lesson README; shared Blueprint Version 5 and both Posted student Materials remain available. Documentation only; no app/runtime/schema/site changes.
-
 ## 2026-10-02 — Prorated-upgrade backend candidate
 
 Coordinator owns codex/subscription-plan-changes from merged1429/25cc0691. Added dormant, authenticated frozen-invoice upgrade APIs and recovery; provider preview, signed amounts, confirmation digest, captured-card proof, original-term preservation and version writer. Candidate230 unapplied; shared local229 belongs to classroom task, billing OFF. Three bounded GPT workers completed owned schema/provider/API files; no real provider calls or generated-type edits. Repeated same-term upgrades need receipt chains; scheduled downgrade grace awaits owner decision. Billing tests pass; required compile/type checks blocked only by new RPCs until exact local230 permission/type generation. Preapplication review completed: two independent initial reviews and two targeted passes (four launches/two fix batches). Fixed crash-before-payment replay, invoice cleanup after the paid boundary and realistic partial-credit draft totals. Corrected source c962f622;576 billing/API tests pass, lint/audit pass; tsc retains exactly two pending new-RPC errors. Owner approved one exact local230 application, conditional on classroom229 PR1431 merging and an only230 dry run; permission remains unconsumed. Verified Pika/54322 target through229; four existing billing database harnesses passed with rollback and unchanged counts (3 users/1 classroom/0 plans, bindings or access), sandbox OFF. Classroom229 PR1431 awaits its owner-controlled review/CI/main reconciliation. SQL230 unchanged since initial review. Final cumulative PR review/types/database harness remain; no production/reset/reseed/activation/merge authority.
@@ -1025,3 +1021,24 @@ Initial union splitter mistakenly retained headers only; focused RED exposed it.
 Corrected full-body splitter and exact22child/9main/CI/roadmap/2095entry verifier
 PASS, officialtrim/diff PASS. Logs focused-final.log/startup-bara.log/audit.log
 and preservation.log in the private directory above. No DB/proof reruns here.
+
+## 2026-10-03 — Metadata persisted-empty-slug forward correction source
+
+Frozen0af full initial wave completed: securityCLEAN; compatibilityP2 confirmed
+persisted actual_site_slug='' with omitted slug/publish-only can commit under
+immutable237 before SDK503, unlike legacy400. Root accepted bounded batch3fix.
+Authored unnumbered private forward draft at
+/private/tmp/pika-contextual-classroom-metadata-empty-slug.sql: verbatim237 except
+CREATE OR REPLACE and locked effectivepublished NULL-or-empty guard beforeUPDATE.
+237f61 remains byteexact. SQL rollback regression requires publish-onlyPT400/full
+classroom+095archive row equality (112revision included); unpublish allowed.
+ActualSDK normal source regresses both owner roles/one call/full state unchanged.
+Source tests RED2/9existingPASS→GREEN11; private forward exactdiff guard PASS.
+No new runtime/application evidence: allocation/preapplyreview/application/proofs
+remain root-owned. Number not assumed; root may combine the separate1448
+private-validator correction in the forward source. No DB/status/provider/network/Git/typegeneration here;
+source-only correction, production225/local237/admissionOFF/originalclock retained.
+Offline157tests/6files PASS; TSC/scopedlint/bashsyntax/audit2files/trim/diff PASS.
+Private exactguard/237digest/entirefrozen source and history+one receipt PASS.
+Evidence /private/tmp/pika-metadata-empty-slug-{red,green,offline,tsc,lint,audit}.log;
+private source checker/draft remain unnumbered and no runtime PASS is claimed.

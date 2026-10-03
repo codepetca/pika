@@ -1,11 +1,36 @@
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync('scripts/check-contextual-classroom-metadata-database.sql', 'utf8')
 const shell = readFileSync('scripts/check-contextual-classroom-metadata-database.sh', 'utf8')
 const sdk = readFileSync('scripts/check-contextual-classroom-metadata.ts', 'utf8')
 describe('metadata proof source contracts (no database execution)', () => {
+  it('preserves installed 237 and proves persisted-empty-slug publication rejection before any partial write', () => {
+    const installed = readFileSync('supabase/migrations/237_contextual_classroom_metadata_owner_write.sql', 'utf8')
+    expect(createHash('sha256').update(installed).digest('hex')).toBe('f61ec76016a13c2b2e5fd22f765857304d5798617cf96fc0720585fff699d883')
+    const forward = readFileSync('supabase/migrations/238_contextual_owner_write_forward_corrections.sql', 'utf8')
+    expect(forward).toContain("v_expected.actual_site_published and nullif(v_expected.actual_site_slug, '') is null")
+    expect(forward).toContain('create or replace function public.update_classroom_metadata_for_owner_v1(')
+    expect(forward.indexOf('nullif(v_expected.actual_site_slug')).toBeLessThan(forward.indexOf('update public.classrooms classroom set'))
+    const regression = sql.slice(sql.indexOf('-- Historical persisted empty slug'), sql.indexOf("collision:='metadata-sql-'"))
+    expect(regression).toContain("actual_site_slug='',actual_site_published=false")
+    expect(regression).toContain("pg_temp.expect_metadata_error(owner_a,a,'{\"actual_site_published\":true}','PT400')")
+    expect(regression).toContain("'Persisted empty slug must remain unpublished'")
+    expect(regression).toContain("'{\"actual_site_published\":false}'")
+  })
+  it('regresses empty-current-slug publish-only and allowed unpublish for both actual SDK owner roles', () => {
+    const regression = sdk.slice(sdk.indexOf('// Persisted empty slug regression'), sdk.indexOf('const patch = { ...full'))
+    expect(regression).toContain("actual_site_slug='',actual_site_published=false")
+    expect(regression).toContain('const emptySlugBefore = publicationState(c.id)')
+    expect(regression).toContain('trace(c.owner, c.id, { actualSitePublished: true })')
+    expect(regression).toContain('statusIs(400)')
+    expect(regression).toContain('assert.deepEqual(publicationState(c.id), emptySlugBefore)')
+    expect(regression).toContain('assert.equal(emptySlugPublish.calls(), 1)')
+    expect(regression).toContain('actualSitePublished: false')
+    expect(sdk).toContain("'archive', (select to_jsonb(r) from public.classroom_archive_revisions r")
+  })
   it('binds rollback-only SQL to local guarded execution and the actual installed RPC signature', () => {
     expect(shell).toContain('supabase_db_pika')
     expect(shell).toContain('com.supabase.cli.project')

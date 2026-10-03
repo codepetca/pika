@@ -26,7 +26,7 @@ keys reject 400. Every explicit `archived` key rejects 400, including false/null
 or a mixed metadata request: lifecycle writes remain reserved for batch 3.
 
 The effective public sharing/slug pair is validated from locked current state.
-Publishing requires a slug; clearing a published slug requires unpublishing in
+Publishing requires a nonempty slug; clearing a published slug requires unpublishing in
 the same patch. Only the genuine case-insensitive slug unique index maps an
 address conflict to 409, without enumerating another classroom.
 
@@ -90,8 +90,19 @@ run; it exited exactly 1 with its own expected pre-capture FAIL and cleanup PASS
 observed at 17:38:31 UTC. All three corrected modes restore their captured global
 full-row baseline, leave zero residue and retain generation guard `O`. These are
 exact expected-failure receipts, not acceptance of arbitrary failures. The proof
-correction changes no product code or immutable metadata RPC. Full initial source
-review, exact-head CI and actual-main integration remain pending release gates.
+correction changes no product code or immutable metadata RPC. The full initial
+source review completed: security was CLEAN; compatibility identified a P2 for
+historical persisted `actual_site_slug=''`. Immutable237's NULL-only guard can
+commit publish-only against that empty value before the SDK rejects the output
+503, unlike the legacy400. Forward238 now treats
+NULL and empty effective slugs as missing before UPDATE. New rollback-only SQL
+and actual-SDK source regressions cover publish-only400/full classroom and both
+revision effects unchanged, and allowed unpublish, including both owner roles.
+The same atomic238 corrects236's private result-validator volatility to STABLE;
+its body, privileges and caller contracts remain unchanged. Both installed files
+remain byte-exact. Preapplication review, application and execution of these new
+regressions are coordinator-owned and pending. Prior runtime receipts above do
+not certify this correction. Exact-head CI and main integration remain gates.
 
 CI runs the SQL proof, normal SDK proof, then both forced modes serially. Normal
 success requires every behavior marker and exact whole-row baseline cleanup.

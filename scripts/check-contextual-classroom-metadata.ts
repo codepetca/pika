@@ -66,6 +66,11 @@ function residueSql() {
 function residue(): unknown { return JSON.parse(sql(`begin;${residueSql()}select pg_temp.metadata_residue();rollback;`)) }
 function guard() { return sql("select tgenabled from pg_trigger where tgrelid='private.pal_membership_generations'::regclass and tgname='guard_pal_membership_evidence' and not tgisinternal;") }
 function rootRow(classroom: string) { return z.record(z.string(), z.unknown()).parse(JSON.parse(sql(`select to_jsonb(c) from public.classrooms c where id=${q(classroom)};`))) }
+function publicationState(classroom: string): unknown {
+  return JSON.parse(sql(`select jsonb_build_object('classroom',to_jsonb(c),
+    'archive', (select to_jsonb(r) from public.classroom_archive_revisions r where r.classroom_id=c.id))
+    from public.classrooms c where c.id=${q(classroom)};`))
+}
 const statusIs = (status: number) => (error: unknown) => error instanceof ApiError && error.statusCode === status
 const rpcSql = (actor: string, classroom: string, patch: Record<string, unknown>) =>
   `public.update_classroom_metadata_for_owner_v1(${q(actor)}::uuid,${q(classroom)}::uuid,${q(JSON.stringify(patch))}::jsonb)`
@@ -183,6 +188,17 @@ async function main() {
       courseOverviewMarkdown: 'Overview', courseOutlineMarkdown: 'Outline',
     })
     for (const c of classes) {
+      // Persisted empty slug regression: omission must deny before commit for both owner roles.
+      sql(`update public.classrooms set actual_site_slug='',actual_site_published=false where id=${q(c.id)};`)
+      const emptySlugBefore = publicationState(c.id)
+      const emptySlugPublish = trace(c.owner, c.id, { actualSitePublished: true })
+      await assert.rejects(update(c.owner, c.id, { actualSitePublished: true }, emptySlugPublish.client), statusIs(400))
+      assert.equal(emptySlugPublish.calls(), 1)
+      assert.deepEqual(publicationState(c.id), emptySlugBefore)
+      const unpublished = await update(c.owner, c.id, { actualSitePublished: false })
+      assert.equal(unpublished.actual_site_slug, '')
+      assert.equal(unpublished.actual_site_published, false)
+      assert.deepEqual(unpublished, hydrateClassroomRecord(rootRow(c.id)))
       const patch = { ...full, actualSiteSlug: `${slugTag}-${c.label}` }, observed = trace(c.owner, c.id, patch)
       assert.deepEqual(await update(c.owner, c.id, patch, observed.client), hydrateClassroomRecord(rootRow(c.id)))
       assert.equal(observed.calls(), 1)
