@@ -45,6 +45,9 @@ declare signature text:='public.remove_classroom_students_for_owner_v1(uuid,uuid
 begin
   if not exists(select 1 from supabase_migrations.schema_migrations where version='236') then
     raise exception 'Reviewed236 must already be installed'; end if;
+  if not exists(select 1 from supabase_migrations.schema_migrations where version='238')
+    or (select provolatile from pg_proc where oid='private.valid_roster_removal_result_v1(jsonb,uuid,uuid,uuid[])'::regprocedure) is distinct from 's' then
+    raise exception 'Reviewed238 stable result validator must already be installed'; end if;
   if not exists(select 1 from pg_proc where oid=to_regprocedure(signature) and prosecdef and proconfig @> array['search_path=""'])
     or has_function_privilege('anon',signature,'execute') or has_function_privilege('authenticated',signature,'execute')
     or not has_function_privilege('service_role',signature,'execute')

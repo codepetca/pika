@@ -13653,6 +13653,10 @@ export type Database = {
         Args: { p_assignment_id: string; p_requirements: Json; p_updates: Json }
         Returns: Json
       }
+      update_classroom_metadata_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_patch: Json }
+        Returns: Json
+      }
       update_classroom_roster_counselor_for_owner_v1: {
         Args: {
           p_actor_id: string

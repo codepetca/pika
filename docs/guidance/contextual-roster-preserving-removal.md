@@ -87,3 +87,26 @@ it requires normal SQL/SDK proofs plus exact forced exit 1 and both failure/clea
 sentinels. Local schema is 001–236; production is 001–225.
 The owner waived repeated routine local and review-extension approvals, not technical
 gates. No production operation, account change or cohort activation occurs here.
+
+### Forward correction after exact-head CI
+
+The initial and changed-base reviews were CLEAN, but exact-head CI37141937671
+at787e623f failed the warning-free database lint gate: the private removal result
+validator declared IMMUTABLE calls STABLE `to_jsonb(anyelement)`. The PR returned
+to draft; its database runtime checks before lint passed, but the run/gate did not.
+Installed236 and237 remain byte-exact. Forward238 changes only that validator's
+volatility to STABLE and fixes237's locked effective publication check to reject
+both NULL and an empty saved slug before any UPDATE. The metadata correction
+restores legacy400 behavior rather than committing then returning an uncertain503.
+
+Because migration inventory must remain contiguous, this PR also carries the
+exact installed237 as a dormant service-role database dependency. It imports no
+metadata route/helper/UI and enables no account or cohort. The whole genuine237
+type artifact retains the eight removal and four metadata RPC lines; root must
+regenerate/check it from matching full001–238 local history after application.
+The metadata rollback proof, including empty-slug rejection and unchanged full
+classroom/Blueprint/archive revisions, runs before the removal proofs in CI.
+Forward238 preapplication review/application, serial runtime regression proofs,
+targeted correction and cumulative review, focused checks and exact-head CI are
+pending. Earlier receipts do not certify this forward correction. Production
+remains001–225 and shared admission/cutover stays OFF.

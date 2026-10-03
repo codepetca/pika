@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Reusable lesson viewer guidance
-
-Saved docs/curriculum/lesson-viewer-guide.md with the agreed visual Present / detailed Read format, minimal footer, synchronized notes, source file map, Markdown example, reuse steps, visual verification, hosting/audience and Material guidance. Added a compact task route in docs/ai-instructions.md and linked from the Java site README. Documentation only; risk none; direct Codex editing/verification. All 43 ai-startup-docs tests passed after shortening the new route to fit the existing context budget; 10 local links and whitespace validated. Viewer/lesson/guidance remain saved in codex/ics3u-java-intro worktree, uncommitted/unmerged. No public lesson deployment or classroom change required.
-
 ## 2026-10-02 — Java lesson in ICS3U Blueprint
 
 Added Java Explained as a Material in the P3-linked ICS3U-4 Blueprint through the signed-in teacher UI. Materials were empty; assignments occupied positions 0–13 and the survey position 14, so the new Material uses position 15 without altering existing classwork. Artifact ID 8ad9cfa1-1c8e-4733-a16f-90cbc0a35111 links the public Java lesson. Export Course Package saved Version 5 from Draft revision 6, verified after reloading, with persisted Material Markdown and screenshots in /tmp/pika-java-review/blueprint-{version-5,java-material}.png. CLI production session was unavailable; used existing authenticated Chrome session. Mirrored blueprint Material beside lesson source and refreshed the classroom Material title to the observed Java Explained. Existing classrooms were not updated or created. Documentation/data mirror only; no Pika runtime, schema, or site changes.
@@ -692,3 +688,20 @@ preservation verifier/diff/official trim pass,40recent/2092combined entries.
 Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
 pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
 remain untouched. This is implementation evidence, not the independent review.
+
+## 2026-10-03 — Removal1448 forward-only database lint correction
+
+Exact reviewed787e623f CI37141937671 failed warning-free lint for private result
+validator IMMUTABLE/STABLE mismatch; returned1448 to draft. Run cancelled after
+566seconds, database andPRGate failed, no merge. Preserve immutable236/237.
+Contiguous inventory requires exact237 dormant service-role SQL dependency and
+atomic238: only validator ALTER STABLE plus metadata empty-effective-slug guard.
+No metadata app/helper/UI imported and no cohort/account/production activation.
+Whole genuine001–237 generated artifact copied byte-exact40d0289d; root will
+regenerate/check from matching001–238 history after reviewed local application.
+New direct regression/source gates14PASS, root full208line metadata replacement
+and existing236validator body/ACL/call graph inspected. Metadata rollback-only
+proof runs before unchanged removal SQL/SDK/three forced modes in CI. Review
+clock/counters retained: original15:19:13Z; launch9/target6/fix6, deadline19:19:13.
+Source/preapply review, local238-only application, actual serial regression proofs,
+final focused/cumulative independent review and exact-headCI remain pending.

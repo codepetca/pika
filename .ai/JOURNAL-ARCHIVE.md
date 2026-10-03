@@ -35253,3 +35253,8 @@ Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (s
 ## 2026-10-02 — Program game controller icon
 
 Replaced the Program code symbol in Who does what (slide 3) with a locally drawn game controller SVG, including reading/mobile variants. Visually verified Present and Read in Chrome. Build, syntax check, and whitespace check passed. Public Sites version appgver_b856dce49cb08191ba15841e9f27ca94 published from source 68c563f63a627b20e7111ccd8d869c85641e7ce0; deployment appgdep_6abfc84610548191ab624a497a4fe005 succeeded. Same student Material URL. No Pika runtime/schema changes.
+
+<!-- pika-session-log-archive-batch:be3337f210dcb9302d3bcf072c53198f285627ca085c269b83237e7a36cc44e7 -->
+## 2026-10-02 — Reusable lesson viewer guidance
+
+Saved docs/curriculum/lesson-viewer-guide.md with the agreed visual Present / detailed Read format, minimal footer, synchronized notes, source file map, Markdown example, reuse steps, visual verification, hosting/audience and Material guidance. Added a compact task route in docs/ai-instructions.md and linked from the Java site README. Documentation only; risk none; direct Codex editing/verification. All 43 ai-startup-docs tests passed after shortening the new route to fit the existing context budget; 10 local links and whitespace validated. Viewer/lesson/guidance remain saved in codex/ics3u-java-intro worktree, uncommitted/unmerged. No public lesson deployment or classroom change required.

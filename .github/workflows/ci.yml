@@ -381,6 +381,7 @@ jobs:
       - name: Verify contextual preserving roster removal and failed-fixture cleanup
         shell: bash
         run: |
+          bash scripts/check-contextual-classroom-metadata-database.sh
           bash scripts/check-contextual-roster-removal-owner-writes-database.sh
           pnpm exec tsx scripts/check-contextual-roster-removal-owner-writes.ts
           cleanup_log="$(mktemp)"
