@@ -789,6 +789,14 @@ Metadata PATCH, Course Guide assembly and SSR/home routing are not widened.
 Actual SDK cleanup, independent review and final CI remain release gates;
 no source-only result activates shared admission or closes the phase.
 
+Superseding class-day-read receipt: PR1444 normal squash mergea8c4e9b at16:04:51Z
+on2026-10-03 followed all five exact7d341d23 CI37133784223 checks
+(0queue/1697runseconds); canonicalmain cleanFF. Roster1445/calendar1446 remain
+prepared writes. Detail1447 has clean initial reviews and actualSDK normal/two
+forcedcleanup PASS after a proof-only parsed-clone correction. Removal1448 has
+actual SQL/SDK normal/threeforcedcleanup PASS; full draft reviews remain pending.
+These are bounded batch1 receipts, not complete rollout or cohort activation.
+
 Historical PR1436 preparation: the bounded batch1 slice integrates announcement owner/member GETs with shared
 admission and binds every payload page to the current relationship. No new schema,
 UI, cohort or mutation is included. Astra/high performed a read-only query design;

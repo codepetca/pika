@@ -39,8 +39,16 @@ both account-role labels, actual FK response arrays, malformed results and real
 post-preflight relationship changes. Its normal and two forced-failure modes
 require exact synthetic teardown, enabled generation guards and whole-row
 public/private/storage fingerprints checked before commit and confirmed afterward.
-The CI-hook regression was reproduced RED. Actual SDK runs, independent full
-review and exact-head CI are still pending; do not infer completion from source.
+The CI-hook regression was reproduced RED. Both initial full independent reviews
+were CLEAN on the original frozen draft. Actual SDK execution then found a
+proof-only defect: Zod parsed clones were mutated without replacing the actual
+wire body. The regression was reproduced RED and the harness alone corrected;
+product authorization, schema and query code were unchanged. Normal SDK execution
+now passes all 30 fields, both owner/member account labels, genuine FK wire,
+tampering denials and real post-preflight revocation races. Both forced modes
+return exactly exit 1 with their expected failure and complete cleanup sentinels.
+All runs restore the whole-row baseline and leave generation guards enabled.
+Targeted correction/integration review and exact-head CI remain gates.
 
 No migration belongs to this slice. Local schema 001–236 includes other prepared
 work; production remains 001–225. Installed SQL is not regenerated or changed here.

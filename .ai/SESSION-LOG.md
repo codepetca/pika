@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Minimal Java lesson viewer
-
-- Removed the header, sidebar, and Previous/Next buttons at the owner's request. All viewer controls now live in a compact fixed footer: page count, Read/Present, fullscreen, print, and three-dot options with Light/Dark appearance. Keyboard navigation remains; reading scroll tracks the current page. Included Lucide icon license alongside generated assets.
-- Visually checked desktop light/dark and phone-width layouts; verified view switching, Arrow/Page keys, menu Escape, no header, and no horizontal overflow. Build/syntax/diff checks pass. Native fullscreen events toggle the control label, though the automated embedded browser does not retain fullscreen. Private deployment succeeded from pushed source 51027a7847c6271f5587e5eff923a4b0391720d7, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_b83acb0cc9f88191929a85adc6460ec6. Same hosted URL and Material draft; audience unchanged. Screenshot: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-minimal-viewer.png.
-
-## 2026-10-02 — Visual Java slides and presenter notes
-
-- Owner requested ultra-simple Present diagrams and a detailed Read view in a separate notes window. Added nine diagram selections to the Markdown with SVG/mobile templates in site/visuals.mjs; original reading explanations retained, downloaded student Markdown strips the visual directives. Footer menu now opens presenter notes as a named popup with normal link fallback. Ephemeral session-scoped BroadcastChannel synchronizes current section/theme and allows notes keyboard navigation to control the presentation. No Pika runtime/schema changes; risk none; weekly remaining53%, prior DeepSeek pause retained.
-- Verified all nine diagrams visually, desktop light/dark and 402px mobile with no horizontal overflow, one diagram/no paragraphs in Present, all nine detailed sections/no slide art in Read, menu access, and actual Chrome popup with slide6→7 notes sync and notes PageDown→slide8. Existing print retains detailed notes through print CSS. Build, syntax, and diff checks pass. Evidence: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-visual-presentation.png and java-presenter-notes.png.
-- Sites helper restored; normal existing-source opening/push/package workflow used. Private deployment succeeded from5997c568b63389585c1a23cf02e89ec56d2bdfdc, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_06ce177f16308191955bc4090a1bf0a2. Same hosted URL and Material draft; audience unchanged. Repository artifacts remain in collaborative review worktree.
-
 ## 2026-10-02 — Java viewer icon toggle
 
 - Replaced visible Read/Present labels with existing licensed Lucide book-open/presentation geometry; retained accessible names, titles, pressed states, and 44px touch targets. Verified both view switches, light/dark state, and screenshot java-icon-toggle.png in this task’s visualizations directory. Build/syntax/diff checks pass; standalone artifact, risk none.
@@ -794,3 +783,14 @@ attendance protection; coordinator repairs only synthetic teardown before more
 DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
 The owner's all-work/review-extension authorization retains original clocks,
 counters, absolute review caps and normal technical/release gates.
+
+1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
+(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
+ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
+replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
+unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
+and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
+Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
+allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
+entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
+integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
