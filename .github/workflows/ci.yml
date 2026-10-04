@@ -300,6 +300,12 @@ jobs:
             grep -Fx 'PASS isolated assignment-list exact teardown and unchanged canonical baseline.' "$assignment_list_log"
           done
 
+      - name: Verify isolated contextual Assignment overview reads
+        shell: bash
+        run: |
+          assignment_overview_head=$(git rev-parse HEAD)
+          pnpm exec tsx scripts/check-contextual-assignment-overview-lifecycle.ts --reviewed-head "$assignment_overview_head" --mode normal
+
       - name: Verify contextual learner assignment-open atomicity and privileges
         run: bash scripts/check-contextual-assignment-doc-open-database.sh
 

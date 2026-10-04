@@ -6,6 +6,16 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires an additional serial overview SDK proof using the reviewed existing disposable fixture', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual Assignment overview reads'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_overview_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-overview-lifecycle.ts --reviewed-head "$assignment_overview_head" --mode normal')
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+    expect(workflow.indexOf('      - name: Verify isolated contextual Assignment list pagination and revocations')).toBeLessThan(workflow.indexOf(name))
+  })
   it('requires isolated Assignment list runtime and both exact failed-start cleanup receipts serially', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const name = '      - name: Verify isolated contextual Assignment list pagination and revocations'

@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Verified material-write merge and read dependency reconciliation
-
-PR1441 normal squash merge d913eebd71e94e6dee4fd0be2d24b7371b5ccb15 verified
-at14:18:23Z after all five exact-reviewed-head74995349 CI37127414505 gates pass
-(observed0queue/1774runseconds). No admin/auto-merge/bypass. Canonical main cleanly
-fast-forwarded. Original review clock and7launch/4batch counters retained under
-the user's explicit review-extension authority; no repeated approval requested.
-Installed234 digest unchanged/immutable; local001–234, production001–225 untouched.
-This child rebased onto actual squash skipping stacked749; full pre-receipt tree
-matches its previous candidate exactly. Only continuity/merge receipts change.
-Main retarget, changed-base review where needed, and final exact-head CI still
-precede child merge. Parent worktree retained while dependents remain. Shared
-admission/cutover OFF; no provider/account/plan/billing activation.
-
 ## 2026-10-03 — Shared roster management read preparation
 
 Owner explicitly authorized remaining in-scope implementation, reviews, normal
@@ -846,3 +832,53 @@ Final cumulative review and exact-head CI precede ready/mainmerge. Originalledge
 00:32:24 clock,9launches/7targets/7fixes retained; explicit owner extension permits
 elapsed through02:32:24, hard8fix/8target/12launch/1final/30single still apply.
 Sharedadmission/home/cutover/billing/providerOFF; groupedwriter164/236 staysclosed.
+
+## 2026-10-03 — Assignment list merged; owner overview continuation
+
+1453 final reviewed91a64eca passed all five exact-head CI37168905602 checks.
+Normal squash88d54c94 merged02:16:46UTC; identical reviewed/merged treeb0f0156e
+and clean canonical main fast-forward verified. Lifecycle records observed0squeue/
+1725srun; active time/tokens unknown, no estimates. No production/activation.
+New worktree codex/contextual-assignment-detail-reads starts from actual88d54c94;
+startup/environmentPASS. Bounded next source is owner overviewGET; student-specific
+detail and learner opening follow separately. Root owns fixtureproof/docs/CI;
+one GPT6.1Sol/high writer owns helper/schema/GET/tests; readonly open boundary map
+accepted, including publication/currentmember/disclosure and Classwork side-effect
+gap in existing214 RPC. Reuse1453 disposable fixture/platform/SQL authority for
+seven extra readonly overviewcases; no additional DML or migration. CI guard TDD
+expectedRED then15PASS; proof expectation20combinedPASS. New source/runtime/
+independent-review/CI/merge gates remain; not a rollout or completion receipt.
+
+1454 draftfcdf478c:255focused/1skip plus89compatibility tests and explicitproof
+TypeScript/stagedauditPASS. Initial2reviewerwave completed:securityCLEAN;
+compatibilityP1 upload-only path rejects restore/backfill/accepted filenames.
+Root verified producers117/restore/upload, reproduced3red regressions, batched
+namespace-compatible path correction while retaining exact registry/member/owner
+checks and adding5negative namespace/traversal checks. No runtime execution yet.
+Superseding check:c120d9c1 targetedsecurityCLEAN,263focused/1skip+97compatPASS.
+First normal isolated runtime failed in cases, cleanup=none; not accepted.
+Root adds closed case/phase/statement/HTTP/error-code diagnostics with unitTDD,
+not raw rows/messages/URLs/IDs/secrets, to diagnose a reviewed isolated retry.
+Fixture SQL/platform authority and canonical database remain unchanged.
+eb40a477 diagnostics targetedCLEAN;264focused/1skip+proofTypeScriptPASS.
+Second normal failed owner_student/history at1024statements withHTTP200,cleanup
+none. Existing099 submit trigger creates1001 histories, contrary to prior empty
+fixture assumption. Root reproduced sparse-child cap failure, switched to25parent
+independent child cursors (all terminal/current-member proofs retained), corrected
+timestamp expectations to exact fixture submission time; no limits weakened or
+fixture SQL/platform edits. Targeted review and actual normal/forced proof pending.
+Superseding receipt:78aed851 cursor targetedsecurityCLEAN;266focused/1skip+
+105targeted/explicitproofTypeScript/auditPASS. Normal isolated proof accepted7
+overviewSDK cases+existing9list/14rev; exact teardown/full canonical fingerprints,
+168 metadata/settings/cron/resources unchanged. Both forced modes accepted exact
+exit1/PASS+FAIL markers, no unexpected output; private closed receipts
+/private/tmp/pika-overview-cleanup.YtQtCo and
+/private/tmp/pika-overview-cleanup.qSRMvV.
+Final cumulative review/CI/mainmerge pending. Ledger original02:42:02UTC,
+5launch/3target/3fix preserved; owner-authorized extension through04:42:02UTC,
+absolute caps unchanged. No production/rollout, provider/account/plan/billing changes.
+Final cumulative review19f91d2b CLEAN. Ready CI37174745897 reproduced one
+continuity-format failure:ProdDB001 lacked the tested Prod DB 001 prefix.
+Returned PR1454 to draft before a docs-only correction; restore the two spaces,
+retain225/239 schema floors and all dormant gates. Targeted guidance re-review
+and new exact-head CI remain gates; reviewed runtime source remains unchanged.
