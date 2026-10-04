@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Calendar1446 actual roster235-main reconciliation
-
-Root verified1445 squashmerge2fe79a8b at17:03:33Z after allfive exact596081dc
-CI37137272675 SUCCESS (0queue/1755runseconds). Calendar preparedb685 rebased
-ontoactualmain2fe, preserving nine reviewed544fe47b ownedfiles byte-exact.
-The sole additive source exception retains both complete reviewed CI test blocks:
-main roster then child calendar, with original remainder unchanged. Every other
-incomingmainfile, genuine235SQL/generated/curatedtypes and every CIstep/order/
-multiplicity remain exact; reviewed concurrency normal+forced supersedes only its
-oldnormal step. History preserves actualmain+preparedchild-a8 bodies/multiplicities;
-removed only one exact JavaPrint session surplus already archived and an exact
-glued1441body whose complete original remains retained. CURRENT keeps canonical
-Prod DB 001 spacing, local001–236 immutable/separate removal and production225.
-Original15:07:20 clock/launch2/fix0 retained under explicit human extension to
-18:07:20Z. No DB/proof/type generation/SQL/remote publication/CI/provider actions.
-Exact preservation verification passes2089 combined history entries/40 recent.
-Focused origin/main gate passes436tests/18files and all static checks; explicit
-attendance prefix regression4/4 and actual-main-aware audit8files pass. Logs:
-/private/tmp/pika-1446-reconcile.d4sa0y; fullfocused pika-focused-ejT1iX.
-Root-owned changed-base review and exact frozen-head readyCI remain required;
-shared admission and fullcutoverOFF; no batch completion or activation claimed.
-
 ## 2026-10-03 — Preserving removal source and local236
 
 Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
@@ -1026,3 +1004,34 @@ race only inephemeralCI, never canonical retained168identities. Receiptbatch/fin
 cumulative review/exactCI/normalmainmerge next. Original09:48:11clock/counters kept.
 Local243/main242/prodlast225; admission/home/cutover/billing/providerOFF. Read-only
 next integration proposal separate from immutable observer authority; no phaseexit.
+
+## 2026-10-04 — Assignment integrated SDK source preparation
+
+1460 final cumulative5.6Sol/high review CLEAN e98b78ef,158focused/static/47Bara/
+startup PASS. Ready event10:15:15Z started singleeligibleCI37194768940;source frozen.
+Original09:48:11clock/counters4launch/1target/1final/2fix retained, explicit human
+reviewextension to11:48:11Z for CI/normalmerge only. No duplicate watcher or bypass.
+Local243/main242;productionlast225 unchanged,admission/home/cutover/providerOFF.
+
+Read-only6.1Sol/high proposal identifies realopen/nonemptySDK/signing gaps beyond
+sealedobserver. Separate validatedworktree startsfromreviewede98; worker owns only
+three new proof files,source-only/no DB/network/Storagecalls. Originalfixture/
+observer/SQLallowlist/transitions/restoration/lifecycle/platform/cleanup immutable.
+Proposed disjoint finiteextension caps4actors/3classes/8assignments/8images<=1024B,
+SQL<=256KiB,512requests/64Storage/15s perrequest;exactfresh54331/54332 identities,
+168169guardsON/persistedgatesOFF/no provider/cron/vault,canonicalreadonly/no cleanup
+of individualrows/objects. Independentreview and rootexactmanifestacceptance before
+futureexecution;source preparation itself grants no new livebytes authority. Root
+serialCI exactforced2marker regression1RED/21PASS→22GREEN/ESLint/diffPASS;guide records
+constraints and unprovedHTTP/browser/removal/race. No newmigration/productcode or
+phaseexit implied. Actual1460merge/treeparity/reconcile precede next publication.
+
+Superseding parent receipt:1460 exacthead e98b78ef allfiveCI37194768940 checks
+SUCCESS includingPRGate;normal squash3c5d7097 at10:43:25Z verified, full-treeparity
+and clean canonical main fast-forward. ObservedCI0queue/1541runseconds; lifecycle
+receipts recorded. Keep dependencyworktrees/36unrelatedstashes;no production.
+Sourceworker explicitly relinquishedthree newfiles at10:43Z;8RED→31GREEN/136related/
+TypeScript/ESLintPASS. Root independently readall source;141checks/3suitesPASS
+(newproof/learneropen/CI;one mistakenly requested nonexistent observerpath didnot
+run). Frozen generator/template acceptance means exact per-run SQLdigest checked
+at dispatch, not operator reapproval of random IDs. No liveextensioncalls yet.

@@ -339,6 +339,23 @@ jobs:
       - name: Verify contextual Assignment inline-image locked Classwork reads
         run: bash scripts/check-contextual-assignment-inline-read-classwork-database.sh
 
+      - name: Verify isolated contextual Assignment integrated SDK effects and private delivery
+        shell: bash
+        run: |
+          assignment_integrated_head=$(git rev-parse HEAD)
+          assignment_integrated_log=$(mktemp)
+          chmod 600 "$assignment_integrated_log"
+          trap 'rm -f -- "$assignment_integrated_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-assignment-learner-integrated-lifecycle.ts --reviewed-head "$assignment_integrated_head" --mode normal
+          for assignment_integrated_mode in after-fixture before-capture; do
+            assignment_integrated_status=0
+            pnpm exec tsx scripts/check-contextual-assignment-learner-integrated-lifecycle.ts --reviewed-head "$assignment_integrated_head" --mode "$assignment_integrated_mode" > "$assignment_integrated_log" 2>&1 || assignment_integrated_status=$?
+            [[ "$assignment_integrated_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$assignment_integrated_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated assignment-learner-integrated lifecycle: ${assignment_integrated_mode}." "$assignment_integrated_log"
+            grep -Fx 'PASS isolated assignment-learner-integrated exact teardown and unchanged canonical baseline.' "$assignment_integrated_log"
+          done
+
       - name: Verify contextual Daily Log save atomicity and privileges
         run: bash scripts/check-contextual-daily-log-save-database.sh
 
