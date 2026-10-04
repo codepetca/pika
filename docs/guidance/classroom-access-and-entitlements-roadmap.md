@@ -1152,6 +1152,21 @@ unrelated stashes preserved. Candidate remains UNAPPLIED; frozen independent rev
 and genuine local runtime/replay are next. Assessmentphase/goal incomplete; no
 production/admission/home/cutover/provider or billing change implied.
 
+Superseding1460 local receipt: draft47724239 independently reviewed CLEAN;
+243 applied once locally, exact001–243 history and genuine types/check zero drift.
+First rollback fixture hit existing179 submit-history guard; full canonical baseline
+unchanged. Proof-only two-file regression-first1RED/9PASS→10GREEN/targeted reviewCLEAN
+corrects already-submitted snapshot tags, preserving every applied SQL/control.
+Runtime40ce325b actual image-read hidden/visible/owner/lifecycle/subject/object/status/
+fullDTO/no-effects and unchanged242 supplemental rollback PASS. Strict243 original
+isolated normal and2forced modes PASS, exact owned teardown and full canonical
+row/metadata/settings/cron/resource equality; private0600 receipts67HS1D/25vnVp.
+Open remains nine sealed false-create/view stubs, not real effects/signing/nonempty
+SDK/authHTTP/browser/race proof. Final cumulative review/exactCI/mainmerge gates
+remain; main242/local243, productionlast225 and all admission/home/cutover controls
+unchanged. Actual open/private-delivery integration remains a separate prerequisite;
+original observer authority is not silently extended. Phase/goal incomplete.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

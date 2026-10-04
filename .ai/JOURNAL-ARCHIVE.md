@@ -35899,3 +35899,20 @@ fixtures cleanup exactly/globalbaselinePASS. Reusedharness nowprovisions only
 exactsyntheticcreationgrant andremovesmanual/defaultFree audits. Sharedadmission
 OFF/prod225untouched; local235installed byseparate rosterwrites. Fullfocused,
 independentreview andactualparent/main integration precedefinalCI/merge.
+
+<!-- pika-session-log-archive-batch:e68cba613a5f55e68a5d80f7d3c685d1769290c347734ad83cb0960ba1e52808 -->
+## 2026-10-03 — Calendar1446 preparation on actual merged class-day main
+
+1444 actual normalmergea8c4e9b16:04:51Z verified withallfive exact7d341d23
+CI37133784223 SUCCESS (0queue/1697runseconds), canonicalcleanFF. Calendarchild
+rebased ontoactuala8 skippingonlyoldstackedd8 parent; allten ownedruntime/proof/
+test/guide files andmainGET remain byte-preserved. Conflicts onlyCURRENT/archive;
+Two exactsurplussessioncopies removed afterfull equality with retainedarchive;
+one auto-merge glued1441body removed onlyafter exactoriginalreceipt verification.
+Every unmodified main step and reviewed child CI step retained, including the
+previously reviewed calendar-concurrency forced-cleanup extension. Initialfull
+reviewsCLEAN544fe47b, unchanged152SQL/
+actualSDK/race/cleanup evidence reused. Actual235owner-write merge stillprecedes
+calendarfinalreconciliation/review/readyCI, no speculative heavyCI. Original
+15:07:20clock/counters retained; authorized elapsedextension to17:07:20Z.
+Local236 belongsseparatepreparation; noSQL/types/DB/provider/production/cohort edits.
