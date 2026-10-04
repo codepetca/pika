@@ -117,3 +117,11 @@ metadata and migration044 expose another concrete fixture violation: multiple-ch
 answer keys must be null. The fixture now keeps only open-response text keys,
 with a generated-SQL regression; application and sealed lifecycle bytes are unchanged.
 Actual normal and both fully-set-up forced runs remain pending verification.
+
+The answer-key correction passed independent fixed-source review. Its actual
+normal run completed strict fixture setup, then failed at matrix/dispatch with
+19 attempted transport requests. Exact teardown and the same independent canonical
+baseline passed. Closed diagnostic counters now distinguish fixed case/projection,
+bounded context/guard elapsed time, caller abort, fixed failure classes and HTTP
+status, without private error strings or rows. No guard or deadline is relaxed.
+The timing cause remains unproved; forced runs have not been attempted.

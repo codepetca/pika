@@ -1312,3 +1312,8 @@ App, schema, native lifecycle and footprint unchanged. Existing human waiver
 retains cumulative review counters/authorization. No production, activation,
 account or migration operation. Source review and actual normal/two fully-set-up
 forced receipts remain required; space212GiB observed, active/tokens unknown.
+IndependentSol5.6/high ef660 review CLEAN. Actualnormal fullfixture/snapshot passed
+then failedmatrix/dispatch at19 attemptedrequests; exactteardown/SAMEbaselinePASS.
+Proof-only closed timing/abort diagnostics RED→GREEN,51proof/245focusedallstaticPASS.
+Readonly sealedinventory sample993ms/742resources; timing cause not yet proved.
+App20s/transport15s, everyrequestguard and full global inventory remain unchanged.

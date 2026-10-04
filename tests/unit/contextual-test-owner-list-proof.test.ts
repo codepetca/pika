@@ -260,6 +260,22 @@ describe('finite owner Test list transport', () => {
     expect(testOwnerListFailureDiagnostic(new AssignmentListLifecycleError({ stage: 'PRIVATE', error: new Error('PRIVATE') }, []), 'PRIVATE')).not.toContain('PRIVATE')
     expect(x.fetcher).not.toHaveBeenCalled()
   })
+  it('distinguishes caller abort after guard work using bounded closed diagnostics', async () => {
+    const x = fixture(); const controller = new AbortController(); let now = 1000
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    try {
+      x.guard.mockImplementationOnce(async () => { now += 21000; controller.abort('PRIVATE reason') })
+      x.fetcher.mockRejectedValueOnce(new DOMException('PRIVATE failure', 'AbortError'))
+      x.transport.readContext(x.f.classes[0].id, x.f.actors[0].id)
+      await expect(x.transport.fetch(`${x.target.API_URL}/rest/v1/classrooms?select=${TEST_OWNER_LIST_PROJECTIONS.root}&id=eq.${x.f.classes[0].id}`, { headers: x.headers, signal: controller.signal })).rejects.toThrow('private details withheld')
+      expect(x.transport.diagnostic()).toContain('case=0 projection=root contextMs=21000 guardMs=21000 callerAborted=true failure=aborted http=0')
+      expect(x.transport.diagnostic()).not.toMatch(/PRIVATE|example\.invalid|https?:/)
+      now += 100000
+      expect(x.transport.diagnostic()).toContain('contextMs=60000')
+      x.transport.readContext(x.f.classes[1].id, x.f.actors[1].id)
+      expect(x.transport.diagnostic()).toContain('case=1 projection=unknown contextMs=0 guardMs=0 callerAborted=false failure=none http=0')
+    } finally { clock.mockRestore() }
+  })
   it('rejects foreign Test/draft/child cursors and any additional repeated predicate', async () => {
     const x = fixture(); const requests: string[] = []; const real = sourceFetch(x.f)
     const transport = createTestOwnerListProofTransport(x.f, x.target, x.projectId, async (resource, init) => { requests.push(String(resource)); return real(resource, init) }, x.guard)
