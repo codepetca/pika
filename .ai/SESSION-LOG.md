@@ -1189,3 +1189,15 @@ Source tests67/5, scoped lint and TypeScript pass; actual proof and seed require
 final ephemeral CI. The approved local d50 replay and its immutable manifests
 remain receipts for earlier bytes, not this new244 hash. No local migration or
 fixture attempt was repeated; independent security review and final CI pending.
+
+## 2026-10-04 — Audit migration warning-free cleanup
+
+Final CI stopped on unused compatibility arguments in CORE244 submit/Return
+and unused selected code IDs in two AUTH246 handoff consumers. Retained RPC
+signatures now deliberately discard ignored inputs; AUTH selects only its read
+expiry value while preserving predicates, FOR UPDATE and post-lock clocks.
+No warning suppression, privilege, authority or expiry-rule change. Existing
+source guards updated to match that projection/discard while preserving their
+security assertions;27 tests/3files pass. Independent review/focused checks and
+actual warning-free ephemeral CI remain gates. No local migration reapplication
+or fixture execution; prior approved manifests/runtime source identities remain.

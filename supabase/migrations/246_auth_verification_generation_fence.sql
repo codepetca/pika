@@ -336,7 +336,6 @@ as $function$
 declare
   v_now timestamptz;
   v_user public.users%rowtype;
-  v_code_id uuid;
   v_handoff_expires_at timestamptz;
   v_credential_version bigint;
 begin
@@ -365,7 +364,7 @@ begin
     return null;
   end if;
 
-  select id, handoff_expires_at into v_code_id, v_handoff_expires_at
+  select handoff_expires_at into v_handoff_expires_at
   from public.verification_codes
   where user_id = p_user_id
     and purpose = 'signup'
@@ -424,7 +423,6 @@ as $function$
 declare
   v_now timestamptz;
   v_password_hash text;
-  v_code_id uuid;
   v_handoff_expires_at timestamptz;
   v_new_credential_version bigint;
 begin
@@ -447,7 +445,7 @@ begin
     return null;
   end if;
 
-  select id, handoff_expires_at into v_code_id, v_handoff_expires_at
+  select handoff_expires_at into v_handoff_expires_at
   from public.verification_codes
   where user_id = p_user_id
     and purpose = 'reset_password'

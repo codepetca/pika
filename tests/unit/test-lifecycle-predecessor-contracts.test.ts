@@ -126,7 +126,11 @@ describe('migration244 preserves authoritative predecessor contracts', () => {
     expect(legacy).toContain("'inserted_count', 0")
     expect(legacy.indexOf("'returned_count', 0")).toBeLessThan(legacy.indexOf('public.return_test_attempts_checked_atomic'))
     expect(legacy).toContain("'updated_count', (v_result->>'returned_count')::integer")
-    expect(legacy).not.toMatch(/insert into|p_submitted_at_by_student/)
+    expect(legacy).toContain('perform p_submitted_at_by_student;')
+    // The retained compatibility value is read only to discard it. It cannot
+    // participate in any authority, mutation or returned count expression.
+    const checkedLegacy = legacy.replace('perform p_submitted_at_by_student;', '')
+    expect(checkedLegacy).not.toMatch(/insert into|p_submitted_at_by_student/)
     expect(checked).toContain('response.score is null')
     expect(checked).toContain('returned_at is null')
     expect(checked).toContain('teacher_id = p_returned_by and archived_at is null')

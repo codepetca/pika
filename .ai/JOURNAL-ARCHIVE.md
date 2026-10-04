@@ -36729,3 +36729,25 @@ and cleanup unchanged. Batch3/launch5 retains original16:28:17 clock and hard ca
 targeted review, serial runtime recheck and final integration precede readiness.
 Shared admission/cutover remainOFF; latest human explicitly authorizes routine
 steps and review extensions without repeated prompts.
+
+<!-- pika-session-log-archive-batch:03a03bd26b5a335152fd7e08bbd7c75601dbedc00f58e8906abd8ce1eb2d955a -->
+## 2026-10-03 — Course Guide prepared removal-parent reconciliation
+
+Prepared the unchanged bd0 Course Guide source onto reviewed pending1448 parent
+88a1bfd6; this is NOT merged main (actual2095), and parent CI remains pending.
+Every incoming runtime, genuine generated40d contract, curated types and immutable
+SQL001–238 is preserved; whole parent CI plus the original Guide step and original
+Guide source guards remain intact. The old ci-workflow test has no Guide block:
+retain incoming88 test whole, original Guide proof-unit guards byte-exact.
+Full history arithmetic is 88+bd0−a8 plus this one receipt, official40-entry trim.
+No database/status/runtime proofs/type generation/providers/network/remote Git,
+review or CI launch. Root owns actual-parent reconciliation after1448/1447 squash
+merges, then changed-base review and exact-head CI. Sharedadmission/fullcutover
+and billing remain OFF; original review clocks/caps retained. Prepared-parent
+focused218tests/15files and architecture/UI/design/TypeScript/lint all PASS.
+Startup/environment PASS; startup/Bara47PASS (including canonical Prod spacing).
+Prepared-base audit7files PASS; diff/full preservation PASS: Guide8/incoming45,
+2097historical entries/recent40, only9 copied-surplus duplicates removed while
+original full bodies retained. Evidence/private verifier:
+/private/tmp/pika-guide-prepared-removal.UOmGQg; focused pika-focused-AaWC7U.
+This prepared dependency state is not ready/merged/activated.

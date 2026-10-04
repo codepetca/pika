@@ -53,7 +53,7 @@ describe('authentication verification generation migration', () => {
     expect(issuance).toMatch(/for update;[\s\S]*v_now := clock_timestamp\(\);[\s\S]*p_expires_at <= v_now/)
     expect(finalization).toMatch(/limit 1\s+for update;[\s\S]*v_now := clock_timestamp\(\);[\s\S]*v_code\.expires_at <= v_now/)
     for (const consumer of [signupConsume, resetConsume]) {
-      expect(consumer).toContain('select id, handoff_expires_at into v_code_id, v_handoff_expires_at')
+      expect(consumer).toContain('select handoff_expires_at into v_handoff_expires_at')
       expect(consumer).toMatch(/for update;[\s\S]*v_now := clock_timestamp\(\);[\s\S]*v_handoff_expires_at <= v_now/)
       expect(consumer).not.toMatch(/handoff_consumed_at is null\s+and handoff_expires_at > v_now/)
     }

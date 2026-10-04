@@ -197,7 +197,11 @@ end;
 $$;
 create function public.submit_test_attempt_atomic(p_test_id uuid, p_student_id uuid, p_responses jsonb, p_submitted_at timestamptz default now())
 returns jsonb language plpgsql security definer set search_path = '' as $$
-begin raise exception 'Test revision client is required' using errcode = '22023'; end;
+begin
+  -- Retain and deliberately discard the unfenced compatibility arguments.
+  perform p_test_id, p_student_id, p_responses, p_submitted_at;
+  raise exception 'Test revision client is required' using errcode = '22023';
+end;
 $$;
 
 create or replace function public.update_test_student_access_atomic(
@@ -1625,6 +1629,8 @@ create or replace function public.return_test_attempts_atomic(p_test_id uuid, p_
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_result jsonb;
 begin
+  -- Retain the legacy argument without granting caller timestamps authority.
+  perform p_submitted_at_by_student;
   if coalesce(array_length(p_student_ids, 1), 0) = 0 then
     return jsonb_build_object('returned_count', 0, 'updated_count', 0, 'inserted_count', 0);
   end if;
