@@ -1128,3 +1128,14 @@ then103app/route/startupPASS (60app+43startup), scopedlint/diffPASS. Original
 reviewclock13:44/default14:44;2launch/1initial/1fix, target/finalpending.
 Batch1 frozenfocused198/14files+allstaticPASS; changedunit audit1TS PASS. No
 app/proof/CI byteschanged; targetedcompatreview requestedonthenewfixedhead.
+
+Batch1 targetedcompatSol/high ba42f662 CLEAN14:01;40unitPASS,2P2resolved;
+app/proof/CIbyteparity toinitial68064c63 verified. Root explicitlyacceptedfinite
+generator/requestmanifest beforeactualrun. One wx0600independentcanonicalbaseline
+capture, neveroverwritten. Normal8actualSDK/exactteardown/fullclosurePASS14:10:32;
+forcedafter-fixture14:13:20 andbefore-capture14:15:53 fullsetup/twoPNGs/exactexit1/
+exact2closedmarkers/ownedteardown/fullcanonicalclosurePASS. Separate5fieldcanonical
+comparisonPASSafternormalandeachforced. Logsprivate0600retained; sourceunchanged
+duringruns. Facts-onlybatch2 recordsreceipts; finalcumulativeSHAreview/CIpending.
+No authHTTP/session/browser/race/publiclegacypositive/phaseexit/rollout claim.
+No canonicalDML/newmigration/production/account/provider/billing changes.

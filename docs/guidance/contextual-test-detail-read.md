@@ -1,8 +1,10 @@
 # Contextual owner Test detail read
 
-Status: draft-review source candidate on `codex/contextual-test-owner-detail-read`, based on
-verified main `7c8fd90e25645b49288ca41be5675d244118d007`. No runtime or PR acceptance
-is claimed yet. Local/main schema001–243; production last verified001–225 remains
+Status: PR1468 draft on `codex/contextual-test-owner-detail-read`, based on
+verified main `7c8fd90e25645b49288ca41be5675d244118d007`. The finite disposable SDK
+mechanism passed at `ba42f662c581e2265cb794cd365487a897060829`; final cumulative
+review, stable-head CI and normal merge remain pending. Local/main schema001–243;
+production last verified001–225 remains
 untouched. No new migration is planned unless actual query evidence demonstrates
 the existing relationships cannot enforce the boundary.
 
@@ -37,9 +39,9 @@ inspection remains compatible with the existing detail GET.
   `managed_storage_json_reference_identity_fkey`. Bind the current document JSON,
   reference, object, Classroom, bucket/path, purpose and ready/provisional state.
 
-These source relationships are not proof that the installed SDK executes the
-proposed bounded embedding correctly. Actual disposable-local evidence must
-cover nonempty and terminal-empty question, draft and reference results. If the
+Actual disposable-local evidence now covers nonempty and terminal-empty questions
+and references, plus empty/nonempty drafts, through the installed SDK's bounded
+embedding. Source relationships alone remain insufficient evidence. If the
 embedding cannot preserve required authority/cardinality, use a separately
 reviewed additive owner-read RPC rather than reverting to unbound child reads.
 
@@ -75,9 +77,9 @@ fixture/transport manifest independently before runtime. Then complete focused
 checks, risk-matched independent review and stable-head CI/normal main merge.
 No broader assessment-phase or rollout completion follows from this one slice.
 
-## Source-only proof preparation
+## Finite proof contract
 
-A sibling runner may reuse the original sealed Assignment lifecycle, project
+A sibling runner reuses the original sealed Assignment lifecycle, project
 identity, resource discovery, original cases/revocations/restoration and exact
 teardown. Only its separately hash-bound extension setup and finite Test/Storage
 request manifest are new; the original SQL allowlist and native machinery remain
@@ -101,12 +103,37 @@ Source checks:60 app/new-route/legacy-route tests and30 offline proof tests pass
 the proof worker's151 checks include four unchanged original proof suites. Root's
 batch1 candidate focused run198 tests/14files, architecture, UI/design policies,
 TypeScript and lint pass. Audit covers all eight changed TypeScript files.
-These are source/offline receipts only; actual disposable SDK/cleanup evidence
-and independent fixed-head reviews remain pending.
+Those counts are source/offline receipts, distinct from the actual runtime
+receipt below. Initial and targeted source reviews are complete; final cumulative
+review, stable-head CI and merge remain pending.
 
 Initial review of68064c63 was security-clean; compatibility requested explicit
 copied-question source identity/populated-cache coverage and a current handoff.
 Batch1 adds the contextual regression (three distinct identities, exact retained
 cache fields, no external fetch/RPC capability) and updates continuity. The
-finite proof/app implementation bytes remain unchanged; targeted review and
-actual runtime acceptance are still pending.
+finite proof/app implementation bytes remain unchanged. Targeted compatibility
+review ofba42f662 is clean; root accepted the independently reviewed finite
+generator/request manifest before any execution.
+
+## Actual disposable-local receipt
+
+Atba42f662, the normal run completed all eight actual SDK cases at14:10:32Z on
+2026-10-04: both global-role owners, owner/member precedence, empty Tests, draft
+overlay/portable IDs, closed canonical questions, exact managed MIME and null-MIME
+Storage.info, and member/cross-class-owner denial. It also completed the inherited
+cases/revocations/restoration, exact owned teardown and whole canonical closure.
+
+Both `after-fixture` and `before-capture` forced runs completed the full extension
+setup (including both fixed68-byte PNG uploads) before their failure checkpoints.
+They returned expected exit1 and exactly two closed failure/cleanup markers,
+with exact owned teardown and unchanged canonical closure. A separate wx0600
+baseline captured once before runtime matched all five fields after the normal
+run and each forced mode: canonical public/private/Storage rows,168 metadata,
+settings, cron and resources. Forced receipts completed14:13:20Z and14:15:53Z.
+
+No source bytes changed during the three runs; no canonical DML, new migration,
+production, admission, account, billing or provider action occurred. These are
+helper/SDK mechanism receipts, not authenticated HTTP/session/browser, concurrent
+revocation, historical public-bucket positive runtime, phase-exit or rollout proof.
+Copied source-lineage IDs/populated cache and archived compatibility are unit
+covered, not additional claims about the eight actual fixture cases.

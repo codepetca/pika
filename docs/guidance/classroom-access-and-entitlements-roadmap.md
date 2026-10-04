@@ -1205,6 +1205,13 @@ excluded because its ensure helper can create/repair a draft; its transaction
 boundary belongs to subsequent owner authoring work. Source preparation and a
 schema relationship map are not actual SDK evidence or a phase exit.
 
+PR1468 now contains that owner Test detail GET. Its ba42f662 disposable run passed
+eight actual SDK cases plus both full-setup forced teardown modes; separate saved
+whole-canonical fingerprints match after every run. Initial/targeted source
+reviews are clean, including copied-question/cache compatibility coverage.
+Final cumulative review, stable-head CI and normal main merge remain pending;
+all broader Tests operations and the existing rollout/phase-exit gates remain.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading
