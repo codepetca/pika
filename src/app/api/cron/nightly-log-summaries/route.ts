@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto'
+import { summaryRetryDateSchema, summaryRetryClassroomSchema } from '@/lib/validations/nightly-log-summary'
+import { withAIRequestDeadline, type AIRequestDeadlineOptions } from '@/lib/ai-request-deadline'
 import { NextRequest, NextResponse } from 'next/server'
 import { logServerError } from '@/lib/server/diagnostics'
 import { formatInTimeZone } from 'date-fns-tz'
@@ -26,9 +29,17 @@ import {
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const maxDuration = 60
 
 const TIMEZONE = 'America/Toronto'
 const CONCURRENCY_LIMIT = 5
+const JOB_BUDGET_MS = 50_000
+const SUMMARY_REQUEST_MS = 20_000
+const FEEDBACK_BUDGET_MS = 5_000
+const WRITE_RESERVE_MS = 2_000
+
+type PendingFeedback = Parameters<typeof extractAndStoreDeveloperFeedbackCandidates>[1]
+type SummaryResult = { generated: boolean; feedback?: PendingFeedback }
 const CRON_READ_PAGE_SIZE = 1000
 const CRON_FILTER_CHUNK_SIZE = 50
 
@@ -70,51 +81,105 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = getServiceRoleClient()
-  const yesterday = formatInTimeZone(
-    subDays(new Date(), 1),
-    TIMEZONE,
-    'yyyy-MM-dd'
-  )
-
-  const { classroomIds, error: eligibleClassroomsError } =
-    await getEligibleClassroomIds(supabase, yesterday)
-
-  if (eligibleClassroomsError) {
-    return eligibleClassroomsError
+  const yesterday = formatInTimeZone(subDays(new Date(), 1), TIMEZONE, 'yyyy-MM-dd')
+  const requestedDate = request.nextUrl.searchParams.get('date')
+  const parsedDate = summaryRetryDateSchema.safeParse(requestedDate ?? yesterday)
+  if (!parsedDate.success || parsedDate.data > yesterday) {
+    return NextResponse.json({ error: 'Invalid summary date' }, { status: 400 })
   }
-
-  if (classroomIds.length === 0) {
-    return NextResponse.json({ status: 'ok', generated: 0, skipped: 0 })
+  const parsedClassroom = summaryRetryClassroomSchema.safeParse(request.nextUrl.searchParams.get('classroomId') ?? undefined)
+  if (!parsedClassroom.success) {
+    return NextResponse.json({ error: 'Invalid summary classroom' }, { status: 400 })
   }
-
+  const date = parsedDate.data
+  const startedAt = Date.now()
+  const remainingMs = () => Math.max(0, JOB_BUDGET_MS - (Date.now() - startedAt))
   let generated = 0
   let skipped = 0
+  let failed = 0
+  let total: number | null = null
+  const pendingClassroomIds = new Set<string>()
+  const feedback: PendingFeedback[] = []
+  const partialResponse = () => NextResponse.json({
+    status: 'partial', generated, skipped, failed,
+    remaining: total === null ? null : Math.max(0, total - generated - skipped),
+    date, pendingClassroomIds: total === null ? null : [...pendingClassroomIds],
+  }, { status: 503, headers: { 'Retry-After': '5' } })
 
-  // Process classrooms with concurrency limit
-  for (let i = 0; i < classroomIds.length; i += CONCURRENCY_LIMIT) {
-    const batch = classroomIds.slice(i, i + CONCURRENCY_LIMIT)
-    const results = await Promise.allSettled(
-      batch.map((classroomId) =>
-        generateSummaryForClassroom(supabase, classroomId, yesterday)
-      )
-    )
+  try {
+    return await withAIRequestDeadline(async (signal) => {
+      const supabase = createDeadlineClient(signal)
+      const { classroomIds: eligibleClassroomIds, error } = await getEligibleClassroomIds(supabase, date)
+      signal.throwIfAborted()
+      if (error) return error
+      const classroomIds = parsedClassroom.data
+        ? eligibleClassroomIds.filter((id) => id === parsedClassroom.data)
+        : eligibleClassroomIds
+      total = classroomIds.length
+      for (const classroomId of classroomIds) pendingClassroomIds.add(classroomId)
 
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        if (result.value) {
-          generated++
-        } else {
-          skipped++
-        }
-      } else {
-        logServerError('journal.summary', result.reason)
-        skipped++
+      // A retry scans the same date and reuses matching persisted results. Finish
+      // the required pass before spending any budget on optional feedback.
+      for (let i = 0; i < classroomIds.length; i += CONCURRENCY_LIMIT) {
+        if (remainingMs() < SUMMARY_REQUEST_MS + WRITE_RESERVE_MS) break
+        const batch = classroomIds.slice(i, i + CONCURRENCY_LIMIT)
+        await Promise.all(batch.map(async (classroomId) => {
+          try {
+            const result = await generateSummaryForClassroom(supabase, classroomId, date, {
+              signal, timeoutMs: Math.min(SUMMARY_REQUEST_MS, remainingMs() - WRITE_RESERVE_MS),
+            })
+            signal.throwIfAborted()
+            pendingClassroomIds.delete(classroomId)
+            if (result.generated) generated++
+            else skipped++
+            if (result.feedback) feedback.push(result.feedback)
+          } catch (error) {
+            logServerError('journal.summary', error)
+            failed++
+          }
+        }))
+        signal.throwIfAborted()
       }
-    }
-  }
 
-  return NextResponse.json({ status: 'ok', generated, skipped })
+      const incomplete = generated + skipped < total || failed > 0
+      if (!incomplete) {
+        for (let i = 0; i < feedback.length; i += CONCURRENCY_LIMIT) {
+          if (remainingMs() < FEEDBACK_BUDGET_MS + WRITE_RESERVE_MS) break
+          await Promise.all(feedback.slice(i, i + CONCURRENCY_LIMIT).map(async (context) => {
+            try {
+              const result = await withAIRequestDeadline((feedbackSignal) =>
+                extractAndStoreDeveloperFeedbackCandidates(createDeadlineClient(feedbackSignal), context, {
+                  signal: feedbackSignal, timeoutMs: FEEDBACK_BUDGET_MS,
+                }), { signal, timeoutMs: FEEDBACK_BUDGET_MS })
+              if (result.tableMissing) {
+                console.warn('Developer feedback candidates table is not available; skipping extraction storage.')
+              }
+            } catch (error) {
+              logServerError('journal.feedback', error)
+            }
+          }))
+        }
+      }
+      signal.throwIfAborted()
+      return incomplete ? partialResponse() : NextResponse.json({ status: 'ok', generated, skipped })
+    }, { timeoutMs: JOB_BUDGET_MS })
+  } catch (error) {
+    logServerError('journal.summary', error)
+    return partialResponse()
+  }
+}
+
+function createDeadlineClient(signal: AbortSignal): SupabaseClient {
+  return getServiceRoleClient({
+    fetch: (input, init) => {
+      signal.throwIfAborted()
+      const requestSignal = init?.signal ?? (input instanceof Request ? input.signal : undefined)
+      return fetch(input, {
+        ...init,
+        signal: requestSignal ? AbortSignal.any([signal, requestSignal]) : signal,
+      })
+    },
+  })
 }
 
 async function getEligibleClassroomIds(
@@ -172,35 +237,37 @@ async function getEligibleClassroomIds(
 async function generateSummaryForClassroom(
   supabase: SupabaseClient,
   classroomId: string,
-  date: string
-): Promise<boolean> {
+  date: string,
+  options: AIRequestDeadlineOptions,
+): Promise<SummaryResult> {
+  options.signal?.throwIfAborted()
   const eligible = await isClassroomEligibleForSummary(supabase, classroomId, date)
   if (!eligible) {
-    return false
+    return { generated: false }
   }
 
   const enrollmentsResult = await loadEnrollmentStudentRows(supabase, classroomId)
 
   if (enrollmentsResult.error) {
     logServerError('journal.query', enrollmentsResult.error)
-    return false
+    throw enrollmentsResult.error
   }
 
   const rosterStudentIds = [...new Set(enrollmentsResult.rows.map((row) => row.student_id))]
   if (rosterStudentIds.length === 0) {
-    return false
+    return { generated: false }
   }
 
   const entriesResult = await loadSummaryEntriesForClassroom(supabase, classroomId, rosterStudentIds, date)
 
   if (entriesResult.error) {
     logServerError('journal.query', entriesResult.error)
-    return false
+    throw entriesResult.error
   }
 
   const entries = entriesResult.rows
   if (entries.length === 0) {
-    return false
+    return { generated: false }
   }
 
   const entryStudentIds = [...new Set(entries.map((e) => e.student_id))]
@@ -210,13 +277,13 @@ async function generateSummaryForClassroom(
 
   if (rosterRowsResult.error) {
     logServerError('journal.query', rosterRowsResult.error)
-    return false
+    throw rosterRowsResult.error
   }
 
   const profilesResult = await loadStudentProfileRows(supabase, studentIdsForRedaction)
   if (profilesResult.error) {
     logServerError('journal.query', profilesResult.error)
-    return false
+    throw profilesResult.error
   }
 
   const profileMap = new Map(
@@ -273,22 +340,37 @@ async function generateSummaryForClassroom(
   }
 
   if (sanitizedLogs.length === 0) {
-    return false
+    return { generated: false }
   }
 
   const { system, user, sourceMap } = buildSummaryPrompt(date, sanitizedLogs)
-  const rawResponse = await callOpenAIForSummary(system, user, sourceMap)
+  const model = getSummaryModel()
+  const inputDigest = createHash('sha256').update(JSON.stringify({
+    system, user, sourceMap, initialsMap, model, policy: LOG_SUMMARY_POLICY_VERSION,
+    entries: entries.map((entry) => [entry.id, entry.updated_at]),
+  })).digest('hex')
+  const { data: existing, error: existingError } = await supabase.from('log_summaries')
+    .select('summary_items').eq('classroom_id', classroomId).eq('date', date).maybeSingle()
+  if (existingError) throw existingError
+  const existingItems = existing?.summary_items
+  if (existingItems && typeof existingItems === 'object' && !Array.isArray(existingItems)
+    && existingItems.input_digest === inputDigest) {
+    return { generated: false }
+  }
+  options.signal?.throwIfAborted()
+  const rawResponse = await withAIRequestDeadline((signal) =>
+    callOpenAIForSummary(system, user, sourceMap, { ...options, signal }), options)
+  options.signal?.throwIfAborted()
 
   const summaryItemsForStorage = {
     policy_version: LOG_SUMMARY_POLICY_VERSION,
+    input_digest: inputDigest,
     overview: rawResponse.overview,
     action_items: rawResponse.action_items.map((item) => ({
       text: item.text,
       initials: item.initials,
     })),
   }
-
-  const model = getSummaryModel()
 
   // Get max updated_at from entries for staleness tracking
   const maxUpdatedAt = entries.reduce<string | null>((max, e) => {
@@ -311,27 +393,16 @@ async function generateSummaryForClassroom(
   )
 
   if (upsertError) {
-    logServerError('journal.summary', upsertError)
-    return false
+    throw upsertError
   }
 
-  try {
-    const developerFeedbackResult = await extractAndStoreDeveloperFeedbackCandidates(supabase, {
-      classroomId,
-      date,
-      sourceEntryCount: entries.length,
-      model: getDeveloperFeedbackModel(),
-      sanitizedLogs,
-    })
-
-    if (developerFeedbackResult.tableMissing) {
-      console.warn('Developer feedback candidates table is not available; skipping extraction storage.')
-    }
-  } catch (error) {
-    logServerError('journal.feedback', error)
+  return {
+    generated: true,
+    feedback: {
+      classroomId, date, sourceEntryCount: entries.length,
+      model: getDeveloperFeedbackModel(), sanitizedLogs,
+    },
   }
-
-  return true
 }
 
 async function loadClassDayRowsForClassrooms(
@@ -463,7 +534,8 @@ async function isClassroomEligibleForSummary(
     .gte('end_date', date)
     .single()
 
-  if (classroomError || !classroom) {
+  if (classroomError && classroomError.code !== 'PGRST116') throw classroomError
+  if (!classroom) {
     return false
   }
 
@@ -475,7 +547,8 @@ async function isClassroomEligibleForSummary(
     .eq('is_class_day', true)
     .single()
 
-  return !classDayError && !!classDay
+  if (classDayError && classDayError.code !== 'PGRST116') throw classDayError
+  return !!classDay
 }
 
 export const GET = withErrorHandler('GetCronNightlyLogSummaries', async (request: NextRequest) => {
