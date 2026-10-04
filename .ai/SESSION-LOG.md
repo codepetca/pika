@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Shared classroom-detail read preparation
-
-PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
-allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
-normal squash/no bypass and clean canonical main fast-forward. Classday1444
-ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
-initial security/compatibility reviews are clean, pending actual-parent integration.
-This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
-current relationship bound in the full30field payload, real enrollment FK inner
-join, archive-owner reads and owner-self-participation denial, preserved hydration
-and member guide-draft/guidance privacy projection. Original fallback/pair GETs
-and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
-TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
-CI hook prepared; actual execution and independent review still pending.
-Local236 installed by separate preserving-removal work; no schema/types here.
-Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
-attendance protection; coordinator repairs only synthetic teardown before more
-DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
-The owner's all-work/review-extension authorization retains original clocks,
-counters, absolute review caps and normal technical/release gates.
-
-1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
-(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
-ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
-replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
-unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
-and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
-Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
-allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
-entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
-integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
-
 ## 2026-10-03 — Detail1447 pending-parent238 preparation
 
 Prepared reviewed293d35cf locally on pending1448 head88a1bfd6, excludingoldparent
@@ -1113,3 +1081,20 @@ remaining merges. Production244–246 need matching application and exact-target
 set permission; no database application, fixtures, feature activation or deployment.
 Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
 account-wide; DeepSeek paused. Task low-usage/review-budget override retained.
+
+## 2026-10-04 — Broad audit combined landing candidate
+
+After guidance1462 merge24cb8847, consolidated the five remaining reviewed source
+packages in draft1463. Identical journal union preserves complete prior body
+multiplicities; application/migration byte parity is checked against source-package
+heads, with explicit package/UiGallery/deletion-only validation-baseline composition.
+Baseline removes five actually validated routes, no new debt. Focused runner adds
+optional positive-integer --max-workers forwarding only to Vitest;24 controls PASS,
+selection unchanged; earlier default-capacity run retained10 UI timeout failures.
+No timeout/assertion/scope reduction. Final combined focused run uses2 workers;
+independent cumulative integration review and exact-head CI remain pending.
+Fresh read-only production history is exact001–225; target/ref matches GitHub
+migration environment. Complete pending226–246 impact review is underway; no apply,
+fixture/reset/cleanup/flag change or deployment. Braces width/parent-cycle limits
+reproduced; temporary exception throughNov4 proposed, owner decision pending.
+Old local application authority remains consumed; immutable receipts retained.

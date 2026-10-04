@@ -36492,3 +36492,36 @@ changing16000threshold orhistory. Final188tests16files/allstaticTSC/lint PASS.
 TargetedSol5.6/high CLEAN439+d132 (69+110offline); original review clocks/caps
 retained. Docs/startupreceipt batch7; pendingone final cumulative reviewer launch11
 andstableSHA CI. No production/account/cohort/feature activation; main2095 unchanged.
+
+<!-- pika-session-log-archive-batch:fb37c70bf53a6b4e54ebe83c52c24faaf0e848f3b319de79c8fc8e18fd656c61 -->
+## 2026-10-03 — Shared classroom-detail read preparation
+
+PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
+allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
+normal squash/no bypass and clean canonical main fast-forward. Classday1444
+ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
+initial security/compatibility reviews are clean, pending actual-parent integration.
+This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
+current relationship bound in the full30field payload, real enrollment FK inner
+join, archive-owner reads and owner-self-participation denial, preserved hydration
+and member guide-draft/guidance privacy projection. Original fallback/pair GETs
+and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
+TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
+CI hook prepared; actual execution and independent review still pending.
+Local236 installed by separate preserving-removal work; no schema/types here.
+Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
+attendance protection; coordinator repairs only synthetic teardown before more
+DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
+The owner's all-work/review-extension authorization retains original clocks,
+counters, absolute review caps and normal technical/release gates.
+
+1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
+(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
+ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
+replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
+unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
+and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
+Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
+allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
+entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
+integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.

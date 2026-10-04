@@ -1,115 +1,272 @@
-# Broad codebase audit remediation
+# Broad codebase audit remediation and rollout plan
 
-Coordinator checkpoint: 2026-10-04. Audit and implementation base:
-`3c5d7097e78258f70c368789e14f88ac2419c1d8` (`main`, PR #1460 merged).
-The owner authorized planning and orchestration of fixes in this task.
+Coordinator checkpoint: 2026-10-04. This updates the existing plan for all 27
+supported findings (19 P2, 8 P3). It records completed implementation and remaining
+integration, rollout and dependency work. The owner subsequently instructed this
+task to orchestrate the plan. Execution
+now covers landing/integration and preparation of the coordinated release; exact
+production migration authorization remains separate.
 
-## Outcome and evidence
+## Current state and intended outcome
 
-Resolve the 27 supported findings from the broad audit, including workflow and AI
-navigation inconsistencies. Revalidate each against current source, implement a
-bounded remedy, prove the affected behavior, and deliver independently reviewed
-PRs with stable revisions. Preserve the distinction between a source fix, merged
-code, applied schema, and production rollout. A disproved finding needs evidence;
-an unresolved or deferred finding remains open with its reason.
+All 27 findings have accepted source remedies within the reviewed scope, delivered
+in six independently reviewed source-package PRs, originally ready. The original
+selected final CI checks and
+PR Gate passed on the source-package heads below against
+`main` at `902cbf7617bc7f5e0788cfd01fd07d78f051c99c`.
+Guidance #1462 is now merged at `24cb8847b7c2d18719089b109ba3b1658108b641`;
+the canonical checkout was fast-forwarded and exact source-tree parity passed.
+The five remaining packages are combined in draft #1463 for final independent
+integration review and exact-head CI. The debt baseline combines five validated
+route deletions, with no new exceptions; an optional focused-runner worker limit
+addresses observed local UI timeouts without changing test selection/timeouts. Nothing has been deployed by
+this task. Original package checks do not establish combined behavior.
 
-Audit evidence is retained at
-`/Users/stew/.codex/audits/pika/2026-10-04-broad/`: `audit-report.md`,
-`findings.json`, lane reports and reproduction receipts. The existing
-`handoff.json` carries the coordinator's execution state, worker receipts and
-acceptance decisions. This document is the repository entry point to that plan.
+One unsuppressed `braces` advisory remains. The dependency PR provides a bounded
+recursion mitigation; it does not resolve every width/cycle case or establish
+zero registry advisories. Its remaining resolution has a separate checkpoint
+below, without rewriting the accepted source-work receipts.
 
-The initial audit was representative source inspection with targeted tests. It
-did not establish deployed state or execute database races and browser attacks.
-Its passing baseline does not prove a remedy.
+The next outcome is to land the reviewed fixes, verify their integrated behavior,
+promote the matching application/schema safely, and record deployment evidence
+for every affected finding. The remaining advisory must either be fully resolved
+or receive an explicit owner-approved, evidence-backed exception.
 
-## Execution order and ownership
+The original audit base was `3c5d7097e78258f70c368789e14f88ac2419c1d8`.
+Evidence remains in `/Users/stew/.codex/audits/pika/2026-10-04-broad/`:
+`audit-report.md`, `remediation-status.md`, `finding-acceptance.json`,
+`final-ci-snapshot.json`, `final-remote-review-state.json` and
+`final-worktree-source-state.json`. The existing `handoff.json` is the execution
+ledger; retain its source acceptance, immutable runtime receipts and review
+lineage. This document remains the single repository plan.
 
-Use the smallest team for each ready batch. The coordinator owns integration,
-Git operations, PR state, shared continuity and final acceptance. Workers have
-exclusive file ownership and may not recursively delegate. Initial independent
-lanes share `codex/audit-remediation` with no concurrent Git mutations. Split
-verified deliveries into narrow branches before publication where their review
-and rollout boundaries differ.
+## Original reviewed source packages and current landing decision
 
-1. **Authentication and guidance, alongside bounded API/cache/tooling repairs.**
-   Auth implementation: GPT-6.1 Sol/high, for credential races and compatibility.
-   Guidance/startup and API/cache/tooling implementation: GPT-6.1 Sol/medium,
-   for concrete findings with focused acceptance checks. These are implementation
-   assignments; none substitutes for independent review.
-2. **Test lifecycle and required browser coverage.** Establish the revision and
-   transaction interfaces before changing clients and SQL. Keep the lifecycle
-   migration and its server/client contracts in one coherent review.
-3. **UI interaction and failure states.** Record reference surfaces and reuse
-   decisions before implementation. Verify keyboard behavior, scoped errors and
-   physical target geometry in the declared browser matrix.
-4. **Nightly execution and dependencies.** Bound providers and resumable work;
-   evaluate coordinated compatible package upgrades and explicitly handle
-   advisories without available fixes. Keep editor changes separately reviewable.
-5. **Storage locking and final reconciliation.** Prove a consistent lock order
-   with a two-session database harness. Recheck all findings, PR gates, schema
-   evidence and required deployment decisions.
+| Order | PR | Findings | Reviewed head | Final CI run |
+| --- | --- | --- | --- | --- |
+| 1 | [#1462](https://github.com/codepetca/pika/pull/1462): AI guidance/startup | G1–G9, PAT-06 | `5c84e616884810a7f84e1703716ddb4810788475` | 37216134508, attempt 2 |
+| 2 | [#1464](https://github.com/codepetca/pika/pull/1464): cache, surveys, focused checks | PAT-01, PAT-02, V3 | `e451c9057bb53597b279b91dd6795b728cbb2063` | 37216315304 |
+| 3 | [#1465](https://github.com/codepetca/pika/pull/1465): summary execution | V2 | `dd1ebc114252809e6e800ba9934373a9886aaab4` | 37216145091 |
+| 4 | [#1466](https://github.com/codepetca/pika/pull/1466): UI consistency | PAT-03, PAT-04, PAT-05 | `11d08c3c01311caf9228da4043c2ab8b43e2e789` | 37216149885 |
+| 5 | [#1467](https://github.com/codepetca/pika/pull/1467): dependency fixes | DEP-01 | `b25034d6f7b59305ead6408b2fbc069573e54500` | 37216490408 |
+| 6 | [#1463](https://github.com/codepetca/pika/pull/1463): Test, auth and storage contracts | CORE-01–03, S1–S4, D1, V1 | `a9a66e58786329311509e3ff0b522bc20f3f06ad` | 37219197293 |
 
-Independent ready work can advance while a database or review decision is
-pending. Do not launch speculative future writers or merge unrelated fixes
-into one large PR merely because they share this audit.
+The original order above remains source-package provenance. After guidance
+landed, all five branches required journal reconciliation, and composition
+identified conflicting deletion-only API-validation baselines. The coordinator
+therefore consolidates the remaining packages in #1463, preserving their accepted
+source and complete history, and validates the combined result once. One final
+review/CI candidate also matches the coordinated production unit. This is a
+packaging adjustment within the same 27 findings, not a new feature scope.
+Sibling drafts remain open until actual merged-source parity establishes that
+the batch contains their work; then retire them as superseded, retaining receipts.
 
-## Finding acceptance matrix
+## Finding-by-finding coverage
 
-All entries start open. Implementation delivery, coordinator verification,
-independent review and rollout status are recorded separately in the handoff.
+Every row has **implemented, independently reviewed and accepted source** in
+its original package. The PR column below records that provenance; actual landing
+is #1462 for guidance and the integrated #1463 for the other packages. Landing and production verification remain separate. Preserve these
+acceptance contracts during integration; use existing receipts for unchanged
+behavior and repeat affected checks when source or interactions change.
 
-| Finding | Batch | Required evidence before acceptance |
+| Finding | PR | Remedy and behavior that must remain verified |
 | --- | --- | --- |
-| S1 | 1 | Signup and reset reject older codes after the newest issuance is consumed; newest issuance remains authoritative. Identify and fence issuance/verification races rather than claiming a reread is transactional. |
-| S2 | 1 | Two sibling signup handoffs competing on an initially unset password produce one credential winner and no losing session; session epoch remains fenced. |
-| S3 | 1 | Foreign-Origin simple-form login is rejected; supported same-origin and documented headless JSON requests retain their contract. |
-| S4 | 1 | New credentials respect bcrypt's 72 UTF-8-byte limit, including Unicode boundaries; existing stored credentials still verify compatibly. |
-| G1 | 1 | Canonical landing instructions use the draft/review/stable-SHA/PR Gate lifecycle and normal merge authority. No direct-main workaround remains. |
-| G2 | 1 | Provider route prompts resolve to current server factories and a maintained, valid boundary example. |
-| G3 | 1 | CURRENT labels dated source and recorded database/rollout checkpoints; merged #1460 is distinguished from pending #1461 proof and hosted state. |
-| G4 | 1 | Feature verification text separates recorded completed receipts from outstanding epic gates; status changes require exit evidence. |
-| G5 | 1 | Status routing labels historic MVP work and points at current epic plans; shipped history is represented accurately. |
-| G6 | 1 | Setup describes shipped capabilities and package-derived platform versions. |
-| G7 | 1 | Legacy load-context follows canonical compact startup and task routing. |
-| G8 | 1 | Missing required startup inputs fail with precise errors, including context-loaded mode; orient-only intentionally skips environment work; valid detached checkouts remain supported. |
-| G9 | 1 | Audit skill commands point at an existing runnable script. |
-| PAT-06 | 1 | Cache guidance throws on HTTP errors and explains freshness without caching error payloads. |
-| PAT-01 | 1 | Fresh grading polls retain no historical snapshots; zero TTL does not retain values, and in-flight deduplication remains valid. |
-| PAT-02 | 1 | Null, arrays and malformed survey fields return 400; authorization, partial PATCH and lifecycle rules remain intact. |
-| V3 | 1 | Changed executable script sources select their imported test consumers; launchers do not invoke themselves or unnecessarily select the full suite. |
-| CORE-01 | 2 | Serialized form saves plus server revision fencing retain newer answers under delayed-old writes and two clients sharing a base revision; recoverable conflicts preserve local work; submit/close controls pass. |
-| CORE-02 | 2 | Started unanswered MC work closes and returns with explicit zero-scored rows and matching result/Gradebook/Grades eligibility. Cover blank, unstarted, mixed and reopened attempts. Never globally convert missing drafts to zero. |
-| CORE-03 | 2 | Return eligibility is checked under compatible ownership/parent/attempt locks; reopen and grade-clear interleavings cannot return stale work; counts reflect actual transitions and idempotent replay. |
-| V1 | 2 | A bounded real exam lifecycle browser set is selected for relevant changes and full CI, with isolated fixtures proving lock, restore, close/reload and telemetry contracts. Listing specs alone is insufficient. |
-| PAT-03 | 3 | SplitButton owns keyboard events only inside its open menu, supports roving focus and normal Tab exit, and preserves Escape and newly opened dialog focus; browser verification completes. |
-| PAT-04 | 3 | Calendar failures show a scoped retry state; classroom A's data cannot appear under B after a failed switch; initial error cannot masquerade as setup. |
-| PAT-05 | 3 | Artifact actions preserve density with non-overlapping 44px targets and visible focus; physical browser measurements and affected teacher/student views pass. |
-| V2 | 4 | Provider calls have explicit deadlines; invocation work is bounded; durable progress resumes unfinished dates/classrooms without starving optional feedback or losing summaries; timeout/retry tests pass. |
-| DEP-01 | 4 | Coordinated editor/transitive upgrades are compatible, serialization/image/Markdown regressions pass, and a fresh advisory scan records fixed packages and any justified unresolved exception. Package presence is not application exploit proof. |
-| D1 | 5 | Forward migration uses one compatible exact-path/managed-row lock order, including absent rows; actual two-session upload/cleanup controls avoid the demonstrated cycle. |
+| G1 | #1462 | Canonical landing guidance uses draft PR, independent review, stable SHA and PR Gate; eliminate conflicting direct-main instructions. |
+| G2 | #1462 | Provider route scaffolds use maintained Supabase factories and a valid server/API boundary example. |
+| G3 | #1462 | CURRENT provides readable, dated source, schema and rollout checkpoints; a source merge never implies hosted application. |
+| G4 | #1462 | Feature records distinguish completed receipts from outstanding epic exit gates; change status only with evidence. |
+| G5 | #1462 | Label the obsolete MVP roadmap as history and route current work to current epic plans. |
+| G6 | #1462 | Setup guidance describes shipped capabilities and package-derived platform versions. |
+| G7 | #1462 | Legacy context loading follows compact canonical startup and task-based document routing. |
+| G8 | #1462 | Startup fails precisely for missing required inputs, including context-loaded mode; orient-only and detached-checkout contracts remain supported. |
+| G9 | #1462 | Audit skill commands resolve to the existing runnable audit script. |
+| PAT-06 | #1462 | Cache examples reject HTTP errors and distinguish freshness from cached failures. |
+| PAT-01 | #1464 | Fresh grading polls retain no historical snapshots; zero TTL does not retain values; in-flight deduplication still works. |
+| PAT-02 | #1464 | Feature-owned survey validation returns 400 for malformed fields/null/arrays while preserving authorization, partial PATCH and lifecycle rules. |
+| V3 | #1464 | Changes to executable script sources select imported test consumers safely; full CI remains the backstop. |
+| V2 | #1465 | Bound invocation/provider execution; persist completed summaries, report pending work and retry/resume unfinished dates/classrooms. Preserve Toronto date boundaries. Existing deadline proof uses controlled providers; observe actual latency during rollout. |
+| PAT-03 | #1466 | SplitButton scopes keyboard ownership to its open menu, supports roving focus and normal Tab exit, and preserves Escape/dialog focus. |
+| PAT-04 | #1466 | Calendar initial failures expose scoped retry; identity-tagged snapshots prevent classroom A data appearing under B after a failed switch. |
+| PAT-05 | #1466 | Artifact actions provide non-overlapping 44px targets and visible focus while preserving layout density. Retain approved references and teacher/student visual evidence. |
+| DEP-01 | #1467 | Coordinated existing-package upgrades and a braces depth bound pass editor/serialization/image/Markdown/build checks. Record the remaining advisory honestly and complete its separate resolution checkpoint. |
+| CORE-01 | #1463 | Serialize autosaves and fence writes by expected revision; delayed saves and competing clients cannot overwrite newer answers. Preserve local work on conflicts and require explicit recovery before submission. |
+| CORE-02 | #1463 | Teacher-closed eligible started work gets explicit zero-score evidence for unanswered MC items, with matching Return/Gradebook eligibility. Preserve blank/unstarted/mixed/reopened controls; do not globally zero missing drafts. |
+| CORE-03 | #1463 | Check Return eligibility under compatible locks and revision fences; concurrent reopen/grade clear cannot return stale work. Preserve actual transition counts, replay idempotence and existing grading/authority contracts. |
+| S1 | #1463 | Latest issuance remains authoritative after consume; transactional generation fencing rejects older codes and handoffs, including issuance/verification races and expiry after lock acquisition. |
+| S2 | #1463 | Competing sibling signup handoffs produce one credential winner under user locking; the loser cannot create a session, and session epochs remain fenced. |
+| S3 | #1463 | Reject foreign-Origin simple-form login; retain supported same-origin and headless JSON contracts. |
+| S4 | #1463 | Enforce bcrypt's 72 UTF-8-byte limit for newly established passwords, including Unicode, while retaining compatible existing-hash verification. |
+| D1 | #1463 | Use the reviewed protocol/managed-ID/path lock order and retry a newly appearing identity rather than taking an inverted row lock. Preserve cleanup authority and actual two-session upload/cleanup controls. |
+| V1 | #1463 | Select two real isolated desktop Test lifecycle cases in required CI; prove revision, lock/restore, close/reopen, submit/Return, telemetry and student disclosure behavior. |
 
-## Authority and review gates
+## Phase 1 — Land and reconcile the reviewed PRs
 
-- No new dependencies without explicit approval. Existing-package upgrades need
-  compatibility evidence and a committed lockfile.
-- No local or production migration application without one-time authorization
-  naming the target and exact prepared migration. Never mutate the shared local
-  database to unblock a worker. Generated database types are not edited manually.
-  CI's disposable replay remains a separate verification gate.
-- UI changes use `pika-ui-change` and `pika-ui-verify`; both roles are covered when
-  affected. Source inspection or interaction tests alone do not close visual work.
-- Follow `docs/dev-workflow.md`: focused checks, draft PR, risk-matched independent
-  review, batched corrections, stable reviewed SHA, ready CI and PR Gate. Merge
-  and production promotion retain their separate authority gates.
-- On 2026-10-04, the owner directly instructed this coordinator task
-  (`01a10695-f3c2-7532-97f4-3fbad0c2cbd3`): "Override stoppages to continue with
-  current work." The task-scoped `override-task-stops` skill waives low-usage and
-  workflow review-budget stops for this remediation, preserving cumulative review
-  counters and correctness/authority gates. This receipt is not authorization for
-  another task. DeepSeek remains explicitly paused through 2026-12-31. Actual
-  execution limits, human holds and separately specified user budgets still apply.
+Owner: coordinator; entry: specific merge authority and a passing current PR Gate.
 
-Closure means every finding has accepted evidence or an explicit, evidence-backed
-disposition and every required gate for the agreed outcome has been satisfied.
-Preparing this plan or opening a draft PR does not complete the remediation goal.
+1. Read current `main`, PR head/base, review threads and selected final CI before
+   each merge. Confirm the reviewed source is still the intended package.
+2. Land guidance #1462, then the consolidated #1463 using the repository
+   workflow after its final integration review and exact-head gates. Record the actual
+   resulting `main` SHA and source parity; never switch branches inside an
+   existing feature checkout.
+3. After each merge, inspect remaining PRs against the new base. Preserve incoming
+   source and shared continuity/history records when resolving conflicts.
+   Return a ready PR to draft before pushing corrections.
+4. For changed source or base interactions, run `pnpm check:focused -- --base
+   origin/main`, affected contract checks and bounded independent review of the
+   delta. Reuse valid unchanged evidence. Mark ready only at a stable reviewed
+   head, then require selected CI and PR Gate on that head before landing.
+
+Exit evidence: actual #1462/#1463 merge receipts, byte/provenance parity for all
+six source packages, four explicitly superseded sibling drafts, no unresolved
+review blockers, and explicit per-finding merged status. A green run on an older
+head cannot authorize a changed head. Historical failed/skipped contexts do not
+replace the selected final run; #1466's database job was intentionally unselected.
+
+## Phase 2 — Accept the combined application
+
+Owner: coordinator, with bounded independent contract review when interaction
+changes warrant it. Entry: six packages integrated into one pinned revision.
+
+- Run required integrated static, full-suite/build and selected browser/CI
+  database checks on the combined revision. Confirm focused selection still
+  covers executable script imports and real Test lifecycle cases.
+- Verify generated database types against the exact complete migration chain,
+  actual-role revision allocation, auth generation/credential fencing, Return
+  races, storage locks and owned fixture cleanup. CI's disposable replay remains
+  separate from any new shared-local migration/fixture authorization.
+- Exercise cache/survey error behavior and summary resume/deadline contracts.
+  Repeat UI screenshots and affected role checks if integration changes rendered
+  behavior; preserve accepted visual receipts when their source is unchanged.
+- Record failures as specific integration work, remediate in reviewed PRs, and
+  repeat affected checks plus required final gates.
+
+Exit evidence: one accepted combined source/schema revision and its CI/runtime
+receipts. Existing local receipts describe their exact older source; they are
+not relabeled as proof of a later schema. Earlier one-time application and fixture
+permissions have been consumed and do not authorize a new local replay.
+
+## Phase 3 — Coordinate schema and production promotion
+
+Owner: maintainer for the exact operation/window; coordinator prepares the
+reviewable manifest and verifies results. Use the reviewed
+`docs/guidance/audit-database-rollout-2026-10.md` from #1463 and the canonical
+schema authorization checklist and production migration skill.
+
+Migrations and matching application changes form **one promotion unit**:
+
+| Migration | Coordinated contract |
+| --- | --- |
+| `244_test_attempt_revision_and_return_guards.sql` | Versioned Start/save/submit and atomic Return; old unfenced non-null save/submit fails closed. |
+| `245_managed_storage_write_lock_order.sql` | Compatible storage RPC/ACL signatures with corrected lock ordering and retry. |
+| `246_auth_verification_generation_fence.sql` | Fenced auth RPCs and revoked direct verification-table access; old direct-table routes are incompatible. |
+
+1. Inspect actual hosted migration history and relevant flags read-only. The last
+   hosted history was freshly verified on 2026-10-04 as exact 001–225 (225 rows,
+   no missing/extra versions) in the environment-bound production project.
+   The complete candidate pending chain is **226–246**. Recheck it in the
+   pinned workflow preview and review prerequisite release gates before applying.
+2. Prepare the exact target, reviewed source SHA, migration filenames/hashes,
+   release revision, preview output, traffic-drain procedure, canaries and
+   compatible recovery decision. Use the production skill's manual GitHub
+   workflow preview. Obtain one-time authorization naming the exact target and
+   complete migration set before applying; separate fixture permissions remain
+   separate. Do not introduce a hosted staging/Preview prerequisite.
+3. Coordinate the application and schema transition. Pause/drain Test save/submit
+   and verification-confirmation traffic as the runbook specifies. Schema-first
+   alone breaks old routes; application-first alone lacks new RPCs. An older
+   unfenced application is not a compatible rollback. Prepare a reviewed release
+   retaining the new contracts and fix forward if necessary.
+4. Promote through the protected `main` → `production` PR flow under its own
+   authority gate. Apply the approved schema operation in the coordinated window,
+   verify installed functions/history/types, and record actual release identity.
+   An attempted application consumes its permission even after partial failure;
+   inspect durable state and obtain fresh exact authority before retry.
+5. Resume traffic only after approved synthetic canaries pass: signup/password
+   establishment, reset/password replacement and old-session refusal, login,
+   resend invalidating prior handoff, and versioned Test Start/save/submit. Check
+   close/Return grade consistency, storage upload/cleanup, survey validation,
+   grading freshness and affected UI roles. Observe summary completion, timeout,
+   pending IDs and retry/resume under real provider latency.
+
+Exit evidence: actual schema and application receipts on matching revisions,
+passed canaries and observations, and explicit production verification for each
+affected finding. Keep unrelated flags and epic status unchanged absent their
+own exit evidence; never infer hosted state from a source merge.
+
+## Phase 4 — Resolve the remaining braces advisory
+
+Owner: coordinator prepares a bounded dependency proposal; independent reviewer
+checks compatibility; maintainer decides any remaining exception. The read-only investigation and coordinator reproductions are complete. A
+concrete temporary-exception proposal through 2026-11-04 is awaiting the owner
+decision; it keeps depth mitigation and the advisory visible. Width expansion
+and a plain-AST parent cycle were reproduced; verified Pika inputs are small
+repository-authored build globs, with no request-controlled path established.
+Full proposal: `/Users/stew/.codex/audits/pika/2026-10-04-broad/advisory-resolution-proposal.md`.
+Further authorized remedy work can run alongside landing; it does not
+require altering the already reviewed #1467 head.
+
+1. At execution, refresh the advisory scan and resolved dependency graph. Recheck
+   upstream fixes and compatible parent upgrades/removal. The recorded path is
+   typography → Tailwind → chokidar → braces in build/watch tooling; package
+   presence alone does not prove a Pika request-path exploit or absence of risk.
+2. Prefer a compatible fix through existing packages. If none is available,
+   prepare a bounded local patch covering remaining resource-exhaustion cases,
+   with explicit input/depth/width/cycle behavior and preserved valid glob
+   semantics. New/replacement dependencies require explicit approval.
+3. Verify adversarial cases and normal parsing/glob/build/watch behavior, plus
+   editor, image, Markdown and serialization regressions. Commit the reviewed
+   lockfile/patch and record the exact fresh scan. Do not suppress the advisory
+   merely to make the report green.
+4. If full resolution is unsafe or unavailable, prepare a concrete exception
+   documenting remaining cases, verified reachability, mitigation limits,
+   named owner, review date and reassessment trigger (upstream fix, new
+   reachability or mitigation failure). Acceptance requires an explicit owner
+   decision.
+
+Exit evidence: advisory absent from the resolved graph with compatibility proof,
+or a specifically approved exception. Report these as different dispositions;
+the depth-128 patch alone does not establish full resolution. Do not invent a
+recurring automation or close the remaining advisory silently.
+
+## Phase 5 — Reconcile closure and AI navigation
+
+Owner: coordinator. Entry: recorded landing/rollout results and advisory decision.
+
+Update the same finding ledger with separate source-reviewed, merged,
+schema-applied and production-verified fields and exact receipts. Reconcile
+CURRENT, feature verification text and the recent session log with actual state;
+change epic status only when all of its independent exit gates are met. Run the
+session-log trim/check and canonical startup so future agents can navigate the
+new state without treating pending rollout as completed work.
+
+Guidance and tooling findings close with merged-source/startup or CI evidence;
+mark hosted-schema/application steps as not applicable where appropriate.
+Runtime findings require the relevant deployed behavior and canary evidence.
+
+Exit evidence: all 27 rows reconciled to actual deployment state, no unowned open
+integration findings, and the dependency residual explicitly resolved or accepted.
+Preserve coverage limits: this was a bounded broad audit, not proof that the
+entire codebase has no other defects.
+
+## Orchestration and stop conditions
+
+The current task remains coordinator and sole Git/PR/shared-state writer. This
+plan update is handled directly; it does not need another worker or goal.
+During execution, delegate only substantial bounded review/investigation that
+reduces total effort. Use GPT-6.1 Sol/high for contract/integration review,
+GPT-5.6 Sol/high for independent high-risk auth/database review when available,
+and GPT-6.1 Sol/medium for narrow guidance/continuity verification. State the
+actual selected model and supported reasoning at dispatch, keep worker ownership
+exclusive, prohibit recursive delegation and verify delivery before acceptance.
+Record lightweight time, available account usage, rework and coordination evidence
+without claiming attributable savings. DeepSeek remains paused through 2026-12-31.
+
+The owner's task-scoped override remains in effect for low/unknown usage and
+workflow review budgets. Those conditions alone do not require renewed approval.
+Still stop dependent actions for an explicit user hold, actual provider/runtime
+limits, missing credentials/capability, unresolved correctness/review gates, or
+missing specific authority for migration application, fixtures, merge or production
+promotion. Prepare the concrete manifest/release first so any required approval
+is the final decision. Respect no-new-dependency, Toronto deadline, UI governance
+and secret-handling constraints throughout.
