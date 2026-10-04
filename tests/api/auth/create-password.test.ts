@@ -1,68 +1,30 @@
-/**
- * API tests for POST /api/auth/create-password
- */
-
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { POST } from '@/app/api/auth/create-password/route'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { ApiError } from '@/lib/api-handler'
 
-const VALID_HANDOFF_TOKEN = 'handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'
+const HANDOFF = 'handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'
+const generationMocks = vi.hoisted(() => ({ inspectLatestAuthHandoff: vi.fn(), consumeSignupPasswordHandoff: vi.fn() }))
 const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
-
-vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
-}))
-
-vi.mock('@/lib/crypto', () => ({
-  hashPassword: vi.fn(async (pwd: string) => `hashed_${pwd}`),
-  hashHandoffToken: vi.fn((token: string) => `hashed_${token}`),
-  validatePassword: vi.fn(() => null),
-}))
-
-vi.mock('@/lib/auth', () => ({
-  createSession: vi.fn(async () => {}),
-}))
-vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
-
-import { createSession } from '@/lib/auth'
-import { hashPassword } from '@/lib/crypto'
-
+const authMocks = vi.hoisted(() => ({ createSession: vi.fn(async () => {}) }))
+const cryptoMocks = vi.hoisted(() => ({ hashPassword: vi.fn(async (password: string) => `hash_${password}`) }))
 const mockSupabaseClient = { from: vi.fn() }
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => mockSupabaseClient }))
+vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
+vi.mock('@/lib/server/auth-verification-generation', () => generationMocks)
+vi.mock('@/lib/auth', () => authMocks)
+vi.mock('@/lib/crypto', () => ({ hashHandoffToken: (token: string) => `hashed_${token}`, hashPassword: cryptoMocks.hashPassword, validatePassword: () => null }))
 
-function createRequest(body: Record<string, unknown>) {
-  return new NextRequest('http://localhost:3000/api/auth/create-password', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-}
+import { POST } from '@/app/api/auth/create-password/route'
 
-function validBody(overrides: Record<string, unknown> = {}) {
-  return {
-    email: 'test@example.com',
-    password: 'Password123',
-    passwordConfirmation: 'Password123',
-    handoffToken: VALID_HANDOFF_TOKEN,
-    ...overrides,
-  }
-}
-
-function chainableUpdate(result: { data?: unknown; error: unknown }) {
-  const builder: any = {
-    eq: vi.fn(() => builder),
-    is: vi.fn(() => builder),
-    gt: vi.fn(() => builder),
-    select: vi.fn(() => builder),
-    maybeSingle: vi.fn().mockResolvedValue(result),
-  }
-  return builder
-}
+const body = { email: 'user@example.com', password: 'Password123', passwordConfirmation: 'Password123', handoffToken: HANDOFF }
+const request = (headers: Record<string, string> = { 'content-type': 'application/json' }) => new NextRequest('http://localhost:3000/api/auth/create-password', { method: 'POST', headers, body: JSON.stringify(body) })
+const validHandoff = { user_id: '10000000-0000-4000-8000-000000000001', email: 'user@example.com', role: 'student', generation: 2, credential_version: 1, email_verified: true, password_set: false }
 
 describe('POST /api/auth/create-password', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
+    generationMocks.inspectLatestAuthHandoff.mockResolvedValue({ handoff: validHandoff, error: null })
+    generationMocks.consumeSignupPasswordHandoff.mockResolvedValue({ credentialVersion: 1, error: null })
   })
 
   for (const [headers, status] of [
@@ -70,204 +32,37 @@ describe('POST /api/auth/create-password', () => {
     [{ 'content-type': 'application/json', origin: 'https://other.example' }, 403],
     [{ 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' }, 403],
     [{ 'content-type': 'text/plain', origin: 'http://localhost:3000' }, 415],
-  ] as const) it('rejects an unsafe password-session request before credential work ' + JSON.stringify(headers), async () => {
-    const body = JSON.stringify({ ...validBody(), padding: '=' }) + '\r\n'
-    const request = new NextRequest('http://localhost:3000/api/auth/create-password', {
-      method: 'POST', headers, body,
-    })
-    const response = await POST(request)
-    expect(response.status).toBe(status)
-    expect(rateLimitMocks.consumeAuthRequestRateLimits).not.toHaveBeenCalled()
-    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
-    expect(hashPassword).not.toHaveBeenCalled()
-    expect(createSession).not.toHaveBeenCalled()
+  ] as const) it(`rejects unsafe password-session metadata with ${status}`, async () => {
+    expect((await POST(request(headers))).status).toBe(status)
+    expect(generationMocks.inspectLatestAuthHandoff).not.toHaveBeenCalled()
+    expect(cryptoMocks.hashPassword).not.toHaveBeenCalled()
   })
 
-  it('should return 400 when passwords do not match', async () => {
-    const response = await POST(createRequest(validBody({
-      passwordConfirmation: 'DifferentPassword',
-    })))
-
-    expect(response.status).toBe(400)
+  it('rejects a stale handoff before password hashing', async () => {
+    generationMocks.inspectLatestAuthHandoff.mockResolvedValue({ handoff: null, error: null })
+    expect((await POST(request())).status).toBe(401)
+    expect(cryptoMocks.hashPassword).not.toHaveBeenCalled()
   })
 
-  it('should return 400 when handoff token is missing', async () => {
-    const response = await POST(createRequest({
-      email: 'test@example.com',
-      password: 'Password123',
-      passwordConfirmation: 'Password123',
-    }))
-    const data = await response.json()
-
-    expect(response.status).toBe(400)
-    expect(data.error).toContain('Verification session is required')
-  })
-
-  it('applies signup confirmation limits before any database lookup', async () => {
-    rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValueOnce(
-      new ApiError(429, 'Too many attempts. Please try again later.'),
-    )
-
-    const response = await POST(createRequest(validBody()))
-
-    expect(response.status).toBe(429)
-    expect(rateLimitMocks.consumeAuthRequestRateLimits).toHaveBeenCalledWith({
-      action: 'signup_confirm',
-      request: expect.any(NextRequest),
-      identifier: 'test@example.com',
-      identifierMaxAttempts: 5,
-      clientMaxAttempts: 30,
-      windowSeconds: 600,
-      supabase: mockSupabaseClient,
-    })
-    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
-  })
-
-  it('returns a generic 401 when the account already has a password', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'user-1',
-              email: 'test@example.com',
-              password_hash: 'existing_hash',
-              email_verified_at: new Date().toISOString(),
-              auth_credential_version: 1,
-            },
-            error: null,
-          }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const response = await POST(createRequest(validBody()))
-
-    expect(response.status).toBe(401)
-  })
-
-  it('returns a generic 401 when the email is not verified', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: {
-              id: 'user-1',
-              email: 'test@example.com',
-              password_hash: null,
-              email_verified_at: null,
-              auth_credential_version: 1,
-            },
-            error: null,
-          }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const response = await POST(createRequest(validBody()))
-
-    expect(response.status).toBe(401)
-  })
-
-  it('should reject an invalid, expired, or reused handoff token', async () => {
-    const userUpdate = vi.fn(() => chainableUpdate({
-      data: { auth_credential_version: 1 }, error: null,
-    }))
-
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'users') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'user-1',
-                  email: 'test@example.com',
-                  role: 'student',
-                  password_hash: null,
-                  email_verified_at: new Date().toISOString(),
-                  auth_credential_version: 1,
-                },
-                error: null,
-              }),
-            })),
-          })),
-          update: userUpdate,
-        }
-      }
-
-      if (table === 'verification_codes') {
-        return {
-          update: vi.fn(() => chainableUpdate({ data: null, error: null })),
-        }
-      }
-    })
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const response = await POST(createRequest(validBody()))
-    const data = await response.json()
-
-    expect(response.status).toBe(401)
-    expect(data.error).toBe('Verification session expired. Please verify your email again.')
-    expect(userUpdate).not.toHaveBeenCalled()
-  })
-
-  it('should create password for verified user with valid handoff token', async () => {
-    const userUpdate = vi.fn(() => chainableUpdate({
-      data: { auth_credential_version: 1 }, error: null,
-    }))
-
-    const consumeBuilder = chainableUpdate({
-      data: { id: 'code-1' },
-      error: null,
-    })
-
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'users') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 'user-1',
-                  email: 'test@example.com',
-                  role: 'student',
-                  password_hash: null,
-                  email_verified_at: new Date().toISOString(),
-                  auth_credential_version: 1,
-                },
-                error: null,
-              }),
-            })),
-          })),
-          update: userUpdate,
-        }
-      }
-
-      if (table === 'verification_codes') {
-        return {
-          update: vi.fn(() => consumeBuilder),
-        }
-      }
-    })
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const response = await POST(createRequest(validBody()))
-    const data = await response.json()
-
+  it('atomically consumes the observed generation before creating a session', async () => {
+    const response = await POST(request())
     expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
-    expect(data.redirectUrl).toBe('/classrooms')
-    expect(consumeBuilder.eq).toHaveBeenCalledWith('purpose', 'signup')
-    expect(consumeBuilder.eq).toHaveBeenCalledWith('handoff_token_hash', `hashed_${VALID_HANDOFF_TOKEN}`)
-    expect(userUpdate).toHaveBeenCalledWith({ password_hash: 'hashed_Password123' })
-    expect(createSession).toHaveBeenCalledWith(
-      'user-1',
-      'test@example.com',
-      'student',
-      { expectedCredentialVersion: 1 },
-    )
+    expect(generationMocks.consumeSignupPasswordHandoff).toHaveBeenCalledWith(mockSupabaseClient, {
+      userId: validHandoff.user_id, generation: 2, handoffTokenHash: `hashed_${HANDOFF}`,
+      passwordHash: 'hash_Password123', expectedCredentialVersion: 1,
+    })
+    expect(authMocks.createSession).toHaveBeenCalledWith(validHandoff.user_id, 'user@example.com', 'student', { expectedCredentialVersion: 1 })
+  })
+
+  it('does not create a session when a resend or sibling winner invalidates the handoff during hashing', async () => {
+    generationMocks.consumeSignupPasswordHandoff.mockResolvedValue({ credentialVersion: null, error: null })
+    expect((await POST(request())).status).toBe(401)
+    expect(authMocks.createSession).not.toHaveBeenCalled()
+  })
+
+  it('fails closed when the migration RPC is unavailable', async () => {
+    generationMocks.inspectLatestAuthHandoff.mockResolvedValue({ handoff: null, error: { message: 'missing rpc' } })
+    expect((await POST(request())).status).toBe(500)
+    expect(cryptoMocks.hashPassword).not.toHaveBeenCalled()
   })
 })

@@ -62,7 +62,8 @@ docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=
           foreach v_table in array array[
             'auth_sessions',
             'auth_rate_limits',
-            'auth_global_rate_limits'
+            'auth_global_rate_limits',
+            'verification_codes'
           ] loop
             foreach v_privilege in array array[
               'select', 'insert', 'update', 'delete',
@@ -84,7 +85,13 @@ docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=
             'public.consume_auth_global_rate_limit(text,integer,integer)',
             'public.consume_auth_rate_limit(text,text,integer,integer)',
             'public.clear_auth_rate_limit(text,text)',
-            'public.consume_password_reset_and_revoke_sessions(uuid,text,text)'
+            'public.consume_password_reset_and_revoke_sessions(uuid,text,text)',
+            'public.issue_auth_verification_code_v1(uuid,text,text,timestamptz)',
+            'public.get_latest_auth_verification_code_v1(uuid,text)',
+            'public.finalize_auth_verification_attempt_v1(uuid,text,uuid,bigint,boolean,text,timestamptz,integer)',
+            'public.inspect_latest_auth_handoff_v1(text,text)',
+            'public.consume_signup_password_handoff_v1(uuid,bigint,text,text,bigint)',
+            'public.consume_latest_password_reset_and_revoke_sessions_v1(uuid,bigint,text,text)'
           ] loop
             if has_function_privilege(v_role, v_function, 'execute') then
               raise exception 'browser role % can execute %', v_role, v_function;
@@ -110,7 +117,8 @@ docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=
 
         foreach v_table in array array[
           'auth_rate_limits',
-          'auth_global_rate_limits'
+          'auth_global_rate_limits',
+          'verification_codes'
         ] loop
           foreach v_privilege in array array[
             'select', 'insert', 'update', 'delete',
@@ -195,15 +203,15 @@ fi
 docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 \
   -c "insert into public.verification_codes (
         user_id, code_hash, purpose, expires_at, used_at,
-        handoff_token_hash, handoff_expires_at
+        handoff_token_hash, handoff_expires_at, verification_generation
       ) values (
         '$USER_ID', 'unused-code-hash', 'reset_password',
         clock_timestamp() + interval '10 minutes', clock_timestamp(),
-        '$HANDOFF_HASH', clock_timestamp() + interval '10 minutes'
+        '$HANDOFF_HASH', clock_timestamp() + interval '10 minutes', 2
       ), (
         '$USER_ID', 'unused-sibling-code-hash', 'reset_password',
         clock_timestamp() + interval '10 minutes', clock_timestamp(),
-        '$SIBLING_HASH', clock_timestamp() + interval '10 minutes'
+        '$SIBLING_HASH', clock_timestamp() + interval '10 minutes', 1
       );
       insert into public.auth_sessions (
         user_id, token_hash, auth_source, credential_version, expires_at
@@ -279,17 +287,17 @@ fi
 docker exec "$DB_CONTAINER" psql -U postgres -d postgres -X -q -v ON_ERROR_STOP=1 \
   -c "insert into public.verification_codes (
         user_id, code_hash, purpose, expires_at, used_at,
-        handoff_token_hash, handoff_expires_at
+        handoff_token_hash, handoff_expires_at, verification_generation
       ) values
       (
         '$USER_ID', 'race-code-one', 'reset_password',
         clock_timestamp() + interval '10 minutes', clock_timestamp(),
-        '$RACE_HANDOFF_ONE', clock_timestamp() + interval '10 minutes'
+        '$RACE_HANDOFF_ONE', clock_timestamp() + interval '10 minutes', 3
       ),
       (
         '$USER_ID', 'race-code-two', 'reset_password',
         clock_timestamp() + interval '10 minutes', clock_timestamp(),
-        '$RACE_HANDOFF_TWO', clock_timestamp() + interval '10 minutes'
+        '$RACE_HANDOFF_TWO', clock_timestamp() + interval '10 minutes', 4
       );" >/dev/null
 
 service_rpc "select public.consume_password_reset_and_revoke_sessions(
