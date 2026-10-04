@@ -59,7 +59,8 @@ describe('Test owner list fresh global inventory (offline commands only)', () =>
       const kind = args[0] === 'volume' ? 'volume' : args[0] === 'network' ? 'network' : 'container'
       const inspecting = args[0] === 'inspect' || args[1] === 'inspect'
       if (inspecting) {
-        expect(listArgs.every(list => fixture.calls.includes(key(list)))).toBe(true)
+        const ownList = listArgs[kind === 'container' ? 0 : kind === 'volume' ? 1 : 2]
+        expect(fixture.calls.includes(key(ownList))).toBe(true)
         activeKinds.set(kind, (activeKinds.get(kind) ?? 0) + 1)
         sameKindMaximum = Math.max(sameKindMaximum, activeKinds.get(kind)!)
         expect(args.slice(kind === 'container' ? 3 : 2).length).toBeLessThanOrEqual(128)
@@ -149,30 +150,33 @@ describe('Test owner list fresh global inventory (offline commands only)', () =>
     } finally { process.off('unhandledRejection', unhandled) }
   })
 
-  it('waits for every fresh global list before inspection and rejects a failed list without starting inspections', async () => {
+  it('uses idle workers before a slow independent list finishes, but cannot replay until complete global discovery settles', async () => {
     const fixture = globalFixture(1); let release!: () => void
     const held = new Promise<void>(resolve => { release = resolve }); const inspected = vi.fn()
     const run: Run = async (file, args) => {
-      if (key(args) === key(listArgs[1])) { await held; throw new Error('PRIVATE delayed invalid listing') }
+      if (key(args) === key(listArgs[2])) await held
       if (!listArgs.some(list => key(list) === key(args))) inspected()
       return fixture.run(file, args)
     }
-    const pending = testOwnerListDockerInventory(run)
-    const rejected = expect(pending).rejects.toThrow('Private Test owner list inventory rejected')
+    let done = false
+    const pending = testOwnerListDockerInventory(run).then(rows => { done = true; return rows })
     await new Promise<void>(resolve => setImmediate(resolve))
-    const inspectedBeforeRelease = inspected.mock.calls.length
-    release(); await rejected
-    expect(inspectedBeforeRelease).toBe(0); expect(inspected).not.toHaveBeenCalled()
+    const beforeRelease = { done, inspected: inspected.mock.calls.length }
+    release(); const actual = await pending
+    expect(beforeRelease.done).toBe(false); expect(beforeRelease.inspected).toBeGreaterThan(0)
+    expect(actual).toEqual(await platform.assignmentListDockerInventory(globalFixture(1).run))
   })
 
   it('settles all active inspection workers after failure and does not launch queued batches', async () => {
     const fixture = globalFixture(257); const started: string[] = []; const settled: string[] = []
     let release!: () => void; const held = new Promise<void>(resolve => { release = resolve })
+    let threeStarted!: () => void; const readyToFail = new Promise<void>(resolve => { threeStarted = resolve })
     const run: Run = async (file, args) => {
       if (listArgs.some(list => key(list) === key(args))) return fixture.run(file, args)
       const command = key(args); started.push(command)
+      const ordinal = started.length; if (ordinal === 3) threeStarted()
       try {
-        if (started.length === 1) throw new Error('PRIVATE inspect failure')
+        if (ordinal === 1) { await readyToFail; throw new Error('PRIVATE inspect failure') }
         await held; return await fixture.run(file, args)
       } finally { settled.push(command) }
     }

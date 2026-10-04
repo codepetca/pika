@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Attendance main-to-production promotion
-
-Owner requested production promotion after attendance PR1430 merged to main8dc05d47. Draft release PR1433 batches reviewed main PRs1424,1426,1427,1428,1429,1430. Reconciled the single archive conflict in an ephemeral detached promotion worktree while preserving both histories. Application, tests, schema files and configuration match reviewed main exactly. Main exact-head CI37045983716 passed all lanes and PR Gate. One cumulative release compatibility review and fresh full promotion CI precede merge; no database migration application or flag activation is included. Risk profile:runtime-platform. Model recommendation:GPT-5.6 Sol/high for gated database/runtime release compatibility.
-
 ## 2026-10-02 — Deploy current main after attendance release
 
 Owner requested deploying main to production after the attendance promotion merged. Production47970e41 is already building in Vercel; mainbf3754c4 additionally contains reviewed scrollbar PR1432. Draft promotion1434 includes that source change and preserves both journal histories in its sole continuity conflict. Application/configuration/schema/tests match reviewed mainbf3754c4 exactly; no database application or flag change. One bounded promotion compatibility review, focused checks and exact-head CI precede merge, then Vercel production deployment is verified. Risk profile:runtime-platform. Model recommendation:GPT-6 Luna/medium for mechanical release/source equivalence and continuity verification.
@@ -1050,3 +1046,19 @@ SQLguard/sealed/app/deadline/dependency/schema change. Fixed-source review and
 new full runtime receipts precede CI; PRdraft, production/admission/rollout OFF.
 Worker elapsed approximately4min; usage/effectiveconfig/active time unknown.
 Original reviewclock/counters and direct human taskstop waiver retained.
+
+## 2026-10-04 — Owner Test list streaming discovery correction
+
+IndependentSol5.6/high1189 integrationreview CLEAN; explicitfiniteacceptance then
+normal66292 failed owner/finalprojection at24requests20002ms/19473ms guards.
+Exactownedteardown/SAME savedwholecanonicalbaseline PASS; no forcedsuccessclaim.
+Root boundedread-only barrier772→stream717ms probe retained identicalcommands/
+sealedresources/max3totalprocesses; no guarantee. Eachkindfreshlist validates
+before its exact128batches queue; idleworkers may inspect while anotherlist waits.
+Fullgraph/allactivework settles before replay/resourceauthorization/privateSQL/SDK.
+Observedfailure stopsqueuedjobs and drainsactivejobs. Same completeforeignscope,
+projection/parser/one-shotmap/caps/SQLguard/app20s/native/fixture/schema/deps.
+Heldindependentlist regression RED0inspections then GREEN;86proof PASS. Targeted
+fixed-source review/freshactual rehearsal next; failure needsenvironmentcheckpoint
+not more speculativepatches or controlweakening. PRdraft/rolloutOFF; humanwaiver
+and originalcounters retained. No source/application permission expansion.

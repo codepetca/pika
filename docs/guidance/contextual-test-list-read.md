@@ -250,3 +250,19 @@ private SQL guard remain unchanged. No cache/filter/deadline/native/app change.
 Five scheduling/barrier/failure regressions failed before implementation;86 proof
 checks and297 focused/static checks now pass. Independent fixed-source acceptance
 and fresh actual normal/two-forced receipts are still required before readiness.
+
+The independently reviewed1189 global-worker candidate still failed normal66292
+at the first owner/final projection:24 requests,20002ms context/19473ms guard.
+Exact teardown and the SAME saved baseline passed. No forced mode was attempted.
+A bounded read-only comparison of barrier versus streaming discovery measured
+772→717ms, with equal exact command sets/sealed resources and maximum3 processes.
+The final scheduling adjustment starts a kind's exact128-item inspections only
+after its own fresh listing validates; it can reuse idle capacity while another
+listing is pending. This restores the earlier allowed discovery/inspection overlap
+without changing any command or scope. Complete global discovery and all active
+work still settle before parser replay/resource authorization/private SQL/SDK
+dispatch. Any observed failure stops queued work and waits for all active commands.
+There is no latency or atomicity guarantee. A held-independent-list regression
+failed before this adjustment;86 proof checks pass after it. Fixed-source review
+and one fresh actual rehearsal remain gates; another deadline failure requires a
+concrete environment checkpoint, not more speculative patches or weaker controls.

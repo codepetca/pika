@@ -49,34 +49,36 @@ export async function testOwnerListDockerInventory(run: Run = command): ReturnTy
       results.set(key, output)
       return output
     }
-    // Settle all three fresh global listings before inspecting anything. A
-    // rejected listing cannot leave another discovery running past rejection.
-    const listed = await Promise.allSettled(specs.map(async spec => {
-      const ids = (await capture(spec.list)).split(/\s+/).filter(Boolean)
-      assert.equal(new Set(ids).size, ids.length)
-      assert(ids.every(value => spec.valid.test(value)))
-      return { spec, ids }
-    }))
-    assert(listed.every(result => result.status === 'fulfilled'))
-    const batches: string[][] = []
-    for (const result of listed) {
-      assert(result.status === 'fulfilled')
-      const { spec, ids } = result.value
-      for (let start = 0; start < ids.length; start += 128) {
-        batches.push([...spec.inspect, ...ids.slice(start, start + 128)])
+    // Each fresh listing validates its IDs before queuing exact inspect batches.
+    // Use idle capacity as soon as independent discovery finishes, but never
+    // exceed three commands TOTAL, including listings. Inspection is read-only;
+    // parser replay, resource authorization and SQL still await the FULL graph.
+    await new Promise<void>((resolve, reject) => {
+      let active = 0; let failed = false
+      const queue: Array<() => Promise<void>> = specs.map(spec => async () => {
+        const ids = (await capture(spec.list)).split(/\s+/).filter(Boolean)
+        assert.equal(new Set(ids).size, ids.length)
+        assert(ids.every(value => spec.valid.test(value)))
+        for (let start = 0; start < ids.length; start += 128) {
+          const args = [...spec.inspect, ...ids.slice(start, start + 128)]
+          queue.push(async () => { await capture(args) })
+        }
+      })
+      function pump() {
+        while (!failed && active < 3 && queue.length) {
+          const task = queue.shift()!; active++
+          // Attach failure handlers immediately. No queued work starts after an
+          // observed failure, and all active listings/inspections settle before
+          // rejection. The invocation-local pending promise owns the whole pool.
+          task().catch(() => { failed = true }).finally(() => {
+            active--
+            if (!active && (failed || !queue.length)) { failed ? reject(failure()) : resolve() }
+            else pump()
+          })
+        }
       }
-    }
-    // Reuse idle capacity across kinds, but never exceed three commands total.
-    // Failure stops queued work; all already-active workers settle before any
-    // rejection, parser replay, or clearing of invocation-local results.
-    let next = 0; let failed = false
-    const settled = await Promise.allSettled(Array.from({ length: 3 }, async () => {
-      while (!failed && next < batches.length) {
-        const args = batches[next++]
-        try { await capture(args) } catch (error) { failed = true; throw error }
-      }
-    }))
-    assert(settled.every(result => result.status === 'fulfilled'))
+      pump()
+    })
   }
   async function consume(file: string, args: string[]) {
     if (!pending) {
