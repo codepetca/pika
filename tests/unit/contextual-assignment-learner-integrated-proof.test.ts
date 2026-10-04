@@ -64,6 +64,28 @@ function fixture() {
   return {original,f,documents,projectId,target,headers,guard,fetcher,transport}
 }
 describe('finite integrated fixture and real transport boundary',()=>{
+  it('reports a closed transport phase and known API error code without response bodies or identities',async()=>{
+    const x=fixture();const a=x.f.assignments[0];x.transport.readContext(a.id,a.actorId)
+    const url=`${x.target.API_URL}/rest/v1/assignments?id=eq.${a.id}&select=id`
+    x.fetcher.mockResolvedValueOnce(new Response(JSON.stringify({code:'PGRST200',message:'SECRET relation and token'}),{status:400}))
+    await x.transport.fetch(url,{headers:x.headers})
+    expect(x.transport.diagnostic()).toBe('DIAG integrated transport phase=complete operation=assignment-read status=error code=PGRST200 aborted=false guard=under-1s requests=1 rpc=0.\n')
+    x.fetcher.mockResolvedValueOnce(new Response(JSON.stringify({code:'SECRET',message:'SECRET'}),{status:400}))
+    await x.transport.fetch(url,{headers:x.headers})
+    expect(x.transport.diagnostic()).toContain('code=unknown')
+    expect(x.transport.diagnostic()).not.toContain('SECRET');expect(x.transport.diagnostic()).not.toContain(a.id)
+    x.guard.mockRejectedValueOnce(new Error('SECRET guard'))
+    await expect(x.transport.fetch(url,{headers:x.headers})).rejects.toThrow('private details withheld')
+    expect(x.transport.diagnostic()).toContain('phase=guard');expect(x.transport.diagnostic()).toContain('status=unobserved code=none')
+  })
+  it('records an aborted app signal during guard checks without extending deadlines or dispatching a replacement',async()=>{
+    const x=fixture();const a=x.f.assignments[0];x.transport.readContext(a.id,a.actorId)
+    const controller=new AbortController();x.guard.mockImplementationOnce(async()=>{controller.abort()})
+    x.fetcher.mockRejectedValueOnce(new Error('SECRET abort'))
+    await expect(x.transport.fetch(`${x.target.API_URL}/rest/v1/assignments?id=eq.${a.id}&select=id`,{headers:x.headers,signal:controller.signal})).rejects.toThrow('private details withheld')
+    expect(x.transport.diagnostic()).toContain('phase=dispatch');expect(x.transport.diagnostic()).toContain('aborted=true')
+    expect(x.fetcher).toHaveBeenCalledOnce();expect(x.fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true)
+  })
   it('reports only closed lifecycle stage and setup step after unexpected failures',()=>{
     const failure=new AssignmentListLifecycleError({stage:'fixture',error:new Error('SECRET token and body')},[])
     expect(integratedFailureDiagnostic(failure,'extension-sql')).toBe('DIAG isolated assignment-learner-integrated stage=fixture step=extension-sql cleanup=none.\n')

@@ -92,6 +92,17 @@ new checks and172 related checks pass after correction. This fixture-only change
 needs targeted compatibility review and explicit updated-manifest acceptance
 before execution. It has not yet produced a successful runtime matrix.
 
+Superseding third attempt:60b3f874 compatibility CLEAN; root accepted the updated
+finite fixture. Setup SQL completed, then normal failed at `fixture/open-create`,
+with cleanup=none. Independent whole-canonical fingerprints remain unchanged;
+forced modes did not start. No exclusive root cause or completed SDK matrix is
+claimed. Test-only transport diagnostics now retain fixed phase/operation/status
+labels, allowlisted API error codes, aborted-signal state, bounded guard-duration
+buckets and finite request counts. They never serialize underlying errors, bodies,
+identities, credentials or URLs, change dispatch, expand bounds or extend app
+deadlines. Two new offline regressions failed before implementation;36 new and163
+related checks now pass. Targeted review precedes another justified disposable run.
+
 Both historical member-role labels: real SDK open creates one own document and
 persists first view; repeat returns the same ID/false without duplication. Existing
 unviewed/returned documents exercise view without creation and preserve protected

@@ -41,6 +41,12 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
   const signed = new Set<string>(); const uploaded = new Set<string>()
   const createdReceipts = new Map<string,{id:string;actorId:string;assignmentId:string;classroomId:string}>()
   const counts = { network:0, storage:0, rpc:0, byteReads:0 }
+  // Fixed labels only; request identities and raw errors never enter receipts.
+  let phase:'not-started'|'validate'|'guard'|'dispatch'|'decode'|'complete'='not-started'
+  let operation:'unknown'|'assignment-read'|'open-rpc'|'other-rpc'|'storage'|'signed-read'='unknown'
+  let status:'unobserved'|'success'|'error'='unobserved'
+  let code='none';let appSignal:AbortSignal|null|undefined;let guardMs=0
+  const knownCodes=new Set(['PGRST200','PGRST201','PGRST204','PGRST202','PGRST116','23514','23502','23503','23505','42501','P0002','22023','40001'])
   const paths = () => f.objects.filter(o=>f.assignments[o.index].docId || documents.has(f.assignments[o.index].id))
     .map(o=>({object:o,path:integratedObjectPath(f,documents,o)}))
   function readContext(assignmentId:string,actorId:string) {
@@ -92,6 +98,7 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
   }
   const safeFetch:typeof fetch=async(resource,init)=>{
     try {
+      phase='validate';operation='unknown';status='unobserved';code='none';guardMs=0;appSignal=init?.signal
       // Request objects could conceal a second body/credential source; SDK uses strings.
       assert(!(resource instanceof Request))
       const url=new URL(String(resource)); const method=init?.method??'GET'
@@ -99,6 +106,7 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
       assert(init?.redirect===undefined||init.redirect==='error')
       const headers=new Headers(init?.headers)
       const byteRead=signed.has(url.href)&&method==='GET'; let consumedRpc:RpcPlan|undefined
+      operation=byteRead?'signed-read':url.pathname==='/rest/v1/assignments'?'assignment-read':url.pathname==='/rest/v1/rpc/open_assignment_doc_for_member_v1'?'open-rpc':url.pathname.startsWith('/rest/v1/rpc/')?'other-rpc':url.pathname.startsWith('/storage/v1/')?'storage':'unknown'
       if(byteRead) { assert(!init?.body&&!headers.has('authorization')&&!headers.has('apikey')&&!headers.has('cookie')); signed.delete(url.href); counts.byteReads++ }
       else {
         assert.equal(headers.get('authorization'),`Bearer ${target.SERVICE_ROLE_KEY}`)
@@ -152,14 +160,22 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
       }
       assert(++counts.network<=INTEGRATED_CAPS.networkRequests)
       if(url.pathname.startsWith('/storage/')) assert(++counts.storage<=INTEGRATED_CAPS.storageRequests)
-      await guard()
+      phase='guard';const guardStarted=Date.now();await guard();guardMs=Math.max(0,Date.now()-guardStarted)
       const timeout=AbortSignal.timeout(INTEGRATED_CAPS.requestMs)
+      phase='dispatch'
       const response=await original(resource,{...init,redirect: 'error',signal:init?.signal?AbortSignal.any([timeout,init.signal]):timeout})
+      status=response.ok?'success':'error';phase='decode'
       assert(response.status<300||response.status>=400); assert(!response.headers.has('location'))
       const reader=response.body?.getReader(); const chunks:Uint8Array[]=[]; let size=0
       if(reader) while(true) { const next=await reader.read(); if(next.done)break; size+=next.value.length
         if(size>INTEGRATED_CAPS.responseBytes) { await reader.cancel(); throw new Error('Response bound') } chunks.push(next.value) }
       const bytes=Buffer.concat(chunks)
+      if(!response.ok) {
+        code='unknown'
+        try {const value:unknown=JSON.parse(bytes.toString('utf8'));if(value&&typeof value==='object'&&!Array.isArray(value)) {
+          const candidate=(value as Record<string,unknown>).code;if(typeof candidate==='string'&&knownCodes.has(candidate))code=candidate
+        }}catch { /* No private body or arbitrary code is retained. */ }
+      }
       if(consumedRpc?.name==='open_assignment_doc_for_member_v1'&&response.ok) {
         const value=JSON.parse(bytes.toString('utf8'))
         assert(value&&typeof value==='object'&&typeof value.created==='boolean'&&typeof value.viewed_at_changed==='boolean')
@@ -171,10 +187,12 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
           createdReceipts.set(a.id,{id:value.doc.id,actorId:a.actorId,assignmentId:a.id,classroomId:a.classroomId})
         }
       }
-      return new Response(bytes,{status:response.status,headers:response.headers})
+      phase='complete';return new Response(bytes,{status:response.status,headers:response.headers})
     } catch { throw new Error('Integrated transport rejected; private details withheld') }
   }
   return { target, fetch:safeFetch, counts, readContext, planRpc, registerSignedUrl,
+    diagnostic() {const time=guardMs<1000?'under-1s':guardMs<5000?'under-5s':guardMs<15000?'under-15s':'at-least-15s'
+      return `DIAG integrated transport phase=${phase} operation=${operation} status=${status} code=${code} aborted=${appSignal?.aborted===true} guard=${time} requests=${counts.network} rpc=${counts.rpc}.\n`},
     takeCreatedReceipt(assignmentId:string) { const receipt=createdReceipts.get(assignmentId);assert(receipt);createdReceipts.delete(assignmentId);return receipt },
     assertNoPendingRpc(){assert(!rpc)} }
 }
@@ -409,6 +427,7 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
     const receipt=integratedForcedReceipt(input.mode,error,extensionComplete)
     if(receipt){process.stdout.write(receipt.stdout);process.stderr.write(receipt.stderr);process.exitCode=receipt.exitCode;return}
     process.stderr.write(integratedFailureDiagnostic(error,extensionStep))
+    if(transport!)process.stderr.write(transport.diagnostic())
     throw new Error('Integrated lifecycle failed; private details withheld')
   } finally { if(originalPal===undefined)delete process.env.PAL_ENABLED;else process.env.PAL_ENABLED=originalPal }
 }
