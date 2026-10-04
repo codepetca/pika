@@ -36903,3 +36903,11 @@ Evidence: focused 254 tests and static checks passed; targeted controller/compon
 ## 2026-10-02 — Attendance approved merge synchronization
 
 Owner approved one additional journal reconciliation, targeted review and CI cycle after the bounded review checkpoint. Rebased PR1430 onto main25cc0691 (renewal closeout); preserved both archive histories and removed only duplicate blocks introduced by conflict resolution. All attendance source and tests remain byte-identical to reviewed8bc09489. Prior exact-head CI37038675999 passed every selected lane and PR Gate. Fresh focused verification, the single approved targeted review, final exact-head CI and main merge remain gated. Risk profile:workspace-state. Model recommendation:GPT-6.1 Sol/high for bounded synchronization compatibility.
+
+<!-- pika-session-log-archive-batch:bc71905b44c8baa872adada0375e6115b11e3d5a31da40dc6f2875bd55866a14 -->
+## 2026-10-02 — Minimal app scrollbar tracks
+
+- Extended `src/app/globals.scss` with transparent app-wide tracks and semantic thumb color; preserved native width, hover/hidden utilities, and forced-color defaults. Older Safari gets a guarded pseudo-element fallback.
+- Reference/reuse: classroom shell and existing transparent document tracks; extend global CSS, reuse utilities. Both roles, desktop/mobile, light/dark, default/hover/focus/hidden covered. No composite behavior, new component, or experimental guidance.
+- Verification: focused checks passed (91 tests, architecture, UI/design policy, TypeScript, lint). Headed Playwright captured all eight role/viewport/theme combinations for Classrooms and Pattern Lab, plus temporary browser-only surface probes; scrolling, hover/focus, hidden scrollbars, and forced colors passed. Evidence: `/tmp/pika-scrollbar-captures/evidence.json`; captures alongside it. Safari fallback not tested in Safari.
+- Risk profile: none. Model recommendation: GPT-6.1 Sol — small global CSS refinement with browser verification. PR1432 independently reviewed without blockers; original exact-head CI37047140437 and PR Gate passed. Owner authorized main merge; rebased onto attendance1430, preserving main history and removing only a newly duplicated archived entry. Scrollbar CSS remains byte-identical; sync checks, targeted review and fresh final CI precede merge.

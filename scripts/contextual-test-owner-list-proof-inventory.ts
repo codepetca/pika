@@ -1,5 +1,5 @@
 /** Invocation-local acceleration for the Test owner list extension guard only.
- * Import is inert. All three pipelines discover the complete global topology;
+ * Import is inert. Three bounded workers discover the complete global topology;
  * the sealed assignment-list parser still validates and constructs the result.
  */
 import assert from 'node:assert/strict'
@@ -49,15 +49,31 @@ export async function testOwnerListDockerInventory(run: Run = command): ReturnTy
       results.set(key, output)
       return output
     }
-    // Exactly three serial pipelines: no unbounded per-batch fan-out. Attach
-    // rejection handlers to every pipeline immediately and wait for all work,
-    // including on listing/inspection failure, before replay or rejection.
-    const settled = await Promise.allSettled(specs.map(async spec => {
+    // Settle all three fresh global listings before inspecting anything. A
+    // rejected listing cannot leave another discovery running past rejection.
+    const listed = await Promise.allSettled(specs.map(async spec => {
       const ids = (await capture(spec.list)).split(/\s+/).filter(Boolean)
       assert.equal(new Set(ids).size, ids.length)
       assert(ids.every(value => spec.valid.test(value)))
+      return { spec, ids }
+    }))
+    assert(listed.every(result => result.status === 'fulfilled'))
+    const batches: string[][] = []
+    for (const result of listed) {
+      assert(result.status === 'fulfilled')
+      const { spec, ids } = result.value
       for (let start = 0; start < ids.length; start += 128) {
-        await capture([...spec.inspect, ...ids.slice(start, start + 128)])
+        batches.push([...spec.inspect, ...ids.slice(start, start + 128)])
+      }
+    }
+    // Reuse idle capacity across kinds, but never exceed three commands total.
+    // Failure stops queued work; all already-active workers settle before any
+    // rejection, parser replay, or clearing of invocation-local results.
+    let next = 0; let failed = false
+    const settled = await Promise.allSettled(Array.from({ length: 3 }, async () => {
+      while (!failed && next < batches.length) {
+        const args = batches[next++]
+        try { await capture(args) } catch (error) { failed = true; throw error }
       }
     }))
     assert(settled.every(result => result.status === 'fulfilled'))

@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Minimal app scrollbar tracks
-
-- Extended `src/app/globals.scss` with transparent app-wide tracks and semantic thumb color; preserved native width, hover/hidden utilities, and forced-color defaults. Older Safari gets a guarded pseudo-element fallback.
-- Reference/reuse: classroom shell and existing transparent document tracks; extend global CSS, reuse utilities. Both roles, desktop/mobile, light/dark, default/hover/focus/hidden covered. No composite behavior, new component, or experimental guidance.
-- Verification: focused checks passed (91 tests, architecture, UI/design policy, TypeScript, lint). Headed Playwright captured all eight role/viewport/theme combinations for Classrooms and Pattern Lab, plus temporary browser-only surface probes; scrolling, hover/focus, hidden scrollbars, and forced colors passed. Evidence: `/tmp/pika-scrollbar-captures/evidence.json`; captures alongside it. Safari fallback not tested in Safari.
-- Risk profile: none. Model recommendation: GPT-6.1 Sol — small global CSS refinement with browser verification. PR1432 independently reviewed without blockers; original exact-head CI37047140437 and PR Gate passed. Owner authorized main merge; rebased onto attendance1430, preserving main history and removing only a newly duplicated archived entry. Scrollbar CSS remains byte-identical; sync checks, targeted review and fresh final CI precede merge.
-
 ## 2026-10-02 — Attendance main-to-production promotion
 
 Owner requested production promotion after attendance PR1430 merged to main8dc05d47. Draft release PR1433 batches reviewed main PRs1424,1426,1427,1428,1429,1430. Reconciled the single archive conflict in an ephemeral detached promotion worktree while preserving both histories. Application, tests, schema files and configuration match reviewed main exactly. Main exact-head CI37045983716 passed all lanes and PR Gate. One cumulative release compatibility review and fresh full promotion CI precede merge; no database migration application or flag activation is included. Risk profile:runtime-platform. Model recommendation:GPT-5.6 Sol/high for gated database/runtime release compatibility.
@@ -1042,3 +1035,18 @@ branches76.98,functions91.39,lines86.94percent). Priorfailedresults retained.
 Fixedhead targetreview/fresh environment runtime check/CI/mainmerge remain gates;
 no sharedschema/prod/accounts/provider/admission/activation. NextdraftGET-only
 readonlymap retained privately; notimplemented. Originalclock/directwaiver retained.
+
+## 2026-10-04 — Owner Test list global inspection worker correction
+
+Fresh-environment normal49119 hit unchanged20s/19496ms guards/22 requests; exact
+owned teardown and SAME saved canonical baseline PASS. No fresh matrix success.
+Sol6.1/high bounded read-only diagnosis found618 volumes/five serial batches;
+paired global-worker probes765→524ms and625→555ms returned same exact commands/
+sealed resources. Root TDD five scheduling/barrier/failure regressions RED, then
+86 proof and297 focused/static PASS. Three fresh listings settle first; fixed
+three global workers reuse idle capacity across exact128-item inspections. All
+active work settles on failure; queued work stops. No command/privacy/scope/cap/
+SQLguard/sealed/app/deadline/dependency/schema change. Fixed-source review and
+new full runtime receipts precede CI; PRdraft, production/admission/rollout OFF.
+Worker elapsed approximately4min; usage/effectiveconfig/active time unknown.
+Original reviewclock/counters and direct human taskstop waiver retained.

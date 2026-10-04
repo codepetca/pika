@@ -230,3 +230,23 @@ Fresh full CI-equivalent coverage passed12343 tests, all thresholds, and1036 fil
 (8 tests/2 files skipped by the existing command). These local results do not
 replace new fixed-head review/runtime-environment verification or required CI.
 Earlier CI/local failures remain historical; no main merge or rollout is claimed.
+
+## Fresh-environment guard scheduling correction
+
+After the locked dependency repair, normal49119 hit the unchanged20s application
+deadline on the first owner case:22 requests and19496ms cumulative guard time.
+Exact owned teardown and the SAME once-captured canonical baseline passed; this
+is not a fresh successful SDK matrix. The earlier actual d82 normal/two-forced
+receipts remain valid historical evidence, not proof of the restored environment.
+
+Read-only paired probes found618 global volumes across five inspect batches on
+the serial critical path. Three global inspection workers reduced inventory time
+765→524ms and, in reversed order,625→555ms; exact command sets and sealed resource
+results matched. All three fresh listings now settle before inspection. At most
+three exact128-item inspection commands run concurrently; a failure stops queued
+work and settles every active worker before rejection. All command projections,
+sealed parsing, foreign attachments, byte bounds, one-shot consumption and every
+private SQL guard remain unchanged. No cache/filter/deadline/native/app change.
+Five scheduling/barrier/failure regressions failed before implementation;86 proof
+checks and297 focused/static checks now pass. Independent fixed-source acceptance
+and fresh actual normal/two-forced receipts are still required before readiness.

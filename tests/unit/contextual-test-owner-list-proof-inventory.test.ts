@@ -11,24 +11,24 @@ const listArgs = [['ps', '-aq', '--no-trunc'], ['volume', 'ls', '-q'], ['network
 const key = (args: string[]) => JSON.stringify(args)
 type Run = (file: string, args: string[]) => Promise<string>
 
-function globalFixture(size = 129, revision = 'synthetic-one') {
+function globalFixture(size = 129, revision = 'synthetic-one', sizes = { containers: size, volumes: size, networks: size }) {
   const own = { 'com.supabase.cli.project': 'pika_assignment_list_abcdef123456', 'com.docker.compose.project': 'pika_assignment_list_abcdef123456' }
   const foreign = { 'com.supabase.cli.project': 'foreign' }
-  const containers = Array.from({ length: size }, (_, n) => ({ id: id(n + 1), name: `/synthetic_${n}`, labels: n ? foreign : own,
+  const containers = Array.from({ length: sizes.containers }, (_, n) => ({ id: id(n + 1), name: `/synthetic_${n}`, labels: n ? foreign : own,
     mounts: [{ Type: 'volume', Name: `synthetic_volume_${n}` }, ...(n === 1 ? [{ Type: 'volume', Name: 'synthetic_volume_0' }] : [])],
     networks: { synthetic: { NetworkID: id(10000 + n) }, ...(n === 1 ? { shared: { NetworkID: id(10000) } } : {}) },
     bindings: { '5432/tcp': [{ HostPort: String(n ? 20000 + n : 54332) }] }, created: revision }))
-  const volumes = Array.from({ length: size }, (_, n) => ({ Name: `synthetic_volume_${n}`, CreatedAt: revision, Labels: n ? foreign : own }))
-  const networks = Array.from({ length: size }, (_, n) => ({ Id: id(10000 + n), Name: `synthetic_network_${n}`, Created: revision, Labels: n ? foreign : own,
+  const volumes = Array.from({ length: sizes.volumes }, (_, n) => ({ Name: `synthetic_volume_${n}`, CreatedAt: revision, Labels: n ? foreign : own }))
+  const networks = Array.from({ length: sizes.networks }, (_, n) => ({ Id: id(10000 + n), Name: `synthetic_network_${n}`, Created: revision, Labels: n ? foreign : own,
     Containers: Object.fromEntries([id(n + 1), ...(n === 0 ? [id(2)] : [])].map(value => [value, {}])) }))
   const outputs = new Map<string, string>([
     [key(listArgs[0]), containers.map(c => c.id).join('\n')], [key(listArgs[1]), volumes.map(v => v.Name).join('\n')], [key(listArgs[2]), networks.map(n => n.Id).join('\n')],
   ])
-  for (let start = 0; start < size; start += 128) {
+  for (let start = 0; start < Math.max(sizes.containers, sizes.volumes, sizes.networks); start += 128) {
     const c = containers.slice(start, start + 128); const v = volumes.slice(start, start + 128); const n = networks.slice(start, start + 128)
-    outputs.set(key(['inspect', '--format', template, ...c.map(row => row.id)]), c.map(row => JSON.stringify(row)).join('\n'))
-    outputs.set(key(['volume', 'inspect', ...v.map(row => row.Name)]), JSON.stringify(v))
-    outputs.set(key(['network', 'inspect', ...n.map(row => row.Id)]), JSON.stringify(n))
+    if (c.length) outputs.set(key(['inspect', '--format', template, ...c.map(row => row.id)]), c.map(row => JSON.stringify(row)).join('\n'))
+    if (v.length) outputs.set(key(['volume', 'inspect', ...v.map(row => row.Name)]), JSON.stringify(v))
+    if (n.length) outputs.set(key(['network', 'inspect', ...n.map(row => row.Id)]), JSON.stringify(n))
   }
   const calls: string[] = []
   const run: Run = async (file, args) => {
@@ -52,18 +52,47 @@ describe('Test owner list fresh global inventory (offline commands only)', () =>
     expect(optimized.calls.every(command => optimized.outputs.has(command))).toBe(true)
   })
 
-  it('overlaps exactly three global pipelines and never overlaps batches within one pipeline', async () => {
+  it('uses exactly three global inspection workers, allowing independent batches of the same kind to overlap', async () => {
     const fixture = globalFixture(257); let active = 0; let maximum = 0
-    const activeKinds = new Set<string>(); const seen = new Set<string>()
+    const activeKinds = new Map<string, number>(); const seen = new Set<string>(); let sameKindMaximum = 0
     const run: Run = async (file, args) => {
       const kind = args[0] === 'volume' ? 'volume' : args[0] === 'network' ? 'network' : 'container'
-      expect(activeKinds.has(kind)).toBe(false); activeKinds.add(kind); seen.add(kind); maximum = Math.max(maximum, ++active)
+      const inspecting = args[0] === 'inspect' || args[1] === 'inspect'
+      if (inspecting) {
+        expect(listArgs.every(list => fixture.calls.includes(key(list)))).toBe(true)
+        activeKinds.set(kind, (activeKinds.get(kind) ?? 0) + 1)
+        sameKindMaximum = Math.max(sameKindMaximum, activeKinds.get(kind)!)
+        expect(args.slice(kind === 'container' ? 3 : 2).length).toBeLessThanOrEqual(128)
+      }
+      seen.add(kind); maximum = Math.max(maximum, ++active)
       await new Promise<void>(resolve => setImmediate(resolve))
-      try { return await fixture.run(file, args) } finally { active--; activeKinds.delete(kind) }
+      try { return await fixture.run(file, args) } finally {
+        active--; if (inspecting) activeKinds.set(kind, activeKinds.get(kind)! - 1)
+      }
     }
     await testOwnerListDockerInventory(run)
     expect(maximum).toBe(3); expect(seen.size).toBe(3); expect(active).toBe(0)
+    expect(sameKindMaximum).toBe(3); expect([...activeKinds.values()].every(count => count === 0)).toBe(true)
     expect(fixture.calls).toHaveLength(12); expect(new Set(fixture.calls).size).toBe(12)
+  })
+
+  it('uses idle capacity for an uneven volume inventory without changing any global command or sealed resource', async () => {
+    const sizes = { containers: 1, volumes: 641, networks: 1 }
+    const original = globalFixture(1, 'uneven', sizes)
+    const expected = await platform.assignmentListDockerInventory(original.run)
+    const fixture = globalFixture(1, 'uneven', sizes)
+    let active = 0; let maximum = 0; let volumeActive = 0; let volumeMaximum = 0
+    const run: Run = async (file, args) => {
+      const volumeInspect = args[0] === 'volume' && args[1] === 'inspect'
+      maximum = Math.max(maximum, ++active)
+      if (volumeInspect) volumeMaximum = Math.max(volumeMaximum, ++volumeActive)
+      await new Promise<void>(resolve => setImmediate(resolve))
+      try { return await fixture.run(file, args) } finally { active--; if (volumeInspect) volumeActive-- }
+    }
+    expect(await testOwnerListDockerInventory(run)).toEqual(expected)
+    expect([...fixture.calls].sort()).toEqual([...original.calls].sort())
+    expect(fixture.calls).toHaveLength(11); expect(maximum).toBe(3); expect(volumeMaximum).toBe(3)
+    expect(active).toBe(0); expect(volumeActive).toBe(0)
   })
 
   it.each(listArgs.map((args, index) => ({ args, index })))('rejects malformed or duplicate global listing $index before its inspection', async ({ args, index }) => {
@@ -114,10 +143,48 @@ describe('Test owner list fresh global inventory (offline commands only)', () =>
       expect(started.size).toBe(3); expect(done).toBe(false)
       releases.splice(0).forEach(resolve => resolve())
       await new Promise<void>(resolve => setImmediate(resolve))
-      expect(done).toBe(false) // the surviving network inspection is still pending
       releases.splice(0).forEach(resolve => resolve())
       await pending; expect(settled.size).toBe(3); expect(unhandled).not.toHaveBeenCalled()
+      expect(fixture.calls.every(command => listArgs.map(key).includes(command))).toBe(true)
     } finally { process.off('unhandledRejection', unhandled) }
+  })
+
+  it('waits for every fresh global list before inspection and rejects a failed list without starting inspections', async () => {
+    const fixture = globalFixture(1); let release!: () => void
+    const held = new Promise<void>(resolve => { release = resolve }); const inspected = vi.fn()
+    const run: Run = async (file, args) => {
+      if (key(args) === key(listArgs[1])) { await held; throw new Error('PRIVATE delayed invalid listing') }
+      if (!listArgs.some(list => key(list) === key(args))) inspected()
+      return fixture.run(file, args)
+    }
+    const pending = testOwnerListDockerInventory(run)
+    const rejected = expect(pending).rejects.toThrow('Private Test owner list inventory rejected')
+    await new Promise<void>(resolve => setImmediate(resolve))
+    const inspectedBeforeRelease = inspected.mock.calls.length
+    release(); await rejected
+    expect(inspectedBeforeRelease).toBe(0); expect(inspected).not.toHaveBeenCalled()
+  })
+
+  it('settles all active inspection workers after failure and does not launch queued batches', async () => {
+    const fixture = globalFixture(257); const started: string[] = []; const settled: string[] = []
+    let release!: () => void; const held = new Promise<void>(resolve => { release = resolve })
+    const run: Run = async (file, args) => {
+      if (listArgs.some(list => key(list) === key(args))) return fixture.run(file, args)
+      const command = key(args); started.push(command)
+      try {
+        if (started.length === 1) throw new Error('PRIVATE inspect failure')
+        await held; return await fixture.run(file, args)
+      } finally { settled.push(command) }
+    }
+    let done = false
+    const pending = testOwnerListDockerInventory(run).then(() => { done = true }, error => {
+      done = true; expect(String(error)).toBe('Error: Private Test owner list inventory rejected')
+    })
+    await new Promise<void>(resolve => setImmediate(resolve))
+    const beforeRelease = { done, started: started.length, settled: settled.length }
+    release(); await pending
+    expect(beforeRelease).toEqual({ done: false, started: 3, settled: 1 })
+    expect(started).toHaveLength(3); expect(settled).toHaveLength(3); expect(done).toBe(true)
   })
 
   it('discovers changed state afresh on consecutive invocations and after a failed invocation', async () => {
