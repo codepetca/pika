@@ -157,12 +157,12 @@ insert into public.classroom_enrollments (id, classroom_id, student_id) values
 insert into public.assignments (id, classroom_id, title, description, due_at, created_by, is_draft, released_at) values
   ('c2410000-0000-4000-8000-000000000020', 'c2410000-0000-4000-8000-000000000010', 'sc241 missing work', '', clock_timestamp() + interval '7 days', 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour'),
   ('c2410000-0000-4000-8000-000000000021', 'c2410000-0000-4000-8000-000000000010', 'sc241 submitted history', '', clock_timestamp() + interval '7 days', 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour'),
-  ('c2410000-0000-4000-8000-000000000022', 'c2410000-0000-4000-8000-000000000010', 'sc241 normalization', '', null, 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour'),
-  ('c2410000-0000-4000-8000-000000000023', 'c2410000-0000-4000-8000-000000000010', 'sc241 draft', '', null, 'c2410000-0000-4000-8000-000000000001', true, null),
-  ('c2410000-0000-4000-8000-000000000024', 'c2410000-0000-4000-8000-000000000010', 'sc241 scheduled', '', null, 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() + interval '1 hour'),
-  ('c2410000-0000-4000-8000-000000000025', 'c2410000-0000-4000-8000-000000000011', 'sc241 archived work', '', null, 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour'),
+  ('c2410000-0000-4000-8000-000000000022', 'c2410000-0000-4000-8000-000000000010', 'sc241 normalization', '', clock_timestamp() + interval '7 days', 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour'),
+  ('c2410000-0000-4000-8000-000000000023', 'c2410000-0000-4000-8000-000000000010', 'sc241 draft', '', clock_timestamp() + interval '7 days', 'c2410000-0000-4000-8000-000000000001', true, null),
+  ('c2410000-0000-4000-8000-000000000024', 'c2410000-0000-4000-8000-000000000010', 'sc241 scheduled', '', clock_timestamp() + interval '7 days', 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() + interval '1 hour'),
+  ('c2410000-0000-4000-8000-000000000025', 'c2410000-0000-4000-8000-000000000011', 'sc241 archived work', '', clock_timestamp() + interval '7 days', 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour'),
   ('c2410000-0000-4000-8000-000000000026', 'c2410000-0000-4000-8000-000000000012', 'sc241 visible legacy Pal', '', clock_timestamp() + interval '7 days', 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour'),
-  ('c2410000-0000-4000-8000-000000000027', 'c2410000-0000-4000-8000-000000000010', 'sc241 writable historical work', '', null, 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour');
+  ('c2410000-0000-4000-8000-000000000027', 'c2410000-0000-4000-8000-000000000010', 'sc241 writable historical work', '', clock_timestamp() + interval '7 days', 'c2410000-0000-4000-8000-000000000001', false, clock_timestamp() - interval '1 hour');
 
 insert into public.assignment_submission_requirements (id, assignment_id, type, label, required) values
   ('c2410000-0000-4000-8000-000000000301', 'c2410000-0000-4000-8000-000000000021', 'link', 'sc241 historical link', true),

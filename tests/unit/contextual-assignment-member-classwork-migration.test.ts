@@ -109,6 +109,13 @@ describe('contextual Assignment member Classwork visibility', () => {
     }
   })
 
+  it('uses required persisted due dates rather than relaxing the current Assignment schema', () => {
+    const fixture = harness().split('insert into public.assignments ')[1]?.split('insert into public.assignment_submission_requirements ')[0] ?? ''
+    expect(fixture.length > 0).toBe(true)
+    expect(/', '', null,/.test(fixture)).toBe(false)
+    expect(fixture.match(/clock_timestamp\(\) \+ interval '7 days'/g)).toHaveLength(8)
+  })
+
   it('preserves the immutable activation guard while allowing a fresh rollback-only capture fixture', () => {
     const source = harness()
     expect(source).toContain('guard_pal_signal_activation')
