@@ -102,10 +102,13 @@ independent review and rollout status are recorded separately in the handoff.
 - Follow `docs/dev-workflow.md`: focused checks, draft PR, risk-matched independent
   review, batched corrections, stable reviewed SHA, ready CI and PR Gate. Merge
   and production promotion retain their separate authority gates.
-- The `pr-review` skill's budget and human checkpoint apply to each review
-  session. At this checkpoint weekly Codex remaining is 8%; DeepSeek is explicitly
-  paused through 2026-12-31. Prepare concrete implementations before any required
-  checkpoint. Do not bypass the checkpoint with a different reviewer.
+- On 2026-10-04, the owner directly instructed this coordinator task
+  (`01a10695-f3c2-7532-97f4-3fbad0c2cbd3`): "Override stoppages to continue with
+  current work." The task-scoped `override-task-stops` skill waives low-usage and
+  workflow review-budget stops for this remediation, preserving cumulative review
+  counters and correctness/authority gates. This receipt is not authorization for
+  another task. DeepSeek remains explicitly paused through 2026-12-31. Actual
+  execution limits, human holds and separately specified user budgets still apply.
 
 Closure means every finding has accepted evidence or an explicit, evidence-backed
 disposition and every required gate for the agreed outcome has been satisfied.
