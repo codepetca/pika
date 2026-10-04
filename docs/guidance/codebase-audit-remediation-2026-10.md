@@ -16,12 +16,27 @@ PR Gate passed on the source-package heads below against
 `main` at `902cbf7617bc7f5e0788cfd01fd07d78f051c99c`.
 Guidance #1462 is now merged at `24cb8847b7c2d18719089b109ba3b1658108b641`;
 the canonical checkout was fast-forwarded and exact source-tree parity passed.
-The five remaining packages are combined in draft #1463 for final independent
-integration review and exact-head CI. The debt baseline combines five validated
-route deletions, with no new exceptions; an optional focused-runner worker limit
-addresses observed local UI timeouts without changing test selection/timeouts. Nothing has been deployed by
-this task. Original package checks do not establish combined behavior.
+The five remaining packages landed together via #1463 at `5a396899198397e93ffc3dfcc0908bfceaa4f676`.
+Exact reviewed-source/merged-tree parity and clean canonical fast-forward passed.
+Full CI [37226522459](https://github.com/codepetca/pika/actions/runs/37226522459)
+and PR Gate passed: 12,216 tests/8 configured skips; browser 298 passed,
+3 retry passes and 20 configured skips. Each retry matches prior accepted UI/auth
+source-run failures; audit lifecycle cases passed without retry. Database replay
+and all selected Test/auth/storage/concurrency contracts passed. The five-route
+validation-debt deletion and optional worker limit preserved their intended scope.
+Sibling #1464–#1467 drafts are closed as superseded after merged-source parity.
+Phases 1 and 2 have their source/integration exit evidence; production verification
+and the advisory decision remain pending. No production application, deployment,
+provider/canary write or activation has been performed by this task.
 
+Production promotion [#1470](https://github.com/codepetca/pika/pull/1470) remains
+a draft for cumulative release review and the coordinated owner gates. Workflow preview
+[37228560431](https://github.com/codepetca/pika/actions/runs/37228560431) passed
+against merged source `5a396899198397e93ffc3dfcc0908bfceaa4f676` and full CI
+37226522459: exact production history 001–225, ordered pending 226–246 and all
+21 hashes match the reviewed manifest. Approval digest:
+`645873e4078494fc1d7ad73bb739706352413af4950388ddfec484e6312d8c8c`.
+The preview is preparation, not migration application authority.
 One unsuppressed `braces` advisory remains. The dependency PR provides a bounded
 recursion mitigation; it does not resolve every width/cycle case or establish
 zero registry advisories. Its remaining resolution has a separate checkpoint
@@ -58,8 +73,8 @@ therefore consolidates the remaining packages in #1463, preserving their accepte
 source and complete history, and validates the combined result once. One final
 review/CI candidate also matches the coordinated production unit. This is a
 packaging adjustment within the same 27 findings, not a new feature scope.
-Sibling drafts remain open until actual merged-source parity establishes that
-the batch contains their work; then retire them as superseded, retaining receipts.
+Merged-source parity established that the batch contains all sibling work;
+#1464–#1467 were retired as superseded, with their review/runtime receipts retained.
 
 ## Finding-by-finding coverage
 

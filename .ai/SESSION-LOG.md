@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Detail1447 actual removal238-main reconciliation
-
-Rebased prepared7b421097 onto verified actual1448 squash73a85f26 using reviewed
-pendingparent88a1bfd6 as the exclusion boundary. Root verified all five exact-head
-CI37143487206 checks SUCCESS (18:15:08–18:43:24Z) and normal merge18:43:41Z;
-canonicalmain clean fast-forwarded73. Actual73 and reviewed88 have identical
-tree0200f897e44b029b0ce12b55b107fdfa5b79e584. Rebase had no conflicts or tree
-changes. All10original293 detail runtime/schema/helper/test/proof/guide files,
-44incoming parent files, whole prepared CI/test unions, entire roadmap and
-immutable235–238/genuine generated40d/curated3cf contracts remain unchanged.
-The pending-parent roadmap/session receipt is retained as historical preparation
-evidence; CURRENT and this receipt supersede its pending-main status. History
-is actual73+prepared7b−old88+this one new receipt; no surplus copies removed here.
-Official trim retains40recent entries, preserving all historical full bodies.
-Local/main001–238 and canonical Prod DB 001–225 recorded without activation.
-No DB/status/proof replay/type generation/migration application/provider/network/
-publication/readyCI/review/merge/stash/cleanup actions. Original detail ledger
-15:54Z/extended19:54Z and all launch/wave/fix counts remain unchanged/root-owned.
-Changed-actual-base independent review, publication and detail exact-head CI
-remain required; sharedadmission/fullcutover/billing/production promotionOFF.
-Actualorigin/main73 focused258tests/17files and architecture/UI/design/TypeScript/
-lint PASS; startup/CI/Bara56tests/3files PASS, startup15975/16000. Actual-main-aware
-audit10files, diff, trim and full preservation verifier PASS. Evidence:
-/private/tmp/pika-1447-actual-removal-reconcile.BKLnlz; fullfocused pika-focused-4MMNPL.
-No migration renumbering or task stash;36unrelated shared stashes untouched.
-
 ## 2026-10-03 — Bounded shared Course Guide source preparation
 
 On actual1444 maina8c4e9b2, prepared schema-free Course Guide GET under existing
@@ -1082,3 +1056,11 @@ date; no product, migration, type, dependency or test assertion change.1463 retu
 to draft before correction. Independent targeted review and fresh exact-head CI
 remain required; original frozen receipts and full failure log are retained.
 No production apply, provider, canary, flags or deployment operation.
+
+## 2026-10-04 Audit source landing and coordinated release preparation
+
+- Guidance #1462 and combined #1463 are merged; main `5a396899198397e93ffc3dfcc0908bfceaa4f676` has exact reviewed-source tree parity and the hub fast-forwarded cleanly. All 27 original findings retain accepted source remedies; production runtime closure is separate. #1464–#1467 closed as superseded only after parity.
+- Final combined full CI 37226522459 and PR Gate PASS: 12,216 unit/API tests (8 configured skips), full build/static gates, all selected disposable database contracts, browser 298 passed/3 retry passes/20 configured skips. Three browser retries match previously accepted source-run failures; audit lifecycle cases passed without retry. Prior continuity assertion failure/cancellation and draft-event race receipts are preserved.
+- Production draft #1470 is prepared for cumulative independent release review. Fresh read-only production history is exactly001–225; complete pending226–246 (21 files), hashes/impact and prepared read-only contract packet are recorded externally. Workflow preview37228560431 PASS at merged source5a396899/fullCI37226522459; exact225-history/ordered226–246 and all21hashes verified against source/manifest. Digest645873e4078494fc1d7ad73bb739706352413af4950388ddfec484e6312d8c8c. Preview is preparation only; no migration apply, deployment, canary/provider/fixture/cleanup write or flag activation occurred.
+- Remaining owner gates: exact production226–246/source/digest and irreversible-authority acknowledgement, coordinated affected-traffic hold/window and compatible app release, separately scoped canary/provider/cleanup operations, and explicit residual braces risk decision. Task low-usage/review-budget waiver remains; actual authority/provider/runtime/correctness gates remain. No epic status changed without its exit evidence.
+- Evidence: `/Users/stew/.codex/audits/pika/2026-10-04-broad/` retains immutable original acceptance and cumulative execution in handoff.json; integrated-main-merge-receipt.json, corrected-integrated-ci-final.json, integrated-browser-retry-triage.md, production-pending-chain-manifest.json and static packet reviews. Canonical plan: docs/guidance/codebase-audit-remediation-2026-10.md.
