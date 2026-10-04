@@ -137,3 +137,16 @@ helper/SDK mechanism receipts, not authenticated HTTP/session/browser, concurren
 revocation, historical public-bucket positive runtime, phase-exit or rollout proof.
 Copied source-lineage IDs/populated cache and archived compatibility are unit
 covered, not additional claims about the eight actual fixture cases.
+
+## CI contract correction
+
+Final cumulative review of `decdda348` was clean. Its first eligible CI run,
+`37209224882`, passed 11,953 tests but exposed two repository-contract failures:
+GET query validation incorrectly retired untouched PATCH request-body debt, and
+the compact current-state summary omitted the required production-history prefix.
+The PR returned to draft before correction. Batch3 strengthens the generic debt
+classifier with a regression while retaining all24 baseline entries, and restores
+`Prod DB 001–225` without changing the attendance test or startup size ceiling.
+All201 focused checks and50 selected contract/startup checks pass. Application,
+proof, CI configuration and schema bytes remain unchanged; targeted correction
+review and fresh stable-head CI are required before merge.

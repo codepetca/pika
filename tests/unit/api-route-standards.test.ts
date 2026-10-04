@@ -11,7 +11,14 @@ const exportedHandlerPattern = /export\s+(?:async\s+function|const)\s+(GET|POST|
 const wrappedHandlerPattern = /export\s+const\s+(GET|POST|PATCH|PUT|DELETE)\s*=\s*withErrorHandler\b/g
 const aliasHandlerPattern = /export\s+const\s+(GET|POST|PATCH|PUT|DELETE)\s*=\s*(GET|POST|PATCH|PUT|DELETE)\b/g
 const requestBodyReaderPattern = /\b(?:request|req)\s*\.\s*(?:json|formData)\s*\(/
-const zodBoundaryPattern = /\b[A-Za-z_$][\w$]*Schema\s*\.\s*(?:parse|safeParse)\s*\(/
+const zodBoundaryPattern = /\b([A-Za-z_$][\w$]*Schema)\s*\.\s*(?:parse|safeParse)\s*\(/g
+
+function hasBodyZodBoundary(source: string): boolean {
+  // A GET query/params schema cannot pay down an untouched mutation body's debt.
+  return Array.from(source.matchAll(zodBoundaryPattern)).some(
+    ([, name]) => !/(?:Query|Params)Schema$/.test(name)
+  )
+}
 
 function collectRouteFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -26,6 +33,11 @@ function collectRouteFiles(dir: string): string[] {
 }
 
 describe('API route standards', () => {
+  it('does not let query or params validation retire request-body debt', () => {
+    expect(hasBodyZodBoundary('testQuerySchema.parse({ testId: id })')).toBe(false)
+    expect(hasBodyZodBoundary('testParamsSchema.safeParse(params)')).toBe(false)
+    expect(hasBodyZodBoundary('testQuerySchema.parse(query); testBodySchema.parse(body)')).toBe(true)
+  })
   it('wraps exported HTTP handlers with withErrorHandler', () => {
     const violations = collectRouteFiles(routeRoot).flatMap((filePath) => {
       const source = readFileSync(filePath, 'utf8')
@@ -56,7 +68,7 @@ describe('API route standards', () => {
     const currentDebt = collectRouteFiles(routeRoot)
       .filter((filePath) => {
         const source = readFileSync(filePath, 'utf8')
-        return requestBodyReaderPattern.test(source) && !zodBoundaryPattern.test(source)
+        return requestBodyReaderPattern.test(source) && !hasBodyZodBoundary(source)
       })
       .map((filePath) => relative(process.cwd(), filePath))
       .sort()
