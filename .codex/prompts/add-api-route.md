@@ -1,16 +1,19 @@
-Scaffold a new API route at the path in `$ARGUMENTS`.
+Scaffold a new API route at the path in `$ARGUMENTS` in the current feature worktree.
 
-Use `docs/ai-instructions.md` and `docs/core/architecture.md` for the canonical route rules. The critical route-specific requirements are:
+Read `docs/ai-instructions.md`, `docs/core/architecture.md` (API Route Error Handling),
+and `docs/guidance/api-boundary-validation.md` for the maintained boundary example.
+For a real service-role accessor, inspect `src/app/api/teacher/classrooms/route.ts`;
+it imports `getServiceRoleClient` from `@/lib/supabase`. Its pilot and archive
+branches are feature-specific and should not be copied into a new scaffold.
 
-- Use `withErrorHandler` from `@/lib/api-handler`
-- Use `requireRole` for access control
-- Use Zod for request validation
-- Keep the happy path only inside the handler
-
-Steps:
-1. Resolve the target path to `src/app/api/<path>/route.ts` under the current repo root.
-2. Stop if the file already exists.
-3. Infer role requirements and whether `context.params` is needed from the path.
-4. Generate a minimal route with a `GET` handler by default.
-5. Use a PascalCase route name for `withErrorHandler`.
-6. Create parent directories if needed, then verify with `pnpm tsc --noEmit`.
+1. Resolve the git root and target `src/app/api/<path>/route.ts`; stop if it exists.
+2. Infer the role from `teacher/` or `student/`; establish the intended auth policy
+   for other paths. Preserve resource ownership/enrollment checks after authentication.
+3. Wrap each handler with `withErrorHandler` from `@/lib/api-handler` using a
+   PascalCase operation name. Use `requireRole` from `@/lib/auth` where appropriate.
+4. Await dynamic `context.params`. Validate untrusted params, queries and bodies
+   with named feature-owned Zod schemas before calling server/domain logic.
+5. Add a minimal GET by default; add mutations only when the requested contract
+   requires them. Keep business logic in `src/lib/server/` or the feature module.
+6. Run `pnpm tsc --noEmit` and relevant API tests from the repo root; report the
+   created path and checks. Type checking is project-wide, not a single-file check.

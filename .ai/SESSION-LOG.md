@@ -11,6 +11,32 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-03 — Preserving removal source and local236
+
+Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
+preapplication GPT5.6Sol/high review CLEAN with77source tests. Exactpika54322,
+001–235matched/currentmain3351numbering/236-onlydryrun preceded one successful
+ordinarylocal236push. ImmutableSHA24e23667b21580fdcadb7a64ca251725f87040fa52bf9a1fbe71e0c7b3c22249;
+service-only privileges, genuinegenerated eight-lineRPC/type drift/TypeScript pass.
+ActualSQL/SDK/cleanup/concurrency and fullPR lifecycle remain pending; proof worker
+owns onlyscripts, root ownsapplication/types/CI/docs/Git. Duplicate selected one
+or all rows fails withoutDML: immutable164index/173cleanupcontrols remain, with
+coordinated multirow retained-lifecycle prerequisite inbatch3 beforecutover.
+1445/1446 fullinitialreviews clean;1443exactCI/1444draft predecessor order retained.
+Latesthuman explicitlywaives repeatedroutineapprovals inclnecessaryreviewextensions;
+original clocks/counters andabsolute caps/merge/release gates preserved. Production
+001–225/sharedadmission/fullcutoverOFF unchanged; no accounts/provider/billing edits.
+
+Serial actual SQL proof passed ACL, identity, purge fences, retained history and
+fault rollback with zero residue/global baseline unchanged. Actual SDK normal
+passed both owner labels, bound/unbound learners, retained history, idempotent
+retry/invitation isolation and observed lock races. Three forced modes each exit1
+with exact expected failure and complete cleanup sentinels; suppressed deletion
+rolls back every cleanup mutation and restores the generation guard. Earlier
+proof-only setup/cleanup defects corrected without editing immutable236; exact
+abandoned synthetic closure independently reviewed/recovered, all unrelated
+whole-row fingerprints unchanged. Full draft review/final focused/CI remain gates.
+
 ## 2026-10-03 — Removal1448 updated-parent preparation
 
 Rebased reviewed8e81327a onto updated1445parenta9613f46 with oldparenta7613a5f
@@ -1163,3 +1189,6 @@ trace; cachedpromises/localreturnedreaders/multipart/aliases covered; shadowing,
 unrelatedschemas/literals/unusedreads rejected. Baseline24 unchanged; app/proof/
 CI/schema/depsidentical. ExistingTypeScript reused,no dependency. Samefixbudget4;
 originalclock/deadline/hardlimits retained; targetedreviewandfreshCIpending.
+## 2026-10-04 — Broad audit remediation batch 1
+
+Owner authorized planning and orchestration to fix the 27-finding broad audit at main `3c5d7097`. Plan: `docs/guidance/codebase-audit-remediation-2026-10.md`; existing audit handoff tracks per-finding evidence and worker receipts. Feature worktree `codex/audit-remediation`; full startup passed after frozen-lockfile installation, with no dependency changes. Three bounded GPT-6.1 Sol workers (auth high; guidance and patterns medium) delivered non-overlapping source/tests. Auth regressions: 172/20 PASS, including one initial-password winner, login origin/JSON and UTF-8 limits; S1 remains partial pending atomic issuance/handoff generation fencing. Patterns regressions: 69/8 PASS, covering cache/poll retention, survey shapes and directly imported script-test selection. Guidance reconciles source/local/hosted checkpoints and routing, removes direct-main landing instructions, and fails startup for missing required inputs. Startup context ceiling deliberately increased from 16k to 17k characters for readable dated labels and receipt/remaining-gate text. No migration, database, hosted flag or production mutation. Draft publication and cumulative verification receipts remain with coordinator; independent review not yet launched. Codex weekly remaining at start 8%; DeepSeek paused through 2026-12-31; pr-review low-usage human checkpoint applies before reviewer launch. Goal remains active; no finding accepted from implementation delivery alone.

@@ -42,7 +42,8 @@ print_required_doc() {
   if [[ -f "$file" ]]; then
     sed -n "$range" "$file"
   else
-    echo -e "${INFO} Missing required startup doc: $file"
+    echo -e "${FAIL} Missing required startup doc: $file"
+    exit 1
   fi
 }
 
@@ -111,6 +112,18 @@ fi
 
 echo -e "${PASS} Worktree = $WORKTREE"
 
+# Check inputs even when their text is already loaded or environment checks are skipped.
+for required in .ai/START-HERE.md .ai/CURRENT.md .ai/features.json docs/ai-instructions.md scripts/verify-env.sh scripts/features.mjs; do
+  if [[ ! -f "$WORKTREE/$required" || ! -r "$WORKTREE/$required" ]]; then
+    echo -e "${FAIL} Missing or unreadable required startup input: $required"
+    exit 1
+  fi
+done
+if ! (cd "$WORKTREE" && node scripts/features.mjs validate); then
+  echo -e "${FAIL} Feature inventory validation failed. Fix before proceeding."
+  exit 1
+fi
+
 # ── 2. Verify environment ───────────────────────────
 echo ""
 echo "── 2. Environment check"
@@ -119,13 +132,9 @@ if [[ "$ORIENT_ONLY" -eq 1 ]]; then
   echo "   Use the default session-start path before editing code."
 else
   ensure_env_symlink "$WORKTREE"
-  if [[ -f "$WORKTREE/scripts/verify-env.sh" ]]; then
-    bash "$WORKTREE/scripts/verify-env.sh" && \
-      echo -e "${PASS} verify-env.sh passed" || \
-      { echo -e "${FAIL} verify-env.sh failed. Fix before proceeding."; exit 1; }
-  else
-    echo -e "${INFO} verify-env.sh not found, skipping"
-  fi
+  (cd "$WORKTREE" && bash scripts/verify-env.sh) && \
+    echo -e "${PASS} verify-env.sh passed" || \
+    { echo -e "${FAIL} verify-env.sh failed. Fix before proceeding."; exit 1; }
 fi
 
 # ── 3. Git context ──────────────────────────────────
@@ -165,14 +174,10 @@ fi
 echo ""
 echo "── 8. Feature summary"
 FEATURES_SCRIPT="$WORKTREE/scripts/features.mjs"
-if [[ -f "$FEATURES_SCRIPT" ]]; then
-  node "$FEATURES_SCRIPT" summary 2>/dev/null || echo "(features.mjs summary unavailable)"
-  echo ""
-  echo "Next unblocked feature:"
-  node "$FEATURES_SCRIPT" next 2>/dev/null || echo "(features.mjs next unavailable)"
-else
-  echo -e "${INFO} features.mjs not found"
-fi
+node "$FEATURES_SCRIPT" summary
+echo ""
+echo "Next unblocked feature:"
+node "$FEATURES_SCRIPT" next
 
 echo ""
 echo "── 9. Reminder"

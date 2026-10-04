@@ -4,17 +4,30 @@ Phase-based tracking for **Pika**.
 
 ---
 
-## Current Status
+## Current status and phase authority
 
-Active access/monetization work: [Classroom access and entitlements](../guidance/classroom-access-and-entitlements-roadmap.md).
-Phase 0 adds dormant contracts only; neutral onboarding and paid-plan enforcement are later releases.
+Use [the epic inventory](../../.ai/features.json) for pass/fail status and
+[the dated checkpoint](../../.ai/CURRENT.md) for source/local/hosted evidence.
+A passed capability does not establish current production rollout controls;
+a failing epic may contain already-shipped slices.
 
-✅ Classrooms, roster upload, assignments, and password-based auth are live.  
-🔄 Expanding test coverage and polishing docs/security.
+Active access/onboarding/monetization gates are in
+[Classroom access and entitlements](../guidance/classroom-access-and-entitlements-roadmap.md).
+Attendance pilot gates are in [Native attendance](../integrations/pika-bara-native-attendance-roadmap.md).
+Gradebook work is tracked separately from the implemented gradebook surface in
+the epic inventory and [Student Grades](../guidance/student-grades.md).
+
+Assignments already support editor history through
+`src/app/api/assignment-docs/[id]/history/route.ts`; see [Architecture](architecture.md).
+Do not reopen completed MVP work from the historical checklist below.
 
 ---
 
-## Implementation Phases
+## Historical MVP phases (completed by 2025-12-14)
+
+The inventory records Phases 0–6 as passed. This is the original MVP scope,
+not the current implementation or release checklist. Ongoing security, testing
+and documentation improvements retain their own task-specific checks.
 
 ### Phase 0 — Setup ✅
 - Initialize Next.js + TypeScript
@@ -49,24 +62,18 @@ Phase 0 adds dormant contracts only; neutral onboarding and paid-plan enforcemen
 - Student editor with autosave, submit/unsubmit
 - Teacher read-only view + submission stats
 
-### Phase 6 — Tests & Polish 🔄
-- [ ] Increase unit/API coverage (auth, classrooms, assignments, attendance)
-- [ ] Security hardening review
-- [ ] Documentation cleanup and drift prevention
-- [ ] Optional component/integration tests
+### Phase 6 — Tests & Polish ✅ (historical epic exit)
+- Coverage thresholds and stability recorded by `epic-tests-polish`
+- Security review and documentation polish in the original MVP scope
+- Continued changes still require current risk-matched tests and review
 
 ---
 
-## Future Features
+## Separately gated future work
 
-- Production-ready email delivery
 - Plan-independent archived-classroom retention: advance notices, verified cold storage,
   and a separately gated eventual deletion policy. This is proposed future work, not
   enabled behavior; see the [classroom lifecycle roadmap](../guidance/classroom-lifecycle-archives.md#future-archived-classroom-retention-proposal-not-enabled).
-- Late status display and richer attendance analytics
-- Regional holiday configuration
-- Notifications (missed entries, due dates)
-- Editor history/versioning (for assignments)
 
 ---
 
@@ -76,4 +83,4 @@ Phase 0 adds dormant contracts only; neutral onboarding and paid-plan enforcemen
 - Steps: local app/DB checks → reviewed `main` PR → protected `production`
   promotion; Vercel deploys `production`. Production migrations/canaries require
   exact-target authorization. See the [canonical flow](../dev-workflow.md#environments-and-release-flow).
-- Email: mock in dev; wire provider before production
+- Email setup: see [Brevo setup](../deployment/BREVO-SETUP.md); mock sending is a local development option.
