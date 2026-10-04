@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Verified material-write merge and read dependency reconciliation
-
-PR1441 normal squash merge d913eebd71e94e6dee4fd0be2d24b7371b5ccb15 verified
-at14:18:23Z after all five exact-reviewed-head74995349 CI37127414505 gates pass
-(observed0queue/1774runseconds). No admin/auto-merge/bypass. Canonical main cleanly
-fast-forwarded. Original review clock and7launch/4batch counters retained under
-the user's explicit review-extension authority; no repeated approval requested.
-Installed234 digest unchanged/immutable; local001–234, production001–225 untouched.
-This child rebased onto actual squash skipping stacked749; full pre-receipt tree
-matches its previous candidate exactly. Only continuity/merge receipts change.
-Main retarget, changed-base review where needed, and final exact-head CI still
-precede child merge. Parent worktree retained while dependents remain. Shared
-admission/cutover OFF; no provider/account/plan/billing activation.
-
 ## 2026-10-03 — Shared roster management read preparation
 
 Owner explicitly authorized remaining in-scope implementation, reviews, normal
@@ -846,3 +832,19 @@ Final cumulative review and exact-head CI precede ready/mainmerge. Originalledge
 00:32:24 clock,9launches/7targets/7fixes retained; explicit owner extension permits
 elapsed through02:32:24, hard8fix/8target/12launch/1final/30single still apply.
 Sharedadmission/home/cutover/billing/providerOFF; groupedwriter164/236 staysclosed.
+
+## 2026-10-03 — Assignment list merged; owner overview continuation
+
+1453 final reviewed91a64eca passed all five exact-head CI37168905602 checks.
+Normal squash88d54c94 merged02:16:46UTC; identical reviewed/merged treeb0f0156e
+and clean canonical main fast-forward verified. Lifecycle records observed0squeue/
+1725srun; active time/tokens unknown, no estimates. No production/activation.
+New worktree codex/contextual-assignment-detail-reads starts from actual88d54c94;
+startup/environmentPASS. Bounded next source is owner overviewGET; student-specific
+detail and learner opening follow separately. Root owns fixtureproof/docs/CI;
+one GPT6.1Sol/high writer owns helper/schema/GET/tests; readonly open boundary map
+accepted, including publication/currentmember/disclosure and Classwork side-effect
+gap in existing214 RPC. Reuse1453 disposable fixture/platform/SQL authority for
+seven extra readonly overviewcases; no additional DML or migration. CI guard TDD
+expectedRED then15PASS; proof expectation20combinedPASS. New source/runtime/
+independent-review/CI/merge gates remain; not a rollout or completion receipt.
