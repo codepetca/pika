@@ -1215,3 +1215,15 @@ inventory, settings and cleanup guards remain.634 tests/54files and all focused
 source gates pass. Independent targeted review and final ephemeral CI remain.
 Migrations244–246 unchanged from e905; older approved local manifests and
 runtime receipts retain their actual source/target. No new local execution.
+
+## 2026-10-04 — Audit full-suite source-contract alignment
+
+Final CI full coverage found two stale source expectations: the atomic-save
+contract prohibited the separate authorized GET revision read, and the body-Zod
+baseline retained the now-validated teacher Return route. The contract now
+extracts PATCH structurally and keeps it RPC-only; all direct route mutation
+methods remain prohibited. Removed only Return from the deletion-only Zod debt
+baseline, with its request-body parser intact and the debt test unchanged.
+Ten targeted tests pass. Product, migration and SDK runtime bytes unchanged.
+Independent targeted review, focused gates and final stable-SHA CI remain.
+No local database, application or fixture execution; approved receipts preserved.
