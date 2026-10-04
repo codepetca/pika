@@ -976,6 +976,15 @@ the bounded implementation. Student-specific owner detail and learner opening
 supplements follow separately because each has additional disclosure/side-effect
 boundaries. No production or cohort activation accompanied1453.
 
+Assignment-owner overview1454 now has accepted isolated normal/two forced
+cleanup evidence at78aed851. Seven new SDK cases verify owner/member authority,
+1001 roster/documents/requirements and099-triggered histories, alongside the
+existing nine list cases/fourteen list revocations.266focused/1skip+105targeted
+checks pass. Initial/three targeted reviews are complete; one path compatibility
+finding and a real sparse-history pagination issue were corrected without new
+SQL or relaxed limits. Final cumulative review and exact-head CI/mainmerge
+remain gates; shared admission, home cutover and production remain untouched.
+
 Remaining batch-2 groups, in integration order: Assignment detail/open
 enrichments; Tests owner operations then learner participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

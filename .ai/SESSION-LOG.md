@@ -867,3 +867,13 @@ fixture assumption. Root reproduced sparse-child cap failure, switched to25paren
 independent child cursors (all terminal/current-member proofs retained), corrected
 timestamp expectations to exact fixture submission time; no limits weakened or
 fixture SQL/platform edits. Targeted review and actual normal/forced proof pending.
+Superseding receipt:78aed851 cursor targetedsecurityCLEAN;266focused/1skip+
+105targeted/explicitproofTypeScript/auditPASS. Normal isolated proof accepted7
+overviewSDK cases+existing9list/14rev; exact teardown/full canonical fingerprints,
+168 metadata/settings/cron/resources unchanged. Both forced modes accepted exact
+exit1/PASS+FAIL markers, no unexpected output; private closed receipts
+/private/tmp/pika-overview-cleanup.YtQtCo and
+/private/tmp/pika-overview-cleanup.qSRMvV.
+Final cumulative review/CI/mainmerge pending. Ledger original02:42:02UTC,
+5launch/3target/3fix preserved; owner-authorized extension through04:42:02UTC,
+absolute caps unchanged. No production/rollout, provider/account/plan/billing changes.

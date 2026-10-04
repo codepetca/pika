@@ -1,7 +1,8 @@
 # Contextual Assignment overview reads
 
-Status: implementation in progress, based on actual main88d54c94/PR1453.
-Independent review, local runtime proof, exact-head CI and merge remain gates.
+Status: isolated normal and two forced-cleanup proofs accepted at78aed851;
+initial/targeted reviews clean. Final cumulative review, exact-head CI and merge
+remain gates. Based on actual main88d54c94/PR1453.
 Risk: runtime-platform (authorization, privacy, query compatibility).
 
 This bounded batch2 slice handles only `GET /api/teacher/assignments/[id]`.
@@ -80,6 +81,32 @@ all newly owned project resources and its generated directory must be absent.
 Normal and deterministic forced modes preserve the existing lifecycle's finally
 cleanup. No auth-cookie/browser, provider HTTP, Storage-byte or production claim
 is made. Fixed-source independent review precedes any execution.
+
+## Accepted local execution — 2026-10-03 Toronto
+
+Clean code head78aed851db9845f3cf906daf7b12cddf9e44c40e, installed CLI2.109.1:
+normal mode passed seven overview SDK cases plus the existing nine list cases
+and fourteen list revocations. The fixture verifies1001 current nonowner
+students/documents/requirements and099-triggered submission histories. Both
+after-fixture and before-capture modes exited1 with only their exact expected
+failure and cleanup/baseline PASS markers. Each exclusively owned disposable
+project and generated directory was removed; complete canonical fingerprints,
+168 metadata, settings, cron and resource identities were unchanged.
+
+266 focused checks/one skip,105 targeted tests, architecture/UI/design policies,
+TypeScript, lint, Pika audit and separate proof TypeScript checks pass. Initial
+review found valid restored/backfilled/unusual-filename managed images wrongly
+rejected; regression-first namespace correction was independently reviewed clean.
+The first two real runs failed safely in cases. Closed diagnostics identified
+sparse generated histories exhausting the unchanged statement cap; independent
+parent cursors and exact trigger timestamp assertions corrected that issue.
+The final targeted review is clean. No fixture SQL, platform authority, migration,
+global limits or activation was changed to make the proof pass.
+
+These are installed-SDK/helper and isolated-cleanup receipts, not authenticated
+HTTP/browser, provider, Storage-byte, production or cutover evidence. Real
+nonempty artifact/grading-item/signing and overview revocations remain separate
+evidence requirements before a release claim.
 
 The full assessment/lifecycle integrations, home shell and integrated release
 rehearsal remain prerequisites for cutover. This slice alone is not goal completion.
