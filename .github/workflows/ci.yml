@@ -315,6 +315,9 @@ jobs:
       - name: Verify contextual learner assignment-open atomicity and privileges
         run: bash scripts/check-contextual-assignment-doc-open-database.sh
 
+      - name: Verify contextual assignment-open locked Classwork concealment
+        run: bash scripts/check-contextual-assignment-open-classwork-database.sh
+
       - name: Verify contextual learner assignment-open concurrent authorization
         run: node scripts/check-contextual-assignment-doc-open-concurrency.mjs
 

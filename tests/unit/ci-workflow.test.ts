@@ -6,6 +6,16 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires locked Classwork open rollback checks after the existing atomicity proof', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify contextual assignment-open locked Classwork concealment'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('run: bash scripts/check-contextual-assignment-open-classwork-database.sh')
+    expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Verify contextual learner assignment-open atomicity and privileges')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual learner assignment-open concurrent authorization'))
+  })
   it('requires a serial student-detail SDK and revocation observer with no extra fixture authority', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const name = '      - name: Verify isolated contextual Assignment student-detail reads'

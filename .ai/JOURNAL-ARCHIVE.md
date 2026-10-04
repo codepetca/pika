@@ -35760,3 +35760,16 @@ before first/later/terminal roster and enrollment pages, actual-array corruption
 and exact safe projection. Forced post-fixture proof exited1 with its expected
 error and exact zero-residual/global baseline cleanup sentinel. No SQL application
 or hosted changes; independent review/final stable-head CI still required.
+
+<!-- pika-session-log-archive-batch:517c251952462f517c5fa522f86bac49f54f0016e7a38a95199559d2b4b9ff27 -->
+## 2026-10-03 — Verified linked-material merge and roster-read main reconciliation
+
+PR1442 merged3351d85f3c9d47ae6c8a5a0cbdd6ab4b1baef7aa at14:56:00Z after
+allfive exact-reviewed-headcc2681d8 CI37129553521 gates pass (0queue/1757runseconds).
+Normal squash matchhead/no bypass, canonicalcleanFF. This roster child reconciles
+onto that actual main merge; runtime/SDK/test files remain byte-identical todeec268b.
+Both unrelated CI proof steps are preserved; continuity combines receipts once
+and retains original historical records. Targeted reconciliation review precedes
+new exact-head CI. Original1443 review clock14:12:06Z/counters retained, necessary
+time extension authorized without repeat ask. Local235 installed by separate
+roster-owner-write work; this GET slice adds no schema. Prod001–225/sharedadmissionOFF.
