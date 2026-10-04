@@ -19,6 +19,20 @@ function fixture(options: {
   reply?: (row: Row, call: Call, index: number) => unknown;
 } = {}) {
   const tests = options.tests ?? [test()]; const enrollments = options.enrollments ?? [{ classroom_id: classroomId, student_id: studentId }]
+  // Index only static fixture parent identities, not participant eligibility or
+  // keyset results. Re-scanning every child for every parent/page made the real
+  // 100,000-row aggregate regression quadratic under full-suite coverage.
+  const childKinds = ['questions', 'attempts', 'responses', 'availability'] as const
+  const childrenByParent = new Map<string, Map<unknown, Row[]>>()
+  for (const kind of childKinds) {
+    const parents = new Map<unknown, Row[]>()
+    for (const row of options[kind] ?? []) {
+      const parentId = row.test_id
+      const rows = parents.get(parentId) ?? []
+      rows.push(row); parents.set(parentId, rows)
+    }
+    childrenByParent.set(kind, parents)
+  }
   const calls: Call[] = []
   const from = vi.fn(() => {
     const call: Call = { select: '', ops: [] }; calls.push(call)
@@ -47,9 +61,8 @@ function fixture(options: {
           row.tests = batch.map(t => {
             if (!call.select.includes('tests!tests_classroom_id_fkey!inner')) return t
             const parent: Row = { id: t.id, classroom_id: t.classroom_id, status: t.status, updated_at: t.updated_at }
-            for (const kind of ['questions', 'attempts', 'responses', 'availability'] as const) {
-              if (call.select.includes(`${kind}:`)) parent[kind] = value(`tests.${kind}`, 'id', (options[kind] ?? []).filter(r => {
-                if (r.test_id !== t.id) return false
+            for (const kind of childKinds) {
+              if (call.select.includes(`${kind}:`)) parent[kind] = value(`tests.${kind}`, 'id', (childrenByParent.get(kind)?.get(t.id) ?? []).filter(r => {
                 if (kind === 'questions') return true
                 if (r.student_id === actorId) return false
                 const joined = r.participant
@@ -77,6 +90,21 @@ const draft = { id: uuid(70), assessment_id: uuid(10), assessment_type: 'test', 
     correct_option: null, answer_key: 'private key', sample_solution: null, points: 1, response_max_chars: 5000, response_monospace: false }] } }
 
 describe('current owner Test list read', () => {
+  it('indexes mock child parent identities once while preserving interleaved keyset pages', async () => {
+    let parentLookups = 0
+    const questions = [30, 31, 32, 33].map((n, index) => ({ id: uuid(n), get test_id() { parentLookups++; return uuid(10 + index % 2) } }))
+    const f = fixture({ tests: [test(10), test(11)], questions })
+    async function page(cursor?: string) {
+      const query = f.from().select('tests:tests!tests_classroom_id_fkey!inner(id,classroom_id,status,updated_at,questions:test_questions!test_questions_test_id_fkey(id,test_id))')
+        .in('tests.id', [uuid(10), uuid(11)]).limit(1, { referencedTable: 'tests.questions' })
+      if (cursor) query.gt('tests.questions.id', cursor)
+      const result = await query.maybeSingle() as { data: { tests: { questions: { id: string }[] }[] } }
+      return result.data.tests.map(parent => parent.questions.map(question => question.id))
+    }
+    expect(await page()).toEqual([[uuid(30)], [uuid(31)]])
+    expect(await page(uuid(31))).toEqual([[uuid(32)], [uuid(33)]])
+    expect(parentLookups).toBe(questions.length)
+  })
   it('preserves the full Test DTO and all six stats without child data', async () => {
     const f = fixture({ questions: [{ id: uuid(30), test_id: uuid(10) }], attempts: [{ id: uuid(40), test_id: uuid(10), student_id: studentId, is_submitted: true, participant: participant() }],
       responses: [response(50, 0), response(51, null, 'more')], availability: [{ id: uuid(60), test_id: uuid(10), student_id: studentId, state: 'closed', participant: participant() }] })

@@ -210,3 +210,23 @@ browser, public-legacy or live race coverage is inferred from these helper cases
 Application behavior, admission, source caps and real20s deadline are unchanged.
 Final cumulative review, stable-head CI and normal main merge remain pending;
 no phase exit, shared schema application, production or rollout activation.
+
+## CI aggregate fixture correction
+
+The final cumulative source review at `728f58e7` was clean, but its exact CI failed
+one new aggregate-limit unit test at the unchanged5000ms test timeout under
+coverage. The PR returned to draft before correction. The mock repeatedly scanned
+100050 rows for50 parents on every page; a test-only parent index removes that
+quadratic scan while preserving all participant, pagination and overflow checks.
+An interleaved-page/index-read regression failed16-versus4 before the correction.
+Application/proof/native/CI/schema/dependency source, collection limits and real20s
+deadline remain unchanged; no timeout or coverage threshold was increased.
+
+Root44 read/route checks and294 focused/static checks pass. A first full local
+coverage attempt found only an installed-dependency mismatch: the locked braces
+patch directory contained unpatched code. A worktree-owned frozen locked reinstall
+restored the already-reviewed patch without changing package/config/patch source.
+Fresh full CI-equivalent coverage passed12343 tests, all thresholds, and1036 files
+(8 tests/2 files skipped by the existing command). These local results do not
+replace new fixed-head review/runtime-environment verification or required CI.
+Earlier CI/local failures remain historical; no main merge or rollout is claimed.
