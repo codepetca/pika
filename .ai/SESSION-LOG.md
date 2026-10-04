@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Detail1447 pending-parent238 preparation
-
-Prepared reviewed293d35cf locally on pending1448 head88a1bfd6, excludingoldparent
-a8c4e9b. Parent final cumulative review CLEAN and one readyCI37143487206 running
-per root handoff; parent is NOT merged, actual main remains2095/calendar1446.
-All10detail runtime/schema/helper/proof/test/guide files remain byte-identical.
-Whole incoming roster/calendar/removal/237238 SQL, scripts/tests, genuine generated
-and curated types remain unchanged. CI preserves whole parent plus original
-detail proof step; CI tests preserve whole parent roster/calendar/removal/remainder
-plus unchanged detail block. Main roadmap and original child paragraphs/receipts
-remain intact, with one explicit preparation receipt only. History multiset is
-88+293−a8+this one entry; removed ten proven surplus session copies whose complete
-original bodies remain in the archive. Official trim retains40recent entries.
-Canonical Prod DB 001–225 spacing and local001–238 context restored. No database,
-status, proof execution, type generation, stashes, network/publication/CI writes.
-Original review clocks/counters/extensions remain root-owned and unchanged.
-Actual-parent reconciliation, changed-base independent review, publication and
-detail exact-head CI remain required; sharedadmission/fullcutover/billingOFF.
-This is implementation preparation, not an independent review or phase completion.
-Focused against actualorigin/main2095 passes352tests/23files and architecture,
-UI/design policy, TypeScript and lint. Startup budget regression reproduced RED
-at16001chars; CURRENT-only shortening gives15986chars and GREEN56startup/CI/Bara
-tests. Actual-main-aware audit20files, diff/trim and full preservation verifier
-PASS. Evidence /private/tmp/pika-1447-pending-parent-reconcile.oDB0ec; full focused
-pika-focused-psfLyl. No migrations created/renamed,36unrelated stashes untouched.
-
 ## 2026-10-03 — Detail1447 actual removal238-main reconciliation
 
 Rebased prepared7b421097 onto verified actual1448 squash73a85f26 using reviewed
@@ -1098,3 +1072,13 @@ migration environment. Complete pending226–246 impact review is underway; no a
 fixture/reset/cleanup/flag change or deployment. Braces width/parent-cycle limits
 reproduced; temporary exception throughNov4 proposed, owner decision pending.
 Old local application authority remains consumed; immutable receipts retained.
+
+## 2026-10-04 — Audit continuity format correction
+
+Combined cadf CI37225590466 passed12,215 full tests with8 configured skips;
+one continuity parser failed because CURRENT lost its required Hosted: Prod DB
+prefix. Restored that machine-readable prefix with the fresh001–225 verification
+date; no product, migration, type, dependency or test assertion change.1463 returned
+to draft before correction. Independent targeted review and fresh exact-head CI
+remain required; original frozen receipts and full failure log are retained.
+No production apply, provider, canary, flags or deployment operation.
