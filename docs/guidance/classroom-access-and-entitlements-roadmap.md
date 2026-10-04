@@ -1218,15 +1218,17 @@ final source/parity checks and targeted review are clean. No production,
 migration, admission, account or provider action occurred. This completes only
 owner Test detail GET; all broader Tests operations and phase-exit gates remain.
 
-Next ready slice is [complete owner Test list GET](contextual-test-list-read.md),
+Current slice is [complete owner Test list GET](contextual-test-list-read.md),
 preserving the full existing DTO and six statistics. Isolated source preparation
 ran alongside1468 CI; current-owner/Test/current-enrollment statement binding,
 complete bounded pagination and draft/document compatibility are source-tested.
-Its separately finite disposable SDK proof is being prepared; source mocks do
-not establish that mechanism. Integrate onto verified main after writer handoff,
-then independent fixed-source review, explicit finite-manifest acceptance, actual
-normal/two forced runs, canonical equality and exact-head CI/main merge precede
-completion. No phase exit, home or cohort activation follows from this slice.
+PR1469's independently reviewed/accepted fixed `d82aa4e` passed eight actual SDK
+cases and both full-setup forced cleanup modes. Exact receipts and the SAME saved
+whole-canonical baseline match after every run; immutable001–246 were replayed
+only in disposable projects. Earlier failures remain recorded, not relabeled as
+passing runs. Final cumulative review, stable-head CI and normal main merge still
+precede completion. No phase exit, home or cohort activation follows from this
+slice, and no shared-local or production migration was applied.
 
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete

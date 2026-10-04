@@ -1,13 +1,15 @@
 # Contextual owner Test list read
 
-Status: source candidate on `codex/contextual-test-owner-list-read`, prepared
+Status: runtime-verified candidate on `codex/contextual-test-owner-list-read`, prepared
 against reviewed predecessor `039642ac26ac80e69737d714bf5f68ae8b721f9e` and integrated
 onto its identical-tree main merge before publication.
 PR1468 merged as `902cbf7617bc7f5e0788cfd01fd07d78f051c99c`; all five exact-head CI
 checks, reviewed/merged tree parity and clean canonical-main fast-forward passed.
 Both writers have relinquished their assigned files. Actual SDK execution requires
 independent fixed-source review and explicit coordinator manifest acceptance.
-Local schema001–243; production last verified001–225 remains untouched.
+Shared local schema001–243; disposable proof replays001–246. Production last
+verified001–225 remains untouched. Final cumulative review and exact-head CI/main
+merge are still required.
 This is an assessment-phase component, not phase-exit or rollout evidence.
 
 ## Approved boundary
@@ -188,3 +190,23 @@ status metadata now distinguish these failures without retaining messages, gette
 URLs, identities or rows. Original constructor/status/request-count/snapshot
 assertions, fixture footprint, SQL, sealed parser and deadlines are unchanged.
 Actual normal and both fully-set-up forced modes remain required.
+
+## Superseding runtime receipt
+
+The diagnostic correction passed independent Sol5.6/high review and explicit
+coordinator finite-manifest acceptance at `d82aa4e27072e580dd2520d1edf34f78cd766824`.
+Normal session77355 then passed all eight actual SDK cases with exact two PASS
+markers and no stderr. Both full-setup forced runs passed their expected exit1,
+exact cleanup-PASS/forced-FAIL marker pair and no unexpected output: after-fixture
+session32135 and before-capture session42314. Logs are private0600.
+
+Exact owned teardown and the SAME separately once-captured five-field canonical
+public/private/Storage rows,168 metadata, settings, cron and resource baseline
+passed after normal and each forced run; no recapture or baseline replacement.
+All immutable001–246 migrations were replayed only inside disposable projects.
+The previously recorded failures remain historical evidence, superseded only
+as current blockers by these complete actual receipts. No authenticated appHTTP,
+browser, public-legacy or live race coverage is inferred from these helper cases.
+Application behavior, admission, source caps and real20s deadline are unchanged.
+Final cumulative review, stable-head CI and normal main merge remain pending;
+no phase exit, shared schema application, production or rollout activation.

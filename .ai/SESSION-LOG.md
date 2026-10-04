@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — Responsive teacher attendance marking
-
-Removed roster-wide mark locks. Feature-owned optimistic queue saves independent students concurrently, orders overlapping corrections, protects projections from stale reads, and rolls back only failed/unsaved rows; navigation detaches presentation while accepted writes continue in order and outstanding projections survive re-entry. Manual and integrated controllers share the queue; Live now reuses the integrated controller while preserving its open/closed gate and table presentation. Commit receipts release writes immediately; roster reads run in the background after the queue drains.
-
-UI brief: existing Attendance table + Pattern Lab status-colors reference; reuse status controls, extend controller behavior, create shared feature queue for manual/integrated adopters. Teacher desktop/mobile light/dark; student n/a (no student rendering changes). Default, keyboard focus, optimistic concurrent saves, same-row corrections, failure/recovery checked. Primary signal remains pressed status dot; no new visual pattern. Composite checklist reviewed, keyboard/semantic coverage present, no manual follow-up.
-
-Evidence: focused 254 tests and static checks passed; targeted controller/component/queue tests passed; Playwright 20/20 across four projects, screenshots inspected (local test-results and /tmp/pika-attendance-{manual,integrated,live}-matrix.png). Independent review found manual settings appeared enabled while mark saves blocked their writes; settings controls now visibly disable while row corrections remain available. Component regression plus four manual browser/theme scenarios passed; pending-settings screenshots inspected. Audit passed. Cumulative review found navigation could drop an accepted queued correction; retained per-scope queues now detach UI callbacks without cancelling writes. Four controller date/activity regressions and 12 browser date-return scenarios passed; returned-pending screenshots inspected. Reviews clean through main sync atc99fbdb4. CI37034538288 passed full tests/build and database contracts, but four compact Live browser cases used a fixed roster date against the real selected date. Fixture now echoes the requested date, preserving the controller scope guard; all four scenarios pass locally. Final fixture re-review/CI follows in draft PR1430; no migration/deployment.
-
 ## 2026-10-02 — Attendance approved merge synchronization
 
 Owner approved one additional journal reconciliation, targeted review and CI cycle after the bounded review checkpoint. Rebased PR1430 onto main25cc0691 (renewal closeout); preserved both archive histories and removed only duplicate blocks introduced by conflict resolution. All attendance source and tests remain byte-identical to reviewed8bc09489. Prior exact-head CI37038675999 passed every selected lane and PR Gate. Fresh focused verification, the single approved targeted review, final exact-head CI and main merge remain gated. Risk profile:workspace-state. Model recommendation:GPT-6.1 Sol/high for bounded synchronization compatibility.
@@ -1019,3 +1011,18 @@ rerun; original clock/counters/direct waiver retained. No prod/sharedmigration/
 accounts/providers/admission/activation; active/tokens unknown.
 RED diagnostic12/12failed, then snapshot-step2RED; fullfocused293tests/15files and
 allstatic gates PASS with13new regressions (83 proofchecks selected by focused).
+
+## 2026-10-04 — Owner Test list actual runtime closure
+
+Sol5.6/high diagnostic review CLEAN at exactd82aa4e; root accepted unchanged finite
+fixture/inventory/native/source246 manifest before normal77355. Actual normal
+EXIT0/eight SDK cases/exact2PASSmarkers/no stderr; after-fixture32135 and
+before-capture42314 fullsetup forced modes each expectedEXIT1/exactcleanupPASS+
+forcedFAIL/no unexpectedoutput. All0600 receipts verified; same independent
+once-captured wholecanonical public/private/Storage/168/settings/cron/resources
+baseline PASS after everyrun, exactownedteardownPASS. Earlier failures preserved;
+no recapture or sharedlocal/prod/schema/account/provider/admission/activation.
+Facts-only final candidate is next: cumulative independent Sol5.6/high review,
+stable reviewedSHA exactCI and normal mainmerge remain gates. Component/phase/goal
+not complete. Counters9launch/7target/0final/7fix and original clock/taskstop waiver
+retained; weekly69remaining observed, attributable active/tokens unknown.
