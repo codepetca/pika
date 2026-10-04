@@ -1,9 +1,9 @@
 # Contextual Assignment open — locked Classwork visibility
 
-Status: source-only implementation reconciled onto actual1455 merge97e16dec.
-Migration240 is UNAPPLIED. A draft freezes source for independent review; local
-preview/application, database proof and generated-contract verification precede
-ready/exact-head CI and merge.
+Status: draft1456 reconciled onto actual1455 merge97e16dec. Initial independent
+security and compatibility reviews are CLEAN atf0567a3c. Migration240 is applied
+locally; database, generated-contract and isolated replay/cleanup checks pass.
+The final receipt-only review and stable-head CI remain ready/merge gates.
 Production and shared admission/page/home/cutover remain unchanged and OFF.
 
 ## Bounded compatibility contract
@@ -78,3 +78,27 @@ in37178120557 passed (0queue/1817runseconds), normal squash merged97e16dec at
 2026-10-04T05:21:54Z. Squash tree equals reviewed tree; canonical main cleanFF.
 This child rebase is conflict-free and byte-preserves executable source. No240
 application, runtime, review or production receipt is implied by the parent merge.
+
+## Superseding local receipt — 2026-10-04 Toronto
+
+At the fixed reviewedf0567a3c source, the canonical local target's history was
+exact001–239 with only240 pending; dry-run listed only240. One normal local
+application succeeded, then exact001–240 history was verified. The migration
+SHA256 remainsadc6d0a2af866d9c4f2cba94f410a5aa7ea27c524070ddf6add3c16b178473c4.
+Actual type regeneration and verification pass with zero generated-file drift.
+The reviewed rollback-only harness passes hidden missing/existing document,
+whole-row/history/outbox preservation, defaults, mixed roles, owner precedence
+and nonvacuous legacy/membership-Pal controls. Its fixture/settings changes roll
+back; the immutable168 guard stays enabled. The unchanged open atomicity harness
+and all five existing concurrency scenarios pass. Those scenarios cover removal,
+archive, draft, duplicate opens and open-wins, not a two-session visibility race.
+
+The disposable SDK lifecycle actually replayed001–240 at the same clean head:
+eight student-detail cases and six live detail revocations plus the existing list
+cases/revocations pass. Both after-fixture and before-capture forced failures
+exit exactly1 with only the expected failure and successful cleanup markers;
+0600 receipts are retained privately. Exact teardown and complete canonical
+public/private/Storage, metadata/settings/cron and resource fingerprints remain
+unchanged. Existing empty supplement collections still do not prove nonempty
+feedback/artifact/repository payloads or live signing. No production or rollout
+change occurred. Local application evidence does not replace required final CI.

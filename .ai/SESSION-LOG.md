@@ -932,3 +932,14 @@ remainsUNAPPLIED. Follow normal draft-first stable-source review BEFORE actual
 local operations; DB proof/types gates block ready. Weekly13% remains, ordinary
 usageallowed/no warning/spendlimit; DeepSeek pause honored, boundedreview/no duplicate
 waves. No production/rollout/account/billing/provider changes.
+
+Superseding local240 receipt: initial Sol security and Sol compatibility fallback
+reviews CLEAN atf0567a3c. Exact local001239 history/only240 preview, one normal
+apply, exact001240 history and actual type generation/check PASS; no generated
+drift. Reviewed rollback-only Classwork/Pal controls, original open atomicity and
+five concurrency scenarios PASS (not a two-session visibility race). Fresh
+isolated001240 replay:8detailSDK/6rev plus existinglistcases/revocations PASS;
+both forcedmodes exit1/exact2markers/0600receipts, exactteardown/fullcanonical
+fingerprints unchanged. Nonempty supplements/signing unproved; receiptreview/CI
+next. Separate child learner-open worktree/source worker prepares shared GET only;
+no live worker operations, source remains dormant. Production/admission/cutoverOFF.

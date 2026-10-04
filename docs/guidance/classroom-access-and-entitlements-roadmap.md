@@ -1025,6 +1025,18 @@ and all001239SQL/fixtureDML/platform/cleanup authority remain unchanged; only th
 explicit reviewed replay floor advances to240. Sibling learner write/history/
 artifact visibility and shared GET supplements remain separate integration work.
 
+Superseding240 receipt: draft1456 initial independent security/compatibility
+reviews CLEAN atf0567a3c. Exact local preview listed only240; one application
+succeeded and exact001–240 history/type regeneration/check pass without generated
+drift. The reviewed rollback-only Classwork/Pals fixture, existing open atomicity
+and all five existing concurrency scenarios pass. A fresh disposable001–240 SDK
+replay passes eight detail cases/six detail revocations plus existing list cases/
+revocations; both forced cleanup modes exit1 with only expected markers and
+unchanged whole canonical fingerprints/exact teardown. Two-session visibility
+races and nonempty supplements remain unproved. Receipt-only review/exact-head
+CI/mainmerge remain gates. Production/admission/home/cutover unchanged. A separate
+child worktree prepares the dormant shared learner GET; it cannot activate it.
+
 Remaining batch-2 groups, in integration order: Assignment detail/open
 enrichments; Tests owner operations then learner participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading
