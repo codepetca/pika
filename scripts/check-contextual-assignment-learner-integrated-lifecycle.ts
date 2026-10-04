@@ -210,6 +210,16 @@ export function integratedForcedReceipt(mode:string,error:unknown,extensionCompl
     return {stdout:cleanupMarker,stderr:`FAIL forced isolated assignment-learner-integrated lifecycle: ${mode}.\n`,exitCode:1}
   return null
 }
+/** Closed labels only: never serialize underlying errors, IDs, credentials or bodies. */
+export function integratedFailureDiagnostic(error:unknown,step:string) {
+  const stages=new Set(['canonical-before','inventory','prepare','pre-start','start','capture','status','fixture','cases','revocations','after-fixture','before-capture'])
+  const steps=new Set(['not-started','guard','extension-sql','open-create','open-repeat','reserve-object','upload-bytes','finalize-inline','verify-upload','mark-ready','upsert-artifact','setup-complete','supplements','inline-positive','open-denials','inline-denials','matrix-complete'])
+  const failure=error instanceof AssignmentListLifecycleError?error:null
+  const stage=failure?.primary&&stages.has(failure.primary.stage)?failure.primary.stage:'unknown'
+  const safeStep=steps.has(step)?step:'unknown'
+  const cleanup=failure?failure.cleanupFailures.length?'present':'none':'unknown'
+  return `DIAG isolated assignment-learner-integrated stage=${stage} step=${safeStep} cleanup=${cleanup}.\n`
+}
 
 export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)) {
   const input=parseAssignmentListLifecycleArgs(args)
@@ -220,6 +230,7 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
   const native=createAssignmentListNativeAdapters(original); const originalSetup=assignmentListFixtureSetupSql(original,projectId)
   const extensionSql=integratedSetupSql(f,projectId); const extensionHash=integratedDigest(extensionSql)
   const documents:CreatedDocuments=new Map(); let target:Target|undefined; let bound:Session|undefined; let extensionComplete=false; let observed=0
+  let extensionStep='not-started'
   const artifactReceipts=new Map<string,string>()
   let resourceClosure:Awaited<ReturnType<AssignmentListLifecycleAdapters['inventory']>>['resources']|undefined
   const originalPal=process.env.PAL_ENABLED; process.env.PAL_ENABLED='false'
@@ -284,26 +295,38 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
     transport.assertNoPendingRpc(); return access
   }
   async function setup() {
+    extensionStep='guard'
     assert.equal(integratedDigest(extensionSql),extensionHash); await guard(); assert(bound)
+    extensionStep='extension-sql'
     await native.executeSql({...bound,sql:extensionSql})
     for(const index of [0,1]) {
+      extensionStep='open-create'
       const body=await open(index); assert(body.wasFirstView)
       const receipt=transport.takeCreatedReceipt(f.assignments[index].id);assert.equal(receipt.id,body.doc.id)
       acceptCreatedDocument(f,documents,receipt)
+      extensionStep='open-repeat'
       const repeated=await open(index); assert.equal(repeated.doc.id,body.doc.id); assert.equal(repeated.wasFirstView,false); observed+=2
     }
     for(const object of f.objects) {
       const a=f.assignments[object.index]; const path=integratedObjectPath(f,documents,object); const docId=integratedDocId(f,documents,object.index)
+      extensionStep='reserve-object'
       await rpc('begin_managed_storage_upload',{p_object_id:object.id,p_storage_bucket:object.bucket,p_storage_path:path,p_classroom_id:a.classroomId,
         p_course_blueprint_id:null,p_provisional_owner_id:null,p_purpose:object.bucket==='submission-images'?'student_inline_image':'student_assignment_artifact',
         p_created_by_user_id:a.actorId,p_data_subject_user_id:a.actorId,p_resource_type:'assignment_doc',p_resource_id:docId,p_content_type:'image/png',p_byte_size:INTEGRATED_PNG.length})
+      extensionStep='upload-bytes'
       const upload=await client.storage.from(object.bucket).upload(path,INTEGRATED_PNG,{contentType:'image/png',upsert: false}); assert(!upload.error&&upload.data?.path===path)
-      if(object.bucket==='submission-images'&&[1,2].includes(object.index)) await rpc('finalize_assignment_inline_image_for_member_v1',{
-        p_actor_id:a.actorId,p_expected_classroom_id:a.classroomId,p_assignment_doc_id:docId,p_managed_object_id:object.id})
-      else await rpc('verify_managed_storage_upload',{p_object_id:object.id,p_content_sha256:integratedDigest(INTEGRATED_PNG)})
-      if(object.ready) await rpc('managed_storage_mark_ready',{p_object_id:object.id})
+      if(object.bucket==='submission-images'&&[1,2].includes(object.index)) {
+        extensionStep='finalize-inline'
+        await rpc('finalize_assignment_inline_image_for_member_v1',{
+          p_actor_id:a.actorId,p_expected_classroom_id:a.classroomId,p_assignment_doc_id:docId,p_managed_object_id:object.id})
+      } else {
+        extensionStep='verify-upload'
+        await rpc('verify_managed_storage_upload',{p_object_id:object.id,p_content_sha256:integratedDigest(INTEGRATED_PNG)})
+      }
+      if(object.ready) {extensionStep='mark-ready';await rpc('managed_storage_mark_ready',{p_object_id:object.id})}
     }
     for(const requirement of f.requirements.filter(r=>r.type==='image')) {
+      extensionStep='upsert-artifact'
       const index=f.assignments.findIndex(a=>a.id===requirement.assignmentId); const object=f.objects.find(o=>o.bucket==='assignment-artifacts'&&o.index===index)!
       const result=await rpc('upsert_assignment_artifact_for_member_v1',{p_actor_id:f.assignments[index].actorId,p_assignment_id:requirement.assignmentId,p_requirement_id:requirement.id,
         p_type:'image',p_url:null,p_storage_path:integratedObjectPath(f,documents,object),p_metadata_json:{},p_validation_status:'valid',p_validation_message:null,
@@ -318,9 +341,10 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
       assert(!f.allocatedIds.includes(artifact.id)&&!f.originalAllocatedIds.includes(artifact.id)&&![...artifactReceipts.values()].includes(artifact.id))
       artifactReceipts.set(requirement.id,artifact.id)
     }
-    await guard(); extensionComplete = true
+    await guard(); extensionComplete = true;extensionStep='setup-complete'
   }
   async function cases() {
+    extensionStep='supplements'
     for(const index of [1,2,3]) {
       const before=await snapshot(integratedDocId(f,documents,index))
       const body=await open(index); assert.equal(body.doc.id,integratedDocId(f,documents,index))
@@ -337,6 +361,7 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
       assert.equal(await snapshot(integratedDocId(f,documents,index)),before)
       observed++
     }
+    extensionStep='inline-positive'
     for(const index of [1,2,3,4,5,6]) {
       const object=f.objects.find(o=>o.bucket==='submission-images'&&o.index===index)!
       for(const actorId of [...(index<=2?[]:[f.actors[0].id]),...(index<4?[f.assignments[index].actorId]:[])]) {
@@ -347,17 +372,20 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
         await fetchSignedBytes(transport,url,object.bucket,integratedObjectPath(f,documents,object)); assert.equal(await snapshot(),before); observed++
       }
     }
+    extensionStep='open-denials'
     for(const index of [4,5,6,7]) {
       const before=await snapshot(); const storage=transport.counts.storage; const rpcCount=transport.counts.rpc
       await assert.rejects(()=>open(index),error=>error instanceof ApiError&&error.statusCode===404)
       await assert.rejects(()=>open(index,f.actors[0].id),error=>error instanceof ApiError&&error.statusCode===403)
       assert.equal(transport.counts.storage,storage); assert.equal(transport.counts.rpc,rpcCount); assert.equal(await snapshot(),before); observed+=2
     }
+    extensionStep='inline-denials'
     for(const [index,actorId,wrong] of [[2,f.actors[3].id,false],[2,f.actors[2].id,false],[2,f.actors[0].id,false],[4,f.actors[1].id,false],[5,f.actors[1].id,false],[6,f.actors[1].id,false],[2,f.actors[1].id,true]] as const) {
       const before=await snapshot(); const storage=transport.counts.storage
       assert.equal(await inline(index,actorId,wrong?f.objects.find(o=>o.bucket==='assignment-artifacts')!:undefined),null)
       assert.equal(transport.counts.storage,storage); assert.equal(await snapshot(),before); observed++
     }
+    extensionStep='matrix-complete'
   }
   try {
     await runAssignmentListEphemeralLifecycle({fixture:original,projectId,workdir:assignmentListProofWorkdir(projectId),migrations:loadAssignmentListReviewedMigrations(repository),mode:input.mode,
@@ -380,6 +408,7 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
   } catch(error) {
     const receipt=integratedForcedReceipt(input.mode,error,extensionComplete)
     if(receipt){process.stdout.write(receipt.stdout);process.stderr.write(receipt.stderr);process.exitCode=receipt.exitCode;return}
+    process.stderr.write(integratedFailureDiagnostic(error,extensionStep))
     throw new Error('Integrated lifecycle failed; private details withheld')
   } finally { if(originalPal===undefined)delete process.env.PAL_ENABLED;else process.env.PAL_ENABLED=originalPal }
 }

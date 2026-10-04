@@ -6,7 +6,7 @@ import { newAssignmentListProofFixture } from '../../scripts/contextual-assignme
 import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { INTEGRATED_CAPS, INTEGRATED_PNG, newIntegratedLearnerFixture, integratedSetupSql, integratedDigest,
   acceptCreatedDocument, integratedObjectPath } from '../../scripts/contextual-assignment-learner-integrated-proof-fixture'
-import { createIntegratedTransport, fetchSignedBytes, integratedForcedReceipt } from '../../scripts/check-contextual-assignment-learner-integrated-lifecycle'
+import { createIntegratedTransport, fetchSignedBytes, integratedForcedReceipt, integratedFailureDiagnostic } from '../../scripts/check-contextual-assignment-learner-integrated-lifecycle'
 
 const runnerPath = 'scripts/check-contextual-assignment-learner-integrated-lifecycle.ts'
 const fixturePath = 'scripts/contextual-assignment-learner-integrated-proof-fixture.ts'
@@ -64,6 +64,13 @@ function fixture() {
   return {original,f,documents,projectId,target,headers,guard,fetcher,transport}
 }
 describe('finite integrated fixture and real transport boundary',()=>{
+  it('reports only closed lifecycle stage and setup step after unexpected failures',()=>{
+    const failure=new AssignmentListLifecycleError({stage:'fixture',error:new Error('SECRET token and body')},[])
+    expect(integratedFailureDiagnostic(failure,'extension-sql')).toBe('DIAG isolated assignment-learner-integrated stage=fixture step=extension-sql cleanup=none.\n')
+    const untrusted=new AssignmentListLifecycleError({stage:'SECRET signed URL',error:new Error('SECRET')},[{stage:'SECRET',error:new Error('SECRET')}])
+    expect(integratedFailureDiagnostic(untrusted,'SECRET')).toBe('DIAG isolated assignment-learner-integrated stage=unknown step=unknown cleanup=present.\n')
+    expect(integratedFailureDiagnostic(new Error('SECRET'),'not-started')).not.toContain('SECRET')
+  })
   it('is disjoint, deterministic and preserves the original fixture',()=>{
     const original=newAssignmentListProofFixture();const before=JSON.stringify(original)
     const f=newIntegratedLearnerFixture(original)

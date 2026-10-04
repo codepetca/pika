@@ -70,6 +70,16 @@ with all32 after permitting only equality to the current manifest Assignment;
 cross-Assignment substitution still fails before dispatch. This proof-only
 correction requires targeted review before runtime, despite initial CLEAN.
 
+Superseding runtime attempt: targeted review of5114fff5 CLEAN; root accepted only
+the reviewed disposable-local finite generator/template and exact request manifest.
+The first normal run exited1 with a closed generic failure; independent whole
+canonical public/private/Storage row/guard/settings/cron/resource fingerprints
+were unchanged afterward. The actual SDK matrix is NOT proved and forced modes
+did not start. A proof-only diagnostic now emits only closed stage/step/cleanup
+labels, never underlying errors, identities, tokens, URLs or bodies. Its new
+regression failed1/32pass before implementation. Review this diagnostic correction
+before another run; no retry expands SQL/Storage authority or weakens cleanup.
+
 Both historical member-role labels: real SDK open creates one own document and
 persists first view; repeat returns the same ID/false without duplication. Existing
 unviewed/returned documents exercise view without creation and preserve protected
