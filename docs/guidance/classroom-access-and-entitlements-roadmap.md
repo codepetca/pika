@@ -985,6 +985,32 @@ finding and a real sparse-history pagination issue were corrected without new
 SQL or relaxed limits. Final cumulative review and exact-head CI/mainmerge
 remain gates; shared admission, home cutover and production remain untouched.
 
+Superseding overview receipt:1454 merged9591ee1e at2026-10-04T04:27:09Z after
+all five exact-reviewed-headf93a411e CI37175526420 gates pass (0queue/1754runseconds).
+Normal squash tree equals reviewed tree; canonical main cleanFF. Production and
+all admission/cutover gates remain unchanged.
+
+The next bounded [owner student-detail GET](contextual-assignment-student-detail-reads.md)
+is reconciled onto actual1454 merge9591ee1e. It preserves complete sensitive
+owner-work fields and proves both current ownership and exact nonowner target
+enrollment at every payload/page/terminal/final statement, including before image
+signing. No migration, provider operation, UI or admission activation is included.
+Publication/review follows actual1454 merge and base reconciliation. Its new
+isolated observer reuses the immutable list fixture/platform and exact existing
+owner-transfer/member-removal SQL at six detail first/later/terminal boundaries;
+the original list observer owns the single restoration and fingerprint checks.
+Offline proof/serial-CI guards pass24 tests. Superseding receipt:1455 initial
+security/compatibility reviews CLEAN at4716a817; actual isolated eight detail SDK
+cases/six live revocations plus existing nine list cases/fourteen revocations and
+both forced cleanup modes PASS, including unchanged full canonical fingerprints.
+384focused/8skip/all static gates pass; documentation re-review and exact-head
+CI/mainmerge remain gates. Empty artifact/feedback/repository fixture
+collections do not prove nonempty supplements or live Storage signing.
+The same slice closes1454's non-blocking exhausted-bound signing follow-up with
+a lazy overview request and two installed-SDK RED-to-GREEN zero-late-POST tests;
+no DTO/query/relationship/limit change. This correction is required before
+admission/cutover activation; it is not a deployment or live-signing claim.
+
 Remaining batch-2 groups, in integration order: Assignment detail/open
 enrichments; Tests owner operations then learner participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

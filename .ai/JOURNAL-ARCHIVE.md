@@ -35735,3 +35735,28 @@ matches its previous candidate exactly. Only continuity/merge receipts change.
 Main retarget, changed-base review where needed, and final exact-head CI still
 precede child merge. Parent worktree retained while dependents remain. Shared
 admission/cutover OFF; no provider/account/plan/billing activation.
+
+<!-- pika-session-log-archive-batch:38f6b335361f7e0b14f2011c25b95e039e39301b0601af3742bea7f1b12caff3 -->
+## 2026-10-03 — Shared roster management read preparation
+
+Owner explicitly authorized remaining in-scope implementation, reviews, normal
+main merges, local migrations and review extensions without repeated prompts.
+Original review counters remain and absolute hard caps/checks still apply.
+Attached contextual-roster-management-read prepares only the shared owner GET:
+auth before admission/params, current-owner classroom-rooted UUID keyset pages,
+real roster-binding/enrollment-user evidence, strict safe output and unchanged
+legacy/purge mutation contracts. Multiple legitimate roster rows bound to one
+learner remain displayable; availability deduplicates canonical eligible IDs.
+Native source and installed-SDK proof workers own disjoint files; coordinator
+owns actual local execution, CI, docs, independent review and merge evidence.
+No new schema/types/UI, production/provider/account/plan or admission activation.
+Roster write fences and class-day/core reconciliation remain in batch1; linked
+Blueprint material read work is batch3-adjacent, not full-phase completion.
+
+407 focused tests/21files and all static/lint gates pass. Actual local installed
+SDK normal proof passed >1000 learners/bindings/pages, duplicate stable display,
+both global-role owners, archived/removed/member policy, current-owner change
+before first/later/terminal roster and enrollment pages, actual-array corruption
+and exact safe projection. Forced post-fixture proof exited1 with its expected
+error and exact zero-residual/global baseline cleanup sentinel. No SQL application
+or hosted changes; independent review/final stable-head CI still required.
