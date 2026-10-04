@@ -966,3 +966,12 @@ finalcumulative/CI/mainmerge next. Separate source-only worker prepares241 save/
 submit/unsubmit/preflightClassworkguards fromactualc7main; rootownsGit/runtime/review,
 no workerliveoperations. Local240/prodlast225/admission/cutover/account/billing/provider
 unchanged;241UNAPPLIED. Branches and critical roster-owner node_modules retained.
+
+Superseding CI receipt: finalcumulative97a8950e CLEAN/136tests; exactreadyrun
+37184696910 Test&Build passes11781tests but one Bara documentation parser fails
+on CURRENT's compressed `Prod last` prefix. PR returned to draft before correction.
+Local original four-case suite reproduces1RED; third batch restores exact
+`Prod DB 001–225` prefix with last-verified annotation, keeps production evidence
+unchanged and preserves the original parser/test/gate. No executable source change
+or new runtime/production/activation operation. Targeted mechanical review and
+new stable-head CI required; original06:31:48clock/counters and absolutecaps remain.
