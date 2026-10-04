@@ -43,6 +43,8 @@ describe('isolated assignment-list fixture source contracts', () => {
     expect(plan.config).not.toContain('54321')
     expect(plan.config).not.toContain('54322')
     expect(plan.config).toContain('shadow_port = 54340')
+    expect(plan.config).toContain('[analytics]\nenabled = false')
+    expect(plan.config).toContain('[edge_runtime]\nenabled = false')
     expect(plan.config).toContain('project_id = "' + project + '"')
     expect(plan.reviewRequirements.join(' ')).toMatch(/named volumes/)
   })

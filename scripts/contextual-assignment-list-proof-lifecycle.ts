@@ -49,6 +49,10 @@ enabled = false
 enabled = false
 [realtime]
 enabled = false
+[analytics]
+enabled = false
+[edge_runtime]
+enabled = false
 [storage]
 enabled = true
 [auth]
