@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Roster1445 actual-main reconciliation after class-day1444
-
-PR1444 merged actual maina8c4e9b2 at16:04:51Z after all fiveCI37133784223 gates.
-Rebased1445 from reviewed a7613a5f onto that actual main. Conflicts only in
-roadmap/current/CI/archive continuity; every reviewed feature source/proof/test,
-generated/curated contract and installed235 byte remains unchanged, alongside
-all main read files and every main/child CI step. Removed only three surplus
-exact historical session copies already preserved in the archive; original
-entries and combined main+child−base historical multiplicities are retained.
-Original review clock/counters remain. Changed-base integration review and fresh
-exact-head CI precede merge. Local001–236 includes separate unmerged removal
-work; production001–225/sharedadmission/fullcutoverOFF.1441–1444merged;
-1445rebased awaiting integration/1446prepared/removal1448draft/detail1447draft.
-No SQL application, DB proofs/reset/reseed or types regeneration performed.
-Focused checks against actual main pass273tests/17files plus architecture,
-UI/design policy, TypeScript and lint. Initial startup-summary budget excess
-was compacted; source preservation, history multiplicities and diff checks pass.
-
-## 2026-10-03 — Roster1445 CI handoff-prefix correction
-
-Exact-head CI37136155311 on reviewed a9613f46 passed10431 tests but failed one
-attendance migration-state documentation contract: CURRENT compacted the required
-`Prod DB 001` prefix to `Prod DB001`. Returned1445 to draft before correction.
-Batch4 restores that single space and records the actual draft status; production
-225/local236 and every rollout control remain unchanged. No runtime, SQL, generated
-types, dependency or test assertion was changed. Original review clock and counters
-retained; narrow independent documentation recheck and focused checks precede the
-replacement exact-head ready CI. Other original CI jobs are allowed to finish for
-observed receipts; no duplicate watcher or dispatch.
-
 ## 2026-10-03 — Shared calendar owner-write source and local verification
 
 Disjointchild of reviewed1444d8c828ad adds onlysharedPOST/PATCH/calendaradapter,
@@ -969,3 +939,67 @@ identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clo
 5launch/1target/2batch retained; factual receipt batch/finalcumulative/CI next.
 Productionlast225/admission/home/cutover/account/billing/provider unchanged;
 batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
+
+## 2026-10-04 — Supplemental learner permission source preparation
+
+1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
+single eligible CI37188214976 running with Test&Build/browser PASS, database/PRGate
+pending. Reviewed1458source frozen; next branch depends on that exact commit,
+not yet an actual merged parent. Local241/prodlast225 unchanged.
+
+Bounded6.1Sol/high worker relinquished only242SQL/structuraltest/rollbackharness.
+Four complete latest214/213 definitions preserve byteparity after onlylocked
+visibility additions; owner-history exception and member-only42501 precedence
+remain.21new/80related workerchecks PASS; root65related PASS, inspected harness,
+removed onlycosmetic trailing blankline, SQLdigest unchanged
+48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e.
+NewserialCI/floor regression23RED then61GREEN.242UNAPPLIED; all001241SQL and
+isolatedfixture/transport/transitions/restoration/cleanup authority unchanged.
+Harness PREPARED NOTRUN: exactcanonical/c242sc242 collisionguards/BEGINROLLBACK/
+168169ON/settingscronACL unchanged; synthetic Storage metadata only, no physical
+bytes/API/network/cleanup/activation. Outsider/crosssubject checks are notsameactor
+revocation; actualremoval/concurrency remains integrationwork. Solelatest213
+imageREAD lacksClasswork concealment and is explicit separate prerequisite;
+current4function slice doesnotclaim otherwise. Rootowns Git/review/application/
+types/runtime/CI; actualparentmerge/reconcile beforepublication. Sharedadmission/
+home/cutover/account/billing/providerOFF; assessmentphase/epic incomplete.
+
+Superseding parent receipt:1458 reviewed28e8af46 merged61c44aec at08:38:57Z,
+exactCI37188214976/all5PASS (0queue/1426runseconds), including actual unchanged
+save concurrent-authorization and new241rollback steps. Normal squash exacthead,
+reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
+13files plus architecture/UI/design/TypeScript/lint PASS for prepared242 branch.
+Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
+without stashing/popping unrelated entries, then frozen initial review/runtime.
+Production/admission/cutover/provider/account/billing unchanged.
+
+## 2026-10-04 — Supplemental learner local verification on actual main
+
+1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
+source tree; root168focused/static/47Bara/startup/audit PASS. Distinct5.6Sol/high
+initial reviews: securityCLEAN, compatibilityP1validpurged168 NULLscope disappears
+under NOT IN after fixture creation. Both baseline snapshots use correlated
+NOT EXISTS; meaningful1RED/21PASS→22GREEN. Source-only targeted reviewCLEAN.
+242 applied once locally, exact001–242history, genuine typesgenerate/check zero
+drift; SQLdigest48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e
+immutable/no reapplication. Actual PostgreSQL caught unparenthesized CASE in the
+new regression then original compatibility assertions. Root audited allCASE sites,
+two additional proof-only batches/regressions/targeted reviewsCLEAN; each failed
+transaction rolled back and wholecanonicalbaselinePASS. No SQL/application/control
+change, gate weakening or cleanup workaround. Original08:43clock/counters retained.
+
+Runtime d5dea393 new242/allsevenwrapper concealed+visible/ownerhistory/revision/
+restore/submission/nonemptyartifact/inlineeffects PASS; unchanged188189history and
+190artifact rollback contracts PASS. Fullcanonical public/private/Storage counts+
+digests/168metadata/settings/cron/resources unchanged. Full213inline script includes
+committed race fixture: finalCI ephemeral-only, never run on canonical retained
+identities. Strict001242 isolated replay9learnerprojections/6originalrevocations
+plus original listcontrols PASS; nine sealedRPCstubs falsecreated/view, zero actual
+openRPC/Storage/provider network. Bothforcedmodes exit1/exact2markers/teardown/full
+canonicalPASS, private0600 receipts UhgV7p/o2i0fH. Originalobserver authority unchanged;
+no realopen/nonemptySDKsupplements/liveSigning/authHTTP/browser/concurrentvisibility
+proof. Factualreceipt batch/finalcumulative/CI/mainmerge next. Latest213imageREAD
+concealment remains nextbounded prerequisite; assessments/goal incomplete. Local242/
+main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
+worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
+and localmigration override retained; no bypass or production permission inferred.
