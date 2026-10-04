@@ -1,10 +1,14 @@
 # Contextual Assignment learner writes — locked Classwork visibility
 
-Status: candidate241 is prepared from actual mainc7e5a487, not applied. Local/main
-history is001–240; production is last verified001–225, not freshly queried here.
+Status:241 applied once locally after clean source review, reconciled with actual
+main2595c775 (1457 merged). Local001–241/main001–240; production is last verified
+001–225, not freshly queried here. Initial security/compatibility and targeted
+proof correction reviews are clean. Genuine types generate/check have zero drift;
+new and unchanged save rollback harnesses, complete canonical baseline and strict
+001–241 isolated replay/forced-failure teardown checks pass. Final cumulative review
+and exact reviewed-head CI/mainmerge remain required.
 No application consumer, admission, UI, account, billing or provider activation
-changes. Independent source review and local database/type/runtime proof remain
-required before ready/CI/mainmerge. This does not close batch2 or the full goal.
+changes. This does not close batch2 or the full goal.
 
 ## Exact compatibility boundary
 
@@ -51,13 +55,32 @@ Existing isolated observers explicitly replay001–241 after review; no future S
 is silently accepted. Only their floor and matching offline fixture count change.
 All001–240 SQL, fixture DML, resource identities, transport containment, allowed
 transitions, restoration and teardown authority stay unchanged. Actual replay,
-both exact forced-failure cleanup receipts and canonical fingerprints are still
-required; structural/offline tests are not those receipts.
+both exact forced-failure cleanup receipts and canonical fingerprints are required;
+structural/offline tests are not those receipts. Runtimecc206cce replay passed nine
+learner read/projection cases and six original revocations, preserving the original
+list cases/revocations. Nine sealed open RPC stubs used created=false/view=false;
+zero actual open RPC/Storage/provider network calls are claimed. Both forced modes
+returned exactly exit1/two expected markers, with exact teardown and unchanged
+complete canonical baseline. Private0600 receipts remain at
+`/private/tmp/pika-learner-open-cleanup.oe8GJq` and
+`/private/tmp/pika-learner-open-cleanup.mZNJ54`.
+
+The first rollback fixture run failed on five invalid null due dates after241
+application and genuine types had succeeded; transaction rollback and separate
+complete canonical baseline check passed. A two-file proof-only regression-first
+fix preserves the schema/auth/capture/cleanup boundary. Targeted21-case review is
+clean; actual new241 and unchanged save rollback harnesses then passed, with
+nonempty artifact freeze/preflight and nonvacuous legacy/membership Pal controls.
+All complete canonical public/private/Storage row fingerprints and immutable
+168 metadata/settings/cron/resources match the preapplication baseline.
 
 Root owns the single exact local application, genuine generated-type checks,
 runtime operations, review budgets and normal merge. No production operation is
 authorized by this preparation. One-session rollback tests do not prove a
 two-session visibility-change race. Existing save/concurrency behavior must be
-rechecked. Sibling history/restore/artifact/inline visibility, actual integrated
+rechecked in final CI's ephemeral database. The committed-fixture concurrency
+script was deliberately not run on canonical local because168 retains immutable
+generation identities even with PalOFF; no broader cleanup authority was added.
+Sibling history/restore/artifact/inline visibility, actual integrated
 learner opening effects, nonempty supplements, live signing and authenticated
 HTTP/browser lifecycle remain separate work before full cutover.

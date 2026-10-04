@@ -1081,6 +1081,21 @@ allowed transitions and cleanup authority remain unchanged; the explicit disposa
 replay floor advances only to241. Sibling history/restore/artifact/inline guards
 and integrated authenticated opening remain separate pre-cutover work.
 
+Superseding1457/1458 receipt:1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z
+after all five exact-head CI37185801031 checks PASS; canonical main cleanFF.
+1458 source reviews clean;241 applied once locally with exact001–241 history and
+genuine types zero drift. A five-null-due-date rollback fixture failure left exact
+canonical baseline unchanged; two-file regression-first correction/targeted review
+clean, then new241 and unchanged save rollback harnesses PASS. Rebasecc206cce
+preserves applied SQL/proof/test bytes and resolves continuity-only conflicts.
+Strict001–241 combined replay passes9learner projections/6original revocations,
+original list controls and both exact forced-failure cleanup/full baseline receipts.
+Open effects remain sealed false-flag stubs, not real RPC/signing/nonempty supplement
+or authenticated HTTP evidence. Canonical committed-fixture concurrency was not
+run because168 retains immutable identities; final CI's ephemeral database owns
+that unchanged check. Final cumulative review/CI/mainmerge remain gates; local241,
+main240, productionlast225/sharedadmission/cutover/billing/providerOFF unchanged.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

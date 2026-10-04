@@ -35795,3 +35795,59 @@ Full focused gates/independent review/exact-head CI pending. Local001–234/prod
 transaction fences remain batch1; linkedBlueprintGET is batch3-adjacent. Human
 authorizes in-scope work/local/reviews/extensions/main without repeated prompts;
 original budgets/counters and absolute skill caps/security/merge gates remain.
+
+<!-- pika-session-log-archive-batch:9c66bda015ed68c178c2fe208995467969770b73cb6b54ca310e98e270469967 -->
+## 2026-10-03 — Roster1443 merged; class-day1444 actual-main reconciliation
+
+PR1443 normal squash merge7e5c6422 verified15:28:30Z after all five77995c95
+CI37131666194 gates (0queue/1642runseconds). Canonicalmain cleanFF. This1444
+candidate rebases onto actual7e5main; all eight runtime/schema/proof/test/doc
+files and every main/childCIstep byte-preserved. Continuity conflicts preserve
+both histories; duplicate identical1441receipt and copied already-archived
+copy1431entry removed onlyonce, originals retained. Original14:26:22clock and
+counters remain; documented human-authorized60minute extension ends16:26:22Z.
+Targeted changed-base review/final exact-head CI stillprecede merge. Local236
+is installedby separate preservingremoval work; thisread addsnoSQL/types/UI.
+Production001–225/sharedadmission/fullcutoverOFF; no provider/account/billing edits.
+
+## 2026-10-03 — Shared roster owner-write source preparation
+
+Verified1441 merge d913eebd after all five exact-head37127414505 gates; canonical
+main cleanly fast-forwarded. Local001–234 unchanged, production001–225 and shared
+admission/cutover OFF. Owner explicitly authorizes needed review extensions without
+repeat prompts; original clocks/counters and absolute safety/merge caps remain.
+Disjoint source/proof workers prepare roster add/CSV/counselor transactions.176
+source tests, scoped lint, architecture and API standards pass; two expected new
+RPC-name compiler errors remain until genuine local generation. Candidate235
+SHA256557469c5a86479d4b440d05534bc2f37084355436589f0b8b7f8b13df47b82c4 is UNAPPLIED.
+Archived edits deny403 and stable bindings win over current-email fallback. Actual
+SQL/SDK behavior is unverified; frozen source security check precedes exact local
+preview/application, genuine types, database proofs and full draft-PR lifecycle.
+
+Pre-application Sol review accepted a retained-identity gap for a second stable-
+bound row after first-row removal and account-email change. Batch1 rejects the
+resolved learner after pair locking and before preview/DML; structural RED then
+11green. Source235 remains UNAPPLIED, superseded candidate SHA256
+0a91c5702e5c7a1cbae573e30721d38f8ab90789643983cb242d57422cfd5ebf. Real rollback
+proof now covers all upsert modes and counselor edits through that second row;
+runtime execution remains pending. Targeted security recheck precedes application.
+
+Targeted retained-identity review clean. First ordinary local235 application failed
+SQLSTATE42601 at an unparenthesized CASE within IF; aftermath confirmed235history
+false/newfunctions0/max234, complete atomic rollback. Batch2 parenthesizes onlythe
+operand; RED then12/12green and narrow Sol recheck CLEAN39a4f206. Freshpika54322,
+matching001–234/currentmain234/exact235-onlypreview preceded successful secondpush.
+Installed immutable235 SHA256dded003c0fdd92235af163ef73751e1a9442146ee2129015ace83acdc2ff685b.
+History001–235/publicRPCs2/genuine generatedtypes+driftcheck pass. Serialized SQL
+proofs pass fullrow/binding/revision rollback including retainedsecondboundidentity.
+ActualSDK/focused/fullPR review remain pending;3launches/2targeted/2batches, original
+14:38:45Z clock retained. Production001–225/sharedadmissionOFF unchanged.
+
+ActualSDK normal/forcedfixture proofs pass exactcleanup/globalbaseline after every
+run.273focused tests17files+allstaticlint pass. Genuine235nullabletextmetadata
+refined onlythrough existingcuratedFunctionContract/Replace seam, no casts/newSQL
+or manualgeneratedcontract. Runtime/schema/proofs/newtests byte-identical after
+actual1442main3351d85f rebase; bothCIproofsteps preserved. Narrowpreapplyreviews
+are notfullPRreview: stable draft/fullinitialwave next. User-authorized extensions
+retain originalclock and3launches/2targeted/3fixbatches. Local235immutable/prod225,
+sharedadmissionOFF; no repeatedroutine approval asked.
