@@ -94,6 +94,13 @@ describe('contextual Assignment inline-read locked Classwork', () => {
     for (const value of [null, {}, { tests: false }, { classwork: true }, { classwork: null }, { classwork: 'false' }, false, [], { classwork: 0 }]) expect(normalizeClassroomFeatureVisibility(value).classwork).toBe(true)
   })
 
+  it('uses the guarded submit snapshot shape for already submitted fixture documents', () => {
+    const source = harness()
+    expect(source).toContain("doc.id, doc.content, 2, 10, 0, 0, (case when doc.is_submitted then 'submit' else 'baseline' end)")
+    expect(source).not.toContain("doc.id, doc.content, 2, 10, 0, 0, 'baseline'")
+    expect(source).not.toMatch(/assignment_history_after_submit_forbidden|is_classroom_archive_maintenance_mode|assignment_submit_history_duplicate|disable\s+trigger|session_replication_role/)
+  })
+
   it('prepares one exact canonical rollback transaction without cleanup or live services', () => {
     const source = harness()
     expect(source).toContain('name=^supabase_db_pika$')

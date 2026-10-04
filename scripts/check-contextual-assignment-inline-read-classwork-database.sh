@@ -214,7 +214,9 @@ select ('c2430000-0000-4000-8000-' || lpad((1000 + n.assignment*10 + n.actor)::t
 from (select assignment, actor from generate_series(20,24) assignment cross join generate_series(1,4) actor) n;
 insert into public.assignment_doc_history (id, assignment_doc_id, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at)
 select ('c2430000-0000-4000-8000-' || lpad((2000 + right(doc.id::text,12)::integer - 1000)::text,12,'0'))::uuid,
-  doc.id, doc.content, 2, 10, 0, 0, 'baseline', clock_timestamp() - interval '1 hour'
+  -- Existing179 permits only an exact submit snapshot after submission; its
+  -- untouched guard validates content/uniqueness and clamps the timestamp.
+  doc.id, doc.content, 2, 10, 0, 0, (case when doc.is_submitted then 'submit' else 'baseline' end), clock_timestamp() - interval '1 hour'
 from public.assignment_docs doc where assignment_id::text like 'c243%';
 
 -- No Storage API/bytes: only collision-guarded storage.objects METADATA rows.
