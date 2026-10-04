@@ -1035,3 +1035,13 @@ TypeScript/ESLintPASS. Root independently readall source;141checks/3suitesPASS
 (newproof/learneropen/CI;one mistakenly requested nonexistent observerpath didnot
 run). Frozen generator/template acceptance means exact per-run SQLdigest checked
 at dispatch, not operator reapproval of random IDs. No liveextensioncalls yet.
+
+Draft1461 exact1963f88e published afteractualmain rebase/139focused11suites/static/
+47startup/auditPASS. Two distinct5.6Sol/high initialsource reviews CLEAN(53security/
+201compatibility checks), no liveexecution. Root independently reproduced omitted
+feedback.assignment_id SDKpredicate rejection;new1RED31PASS→32GREEN fixes only
+currentAssignment exact-equality predicate, otherAssignment substitution denied.
+Single proof-only batch plus targetedreview before anyruntime;initialCLEANdoesnot
+override rootblocker. Budgetoriginal10:46:45/2launch1initial0target0final retained.
+Attachment attempted;identitylimit>100,no unrelateddeletion. Local/main243/prodlast225
+and all rolloutcontrols unchanged;assessmentphase incomplete.

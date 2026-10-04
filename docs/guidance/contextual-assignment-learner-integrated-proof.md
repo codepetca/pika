@@ -62,6 +62,14 @@ forced modes include extension setup with eight fixed68-byte PNG uploads before
 the original forced checkpoints. Independent review and root runtime acceptance
 still precede execution; these are source intentions, not runtime receipts.
 
+Initial independent source reviews of1963f88e are CLEAN (security53 selected
+checks; compatibility201 related checks). Root independently reproduced the
+installed SDK's legitimate `feedback.assignment_id` rejection in the new test
+transport without network dispatch. A new regression failed1/31pass, then passed
+with all32 after permitting only equality to the current manifest Assignment;
+cross-Assignment substitution still fails before dispatch. This proof-only
+correction requires targeted review before runtime, despite initial CLEAN.
+
 Both historical member-role labels: real SDK open creates one own document and
 persists first view; repeat returns the same ID/false without duplication. Existing
 unviewed/returned documents exercise view without creation and preserve protected

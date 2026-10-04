@@ -109,6 +109,14 @@ describe('finite integrated fixture and real transport boundary',()=>{
     await expect(x.transport.fetch(url.replace('select=id','select=*'),{headers:x.headers})).rejects.toThrow()
     expect(x.fetcher).toHaveBeenCalledOnce()
   })
+  it('accepts the installed SDK own feedback Assignment filter but rejects a different Assignment',async()=>{
+    const x=fixture();const a=x.f.assignments[0];x.transport.readContext(a.id,a.actorId)
+    const client=createClient<Database>(x.target.API_URL,x.target.SERVICE_ROLE_KEY,{auth:{persistSession:false,autoRefreshToken:false},global:{fetch:x.transport.fetch}})
+    const own=await client.from('assignments').select('id').eq('id',a.id).eq('feedback.assignment_id',a.id)
+    expect(own.error).toBeNull();expect(x.fetcher).toHaveBeenCalledOnce()
+    const other=await client.from('assignments').select('id').eq('id',a.id).eq('feedback.assignment_id',x.f.assignments[1].id)
+    expect(other.error).not.toBeNull();expect(x.fetcher).toHaveBeenCalledOnce()
+  })
   it('rejects substituted RPC bodies and fixture-external protocol identities before dispatch',async()=>{
     const x=fixture();const a=x.f.assignments[0];x.transport.readContext(a.id,a.actorId)
     const args={p_actor_id:a.actorId,p_assignment_id:a.id,p_pal_event:null,p_viewed_at:x.f.now}

@@ -120,9 +120,10 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
               'grades.id','grades.student_id','grades.assignment_id','grades.returned_at','grades.limit',
               'released_feedback.id','released_feedback.student_id','released_feedback.assignment_id','released_feedback.returned_at','released_feedback.feedback_returned_at','released_feedback.limit',
               'requirements.assignment_id','requirements.id','requirements.order','requirements.limit',
-              'feedback.student_id','feedback.id','feedback.order','feedback.limit',
+              'feedback.assignment_id','feedback.student_id','feedback.id','feedback.order','feedback.limit',
               'docs.artifacts.assignment_doc_id','docs.artifacts.student_id','docs.artifacts.requirement.assignment_id','docs.artifacts.id','docs.artifacts.order','docs.artifacts.limit'].includes(key))
             if(key==='classroom_id'||key==='classrooms.id'||key==='classrooms.membership.classroom_id') assert.equal(value,`eq.${assignment.classroomId}`)
+            if(key==='feedback.assignment_id') assert.equal(value,`eq.${assignment.id}`)
             if(['classrooms.membership.student_id','docs.student_id','grades.student_id','released_feedback.student_id','feedback.student_id','docs.artifacts.student_id'].includes(key)) assert.equal(value,`eq.${context.actorId}`)
           }
         } else {
