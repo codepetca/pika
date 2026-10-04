@@ -35851,3 +35851,22 @@ actual1442main3351d85f rebase; bothCIproofsteps preserved. Narrowpreapplyreviews
 are notfullPRreview: stable draft/fullinitialwave next. User-authorized extensions
 retain originalclock and3launches/2targeted/3fixbatches. Local235immutable/prod225,
 sharedadmissionOFF; no repeatedroutine approval asked.
+
+<!-- pika-session-log-archive-batch:b288397cf142077e5cb91073984343f777fd67c791664d7dcf613dd8d3a7e5f6 -->
+## 2026-10-03 — Roster1445 actual-main reconciliation after class-day1444
+
+PR1444 merged actual maina8c4e9b2 at16:04:51Z after all fiveCI37133784223 gates.
+Rebased1445 from reviewed a7613a5f onto that actual main. Conflicts only in
+roadmap/current/CI/archive continuity; every reviewed feature source/proof/test,
+generated/curated contract and installed235 byte remains unchanged, alongside
+all main read files and every main/child CI step. Removed only three surplus
+exact historical session copies already preserved in the archive; original
+entries and combined main+child−base historical multiplicities are retained.
+Original review clock/counters remain. Changed-base integration review and fresh
+exact-head CI precede merge. Local001–236 includes separate unmerged removal
+work; production001–225/sharedadmission/fullcutoverOFF.1441–1444merged;
+1445rebased awaiting integration/1446prepared/removal1448draft/detail1447draft.
+No SQL application, DB proofs/reset/reseed or types regeneration performed.
+Focused checks against actual main pass273tests/17files plus architecture,
+UI/design policy, TypeScript and lint. Initial startup-summary budget excess
+was compacted; source preservation, history multiplicities and diff checks pass.

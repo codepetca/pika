@@ -1096,6 +1096,28 @@ run because168 retains immutable identities; final CI's ephemeral database owns
 that unchanged check. Final cumulative review/CI/mainmerge remain gates; local241,
 main240, productionlast225/sharedadmission/cutover/billing/providerOFF unchanged.
 
+Next bounded source preparation is [supplemental learner visibility](contextual-assignment-member-supplement-visibility.md).
+Candidate242 replaces only complete latest214 history/restore/artifact context and
+213 inline-write context, adding locked Classwork concealment with owner-history
+inspection preserved. Source-only worker21new/80related checks PASS; root65related
+checks PASS and inspected scoped rollback harness. No241SQL changed. New serialCI
+and explicit242 isolated floor are regression-first23RED then61GREEN; all existing
+fixture/transition/restoration/cleanup authority stays unchanged.242UNAPPLIED;
+independent review, exact local application/types/runtime and parent1458actualmain
+reconciliation remain gates. Source-only synthetic rollback Storage metadata
+does not grant Storage API/bytes/network/cleanup authority. Same-actor removal,
+concurrency and authenticated lifecycle remain separate; latest213 inline-image
+READ also needs locked learner concealment with owner/404 semantics preserved.
+No production/admission/home/cutover/account/billing/provider change implied.
+
+Superseding1458 merge receipt: reviewed28e8af46 merged61c44aec at08:38:57Z
+after exactCI37188214976/all5PASS, including unchanged save concurrency and new241
+rollback steps (0queue/1426runseconds). Reviewed/squash tree parity and canonical
+clean mainFF verified; local/main001–241. Prepared242 branch189focused/staticPASS,
+stillUNAPPLIED. Actualparent reconciliation, independent reviews and genuine local
+types/runtime/disposable replay precede ready/CI/mainmerge. Assessmentphase/goal
+remain incomplete; no production/activation implied.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

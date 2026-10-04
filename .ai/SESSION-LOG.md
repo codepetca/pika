@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Roster1445 actual-main reconciliation after class-day1444
-
-PR1444 merged actual maina8c4e9b2 at16:04:51Z after all fiveCI37133784223 gates.
-Rebased1445 from reviewed a7613a5f onto that actual main. Conflicts only in
-roadmap/current/CI/archive continuity; every reviewed feature source/proof/test,
-generated/curated contract and installed235 byte remains unchanged, alongside
-all main read files and every main/child CI step. Removed only three surplus
-exact historical session copies already preserved in the archive; original
-entries and combined main+child−base historical multiplicities are retained.
-Original review clock/counters remain. Changed-base integration review and fresh
-exact-head CI precede merge. Local001–236 includes separate unmerged removal
-work; production001–225/sharedadmission/fullcutoverOFF.1441–1444merged;
-1445rebased awaiting integration/1446prepared/removal1448draft/detail1447draft.
-No SQL application, DB proofs/reset/reseed or types regeneration performed.
-Focused checks against actual main pass273tests/17files plus architecture,
-UI/design policy, TypeScript and lint. Initial startup-summary budget excess
-was compacted; source preservation, history multiplicities and diff checks pass.
-
 ## 2026-10-03 — Roster1445 CI handoff-prefix correction
 
 Exact-head CI37136155311 on reviewed a9613f46 passed10431 tests but failed one
@@ -969,3 +951,36 @@ identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clo
 5launch/1target/2batch retained; factual receipt batch/finalcumulative/CI next.
 Productionlast225/admission/home/cutover/account/billing/provider unchanged;
 batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
+
+## 2026-10-04 — Supplemental learner permission source preparation
+
+1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
+single eligible CI37188214976 running with Test&Build/browser PASS, database/PRGate
+pending. Reviewed1458source frozen; next branch depends on that exact commit,
+not yet an actual merged parent. Local241/prodlast225 unchanged.
+
+Bounded6.1Sol/high worker relinquished only242SQL/structuraltest/rollbackharness.
+Four complete latest214/213 definitions preserve byteparity after onlylocked
+visibility additions; owner-history exception and member-only42501 precedence
+remain.21new/80related workerchecks PASS; root65related PASS, inspected harness,
+removed onlycosmetic trailing blankline, SQLdigest unchanged
+48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e.
+NewserialCI/floor regression23RED then61GREEN.242UNAPPLIED; all001241SQL and
+isolatedfixture/transport/transitions/restoration/cleanup authority unchanged.
+Harness PREPARED NOTRUN: exactcanonical/c242sc242 collisionguards/BEGINROLLBACK/
+168169ON/settingscronACL unchanged; synthetic Storage metadata only, no physical
+bytes/API/network/cleanup/activation. Outsider/crosssubject checks are notsameactor
+revocation; actualremoval/concurrency remains integrationwork. Solelatest213
+imageREAD lacksClasswork concealment and is explicit separate prerequisite;
+current4function slice doesnotclaim otherwise. Rootowns Git/review/application/
+types/runtime/CI; actualparentmerge/reconcile beforepublication. Sharedadmission/
+home/cutover/account/billing/providerOFF; assessmentphase/epic incomplete.
+
+Superseding parent receipt:1458 reviewed28e8af46 merged61c44aec at08:38:57Z,
+exactCI37188214976/all5PASS (0queue/1426runseconds), including actual unchanged
+save concurrent-authorization and new241rollback steps. Normal squash exacthead,
+reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
+13files plus architecture/UI/design/TypeScript/lint PASS for prepared242 branch.
+Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
+without stashing/popping unrelated entries, then frozen initial review/runtime.
+Production/admission/cutover/provider/account/billing unchanged.
