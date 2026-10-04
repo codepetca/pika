@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Removal1448 forward-only database lint correction
-
-Exact reviewed787e623f CI37141937671 failed warning-free lint for private result
-validator IMMUTABLE/STABLE mismatch; returned1448 to draft. Run cancelled after
-566seconds, database andPRGate failed, no merge. Preserve immutable236/237.
-Contiguous inventory requires exact237 dormant service-role SQL dependency and
-atomic238: only validator ALTER STABLE plus metadata empty-effective-slug guard.
-No metadata app/helper/UI imported and no cohort/account/production activation.
-Whole genuine001–237 generated artifact copied byte-exact40d0289d; root will
-regenerate/check from matching001–238 history after reviewed local application.
-New direct regression/source gates14PASS, root full208line metadata replacement
-and existing236validator body/ACL/call graph inspected. Metadata rollback-only
-proof runs before unchanged removal SQL/SDK/three forced modes in CI. Review
-clock/counters retained: original15:19:13Z; launch9/target6/fix6, deadline19:19:13.
-Source/preapply review, local238-only application, actual serial regression proofs,
-final focused/cumulative independent review and exact-headCI remain pending.
-
 ## 2026-10-03 — Forward238 local catalog and serial regression receipts
 
 Reviewed23847a9bf5d ordinarylocalpush ONCE EXIT0, source/history001–237 matched,
@@ -1066,3 +1049,22 @@ root374focused15/allstatic/audit2TS/historymissing0extra0/trim40/diffPASS. Sourc
 runner/fixture/sealednative/SQL/schema/CI/deps byteparity376 verified. Review14th
 launch/11thtargeted/11thfixbatch planned, originalclock/humanwaiver retained; no
 freshnative rehearsal untilfixedsourceCLEAN/coordinatorfiniteacceptance.
+
+## 2026-10-04 — Owner Test list bulk transport actual runtime closure
+
+IndependentSol5.6/high fixedca59 transport/security/compatibilityreview CLEAN;
+rootexplicitfiniteacceptance ofsameimmutable001–246 fixture/control/restoration/
+nativeStorage/cleanup andreviewedhelper86461cb4. Root374postdocs/allstaticPASS;
+freshfullCIcoverage23801 EXIT0:12423PASS8skip/1036filesPASS2skip, allthresholdsPASS
+(84.98/76.98/91.39/86.94). No coverage/native CPUoverlap. SAMEsavedbaseline9651PASS.
+Normal58299 actualall8SDKcases EXIT0/exact2stdoutPASS/stderrempty/ownedteardown.
+Bothfullsetupforced48740afterfixture/65211beforecapture expectedEXIT1/exactcleanup
+stdout/exactforcedstderr/private0600 markersPASS. SAMEoncecapturedwholecanonical
+public/private/Storage/168metadata/settings/cron/resourcesPASS aftereachrun; no
+recapture/sharedDBchange. Priorfailures retained, timingblockerclearedforthisfixed
+candidate/fixture/environmentonly; noAuthHTTP/browser/liveRace/publicLegacy or
+generallatencyguarantee. Facts-onlyparityreview/exactCI/mainmerge remainpending;
+phase/goalNOTcomplete. No app/deps/schema/prod/accounts/provider/admission/rollout.
+Originalclock/counters14launch11target1final11fix/humanwaiver preserved. Worker
+reviewapprox7minmanualelapsed/effectiveconfig/usage unknown; account65remaining
+notattributable. Populated576/10unknownvolumespreserved; no furthercleanup/prune.

@@ -312,3 +312,22 @@ checks indirectly through374 focused checks/15 files, plus all static gates,
 two-file audit, whitespace and whole-history preservation. Source/app/SQL/fixture/
 native/schema/CI/dependency bytes are unchanged. Independent fixed-source review
 and actual runtime acceptance are still pending; no passing rehearsal is inferred.
+
+## Fresh bulk transport runtime acceptance
+
+Independent Sol5.6/high targeted security/compatibility review was CLEAN at fixed
+`ca59f71ace8c0f9192ff375c27b5267d588bdeab`; the coordinator explicitly accepted
+that exact helper and unchanged complete immutable001–246 disposable manifest.
+Normal58299 then passed all8 actual SDK cases, exact two stdout markers, empty
+stderr and owned teardown. Full-setup forced modes48740(after-fixture) and
+65211(before-capture) returned expected exit1 and exact cleanup/forced markers.
+All private receipt files were verified0600. The SAME once-captured whole-canonical
+public/private/Storage/168metadata/settings/cron/resources comparison passed after
+normal and each forced run. The saved baseline was not replaced. This supersedes
+the fresh timing blocker for this candidate/fixture/environment, not the retained
+earlier failure receipts; there is no general latency guarantee or new AuthHTTP,
+browser, live race or public-legacy evidence. Root also passed the fresh exact
+CI-equivalent suite:12423 tests/1036 files,8 tests/2 files skipped, all coverage
+thresholds met. App/runner/fixture/native/SQL/schema/CI/dependency sources remain
+unchanged. Final receipt/parity review and sole exact-head CI/main merge remain
+pending. No shared database, production, accounts, providers or rollout changes.

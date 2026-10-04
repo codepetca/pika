@@ -36949,3 +36949,21 @@ preservation verifier/diff/official trim pass,40recent/2092combined entries.
 Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
 pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
 remain untouched. This is implementation evidence, not the independent review.
+
+<!-- pika-session-log-archive-batch:542f73be1b1f6cba4945c9cf9a54a463474b57867227cdf24dde0bc1d8375a98 -->
+## 2026-10-03 — Removal1448 forward-only database lint correction
+
+Exact reviewed787e623f CI37141937671 failed warning-free lint for private result
+validator IMMUTABLE/STABLE mismatch; returned1448 to draft. Run cancelled after
+566seconds, database andPRGate failed, no merge. Preserve immutable236/237.
+Contiguous inventory requires exact237 dormant service-role SQL dependency and
+atomic238: only validator ALTER STABLE plus metadata empty-effective-slug guard.
+No metadata app/helper/UI imported and no cohort/account/production activation.
+Whole genuine001–237 generated artifact copied byte-exact40d0289d; root will
+regenerate/check from matching001–238 history after reviewed local application.
+New direct regression/source gates14PASS, root full208line metadata replacement
+and existing236validator body/ACL/call graph inspected. Metadata rollback-only
+proof runs before unchanged removal SQL/SDK/three forced modes in CI. Review
+clock/counters retained: original15:19:13Z; launch9/target6/fix6, deadline19:19:13.
+Source/preapply review, local238-only application, actual serial regression proofs,
+final focused/cumulative independent review and exact-headCI remain pending.
