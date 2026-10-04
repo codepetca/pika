@@ -128,3 +128,18 @@ The timing cause remains unproved; forced runs have not been attempted.
 Timing diagnostics are frozen immediately when the helper rejects, including any
 in-flight guard time, so later teardown cannot inflate or overwrite that evidence.
 The freeze is diagnostic-only and does not cancel, skip or authorize any operation.
+
+## Audit-main reconciliation
+
+Audit #1463 and receipt #1471 are merged on main `a2175080`. Their reviewed
+platform/lifecycle now replay every immutable SQL file in the complete source chain
+(001–246 here), never silently truncate at243. This slice changes neither platform
+nor lifecycle; it inherits the new attempt-revision/storage/auth contracts and
+locked dependency updates. Local shared243 and production225 are not changed.
+Original own app/fixture/request/diagnostic/test bytes are preserved. Only history
+and CURRENT conflicts required reconciliation; all full historical bodies and
+multiplicities are checked against old branch + new main − old base.
+The frozen diagnostic source reviews cover the prior base only. Updated-base
+checks, independent integration review, explicit finite-manifest acceptance and
+new actual normal/two forced receipts remain required; prior failed243 attempts
+are historical evidence, not runtime proof of the new source chain.

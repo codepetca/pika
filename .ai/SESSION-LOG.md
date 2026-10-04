@@ -209,6 +209,7 @@ pending. Read-only lesson-plan inventory verifies later read/write race boundari
 No AI, billing, migration, UI, cohort activation or production change.
 
 ## 2026-10-01 — Roster logs merged; cached summary review corrections
+## 2026-10-03 — Metadata rollback and SDK proof source safety
 
 PR1421 merged main e87d322a after four independent reviews, one correction batch,
 119 focused tests/static checks, real1001-learner database checks and every exact
@@ -1322,3 +1323,23 @@ narrows dispatch to fetch/abort family, not proven timeout or querycause. Its
 timing caveat accepted: freeze diagnostic at helper rejection before cleanup,
 including pendingguard time. RED→GREEN52proof/246focused14/allstatic/audit PASS;
 source-only targeted follow-up and actual evidence remain required. No gate weakened.
+
+## 2026-10-04 — Owner Test list audit-main reconciliation
+
+Frozen diagnostics 4e57 independentSol5.6/high CLEAN at19:35:55Z, source-only.
+External main audit1463/receipt1471 advanced to a2175080: complete246 migration
+replay, Test attempt revisions/response closure, storage/auth fencing and locked
+dependency updates. Clean rebase had only CURRENT/archive conflicts. Own app,
+fixture, transport/diagnostics and tests remain byte-identical to4e57; incoming
+native platform/lifecycle/CI/schema/types/packages retained, no own migrations.
+History union old4e57 + maina217 − base24cb verified by full-body hashes; repaired
+four missing original copies and three malformed rebase fragments, no original
+body loss. Official trim applied;36unrelated stashes unchanged. Worktree-owned
+frozen dependency sync reused65/downloaded0; lock unchanged. No shared DB or prod
+application, account/provider/admission/rollout operation. New-base checks/review,
+finite acceptance and actual normal/twoforced remain; original cumulative counters
+and human review-extension waiver retained. Active/token telemetry unknown.
+Fresh startupPASS. Initial new-base focused262 had one startup-budget failure
+(17046>17000); shortened CURRENT wording without changing facts or budget.
+Complete262tests14files and architecture/UI/design/TypeScript/lint nowPASS.
+Actual-main-aware audit finds no new TS changes; original app/proof audit retained.
