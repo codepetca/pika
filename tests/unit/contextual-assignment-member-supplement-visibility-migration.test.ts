@@ -126,6 +126,7 @@ describe('contextual Assignment member supplement visibility', () => {
     expect(source).toContain("('purged'::text, null::text)")
     expect(source).toContain('array[false, true]')
     expect(source.includes("v_retained is distinct from (case when v_fixture_exists then array['live','purged'] else array['fixture','live','purged'] end)")).toBe(true)
+    expect(/is distinct from\s+case\b/i.test(source)).toBe(false)
   })
 
   it('uses meaningful denied and visible evidence for both historical role labels', () => {

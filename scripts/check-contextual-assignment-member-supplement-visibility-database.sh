@@ -507,12 +507,12 @@ begin
         if v_state <> '00000' or (v_result->>'ok')::boolean is distinct from false or v_result->>'error_code' is distinct from 'assignment_doc_revision_conflict' then raise exception 'Revision conflict weakened'; end if;
       elsif v_case like 'submitted_%' then
         if v_state <> '00000' or (v_result->>'ok')::boolean is distinct from false
-          or (v_result->>'status')::integer is distinct from case when v_case in ('submitted_restore','submitted_prepare') then 403 else 409 end
+          or (v_result->>'status')::integer is distinct from (case when v_case in ('submitted_restore','submitted_prepare') then 403 else 409 end)
           or v_result->>'error' is distinct from 'Cannot edit a submitted document'
           or (v_case not in ('submitted_reserve','submitted_finalize') and v_result->>'error_code' is distinct from 'assignment_doc_submitted')
         then raise exception 'Submitted freeze/DTO changed: %', v_case; end if;
-      elsif v_state is distinct from case v_case when 'tampered' then '22023' when 'wrong_classroom' then '40001' when 'cross_subject' then '42501' else 'P0002' end
-        or v_message is distinct from case v_case
+      elsif v_state is distinct from (case v_case when 'tampered' then '22023' when 'wrong_classroom' then '40001' when 'cross_subject' then '42501' else 'P0002' end)
+        or v_message is distinct from (case v_case
           when 'tampered' then 'Assignment restore content does not match history target'
           when 'foreign_history' then 'History entry not found'
           when 'wrong_requirement' then 'Requirement not found'
@@ -520,7 +520,7 @@ begin
           when 'wrong_object' then 'Image upload not found'
           when 'cross_subject' then 'Forbidden'
           when 'missing_restore' then 'Assignment doc not found'
-          when 'missing_inline' then 'Assignment document not found' end
+          when 'missing_inline' then 'Assignment document not found' end)
       then raise exception 'Compatibility error changed: %, %, %', v_case, v_state, v_message; end if;
     end loop;
   end loop;
