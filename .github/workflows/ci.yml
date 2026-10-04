@@ -767,6 +767,83 @@ jobs:
       - name: Verify assignment submission concurrency
         run: bash scripts/check-assignment-submission-concurrency.sh
 
+      - name: Verify authentication generation fencing
+        run: bash scripts/check-auth-verification-generation-database.sh --execute-local-contract --container supabase_db_pika
+
+      - name: Verify managed-storage write lock ordering
+        env:
+          MANAGED_STORAGE_DB_CONTAINER: supabase_db_pika
+        run: bash scripts/check-managed-storage-write-lock-order.sh --allow-fixture-writes
+
+      - name: Verify managed-storage setup acknowledgement failure exact cleanup
+        env:
+          MANAGED_STORAGE_DB_CONTAINER: supabase_db_pika
+        shell: bash
+        run: |
+          storage_ack_log="$(mktemp)"
+          trap 'rm -f -- "$storage_ack_log"' EXIT
+          storage_ack_status=0
+          MANAGED_STORAGE_FORCE_SETUP_ACK_FAILURE=1 bash scripts/check-managed-storage-write-lock-order.sh --allow-fixture-writes > "$storage_ack_log" 2>&1 || storage_ack_status=$?
+          cat "$storage_ack_log"
+          [[ "$storage_ack_status" -ne 0 ]] || exit 1
+          grep -F 'Forced failure after fixture setup COMMIT before acknowledgement (teardown control)' "$storage_ack_log"
+          grep -Fx 'Exact managed-storage fixture teardown: PASS' "$storage_ack_log"
+
+      - name: Verify revision-aware Test lifecycle contracts
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/check-test-attempt-lifecycle.sql
+
+      - name: Verify Test Return lifecycle concurrency and exact cleanup
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+          CORE244_ALLOW_LOCAL_VERIFICATION: "1"
+        shell: bash
+        run: |
+          command -v psql >/dev/null
+          lifecycle_normal_log="$(mktemp)"
+          lifecycle_failure_log="$(mktemp)"
+          trap 'rm -f -- "$lifecycle_normal_log" "$lifecycle_failure_log"' EXIT
+          node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_normal_log" 2>&1 || { cat "$lifecycle_normal_log"; exit 1; }
+          cat "$lifecycle_normal_log"
+          grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "$lifecycle_normal_log"
+          grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "$lifecycle_normal_log"
+          lifecycle_status=0
+          CORE244_FORCE_FAILURE=1 node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_failure_log" 2>&1 || lifecycle_status=$?
+          cat "$lifecycle_failure_log"
+          [[ "$lifecycle_status" -ne 0 ]] || exit 1
+          grep -F 'Forced failure after fixture setup (teardown control)' "$lifecycle_failure_log"
+          grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "$lifecycle_failure_log"
+          grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "$lifecycle_failure_log"
+
+      - name: Verify Test lifecycle setup acknowledgement failure exact cleanup
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+          CORE244_ALLOW_LOCAL_VERIFICATION: "1"
+        shell: bash
+        run: |
+          lifecycle_ack_log="$(mktemp)"
+          trap 'rm -f -- "$lifecycle_ack_log"' EXIT
+          lifecycle_ack_status=0
+          CORE244_FORCE_SETUP_ACK_FAILURE=1 node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_ack_log" 2>&1 || lifecycle_ack_status=$?
+          cat "$lifecycle_ack_log"
+          [[ "$lifecycle_ack_status" -ne 0 ]] || exit 1
+          grep -F 'Forced setup COMMIT acknowledgement failure (ownership recovery control)' "$lifecycle_ack_log"
+          grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "$lifecycle_ack_log"
+          grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "$lifecycle_ack_log"
+
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh
 
@@ -973,6 +1050,7 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       SESSION_SECRET: ci-browser-session-secret-with-at-least-32-characters
       ENABLE_MOCK_EMAIL: "true"
+      PIKA_E2E_LIFECYCLE_FIXTURES: "true"
 
     steps:
       - name: Checkout code

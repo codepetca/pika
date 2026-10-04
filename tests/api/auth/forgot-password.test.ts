@@ -1,149 +1,62 @@
-/**
- * API tests for POST /api/auth/forgot-password
- */
-
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { POST } from '@/app/api/auth/forgot-password/route'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
-const responseMocks = vi.hoisted(() => ({
-  completeAuthResponseFloor: vi.fn(async () => {}),
-  schedulePasswordResetCode: vi.fn(),
-}))
-
-vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
-}))
-
-vi.mock('@/lib/crypto', () => ({
-  generateVerificationCode: vi.fn(() => 'ABC12'),
-  hashCode: vi.fn(async (code: string) => `hashed_${code}`),
-}))
-
+const responseMocks = vi.hoisted(() => ({ completeAuthResponseFloor: vi.fn(async () => {}), schedulePasswordResetCode: vi.fn() }))
+const generationMocks = vi.hoisted(() => ({ issueAuthVerificationCode: vi.fn() }))
+const mockSupabaseClient = { from: vi.fn() }
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => mockSupabaseClient }))
+vi.mock('@/lib/crypto', () => ({ generateVerificationCode: () => 'ABC12', hashCode: vi.fn(async () => '$2b$10$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ12345') }))
 vi.mock('@/lib/server/auth-response', () => responseMocks)
 vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
+vi.mock('@/lib/server/auth-verification-generation', () => generationMocks)
 
+import { POST } from '@/app/api/auth/forgot-password/route'
 import { ApiError } from '@/lib/api-handler'
-import { hashCode } from '@/lib/crypto'
 
-const mockSupabaseClient = { from: vi.fn() }
+const request = () => new NextRequest('http://localhost:3000/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email: 'user@example.com' }) })
+function lookup(data: unknown) {
+  mockSupabaseClient.from.mockReturnValue({ select: () => ({ eq: () => ({ single: async () => ({ data, error: null }) }) }) })
+}
 
 describe('POST /api/auth/forgot-password', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
+    generationMocks.issueAuthVerificationCode.mockResolvedValue({ result: { ok: true }, error: null })
   })
 
-  it('should return success even when user does not exist (prevent enumeration)', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const request = new NextRequest('http://localhost:3000/api/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'nonexistent@example.com' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
-    expect(hashCode).toHaveBeenCalledWith('ABC12')
-    expect(responseMocks.completeAuthResponseFloor).toHaveBeenCalledOnce()
+  it('keeps a generic response for a missing account', async () => {
+    lookup(null)
+    expect((await POST(request())).status).toBe(200)
+    expect(generationMocks.issueAuthVerificationCode).not.toHaveBeenCalled()
     expect(responseMocks.schedulePasswordResetCode).not.toHaveBeenCalled()
   })
 
-  it('should return success when user has no password (prevent enumeration)', async () => {
-    const mockFrom = vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'user-1', email: 'test@example.com', password_hash: null },
-            error: null,
-          }),
-        })),
-      })),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const request = new NextRequest('http://localhost:3000/api/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'test@example.com' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
+  it('issues a reset generation and schedules delivery for an eligible account', async () => {
+    lookup({ id: '10000000-0000-4000-8000-000000000001', password_hash: 'existing' })
+    expect((await POST(request())).status).toBe(200)
+    expect(generationMocks.issueAuthVerificationCode).toHaveBeenCalledWith(mockSupabaseClient, expect.objectContaining({ purpose: 'reset_password' }))
+    expect(responseMocks.schedulePasswordResetCode).toHaveBeenCalledWith('user@example.com', 'ABC12')
   })
 
-  it('should send reset code for valid user with password', async () => {
-    const mockFrom = vi.fn((table: string) => {
-      if (table === 'users') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: { id: 'user-1', email: 'test@example.com', password_hash: 'hashed_password' },
-                error: null,
-              }),
-            })),
-          })),
-        }
-      } else if (table === 'verification_codes') {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnThis(),
-            gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-          })),
-          insert: vi.fn().mockResolvedValue({ error: null }),
-        }
-      }
-    })
-    ;(mockSupabaseClient.from as any) = mockFrom
-
-    const request = new NextRequest('http://localhost:3000/api/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'test@example.com' }),
-    })
-
-    const response = await POST(request)
-    const data = await response.json()
-
-    expect(response.status).toBe(200)
-    expect(data.success).toBe(true)
-    expect(rateLimitMocks.consumeAuthRequestRateLimits).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'reset_code',
-      identifier: 'test@example.com',
-      identifierMaxAttempts: 3,
-      windowSeconds: 3600,
-    }))
-    expect(responseMocks.schedulePasswordResetCode).toHaveBeenCalledWith(
-      'test@example.com',
-      'ABC12',
-    )
+  it('does not deliver when locked issuance reports an ineligible account', async () => {
+    lookup({ id: '10000000-0000-4000-8000-000000000001', password_hash: 'existing' })
+    generationMocks.issueAuthVerificationCode.mockResolvedValue({ result: { ok: false }, error: null })
+    expect((await POST(request())).status).toBe(200)
+    expect(responseMocks.schedulePasswordResetCode).not.toHaveBeenCalled()
   })
 
-  it('keeps the generic success response when the address is throttled', async () => {
-    rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValue(
-      new ApiError(429, 'Too many attempts. Please try again later.'),
-    )
+  it('does not expose a generation RPC failure', async () => {
+    lookup({ id: '10000000-0000-4000-8000-000000000001', password_hash: 'existing' })
+    generationMocks.issueAuthVerificationCode.mockResolvedValue({ result: null, error: { message: 'missing rpc' } })
+    expect((await POST(request())).status).toBe(200)
+    expect(responseMocks.schedulePasswordResetCode).not.toHaveBeenCalled()
+  })
 
-    const response = await POST(new NextRequest('http://localhost:3000/api/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'test@example.com' }),
-    }))
-
-    expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toEqual(expect.objectContaining({ success: true }))
+  it('keeps the generic response when throttled', async () => {
+    rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValue(new ApiError(429, 'slow down'))
+    expect((await POST(request())).status).toBe(200)
     expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 })

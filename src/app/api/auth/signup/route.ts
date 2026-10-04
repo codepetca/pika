@@ -10,6 +10,7 @@ import {
   completeAuthResponseFloor,
   scheduleSignupCode,
 } from '@/lib/server/auth-response'
+import { issueAuthVerificationCode } from '@/lib/server/auth-verification-generation'
 
 const MAX_CODES_PER_HOUR = 5
 const CODE_EXPIRY_MINUTES = 10
@@ -79,20 +80,22 @@ export const POST = withErrorHandler('Signup', async (request: NextRequest) => {
     userId = newUser!.id
   }
 
-  // Store hashed code
-  const { error: insertError } = await supabase
-    .from('verification_codes')
-    .insert({
-      user_id: userId,
-      code_hash: codeHash,
-      purpose: 'signup',
-      expires_at: expiresAt.toISOString(),
-      attempts: 0,
-    })
+  // Issuance locks the user, invalidates every older code/handoff, and assigns
+  // the next explicit generation before the email can be scheduled.
+  const { result: issuance, error: insertError } = await issueAuthVerificationCode(supabase, {
+    userId,
+    purpose: 'signup',
+    codeHash,
+    expiresAt: expiresAt.toISOString(),
+  })
 
   if (insertError) {
     logServerError('auth.signup', insertError)
     throw new ApiError(500, 'Failed to generate code')
+  }
+  if (!issuance?.ok) {
+    await completeAuthResponseFloor(startedAtMs)
+    return NextResponse.json(SIGNUP_RESPONSE)
   }
 
   scheduleSignupCode(normalizedEmail, code)

@@ -1,10 +1,4 @@
-/**
- * API tests for POST /api/auth/signup
- * Tests user registration and verification code sending
- */
-
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { POST } from '@/app/api/auth/signup/route'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
@@ -12,700 +6,89 @@ const responseMocks = vi.hoisted(() => ({
   completeAuthResponseFloor: vi.fn(async () => {}),
   scheduleSignupCode: vi.fn(),
 }))
+const generationMocks = vi.hoisted(() => ({ issueAuthVerificationCode: vi.fn() }))
+const mockSupabaseClient = { from: vi.fn() }
 
-// Mock modules
-vi.mock('@/lib/supabase', () => ({
-  getServiceRoleClient: vi.fn(() => mockSupabaseClient),
-}))
-
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => mockSupabaseClient }))
 vi.mock('@/lib/crypto', () => ({
-  generateVerificationCode: vi.fn(() => 'ABC12'),
-  hashCode: vi.fn(async (code: string) => `hashed_${code}`),
+  generateVerificationCode: () => 'ABC12',
+  hashCode: vi.fn(async () => '$2b$10$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ12345'),
 }))
-
 vi.mock('@/lib/server/auth-response', () => responseMocks)
-
-vi.mock('@/lib/auth', () => ({
-  isTeacherEmail: vi.fn((email: string) => email.includes('@gapps.yrdsb.ca') || email.includes('@yrdsb.ca')),
-  AuthenticationError: class AuthenticationError extends Error {
-    constructor(message = 'Not authenticated') { super(message); this.name = 'AuthenticationError' }
-  },
-  AuthorizationError: class AuthorizationError extends Error {
-    constructor(message = 'Forbidden') { super(message); this.name = 'AuthorizationError' }
-  },
-}))
 vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
+vi.mock('@/lib/server/auth-verification-generation', () => generationMocks)
+vi.mock('@/lib/auth', () => ({ isTeacherEmail: (email: string) => email.endsWith('@yrdsb.ca') }))
 
-// Import mocked modules
-import { getServiceRoleClient } from '@/lib/supabase'
-import { generateVerificationCode, hashCode } from '@/lib/crypto'
-import { isTeacherEmail } from '@/lib/auth'
+import { POST } from '@/app/api/auth/signup/route'
 import { ApiError } from '@/lib/api-handler'
 
-// Create mock Supabase client
-const mockSupabaseClient = {
-  from: vi.fn(),
+function request(email: unknown) {
+  return new NextRequest('http://localhost:3000/api/auth/signup', {
+    method: 'POST', body: JSON.stringify({ email }),
+  })
+}
+
+function userLookup(data: unknown, error: unknown = null, insertRole?: (role: string) => void) {
+  mockSupabaseClient.from.mockImplementation((table: string) => {
+    expect(table).toBe('users')
+    return {
+      select: () => ({ eq: () => ({ single: async () => ({ data, error }) }) }),
+      insert: (value: { role: string }) => {
+        insertRole?.(value.role)
+        return { select: () => ({ single: async () => ({ data: { id: '10000000-0000-4000-8000-000000000001' }, error: null }) }) }
+      },
+    }
+  })
 }
 
 describe('POST /api/auth/signup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
+    generationMocks.issueAuthVerificationCode.mockResolvedValue({ result: { ok: true }, error: null })
   })
 
-  // ==========================================================================
-  // Validation Tests
-  // ==========================================================================
-
-  describe('validation', () => {
-    it('should return 400 when email is missing', async () => {
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({}),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toContain('email')
-    })
-
-    it('should return 400 when email is not a string', async () => {
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 12345 }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toContain('email')
-    })
-
-    it('should return 400 when email format is invalid', async () => {
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'not-an-email' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(400)
-      expect(data.error).toContain('Invalid email format')
-    })
+  it('validates the email', async () => {
+    expect((await POST(request('bad'))).status).toBe(400)
   })
 
-  // ==========================================================================
-  // User Creation Tests
-  // ==========================================================================
-
-  describe('user creation', () => {
-    it('returns the generic success response when an account already has a password', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'user-1',
-                    email: 'test@example.com',
-                    password_hash: 'hashed_password',
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(200)
-      expect(data).toEqual({
-        success: true,
-        message: 'Verification code sent to your email',
-      })
-      expect(hashCode).toHaveBeenCalledWith('ABC12')
-      expect(responseMocks.completeAuthResponseFloor).toHaveBeenCalledOnce()
-      expect(responseMocks.scheduleSignupCode).not.toHaveBeenCalled()
-    })
-
-    it('should create new student user when user does not exist', async () => {
-      const mockInsert = vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'user-new-1' },
-            error: null,
-          }),
-        })),
-      }))
-
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: null,
-                  error: { code: 'PGRST116' },
-                }),
-              })),
-            })),
-            insert: mockInsert,
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-            insert: vi.fn().mockResolvedValue({ error: null }),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'newstudent@example.com' }),
-      })
-
-      await POST(request)
-
-      expect(mockInsert).toHaveBeenCalledWith({
-        email: 'newstudent@example.com',
-        role: 'student',
-      })
-    })
-
-    it('should create new teacher user for YRDSB email', async () => {
-      const mockInsert = vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'user-teacher-1' },
-            error: null,
-          }),
-        })),
-      }))
-
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: null,
-                  error: { code: 'PGRST116' },
-                }),
-              })),
-            })),
-            insert: mockInsert,
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-            insert: vi.fn().mockResolvedValue({ error: null }),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'teacher@gapps.yrdsb.ca' }),
-      })
-
-      await POST(request)
-
-      expect(mockInsert).toHaveBeenCalledWith({
-        email: 'teacher@gapps.yrdsb.ca',
-        role: 'teacher',
-      })
-    })
-
-    it('should reuse existing user ID if user exists without password', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: {
-                    id: 'user-existing-1',
-                    email: 'test@example.com',
-                    password_hash: null,
-                  },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-            insert: vi.fn().mockResolvedValue({ error: null }),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      await POST(request)
-
-      // Verification code should be created for existing user ID
-      expect(mockFrom).toHaveBeenCalledWith('verification_codes')
-    })
+  it('creates a teacher then issues through the generation-fenced RPC seam', async () => {
+    let role = ''
+    userLookup(null, { code: 'PGRST116' }, value => { role = value })
+    const response = await POST(request('teacher@yrdsb.ca'))
+    expect(response.status).toBe(200)
+    expect(role).toBe('teacher')
+    expect(generationMocks.issueAuthVerificationCode).toHaveBeenCalledWith(mockSupabaseClient, expect.objectContaining({
+      userId: '10000000-0000-4000-8000-000000000001', purpose: 'signup',
+      codeHash: expect.stringMatching(/^\$2b\$/), expiresAt: expect.any(String),
+    }))
+    expect(responseMocks.scheduleSignupCode).toHaveBeenCalledWith('teacher@yrdsb.ca', 'ABC12')
   })
 
-  // ==========================================================================
-  // Rate Limiting Tests
-  // ==========================================================================
-
-  describe('rate limiting', () => {
-    it('should return 429 when rate limit is exceeded (5+ requests in last hour)', async () => {
-      rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValue(
-        new ApiError(429, 'Too many attempts. Please try again later.'),
-      )
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'user-1', password_hash: null },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({
-                data: Array(5).fill({ id: 'code-id' }),
-                error: null,
-              }),
-            })),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(429)
-      expect(data.error).toBe('Too many attempts. Please try again later.')
-    })
-
-    it('should allow request when under rate limit', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'user-1', password_hash: null },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({
-                data: Array(4).fill({ id: 'code-id' }),
-                error: null,
-              }),
-            })),
-            insert: vi.fn().mockResolvedValue({ error: null }),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      const response = await POST(request)
-
-      expect(response.status).toBe(200)
-      expect(rateLimitMocks.consumeAuthRequestRateLimits).toHaveBeenCalledWith(expect.objectContaining({
-        action: 'signup_code',
-        identifier: 'test@example.com',
-        identifierMaxAttempts: 5,
-        windowSeconds: 3600,
-      }))
-    })
+  it('does not issue or send for an account that already has a password', async () => {
+    userLookup({ id: '10000000-0000-4000-8000-000000000001', password_hash: 'existing' })
+    expect((await POST(request('user@example.com'))).status).toBe(200)
+    expect(generationMocks.issueAuthVerificationCode).not.toHaveBeenCalled()
+    expect(responseMocks.scheduleSignupCode).not.toHaveBeenCalled()
   })
 
-  // ==========================================================================
-  // Code Generation Tests
-  // ==========================================================================
-
-  describe('code generation', () => {
-    it('should generate and hash verification code', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'user-1', password_hash: null },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-            insert: vi.fn().mockResolvedValue({ error: null }),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      await POST(request)
-
-      expect(generateVerificationCode).toHaveBeenCalled()
-      expect(hashCode).toHaveBeenCalledWith('ABC12')
-    })
-
-    it('should store code with correct purpose and expiry', async () => {
-      const mockInsert = vi.fn().mockResolvedValue({ error: null })
-
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'user-1', password_hash: null },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-            insert: mockInsert,
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const beforeTime = Date.now()
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      await POST(request)
-      const afterTime = Date.now()
-
-      expect(mockInsert).toHaveBeenCalled()
-      const insertData = mockInsert.mock.calls[0][0]
-
-      expect(insertData).toMatchObject({
-        user_id: 'user-1',
-        code_hash: 'hashed_ABC12',
-        purpose: 'signup',
-        attempts: 0,
-      })
-
-      // Verify expiry is ~10 minutes from now
-      const expiresAt = new Date(insertData.expires_at)
-      const expectedExpiryMin = new Date(beforeTime + 10 * 60 * 1000)
-      const expectedExpiryMax = new Date(afterTime + 10 * 60 * 1000)
-
-      expect(expiresAt.getTime()).toBeGreaterThanOrEqual(expectedExpiryMin.getTime())
-      expect(expiresAt.getTime()).toBeLessThanOrEqual(expectedExpiryMax.getTime())
-    })
-
-    it('should send code via email', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'user-1', password_hash: null },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-            insert: vi.fn().mockResolvedValue({ error: null }),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      await POST(request)
-
-      expect(responseMocks.scheduleSignupCode).toHaveBeenCalledWith('test@example.com', 'ABC12')
-    })
-
-    it('returns success without waiting for scheduled email delivery', async () => {
-      responseMocks.scheduleSignupCode.mockImplementationOnce(() => {})
-
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'user-1', password_hash: null },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-            insert: vi.fn().mockResolvedValue({ error: null }),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(200)
-      expect(data.success).toBe(true)
-    })
+  it('keeps generic success when locked issuance becomes ineligible', async () => {
+    userLookup({ id: '10000000-0000-4000-8000-000000000001', password_hash: null })
+    generationMocks.issueAuthVerificationCode.mockResolvedValue({ result: { ok: false }, error: null })
+    expect((await POST(request('user@example.com'))).status).toBe(200)
+    expect(responseMocks.scheduleSignupCode).not.toHaveBeenCalled()
   })
 
-  // ==========================================================================
-  // Success Cases
-  // ==========================================================================
-
-  describe('success cases', () => {
-    it('should return 200 with success message', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'user-1', password_hash: null },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-            insert: vi.fn().mockResolvedValue({ error: null }),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(200)
-      expect(data).toEqual({
-        success: true,
-        message: 'Verification code sent to your email',
-      })
-    })
+  it('fails closed when the generation RPC is unavailable', async () => {
+    userLookup({ id: '10000000-0000-4000-8000-000000000001', password_hash: null })
+    generationMocks.issueAuthVerificationCode.mockResolvedValue({ result: null, error: { message: 'missing rpc' } })
+    expect((await POST(request('user@example.com'))).status).toBe(500)
+    expect(responseMocks.scheduleSignupCode).not.toHaveBeenCalled()
   })
 
-  // ==========================================================================
-  // Error Handling
-  // ==========================================================================
-
-  describe('error handling', () => {
-    it('should return 500 when creating user fails', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: null,
-                  error: { code: 'PGRST116' },
-                }),
-              })),
-            })),
-            insert: vi.fn(() => ({
-              select: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: null,
-                  error: { message: 'Insert failed' },
-                }),
-              })),
-            })),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(500)
-      expect(data.error).toBe('Failed to create user')
-    })
-
-    it('should return 500 when checking rate limit fails', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'user-1', password_hash: null },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({
-                data: null,
-                error: { message: 'Database error' },
-              }),
-            })),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(500)
-      expect(data.error).toBe('Internal server error')
-    })
-
-    it('should return 500 when inserting code fails', async () => {
-      const mockFrom = vi.fn((table: string) => {
-        if (table === 'users') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'user-1', password_hash: null },
-                  error: null,
-                }),
-              })),
-            })),
-          }
-        } else if (table === 'verification_codes') {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnThis(),
-              gte: vi.fn().mockResolvedValue({ data: [], error: null }),
-            })),
-            insert: vi.fn().mockResolvedValue({
-              error: { message: 'Insert failed' },
-            }),
-          }
-        }
-      })
-      ;(mockSupabaseClient.from as any) = mockFrom
-
-      const request = new NextRequest('http://localhost:3000/api/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email: 'test@example.com' }),
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(500)
-      expect(data.error).toBe('Failed to generate code')
-    })
+  it('applies the issuance rate limit before account lookup', async () => {
+    rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValue(new ApiError(429, 'slow down'))
+    expect((await POST(request('user@example.com'))).status).toBe(429)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 })

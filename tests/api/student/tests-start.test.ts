@@ -19,11 +19,13 @@ beforeEach(() => {
   vi.mocked(requireRole).mockResolvedValue({ id: 'student-1' } as never)
   vi.mocked(assertStudentCanAccessTest).mockResolvedValue({ ok: true, test: {} } as never)
   vi.mocked(getTestEditingPolicy).mockResolvedValue({ structureLocked: false })
-  rpc.mockResolvedValue({ data: { questions: [] }, error: null })
+  rpc.mockResolvedValue({ data: { questions: [], attempt: { id: '10000000-0000-4000-8000-000000000001', test_id: '10000000-0000-4000-8000-000000000002', student_id: '10000000-0000-4000-8000-000000000003', responses: { q: 1 }, is_submitted: false, submitted_at: null, created_at: '2026-01-01', updated_at: '2026-01-01', draft_revision: 7 } }, error: null })
 })
 it('starts/resumes atomically without sending an empty overwrite of saved work', async () => {
-  expect((await POST(request(), context)).status).toBe(200)
-  expect(rpc).toHaveBeenCalledWith('save_test_attempt_atomic', { p_test_id: 'test-1', p_student_id: 'student-1', p_responses: null })
+  const response = await POST(request(), context)
+  expect(response.status).toBe(200)
+  expect((await response.json()).attempt).toMatchObject({ responses: { q: 1 }, draft_revision: 7 })
+  expect(rpc).toHaveBeenCalledWith('start_test_attempt_revision_atomic', { p_test_id: 'test-1', p_student_id: 'student-1' })
 })
 it('requires authentication', async () => {
   vi.mocked(requireRole).mockRejectedValueOnce(mockAuthenticationError())

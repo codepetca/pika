@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requirePasswordSessionRequest } from '@/lib/server/password-session-boundary'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hashHandoffToken, hashPassword } from '@/lib/crypto'
@@ -6,10 +7,15 @@ import { createSession } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { resetPasswordConfirmSchema } from '@/lib/validations/auth'
 import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
+import {
+  consumeLatestPasswordReset,
+  inspectLatestAuthHandoff,
+} from '@/lib/server/auth-verification-generation'
 
 const INVALID_RESET_SESSION = 'Password reset session expired. Please request a new code.'
 
 export const POST = withErrorHandler('ResetPasswordConfirm', async (request: NextRequest) => {
+  requirePasswordSessionRequest(request)
   const { email: normalizedEmail, password, handoffToken } = resetPasswordConfirmSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
@@ -25,23 +31,15 @@ export const POST = withErrorHandler('ResetPasswordConfirm', async (request: Nex
   })
 
   const handoffTokenHash = hashHandoffToken(handoffToken)
-  const now = new Date().toISOString()
-  const { data: handoff, error: handoffError } = await supabase
-    .from('verification_codes')
-    .select('user_id, users!inner(id, email, role)')
-    .eq('purpose', 'reset_password')
-    .eq('handoff_token_hash', handoffTokenHash)
-    .is('handoff_consumed_at', null)
-    .gt('handoff_expires_at', now)
-    .maybeSingle()
-
-  const user = handoff?.users
+  const { handoff, error: handoffError } = await inspectLatestAuthHandoff(supabase, {
+    purpose: 'reset_password',
+    handoffTokenHash,
+  })
   if (
     handoffError
     || !handoff
-    || !user
-    || user.email.trim().toLowerCase() !== normalizedEmail
-    || (user.role !== 'student' && user.role !== 'teacher')
+    || handoff.email.trim().toLowerCase() !== normalizedEmail
+    || !handoff.password_set
   ) {
     throw new ApiError(401, INVALID_RESET_SESSION)
   }
@@ -49,14 +47,12 @@ export const POST = withErrorHandler('ResetPasswordConfirm', async (request: Nex
   // Hash only after proving possession of the 256-bit handoff. Invalid public
   // requests cannot force unbounded bcrypt work.
   const passwordHash = await hashPassword(password)
-  const { data: credentialVersion, error: resetError } = await supabase.rpc(
-    'consume_password_reset_and_revoke_sessions',
-    {
-      p_user_id: handoff.user_id,
-      p_handoff_token_hash: handoffTokenHash,
-      p_password_hash: passwordHash,
-    },
-  )
+  const { credentialVersion, error: resetError } = await consumeLatestPasswordReset(supabase, {
+    userId: handoff.user_id,
+    generation: handoff.generation,
+    handoffTokenHash,
+    passwordHash,
+  })
 
   if (resetError) {
     logServerError('auth.reset', resetError)
@@ -67,7 +63,7 @@ export const POST = withErrorHandler('ResetPasswordConfirm', async (request: Nex
   }
 
   // Create new session
-  await createSession(user.id, user.email, user.role, {
+  await createSession(handoff.user_id, handoff.email, handoff.role, {
     expectedCredentialVersion: credentialVersion,
   })
 
@@ -78,9 +74,9 @@ export const POST = withErrorHandler('ResetPasswordConfirm', async (request: Nex
     message: 'Password reset successfully',
     redirectUrl,
     user: {
-      id: user.id,
-      email: user.email,
-      role: user.role,
+      id: handoff.user_id,
+      email: handoff.email,
+      role: handoff.role,
     },
   })
 })

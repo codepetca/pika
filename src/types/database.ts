@@ -230,8 +230,8 @@ type TableOverrides = {
   >
   test_attempts: TableContract<
     'test_attempts',
-    { authenticity_flags: AuthenticityFlag[] | null },
-    { authenticity_flags?: AuthenticityFlag[] | null }
+    { authenticity_flags: AuthenticityFlag[] | null; draft_revision: number },
+    { authenticity_flags?: AuthenticityFlag[] | null; draft_revision?: number }
   >
   test_focus_events: TableContract<
     'test_focus_events',
@@ -279,6 +279,16 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // PostgreSQL function metadata does not encode nullable input contracts.
+  finalize_auth_verification_attempt_v1: FunctionContract<
+    'finalize_auth_verification_attempt_v1',
+    Json,
+    Replace<GeneratedFunctions['finalize_auth_verification_attempt_v1']['Args'], {
+      p_handoff_expires_at: string | null
+      p_handoff_token_hash: string | null
+    }>
+  >
+
   // Installed239's optional cursor/subject/snapshot arguments accept SQLNULL.
   // Refine only their nullability while retaining genuine generated RPC keys.
   discover_retained_student_cleanup_groups: FunctionContract<
@@ -622,7 +632,7 @@ type FunctionOverrides = {
   >
   return_test_attempts_atomic: FunctionContract<
     'return_test_attempts_atomic',
-    { returned_count: number; updated_count: number; inserted_count: number }
+    { returned_count: number; already_returned_count: number; skipped_count: number; test_closed: false }
   >
   unsubmit_test_attempts_atomic: FunctionContract<
     'unsubmit_test_attempts_atomic',

@@ -63,6 +63,7 @@ describe('POST /api/auth/login', () => {
     it('should return 400 when email is missing', async () => {
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: 'ValidPassword123' }),
       })
 
@@ -76,6 +77,7 @@ describe('POST /api/auth/login', () => {
     it('should return 400 when password is missing', async () => {
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'test@example.com' }),
       })
 
@@ -89,6 +91,7 @@ describe('POST /api/auth/login', () => {
     it('should return 400 when both email and password are missing', async () => {
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
 
@@ -120,6 +123,7 @@ describe('POST /api/auth/login', () => {
 
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'nonexistent@example.com', password: 'ValidPassword123' }),
       })
 
@@ -150,6 +154,7 @@ describe('POST /api/auth/login', () => {
 
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'test@example.com', password: 'ValidPassword123' }),
       })
 
@@ -181,6 +186,7 @@ describe('POST /api/auth/login', () => {
 
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'test@example.com', password: 'WrongPassword' }),
       })
 
@@ -212,6 +218,7 @@ describe('POST /api/auth/login', () => {
 
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'test@example.com', password: 'ValidPassword123' }),
       })
 
@@ -238,6 +245,7 @@ describe('POST /api/auth/login', () => {
 
       await POST(new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'missing@example.com', password: 'guess' }),
       }))
 
@@ -275,6 +283,7 @@ describe('POST /api/auth/login', () => {
 
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'test@example.com', password: 'ValidPassword123' }),
       })
 
@@ -318,6 +327,7 @@ describe('POST /api/auth/login', () => {
 
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'teacher@gapps.yrdsb.ca', password: 'ValidPassword123' }),
       })
 
@@ -364,6 +374,7 @@ describe('POST /api/auth/login', () => {
 
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'test@example.com', password: 'ValidPassword123' }),
       })
 
@@ -377,8 +388,8 @@ describe('POST /api/auth/login', () => {
     it('should return 400 when JSON parsing fails', async () => {
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
-        body: 'invalid json',
         headers: { 'Content-Type': 'application/json' },
+        body: 'invalid json',
       })
 
       const response = await POST(request)

@@ -80,6 +80,7 @@ interface StudentTestListResponse {
 }
 
 interface StudentTestDetailResponse {
+  draft_revision?: number | null
   test?: StudentTestView
   questions?: TestAssessmentQuestion[]
   student_responses?: Record<string, number | TestResponseDraftValue>
@@ -285,6 +286,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
   const [selectedTest, setSelectedTest] = useState<{
     test: StudentTestView
     questions: TestAssessmentQuestion[]
+    draftRevision?: number | null
     studentResponses: Record<string, number | TestResponseDraftValue>
   } | null>(null)
   const [startedTestId, setStartedTestId] = useState<string | null>(null)
@@ -579,6 +581,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
         test: { ...nextTest, student_status: studentStatus },
         questions: data.questions || [],
         studentResponses: data.student_responses || {},
+        draftRevision: data.draft_revision,
       })
       setFocusSummary((data.focus_summary as TestFocusSummary | null) || null)
       return true
@@ -1120,7 +1123,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
     const fullscreenRequest = requestExamFullscreen('start_test_confirm')
     try {
       const response = await startRequest
-      const data = await response.json() as { questions?: TestAssessmentQuestion[] }
+      const data = await response.json() as { questions?: TestAssessmentQuestion[]; attempt?: { responses: Record<string, TestResponseDraftValue>; draft_revision: number } }
       if ((currentScopeRef.current.classroomId !== scope.classroomId) || selectedTestIdRef.current !== testId || detailRequestIdRef.current !== requestId) return
       if (!response.ok) {
         const message = typeof (data as { error?: unknown }).error === 'string'
@@ -1130,11 +1133,9 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
       }
       // The RPC returns the post-lock question snapshot, so the student never
       // answers a structure loaded before a simultaneous teacher save.
-      if (Array.isArray(data.questions)) {
-        setSelectedTest((current) => current && current.test.id === testId
-          ? { ...current, questions: data.questions! }
-          : current)
-      }
+      setSelectedTest((current) => current && current.test.id === testId
+        ? { ...current, questions: data.questions ?? current.questions, studentResponses: data.attempt?.responses ?? current.studentResponses, draftRevision: data.attempt?.draft_revision }
+        : current)
       setStartingTestId(null)
     } catch (error) {
       if ((currentScopeRef.current.classroomId === scope.classroomId) && selectedTestIdRef.current === testId && detailRequestIdRef.current === requestId) {
@@ -1628,6 +1629,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                             testId={selectedTestId!}
                             questions={selectedTest.questions}
                             initialResponses={selectedTest.studentResponses}
+                            initialDraftRevision={selectedTest.draftRevision}
                             enableDraftAutosave
                             isInteractionLocked={showNotMaximizedWarning}
                             apiBasePath={apiBasePath}
@@ -1813,6 +1815,7 @@ export function StudentTestsTab({ classroom, isActive = true }: Props) {
                       testId={selectedTestId!}
                       questions={selectedTest.questions}
                       initialResponses={selectedTest.studentResponses}
+                            initialDraftRevision={selectedTest.draftRevision}
                       enableDraftAutosave
                       isInteractionLocked={showNotMaximizedWarning}
                       apiBasePath={apiBasePath}

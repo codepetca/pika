@@ -1,3 +1,4 @@
+import { isSupportedNewPassword, PASSWORD_BYTE_LIMIT_MESSAGE } from '@/lib/validations/password-policy'
 import bcrypt from 'bcryptjs'
 import { createHash, randomBytes, randomInt } from 'crypto'
 
@@ -55,6 +56,7 @@ export function hashHandoffToken(token: string): string {
  * Hashes a password using bcrypt
  */
 export async function hashPassword(password: string): Promise<string> {
+  if (!isSupportedNewPassword(password)) throw new Error(PASSWORD_BYTE_LIMIT_MESSAGE)
   return bcrypt.hash(password, SALT_ROUNDS)
 }
 
@@ -68,12 +70,15 @@ export async function verifyPassword(plainPassword: string, hashedPassword: stri
 /**
  * Validates password meets minimum requirements
  * - At least 8 characters
+ * - At most 72 UTF-8 bytes for new credentials
  * - Returns error message if invalid, null if valid
  */
 export function validatePassword(password: string): string | null {
   if (!password || password.length < 8) {
     return 'Password must be at least 8 characters long'
   }
+
+  if (!isSupportedNewPassword(password)) return PASSWORD_BYTE_LIMIT_MESSAGE
 
   return null
 }

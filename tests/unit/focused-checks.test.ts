@@ -94,6 +94,51 @@ describe('focused local checks', () => {
     expect(result.calls).toContainEqual(['run', 'lint'])
   })
 
+  it.each(['workflow', 'related'])('limits only Vitest workers while preserving %s selection and later commands', mode => {
+    const f = fixture()
+    f.write('.git/info/exclude', 'bin/\ncalls.jsonl\n')
+    f.write(mode === 'workflow' ? 'docs/change.md' : 'src/components/A panel.tsx')
+    if (mode === 'related') {
+      f.write('tests/components/A panel.test.tsx')
+      f.write('scripts/policy.mjs', 'export const policy = 1')
+      f.write('tests/unit/policy.test.ts', "import { policy } from '../../scripts/policy.mjs'")
+    }
+    const defaultResult = f.run()
+    const limitedResult = f.run(['--max-workers', '2'])
+    expect(defaultResult.status).toBe(0)
+    expect(limitedResult.status).toBe(0)
+    const limitedCalls = limitedResult.calls.slice(defaultResult.calls.length)
+    expect(limitedCalls).toEqual([
+      [...defaultResult.calls[0], '--maxWorkers', '2'],
+      ...defaultResult.calls.slice(1),
+    ])
+    expect(defaultResult.calls.flat()).not.toContain('--maxWorkers')
+    if (mode === 'related') expect(limitedCalls[0]).toContain('scripts/policy.mjs')
+  })
+
+  it.each([
+    [], ['0'], ['-1'], ['1.5'], ['2%'], ['1e2'], ['Infinity'], ['NaN'], [''],
+    ['9007199254740992'], ['--dry-run'], ['2', '--max-workers', '3'],
+  ].map(values => ({ values })))('rejects invalid or ambiguous worker arguments $values before discovering or launching checks', ({ values }) => {
+    const result = fixture().run(['--max-workers', ...values])
+    expect(result.status).not.toBe(0)
+    expect(result.calls).toEqual([])
+    expect(result.output).toContain('--max-workers')
+    expect(result.output).not.toContain('Focused checks:')
+    expect(result.output).not.toContain('Full check logs:')
+  })
+
+  it('shows the worker limit only on Vitest in a non-executing dry run', () => {
+    const f = fixture()
+    f.write('src/lib/changed.ts')
+    const result = f.run(['--dry-run', '--max-workers', '2'])
+    expect(result.status).toBe(0)
+    expect(result.calls).toEqual([])
+    const commands = result.output.split('\n').filter(line => line.startsWith('$ '))
+    expect(commands[0]).toContain('"--maxWorkers" "2"')
+    expect(commands.slice(1).join('\n')).not.toContain('--maxWorkers')
+  })
+
   it('includes a changed standalone test even without a source change or import', () => {
     const f = fixture()
     f.write('tests/unit/standalone.test.ts')
@@ -119,11 +164,36 @@ describe('focused local checks', () => {
     f.write('src/value.ts', 'export const value = 1')
     f.write('tests/unit/value.test.ts', "import { value } from '../../src/value'; it('related', () => expect(value).toBe(1))")
     f.write('tests/unit/standalone.test.ts', "it('standalone', () => expect(true).toBe(true))")
-    const result = f.run([], false, true)
+    const result = f.run(['--max-workers', '2'], false, true)
     expect(result.status, result.output).toBe(0)
     // Two workflow files + related + standalone, in both configured projects.
     expect(result.output).toMatch(/Tests\s+8 passed \(8\)/)
     expect(result.calls.filter((args) => args.includes('vitest'))).toHaveLength(1)
+  }, 15_000)
+
+  it('selects directly imported script policies and runtimes without running unrelated tests or launchers', () => {
+    const f = fixture()
+    f.write('.git/info/exclude', 'bin/\ncalls.jsonl\nnode_modules/\n')
+    symlinkSync(resolve('node_modules'), join(f.root, 'node_modules'), 'dir')
+    f.write('vitest.config.mjs', "export default { test: { globals: true, environment: 'node', include: ['tests/**/*.test.ts'] } }")
+    for (const file of workflowTests) f.write(file, "it('workflow', () => expect(true).toBe(true))")
+    f.write('scripts/lib/design-policy.ts', 'export const policy = 1')
+    f.write('scripts/migration-rollout-policy.mjs', 'export const policy = 1')
+    f.write('scripts/migration-rollout.mjs', 'export const runtime = 1')
+    f.write('tests/unit/design.test.ts', "import { policy } from '../../scripts/lib/design-policy'; it('design', () => expect(policy).toBe(2))")
+    f.write('tests/unit/migration.test.ts', "import { policy } from '../../scripts/migration-rollout-policy.mjs'; import { runtime } from '../../scripts/migration-rollout.mjs'; it('migration', () => expect(policy + runtime).toBe(4))")
+    f.write('tests/unit/unrelated.test.ts', "it('unrelated', () => { throw new Error('unrelated executed') })")
+    f.git('add', '.')
+    f.git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'baseline consumers')
+    f.write('scripts/lib/design-policy.ts', 'export const policy = 2')
+    f.write('scripts/migration-rollout-policy.mjs', 'export const policy = 2')
+    f.write('scripts/migration-rollout.mjs', 'export const runtime = 2')
+    f.write('scripts/run-focused-checks.mjs', "throw new Error('launcher invoked')")
+    const result = f.run([], false, true)
+    expect(result.status, result.output).toBe(0)
+    expect(result.calls[0]).toEqual(['exec', 'vitest', 'related', '--run', ...workflowTests,
+      'scripts/lib/design-policy.ts', 'scripts/migration-rollout-policy.mjs', 'scripts/migration-rollout.mjs', '--reporter=dot'])
+    expect(result.output).toMatch(/Tests\s+4 passed \(4\)/)
   }, 15_000)
 
   it('prints failure details and stops instead of running later checks', () => {

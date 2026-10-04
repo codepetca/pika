@@ -14,7 +14,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/test-submissions', () => ({
-  submitStudentTestAttempt: vi.fn(async () => ({ ok: true })),
+  submitStudentTestAttempt: vi.fn(async () => ({ ok: true, draftRevision: 2 })),
 }))
 
 function buildRequest(body: unknown, raw = false) {
@@ -29,7 +29,7 @@ const routeContext = { params: Promise.resolve({ id: 'test-1' }) }
 describe('POST /api/student/tests/[id]/respond', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(submitStudentTestAttempt).mockResolvedValue({ ok: true })
+    vi.mocked(submitStudentTestAttempt).mockResolvedValue({ ok: true, draftRevision: 2 })
   })
 
   it('authenticates before parsing the request body', async () => {
@@ -60,7 +60,8 @@ describe('POST /api/student/tests/[id]/respond', () => {
   it('normalizes responses before invoking the atomic workflow', async () => {
     const response = await POST(
       buildRequest({
-        responses: {
+        expected_revision: 1,
+      responses: {
           'q-2': 'Open answer\r\nsecond line',
           'q-1': 1,
           ignored: { selected_option: -1 },
@@ -70,10 +71,11 @@ describe('POST /api/student/tests/[id]/respond', () => {
     )
 
     expect(response.status).toBe(201)
-    expect(await response.json()).toEqual({ success: true })
+    expect(await response.json()).toEqual({ success: true, draft_revision: 2 })
     expect(submitStudentTestAttempt).toHaveBeenCalledWith({
       studentId: 'student-1',
       testId: 'test-1',
+      expectedRevision: 1,
       responses: {
         'q-1': { question_type: 'multiple_choice', selected_option: 1 },
         'q-2': { question_type: 'open_response', response_text: 'Open answer\nsecond line' },
@@ -88,7 +90,7 @@ describe('POST /api/student/tests/[id]/respond', () => {
       error: 'All questions must be answered',
     })
 
-    const response = await POST(buildRequest({ responses: { 'q-1': 1 } }), routeContext)
+    const response = await POST(buildRequest({ expected_revision: 1, responses: { 'q-1': 1 } }), routeContext)
 
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({ error: 'All questions must be answered' })

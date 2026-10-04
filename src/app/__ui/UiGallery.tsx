@@ -61,6 +61,7 @@ import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
 import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
 import { TeacherPatterns } from './TeacherPatterns'
+import { StudentTestAttemptPattern } from './StudentTestAttemptPattern'
 import { StudentTestListItem } from '@/components/StudentTestListItem'
 import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import { StatusPatterns } from './StatusPatterns'
@@ -75,6 +76,7 @@ import { OwnedJoinedHomeMockup } from './OwnedJoinedHomeMockup'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
+import { UiConsistencyPattern } from './UiConsistencyPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 
 const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
@@ -567,6 +569,8 @@ export function UiGallery({ role }: Props) {
           </Card>
           </PatternSection>
 
+          <UiConsistencyPattern role={role} />
+
           <PatternSection
             id="page-states"
             eyebrow="Route responsibility"
@@ -649,6 +653,7 @@ export function UiGallery({ role }: Props) {
               <StudentTestExamples />
             </PatternSection>
 
+            <StudentTestAttemptPattern />
             {role === 'student' ? <StudentImageUploadGallery /> : null}
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />
@@ -709,6 +714,7 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'icons', label: 'Icons — Approved symbols' },
     { value: 'statuses', label: 'Statuses — Labels and meanings' },
     { value: 'status-colors', label: 'Statuses — Attendance, classwork, and test colors' },
+    { value: 'ui-consistency', label: 'Controls — Scoped menus and artifact targets' },
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
     { value: 'owned-joined-home', label: 'Home prototype — Owned / Joined classrooms' },
     ...(role === 'teacher' ? [

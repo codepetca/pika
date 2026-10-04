@@ -3,13 +3,43 @@ import { assignmentListExpectedResources, assignmentListRestorationPolicy, assig
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { parseAssignmentListLifecycleArgs } from '../../scripts/check-contextual-assignment-list-lifecycle'
-import { randomUUID } from 'node:crypto'
-import { existsSync, readFileSync, statSync, unlinkSync } from 'node:fs'
+import { createHash, randomUUID } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
-import { prepareAssignmentListProjectFiles, writeAssignmentListStartupDiagnostic } from '../../scripts/contextual-assignment-list-proof-platform'
+import { loadAssignmentListReviewedMigrations, prepareAssignmentListProjectFiles, writeAssignmentListStartupDiagnostic } from '../../scripts/contextual-assignment-list-proof-platform'
 import { assignmentListEphemeralPlan } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 
 describe('assignment-list native platform proof contracts (offline)', () => {
+  function withMigrationFiles(count: number, run: (repository: string, folder: string) => void) {
+    const repository = mkdtempSync(join(tmpdir(), 'pika-proof-chain-offline-'))
+    const folder = join(repository, 'supabase/migrations')
+    try {
+      mkdirSync(folder, { recursive: true })
+      for (let n = 1; n <= count; n++) writeFileSync(join(folder, `${String(n).padStart(3, '0')}_offline.sql`), `-- OFFLINE migration ${n}\nselect ${n};`)
+      run(repository, folder)
+    } finally { rmSync(repository, { recursive: true, force: true }) }
+  }
+  it.each([243, 246, 247])('loads the complete %i-file chain and binds every selected SQL byte without a tail cutoff', count => {
+    withMigrationFiles(count, repository => {
+      const migrations = loadAssignmentListReviewedMigrations(repository)
+      expect(migrations).toHaveLength(count)
+      expect(migrations.map(m => m.name)).toEqual(Array.from({ length: count }, (_, n) => `${String(n + 1).padStart(3, '0')}_offline.sql`))
+      for (const migration of migrations) {
+        const sql = readFileSync(join(repository, 'supabase/migrations', migration.name), 'utf8')
+        expect(migration).toEqual({ name: migration.name, sql, sha256: createHash('sha256').update(sql).digest('hex') })
+      }
+    })
+  })
+  it.each(['short baseline', 'gap', 'duplicate number', 'malformed extra SQL'] as const)('rejects a %s in the complete source inventory', defect => {
+    withMigrationFiles(defect === 'short baseline' ? 242 : defect === 'malformed extra SQL' ? 243 : 246, (repository, folder) => {
+      if (defect === 'gap') unlinkSync(join(folder, '124_offline.sql'))
+      if (defect === 'duplicate number') writeFileSync(join(folder, '124_duplicate.sql'), 'select 1;')
+      if (defect === 'malformed extra SQL') writeFileSync(join(folder, 'unreviewed.sql'), 'select 1;')
+      expect(() => loadAssignmentListReviewedMigrations(repository)).toThrow()
+    })
+  })
   function inventoryRunner(substitute = false) {
     const containerIds = [1, 2].map(n => n.toString(16).padStart(64, '0'))
     const networkId = '3'.padStart(64, '0')

@@ -165,10 +165,9 @@ async function clearAndSeed() {
     await supabase.from('classrooms').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     'Delete classrooms'
   )
-  ensureOk(
-    await supabase.from('verification_codes').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-    'Delete verification_codes'
-  )
+  // Migration 246 removes direct service-role access to verification codes.
+  // The existing user deletion cascades their codes through the foreign key;
+  // this explicitly authorized destructive seeder needs no unfenced RPC.
   ensureOk(
     await supabase.from('users').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
     'Delete users'

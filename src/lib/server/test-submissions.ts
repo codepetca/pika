@@ -19,9 +19,10 @@ const submitTestAttemptResultSchema = z.object({
   attempt_id: z.string().uuid(),
   submitted_at: z.string().datetime({ offset: true }),
   inserted_responses: z.number().int().nonnegative(),
+  draft_revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 })
 
-const savedAttemptSchema = z.object({
+export const savedAttemptSchema = z.object({
   id: z.string().uuid(),
   test_id: z.string().uuid(),
   student_id: z.string().uuid(),
@@ -30,6 +31,7 @@ const savedAttemptSchema = z.object({
   submitted_at: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
+  draft_revision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 })
 
 const saveTestAttemptResultSchema = z.object({
@@ -45,9 +47,10 @@ type PostgrestErrorLike = {
   hint?: string | null
 }
 
+type AttemptFailure = { ok: false; status: number; error: string; error_code?: 'test_attempt_revision_conflict'; attempt?: z.infer<typeof savedAttemptSchema> }
 type SubmitStudentTestAttemptResult =
-  | { ok: true }
-  | { ok: false; status: number; error: string }
+  | { ok: true; draftRevision: number }
+  | AttemptFailure
 
 type SaveStudentTestAttemptResult =
   | {
@@ -55,18 +58,18 @@ type SaveStudentTestAttemptResult =
       attempt: z.infer<typeof savedAttemptSchema>
       historyEntry: TestAttemptHistoryEntry | null
     }
-  | { ok: false; status: number; error: string }
+  | AttemptFailure
 
 function isMissingSubmitRpc(error: PostgrestErrorLike): boolean {
   if (error.code === '42883' || error.code === 'PGRST202') return true
   const text = `${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
-  return text.includes('submit_test_attempt_atomic') && text.includes('function')
+  return text.includes('submit_test_attempt_revision_atomic') && text.includes('function')
 }
 
 function isMissingSaveRpc(error: PostgrestErrorLike): boolean {
   if (error.code === '42883' || error.code === 'PGRST202') return true
   const text = `${error.message ?? ''} ${error.details ?? ''} ${error.hint ?? ''}`.toLowerCase()
-  return text.includes('save_test_attempt_atomic') && text.includes('function')
+  return text.includes('save_test_attempt_revision_atomic') && text.includes('function')
 }
 
 function mapSubmitError(error: PostgrestErrorLike): Exclude<SubmitStudentTestAttemptResult, { ok: true }> {
@@ -95,13 +98,15 @@ export async function submitStudentTestAttempt(input: {
   testId: string
   studentId: string
   responses: TestResponses
+  expectedRevision: number
 }): Promise<SubmitStudentTestAttemptResult> {
   const supabase = getServiceRoleClient()
   const requestedSubmittedAt = new Date().toISOString()
-  const { data, error } = await supabase.rpc('submit_test_attempt_atomic', {
+  const { data, error } = await supabase.rpc('submit_test_attempt_revision_atomic', {
     p_test_id: input.testId,
     p_student_id: input.studentId,
     p_responses: input.responses,
+    p_expected_revision: input.expectedRevision,
     p_submitted_at: requestedSubmittedAt,
   })
 
@@ -111,6 +116,8 @@ export async function submitStudentTestAttempt(input: {
     return mapped
   }
 
+  const conflict = readRevisionConflict(data)
+  if (conflict) return conflict
   const parsedResult = submitTestAttemptResultSchema.safeParse(data)
   if (!parsedResult.success) {
     logServerError('test.submit_result', parsedResult.error)
@@ -132,22 +139,24 @@ export async function submitStudentTestAttempt(input: {
     logServerError('test.submit_history', historyError)
   }
 
-  return { ok: true }
+  return { ok: true, draftRevision: parsedResult.data.draft_revision }
 }
 
 export async function saveStudentTestAttempt(input: {
   testId: string
   studentId: string
   responses: TestResponses
+  expectedRevision: number
   trigger?: 'autosave' | 'blur'
   pasteWordCount: number
   keystrokeCount: number
 }): Promise<SaveStudentTestAttemptResult> {
   const supabase = getServiceRoleClient()
-  const { data, error } = await supabase.rpc('save_test_attempt_atomic', {
+  const { data, error } = await supabase.rpc('save_test_attempt_revision_atomic', {
     p_test_id: input.testId,
     p_student_id: input.studentId,
     p_responses: input.responses,
+    p_expected_revision: input.expectedRevision,
   })
 
   if (error) {
@@ -167,6 +176,8 @@ export async function saveStudentTestAttempt(input: {
     return { ok: false, status: 500, error: 'Failed to save responses' }
   }
 
+  const conflict = readRevisionConflict(data)
+  if (conflict) return conflict
   const parsedResult = saveTestAttemptResultSchema.safeParse(data)
   if (!parsedResult.success) {
     logServerError('test.save_result', parsedResult.error)
@@ -215,4 +226,10 @@ export async function saveStudentTestAttempt(input: {
   }
 
   return { ok: true, attempt: result.attempt, historyEntry }
+}
+
+function readRevisionConflict(data: unknown): AttemptFailure | null {
+  const parsed = z.object({ conflict: z.literal(true), attempt: savedAttemptSchema }).safeParse(data)
+  if (!parsed.success) return null
+  return { ok: false, status: 409, error: 'Test answers changed. Reload or reconcile your answers before saving again.', error_code: 'test_attempt_revision_conflict', attempt: parsed.data.attempt }
 }

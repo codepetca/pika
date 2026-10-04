@@ -11,81 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Forward238 local catalog and serial regression receipts
-
-Reviewed23847a9bf5d ordinarylocalpush ONCE EXIT0, source/history001–237 matched,
-only238 preview/projectpika54322/API54321 guards verified. Posthistory001–238;
-private validator body5af12d2f owner/ACL/security/search/arguments unchanged,
-only volatilitys; metadata sourcefde368b5 matchesreviewed238/service-only ACL.
-Genuine generation/drift40d0289d unchanged; warning-free lintPASS. Strictserial
-81872SQL metadata+roster PASS by18:07:17Z, exactnewempty-slugPT400/fullrows/revisions.
-55752metadataSDKnormal EXIT0/all4markers;33554twoforcedeachEXIT1 exactFAIL+cleanup.
-12656rosterSDKnormal EXIT0/all4markers;4693threeforcedeachEXIT1 exactFAIL+cleanup,
-suppressed-delete complete rollback+guardrestored. No duplicateDBproofs/recovery.
-Startupfirstfocused187PASS/onebudgetFAIL16022 correctedcompactCURRENT without
-changing16000threshold orhistory. Final188tests16files/allstaticTSC/lint PASS.
-TargetedSol5.6/high CLEAN439+d132 (69+110offline); original review clocks/caps
-retained. Docs/startupreceipt batch7; pendingone final cumulative reviewer launch11
-andstableSHA CI. No production/account/cohort/feature activation; main2095 unchanged.
-
-## 2026-10-03 — Shared classroom-detail read preparation
-
-PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
-allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
-normal squash/no bypass and clean canonical main fast-forward. Classday1444
-ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
-initial security/compatibility reviews are clean, pending actual-parent integration.
-This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
-current relationship bound in the full30field payload, real enrollment FK inner
-join, archive-owner reads and owner-self-participation denial, preserved hydration
-and member guide-draft/guidance privacy projection. Original fallback/pair GETs
-and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
-TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
-CI hook prepared; actual execution and independent review still pending.
-Local236 installed by separate preserving-removal work; no schema/types here.
-Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
-attendance protection; coordinator repairs only synthetic teardown before more
-DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
-The owner's all-work/review-extension authorization retains original clocks,
-counters, absolute review caps and normal technical/release gates.
-
-1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
-(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
-ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
-replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
-unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
-and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
-Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
-allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
-entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
-integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
-
-## 2026-10-03 — Detail1447 pending-parent238 preparation
-
-Prepared reviewed293d35cf locally on pending1448 head88a1bfd6, excludingoldparent
-a8c4e9b. Parent final cumulative review CLEAN and one readyCI37143487206 running
-per root handoff; parent is NOT merged, actual main remains2095/calendar1446.
-All10detail runtime/schema/helper/proof/test/guide files remain byte-identical.
-Whole incoming roster/calendar/removal/237238 SQL, scripts/tests, genuine generated
-and curated types remain unchanged. CI preserves whole parent plus original
-detail proof step; CI tests preserve whole parent roster/calendar/removal/remainder
-plus unchanged detail block. Main roadmap and original child paragraphs/receipts
-remain intact, with one explicit preparation receipt only. History multiset is
-88+293−a8+this one entry; removed ten proven surplus session copies whose complete
-original bodies remain in the archive. Official trim retains40recent entries.
-Canonical Prod DB 001–225 spacing and local001–238 context restored. No database,
-status, proof execution, type generation, stashes, network/publication/CI writes.
-Original review clocks/counters/extensions remain root-owned and unchanged.
-Actual-parent reconciliation, changed-base independent review, publication and
-detail exact-head CI remain required; sharedadmission/fullcutover/billingOFF.
-This is implementation preparation, not an independent review or phase completion.
-Focused against actualorigin/main2095 passes352tests/23files and architecture,
-UI/design policy, TypeScript and lint. Startup budget regression reproduced RED
-at16001chars; CURRENT-only shortening gives15986chars and GREEN56startup/CI/Bara
-tests. Actual-main-aware audit20files, diff/trim and full preservation verifier
-PASS. Evidence /private/tmp/pika-1447-pending-parent-reconcile.oDB0ec; full focused
-pika-focused-psfLyl. No migrations created/renamed,36unrelated stashes untouched.
-
 ## 2026-10-03 — Detail1447 actual removal238-main reconciliation
 
 Rebased prepared7b421097 onto verified actual1448 squash73a85f26 using reviewed
@@ -1117,3 +1042,43 @@ and CI checks. Previously reviewed audit implementation bytes remain unchanged;
 shared continuity and CI composition receive bounded independent review.
 Final focused checks and exact reviewed-head CI are readiness gates.
 No migration reapplication, shared/hosted database operation, merge or deployment.
+
+## 2026-10-04 — Broad audit authorized landing reconciliation
+
+Owner instructed this task to orchestrate the all27-finding plan. Guidance1462
+merged at24cb8847; canonical hub fast-forwarded and exact source-tree parity PASS.
+Five remaining ready PRs conflict only in journal archival placement. Coordinator
+prepares one common history union preserving all complete prior body multiplicities;
+reviewed application/migration bytes remain pinned and pending source-parity checks.
+New-base focused checks, independent integration review and exact-head CI precede
+remaining merges. Production244–246 need matching application and exact-target/full-
+set permission; no database application, fixtures, feature activation or deployment.
+Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
+account-wide; DeepSeek paused. Task low-usage/review-budget override retained.
+
+## 2026-10-04 — Broad audit combined landing candidate
+
+After guidance1462 merge24cb8847, consolidated the five remaining reviewed source
+packages in draft1463. Identical journal union preserves complete prior body
+multiplicities; application/migration byte parity is checked against source-package
+heads, with explicit package/UiGallery/deletion-only validation-baseline composition.
+Baseline removes five actually validated routes, no new debt. Focused runner adds
+optional positive-integer --max-workers forwarding only to Vitest;24 controls PASS,
+selection unchanged; earlier default-capacity run retained10 UI timeout failures.
+No timeout/assertion/scope reduction. Final combined focused run uses2 workers;
+independent cumulative integration review and exact-head CI remain pending.
+Fresh read-only production history is exact001–225; target/ref matches GitHub
+migration environment. Complete pending226–246 impact review is underway; no apply,
+fixture/reset/cleanup/flag change or deployment. Braces width/parent-cycle limits
+reproduced; temporary exception throughNov4 proposed, owner decision pending.
+Old local application authority remains consumed; immutable receipts retained.
+
+## 2026-10-04 — Audit continuity format correction
+
+Combined cadf CI37225590466 passed12,215 full tests with8 configured skips;
+one continuity parser failed because CURRENT lost its required Hosted: Prod DB
+prefix. Restored that machine-readable prefix with the fresh001–225 verification
+date; no product, migration, type, dependency or test assertion change.1463 returned
+to draft before correction. Independent targeted review and fresh exact-head CI
+remain required; original frozen receipts and full failure log are retained.
+No production apply, provider, canary, flags or deployment operation.

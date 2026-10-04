@@ -121,7 +121,7 @@ describe('isolated assignment-list fixture source contracts', () => {
 
 describe('injected executable assignment-list lifecycle (no real commands)', () => {
   const hash = (text: string) => createHash('sha256').update(text).digest('hex')
-  function harness() {
+  function harness(migrationCount = 243) {
     const fixture = newAssignmentListProofFixture(new Date('2026-10-03T12:00:00Z'))
     const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
     const workdir = assignmentListProofWorkdir(projectId)
@@ -137,7 +137,7 @@ describe('injected executable assignment-list lifecycle (no real commands)', () 
     ]
     resources.forEach(r => { r.labels['com.docker.compose.project'] = projectId })
     let started = false
-    const migrations = Array.from({ length: 243 }, (_, n) => {
+    const migrations = Array.from({ length: migrationCount }, (_, n) => {
       const sql = `-- OFFLINE synthetic migration ${n + 1}\nselect ${n + 1};`
       return { name: `${String(n + 1).padStart(3, '0')}_offline.sql`, sql, sha256: hash(sql) }
     })
@@ -161,14 +161,41 @@ describe('injected executable assignment-list lifecycle (no real commands)', () 
     const input = { fixture, projectId, workdir, migrations, expectedResources: resources.map(({ kind, name }) => ({ kind, name })), reviewedManifestSha256: hash(JSON.stringify(fixture.manifest)), restorationPolicies: assignmentListRevocationPlans(fixture).map(p => ({ transition: p.transition, boundary: p.boundary, allowedCells: [] })), mode: 'normal' as 'normal' | 'after-fixture' | 'before-capture' }
     return { input, adapters, resources, canonical, setStarted: (value: boolean) => { started = value } }
   }
-  it('runs nine cases and all14 transitions, then exact cleanup and canonical equality', async () => {
-    const { input, adapters, resources } = harness()
+  it.each([243, 246, 247])('runs nine cases and all14 transitions with %i migrations, then exact cleanup and canonical equality', async count => {
+    const { input, adapters, resources } = harness(count)
     await expect(runAssignmentListEphemeralLifecycle(input, adapters)).resolves.toMatchObject({ cases: 9, revocations: 14, mode: 'normal' })
     expect(adapters.runCase).toHaveBeenCalledTimes(9)
     expect(adapters.runRevocation).toHaveBeenCalledTimes(14)
     expect(adapters.teardown).toHaveBeenCalledWith(expect.objectContaining({ resources, projectId: input.projectId, stopArgs: ['stop', '--project-id', input.projectId, '--no-backup'] }))
     expect(adapters.canonicalSnapshot).toHaveBeenCalledTimes(2)
     expect(adapters.command).toHaveBeenCalledWith(expect.objectContaining({ args: ['start', '--workdir', input.workdir, '-x', 'analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector'] }))
+    expect(adapters.prepare).toHaveBeenCalledWith(expect.anything(), input.migrations)
+  })
+  it.each(['short baseline', 'gap', 'changed hash', 'duplicate', 'out of order', 'invalid name'] as const)('rejects a %s before any adapter operation', async defect => {
+    const { input, adapters } = harness(246)
+    if (defect === 'short baseline') input.migrations.splice(242)
+    if (defect === 'gap') input.migrations.splice(123, 1)
+    if (defect === 'changed hash') input.migrations[245].sql += '\n-- changed after selection'
+    if (defect === 'duplicate') input.migrations[123] = { ...input.migrations[122] }
+    if (defect === 'out of order') [input.migrations[123], input.migrations[124]] = [input.migrations[124], input.migrations[123]]
+    if (defect === 'invalid name') input.migrations[245].name = '246_../escape.sql'
+    await expect(runAssignmentListEphemeralLifecycle(input, adapters)).rejects.toThrow()
+    for (const adapter of Object.values(adapters)) expect(adapter).not.toHaveBeenCalled()
+  })
+  it.each(['missing tail', 'changed copied hash', 'extra migration'] as const)('rejects prepared %s before startup or fixture writes', async defect => {
+    const { input, adapters } = harness(246)
+    const prepare = adapters.prepare
+    adapters.prepare = vi.fn(async (plan, migrations) => {
+      const prepared = await prepare(plan, migrations)
+      if (defect === 'missing tail') prepared.migrations.pop()
+      if (defect === 'changed copied hash') prepared.migrations[245].sha256 = '0'.repeat(64)
+      if (defect === 'extra migration') prepared.migrations.push({ name: '247_extra.sql', sha256: '0'.repeat(64) })
+      return prepared
+    })
+    await expect(runAssignmentListEphemeralLifecycle(input, adapters)).rejects.toMatchObject({ primary: { stage: 'prepare' }, cleanupFailures: [] })
+    expect(adapters.command).not.toHaveBeenCalled()
+    expect(adapters.executeSql).not.toHaveBeenCalled()
+    expect(adapters.runCase).not.toHaveBeenCalled()
   })
   it.each(['after-fixture', 'before-capture'] as const)('captures in finally and cleans forced %s committed fixtures', async mode => {
     const { input, adapters } = harness(); input.mode = mode
