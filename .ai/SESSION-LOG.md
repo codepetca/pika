@@ -1139,3 +1139,29 @@ authorized exact earlier replay/fixtures and guarded accidental synthetic user
 cleanup, now complete. Immutable removed private generations/limiter metadata
 remain in disposable target. No migration retry/deploy/production/shared change.
 Evidence: ~/.codex/audits/pika/2026-10-04-broad/handoff.json and replay manifests.
+
+## 2026-10-04 — Corrected audit database runtime verified
+
+Human approved exact d50d419e source001–246 and seven fixture units on fresh
+local pika_audit_20261004_corrected (DB64422/API64421). One approved application
+succeeded; durable history and actual generated type drift check match. CORE
+rollback/concurrency and both forced teardown controls, restored149 authority/
+null-clock/lock races, atomic grading with104 review finalization, atomic submit
+and editing/archive contracts all PASS. Two actual desktop lifecycle cases PASS
+without retries using the owned3320 app, isolated backend and verified Pal/WorkOS
+OFF. All12 checked public fixture tables, private adapters and temporary fixture
+constraints are empty afterward;19 immutable removed private membership
+generations remain intentionally. Auth limiter metadata can remain; no complete
+DB restoration, private-ledger deletion or stack-removal claim.
+
+Two empty-platform startups failed before application; CLI auto-cleaned its
+failed resources. Final startup excluded unused auxiliary services using actual
+CLI container names and retained essential health checks. No application retry,
+reset/seed/down/history repair, shared/production migration or merge/deploy.
+The original approved643xx target and unchanged AUTH/storage receipts remain
+separately identified. Production244–246/runbook and typed/browser source are
+independently accepted;561 focused tests/52files/static gates pass. This entry
+changes evidence only. Stable final reviewed-SHA CI is the remaining PR1463 gate;
+18/27 findings already accepted through five other ready green audit PRs.
+Detailed authority, attempt, runtime and cleanup receipts: external broad-audit
+handoff and corrected-local-replay directory.
