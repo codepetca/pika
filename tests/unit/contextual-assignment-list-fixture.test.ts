@@ -137,7 +137,7 @@ describe('injected executable assignment-list lifecycle (no real commands)', () 
     ]
     resources.forEach(r => { r.labels['com.docker.compose.project'] = projectId })
     let started = false
-    const migrations = Array.from({ length: 242 }, (_, n) => {
+    const migrations = Array.from({ length: 243 }, (_, n) => {
       const sql = `-- OFFLINE synthetic migration ${n + 1}\nselect ${n + 1};`
       return { name: `${String(n + 1).padStart(3, '0')}_offline.sql`, sql, sha256: hash(sql) }
     })

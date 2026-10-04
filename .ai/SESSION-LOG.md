@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Shared calendar owner-write source and local verification
-
-Disjointchild of reviewed1444d8c828ad adds onlysharedPOST/PATCH/calendaradapter,
-namedvalidation/source/APItests and proofs.176new+315unchanged assertions pass;
-actualinstalled152SDK owner/member/archive/formerowner/Toronto/bounds/prompt/CTID
-and malformedactualresponse503aftercommit pass. Initialproof wrongly expected
-unchangedarchive revision on identicaltoggle; existing082/095BEFOREINSERT trigger
-bumpsrevisionevenwhen152performsnoUPDATE. Correctedproof explicitlyasserts+1,
-unrelatedclassrevision unchanged andidenticalrow/CTID, no appliedSQL changes.
-RollbackSQL andallfive pg_blocking_pids races pass. Bothnormal/forcedSDK andrace
-fixtures cleanup exactly/globalbaselinePASS. Reusedharness nowprovisions only
-exactsyntheticcreationgrant andremovesmanual/defaultFree audits. Sharedadmission
-OFF/prod225untouched; local235installed byseparate rosterwrites. Fullfocused,
-independentreview andactualparent/main integration precedefinalCI/merge.
-
 ## 2026-10-03 — Calendar1446 preparation on actual merged class-day main
 
 1444 actual normalmergea8c4e9b16:04:51Z verified withallfive exact7d341d23
@@ -1003,3 +988,25 @@ concealment remains nextbounded prerequisite; assessments/goal incomplete. Local
 main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
 worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
 and localmigration override retained; no bypass or production permission inferred.
+
+## 2026-10-04 — Locked inline-image read source preparation
+
+1459 final cumulative security review CLEAN on9f15e6e2; one ready-event exact CI
+37191597295 is running. Source frozen, original review clock/counters retained;
+explicit human-authorized extension to10:43Z for CI/normal merge only. No duplicate
+watcher, production operation or activation. Local242/main241 still.
+
+Disjoint243 source worker6.1Sol/high completed/relinquished only SQL/test/harness;
+root sole writer verified complete213 body preservation after minimal locked
+nonowner Classwork predicate. Owner inspection, original locks/error/DTO/status/
+ACL contracts unchanged.9new/90related worker checks PASS; root71new/CI/floor checks,
+bash-n/diff PASS. New exactcanonical c243/sc243 rollback metadata fixture prepared
+NOTRUN: verified/ready controls, both role labels, hidden404/owner inspection and
+invalid bindings with whole-row/settings/cron/resources/guards equality. Existing
+117 begin/schema accepts synthetic metadata; no physical Storage bytes/API/network.
+NULL-scope retained evidence and CASE grammar regressions retained from242.
+Strict replay floor only advances to243; fixture/transitions/restoration/cleanup
+authority unchanged. Candidate243 UNAPPLIED; actual1459merge/tree parity/reconcile,
+independent reviews and genuine local types/runtime/replay precede ready/CI/merge.
+No realopen/signing/nonemptySDK/HTTP/browser/concurrency proof inferred. Assessment
+phase/goal incomplete; productionlast225/admission/home/cutover/billing/providerOFF.

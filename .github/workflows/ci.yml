@@ -336,6 +336,9 @@ jobs:
       - name: Verify contextual assignment-member supplemental visibility
         run: bash scripts/check-contextual-assignment-member-supplement-visibility-database.sh
 
+      - name: Verify contextual Assignment inline-image locked Classwork reads
+        run: bash scripts/check-contextual-assignment-inline-read-classwork-database.sh
+
       - name: Verify contextual Daily Log save atomicity and privileges
         run: bash scripts/check-contextual-daily-log-save-database.sh
 

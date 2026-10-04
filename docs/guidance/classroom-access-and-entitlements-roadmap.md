@@ -1132,6 +1132,18 @@ Final cumulative review/exact-head CI/mainmerge remain gates; main241/local242,
 productionlast225 and all activation controls unchanged. Inline-image read boundary
 remains the next bounded prerequisite before image admission. Phase/goal incomplete.
 
+Next bounded prerequisite: [locked inline-image reads](contextual-assignment-inline-read-classwork.md).
+Candidate243 replaces only the complete latest213 image READ function, with its
+equivalent ACL; it adds locked Classwork concealment only for nonowners. Owners
+retain hidden/archive/draft ready-object inspection of still-enrolled subjects.
+Worker9new/90related and root71new/CI/floor checks PASS; prepared rollback matrix
+is NOTRUN. No001–242 SQL changes, signing/upload/finalize or feature activation.
+Original isolated observer authority is unchanged; only strict243 replay floor
+advances.1459 final cumulative review CLEAN on9f15e6e2, exactCI37191597295 running;
+actual parent merge/reconciliation must precede243 publication or local application.
+Independent source review, real SQL/types/rollback/replay and reviewed CI/mainmerge
+remain gates. Local242/main241; productionlast225 and admission/home/cutover OFF.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

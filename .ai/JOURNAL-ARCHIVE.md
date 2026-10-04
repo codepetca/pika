@@ -35883,3 +35883,19 @@ types, dependency or test assertion was changed. Original review clock and count
 retained; narrow independent documentation recheck and focused checks precede the
 replacement exact-head ready CI. Other original CI jobs are allowed to finish for
 observed receipts; no duplicate watcher or dispatch.
+
+<!-- pika-session-log-archive-batch:868ddce2f7e48b7279a6b95012d5bd68891bf022d3e14af4f53eb6021fde7ddb -->
+## 2026-10-03 — Shared calendar owner-write source and local verification
+
+Disjointchild of reviewed1444d8c828ad adds onlysharedPOST/PATCH/calendaradapter,
+namedvalidation/source/APItests and proofs.176new+315unchanged assertions pass;
+actualinstalled152SDK owner/member/archive/formerowner/Toronto/bounds/prompt/CTID
+and malformedactualresponse503aftercommit pass. Initialproof wrongly expected
+unchangedarchive revision on identicaltoggle; existing082/095BEFOREINSERT trigger
+bumpsrevisionevenwhen152performsnoUPDATE. Correctedproof explicitlyasserts+1,
+unrelatedclassrevision unchanged andidenticalrow/CTID, no appliedSQL changes.
+RollbackSQL andallfive pg_blocking_pids races pass. Bothnormal/forcedSDK andrace
+fixtures cleanup exactly/globalbaselinePASS. Reusedharness nowprovisions only
+exactsyntheticcreationgrant andremovesmanual/defaultFree audits. Sharedadmission
+OFF/prod225untouched; local235installed byseparate rosterwrites. Fullfocused,
+independentreview andactualparent/main integration precedefinalCI/merge.

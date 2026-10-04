@@ -6,6 +6,16 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires locked inline-image reads after supplemental visibility contracts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify contextual Assignment inline-image locked Classwork reads'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('run: bash scripts/check-contextual-assignment-inline-read-classwork-database.sh')
+    expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Verify contextual assignment-member supplemental visibility')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual Daily Log save atomicity and privileges'))
+  })
   it('requires supplemental learner visibility checks after member Classwork contracts', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const name = '      - name: Verify contextual assignment-member supplemental visibility'
