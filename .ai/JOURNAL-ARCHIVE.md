@@ -36921,3 +36921,31 @@ Owner requested production promotion after attendance PR1430 merged to main8dc05
 ## 2026-10-02 — Deploy current main after attendance release
 
 Owner requested deploying main to production after the attendance promotion merged. Production47970e41 is already building in Vercel; mainbf3754c4 additionally contains reviewed scrollbar PR1432. Draft promotion1434 includes that source change and preserves both journal histories in its sole continuity conflict. Application/configuration/schema/tests match reviewed mainbf3754c4 exactly; no database application or flag change. One bounded promotion compatibility review, focused checks and exact-head CI precede merge, then Vercel production deployment is verified. Risk profile:runtime-platform. Model recommendation:GPT-6 Luna/medium for mechanical release/source equivalence and continuity verification.
+
+<!-- pika-session-log-archive-batch:8c80763e772a20ed8771d09fd1f2b03d4ac0e592707c6da0e21e5261fb63c9d3 -->
+## 2026-10-03 — Removal1448 actual calendar-main reconciliation
+
+Rebased preparedb47c6fa7 onto actual calendar1446 main2095efec, usinga9613f46
+as the exact old-parent boundary. Root verified1446 squash merge at17:40:27Z,
+reviewed795a528a/all five eligibleCI37139673399 checks and PR Gate passed.
+All13nonshared reviewed8e81327a feature files remain byte-identical: runtime,
+schema, guide, proofs/tests, immutable236 and genuine generated eight-line RPC.
+The approved shared CI test union preserves exact main roster/calendar blocks
+first, unchanged removal block next, and the full common remainder; whole main
+CI plus original removal proof insertion preserves every calendar cleanup gate.
+History full-body multiplicities are actual2095+preparedb47−a961+this one entry.
+Removed only two exact surplus session copies (Release Java and Person/code
+roles), with original full bodies retained in the archive. All main roadmap
+text and both historical child removal paragraphs remain unchanged, plus one
+new reconciliation receipt. Canonical Prod DB 001–225 spacing restored;
+shared local001–237 metadata differs from this source001–236/actualmain235.
+No database/status/proof/type generation/provider/remote publication/CI writes.
+Original clock15:19:13Z/extended18:19:13Z, launch8/initial1/targeted5/fix5 remain.
+Changed-base independent review, publication and final exact-head CI remain
+pending; sharedadmission/fullcutover/billing remainOFF. Actual-main focused
+184tests/15files, architecture/UI/design/TypeScript/lint all PASS; explicit Bara
+spacing regression4/4 and actual-main-aware audit10files PASS. Private full
+preservation verifier/diff/official trim pass,40recent/2092combined entries.
+Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
+pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
+remain untouched. This is implementation evidence, not the independent review.

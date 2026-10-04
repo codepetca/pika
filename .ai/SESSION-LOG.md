@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Removal1448 actual calendar-main reconciliation
-
-Rebased preparedb47c6fa7 onto actual calendar1446 main2095efec, usinga9613f46
-as the exact old-parent boundary. Root verified1446 squash merge at17:40:27Z,
-reviewed795a528a/all five eligibleCI37139673399 checks and PR Gate passed.
-All13nonshared reviewed8e81327a feature files remain byte-identical: runtime,
-schema, guide, proofs/tests, immutable236 and genuine generated eight-line RPC.
-The approved shared CI test union preserves exact main roster/calendar blocks
-first, unchanged removal block next, and the full common remainder; whole main
-CI plus original removal proof insertion preserves every calendar cleanup gate.
-History full-body multiplicities are actual2095+preparedb47−a961+this one entry.
-Removed only two exact surplus session copies (Release Java and Person/code
-roles), with original full bodies retained in the archive. All main roadmap
-text and both historical child removal paragraphs remain unchanged, plus one
-new reconciliation receipt. Canonical Prod DB 001–225 spacing restored;
-shared local001–237 metadata differs from this source001–236/actualmain235.
-No database/status/proof/type generation/provider/remote publication/CI writes.
-Original clock15:19:13Z/extended18:19:13Z, launch8/initial1/targeted5/fix5 remain.
-Changed-base independent review, publication and final exact-head CI remain
-pending; sharedadmission/fullcutover/billing remainOFF. Actual-main focused
-184tests/15files, architecture/UI/design/TypeScript/lint all PASS; explicit Bara
-spacing regression4/4 and actual-main-aware audit10files PASS. Private full
-preservation verifier/diff/official trim pass,40recent/2092combined entries.
-Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
-pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
-remain untouched. This is implementation evidence, not the independent review.
-
 ## 2026-10-03 — Removal1448 forward-only database lint correction
 
 Exact reviewed787e623f CI37141937671 failed warning-free lint for private result
@@ -1068,3 +1041,28 @@ patch/retryloop. Readonly618volumes/587unattached;0 ownedprooflabelmatches,
 583non-Supabase+4other-Supabase names. Ownership/disposability unproved; no deletion.
 Need clean test environment or exact verified disposable cleanup scope. No guard/
 deadline loosening, sharedschema/production/account/provider/admission change.
+
+## 2026-10-04 — Owner Test list verified cleanup and bulk transport proposal
+
+HumanYes authorizedonlyverifieddisposabletestdata cleanup. Readonly577anonymous
+localvolumes:576populated1empty0unreadable;10namedunknownexcluded. RemovedONLYone
+freshmetadata-boundunattachedemptyvolume, non-force; no datafiles/populateddata
+deleted. Available221950488KiB before/afterequal; no measuredspacegain. SAMEsaved
+wholecanonicalbaselinePASS (38356),617volumesremain. No broadprune/DBreset.
+Sol6.1/high boundedreadonlyprobe:all617 Name/rawCreatedAt/Labels exactlyequal
+bulkGET/CLIinspect;193971bytes9ms,CLIlist216ms+five serialinspect459ms. Rootverified
+officialCLI VolumeList implementation and accepts scopedproposal, notactualproof.
+Delegatehelper/offlinetests ONLY toSol6.1/high; fixedlocalsocket-boundunfiltered
+GETv1.45/volumes retainscompletefreshglobalclosure/logical128batchreplay/parser/
+one-shotconsumption/caps/allactive-settlement/privateSQL/app20s. Physicaltransport
+andJSONserialization differ; no literalstdout/physicalcommandparityclaim. No native
+run/CI/merge/sourceapp/schema/prod/account/provider/admission/rollout change yet.
+Originalclock/counters/humanstopwaiverretained; no newgoal/task/automation. Worker
+usage/effectiveconfig unknown; implementationreview/runtimeacceptance stillpending.
+Deliveredhelper/testONLY, approx10min manualworkerelapsed. TDD22newbaselinefailures;
+heldsocketfailure REDqueuednetworkwork thenGREEN immediatepoolfailuremark/drain.
+Rootnonblocking-configopen findingfixed/tested. Worker163proof/tsc/scopedlintPASS;
+root374focused15/allstatic/audit2TS/historymissing0extra0/trim40/diffPASS. Sourceapp/
+runner/fixture/sealednative/SQL/schema/CI/deps byteparity376 verified. Review14th
+launch/11thtargeted/11thfixbatch planned, originalclock/humanwaiver retained; no
+freshnative rehearsal untilfixedsourceCLEAN/coordinatorfiniteacceptance.

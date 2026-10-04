@@ -275,3 +275,40 @@ retry loop is stopped for an environment checkpoint. Read-only inventory found
 618 volumes,587 unattached; none matched this proof's owned project-label pattern.
 583 had non-Supabase names and4 other-Supabase names; unattached is not disposable
 or ownership evidence. No volumes were deleted and no deadline/guard was weakened.
+
+The owner subsequently authorized targeted cleanup of verified disposable data.
+Read-only checks found577 anonymous/local volumes:576 populated and one empty;
+ten named unknown volumes were excluded. Only the one freshly verified empty,
+unattached volume was removed, non-force. No data files were present; no populated
+or unknown volume was deleted. Available space was unchanged immediately before
+and after removal (about212GiB). The SAME saved whole-canonical baseline passed;
+617 global volumes remain. This is cleanup evidence, not a passing SDK rehearsal.
+
+A bounded read-only proposal then compared an unfiltered local Engine volume-list
+response with every original CLI volume inspect result: all617 identities and raw
+Name/CreatedAt/Labels matched. Bulk retrieval took9ms/193971bytes, versus216ms for
+CLI listing and459ms for five sequential inspect batches. Those measurements do
+not predict complete concurrent inventory or SDK latency. The proposed helper
+uses the same daemon's bulk metadata to synthesize exact original128-name logical
+inspect results for the unchanged sealed parser. Physical HTTP transport and JSON
+serialization change; literal original inspect stdout/executed-command equality
+is not claimed. Fresh global CLI listing/set equality, explicit local socket
+binding, complete foreign attachment discovery, one-shot/full consumption,
+bounded pending-work settlement, private SQL and the real20s deadline remain gates.
+Docker/proxy environment overrides and nonempty default Docker HttpHeaders are
+rejected; configuration reads are bounded, private and never logged or retained.
+Fixed-source review and coordinator acceptance precede any new actual rehearsal.
+
+The proposed helper is implemented with the original injected-command seam kept
+for compatibility tests. Native-path regressions cover socket/context/header
+binding, exact bulk metadata, uneven641-volume inventories, fresh success/failure
+invocations, original one-shot consumption, streamed and aggregate64MiB caps,
+absolute20s and monotonic timeout checks, HTTP lifecycle errors and all-active
+settlement. A held-socket regression first exposed queued work starting after a
+known HTTP failure; the pool now stops immediately while cleanup still settles.
+The default config reader uses nonblocking read-only open, bounds allocation after
+regular-file validation and always closes its descriptor. Root verified163 proof
+checks indirectly through374 focused checks/15 files, plus all static gates,
+two-file audit, whitespace and whole-history preservation. Source/app/SQL/fixture/
+native/schema/CI/dependency bytes are unchanged. Independent fixed-source review
+and actual runtime acceptance are still pending; no passing rehearsal is inferred.
