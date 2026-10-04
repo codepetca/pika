@@ -1234,3 +1234,29 @@ review/rootfinite-manifestacceptance precede actualdisposableSDKnormal+2forced.
 Attributableactive/tokensunknown. Originalsealedauthority/lifecycle/controls/
 cleanup/native bytesunchanged. No migration/production/cohort/home/account/
 provider/billing activation; phase2/3active,4/5dormant,goal incomplete.
+
+## 2026-10-04 — Docker recovery; owner Test list runtime held
+
+1469 remains draft/unmerged, reviewed a000cb3c with two independent CLEAN source
+reviews, launch2/initial1/fix0. Original16:03Z review clock/counters retained;
+direct human task-stop override waives workflow review/usage stops, not proof,
+CI, source authority or rollout gates. Human Yes authorized Docker restart.
+Normal CLI restart timed out; seven verified Docker-app processes received TERM,
+one stuck verified backend then KILL; official start recovered engine29.7.2.
+No images, volumes, container data or unrelated source/stashes were deleted.
+
+External dependency target was missing. Root restored only this worktree's own
+dependencies with unchanged-lockfile install:696 reused/zero downloads. Recovery
+load caused2 test timeouts, isolated39 passed, then full197/14 and all static gates
+passed without weakening timeouts. Source/lock and reviewed HEAD remain unchanged
+apart from this pending continuity entry. Finite manifests explicitly accepted;
+new once-wx0600 private1469 canonical baseline captured, old1468 preserved.
+
+Normal SDK attempt17:39:35Z failed startup180s before extension setup. Exact owned
+CLI descendants outlived wrapper timeout; root verified project2e6078d26139 and
+TERM'd only those two processes. Cleanup failures and closed-platform independent
+baseline verification failure mean neither cleanup nor canonical equality is
+proved; no data-change claim either. Host177MiB free; temporary workdir retained.
+No forced runs, ready CI, merge, production or activation. Preserve SAME baseline;
+recover stable disk/API, inspect and finish exact owned-resource cleanup, verify
+baseline, then retry. Private1469 ledger contains receipts; no baseline recapture.
