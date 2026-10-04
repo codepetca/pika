@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListRowChanges, assignmentListSafeCronJobs } from '../../scripts/contextual-assignment-list-proof-platform'
+import { describe, expect, it, vi } from 'vitest'
+import { assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListRowChanges, assignmentListSafeCronJobs, assignmentListDockerInventory } from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { parseAssignmentListLifecycleArgs } from '../../scripts/check-contextual-assignment-list-lifecycle'
@@ -10,6 +10,43 @@ import { prepareAssignmentListProjectFiles, writeAssignmentListStartupDiagnostic
 import { assignmentListEphemeralPlan } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 
 describe('assignment-list native platform proof contracts (offline)', () => {
+  function inventoryRunner(substitute = false) {
+    const containerIds = [1, 2].map(n => n.toString(16).padStart(64, '0'))
+    const networkId = '3'.padStart(64, '0')
+    const volumes = Array.from({ length: 614 }, (_, n) => ({ Name: `volume_${n}`, CreatedAt: 'created', Labels: {} }))
+    const containers = containerIds.map((id, n) => ({ id, name: `/container_${n}`, labels: {}, mounts: [{ Type: 'volume', Name: 'volume_0' }],
+      networks: { shared: { NetworkID: networkId } }, bindings: {}, created: 'created' }))
+    const networks = [{ Id: networkId, Name: 'network', Created: 'created', Labels: {}, Containers: Object.fromEntries(containerIds.map(id => [id, {}])) }]
+    const run = vi.fn(async (_file: string, args: string[]) => {
+      if (args[0] === 'ps') return containerIds.join('\n')
+      if (args[1] === 'ls') return args[0] === 'volume' ? volumes.map(v => v.Name).join('\n') : networkId
+      if (args[0] === 'inspect') return containers.filter(c => args.includes(c.id)).map(c => JSON.stringify(substitute ? { ...c, id: '4'.padStart(64, '0') } : c)).join('\n')
+      if (args[0] === 'volume') return JSON.stringify(volumes.filter(v => args.includes(v.Name)))
+      return JSON.stringify(networks)
+    })
+    return { run, containerIds, networkId }
+  }
+  it('batches complete global inventory without caching or dropping foreign attachments', async () => {
+    const { run, containerIds, networkId } = inventoryRunner()
+    const resources = await assignmentListDockerInventory(run)
+    expect(resources).toHaveLength(617)
+    expect(resources.find(r => r.kind === 'volume' && r.name === 'volume_0')?.attachedIds).toEqual(containerIds)
+    expect(resources.find(r => r.id === networkId)?.attachedIds).toEqual(containerIds)
+    expect(resources.find(r => r.id === containerIds[0])?.attachedIds).toContain('volume:volume_0:created')
+    expect(run.mock.calls).toHaveLength(10)
+    expect(run.mock.calls.filter(([, args]) => args[0] === 'volume' && args[1] === 'inspect').every(([, args]) => args.length <= 130)).toBe(true)
+    expect(run.mock.calls.every(([, args]) => !args.includes('--filter'))).toBe(true)
+    await assignmentListDockerInventory(run)
+    expect(run.mock.calls).toHaveLength(20)
+  })
+  it('fails closed if a batch returns a substituted or incomplete inspected identity', async () => {
+    await expect(assignmentListDockerInventory(inventoryRunner(true).run)).rejects.toThrow()
+    const { run } = inventoryRunner()
+    await expect(assignmentListDockerInventory(async (file, args) => {
+      const output = await run(file, args)
+      return args[0] === 'volume' && args[1] === 'inspect' ? JSON.stringify(JSON.parse(output).slice(1)) : output
+    })).rejects.toThrow()
+  })
   it('keeps startup error output in one private no-overwrite receipt, not the console', () => {
     const project = `pika_assignment_list_${randomUUID().replaceAll('-', '').slice(0, 12)}`
     const path = `${assignmentListProofWorkdir(project)}-startup.json`

@@ -111,11 +111,31 @@ async function command(file: string, args: string[], options: { input?: string; 
   })
 }
 const containerTemplate = '{"id":{{json .Id}},"name":{{json .Name}},"labels":{{json .Config.Labels}},"mounts":{{json .Mounts}},"networks":{{json .NetworkSettings.Networks}},"bindings":{{json .HostConfig.PortBindings}},"created":{{json .Created}}}'
-async function dockerInventory(): Promise<AssignmentListResource[]> {
-  const ids = async (args: string[]) => (await command('docker', args)).split(/\s+/).filter(Boolean)
-  const containers = await Promise.all((await ids(['ps', '-aq', '--no-trunc'])).map(async id => JSON.parse(await command('docker', ['inspect', id, '--format', containerTemplate]))))
-  const volumes = await Promise.all((await ids(['volume', 'ls', '-q'])).map(async name => JSON.parse(await command('docker', ['volume', 'inspect', name]))[0]))
-  const networks = await Promise.all((await ids(['network', 'ls', '-q', '--no-trunc'])).map(async id => JSON.parse(await command('docker', ['network', 'inspect', id]))[0]))
+/** Fresh complete global discovery; batching reduces process overhead, not scope. */
+export async function assignmentListDockerInventory(run: (file: string, args: string[]) => Promise<string> = command): Promise<AssignmentListResource[]> {
+  const ids = async (args: string[]) => {
+    const values = (await run('docker', args)).split(/\s+/).filter(Boolean)
+    assert.equal(new Set(values).size, values.length)
+    assert(values.every(value => args[0] === 'volume' ? /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(value) : /^[a-f0-9]{64}$/.test(value)))
+    return values
+  }
+  async function inspect<T>(values: string[], args: string[], decode: (output: string) => T[], identify: (row: T) => string) {
+    const rows: T[] = []
+    for (let start = 0; start < values.length; start += 128) {
+      const batch = values.slice(start, start + 128)
+      const inspected = decode(await run('docker', [...args, ...batch]))
+      assert(Array.isArray(inspected)); assert.equal(inspected.length, batch.length)
+      assert.deepEqual(inspected.map(identify).sort(), [...batch].sort())
+      rows.push(...inspected)
+    }
+    return rows
+  }
+  type Container = { id: string; name: string; labels: Record<string, string> | null; mounts: Array<{ Type: string; Name: string }>; networks: Record<string, { NetworkID: string }>; bindings: Record<string, Array<{ HostPort: string }> | null>; created: string }
+  type Volume = { Name: string; CreatedAt: string; Labels: Record<string, string> | null }
+  type Network = { Id: string; Name: string; Created: string; Labels: Record<string, string> | null; Containers: Record<string, unknown> }
+  const containers = await inspect<Container>(await ids(['ps', '-aq', '--no-trunc']), ['inspect', '--format', containerTemplate], output => output.split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)), row => row.id)
+  const volumes = await inspect<Volume>(await ids(['volume', 'ls', '-q']), ['volume', 'inspect'], output => JSON.parse(output), row => row.Name)
+  const networks = await inspect<Network>(await ids(['network', 'ls', '-q', '--no-trunc']), ['network', 'inspect'], output => JSON.parse(output), row => row.Id)
   const volumeId = (name: string) => { const volume = volumes.find(v => v.Name === name); assert(volume); return `volume:${name}:${volume.CreatedAt}` }
   const result: AssignmentListResource[] = containers.map(c => ({ kind: 'container', id: c.id, createdAt: c.created, name: c.name.replace(/^\//, ''), labels: c.labels ?? {},
     attachedIds: [...c.mounts.filter((m: { Type: string }) => m.Type === 'volume').map((m: { Name: string }) => volumeId(m.Name)),
@@ -125,6 +145,7 @@ async function dockerInventory(): Promise<AssignmentListResource[]> {
   for (const n of networks) result.push({ kind: 'network', id: n.Id, createdAt: n.Created, name: n.Name, labels: n.Labels ?? {}, ports: [], attachedIds: Object.keys(n.Containers ?? {}) })
   return result.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id))
 }
+const dockerInventory = () => assignmentListDockerInventory()
 async function occupied(port: number): Promise<boolean> {
   return new Promise(resolve => { const server = createServer(); server.once('error', () => resolve(true)); server.listen(port, '127.0.0.1', () => server.close(() => resolve(false))) })
 }
