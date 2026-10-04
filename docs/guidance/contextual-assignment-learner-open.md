@@ -1,7 +1,7 @@
 # Shared learner Assignment opening
 
-Status: dormant source preparation. Independent fixed-source reviews, isolated
-read/projection evidence, final exact-head CI and main merge remain gates.
+Status: dormant backend with clean initial/targeted reviews and accepted isolated
+read/projection evidence. Final cumulative review, exact-head CI/main merge remain gates.
 Risk: authorization, private learner disclosure and existing transactional effects.
 
 This bounded slice changes only the shared-admitted prefix of
@@ -84,3 +84,44 @@ this observer a real RPC or browser flow. Nonempty supplementary rows, live imag
 signing, integrated first-create/Pal, authenticated HTTP/browser and sibling
 learner write/history/artifact Classwork visibility remain separate requirements.
 Batch2 and the overall epic remain incomplete; production and cutover stay OFF.
+
+## Superseding isolated receipt — 2026-10-04 Toronto
+
+Draft PR1457 at ecfcf714 passed both independent high-risk reviews (GPT5.6Sol/high
+security; GPT6.1Sol/high compatibility, Terra unavailable),318 focused tests/8skip
+and all static gates. Both reviewers independently passed136 offline checks.
+The branch is reconciled onto actual1456 squashc7e5a487; pre-rebase application,
+proof, tests and CI bytes are unchanged, with both continuity histories retained.
+
+The first actual normal run failed after the second membership control statement,
+but exact teardown/full canonical baseline checks passed. A source-unchanged
+closed-shape diagnostic showed that the preflight parsed correctly. The controlled
+RPC stub omitted `doc.content`; the real reader correctly rejected the missing
+bounded evidence. One regression-first proof-only batch adds the exact immutable
+setup SQL's existing empty JSONB content. Application/SQL/fixture/platform/
+transition/restoration/cleanup and transport authority remain byte-identical.
+Targeted proof-interface review CLEAN at ec274c75; reviewer105 checks and root
+53 proof/318 focused8skip/static/explicit proof TypeScript/audit PASS.
+
+At clean ec274c75, the actual Supabase CLI normal replay passed nine learner
+read/projection cases and six original first/later/terminal owner-transfer and
+member-removal boundaries, plus the original list cases/revocations. It covers
+both account-role labels, existing own document identity, unreturned null grades,
+returned zero grades/feedback,1001 requirements and real FK/nested query shapes.
+Nine sealed controlled RPC stubs retain `created:false`/`viewed_at_changed:false`;
+there were zero network RPC, Storage or provider calls.
+
+After-fixture and before-capture each exited1 with exactly two expected markers,
+successful teardown and unchanged canonical baseline. Private0600 receipts:
+`/private/tmp/pika-learner-open-cleanup.FXeytu` and
+`/private/tmp/pika-learner-open-cleanup.kV9zZS`. The immutable original fixture,
+001–240 migration source, exact transition SQL and original restoration/fingerprint
+authority remain unchanged. Full canonical public/private/Storage row fingerprints,
+168 metadata/settings/cron and resource identities match; no synthetic resources
+remain. Original06:31:48UTC review clock/counters are retained.
+
+These are READ/projection receipts, not actual open RPC/create/view/Pal effects,
+live image signing, nonempty supplements or authenticated HTTP/browser evidence.
+The explicit no-document ClassB and absent Assignment archived/hidden fixture gaps
+remain excluded. Migration240 SQL evidence remains separate. Final review and
+stable exact-head CI/main merge still precede release; production and cutover OFF.

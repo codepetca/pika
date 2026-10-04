@@ -1057,6 +1057,18 @@ Independent review and actual isolated proof remain gates, not claimed receipts.
 Integrated open effects, nonempty supplements/live signing and sibling visibility
 remain distinct work. Shared admission/page/home/cutover and production stay OFF.
 
+Superseding learner-GET receipt: draft1457 initial ecfcf714 security/compatibility
+CLEAN; actual normal first failed with exact baseline/cleanup PASS. One proof-only
+stub-content regression REDtoGREEN and targeted ec274c75 review CLEAN preserve
+all application/SQL/fixture/platform/transition/cleanup authority. Actual ec274c75
+normal passes9projection/6original revocations/nine controlled false-flag RPCstubs
+and zero actualRPC/Storage/provider network, plus originallistcases/revocations;
+both forced modes exactexit1/two markers/full canonical unchanged PASS.
+318focused8skip/static/explicitproofTS/audit PASS. Final cumulative review and
+exact-head CI/mainmerge remain gates. Source-only next241 worker prepares hidden
+Classwork denial for save/submit/unsubmit/preflight only; history/restore/artifacts/
+inline images remain separate. No241application or production/activation implied.
+
 Remaining batch-2 groups, in integration order: Assignment detail/open
 enrichments; Tests owner operations then learner participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading
