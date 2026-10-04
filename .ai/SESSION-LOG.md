@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-02 — CI production-history format correction
-
-Targeted sync review at87007a8e passed; freshCI37037586582 found one failure
-among9174tests: compact CURRENT omitted the required `Prod DB 001–` prefix.
-Returned PR1429 to draft and restored the four missing characters without
-changing production history or weakening the contract. Billing source/228 remain
-unchanged. Fourth correction batch; focused/current-history checks precede a
-brief additional independent review, which needs authorization because the one
-approved sync reviewer is consumed. Existing merge-on-green authority remains.
-
 ## 2026-10-02 — Responsive teacher attendance marking
 
 Removed roster-wide mark locks. Feature-owned optimistic queue saves independent students concurrently, orders overlapping corrections, protects projections from stale reads, and rolls back only failed/unsaved rows; navigation detaches presentation while accepted writes continue in order and outstanding projections survive re-entry. Manual and integrated controllers share the queue; Live now reuses the integrated controller while preserving its open/closed gate and table presentation. Commit receipts release writes immediately; roster reads run in the background after the queue drains.
@@ -1011,3 +1001,21 @@ timed; tokens/active unknown. Existingtaskstop waiver/cumulative ledger retained
 Updated-main focused280tests/15files and all architecture/UI/design/TypeScript/
 lint gates PASS; officialtrim/exacthistorymultiset/diff checks PASS. Proof-only
 remediation batch6 includes this source correction and history reconciliation.
+
+## 2026-10-04 — Owner Test list bounded denial diagnostics
+
+Targeted Sol5.6/high CLEANb4d, sourceonly; reviewerVitest unavailable/noinstall,
+root280/allstatic/70proof evidence retained. Root explicitly accepted frozen
+parallel-inventory4bb75e/runner767c3a/fixturee83+complete246 before actual64763.
+Normal reached three owner cases then case3/root41requests, context1848ms/guard1829ms
+HTTP200/complete; old20s blocker resolved, newassert unknown. Exactteardown/SAME
+canonical fivefield baselinePASS; no fullnormal/forced success. Read-only Sol6.1/
+high diagnosis20:30:44–20:32:38Z narrows original class403/count1/snapshot assertions;
+offline TSX syntheticfetch confirms403/sameclass/1request but not actualSDK.
+Root TDD13 closed matrix-step/API-error outcome regressions preserve everyassert,
+own-descriptor lookup avoids SDK getters, fixed kinds/statuses only; no rawerrors/
+IDs/rows or guard/deadline weakening. Fixed-source review/acceptance precede
+rerun; original clock/counters/direct waiver retained. No prod/sharedmigration/
+accounts/providers/admission/activation; active/tokens unknown.
+RED diagnostic12/12failed, then snapshot-step2RED; fullfocused293tests/15files and
+allstatic gates PASS with13new regressions (83 proofchecks selected by focused).

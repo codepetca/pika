@@ -174,3 +174,17 @@ relative to the fixed prior base; four missing original copies were restored and
 was lost; official trim and exact multiset checks pass, and36 unrelated stashes
 remain untouched. Current source checks and targeted fixed-head review remain
 prerequisites for execution; no successful runtime is implied by the rebase.
+
+The parallel guard correction passed targeted independent review and coordinator
+acceptance at `b4d226cc`. Its actual normal run progressed beyond the prior
+deadline through the three owner cases, then failed at the first denial case:
+case3/root,41 attempted requests,1848ms context/1829ms guard,HTTP200. Exact teardown
+and the SAME independent canonical baseline both passed. An expected helper403
+also freezes transport diagnostics, so this does not distinguish denial validation
+from the following snapshot read/equality assertion. A synthetic offline TSX
+probe confirms403 with the same ApiError constructor and one request, not actual
+SDK or snapshot evidence. Closed matrix checkpoints and finite API-error class/
+status metadata now distinguish these failures without retaining messages, getters,
+URLs, identities or rows. Original constructor/status/request-count/snapshot
+assertions, fixture footprint, SQL, sealed parser and deadlines are unchanged.
+Actual normal and both fully-set-up forced modes remain required.

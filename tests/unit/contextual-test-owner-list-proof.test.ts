@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerListFixture, testOwnerListSetupSql, testOwnerListSnapshotSql, TEST_OWNER_LIST_CAPS } from '../../scripts/contextual-test-owner-list-proof-fixture'
 import { createTestOwnerListProofTransport, TEST_OWNER_LIST_PROJECTIONS, testOwnerListForcedReceipt, validateTestOwnerListSetupSnapshot,
-  testOwnerListLifecycleMain, testOwnerListFailureDiagnostic, testOwnerListRequestManifest } from '../../scripts/check-contextual-test-owner-list-lifecycle'
+  testOwnerListLifecycleMain, testOwnerListFailureDiagnostic, testOwnerListReadDiagnostic, testOwnerListRequestManifest } from '../../scripts/check-contextual-test-owner-list-lifecycle'
 import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { readContextualTestList } from '../../src/lib/server/contextual-test-list-read'
 import type { Database } from '../../src/types/database'
@@ -12,6 +12,7 @@ import * as platform from '../../scripts/contextual-assignment-list-proof-platfo
 import * as lifecycle from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import * as originalFixture from '../../scripts/contextual-assignment-list-proof-fixture'
 import { testOwnerDigest, testOwnerGuardSql } from '../../scripts/contextual-test-owner-list-proof-fixture'
+import { ApiError } from '../../src/lib/api-error'
 
 vi.mock('node:child_process', async importOriginal => ({ ...await importOriginal<typeof import('node:child_process')>(), execFileSync: vi.fn() }))
 
@@ -165,6 +166,22 @@ describe('finite owner Test list fixture', () => {
 })
 
 describe('finite owner Test list transport', () => {
+  it.each(['matrix-before', 'matrix-denial', 'matrix-request-count', 'matrix-owner', 'matrix-expected', 'matrix-after-read', 'matrix-equality', 'matrix-evidence'])('keeps closed matrix checkpoints %s', step => {
+    const error = new AssignmentListLifecycleError({ stage: 'cases', error: new Error('PRIVATE') }, [])
+    expect(testOwnerListFailureDiagnostic(error, step, 'complete')).toContain(`step=${step} checkpoint=complete`)
+    expect(testOwnerListFailureDiagnostic(error, 'PRIVATE', 'PRIVATE')).not.toContain('PRIVATE')
+  })
+  it.each([400, 403, 404, 503])('keeps closed read outcome status %s without messages or identities', status => {
+    expect(testOwnerListReadDiagnostic(new ApiError(status, 'PRIVATE identity URL body'))).toBe(`DIAG test-owner-list read kind=api-error status=${status}.\n`)
+  })
+  it('keeps closed read outcome class distinctions without relaxing ApiError assertions', () => {
+    const other = Object.assign(new Error('PRIVATE'), { statusCode: 403 })
+    expect(testOwnerListReadDiagnostic(other)).toBe('DIAG test-owner-list read kind=other-error status=403.\n')
+    expect(testOwnerListReadDiagnostic(new ApiError(418, 'PRIVATE'))).toBe('DIAG test-owner-list read kind=api-error status=0.\n')
+    expect(testOwnerListReadDiagnostic({ statusCode: 403, private: 'PRIVATE' })).toBe('DIAG test-owner-list read kind=unknown status=0.\n')
+    const getter = new Error('PRIVATE'); Object.defineProperty(getter, 'statusCode', { get: () => { throw new Error('PRIVATE getter') } })
+    expect(testOwnerListReadDiagnostic(getter)).toBe('DIAG test-owner-list read kind=other-error status=0.\n')
+  })
   it('accepts installed SDK preflight with exactly one fresh guard and bounded redirect policy', async () => {
     const x = fixture(); x.transport.readContext(x.f.classes[0].id, x.f.actors[0].id)
     const client = createClient(x.target.API_URL, x.target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: x.transport.fetch } })

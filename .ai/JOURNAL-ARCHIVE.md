@@ -36878,3 +36878,14 @@ No new migration application, history repair, reset/reseed, production change,
 Stripe write or activation. Local checks and fixed-candidate sync review precede
 fresh ready-event CI and the approved main merge. Remaining billing phases/real
 provider rehearsal stay separate; classroom coordinator awaits228 landing for229.
+
+<!-- pika-session-log-archive-batch:268ba1c74dda1e0d00ef8be05786e3a827f3721278f80dacf93ba19cd8d6e76e -->
+## 2026-10-02 — CI production-history format correction
+
+Targeted sync review at87007a8e passed; freshCI37037586582 found one failure
+among9174tests: compact CURRENT omitted the required `Prod DB 001–` prefix.
+Returned PR1429 to draft and restored the four missing characters without
+changing production history or weakening the contract. Billing source/228 remain
+unchanged. Fourth correction batch; focused/current-history checks precede a
+brief additional independent review, which needs authorization because the one
+approved sync reviewer is consumed. Existing merge-on-green authority remains.

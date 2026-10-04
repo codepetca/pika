@@ -163,9 +163,19 @@ type SetupCheckpoint = typeof setupCheckpoints[number]
 export function testOwnerListFailureDiagnostic(error: unknown, step: string, checkpoint?: string) {
   const stages = new Set(['canonical-before', 'preflight', 'prepare', 'pre-start', 'start', 'capture', 'status', 'fixture', 'cases', 'revocations', 'after-fixture', 'before-capture'])
   const failure = error instanceof AssignmentListLifecycleError ? error : undefined
-  const safeStep = ['not-started', 'setup', 'setup-guard', 'setup-sql', 'setup-snapshot', 'setup-validate', 'setup-complete', 'matrix', 'matrix-complete'].includes(step) ? step : 'unknown'
+  const safeStep = ['not-started', 'setup', 'setup-guard', 'setup-sql', 'setup-snapshot', 'setup-validate', 'setup-complete', 'matrix', 'matrix-before', 'matrix-denial',
+    'matrix-request-count', 'matrix-owner', 'matrix-expected', 'matrix-after-read', 'matrix-equality', 'matrix-evidence', 'matrix-complete'].includes(step) ? step : 'unknown'
   const safeCheckpoint = setupCheckpoints.includes(checkpoint as SetupCheckpoint) ? checkpoint : 'unknown'
   return `DIAG isolated test-owner-list stage=${failure?.primary && stages.has(failure.primary.stage) ? failure.primary.stage : 'unknown'} step=${safeStep} checkpoint=${safeCheckpoint} cleanup=${failure ? failure.cleanupFailures.length ? 'present' : 'none' : 'unknown'}.\n`
+}
+
+/** Closed metadata only; preserves the matrix's original constructor assertion.
+ * Own data descriptors avoid invoking an arbitrary SDK error getter. */
+export function testOwnerListReadDiagnostic(error: unknown) {
+  const kind = error instanceof ApiError ? 'api-error' : error instanceof Error ? 'other-error' : 'unknown'
+  const value: unknown = error instanceof Error ? Object.getOwnPropertyDescriptor(error, 'statusCode')?.value : undefined
+  const status = typeof value === 'number' && [400, 403, 404, 503].includes(value) ? value : 0
+  return `DIAG test-owner-list read kind=${kind} status=${status}.\n`
 }
 
 type Snapshot = Record<string, Array<Record<string, unknown>>>
@@ -244,7 +254,7 @@ export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
   const setupHash = testOwnerDigest(setupSql); const snapshotHash = testOwnerDigest(snapshotSql)
   let target: ReturnType<typeof validateAssignmentListProofTarget> | undefined; let session: Session | undefined; let complete = false; let matrixComplete = false; let step = 'not-started'; let checkpoint: SetupCheckpoint | undefined
   let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined
-  let transport: ReturnType<typeof createTestOwnerListProofTransport> | undefined; let client: ReturnType<typeof createClient<Database>> | undefined
+  let transport: ReturnType<typeof createTestOwnerListProofTransport> | undefined; let client: ReturnType<typeof createClient<Database>> | undefined; let readDiagnostic: string | undefined
   const originalPal = process.env.PAL_ENABLED; process.env.PAL_ENABLED = 'false'
   async function guard() {
     assert(target && session); closure = validateIntegratedGuardResources(await testOwnerListDockerInventory(), projectId, session.containerId, closure)
@@ -268,24 +278,31 @@ export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
     assert(complete && !matrixComplete && client && transport); step = 'matrix'
     const { readContextualTestList } = await import('../src/lib/server/contextual-test-list-read')
     for (const proofCase of f.cases) {
+      step = 'matrix-before'; readDiagnostic = undefined
       const before = await snapshot(); const rows = validateTestOwnerListSetupSnapshot(f, JSON.parse(before)); transport.readContext(proofCase.classroomId, proofCase.actorId)
       const count = transport.counts.network
       const read = async () => {
         try { return await readContextualTestList({ supabase: client!, actorId: proofCase.actorId, classroomId: proofCase.classroomId }) }
-        catch (error) { transport!.freezeDiagnostic(); throw error }
+        catch (error) { readDiagnostic = testOwnerListReadDiagnostic(error); transport!.freezeDiagnostic(); throw error }
       }
-      if (proofCase.status === 403) { await assert.rejects(read, error => error instanceof ApiError && error.statusCode === 403); assert.equal(transport.counts.network - count, 1) }
+      if (proofCase.status === 403) {
+        step = 'matrix-denial'; await assert.rejects(read, error => error instanceof ApiError && error.statusCode === 403)
+        step = 'matrix-request-count'; assert.equal(transport.counts.network - count, 1)
+      }
       else {
+        step = 'matrix-owner'
         const result = await read()
         const expected = f.tests.filter(t => t.classroom_id === proofCase.classroomId).sort((a, b) => b.position - a.position || Date.parse(b.created_at) - Date.parse(a.created_at) || a.id.localeCompare(b.id)).map(t => {
           const persisted = rows['public.tests'].find(r => r.id === t.id)!; const index = f.tests.indexOf(t); const overlay = index === 0 ? f.drafts[0].content : undefined
           return { ...persisted, title: overlay?.title ?? t.title, show_results: overlay?.show_results ?? t.show_results, assessment_type: 'test',
             documents: index === 1 ? [{ id: t.documents[0].id, title: 'Instructions', source: 'text', content: 'Synthetic instructions.' }] : [], stats: f.stats[index] }
         })
-        assert.deepEqual(result, { tests: expected })
+        step = 'matrix-expected'; assert.deepEqual(result, { tests: expected })
       }
-      assert.equal(await snapshot(), before)
+      step = 'matrix-after-read'; const after = await snapshot()
+      step = 'matrix-equality'; assert.equal(after, before)
     }
+    step = 'matrix-evidence'
     for (const key of Object.keys(transport.evidence) as Array<keyof typeof transport.evidence>) assert(transport.evidence[key] > 0)
     assert.equal(transport.counts.storage, 0); assert.equal(transport.counts.rpc, 0); matrixComplete = true; step = 'matrix-complete'
   }
@@ -302,7 +319,7 @@ export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
   } catch (error) {
     const receipt = testOwnerListForcedReceipt(input.mode, error, complete)
     if (receipt) { process.stdout.write(receipt.stdout); process.stderr.write(receipt.stderr); process.exitCode = receipt.exitCode; return }
-    process.stderr.write(testOwnerListFailureDiagnostic(error, step, checkpoint)); if (transport) process.stderr.write(transport.diagnostic())
+    process.stderr.write(testOwnerListFailureDiagnostic(error, step, checkpoint)); if (transport) process.stderr.write(transport.diagnostic()); if (readDiagnostic) process.stderr.write(readDiagnostic)
     throw new Error('Test owner list lifecycle failed; private details withheld')
   } finally { if (originalPal === undefined) delete process.env.PAL_ENABLED; else process.env.PAL_ENABLED = originalPal }
 }
