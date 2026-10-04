@@ -150,3 +150,11 @@ classifier with a regression while retaining all24 baseline entries, and restore
 All201 focused checks and50 selected contract/startup checks pass. Application,
 proof, CI configuration and schema bytes remain unchanged; targeted correction
 review and fresh stable-head CI are required before merge.
+
+Targeted review of81d47991 found that suffix exclusions alone still let unrelated
+identity/response schemas retire body debt. Batch4 supersedes that classifier with
+syntax-tree tracing of actual request-body inputs, scoped aliases, local reader
+returns and multipart metadata. Unrelated schemas, shadowed names and unused
+reads do not qualify. The existing TypeScript dependency is reused; the unchanged
+24-entry baseline and startup/attendance contracts remain acceptance gates.
+This is a source debt heuristic, not proof of every mutation's validation path.
