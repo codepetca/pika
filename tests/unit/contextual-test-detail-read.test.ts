@@ -95,6 +95,27 @@ describe('contextual test detail statements', () => {
     expect(result.test.title).toBe('Overlay'); expect(result.test.show_results).toBe(true)
     expect(result.questions[0]).toMatchObject({ id: question().artifact_id, question_text: 'Draft', position: 0 })
   })
+  it('preserves copied question source identity and populated stored caches without provider work', async () => {
+    const copied = { ...question(), source_artifact_id: uuid(30000),
+      ai_reference_cache_answers: ['Stored synthetic reference'], ai_reference_cache_generated_at: stamp,
+      ai_reference_cache_key: 'synthetic-stored-cache-key', ai_reference_cache_model: 'synthetic-stored-model' }
+    const f = fixture({ questions: [copied] })
+    const externalFetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('External request forbidden in read test'))
+    try {
+      const result = await f.read()
+      expect(new Set([copied.id, copied.artifact_id, copied.source_artifact_id]).size).toBe(3)
+      expect(result.questions[0]).toMatchObject({ id: copied.source_artifact_id,
+        ai_reference_cache_answers: copied.ai_reference_cache_answers,
+        ai_reference_cache_generated_at: copied.ai_reference_cache_generated_at,
+        ai_reference_cache_key: copied.ai_reference_cache_key, ai_reference_cache_model: copied.ai_reference_cache_model })
+      expect(result.questions[0]).not.toHaveProperty('artifact_id')
+      expect(result.questions[0]).not.toHaveProperty('source_artifact_id')
+      // The supplied client has no RPC capability; external fetch is forbidden.
+      expect(f.calls.every(call => call.select.includes('classrooms!'))).toBe(true)
+      expect(f.info).not.toHaveBeenCalled(); expect(f.getBucket).not.toHaveBeenCalled()
+      expect(externalFetch).not.toHaveBeenCalled()
+    } finally { externalFetch.mockRestore() }
+  })
   it('retains canonical fallback for invalid draft content without a write', async () => {
     const f = fixture({ test: { ...test, status: 'draft' }, drafts: [{ ...draft, content: { invalid: true } }] })
     expect((await f.read()).test.title).toBe('Canonical')

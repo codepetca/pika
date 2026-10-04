@@ -97,9 +97,16 @@ setup before the original failure checkpoint. Source/unit tests alone do not
 authorize runtime or establish actual query/metadata/teardown evidence; independently
 review and explicitly accept the frozen manifest before any live run.
 
-Source checks:59 app/new-route/legacy-route tests and30 offline proof tests pass;
+Source checks:60 app/new-route/legacy-route tests and30 offline proof tests pass;
 the proof worker's151 checks include four unchanged original proof suites. Root's
-frozen candidate focused run197 tests/14files, architecture, UI/design policies,
+batch1 candidate focused run198 tests/14files, architecture, UI/design policies,
 TypeScript and lint pass. Audit covers all eight changed TypeScript files.
 These are source/offline receipts only; actual disposable SDK/cleanup evidence
 and independent fixed-head reviews remain pending.
+
+Initial review of68064c63 was security-clean; compatibility requested explicit
+copied-question source identity/populated-cache coverage and a current handoff.
+Batch1 adds the contextual regression (three distinct identities, exact retained
+cache fields, no external fetch/RPC capability) and updates continuity. The
+finite proof/app implementation bytes remain unchanged; targeted review and
+actual runtime acceptance are still pending.
