@@ -105,11 +105,13 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(canaryRunbook).not.toContain('until migration 129 and the exact pair are installed')
     // Keep the verified rollout floor without freezing CURRENT to an old date
     // or forbidding later, independently verified production migrations.
-    const productionHistory = currentContext.match(/^Prod(?:\/local)? DB 001[–-](\d+)\b/)
+    const productionHistory = currentContext.match(/^Hosted: Prod DB 001[–-](\d+)\b/m)
     expect(productionHistory).not.toBeNull()
     expect(Number(productionHistory?.[1])).toBeGreaterThanOrEqual(160)
-    expect(currentContext).toContain('Attendance timing released')
-    expect(currentContext).toContain('teacher_entitlements smoke 4/4 passed 2026-08-28')
+    expect(currentContext).toContain('Recorded releases: attendance')
+    expect(currentContext).toContain('last verified')
+    expect(currentContext).toContain('no fresh hosted query here')
+    expect(currentContext).toContain('`teacher_entitlements` smoke 4/4 on 2026-08-28')
     expect(operationalRecovery).toContain('records Pika migrations through 132')
     expect(operationalRecovery).toContain(
       'enabled `teacher_entitlements` 4/4 deployed smoke on 2026-08-24',

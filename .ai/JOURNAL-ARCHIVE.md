@@ -35942,6 +35942,7 @@ Root-owned changed-base review and exact frozen-head readyCI remain required;
 shared admission and fullcutoverOFF; no batch completion or activation claimed.
 
 <!-- pika-session-log-archive-batch:51e3d894735bb18b555815883ca6dcaa140f32ce7628b9f51385d60a7ac2845d -->
+<!-- pika-session-log-archive-batch:9b3cc78e1dd3de5c6f7209a4f11326b36ed6ae0f81220ed884129557118675f4 -->
 ## 2026-10-03 — Preserving removal source and local236
 
 Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
