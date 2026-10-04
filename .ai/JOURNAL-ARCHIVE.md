@@ -35524,3 +35524,77 @@ Original review ledger retains counters/deadline10:03:44UTC; no reset or new ful
 ## 2026-10-03 — Java Materials second approved merge synchronization
 
 Main advanced to875316af through reviewed dormant announcement owner writes PR1438 before PR1437 could merge. Resolved only the archive conflict, preserving canonical main and the complete feature append. Lesson, viewer, API, UI, tests and guidance remain byte-identical to reviewed73ff84fb; incoming application/workflow/schema/test files match main exactly. Prior sync CI37115051242 passed browser and database contracts but hit one unchanged TestDetailPanel Markdown confirmation assertion; all57 tests in that file pass locally under coverage instrumentation, while the partial run cannot meet whole-repository coverage floors. One bounded compatibility review and fresh focused/exact-head checks cover the new combined head before the already-authorized squash merge. No production promotion, hosted writes, migration application or activation.
+
+<!-- pika-session-log-archive-batch:342bd2984b89b4bd7235522c25d6c1905f318179992c71003c73bf4328697b17 -->
+## 2026-10-03 — Java Materials startup budget correction
+
+Second bounded sync review verified archive/log preservation and unchanged application boundaries, then confirmed the required startup context exceeds16000characters by3 after incoming CURRENT growth. Shortened the existing router sentence from Read routed docs before edits to Read routed docs first, preserving all routing and invariants; the startup set now totals15996. This is the fourth correction/sync batch, with a brief targeted verification and fresh focused gate before final CI. Owner main merge authorization persists; production/migrations remain separate.
+
+<!-- pika-session-log-archive-batch:c0fca17414ba3f4ec4ad8b2974457a67004cc6b9df67d1d821f1033314930ccc -->
+## 2026-10-03 — Announcement owner slice merged
+
+Final cumulative Sol5.6/high review clean c30273a2; docs-only production-history
+prefix correction b4eb9801 received clean targeted Luna5.6/medium review. Four
+targeted tests/245focused+all gates pass; no runtime/SQL/types/test weakening.
+Exact-head ready CI37114898975 passed all five gates including installed owner
+contracts/concurrency, canonical generated types, full tests/build and browsers.
+Verified no blocking reviews/threads or head/base drift; normal authorized squash
+merged1438 at10:25:03UTC as875316af9777cece4480e63532f2d27e53a60afb. Canonical
+main fast-forwarded cleanly; worktrees/history preserved. Original ledger retained
+5launches/3batches/2targeted/1final wave with explicit30-minute elapsed extension.
+No migration retry/production/provider/cohort/home activation. Local001–232 and
+production lastverified001–225 unchanged. Member read receipts next; goal incomplete.
+Post-merge continuity notes are uncommitted here, not part of the reviewed SHA.
+
+<!-- pika-session-log-archive-batch:d4223bd2bef31de51e17fc8ed059581cc1ba0417374b428f5ff3196cdb319f40 -->
+## 2026-10-03 — Member announcement receipts prepared
+
+New managed codex/contextual-announcement-member-receipts worktree starts875316af;
+startup passes with frozen existing dependencies. Read-only Astra/high design pass
+selected one service-only atomic mark-all RPC. Sol6.1/high owns source/TDD and
+Sol6/high owns bounded concurrency/SDK probes; coordinator owns SQL/CI/docs/Git.
+New API TDD reproduced25 failures before runtime changes;93 new and282 announcement
+regression checks pass. Canonical focused gate passes217 tests plus architecture,
+UI/design policy, TypeScript and lint. No user-visible UI changes.
+Proposed233 SHA25603183be05ca88736cd7558844594ee56dec8161cdd65966b934be04a272efb26
+passes definition-only rollback authorization/publication/1003-row/count/ACL and
+real hot/cold/decommission/member fence proofs, including empty/duplicate sets,
+late-insert and suppressed-receipt rollback of both receipts and revisions.
+No migration application/history change or residue. Installed local001–232,
+baseline3 users/1 classroom unchanged; production lastverified001–225. Independent
+fixed-SHA review precedes local233 application under the explicit task waiver;
+installed concurrency/SDK, genuine type generation and final CI remain pending.
+Shared admission/cutover, production/provider/billing/account settings remain off
+or unchanged. Goal stays batch1 of five; this slice is not rollout completion.
+
+PR1439 published draft f7550d57; initial Sol5.6/high security and Sol6.1/high
+compatibility reviews clean. Ledger starts10:57:20UTC with original60-minute budget,
+2 launches/no corrections yet. Source233 unchanged and installed once after exact
+pika/54322/history001–232 and one-file preview; no repeated application/reset/repair.
+Genuine generated types add only the receipt RPC and check matches001–233; removed
+the provisional helper cast. Expanded actual SDK proof to call the application
+adapter. Its ESM/TS harness import failed initially and was corrected to the existing
+tsx .ts pattern; exact fixture cleanup passed on failure. Next live run exposed
+an incorrect immediate enrollment-removal conflict assumption: real row locks
+block removal until completion. Correcting the proof, not SQL or authority.
+Main advanced with independent Java/Blueprint PR1437 (af793b2f); reconcile only
+continuity overlaps and retain its source. Installed races/forced cleanup and final
+integration/CI still pending. Local baseline3 users/1 classroom unchanged.
+
+Installed concurrency/real application-adapter SDK proofs now pass for both global
+roles, membership moves/removal in both orders, subject-first locks, owner/archive,
+class/resource deletion/rebind/publication races, contextual owner serialization,
+receipt contention, cutoff waits and1003-row complete-set count. Forcedpostfixture
+failure exits1 as intended with exact cleanup; baseline3/1 and zero announcements,
+receipts, test audits and harness sessions restored. No SQL changes;233 digest
+unchanged. One integration/remediation batch removes provisional RPC casting,
+adds genuine generated types and real adapter SDK proof, corrects actual lock-order
+and publication-valid fixtures, and records lifecycle receipts. Reconcile current
+main, rerun required checks and final fixed-SHA independent integration review next.
+
+Rebased onto af793b2f; only archive-note conflict, no application/schema conflict.
+Preserved main history/source and deduplicated two exactly identical archived entries;
+trimmed rolling log to40. No stash created/consumed, no migration renamed. Installed
+233 source remains byte-identical. Reconciled startup set exceeded its16,000-character
+budget by43; compressed CURRENT status without changing the production-prefix
+contract or weakening the test. Final focused gate and cumulative review next.

@@ -279,6 +279,17 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // Installed239's optional cursor/subject/snapshot arguments accept SQLNULL.
+  // Refine only their nullability while retaining genuine generated RPC keys.
+  discover_retained_student_cleanup_groups: FunctionContract<
+    'discover_retained_student_cleanup_groups',
+    Json,
+    Replace<GeneratedFunctions['discover_retained_student_cleanup_groups']['Args'], {
+      p_student_id?: string | null
+      p_after_student_id?: string | null
+      p_snapshot_sha256?: string | null
+    }>
+  >
   // Installed235 accepts SQLNULL to clear a counselor; generatedpg metadata
   // does not encode input nullability. Retain every other genuine RPC argument.
   update_classroom_roster_counselor_for_owner_v1: FunctionContract<

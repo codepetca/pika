@@ -6,6 +6,17 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires retained consumer two-session locks and installed-SDK ACL with exact forced baseline receipts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify retained cleanup two-session locks and installed SDK ACL')[1]?.split('      - name:')[0]
+    expect(step).toContain('pnpm exec tsx scripts/check-retained-roster-group-locks-database.ts\n')
+    expect(step).toContain('pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts\n')
+    expect(step).toContain('pnpm exec tsx scripts/check-retained-roster-group-discovery-sdk.ts --force-failure')
+    expect(step).toContain('[[ "$group_sdk_status" -eq 1 ]]')
+    expect(step).toContain("grep -Fxq 'FAIL forced retained cleanup SDK proof.'")
+    expect(step).toContain("grep -Fxq 'PASS retained cleanup SDK unchanged local baseline.'")
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+  })
   it('requires serial shared Assignment real-route proof and exact forced cleanup receipts', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const name = '      - name: Rehearse shared Assignment writes and exact failed-fixture cleanup'
@@ -28,6 +39,18 @@ describe('CI workflow', () => {
     expect(step).toContain("trap 'rm -f -- \"$shared_assignment_log\"' EXIT")
     expect(step).not.toMatch(/wait |tee |\s&\s/)
     expect(workflow.indexOf('      - name: Rehearse contextual Assignment routes against local Supabase')).toBeLessThan(workflow.indexOf(name))
+  })
+
+  it('requires group consumer rollback and exact intentional post-teardown failure', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.split('      - name: Verify retained roster group consumer rollback contracts')[1]?.split('      - name:')[0]
+    expect(step).toContain('bash scripts/check-retained-roster-group-cleanup-database.sh\n')
+    expect(step).toContain('bash scripts/check-retained-roster-group-cleanup-database.sh --force-failure')
+    expect(step).toContain('[[ "$group_cleanup_status" -eq 1 ]]')
+    expect(step).toContain("grep -Fxq 'FAIL forced retained roster group cleanup wrapper failure.'")
+    expect(step).toContain("grep -Fxq 'PASS retained roster group cleanup exact teardown.'")
+    expect(step).toContain("echo 'FAIL unexpected retained group forced teardown proof.'")
+    expect(step).not.toContain('post-commit')
   })
 
   it('requires genuine roster owner SQL/SDK proofs and exact failed-fixture cleanup', () => {

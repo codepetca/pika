@@ -59,9 +59,18 @@ begin
         and a.grantee in (0,'anon'::regrole::oid,'authenticated'::regrole::oid,'service_role'::regrole::oid)
         and a.privilege_type='EXECUTE') then raise exception 'Private validator exposed'; end if;
   if not exists(select 1 from pg_index where indexrelid='public.classroom_roster_one_removed_membership_per_student'::regclass and indisunique)
-    or position('count(*)' in pg_get_functiondef('private.authorize_removed_academic_cleanup(uuid,uuid,uuid,uuid,uuid)'::regprocedure))=0
+    or position('This student has multiple roster rows. Resolve the duplicate roster entries before removing them.'
+      in pg_get_functiondef('public.remove_classroom_students_for_owner_v1(uuid,uuid,uuid[])'::regprocedure))=0 then
+    raise exception '164 singleton removal /236 duplicate guard changed'; end if;
+  if exists(select 1 from supabase_migrations.schema_migrations where version='239') then
+    if to_regprocedure('private.retained_roster_cleanup_group(uuid,uuid,uuid,uuid)') is null
+      or position('private.retained_roster_cleanup_group'
+        in pg_get_functiondef('private.authorize_removed_academic_cleanup(uuid,uuid,uuid,uuid,uuid)'::regprocedure))=0 then
+      raise exception '164 singleton removal /239 group consumer guard changed'; end if;
+  elsif position('count(*)' in pg_get_functiondef('private.authorize_removed_academic_cleanup(uuid,uuid,uuid,uuid,uuid)'::regprocedure))=0
     or position('<> 1' in pg_get_functiondef('private.authorize_removed_academic_cleanup(uuid,uuid,uuid,uuid,uuid)'::regprocedure))=0 then
-    raise exception '164 uniqueness /173 exactly-one retained guard changed'; end if;
+    raise exception '164 uniqueness /173 exactly-one retained guard changed';
+  end if;
   if coalesce((select automatic_enabled or enabled or live_enabled from private.student_provider_cleanup_settings where singleton),false) then
     raise exception 'Provider/automatic cleanup must remain OFF before local proof'; end if;
 end;

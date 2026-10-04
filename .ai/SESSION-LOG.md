@@ -11,77 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Java Materials startup budget correction
-
-Second bounded sync review verified archive/log preservation and unchanged application boundaries, then confirmed the required startup context exceeds16000characters by3 after incoming CURRENT growth. Shortened the existing router sentence from Read routed docs before edits to Read routed docs first, preserving all routing and invariants; the startup set now totals15996. This is the fourth correction/sync batch, with a brief targeted verification and fresh focused gate before final CI. Owner main merge authorization persists; production/migrations remain separate.
-
-## 2026-10-03 — Announcement owner slice merged
-
-Final cumulative Sol5.6/high review clean c30273a2; docs-only production-history
-prefix correction b4eb9801 received clean targeted Luna5.6/medium review. Four
-targeted tests/245focused+all gates pass; no runtime/SQL/types/test weakening.
-Exact-head ready CI37114898975 passed all five gates including installed owner
-contracts/concurrency, canonical generated types, full tests/build and browsers.
-Verified no blocking reviews/threads or head/base drift; normal authorized squash
-merged1438 at10:25:03UTC as875316af9777cece4480e63532f2d27e53a60afb. Canonical
-main fast-forwarded cleanly; worktrees/history preserved. Original ledger retained
-5launches/3batches/2targeted/1final wave with explicit30-minute elapsed extension.
-No migration retry/production/provider/cohort/home activation. Local001–232 and
-production lastverified001–225 unchanged. Member read receipts next; goal incomplete.
-Post-merge continuity notes are uncommitted here, not part of the reviewed SHA.
-
-## 2026-10-03 — Member announcement receipts prepared
-
-New managed codex/contextual-announcement-member-receipts worktree starts875316af;
-startup passes with frozen existing dependencies. Read-only Astra/high design pass
-selected one service-only atomic mark-all RPC. Sol6.1/high owns source/TDD and
-Sol6/high owns bounded concurrency/SDK probes; coordinator owns SQL/CI/docs/Git.
-New API TDD reproduced25 failures before runtime changes;93 new and282 announcement
-regression checks pass. Canonical focused gate passes217 tests plus architecture,
-UI/design policy, TypeScript and lint. No user-visible UI changes.
-Proposed233 SHA25603183be05ca88736cd7558844594ee56dec8161cdd65966b934be04a272efb26
-passes definition-only rollback authorization/publication/1003-row/count/ACL and
-real hot/cold/decommission/member fence proofs, including empty/duplicate sets,
-late-insert and suppressed-receipt rollback of both receipts and revisions.
-No migration application/history change or residue. Installed local001–232,
-baseline3 users/1 classroom unchanged; production lastverified001–225. Independent
-fixed-SHA review precedes local233 application under the explicit task waiver;
-installed concurrency/SDK, genuine type generation and final CI remain pending.
-Shared admission/cutover, production/provider/billing/account settings remain off
-or unchanged. Goal stays batch1 of five; this slice is not rollout completion.
-
-PR1439 published draft f7550d57; initial Sol5.6/high security and Sol6.1/high
-compatibility reviews clean. Ledger starts10:57:20UTC with original60-minute budget,
-2 launches/no corrections yet. Source233 unchanged and installed once after exact
-pika/54322/history001–232 and one-file preview; no repeated application/reset/repair.
-Genuine generated types add only the receipt RPC and check matches001–233; removed
-the provisional helper cast. Expanded actual SDK proof to call the application
-adapter. Its ESM/TS harness import failed initially and was corrected to the existing
-tsx .ts pattern; exact fixture cleanup passed on failure. Next live run exposed
-an incorrect immediate enrollment-removal conflict assumption: real row locks
-block removal until completion. Correcting the proof, not SQL or authority.
-Main advanced with independent Java/Blueprint PR1437 (af793b2f); reconcile only
-continuity overlaps and retain its source. Installed races/forced cleanup and final
-integration/CI still pending. Local baseline3 users/1 classroom unchanged.
-
-Installed concurrency/real application-adapter SDK proofs now pass for both global
-roles, membership moves/removal in both orders, subject-first locks, owner/archive,
-class/resource deletion/rebind/publication races, contextual owner serialization,
-receipt contention, cutoff waits and1003-row complete-set count. Forcedpostfixture
-failure exits1 as intended with exact cleanup; baseline3/1 and zero announcements,
-receipts, test audits and harness sessions restored. No SQL changes;233 digest
-unchanged. One integration/remediation batch removes provisional RPC casting,
-adds genuine generated types and real adapter SDK proof, corrects actual lock-order
-and publication-valid fixtures, and records lifecycle receipts. Reconcile current
-main, rerun required checks and final fixed-SHA independent integration review next.
-
-Rebased onto af793b2f; only archive-note conflict, no application/schema conflict.
-Preserved main history/source and deduplicated two exactly identical archived entries;
-trimmed rolling log to40. No stash created/consumed, no migration renamed. Installed
-233 source remains byte-identical. Reconciled startup set exceeded its16,000-character
-budget by43; compressed CURRENT status without changing the production-prefix
-contract or weakening the test. Final focused gate and cumulative review next.
-
 ## 2026-10-03 — Shared material-list reads preparation
 
 Prepared the next independent batch-1 consumer while reviewed announcement receipt
@@ -947,3 +876,61 @@ actualgrep synthetic portability controls/bash/lint/diffPASS. Cleanup SQL/helper
 integration/app/types/deps/CI unchanged; targeted review and reruns precede newready.
 Original21:00:59clock and consumed4launch/1target/1final/1fix retained, explicit
 extensions authorized with hardcaps intact. No production/migration/activation.
+
+## 2026-10-03 — Retained group consumer source preparation
+
+1450 actually merged as e86283f8 after all5CI37150788872; batch1 exit verified.
+1451 reviewed9af shared Assignment writes remain ready on singleunchanged-head
+CI37156761577 retry: prior three unchangedUiGallery5000/5000/15000ms timeouts;
+both files locally23/23PASS. No source/gate weakening or repeatedreview; original
+ledger21:00:59/counters retained under explicit review-extension authorization.
+Recovered frozen SliceA source after interruption, then6.1Sol/high finished source
+only: coherent retained generations, exact finalization and OLD/NEW binding fences,
+first-insert queue kick and owner-bound digest/keyset discovery.239 remains NOT
+APPLIED;164singleton/236duplicate guards unchanged. Offline related150/12 and full
+focused180/18/TSC/lint/architecture/audit5/bash/diffPASS. New rollback proof transient
+indexdrop/callback-counter/101groups/faults requires independent frozen-source
+review BEFORE rootexecution; wrapperforcedfailure afterteardown, not committedcrash.
+Root updates existingremovalproof acceptance for239 without openingduplicatewriter.
+No SQL/provider/Storage execution, generatedtypes, production, account/plan/billing,
+cohort/UI/fullcutover activation or worktree/stash cleanup. Independent source-only
+assignmentlist reader proceeds in separate ownedWT; root owns integration/numbering.
+
+## 2026-10-03 — Retained group actual-main integration and local239
+
+1451 reviewed9af passed all5CI37156761577 (queue0/run1875s), actually squash-merged
+22:30:00UTC as3b62de062; reviewed/squash tree853261be identical, canonicalmain cleanFF.
+Retained consumers initial Sol5.6/high security CLEAN and6.1/high compatibility
+found one proof-only trigger-order expectation. Corrected existing exact deny and
+independently ordered NEWguard withinrollback with everyguardenabled;9checks/target
+CLEAN9bb518d9. Rebased onactual3b62; allnonunion reviewed feature blobs unchanged,
+3216 incoming mode/blobpaths exact;2111base+2114incoming+2112source=2115wholehistory
+bodies/multiplicities preserved. Two proven surplus recent copies removed once,
+canonical archive originals retained. Startupbudget16001 failedby1; CURRENT wording
+compressed, no gate weakening. Fresh190checks/19files+allstaticPASS.
+Verified canonicalPikaAPI127.0.0.1:54321/DBloopback54322/containerpika; exactlocal001238
+and dryrunONLY239. Applied239once viaCLI, exactposthistory001239. Immutable001238
+and239hash7f60164a retained. SQLnormal exit0/exactteardownPASS and intendedforced
+exit1 with ownmarker+exactteardownPASS;101groups/finalizationfaults/OLDNEW fences/
+first-job callbackcounter/whole-row rollback covered. No HTTP or Storage-byte claim.
+Genuinegeneration/check addsONLYdiscoveryRPC; curatednullableinputs retaingenerated
+keys; provisionalSDKcast removed. New read-only installedSDK/2-session source and
+CI/offlinecontrols prepared, notexecuted until targetedsource review. Original
+22:05:32→23:05:32 ledger/counters retained, explicitextensions authorized. Local
+239doesnotactivate groupedwriter (164/236stillclosed) orproduction/cohort/UI. Batch2
+list-source proof usesisolatedfuturetestproject toavoid168 ledgerguard weakening;
+neither SDKfixture provisioning norfinalcutover completed. No worktree/stashcleanup.
+
+## 2026-10-03 — Retained consumers actual SDK and advisory exclusion
+
+Draft1452 b4c5 fixed-source Sol5.6/high target security review CLEAN before
+execution. Two owned persistent sessions pass exact classroom/student busy errors,
+postrollback owner denial and unchanged whole local baseline (8945 exit0).
+InstalledSDK normal empty-owner/nullargs/anonymousACL passes (1364 exit0);
+intentional forced mode exits1 with own marker and exact unchanged baseline
+(58083). No fixture,101-group SDK paging, providerHTTP or Storage-byte claim.
+Existing provider171 and live175 singleton rollback regressions pass unchanged;
+private receipt /private/tmp/pika-239-singleton-regressions.1POYKb. SQL239 and001238
+remain immutable;164/236closed/allactivationOFF. One final cumulative reviewer
+and exact-head CI remain. Original ledger22:05:32 and counters preserved;
+explicit elapsed extension to00:05:32UTC, no reset or approval re-prompt.
