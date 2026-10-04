@@ -1004,7 +1004,10 @@ security/compatibility reviews CLEAN at4716a817; actual isolated eight detail SD
 cases/six live revocations plus existing nine list cases/fourteen revocations and
 both forced cleanup modes PASS, including unchanged full canonical fingerprints.
 384focused/8skip/all static gates pass; documentation re-review and exact-head
-CI/mainmerge remain gates. Empty artifact/feedback/repository fixture
+CI/mainmerge remain gates. Superseding receipt:1455 merged97e16dec at
+2026-10-04T05:21:54Z after all five exactea080944 CI37178120557 checks PASS;
+normal squash tree equals reviewed tree and canonical main cleanFF.
+Empty artifact/feedback/repository fixture
 collections do not prove nonempty supplements or live Storage signing.
 The same slice closes1454's non-blocking exhausted-bound signing follow-up with
 a lazy overview request and two installed-SDK RED-to-GREEN zero-late-POST tests;
@@ -1014,8 +1017,9 @@ admission/cutover activation; it is not a deployment or live-signing claim.
 The next opening prerequisite is [locked Classwork visibility](contextual-assignment-open-classwork.md):
 candidate240 replaces only214's complete member-open function, adding locked
 visibility concealment before document create/view/Pal effects. Source-only while
-1455 CI runs; actual1455merge/base reconciliation, fixed-source review and exact
-local preview/application/runtime precede publication/ready/CI/mainmerge.240 is
+1455 CI runs; now reconciled onto actual1455 merge97e16dec without executable
+changes. Draft publication freezes source for independent review; exact local
+preview/application/runtime precede ready/CI/mainmerge.240 is
 UNAPPLIED. Normalization defaults, owner precedence, transaction/signature/security
 and all001239SQL/fixtureDML/platform/cleanup authority remain unchanged; only the
 explicit reviewed replay floor advances to240. Sibling learner write/history/

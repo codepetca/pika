@@ -1,8 +1,9 @@
 # Contextual Assignment open — locked Classwork visibility
 
-Status: source preparation only on a provisional child of PR1455. Migration240
-is UNAPPLIED. Actual parent merge, reconciliation, fixed-source review, local
-preview/application and database proof precede publication/ready/exact-head CI.
+Status: source-only implementation reconciled onto actual1455 merge97e16dec.
+Migration240 is UNAPPLIED. A draft freezes source for independent review; local
+preview/application, database proof and generated-contract verification precede
+ready/exact-head CI and merge.
 Production and shared admission/page/home/cutover remain unchanged and OFF.
 
 ## Bounded compatibility contract
@@ -71,3 +72,9 @@ changing existing open/concurrency steps or gate behavior.123 targeted checks an
 150 focused checks plus architecture/UI/design/TypeScript/lint pass. Migration240
 and the rollback harness remain UNAPPLIED/UNRUN. Actual parent merge/review/local
 database and concurrency evidence are not implied by these offline results.
+
+Parent1455 superseding receipt: all five exact-reviewed-head ea080944 checks
+in37178120557 passed (0queue/1817runseconds), normal squash merged97e16dec at
+2026-10-04T05:21:54Z. Squash tree equals reviewed tree; canonical main cleanFF.
+This child rebase is conflict-free and byte-preserves executable source. No240
+application, runtime, review or production receipt is implied by the parent merge.

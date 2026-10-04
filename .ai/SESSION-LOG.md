@@ -922,3 +922,13 @@ TDD1RED→GREEN serialstep;123targeted +150focused/static gates PASS. Schema205
 forbids stored malformedvalues; onlypredicate/normalizer evidence for those, no
 persisted-RPC or crosssessionrace claim.240UNAPPLIED/harnessUNRUN; publication,
 review/application remain gated on1455actualmerge/base reconciliation.
+
+Superseding parent receipt:1455 merged97e16dec at05:21:54UTC after all five
+exactea080944 CI37178120557 gates PASS (0queue/1817runseconds). Squash tree
+equals reviewed; canonical main cleanFF. This child rebasec2b2ce74 is conflict-free
+and executable-byteidentical to prepared99f86f3a. Explicit proofTypeScript and
+stagedaudit5filesPASS.240SHA256adc6d0a2af866d9c4f2cba94f410a5aa7ea27c524070ddf6add3c16b178473c4
+remainsUNAPPLIED. Follow normal draft-first stable-source review BEFORE actual
+local operations; DB proof/types gates block ready. Weekly13% remains, ordinary
+usageallowed/no warning/spendlimit; DeepSeek pause honored, boundedreview/no duplicate
+waves. No production/rollout/account/billing/provider changes.
