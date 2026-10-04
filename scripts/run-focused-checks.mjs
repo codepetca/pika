@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { classifyChangedPaths } from './classify-ci-changes.mjs'
 
+// Optional --max-workers <positive integer> limits Vitest only; omission keeps its default.
 function parseArguments(argv) {
   const args = { base: 'origin/main', targetBranch: 'main', dryRun: false }
   for (let index = 0; index < argv.length; index += 1) {
@@ -14,6 +15,13 @@ function parseArguments(argv) {
     else if (value === '--base') args.base = argv[++index]
     else if (value === '--target') args.targetBranch = argv[++index]
     else if (value === '--dry-run') args.dryRun = true
+    else if (value === '--max-workers') {
+      const workers = argv[++index]
+      if (args.maxWorkers !== undefined || !/^[1-9]\d*$/.test(workers ?? '') || !Number.isSafeInteger(Number(workers))) {
+        throw new Error('--max-workers requires one positive integer value')
+      }
+      args.maxWorkers = workers
+    }
     else throw new Error(`Unknown argument: ${value}`)
   }
   return args
@@ -130,7 +138,8 @@ try {
   // Vitest related includes a test when the input is either that test itself
   // or one of its imports. Each project/specification is therefore run once.
   const testMode = relatedSources.length ? ['related', '--run'] : ['run']
-  run('pnpm', ['exec', 'vitest', ...testMode, ...testInputs, '--reporter=dot'], args.dryRun, 'workflow and affected tests')
+  const workerArgs = args.maxWorkers === undefined ? [] : ['--maxWorkers', args.maxWorkers]
+  run('pnpm', ['exec', 'vitest', ...testMode, ...testInputs, '--reporter=dot', ...workerArgs], args.dryRun, 'workflow and affected tests')
 
   if (classification.runTestBuild) {
     run('pnpm', ['run', 'check:architecture'], args.dryRun, 'architecture')

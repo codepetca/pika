@@ -94,6 +94,51 @@ describe('focused local checks', () => {
     expect(result.calls).toContainEqual(['run', 'lint'])
   })
 
+  it.each(['workflow', 'related'])('limits only Vitest workers while preserving %s selection and later commands', mode => {
+    const f = fixture()
+    f.write('.git/info/exclude', 'bin/\ncalls.jsonl\n')
+    f.write(mode === 'workflow' ? 'docs/change.md' : 'src/components/A panel.tsx')
+    if (mode === 'related') {
+      f.write('tests/components/A panel.test.tsx')
+      f.write('scripts/policy.mjs', 'export const policy = 1')
+      f.write('tests/unit/policy.test.ts', "import { policy } from '../../scripts/policy.mjs'")
+    }
+    const defaultResult = f.run()
+    const limitedResult = f.run(['--max-workers', '2'])
+    expect(defaultResult.status).toBe(0)
+    expect(limitedResult.status).toBe(0)
+    const limitedCalls = limitedResult.calls.slice(defaultResult.calls.length)
+    expect(limitedCalls).toEqual([
+      [...defaultResult.calls[0], '--maxWorkers', '2'],
+      ...defaultResult.calls.slice(1),
+    ])
+    expect(defaultResult.calls.flat()).not.toContain('--maxWorkers')
+    if (mode === 'related') expect(limitedCalls[0]).toContain('scripts/policy.mjs')
+  })
+
+  it.each([
+    [], ['0'], ['-1'], ['1.5'], ['2%'], ['1e2'], ['Infinity'], ['NaN'], [''],
+    ['9007199254740992'], ['--dry-run'], ['2', '--max-workers', '3'],
+  ].map(values => ({ values })))('rejects invalid or ambiguous worker arguments $values before discovering or launching checks', ({ values }) => {
+    const result = fixture().run(['--max-workers', ...values])
+    expect(result.status).not.toBe(0)
+    expect(result.calls).toEqual([])
+    expect(result.output).toContain('--max-workers')
+    expect(result.output).not.toContain('Focused checks:')
+    expect(result.output).not.toContain('Full check logs:')
+  })
+
+  it('shows the worker limit only on Vitest in a non-executing dry run', () => {
+    const f = fixture()
+    f.write('src/lib/changed.ts')
+    const result = f.run(['--dry-run', '--max-workers', '2'])
+    expect(result.status).toBe(0)
+    expect(result.calls).toEqual([])
+    const commands = result.output.split('\n').filter(line => line.startsWith('$ '))
+    expect(commands[0]).toContain('"--maxWorkers" "2"')
+    expect(commands.slice(1).join('\n')).not.toContain('--maxWorkers')
+  })
+
   it('includes a changed standalone test even without a source change or import', () => {
     const f = fixture()
     f.write('tests/unit/standalone.test.ts')
@@ -119,7 +164,7 @@ describe('focused local checks', () => {
     f.write('src/value.ts', 'export const value = 1')
     f.write('tests/unit/value.test.ts', "import { value } from '../../src/value'; it('related', () => expect(value).toBe(1))")
     f.write('tests/unit/standalone.test.ts', "it('standalone', () => expect(true).toBe(true))")
-    const result = f.run([], false, true)
+    const result = f.run(['--max-workers', '2'], false, true)
     expect(result.status, result.output).toBe(0)
     // Two workflow files + related + standalone, in both configured projects.
     expect(result.output).toMatch(/Tests\s+8 passed \(8\)/)
