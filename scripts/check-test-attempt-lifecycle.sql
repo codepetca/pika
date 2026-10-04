@@ -23,6 +23,15 @@ insert into public.test_questions (id, test_id, question_type, question_text, op
  ('a2440000-0000-4000-8000-000000000102', 'a2440000-0000-4000-8000-000000000012', 'multiple_choice', 'Unanswered MC', '["A","B"]', 1, 5, 5000, 0),
  ('a2440000-0000-4000-8000-000000000103', 'a2440000-0000-4000-8000-000000000012', 'open_response', 'Needs grading', '[]', null, 5, 5000, 1),
  ('a2440000-0000-4000-8000-000000000104', 'a2440000-0000-4000-8000-000000000013', 'multiple_choice', 'Blank MC', '["A","B"]', 1, 5, 5000, 0);
+-- Current draft status is authoritative even for a valid teacher/enrollment.
+do $draft_access$ begin
+ begin
+  perform public.update_test_student_access_atomic('a2440000-0000-4000-8000-000000000011',
+    array['a2440000-0000-4000-8000-000000000002'::uuid], 'open', 'a2440000-0000-4000-8000-000000000001');
+  raise exception 'Draft selected access was accepted';
+ exception when invalid_parameter_value then null; end;
+ if exists(select 1 from public.test_student_availability where test_id='a2440000-0000-4000-8000-000000000011') then raise exception 'Draft refusal mutated access'; end if;
+end; $draft_access$;
 update public.tests set status = 'active' where classroom_id = 'a2440000-0000-4000-8000-000000000010';
 
 do $contract$
@@ -122,6 +131,32 @@ begin
  end if;
  result := public.return_test_attempts_checked_atomic(mixed, array[student], teacher);
  if result->>'returned_count' <> '1' then raise exception 'Graded mixed work not returned'; end if;
+ -- Normalization must accept repeated IDs without a double-upsert conflict.
+ perform public.update_test_student_access_atomic(mixed, array[student,student,absent], 'closed', teacher);
+ if (select count(*) from public.test_student_availability where test_id=mixed) <> 2 then raise exception 'Duplicate selected IDs changed the access set'; end if;
+ snapshot := jsonb_build_object('availability', (select jsonb_agg(to_jsonb(row) order by student_id) from public.test_student_availability row where test_id=mixed),
+  'attempts', (select jsonb_agg(to_jsonb(row) order by id) from public.test_attempts row where test_id=mixed),
+  'responses', (select jsonb_agg(to_jsonb(row) order by id) from public.test_responses row where test_id=mixed));
+ -- One enrolled ID must not make a partially stale passed set acceptable.
+ begin
+  delete from public.classroom_enrollments where classroom_id='a2440000-0000-4000-8000-000000000010' and student_id=absent;
+  perform public.update_test_student_access_atomic(mixed,array[student,absent],'open',teacher);
+  raise exception 'Partial selected membership was accepted';
+ exception when serialization_failure then null; end;
+ begin
+  update public.classrooms set archived_at=now() where id='a2440000-0000-4000-8000-000000000010';
+  perform public.update_test_student_access_atomic(mixed,array[student],'open',teacher);
+  raise exception 'Archived selected access was accepted';
+ exception when insufficient_privilege then null; end;
+ begin
+  perform public.update_test_student_access_atomic(mixed,array[student],'open',absent);
+  raise exception 'Non-owner selected access was accepted';
+ exception when insufficient_privilege then null; end;
+ if jsonb_build_object('availability', (select jsonb_agg(to_jsonb(row) order by student_id) from public.test_student_availability row where test_id=mixed),
+  'attempts', (select jsonb_agg(to_jsonb(row) order by id) from public.test_attempts row where test_id=mixed),
+  'responses', (select jsonb_agg(to_jsonb(row) order by id) from public.test_responses row where test_id=mixed)) is distinct from snapshot then
+  raise exception 'Rejected selected access changed availability/responses/closure/Return/revision';
+ end if;
  select jsonb_agg(jsonb_build_object('response_id',id,'expected_response_revision',response.revision)) into expected
  from public.test_responses response where test_id=mixed and question_id='a2440000-0000-4000-8000-000000000103';
  select draft_revision into before_clear_revision from public.test_attempts where test_id=mixed and student_id=student;

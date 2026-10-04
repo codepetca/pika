@@ -6,6 +6,7 @@ const migrationName = '245_managed_storage_write_lock_order.sql'
 const readMigration = (name: string) => readFileSync(new URL(name, migrationDirectory), 'utf8')
 const remediation = readMigration(migrationName)
 const foundation = readMigration('117_managed_storage_ownership_foundation.sql')
+const harness = readFileSync(new URL('../../scripts/check-managed-storage-write-lock-order.sh', import.meta.url), 'utf8')
 const functionBody = (sql: string, name: string) => {
   const definition = sql.match(new RegExp(`create or replace function public\\.${name}\\([\\s\\S]*?\\n\\$\\$;`))?.[0]
   if (!definition) throw new Error(`Missing function ${name}`)
@@ -94,7 +95,6 @@ describe('managed Storage row/path lock contract', () => {
   })
 
   it('provides a separately authorized two-session harness with actual wait barriers and exact fixture cleanup', () => {
-    const harness = readFileSync(new URL('../../scripts/check-managed-storage-write-lock-order.sh', import.meta.url), 'utf8')
     expect(harness).toContain('--allow-fixture-writes')
     expect(harness).toContain('MANAGED_STORAGE_DB_CONTAINER')
     expect(harness).not.toContain('docker ps')
@@ -110,5 +110,76 @@ describe('managed Storage row/path lock contract', () => {
     expect(harness).toContain("exception when sqlstate '55000'")
     expect(harness).toContain('rollback;')
     expect(harness).not.toMatch(/supabase db (?:push|reset)|drop table|alter table/)
+  })
+
+  it('arms setup recovery before execution and forces lost acknowledgement only after committed setup', () => {
+    expect(harness).toContain('randomBytes(32).toString("hex")')
+    expect(harness).toContain('fixture_email="managed-lock-245-$run_marker@example.invalid"')
+    expect(harness).toContain('fixture_title="Managed storage lock fixture $run_marker"')
+    const setup = harness.indexOf('setup_attempted=true')
+    const execute = harness.indexOf("psql_db <<'SQL'", setup)
+    const forcedFailure = harness.indexOf('MANAGED_STORAGE_FORCE_SETUP_ACK_FAILURE', execute)
+    const ready = harness.indexOf('fixture_ready=true', forcedFailure)
+    expect(setup).toBeGreaterThan(harness.indexOf('trap cleanup EXIT'))
+    expect(execute).toBeGreaterThan(setup)
+    expect(forcedFailure).toBeGreaterThan(harness.indexOf('commit;\nSQL', execute))
+    expect(ready).toBeGreaterThan(forcedFailure)
+    expect(harness.slice(forcedFailure, ready)).toContain('exit 1')
+    expect(harness).toContain('Forced failure after fixture setup COMMIT before acknowledgement (teardown control)')
+  })
+
+  it('uses a read-only complete run-signature probe instead of treating setup acknowledgement as ownership', () => {
+    const probe = harness.split('fixture_state_sql="$(cat <<\'SQL\'\n')[1]?.split('\nSQL\n)"')[0]
+    expect(probe).toBeDefined()
+    expect(probe).not.toMatch(/\b(insert|update|delete|create|alter|drop)\b/i)
+    for (const table of ['public.users', 'public.classrooms', 'public.managed_storage_objects', 'storage.objects']) {
+      expect(probe).toContain(table)
+    }
+    expect(probe).toContain("email=:'fixture_email' and role='teacher'")
+    expect(probe).toContain("title=:'fixture_title' and class_code='MSL245'")
+    expect(probe).toContain("object.resource_type is distinct from :'fixture_resource'")
+    expect(probe).toContain("metadata->>'managed_lock_run' is distinct from :'run_marker'")
+    expect(probe).toContain("then 'owned'")
+    expect(probe).toContain("then 'empty'")
+    expect(probe).toContain("else 'unknown'")
+    expect(probe?.match(/'a2450000-0000-4000-8000-00000000001[0-5]'::uuid/g)).toHaveLength(6)
+    expect(probe).toContain("'managed-lock-245/absent.pdf',false")
+    expect(harness).toContain("null,:'fixture_resource',null,'application/pdf',4")
+    expect(harness).toContain("jsonb_build_object('size',4,'managed_lock_run',:'run_marker')")
+  })
+
+  it('refuses every fixture identity/path collision before inserting and catches identities at unrelated paths', () => {
+    const preflight = harness.slice(harness.indexOf('do $preflight$'), harness.indexOf('insert into public.users'))
+    for (const suffix of ['010', '011', '012', '013', '014', '015']) {
+      expect(preflight).toContain(`a2450000-0000-4000-8000-000000000${suffix}`)
+    }
+    expect(preflight).toContain("class_code='MSL245'")
+    expect(preflight).toContain("email like 'managed-lock-245-%@example.invalid'")
+    expect(preflight).toContain("storage_path like 'managed-lock-245/%'")
+    expect(preflight).toContain("name like 'managed-lock-245/%'")
+    expect(preflight).toContain("metadata->>'managed_lock_run'=current_setting('pika.managed_lock_run')")
+    expect(preflight).toContain("resource_type='managed-lock-245-' || current_setting('pika.managed_lock_run')")
+  })
+
+  it('cleans only proved ownership, rechecks under locks, and acknowledges only confirmed zero residue', () => {
+    const cleanup = harness.slice(harness.indexOf('cleanup() {'), harness.indexOf('trap cleanup EXIT'))
+    expect(cleanup).toContain('if [[ "$setup_attempted" == true ]]')
+    expect(cleanup).toContain('if ! state="$(fixture_state)"')
+    expect(cleanup).toContain('elif [[ "$state" == \'owned\' ]]')
+    const recheck = cleanup.indexOf("select :'fixture_state' = 'owned' as fixture_owned")
+    const deletion = cleanup.indexOf('delete from public.managed_storage_objects')
+    expect(recheck).toBeGreaterThan(cleanup.indexOf('order by name for update;'))
+    expect(deletion).toBeGreaterThan(recheck)
+    expect(cleanup.slice(recheck, deletion)).toContain('\\if :fixture_owned')
+    const empty = cleanup.indexOf("select :'fixture_state' = 'empty' as fixture_empty")
+    const commit = cleanup.indexOf('commit;', deletion)
+    const success = cleanup.indexOf('Exact managed-storage fixture teardown: PASS')
+    expect(empty).toBeGreaterThan(deletion)
+    expect(commit).toBeGreaterThan(empty)
+    expect(success).toBeGreaterThan(cleanup.indexOf('elif ! state="$(fixture_state)" || [[ "$state" != \'empty\' ]]'))
+    expect(cleanup).toContain('Fixture ownership changed; refusing cleanup.')
+    expect(cleanup).toContain('Partial, colliding or changed fixture ownership; refusing cleanup.')
+    expect(cleanup).toContain('Fixture setup/ownership outcome unknown; refusing cleanup.')
+    expect(harness.match(/Exact managed-storage fixture teardown: PASS/g)).toHaveLength(1)
   })
 })

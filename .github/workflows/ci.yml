@@ -775,6 +775,20 @@ jobs:
           MANAGED_STORAGE_DB_CONTAINER: supabase_db_pika
         run: bash scripts/check-managed-storage-write-lock-order.sh --allow-fixture-writes
 
+      - name: Verify managed-storage setup acknowledgement failure exact cleanup
+        env:
+          MANAGED_STORAGE_DB_CONTAINER: supabase_db_pika
+        shell: bash
+        run: |
+          storage_ack_log="$(mktemp)"
+          trap 'rm -f -- "$storage_ack_log"' EXIT
+          storage_ack_status=0
+          MANAGED_STORAGE_FORCE_SETUP_ACK_FAILURE=1 bash scripts/check-managed-storage-write-lock-order.sh --allow-fixture-writes > "$storage_ack_log" 2>&1 || storage_ack_status=$?
+          cat "$storage_ack_log"
+          [[ "$storage_ack_status" -ne 0 ]] || exit 1
+          grep -F 'Forced failure after fixture setup COMMIT before acknowledgement (teardown control)' "$storage_ack_log"
+          grep -Fx 'Exact managed-storage fixture teardown: PASS' "$storage_ack_log"
+
       - name: Verify revision-aware Test lifecycle contracts
         env:
           PGHOST: 127.0.0.1
@@ -804,6 +818,25 @@ jobs:
           [[ "$lifecycle_status" -ne 0 ]] || exit 1
           grep -F 'Forced failure after fixture setup (teardown control)' "$lifecycle_failure_log"
           grep -Fx 'Exact fixture teardown and baseline fingerprint: PASS' "$lifecycle_failure_log"
+
+      - name: Verify Test lifecycle setup acknowledgement failure exact cleanup
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+          CORE244_ALLOW_LOCAL_VERIFICATION: "1"
+        shell: bash
+        run: |
+          lifecycle_ack_log="$(mktemp)"
+          trap 'rm -f -- "$lifecycle_ack_log"' EXIT
+          lifecycle_ack_status=0
+          CORE244_FORCE_SETUP_ACK_FAILURE=1 node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_ack_log" 2>&1 || lifecycle_ack_status=$?
+          cat "$lifecycle_ack_log"
+          [[ "$lifecycle_ack_status" -ne 0 ]] || exit 1
+          grep -F 'Forced setup COMMIT acknowledgement failure (ownership recovery control)' "$lifecycle_ack_log"
+          grep -Fx 'Exact fixture teardown and baseline fingerprint: PASS' "$lifecycle_ack_log"
 
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh

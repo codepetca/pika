@@ -31,6 +31,55 @@ describe('required Test lifecycle verification', () => {
   })
 
 
+  it('requires setup acknowledgement recovery controls in the same disposable database lane', () => {
+    for (const [name, flag, marker] of [
+      ['Verify Test lifecycle setup acknowledgement failure exact cleanup', 'CORE244_FORCE_SETUP_ACK_FAILURE=1', 'Exact fixture teardown and baseline fingerprint: PASS'],
+      ['Verify managed-storage setup acknowledgement failure exact cleanup', 'MANAGED_STORAGE_FORCE_SETUP_ACK_FAILURE=1', 'Exact managed-storage fixture teardown: PASS'],
+    ]) {
+      const step = workflow.split(`name: ${name}`)[1]?.split('      - name:')[0]
+      expect(step).toContain(flag)
+      expect(step).toContain(marker)
+      expect(step).toMatch(/\[\[ "\$(?:lifecycle|storage)_ack_status" -ne 0 \]\] \|\| exit 1/)
+      expect(step).not.toMatch(/continue-on-error|if:|\|\| true/)
+      if (name.includes('managed-storage')) {
+        expect(step).toContain('MANAGED_STORAGE_DB_CONTAINER: supabase_db_pika')
+        expect(step).toContain('--allow-fixture-writes')
+        expect(step).toContain('Forced failure after fixture setup COMMIT before acknowledgement (teardown control)')
+      }
+    }
+  })
+
+  it('prepares committed authority drift behind an observed Classroom row lock, with unchanged academic state', () => {
+    const harness = read('scripts/check-test-attempt-lifecycle-concurrency.mjs')
+    expect(harness).toContain('parent.relation=\'public.classrooms\'::regclass')
+    expect(harness).toContain("parent.mode='RowShareLock'")
+    expect(harness).toContain('waiting.transactionid=a.backend_xid')
+    expect(harness).toContain("a.end('commit;')")
+    expect(harness).toContain('membership removal before reopen')
+    expect(harness).toContain('archive before reopen')
+    expect(harness).toContain('owner drift before reopen')
+    expect(harness).toContain('Authority refusal changed availability/responses/closure/Return/revision')
+    expect(harness).toContain('parent-lock negative control')
+    expect(harness).toContain('Current enrolled owner could not reopen retained work')
+    expect(harness).toContain("closed_for_grading_at=now(), closed_for_grading_by=${teacher}, returned_at=now()")
+    const contract = read('scripts/check-test-attempt-lifecycle.sql')
+    expect(contract).toContain('Partial selected membership was accepted')
+    expect(contract).toContain('Duplicate selected IDs changed the access set')
+  })
+
+  it('arms setup attempts before execution and recovers only this run signature, then proves zero residue and baseline', () => {
+    const harness = read('scripts/check-test-attempt-lifecycle-concurrency.mjs')
+    expect(harness.indexOf('setupAttempted = true')).toBeLessThan(harness.indexOf('await sql(setup)'))
+    expect(harness).toContain('const runSignature = randomUUID()')
+    expect(harness).toContain('setupAttempted && !ownsFixture')
+    expect(harness).toContain('if (probe.owned) ownsFixture = true')
+    expect(harness).toContain('refusing deletion. Exact residue fingerprint')
+    expect(harness).toContain('CORE244 exact fixture residue after teardown')
+    expect(harness).toContain('await fingerprint() !== before')
+    expect(harness.indexOf('CORE244_FORCE_SETUP_ACK_FAILURE')).toBeLessThan(harness.indexOf('ownsFixture = true\n  if'))
+    expect(harness).toContain('await Promise.allSettled(unfinished.map')
+  })
+
   it('preserves archived academic rows while asserting a fresh restored attempt revision', () => {
     const policy = read('scripts/check-test-editing-policy-database.sh')
     expect(policy).toContain("when table_name = 'test_attempts' then row_data - 'draft_revision'")

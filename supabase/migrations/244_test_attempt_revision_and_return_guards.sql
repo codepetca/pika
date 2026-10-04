@@ -210,14 +210,25 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_test public.tests%rowtype;
+  v_student_ids uuid[];
+  v_locked_student_ids uuid[];
   v_previous_closure_context text := current_setting('pika.test_teacher_closure', true);
   v_now timestamptz := now();
   v_locked_count integer := 0;
   v_unlocked_count integer := 0;
   v_inserted_responses integer := 0;
 begin
-  perform private.lock_test_lifecycle(p_test_id);
-  if p_state not in ('open', 'closed') then
+  v_test := private.lock_test_lifecycle(p_test_id);
+  perform 1 from public.classrooms
+  where id = v_test.classroom_id and teacher_id = p_updated_by and archived_at is null;
+  if not found then
+    raise exception 'Test access update is not allowed' using errcode = '42501';
+  end if;
+  if v_test.status = 'draft' then
+    raise exception 'Cannot update access for a draft test' using errcode = '22023';
+  end if;
+  if p_state is null or p_state not in ('open', 'closed') then
     raise exception 'state must be open or closed' using errcode = '22023';
   end if;
 
@@ -227,6 +238,27 @@ begin
       'unlocked_count', 0,
       'inserted_responses', 0
     );
+  end if;
+
+  if cardinality(p_student_ids) > 100 or array_position(p_student_ids, null) is not null then
+    raise exception 'Invalid selected students (maximum 100)' using errcode = '22023';
+  end if;
+  select array_agg(distinct id order by id) into v_student_ids from unnest(p_student_ids) id;
+  -- The route intentionally skips its initial outsiders. Every ID it passed must
+  -- still be enrolled after the Classroom/Test locks; never partially mutate on
+  -- membership drift while this request waited behind roster removal.
+  select coalesce(array_agg(locked.student_id order by locked.student_id), array[]::uuid[])
+  into v_locked_student_ids
+  from (
+    select enrollment.student_id
+    from public.classroom_enrollments enrollment
+    where enrollment.classroom_id = v_test.classroom_id
+      and enrollment.student_id = any(v_student_ids)
+    order by enrollment.student_id
+    for share
+  ) locked;
+  if cardinality(v_locked_student_ids) <> cardinality(v_student_ids) then
+    raise exception 'Selected students changed; reload and retry' using errcode = '40001';
   end if;
 
   insert into public.test_student_availability (
@@ -242,7 +274,7 @@ begin
     p_state,
     p_updated_by,
     v_now
-  from unnest(p_student_ids) as selected_students(student_id)
+  from unnest(v_student_ids) as selected_students(student_id)
   on conflict (test_id, student_id) do update
     set state = excluded.state,
         updated_by = excluded.updated_by,
@@ -253,7 +285,7 @@ begin
       select id, student_id
       from public.test_attempts
       where test_id = p_test_id
-        and student_id = any(p_student_ids)
+        and student_id = any(v_student_ids)
         and is_submitted = false
         and closed_for_grading_at is not null
       for update
@@ -290,7 +322,7 @@ begin
     select id, student_id, responses
     from public.test_attempts
     where test_id = p_test_id
-      and student_id = any(p_student_ids)
+      and student_id = any(v_student_ids)
       and is_submitted = false
     for update
   ),
