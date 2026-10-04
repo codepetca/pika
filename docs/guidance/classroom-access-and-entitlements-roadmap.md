@@ -1011,6 +1011,16 @@ a lazy overview request and two installed-SDK RED-to-GREEN zero-late-POST tests;
 no DTO/query/relationship/limit change. This correction is required before
 admission/cutover activation; it is not a deployment or live-signing claim.
 
+The next opening prerequisite is [locked Classwork visibility](contextual-assignment-open-classwork.md):
+candidate240 replaces only214's complete member-open function, adding locked
+visibility concealment before document create/view/Pal effects. Source-only while
+1455 CI runs; actual1455merge/base reconciliation, fixed-source review and exact
+local preview/application/runtime precede publication/ready/CI/mainmerge.240 is
+UNAPPLIED. Normalization defaults, owner precedence, transaction/signature/security
+and all001239SQL/fixtureDML/platform/cleanup authority remain unchanged; only the
+explicit reviewed replay floor advances to240. Sibling learner write/history/
+artifact visibility and shared GET supplements remain separate integration work.
+
 Remaining batch-2 groups, in integration order: Assignment detail/open
 enrichments; Tests owner operations then learner participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

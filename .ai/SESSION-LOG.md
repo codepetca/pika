@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Verified linked-material merge and roster-read main reconciliation
-
-PR1442 merged3351d85f3c9d47ae6c8a5a0cbdd6ab4b1baef7aa at14:56:00Z after
-allfive exact-reviewed-headcc2681d8 CI37129553521 gates pass (0queue/1757runseconds).
-Normal squash matchhead/no bypass, canonicalcleanFF. This roster child reconciles
-onto that actual main merge; runtime/SDK/test files remain byte-identical todeec268b.
-Both unrelated CI proof steps are preserved; continuity combines receipts once
-and retains original historical records. Targeted reconciliation review precedes
-new exact-head CI. Original1443 review clock14:12:06Z/counters retained, necessary
-time extension authorized without repeat ask. Local235 installed by separate
-roster-owner-write work; this GET slice adds no schema. Prod001–225/sharedadmissionOFF.
-
 ## 2026-10-03 — Shared class-day GET consolidation
 
 Prepared dormant shared GETs for neutral class-day and teacher compatibility
@@ -910,3 +898,27 @@ ready/exact-headCI/mainmerge. Original review04:29:28UTC/counters2launch/0fix
 retained; human-authorized extension through06:29:28UTC with absolute caps intact.
 No nonempty supplemental/signing/authHTTP/browser/provider/production proof claim;
 local001–239/prod001–225 and admission/cutover/account/billing/provider settings unchanged.
+
+## 2026-10-04 — Locked Classwork Assignment-open prerequisite preparation
+
+1455 finalea080944 receipt review CLEAN;76 docs tests PASS, executable tree
+unchanged from initial4716 CLEAN and accepted normal8SDK/6rev/twoforced cleanup.
+Exact-head ready CI37178120557 running; no1455merge receipt yet. One bounded
+GPT6.1Sol/high writer (Terra unavailable) prepares only240RPCopen replacement,
+structural regression and rollback-only harness. Root owns docs/CI/floor/reviews/
+actuallocal operations after actual1455merge and child reconciliation.241+,
+provider/account/billing/production/rollout work excluded;240UNAPPLIED.
+Root inspected214locked body and current normalize visibility: JSONbooleanfalse
+only hides, owner rejection precedes concealment, no preflight/postflight substitute
+for transaction-bound creation/view/Pal sideeffects. Root offline lifecyclefloor
+TDD240fixture fails22tests on239count, then55 list/overview/detail guardtests PASS
+after narrow240floor update.001239SQL/fixtureDML/platformtargets/restoration and
+cleanup authority unchanged. No new actual database operation performed.
+
+Worker returned/relinquished three sourcefiles:41tests/5suites, scopedlint/bash-n/
+diffPASS. Root complete SQL/test/harness inspection, positive legacy+membership
+Pal controls and exactwhole-row doc/history/outbox comparisons retained. CIguard
+TDD1RED→GREEN serialstep;123targeted +150focused/static gates PASS. Schema205
+forbids stored malformedvalues; onlypredicate/normalizer evidence for those, no
+persisted-RPC or crosssessionrace claim.240UNAPPLIED/harnessUNRUN; publication,
+review/application remain gated on1455actualmerge/base reconciliation.

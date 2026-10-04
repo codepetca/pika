@@ -45,9 +45,14 @@ privacy and admission order. Real fixture execution requires a clean exact revie
 head. The disposable project is `pika_assignment_list_<12hex>`, API54331/DB54332,
 with a matching private temporary workdir under/private/tmp(macOS) or/tmp(Linux);
 normal Pika54321/54322 is read-only. Unsupported platforms fail closed.
-Replay only the reviewed immutable001–239 source, without seed, shared env files,
-history repair or canonical reset. The239 consumer slice is merged in1452;
-canonical main isf6b9c8a4. Production remains last verified001–225.
+Replay only the explicitly reviewed immutable001–240 source, without seed, shared
+env files, history repair or canonical reset. The240 floor includes the candidate
+locked-Classwork open prerequisite, which needs its own source review before any
+execution. The001–239 bytes and original fixture/platform/transition
+authority remain unchanged. Historical accepted receipts below replayed001–239;
+240 replay/application evidence is recorded separately in
+[the Classwork open contract](contextual-assignment-open-classwork.md).
+Production remains last verified001–225.
 
 The fixture creates1004 assignments,1001 current nonowner classroom members,
 1001 requirements and1002 documents, including returned zero grades. Nine SDK
