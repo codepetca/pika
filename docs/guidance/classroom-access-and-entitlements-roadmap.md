@@ -1144,6 +1144,14 @@ actual parent merge/reconciliation must precede243 publication or local applicat
 Independent source review, real SQL/types/rollback/replay and reviewed CI/mainmerge
 remain gates. Local242/main241; productionlast225 and admission/home/cutover OFF.
 
+Superseding1459 merge receipt: reviewed9f15e6e2 merged01aedcec8 at09:46:04Z,
+exactCI37191597295/all5PASS includingPRGate (0queue/1698runseconds). Reviewed/squash
+tree parity and canonical clean mainFF verified. Local/main001–242. Prepared243
+reconciled onto actual identical parent with complete source-tree parity and all
+unrelated stashes preserved. Candidate remains UNAPPLIED; frozen independent review
+and genuine local runtime/replay are next. Assessmentphase/goal incomplete; no
+production/admission/home/cutover/provider or billing change implied.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

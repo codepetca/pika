@@ -1010,3 +1010,9 @@ authority unchanged. Candidate243 UNAPPLIED; actual1459merge/tree parity/reconci
 independent reviews and genuine local types/runtime/replay precede ready/CI/merge.
 No realopen/signing/nonemptySDK/HTTP/browser/concurrency proof inferred. Assessment
 phase/goal incomplete; productionlast225/admission/home/cutover/billing/providerOFF.
+
+Superseding parent receipt:1459 exactreviewed9f15e6e2 all5CI37191597295PASS
+(0queue/1698runseconds), normal squash01aedcec8 merged09:46:04Z; actualmerged state,
+tree parity and canonical cleanFF verified.243 clean prepared branch rebase--onto
+actualmain preserves complete source tree and unrelated stashes; no resequencing
+or applied-SQL edits. Local/main242;243UNAPPLIED. Frozen-source highriskreview next.

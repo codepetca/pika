@@ -1,9 +1,9 @@
 # Contextual Assignment inline-image Classwork reads
 
-Status: bounded source preparation on reviewed1459 head9f15e6e20. Parent1459 CI is
-running; it is not yet merged. Local001–242/main001–241; candidate243 is UNAPPLIED.
-Production last verified001–225, not freshly queried here. Root must reconcile
-with the actual merged parent before publication, application or ready CI.
+Status: bounded source preparation reconciled onto actual1459 squash01aedcec8;
+reviewed9f15e6e20/squash tree parity and clean canonical main FF verified.
+Local/main001–242; candidate243 is UNAPPLIED. Production last verified001–225,
+not freshly queried here. Independent review and local runtime precede ready CI.
 This closes one assessment read prerequisite, not the phase or overall rollout.
 
 ## Exact boundary
