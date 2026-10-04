@@ -1,12 +1,14 @@
 # Contextual Assignment integrated SDK proof
 
-Status: source-only preparation on reviewed1460 head e98b78ef. Parent1460 merged
+Status: draft1461; actual SDK normal29 cases and both forced-cleanup modes PASS
+on45084a8b. Independent whole-canonical baseline unchanged. Final cumulative
+review, stable-head CI and normal main merge remain gates. Parent1460 merged
 as3c5d7097 on2026-10-04T10:43:25Z after exact CI37194768940 passed all five checks.
 Reviewed/squash full-tree parity and clean canonical main fast-forward verified.
 Local/main001–243;
 production last verified001–225, untouched. No new migration or application code
-is proposed. Actual-parent merge/tree reconciliation precedes publication/runtime.
-Prepared source does not prove a runtime result or activate any product surface.
+is proposed. Actual-parent tree reconciliation and source publication completed.
+Runtime receipts below do not activate any product surface or exit the phase.
 
 ## Why a sibling proof
 
@@ -56,8 +58,8 @@ resource fingerprints. Never print keys, tokens, signed URLs or private bodies.
 ## Intended cases and evidence
 
 Source-only worker verification: initial8 RED to31 new GREEN;136 related checks,
-full no-emit TypeScript and scoped ESLint passed. No actual SDK/network/database
-operation has run for this increment. Prepared29-case normal rehearsal and both
+full no-emit TypeScript and scoped ESLint passed. The worker performed no actual
+SDK/network/database operation. Prepared29-case normal rehearsal and both
 forced modes include extension setup with eight fixed68-byte PNG uploads before
 the original forced checkpoints. Independent review and root runtime acceptance
 still precede execution; these are source intentions, not runtime receipts.
@@ -128,6 +130,21 @@ unchanged. No guard caching, skipped request checks, broader SQL authority or
 deadline/cap expansion. Two failing offline regressions precede the guard change;
 40 new and179 related checks pass. Independent targeted review and explicit root
 updated finite guard-query acceptance precede another disposable run.
+
+Superseding complete runtime receipt: targeted control-equivalence review of
+45084a8b CLEAN; root explicitly accepted only its frozen finite guard/template,
+SQL/Storage/request manifest and existing bounds. Serial normal run passed all29
+actual SDK cases, including real create/view/repeat, nonempty own supplements,
+artifact/inline signing and bounded PNG digest reads. Original list cases,
+revocations/restoration, exact owned teardown and canonical closure passed.
+Both after-fixture and before-capture intentional failures then exited1 with
+exactly the expected two markers after complete extension setup/eight uploads,
+and verified teardown/canonical closure. Independent saved five-field canonical
+fingerprints matched before normal, after normal and after the complete pair.
+No production, canonical DML, guard/deadline expansion, individual row/object
+cleanup, authenticated app route/browser or removal-race operation was performed.
+Final facts-only head must preserve all runtime/proof bytes from45084a8b; final
+cumulative independent review and exact-head CI remain required before merge.
 
 Both historical member-role labels: real SDK open creates one own document and
 persists first view; repeat returns the same ID/false without duplication. Existing

@@ -1167,7 +1167,7 @@ remain; main242/local243, productionlast225 and all admission/home/cutover contr
 unchanged. Actual open/private-delivery integration remains a separate prerequisite;
 original observer authority is not silently extended. Phase/goal incomplete.
 
-Next source-only [integrated SDK proof](contextual-assignment-learner-integrated-proof.md)
+Historical source preparation of [integrated SDK proof](contextual-assignment-learner-integrated-proof.md)
 is a sibling runner with a finite, disjoint extension manifest, not a migration or
 silent expansion of the sealed observer. Its intended cases include real open/
 create/view, nonempty own supplements and private byte/signing delivery. Original
@@ -1181,6 +1181,18 @@ squash full-tree parity and clean canonical main fast-forward verified. Prepared
 source31 new offline checks/136 related checks/full TypeScript/ESLint pass, not a
 runtime receipt. Actual-parent reconciliation precedes next publication.
 Local/main243/productionlast225 and all admission/home/cutover controls unchanged.
+
+Superseding1461 receipt: actual-parent reconciliation/publication complete;
+targeted45084a8b guard-equivalence review CLEAN and root finite-manifest acceptance
+preceded serial runtime. Normal29 actual SDK cases PASS with real create/view,
+nonempty own supplements and bounded artifact/inline signed PNG reads. Both
+after-fixture/before-capture expectedexit1/exact2marker forced modes PASS after
+full setup/eight uploads, exact owned teardown and full canonical closure.
+Independent saved public/private/Storage/168/settings/cron/resource fingerprints
+match before/after the run. Runtime/app/schema/native original proof bytes remain
+unchanged in the final facts-only batch; final cumulative review/exactCI/mainmerge
+pending. This is NOT authenticated appHTTP/browser/removal-race or phase-exit
+evidence. Tests/Surveys/Grades groups below and later cutover gates still apply.
 
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
