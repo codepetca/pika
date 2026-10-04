@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requirePasswordSessionRequest } from '@/lib/server/password-session-boundary'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hashHandoffToken, hashPassword } from '@/lib/crypto'
@@ -10,6 +11,7 @@ import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
 const INVALID_RESET_SESSION = 'Password reset session expired. Please request a new code.'
 
 export const POST = withErrorHandler('ResetPasswordConfirm', async (request: NextRequest) => {
+  requirePasswordSessionRequest(request)
   const { email: normalizedEmail, password, handoffToken } = resetPasswordConfirmSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

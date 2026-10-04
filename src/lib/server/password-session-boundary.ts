@@ -2,8 +2,8 @@ import type { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-handler'
 import { requireSameOriginPost } from '@/lib/server/workos-logout'
 
-/** Browser logins must be same-origin JSON; pika CLI sends JSON without Origin. */
-export function requirePasswordLoginRequest(request: NextRequest): void {
+/** Browser password-session requests must be same-origin JSON; pika CLI sends JSON without Origin. */
+export function requirePasswordSessionRequest(request: NextRequest): void {
   const origin = request.headers.get('origin')
   const site = request.headers.get('sec-fetch-site')
   if (site && site !== 'same-origin' && site !== 'none') {

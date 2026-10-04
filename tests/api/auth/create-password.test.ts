@@ -26,12 +26,14 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/server/auth-rate-limit', () => rateLimitMocks)
 
 import { createSession } from '@/lib/auth'
+import { hashPassword } from '@/lib/crypto'
 
 const mockSupabaseClient = { from: vi.fn() }
 
 function createRequest(body: Record<string, unknown>) {
   return new NextRequest('http://localhost:3000/api/auth/create-password', {
     method: 'POST',
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
 }
@@ -61,6 +63,24 @@ describe('POST /api/auth/create-password', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     rateLimitMocks.consumeAuthRequestRateLimits.mockResolvedValue(undefined)
+  })
+
+  for (const [headers, status] of [
+    [{ 'content-type': 'text/plain', origin: 'https://other.example', 'sec-fetch-site': 'cross-site' }, 403],
+    [{ 'content-type': 'application/json', origin: 'https://other.example' }, 403],
+    [{ 'content-type': 'application/json', 'sec-fetch-site': 'cross-site' }, 403],
+    [{ 'content-type': 'text/plain', origin: 'http://localhost:3000' }, 415],
+  ] as const) it('rejects an unsafe password-session request before credential work ' + JSON.stringify(headers), async () => {
+    const body = JSON.stringify({ ...validBody(), padding: '=' }) + '\r\n'
+    const request = new NextRequest('http://localhost:3000/api/auth/create-password', {
+      method: 'POST', headers, body,
+    })
+    const response = await POST(request)
+    expect(response.status).toBe(status)
+    expect(rateLimitMocks.consumeAuthRequestRateLimits).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    expect(hashPassword).not.toHaveBeenCalled()
+    expect(createSession).not.toHaveBeenCalled()
   })
 
   it('should return 400 when passwords do not match', async () => {

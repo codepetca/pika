@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requirePasswordSessionRequest } from '@/lib/server/password-session-boundary'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hashHandoffToken, hashPassword } from '@/lib/crypto'
@@ -8,6 +9,7 @@ import { createPasswordSchema } from '@/lib/validations/auth'
 import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
 
 export const POST = withErrorHandler('CreatePassword', async (request: NextRequest) => {
+  requirePasswordSessionRequest(request)
   const { email: normalizedEmail, password, handoffToken } = createPasswordSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()

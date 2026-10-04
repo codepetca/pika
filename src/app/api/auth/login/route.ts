@@ -8,7 +8,7 @@ import {
   clearAuthRateLimit,
   consumeAuthRequestRateLimits,
 } from '@/lib/server/auth-rate-limit'
-import { requirePasswordLoginRequest } from '@/lib/server/password-login-boundary'
+import { requirePasswordSessionRequest } from '@/lib/server/password-session-boundary'
 import { DUMMY_AUTH_BCRYPT_HASH } from '@/lib/server/auth-response'
 
 const LOGIN_MAX_ATTEMPTS = 10
@@ -17,7 +17,7 @@ const LOGIN_WINDOW_SECONDS = 15 * 60
 // failures perform the same expensive comparison as a normal login failure.
 
 export const POST = withErrorHandler('Login', async (request: NextRequest) => {
-  requirePasswordLoginRequest(request)
+  requirePasswordSessionRequest(request)
   const { email: normalizedEmail, password } = loginSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
