@@ -180,7 +180,7 @@ async function databaseSnapshot(projectId: string, rows: boolean) {
 }
 export function loadAssignmentListReviewedMigrations(repository: string) {
   const folder = join(repository, 'supabase/migrations'); const names = readdirSync(folder).filter(name => /^\d{3}_.*\.sql$/.test(name)).sort()
-  assert.equal(names.length, 240)
+  assert.equal(names.length, 241)
   return names.map((name, n) => { assert(name.startsWith(`${String(n + 1).padStart(3, '0')}_`)); const content = readFileSync(join(folder, name), 'utf8'); return { name, sql: content, sha256: sha(content) } })
 }
 

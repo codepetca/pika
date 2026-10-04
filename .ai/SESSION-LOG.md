@@ -11,61 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Roster1443 merged; class-day1444 actual-main reconciliation
-
-PR1443 normal squash merge7e5c6422 verified15:28:30Z after all five77995c95
-CI37131666194 gates (0queue/1642runseconds). Canonicalmain cleanFF. This1444
-candidate rebases onto actual7e5main; all eight runtime/schema/proof/test/doc
-files and every main/childCIstep byte-preserved. Continuity conflicts preserve
-both histories; duplicate identical1441receipt and copied already-archived
-copy1431entry removed onlyonce, originals retained. Original14:26:22clock and
-counters remain; documented human-authorized60minute extension ends16:26:22Z.
-Targeted changed-base review/final exact-head CI stillprecede merge. Local236
-is installedby separate preservingremoval work; thisread addsnoSQL/types/UI.
-Production001–225/sharedadmission/fullcutoverOFF; no provider/account/billing edits.
-
-## 2026-10-03 — Shared roster owner-write source preparation
-
-Verified1441 merge d913eebd after all five exact-head37127414505 gates; canonical
-main cleanly fast-forwarded. Local001–234 unchanged, production001–225 and shared
-admission/cutover OFF. Owner explicitly authorizes needed review extensions without
-repeat prompts; original clocks/counters and absolute safety/merge caps remain.
-Disjoint source/proof workers prepare roster add/CSV/counselor transactions.176
-source tests, scoped lint, architecture and API standards pass; two expected new
-RPC-name compiler errors remain until genuine local generation. Candidate235
-SHA256557469c5a86479d4b440d05534bc2f37084355436589f0b8b7f8b13df47b82c4 is UNAPPLIED.
-Archived edits deny403 and stable bindings win over current-email fallback. Actual
-SQL/SDK behavior is unverified; frozen source security check precedes exact local
-preview/application, genuine types, database proofs and full draft-PR lifecycle.
-
-Pre-application Sol review accepted a retained-identity gap for a second stable-
-bound row after first-row removal and account-email change. Batch1 rejects the
-resolved learner after pair locking and before preview/DML; structural RED then
-11green. Source235 remains UNAPPLIED, superseded candidate SHA256
-0a91c5702e5c7a1cbae573e30721d38f8ab90789643983cb242d57422cfd5ebf. Real rollback
-proof now covers all upsert modes and counselor edits through that second row;
-runtime execution remains pending. Targeted security recheck precedes application.
-
-Targeted retained-identity review clean. First ordinary local235 application failed
-SQLSTATE42601 at an unparenthesized CASE within IF; aftermath confirmed235history
-false/newfunctions0/max234, complete atomic rollback. Batch2 parenthesizes onlythe
-operand; RED then12/12green and narrow Sol recheck CLEAN39a4f206. Freshpika54322,
-matching001–234/currentmain234/exact235-onlypreview preceded successful secondpush.
-Installed immutable235 SHA256dded003c0fdd92235af163ef73751e1a9442146ee2129015ace83acdc2ff685b.
-History001–235/publicRPCs2/genuine generatedtypes+driftcheck pass. Serialized SQL
-proofs pass fullrow/binding/revision rollback including retainedsecondboundidentity.
-ActualSDK/focused/fullPR review remain pending;3launches/2targeted/2batches, original
-14:38:45Z clock retained. Production001–225/sharedadmissionOFF unchanged.
-
-ActualSDK normal/forcedfixture proofs pass exactcleanup/globalbaseline after every
-run.273focused tests17files+allstaticlint pass. Genuine235nullabletextmetadata
-refined onlythrough existingcuratedFunctionContract/Replace seam, no casts/newSQL
-or manualgeneratedcontract. Runtime/schema/proofs/newtests byte-identical after
-actual1442main3351d85f rebase; bothCIproofsteps preserved. Narrowpreapplyreviews
-are notfullPRreview: stable draft/fullinitialwave next. User-authorized extensions
-retain originalclock and3launches/2targeted/3fixbatches. Local235immutable/prod225,
-sharedadmissionOFF; no repeatedroutine approval asked.
-
 ## 2026-10-03 — Roster1445 actual-main reconciliation after class-day1444
 
 PR1444 merged actual maina8c4e9b2 at16:04:51Z after all fiveCI37133784223 gates.
@@ -975,3 +920,52 @@ Local original four-case suite reproduces1RED; third batch restores exact
 unchanged and preserves the original parser/test/gate. No executable source change
 or new runtime/production/activation operation. Targeted mechanical review and
 new stable-head CI required; original06:31:48clock/counters and absolutecaps remain.
+
+## 2026-10-04 — Prepared locked learner Classwork write boundary
+
+Actual parent1456 mergedc7e5a487 after exact2c9ee58f CI37181022226/all5PASS;
+canonical main cleanFF.1457 learnerGET remains in corrected exact-head CI,
+not merged here. Local/main001–240; productionlast225 untouched.
+
+Source worker relinquished241/four214 member RPC replacements, structural suite
+and rollback-only harness. Root complete inspection preserves214 bodies after
+only locked visibility additions; SQL SHA256
+6247d7fa0ae5a23a96bddec8079e3b4948fada29c44299246c8129138b305321.
+Root catches fresh-null169 activation prerequisite in the rollback fixture;
+regression1RED/19PASS then20GREEN after immutable guarded/coalesced transaction-only
+setup. No local SQL executed. CIstep/floor241 regression first fails23checks before
+narrow serialstep/count changes; all001240SQL/fixtureDML/platform targets/
+allowed transitions/restoration/cleanup authority remain unchanged.
+241UNAPPLIED; local types/rollback/concurrency/isolated replay and2forced receipts
+remain gates after draft/source review. Sibling history/artifact/inline visibility
+and integrated opening remain work. NoUI/admission/cutover/production/account/
+billing/provider changes; critical roster-owner node_modules and prior branches
+retained. Existing authorization covers routine local application/review/extensions/
+normal mainmerge, not bypass or uncontrolled production activation.
+
+## 2026-10-04 — Locked learner writes local verification and parent reconciliation
+
+1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
+(0queue/1696runseconds), tree parity and canonical cleanFF verified.1458 initial
+security/compatibility source reviews clean (distinct5.6Sol/high reviewers after
+two6.1 launch failures, both counted).241 applied once locally; exact001–241history
+and genuine generated types/check zero drift. First rollback fixture run failed
+five null due dates, but rollback and separate whole-canonical baseline PASS.
+Proof-only correction regression1RED/20PASS then21GREEN; targeted review clean.
+New241 and unchanged save rollback harnesses PASS, including actual nonempty
+artifact freeze/preflight and nonvacuous legacy/membershipPal; full canonical
+public/private/Storage fingerprints,168metadata/settings/cron/resources unchanged.
+
+Rebasecc206cce onto actual2595main keeps immutable241SQL/rollback/tests/floor
+bytes unchanged; resolves only continuity conflicts, preserves both archive batch
+markers and one identical historical entry. No stash/pop/history repair/reapply.
+104rebase checks PASS. Strict001–241 combined replay PASS9projections/6original
+revocations plus original list controls; nine sealed false-created/view RPCstubs,
+zero actualopenRPC/Storage/provider network. Both forcedmodes exit1/exact2markers,
+exactteardown/fullcanonicalunchanged PASS; private0600 receipts oe8GJq/mZNJ54.
+No realopen/signing/nonemptySDKsupplement/authHTTP/browser proof claimed. Existing
+committed-fixture concurrency is finalCI ephemeral-only because168 retains private
+identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clock,
+5launch/1target/2batch retained; factual receipt batch/finalcumulative/CI next.
+Productionlast225/admission/home/cutover/account/billing/provider unchanged;
+batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
