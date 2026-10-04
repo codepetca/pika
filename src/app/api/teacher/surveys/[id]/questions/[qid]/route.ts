@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { normalizeSurveyQuestionInput } from '@/lib/surveys'
 import { assertTeacherOwnsSurvey } from '@/lib/server/surveys'
+import { surveyQuestionSchema } from '@/lib/validations/surveys'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -11,12 +12,13 @@ export const revalidate = 0
 export const PATCH = withErrorHandler('PatchTeacherSurveyQuestion', async (request, context) => {
   const user = await requireRole('teacher')
   const { id: surveyId, qid: questionId } = await context.params
-  const body = await request.json()
 
   const access = await assertTeacherOwnsSurvey(user.id, surveyId, { checkArchived: true })
   if (!access.ok) {
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
+
+  const body = surveyQuestionSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
   const { data: existingQuestion, error: questionError } = await supabase

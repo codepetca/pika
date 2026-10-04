@@ -126,6 +126,31 @@ describe('focused local checks', () => {
     expect(result.calls.filter((args) => args.includes('vitest'))).toHaveLength(1)
   }, 15_000)
 
+  it('selects directly imported script policies and runtimes without running unrelated tests or launchers', () => {
+    const f = fixture()
+    f.write('.git/info/exclude', 'bin/\ncalls.jsonl\nnode_modules/\n')
+    symlinkSync(resolve('node_modules'), join(f.root, 'node_modules'), 'dir')
+    f.write('vitest.config.mjs', "export default { test: { globals: true, environment: 'node', include: ['tests/**/*.test.ts'] } }")
+    for (const file of workflowTests) f.write(file, "it('workflow', () => expect(true).toBe(true))")
+    f.write('scripts/lib/design-policy.ts', 'export const policy = 1')
+    f.write('scripts/migration-rollout-policy.mjs', 'export const policy = 1')
+    f.write('scripts/migration-rollout.mjs', 'export const runtime = 1')
+    f.write('tests/unit/design.test.ts', "import { policy } from '../../scripts/lib/design-policy'; it('design', () => expect(policy).toBe(2))")
+    f.write('tests/unit/migration.test.ts', "import { policy } from '../../scripts/migration-rollout-policy.mjs'; import { runtime } from '../../scripts/migration-rollout.mjs'; it('migration', () => expect(policy + runtime).toBe(4))")
+    f.write('tests/unit/unrelated.test.ts', "it('unrelated', () => { throw new Error('unrelated executed') })")
+    f.git('add', '.')
+    f.git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'baseline consumers')
+    f.write('scripts/lib/design-policy.ts', 'export const policy = 2')
+    f.write('scripts/migration-rollout-policy.mjs', 'export const policy = 2')
+    f.write('scripts/migration-rollout.mjs', 'export const runtime = 2')
+    f.write('scripts/run-focused-checks.mjs', "throw new Error('launcher invoked')")
+    const result = f.run([], false, true)
+    expect(result.status, result.output).toBe(0)
+    expect(result.calls[0]).toEqual(['exec', 'vitest', 'related', '--run', ...workflowTests,
+      'scripts/lib/design-policy.ts', 'scripts/migration-rollout-policy.mjs', 'scripts/migration-rollout.mjs', '--reporter=dot'])
+    expect(result.output).toMatch(/Tests\s+4 passed \(4\)/)
+  }, 15_000)
+
   it('prints failure details and stops instead of running later checks', () => {
     const f = fixture()
     f.write('src/lib/changed.ts')

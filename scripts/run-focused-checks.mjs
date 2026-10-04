@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process'
-import { closeSync, mkdtempSync, openSync, readFileSync } from 'node:fs'
+import { closeSync, mkdtempSync, openSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { classifyChangedPaths } from './classify-ci-changes.mjs'
 
 function parseArguments(argv) {
@@ -77,8 +77,33 @@ function isTestFile(path) {
   return /^tests\/.+\.(?:test|spec)\.[jt]sx?$/.test(path)
 }
 
-function isRelatedSource(path) {
-  return /^src\/.+\.[jt]sx?$/.test(path)
+// Script launchers are not related inputs unless a test imports them as modules.
+// Vitest still owns the final dependency graph and test selection.
+function directlyImportedScriptSources() {
+  const sources = new Set()
+  function visit(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      if (entry.isDirectory()) visit(path)
+      else if (isTestFile(path)) {
+        const content = readFileSync(path, 'utf8')
+        const imports = content.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)['"]([^'"]+)['"]/g)
+        for (const [, specifier] of imports) {
+          if (!specifier.startsWith('.')) continue
+          sources.add(resolve(dirname(path), specifier).replace(/\.(?:[cm]?[jt]sx?)$/, ''))
+        }
+      }
+    }
+  }
+  try { visit('tests') } catch (error) { if (error.code !== 'ENOENT') throw error }
+  return sources
+}
+
+function relatedSourcesFor(paths) {
+  const scripts = paths.filter((path) => /^scripts\/.+\.(?:[cm]?[jt]sx?)$/.test(path))
+  const importedScripts = scripts.length ? directlyImportedScriptSources() : new Set()
+  return paths.filter((path) => /^src\/.+\.[jt]sx?$/.test(path) ||
+    (scripts.includes(path) && importedScripts.has(resolve(path).replace(/\.(?:[cm]?[jt]sx?)$/, ''))))
 }
 
 // Keep package.json as the single workflow-test inventory. Reject commands we
@@ -100,7 +125,7 @@ try {
   if (args.dryRun) console.log(JSON.stringify(classification, null, 2))
 
   const changedTests = classification.runTestBuild ? paths.filter(isTestFile) : []
-  const relatedSources = classification.runTestBuild ? paths.filter(isRelatedSource) : []
+  const relatedSources = classification.runTestBuild ? relatedSourcesFor(paths) : []
   const testInputs = [...new Set([...workflowTestFiles(), ...changedTests, ...relatedSources])]
   // Vitest related includes a test when the input is either that test itself
   // or one of its imports. Each project/specification is therefore run once.
