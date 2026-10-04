@@ -7,7 +7,7 @@ schema/application, canaries and braces exception remain pending; see
 Local243 receipts: SESSION-LOG. Audit disposable receipts confer no application
 permission. #1461:29 SDK cases, forced cleanup/baseline;
 [proof](../docs/guidance/contextual-assignment-learner-integrated-proof.md).
-#1469 draft: SDK diagnosis; rollout OFF.
+#1469 draft: guard-fix review; rollout OFF.
 
 Hosted: Prod DB 001–225 (fresh read-only verification 2026-10-04; exact prefix).
 Pending 226–246 require coordinated application/schema and exact-set permission.

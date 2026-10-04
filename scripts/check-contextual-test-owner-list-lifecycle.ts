@@ -11,6 +11,7 @@ import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError, type
 import { createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations, assignmentListExpectedResources,
   assignmentListRestorationPolicy, assignmentListDockerInventory } from './contextual-assignment-list-proof-platform'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
+import { testOwnerListDockerInventory } from './contextual-test-owner-list-proof-inventory'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
 import { parseAssignmentListLifecycleArgs } from './check-contextual-assignment-list-lifecycle'
@@ -246,7 +247,7 @@ export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
   let transport: ReturnType<typeof createTestOwnerListProofTransport> | undefined; let client: ReturnType<typeof createClient<Database>> | undefined
   const originalPal = process.env.PAL_ENABLED; process.env.PAL_ENABLED = 'false'
   async function guard() {
-    assert(target && session); closure = validateIntegratedGuardResources(await assignmentListDockerInventory(), projectId, session.containerId, closure)
+    assert(target && session); closure = validateIntegratedGuardResources(await testOwnerListDockerInventory(), projectId, session.containerId, closure)
     const result = execFileSync('docker', ['exec', '-i', '-e', `PGAPPNAME=${projectId}_fixture`, session.containerId, 'psql', '-U', 'postgres', '-d', 'postgres', '-XqAt', '-v', 'ON_ERROR_STOP=1'],
       { input: testOwnerGuardSql(projectId), encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 45000, maxBuffer: TEST_OWNER_LIST_CAPS.responseBytes })
     assert.equal(result.trim(), 'ok')

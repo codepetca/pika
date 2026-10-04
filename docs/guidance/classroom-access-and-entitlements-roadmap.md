@@ -1247,7 +1247,11 @@ is implied. The epic remains incomplete. The owner explicitly authorizes routine
 in-scope work, local migrations, independent reviews and review extensions, and
 normal main merges through cutover. Carry that authority forward without repeating
 approval requests; retain original ledger clocks/counters, absolute review hard
-caps, normal security/CI/release gates and required material product decisions.
+caps unless directly waived, normal security/CI/release gates and required material
+product decisions. The owner's later explicit task-stop/review-extension waiver
+applies to this coordinator: preserve cumulative counters without repeatedly
+requiring budget approval. It does not waive correctness, runtime limits,
+production holds or material product decisions.
 
 First batch2 receipt: PR1451 draft `9843ebe1` passed945 focused tests/68files and
 both initial independent security/compatibility reviews. Its first actual local

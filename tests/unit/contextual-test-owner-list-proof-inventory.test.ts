@@ -1,0 +1,170 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { execFile } from 'node:child_process'
+import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
+import { testOwnerListDockerInventory } from '../../scripts/contextual-test-owner-list-proof-inventory'
+
+vi.mock('node:child_process', async importOriginal => ({ ...await importOriginal<typeof import('node:child_process')>(), execFile: vi.fn() }))
+
+const id = (n: number) => n.toString(16).padStart(64, '0')
+const template = '{"id":{{json .Id}},"name":{{json .Name}},"labels":{{json .Config.Labels}},"mounts":{{json .Mounts}},"networks":{{json .NetworkSettings.Networks}},"bindings":{{json .HostConfig.PortBindings}},"created":{{json .Created}}}'
+const listArgs = [['ps', '-aq', '--no-trunc'], ['volume', 'ls', '-q'], ['network', 'ls', '-q', '--no-trunc']]
+const key = (args: string[]) => JSON.stringify(args)
+type Run = (file: string, args: string[]) => Promise<string>
+
+function globalFixture(size = 129, revision = 'synthetic-one') {
+  const own = { 'com.supabase.cli.project': 'pika_assignment_list_abcdef123456', 'com.docker.compose.project': 'pika_assignment_list_abcdef123456' }
+  const foreign = { 'com.supabase.cli.project': 'foreign' }
+  const containers = Array.from({ length: size }, (_, n) => ({ id: id(n + 1), name: `/synthetic_${n}`, labels: n ? foreign : own,
+    mounts: [{ Type: 'volume', Name: `synthetic_volume_${n}` }, ...(n === 1 ? [{ Type: 'volume', Name: 'synthetic_volume_0' }] : [])],
+    networks: { synthetic: { NetworkID: id(10000 + n) }, ...(n === 1 ? { shared: { NetworkID: id(10000) } } : {}) },
+    bindings: { '5432/tcp': [{ HostPort: String(n ? 20000 + n : 54332) }] }, created: revision }))
+  const volumes = Array.from({ length: size }, (_, n) => ({ Name: `synthetic_volume_${n}`, CreatedAt: revision, Labels: n ? foreign : own }))
+  const networks = Array.from({ length: size }, (_, n) => ({ Id: id(10000 + n), Name: `synthetic_network_${n}`, Created: revision, Labels: n ? foreign : own,
+    Containers: Object.fromEntries([id(n + 1), ...(n === 0 ? [id(2)] : [])].map(value => [value, {}])) }))
+  const outputs = new Map<string, string>([
+    [key(listArgs[0]), containers.map(c => c.id).join('\n')], [key(listArgs[1]), volumes.map(v => v.Name).join('\n')], [key(listArgs[2]), networks.map(n => n.Id).join('\n')],
+  ])
+  for (let start = 0; start < size; start += 128) {
+    const c = containers.slice(start, start + 128); const v = volumes.slice(start, start + 128); const n = networks.slice(start, start + 128)
+    outputs.set(key(['inspect', '--format', template, ...c.map(row => row.id)]), c.map(row => JSON.stringify(row)).join('\n'))
+    outputs.set(key(['volume', 'inspect', ...v.map(row => row.Name)]), JSON.stringify(v))
+    outputs.set(key(['network', 'inspect', ...n.map(row => row.Id)]), JSON.stringify(n))
+  }
+  const calls: string[] = []
+  const run: Run = async (file, args) => {
+    expect(file).toBe('docker'); calls.push(key(args))
+    const output = outputs.get(key(args)); if (output === undefined) throw new Error('PRIVATE nonallowlisted command')
+    return output
+  }
+  return { outputs, calls, run, containers, volumes, networks }
+}
+
+afterEach(() => { vi.restoreAllMocks(); vi.mocked(execFile).mockReset() })
+
+describe('Test owner list fresh global inventory (offline commands only)', () => {
+  it('preserves the sealed complete inventory, including foreign attachments, across 128-sized batches', async () => {
+    const original = globalFixture(); const expected = await platform.assignmentListDockerInventory(original.run)
+    const optimized = globalFixture(); const actual = await testOwnerListDockerInventory(optimized.run)
+    expect(actual).toEqual(expected); expect(actual).toHaveLength(387)
+    expect(actual.find(r => r.kind === 'volume' && r.name === 'synthetic_volume_0')?.attachedIds).toEqual([id(1), id(2)])
+    expect(actual.find(r => r.kind === 'network' && r.id === id(10000))?.attachedIds).toEqual([id(1), id(2)])
+    expect([...optimized.calls].sort()).toEqual([...original.calls].sort()); expect(new Set(optimized.calls).size).toBe(9)
+    expect(optimized.calls.every(command => optimized.outputs.has(command))).toBe(true)
+  })
+
+  it('overlaps exactly three global pipelines and never overlaps batches within one pipeline', async () => {
+    const fixture = globalFixture(257); let active = 0; let maximum = 0
+    const activeKinds = new Set<string>(); const seen = new Set<string>()
+    const run: Run = async (file, args) => {
+      const kind = args[0] === 'volume' ? 'volume' : args[0] === 'network' ? 'network' : 'container'
+      expect(activeKinds.has(kind)).toBe(false); activeKinds.add(kind); seen.add(kind); maximum = Math.max(maximum, ++active)
+      await new Promise<void>(resolve => setImmediate(resolve))
+      try { return await fixture.run(file, args) } finally { active--; activeKinds.delete(kind) }
+    }
+    await testOwnerListDockerInventory(run)
+    expect(maximum).toBe(3); expect(seen.size).toBe(3); expect(active).toBe(0)
+    expect(fixture.calls).toHaveLength(12); expect(new Set(fixture.calls).size).toBe(12)
+  })
+
+  it.each(listArgs.map((args, index) => ({ args, index })))('rejects malformed or duplicate global listing $index before its inspection', async ({ args, index }) => {
+    for (const bad of [index === 1 ? '--unsafe' : 'missing-id', index === 1 ? 'private;unsafe' : 'f'.repeat(63), `${index === 1 ? 'safe_volume' : id(1)}\n${index === 1 ? 'safe_volume' : id(1)}`]) {
+      const fixture = globalFixture(1); fixture.outputs.set(key(args), bad)
+      await expect(testOwnerListDockerInventory(fixture.run)).rejects.toThrow('Private Test owner list inventory rejected')
+      const ownInspect = fixture.calls.filter(command => {
+        const call = JSON.parse(command) as string[]
+        return index === 0 ? call[0] === 'inspect' : call[0] === args[0] && call[1] === 'inspect'
+      })
+      expect(ownInspect).toEqual([])
+    }
+  })
+
+  it.each(['container', 'volume', 'network'] as const)('rejects missing or unexpected inspected %s identities through the sealed parser', async kind => {
+    for (const missing of [true, false]) {
+      const fixture = globalFixture(1)
+      const args = kind === 'container' ? ['inspect', '--format', template, id(1)] : kind === 'volume' ? ['volume', 'inspect', 'synthetic_volume_0'] : ['network', 'inspect', id(10000)]
+      const rows = kind === 'container' ? fixture.containers : kind === 'volume' ? fixture.volumes : fixture.networks
+      const changed = missing ? [] : [{ ...rows[0], ...(kind === 'container' ? { id: id(777) } : kind === 'volume' ? { Name: 'unexpected_volume' } : { Id: id(777) }) }]
+      fixture.outputs.set(key(args), kind === 'container' ? changed.map(row => JSON.stringify(row)).join('\n') : JSON.stringify(changed))
+      await expect(testOwnerListDockerInventory(fixture.run)).rejects.toThrow('Private Test owner list inventory rejected')
+    }
+  })
+
+  it('accepts a genuinely empty global listing without inventing inspection commands', async () => {
+    const fixture = globalFixture(0)
+    expect(await testOwnerListDockerInventory(fixture.run)).toEqual([])
+    expect(fixture.calls.sort()).toEqual(listArgs.map(key).sort())
+  })
+
+  it('settles every pending pipeline on command failure without exposing errors or unhandled rejections', async () => {
+    const fixture = globalFixture(1); const started = new Set<string>(); const settled = new Set<string>()
+    const releases: Array<() => void> = []; const unhandled = vi.fn(); process.on('unhandledRejection', unhandled)
+    let done = false
+    try {
+      const run: Run = async (file, args) => {
+        const kind = args[0]; started.add(kind)
+        try {
+          if (kind === 'ps') throw new Error('PRIVATE source failure')
+          await new Promise<void>(resolve => releases.push(resolve))
+          if (kind === 'volume') throw new Error('PRIVATE delayed failure')
+          return await fixture.run(file, args)
+        } finally { settled.add(kind) }
+      }
+      const pending = testOwnerListDockerInventory(run).then(() => { done = true }, error => { done = true; expect(String(error)).toBe('Error: Private Test owner list inventory rejected') })
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(started.size).toBe(3); expect(done).toBe(false)
+      releases.splice(0).forEach(resolve => resolve())
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(done).toBe(false) // the surviving network inspection is still pending
+      releases.splice(0).forEach(resolve => resolve())
+      await pending; expect(settled.size).toBe(3); expect(unhandled).not.toHaveBeenCalled()
+    } finally { process.off('unhandledRejection', unhandled) }
+  })
+
+  it('discovers changed state afresh on consecutive invocations and after a failed invocation', async () => {
+    const first = globalFixture(1, 'first'); const second = globalFixture(1, 'second'); const failed = globalFixture(1)
+    expect((await testOwnerListDockerInventory(first.run)).every(row => row.createdAt === 'first')).toBe(true)
+    failed.outputs.set(key(listArgs[0]), 'PRIVATE invalid')
+    await expect(testOwnerListDockerInventory(failed.run)).rejects.toThrow('Private Test owner list inventory rejected')
+    expect((await testOwnerListDockerInventory(second.run)).every(row => row.createdAt === 'second')).toBe(true)
+    expect(first.calls).toHaveLength(6); expect(second.calls).toHaveLength(6)
+  })
+
+  it.each([['docker', ['rm', '-f', id(1)]], ['sh', ['-c', 'PRIVATE']], ['docker', ['ps', '-aq', '--filter', 'label=own']]] as [string, string[]][])('rejects a nonallowlisted first request %s %# without launching commands', async (file, args) => {
+    const fixture = globalFixture(1)
+    vi.spyOn(platform, 'assignmentListDockerInventory').mockImplementation(async run => { await run!(file, args); return [] })
+    await expect(testOwnerListDockerInventory(fixture.run)).rejects.toThrow('Private Test owner list inventory rejected')
+    expect(fixture.calls).toEqual([])
+  })
+
+  it('permits each exact prefetched command result to be consumed only once', async () => {
+    const fixture = globalFixture(1)
+    vi.spyOn(platform, 'assignmentListDockerInventory').mockImplementation(async run => { await run!('docker', listArgs[0]); await run!('docker', listArgs[0]); return [] })
+    await expect(testOwnerListDockerInventory(fixture.run)).rejects.toThrow('Private Test owner list inventory rejected')
+    expect(fixture.calls).toHaveLength(6); expect(new Set(fixture.calls).size).toBe(6)
+  })
+
+  it('fails closed if the parser does not consume the complete prefetched global command set', async () => {
+    const fixture = globalFixture(1)
+    vi.spyOn(platform, 'assignmentListDockerInventory').mockImplementation(async run => { await run!('docker', listArgs[0]); return [] })
+    await expect(testOwnerListDockerInventory(fixture.run)).rejects.toThrow('Private Test owner list inventory rejected')
+  })
+
+  it('retains native 20s and 64MiB command bounds and closed command failures', async () => {
+    vi.mocked(execFile).mockImplementation((_file, _args, options, callback) => {
+      expect(options).toMatchObject({ timeout: 20000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' })
+      const finish = callback as unknown as (error: Error, stdout: string, stderr: string) => void
+      queueMicrotask(() => finish(new Error('PRIVATE native failure'), 'PRIVATE stdout', 'PRIVATE stderr'))
+      return {} as ReturnType<typeof execFile>
+    })
+    await expect(testOwnerListDockerInventory()).rejects.toThrow('Private Test owner list inventory rejected')
+    expect(execFile).toHaveBeenCalledTimes(3)
+  })
+
+  it('applies the same byte bound to injected command outputs before inspections', async () => {
+    const fixture = globalFixture(0)
+    const oversized = 'x'.repeat(64 * 1024 * 1024 + 1)
+    const run: Run = async (file, args) => key(args) === key(listArgs[0]) ? oversized : fixture.run(file, args)
+    await expect(testOwnerListDockerInventory(run)).rejects.toThrow('Private Test owner list inventory rejected')
+    expect(fixture.calls.every(command => listArgs.map(key).includes(command))).toBe(true)
+  })
+})

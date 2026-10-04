@@ -143,3 +143,34 @@ The frozen diagnostic source reviews cover the prior base only. Updated-base
 checks, independent integration review, explicit finite-manifest acceptance and
 new actual normal/two forced receipts remain required; prior failed243 attempts
 are historical evidence, not runtime proof of the new source chain.
+
+The updated-base source review passed at `e8e001aa`, and the coordinator accepted
+the complete immutable001–246 disposable manifest. Its actual normal run reached
+the first SDK case after complete fixture setup, then froze this closed evidence:
+context20001ms, cumulative/in-flight guard19651ms,18 attempted requests, availability
+projection, guard phase. Exact teardown and the SAME once-captured independent
+canonical public/private/Storage/168/settings/cron/resource baseline both passed.
+This establishes guard overhead as the immediate deadline blocker, not disk space
+or a passing SDK matrix. Neither fully-set-up forced mode has run yet.
+
+A bounded additive executor now runs fresh global Docker discovery
+pipelines concurrently through the sealed inventory's existing injection seam.
+It must retain all original parsing,128-item inspect batches, complete foreign
+attachment discovery, exact one-shot command consumption, pending-work settlement
+and every private SQL guard. No durable cache, project-only filtering, bypass,
+application deadline change or sealed native/lifecycle edit is permitted. Offline
+equivalence tests cover global multi-batch/foreign attachments, concurrent bounded
+pipelines, invalid/missing/duplicate identities, failures/settlement, fresh consecutive
+invocations, one-shot consumption and native command/output caps. Worker70 proof
+checks and209 related checks pass; root verification, independent fixed-source
+review and coordinator acceptance precede any new actual run. Production/shared
+schema and rollout remain unchanged.
+
+History-only main #1472 (`9c2ff7ef`) is now reconciled. Application/proof/test/CI/
+schema/dependency bytes match the pre-rebase correction exactly. Full-body hashes
+preserve incoming canonical history multiplicities plus positive branch additions
+relative to the fixed prior base; four missing original copies were restored and
+14 surplus or malformed rebase fragments removed. No original historical body
+was lost; official trim and exact multiset checks pass, and36 unrelated stashes
+remain untouched. Current source checks and targeted fixed-head review remain
+prerequisites for execution; no successful runtime is implied by the rebase.
