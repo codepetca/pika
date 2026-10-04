@@ -86,7 +86,7 @@ insert into public.classrooms(id,teacher_id,title,class_code,feature_visibility)
 insert into public.classroom_enrollments(id,classroom_id,student_id) values ${f.enrollments.map(r => `(${q(r.id)},${q(r.classroomId)},${q(r.actorId)})`).join(',')};
 insert into public.tests(${fields.join(',')}) values ${f.tests.map(r => `(${fields.map(field => literal(r[field as keyof typeof r])).join(',')})`).join(',')};
 insert into public.test_questions(id,artifact_id,test_id,question_type,question_text,options,correct_option,answer_key,sample_solution,points,response_max_chars,response_monospace,position)
-values ${f.questions.map(r => `(${q(r.id)},${q(r.artifact_id)},${q(r.test_id)},${q(r.question_type)},${q(r.question_text)},${json(r.options)},${literal(r.correct_option)},'Synthetic answer',null,1,5000,false,${r.position})`).join(',')};
+values ${f.questions.map(r => `(${q(r.id)},${q(r.artifact_id)},${q(r.test_id)},${q(r.question_type)},${q(r.question_text)},${json(r.options)},${literal(r.correct_option)},${literal(r.question_type === 'open_response' ? 'Synthetic answer' : null)},null,1,5000,false,${r.position})`).join(',')};
 insert into public.assessment_drafts(id,assessment_type,assessment_id,classroom_id,content,version,created_by,updated_by)
 values ${f.drafts.map(r => `(${q(r.id)},'test',${q(r.assessment_id)},${q(r.classroom_id)},${json(r.content)},${r.version},${q(r.owner)},${q(r.owner)})`).join(',')};
 insert into public.test_attempts(id,test_id,student_id,responses,is_submitted,submitted_at) values ${f.attempts.map(r => `(${q(r.id)},${q(r.test_id)},${q(r.student_id)},'{}'::jsonb,${r.is_submitted},${r.is_submitted ? q(f.now) : 'null'})`).join(',')};

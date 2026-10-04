@@ -170,6 +170,7 @@ Owner approved the next Daily read slice. Learner GET now consumes the existing 
 ## 2026-10-01 — Orchestrate contextual teacher Daily reads
 
 Owner requested orchestration of the remaining five batches, retaining this coordinator and the separate billing/UI owners. Learner PR1418 is merged in main at6c44c254 after two clean reviews and all exact-head CI36901168889 gates passed; no promotion or activation. A bounded source investigation selected teacher entry drill-down and learner history before roster-wide logs/previews and cached summaries. One worker implements only the two routes, helper and focused tests; coordinator owns roadmap, documentation, local PostgREST harness and CI wiring. Same-statement owner evidence governs drill-down; history also joins current target enrollment at the entry read, preserving legacy and archived-owner behavior. Real local checks pass both role values, projection/date isolation, removal/transfer races and exact synthetic cleanup. A separate startup/workflow run has fixture timeouts under host load; canonical focused validation and independent stable-SHA review remain required. No migration, UI, account grant, billing, rollout configuration or production change. Risk: runtime-platform; review risk high. Model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility fallback (Terra unavailable).
+## 2026-10-03 — Course Guide serialized-null compatibility correction
 
 Resumed from preserved files after interruption; no worker remained active. Coordinator reproduced the non-owner 503/403 ordering defect with two failing regressions and corrected it before publication. Targeted unit/API and unchanged legacy suites now pass40tests; real PostgREST contract passes again, including archived reads and post-preflight removal/ownership transfer, with cleanup verified. Canonical focused checks and independent review remain pending; no production change.
 
@@ -1299,3 +1300,15 @@ locks/timestamps remain exact. Closed setup diagnostics add no raw private data.
 manifest acceptance, actualnormal/twofullforced, finalCI/mainmerge remain gates.
 Root243focused/14files/allstatic gates, three-file audit, diff/trim and complete
 history multiset preservation PASS. App/sealed platform/lifecycle/schema unchanged.
+
+## 2026-10-04 — Owner Test list proof-only answer-key correction
+
+#1469 reviewed94afe normal failed at fixture/setup-sql before SDK requests;
+exact owned cleanup and SAME once-captured canonical five-field equality passed.
+Immutable044/catalog check requires multiple-choice answer_key=null; synthetic
+setup incorrectly gave every question a text key. Narrow fixture/test fix;
+valid generated-SQL RED captured,50proof/244focused14files/allstatic gates PASS.
+App, schema, native lifecycle and footprint unchanged. Existing human waiver
+retains cumulative review counters/authorization. No production, activation,
+account or migration operation. Source review and actual normal/two fully-set-up
+forced receipts remain required; space212GiB observed, active/tokens unknown.

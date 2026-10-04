@@ -106,6 +106,15 @@ describe('finite owner Test list fixture', () => {
     expect(f.drafts[0].content.questions).toHaveLength(2); expect(f.drafts[1].content.questions).toHaveLength(0)
     expect(f.questions.every(q => q.id !== q.artifact_id)).toBe(true)
   })
+  it('keeps persisted answer keys null for multiple-choice questions per migration 044', () => {
+    const { f, projectId } = fixture(); const sql = testOwnerListSetupSql(f, projectId)
+    const insert = sql.split('insert into public.test_questions(')[1].split(';')[0]
+    for (const question of f.questions) {
+      const tuple = insert.split(`('${question.id}',`)[1].split('),')[0]
+      const key = question.question_type === 'multiple_choice' ? 'null' : "'Synthetic answer'"
+      expect(tuple).toContain(`,${question.correct_option === null ? 'null' : question.correct_option},${key},null,1,5000,false,${question.position}`)
+    }
+  })
   it('validates nine exact owned trigger-created categories and retained generations', () => {
     const { f } = fixture(); const snapshot = sourceSnapshot(f)
     expect(() => validateTestOwnerListSetupSnapshot(f, snapshot)).not.toThrow()

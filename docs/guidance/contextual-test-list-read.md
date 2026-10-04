@@ -110,3 +110,10 @@ schema or application behavior is added. Closed setup checkpoints distinguish
 guard, SQL, snapshot-read and validation failures without raw errors or row data.
 49 proof tests and122 combined tests passed; actual normal/two full-setup forced
 runs remain required after independent correction review and manifest acceptance.
+
+The reviewed correction reached setup SQL but failed before SDK requests; exact
+teardown and the same independent canonical baseline comparison passed. Catalog
+metadata and migration044 expose another concrete fixture violation: multiple-choice
+answer keys must be null. The fixture now keeps only open-response text keys,
+with a generated-SQL regression; application and sealed lifecycle bytes are unchanged.
+Actual normal and both fully-set-up forced runs remain pending verification.
