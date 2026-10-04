@@ -19,6 +19,15 @@ import { AssignmentListStartupError, assignmentListExpectedResources, assignment
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
 
+export function assignmentOverviewProofDiagnostic(input: { case: unknown; phase: unknown; statement: unknown; http: unknown; code: unknown }) {
+  const closed = (value: unknown, values: string[]) => typeof value === 'string' && values.includes(value) ? value : 'none'
+  const bounded = (value: unknown, maximum: number) => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= maximum ? value : 0
+  const name = closed(input.case, ['owner_student', 'owner_teacher', 'member_student', 'member_teacher', 'outsider', 'self_owner', 'archived_member', 'hidden_member'])
+  const phase = closed(input.phase, ['list', 'control', 'assignment', 'enrollments', 'requirements', 'docs', 'artifacts', 'history', 'runs', 'items'])
+  const code = typeof input.code === 'string' && /^(?:PGRST\d{3}|[A-Z0-9]{5})$/.test(input.code) ? input.code : 'none'
+  return `case=${name} phase=${phase} statement=${bounded(input.statement, 1024)} http=${bounded(input.http, 599)} code=${code}`
+}
+
 export function assignmentOverviewProofExpectation(fixture: AssignmentListProofFixture, proofCase: AssignmentListProofManifest['cases'][number]) {
   assert(fixture.manifest.cases.some(c => isDeepStrictEqual(c, proofCase)))
   const assignment = fixture.assignments.find(a => a.classroom === proofCase.classroomId)
@@ -45,6 +54,9 @@ export async function assignmentOverviewLifecycleMain(args = process.argv.slice(
   const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
   const native = createAssignmentListNativeAdapters(fixture)
   let observed = 0
+  // Closed diagnostic categories only: never log URLs, identifiers, credentials,
+  // response rows, backend messages or SQL when a real SDK assertion fails.
+  let diagnostic = { case: 'none', phase: 'none', statement: 0, http: 0, code: 'none' }
   try {
     await runAssignmentListEphemeralLifecycle({ fixture, projectId, workdir: assignmentListProofWorkdir(projectId),
       migrations: loadAssignmentListReviewedMigrations(repository), mode: input.mode,
@@ -52,6 +64,7 @@ export async function assignmentOverviewLifecycleMain(args = process.argv.slice(
       reviewedManifestSha256: createHash('sha256').update(JSON.stringify(fixture.manifest)).digest('hex'),
       restorationPolicies: assignmentListRevocationPlans(fixture).map(plan => assignmentListRestorationPolicy(fixture, plan)),
     }, { ...native, async runCase(request) {
+      diagnostic = { case: request.proofCase.label, phase: 'list', statement: 0, http: 0, code: 'none' }
       const result = await native.runCase(request)
       const expected = assignmentOverviewProofExpectation(fixture, request.proofCase)
       if (!expected) return result
@@ -64,11 +77,23 @@ export async function assignmentOverviewLifecycleMain(args = process.argv.slice(
           assert.equal(url.searchParams.get('id'), `eq.${expected.assignmentId}`)
           assert(!url.searchParams.get('select')?.includes('*'))
           assert(init?.signal instanceof AbortSignal)
-          if (++statements > 1) {
+          diagnostic.statement = ++statements
+          const select = url.searchParams.get('select') ?? ''
+          diagnostic.phase = select.includes('enrollments:') ? 'enrollments' : select.includes('requirements:') ? 'requirements'
+            : select.includes('artifacts:') ? 'artifacts' : select.includes('history:') ? 'history' : select.includes('docs:') ? 'docs'
+              : select.includes('items:') ? 'items' : select.includes('runs:') ? 'runs' : select.includes('title,description') ? 'assignment' : 'control'
+          if (statements > 1) {
             assert.equal(url.searchParams.get('classrooms.teacher_id'), `eq.${expected.actorId}`)
             assert.equal(url.searchParams.get('classroom_id'), `eq.${expected.classroomId}`)
           }
-          return safeFetch(resource, init)
+          const response = await safeFetch(resource, init)
+          diagnostic.http = response.status
+          if (!response.ok) {
+            const body: unknown = await response.clone().json().catch(() => null)
+            const code = body && typeof body === 'object' && 'code' in body ? body.code : null
+            diagnostic.code = typeof code === 'string' && /^(?:PGRST\d{3}|[A-Z0-9]{5})$/.test(code) ? code : 'none'
+          }
+          return response
         } },
       })
       const read = () => readContextualAssignmentOverview({ supabase: client, actorId: expected.actorId, assignmentId: expected.assignmentId })
@@ -104,7 +129,10 @@ export async function assignmentOverviewLifecycleMain(args = process.argv.slice(
       process.exitCode = 1
       return
     }
-    if (error instanceof AssignmentListLifecycleError) process.stderr.write(`DIAG isolated assignment-overview stage=${error.primary?.stage ?? 'cleanup'} cleanup=${error.cleanupFailures.map(f => f.stage).join(',') || 'none'}.\n`)
+    if (error instanceof AssignmentListLifecycleError) {
+      process.stderr.write(`DIAG isolated assignment-overview stage=${error.primary?.stage ?? 'cleanup'} cleanup=${error.cleanupFailures.map(f => f.stage).join(',') || 'none'}.\n`)
+      if (error.primary?.stage === 'cases') process.stderr.write(`DIAG overview ${assignmentOverviewProofDiagnostic(diagnostic)}.\n`)
+    }
     throw new Error('Isolated assignment-overview lifecycle failed; private details withheld')
   }
 }

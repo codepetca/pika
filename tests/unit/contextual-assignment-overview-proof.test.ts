@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
-import { assignmentOverviewProofExpectation } from '../../scripts/check-contextual-assignment-overview-lifecycle'
+import { assignmentOverviewProofDiagnostic, assignmentOverviewProofExpectation } from '../../scripts/check-contextual-assignment-overview-lifecycle'
 import { decodeAssignmentListProofManifest } from '../../scripts/check-contextual-assignment-list-reads'
 
 describe('overview proof reuses only the isolated reviewed Assignment fixture', () => {
+  it('exposes only bounded closed diagnostic categories, never arbitrary backend or row values', () => {
+    expect(assignmentOverviewProofDiagnostic({ case: 'owner_student', phase: 'enrollments', statement: 3, http: 400, code: 'PGRST108' }))
+      .toBe('case=owner_student phase=enrollments statement=3 http=400 code=PGRST108')
+    expect(assignmentOverviewProofDiagnostic({ case: 'secret\nrow', phase: 'token=https://private', statement: Infinity, http: 999, code: 'private message' }))
+      .toBe('case=none phase=none statement=0 http=0 code=none')
+  })
   it('covers both owner role labels and denies members/outsiders without allocating new rows', () => {
     const f = newAssignmentListProofFixture()
     const before = JSON.stringify(f)

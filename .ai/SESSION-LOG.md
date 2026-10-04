@@ -855,3 +855,8 @@ compatibilityP1 upload-only path rejects restore/backfill/accepted filenames.
 Root verified producers117/restore/upload, reproduced3red regressions, batched
 namespace-compatible path correction while retaining exact registry/member/owner
 checks and adding5negative namespace/traversal checks. No runtime execution yet.
+Superseding check:c120d9c1 targetedsecurityCLEAN,263focused/1skip+97compatPASS.
+First normal isolated runtime failed in cases, cleanup=none; not accepted.
+Root adds closed case/phase/statement/HTTP/error-code diagnostics with unitTDD,
+not raw rows/messages/URLs/IDs/secrets, to diagnose a reviewed isolated retry.
+Fixture SQL/platform authority and canonical database remain unchanged.
