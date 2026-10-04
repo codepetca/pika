@@ -4,6 +4,7 @@ import { newAssignmentListProofFixture } from '../../scripts/contextual-assignme
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { parseAssignmentListLifecycleArgs } from '../../scripts/check-contextual-assignment-list-lifecycle'
 import { ApiError } from '../../src/lib/api-error'
+import { boundedAssignmentListJson } from '../../src/lib/validations/contextual-assignment-list-read'
 import {
   assignmentLearnerOpenProofCases, assignmentLearnerOpenProofExpectation, assignmentLearnerOpenRevocationBoundary,
   observeAssignmentLearnerOpenTransition, createAssignmentLearnerOpenProofClient, assignmentLearnerOpenProofDiagnostic,
@@ -42,6 +43,10 @@ describe('read-only learner-open projection observer', () => {
     expect(proof.counts.controlledRpcStubs).toBe(0)
     const result = await request
     expect(result.error).toBeNull(); expect(result.data).toMatchObject({ created: false, viewed_at_changed: false, doc: { id: c.docId, student_id: c.actorId, assignment_id: c.assignmentId } })
+    // The real learner reader bounds RPC content before its existing parser.
+    // A missing content field must not make this controlled projection fail.
+    expect(boundedAssignmentListJson((result.data as any).doc.content, 2 * 1024 * 1024)).toBe(true)
+    expect((result.data as any).doc.content).toEqual({ type: 'doc', content: [] })
     expect(proof.counts.controlledRpcStubs).toBe(1); expect(proof.counts.networkRpc).toBe(0); expect(proof.counts.storage).toBe(0); expect(proof.counts.provider).toBe(0)
     expect(fetcher).not.toHaveBeenCalled(); expect(JSON.stringify(f)).toBe(before)
     expect(Object.getOwnPropertyDescriptor(proof.client, 'rpc')).toMatchObject({ writable: false, configurable: false })

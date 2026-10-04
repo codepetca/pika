@@ -127,7 +127,10 @@ export function createAssignmentLearnerOpenProofClient(f: AssignmentListProofFix
           return { data: { ok: true, created: false, viewed_at_changed: false,
             assignment: { id: assignment.id, classroom_id: assignment.classroom, is_draft: false, created_at: f.manifest.now, released_at: null,
               description: '', instructions_markdown: 'Synthetic read instructions', rich_instructions: null },
-            doc: { id: doc.id, assignment_id: doc.assignment, student_id: doc.student, viewed_at: null } }, error: null }
+            // Match the immutable setup SQL's existing JSONB content; never
+            // synthesize a document ID or omit evidence the real reader bounds.
+            doc: { id: doc.id, assignment_id: doc.assignment, student_id: doc.student, viewed_at: null,
+              content: { type: 'doc', content: [] } } }, error: null }
         }).then(resolve, reject)
       },
     })
