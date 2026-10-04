@@ -121,6 +121,24 @@ begin
 end;
 $check$;
 
+-- Migration 168 retains purged generations with NULL scope_digest. Excluding
+-- synthetic live scopes must retain them before and after fixture creation.
+do $null_scope_regression$
+declare v_fixture_exists boolean; v_retained text[];
+begin
+  foreach v_fixture_exists in array array[false, true] loop
+    select array_agg(g.state order by g.state) into v_retained
+    from (values ('purged'::text, null::text), ('live', 'unrelated'), ('fixture', 'synthetic')) g(state, scope_digest)
+    where not exists (
+      select 1 from (values ('synthetic'::text)) fixture(scope_digest)
+      where v_fixture_exists and g.scope_digest = fixture.scope_digest
+    );
+    if v_retained is distinct from case when v_fixture_exists then array['live','purged'] else array['fixture','live','purged'] end
+    then raise exception 'Retained purged generation disappeared from unrelated-evidence snapshot'; end if;
+  end loop;
+end;
+$null_scope_regression$;
+
 -- Fingerprint unchanged global settings/resources and every unrelated evidence row.
 -- No global setting, cron entry, immutable guard or bucket ACL is changed.
 do $baseline$
@@ -135,7 +153,7 @@ begin
     'gradex_resources', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from public.classroom_gradex_resource_contract t where true),
     'archive_versions', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from public.classroom_archive_resource_contract_versions t where true),
     'buckets', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from storage.buckets t where true),
-    'generations', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from private.pal_membership_generations t where scope_digest not in (select private.pal_membership_scope(c.id, a.id) from public.classrooms c cross join public.users a where c.id::text like 'c242%' and a.id::text like 'c242%')),
+    'generations', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from private.pal_membership_generations t where not exists (select 1 from public.classrooms c cross join public.users a where c.id::text like 'c242%' and a.id::text like 'c242%' and t.scope_digest = private.pal_membership_scope(c.id, a.id))),
     'storage_metadata', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from storage.objects t where id::text not like 'c242%' and name not like 'sc242/%' and name not like 'classrooms/c242%'),
     'objects', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from public.managed_storage_objects t where classroom_id::text not like 'c242%' or classroom_id is null),
     'docs', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from public.assignment_docs t where assignment_id::text not like 'c242%' and student_id::text not like 'c242%'),
@@ -639,7 +657,7 @@ begin
     'gradex_resources', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from public.classroom_gradex_resource_contract t where true),
     'archive_versions', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from public.classroom_archive_resource_contract_versions t where true),
     'buckets', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from storage.buckets t where true),
-    'generations', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from private.pal_membership_generations t where scope_digest not in (select private.pal_membership_scope(c.id, a.id) from public.classrooms c cross join public.users a where c.id::text like 'c242%' and a.id::text like 'c242%')),
+    'generations', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from private.pal_membership_generations t where not exists (select 1 from public.classrooms c cross join public.users a where c.id::text like 'c242%' and a.id::text like 'c242%' and t.scope_digest = private.pal_membership_scope(c.id, a.id))),
     'storage_metadata', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from storage.objects t where id::text not like 'c242%' and name not like 'sc242/%' and name not like 'classrooms/c242%'),
     'objects', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from public.managed_storage_objects t where classroom_id::text not like 'c242%' or classroom_id is null),
     'docs', (select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text), '[]'::jsonb) from public.assignment_docs t where assignment_id::text not like 'c242%' and student_id::text not like 'c242%'),

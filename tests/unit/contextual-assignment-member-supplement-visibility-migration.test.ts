@@ -117,6 +117,16 @@ describe('contextual Assignment member supplement visibility', () => {
     expect(source).toContain("insert into storage.objects (id,bucket_id,name) values(v_object,'submission-images',v_path)")
   })
 
+  it('retains null-scope purged generations in both unrelated-evidence snapshots', () => {
+    const source = harness()
+    const exclusion = "from private.pal_membership_generations t where not exists (select 1 from public.classrooms c cross join public.users a where c.id::text like 'c242%' and a.id::text like 'c242%' and t.scope_digest = private.pal_membership_scope(c.id, a.id))"
+    expect(source.split(exclusion)).toHaveLength(3)
+    expect(source).not.toContain('where scope_digest not in')
+    expect(source).toContain('Retained purged generation disappeared from unrelated-evidence snapshot')
+    expect(source).toContain("('purged'::text, null::text)")
+    expect(source).toContain('array[false, true]')
+  })
+
   it('uses meaningful denied and visible evidence for both historical role labels', () => {
     const source = harness()
     expect(source).toContain("'sc242-2@example.invalid', 'teacher'")
