@@ -266,3 +266,12 @@ There is no latency or atomicity guarantee. A held-independent-list regression
 failed before this adjustment;86 proof checks pass after it. Fixed-source review
 and one fresh actual rehearsal remain gates; another deadline failure requires a
 concrete environment checkpoint, not more speculative patches or weaker controls.
+
+The e024 streaming correction passed independent source-only review. The single
+accepted fresh normal91629 still failed at the first owner/roster projection:
+22 requests,20001ms context/19543ms guard,503; exact teardown and the SAME saved
+canonical baseline passed. No fresh forced run/CI/main merge follows. The patch/
+retry loop is stopped for an environment checkpoint. Read-only inventory found
+618 volumes,587 unattached; none matched this proof's owned project-label pattern.
+583 had non-Supabase names and4 other-Supabase names; unattached is not disposable
+or ownership evidence. No volumes were deleted and no deadline/guard was weakened.
