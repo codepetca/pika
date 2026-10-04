@@ -4,9 +4,10 @@ Source: main `5a396899`; #1460/#1461/#1468 and audit #1462/#1463 merged.
 27 source findings accepted; CI 37226522459 passed. Production
 schema/application, canaries and braces exception remain pending; see
 [remediation plan](../docs/guidance/codebase-audit-remediation-2026-10.md).
-Local 243 receipts remain in SESSION-LOG; audit disposable receipts are source-
-pinned historical evidence, not new application permission. #1461: 29 SDK cases,
-forced teardown/cleanup and baseline; [proof](../docs/guidance/contextual-assignment-learner-integrated-proof.md).
+Local243 receipts: SESSION-LOG. Audit disposable receipts confer no application
+permission. #1461:29 SDK cases, forced cleanup/baseline;
+[proof](../docs/guidance/contextual-assignment-learner-integrated-proof.md).
+#1469 draft:fresh SDK/two-forced/SAME baseline PASS; CI pending; rollout OFF.
 
 Hosted: Prod DB 001–225 (fresh read-only verification 2026-10-04; exact prefix).
 Pending 226–246 require coordinated application/schema and exact-set permission.
