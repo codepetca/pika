@@ -109,6 +109,26 @@ rejected guard. Track unobserved timing explicitly and record elapsed guard time
 in `finally`; two failing regressions cover both paths before correction. This
 does not change guard enforcement or extend a deadline. Runtime still pending.
 
+Fifth targeted review ofb433b883 CLEAN; fourth runtime failed at SDK request5
+after1 open RPC dispatch, with the app AbortSignal already expired during guard
+checks. Cleanup passed and independent canonical fingerprints match; forced modes
+never started. This identifies test instrumentation consuming the unchanged
+20-second app budget, not a justification to extend or bypass that deadline.
+
+The extension guard now performs one fresh complete Docker discovery, exact owned
+resource/labels/ports/closure/foreign-attachment verification (including the bound
+database's54332 port), and one finite read-only SQL query. That query retains168/
+169 ON, every original persisted-gate OFF predicate, no grading work or Vault
+secrets, private buckets, exact application identity, and the same two harmless
+cron-watchdog allowlist entries. Unknown/null active cron evidence fails closed.
+It removes redundant inventory calls and unused whole-row hashes from inside app
+requests, not an enforced invariant. Original native code, full lifecycle pre/post
+canonical fingerprints, case snapshots, transitions and exact teardown stay
+unchanged. No guard caching, skipped request checks, broader SQL authority or
+deadline/cap expansion. Two failing offline regressions precede the guard change;
+40 new and179 related checks pass. Independent targeted review and explicit root
+updated finite guard-query acceptance precede another disposable run.
+
 Both historical member-role labels: real SDK open creates one own document and
 persists first view; repeat returns the same ID/false without duplication. Existing
 unviewed/returned documents exercise view without creation and preserve protected

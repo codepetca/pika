@@ -6,7 +6,8 @@ import { newAssignmentListProofFixture } from '../../scripts/contextual-assignme
 import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { INTEGRATED_CAPS, INTEGRATED_PNG, newIntegratedLearnerFixture, integratedSetupSql, integratedDigest,
   acceptCreatedDocument, integratedObjectPath } from '../../scripts/contextual-assignment-learner-integrated-proof-fixture'
-import { createIntegratedTransport, fetchSignedBytes, integratedForcedReceipt, integratedFailureDiagnostic } from '../../scripts/check-contextual-assignment-learner-integrated-lifecycle'
+import { createIntegratedTransport, fetchSignedBytes, integratedForcedReceipt, integratedFailureDiagnostic, validateIntegratedGuardResources } from '../../scripts/check-contextual-assignment-learner-integrated-lifecycle'
+import {assignmentListExpectedResources} from '../../scripts/contextual-assignment-list-proof-platform'
 
 const runnerPath = 'scripts/check-contextual-assignment-learner-integrated-lifecycle.ts'
 const fixturePath = 'scripts/contextual-assignment-learner-integrated-proof-fixture.ts'
@@ -125,6 +126,30 @@ describe('finite integrated fixture and real transport boundary',()=>{
     expect(sql).toContain('guard_pal_signal_activation');expect(sql).toContain('Exact179 submit snapshot')
     expect(sql).toContain('due_at');expect(sql).not.toMatch(/disable trigger|truncate|delete from|update private\./i)
     expect(sql).toMatch(/commit;$/)
+  })
+  it('uses one fresh inventory and one bound read-only guard query without repeated unused whole-row snapshots',()=>{
+    const runner=source(runnerPath);const guard=runner.slice(runner.indexOf('  async function guard()'),runner.indexOf('  let transport:'))
+    expect(guard).toContain('await assignmentListDockerInventory()')
+    expect(guard).toContain('validateIntegratedGuardResources(')
+    expect(guard).toContain('execFileSync(');expect(guard).toContain('integratedGuardSql(projectId)')
+    expect(guard).not.toContain('native.verifyEphemeral');expect(guard).not.toContain('native.executeSql')
+    const {f,projectId}=fixture();const sql=integratedSetupSql(f,projectId)
+    expect(source(fixturePath)).toContain('begin read only;')
+    for(const table of ['removed_student_academic_settings','classroom_creation_entitlement_settings','test_ai_grading_runs','test_ai_grading_run_items','vault.secrets','cron.job'])expect(sql).toContain(table)
+    expect(sql).toContain('pika-removed-student-cleanup-watchdog');expect(sql).toContain('pika-test-ai-grading-watchdog')
+  })
+  it('keeps exact fresh resource identity, database port, labels, closure and foreign attachment checks',()=>{
+    const {projectId}=fixture()
+    const resources=assignmentListExpectedResources(projectId).map((r,n)=>({...r,id:String(n+1).padStart(64,'0'),createdAt:'synthetic',labels:{'com.supabase.cli.project':projectId,'com.docker.compose.project':projectId},ports:r.name===`supabase_db_${projectId}`?[54332]:[],attachedIds:[]}))
+    const db=resources[0];const closure=validateIntegratedGuardResources(resources,projectId,db.id)
+    expect(closure).toEqual(resources);expect(closure).not.toBe(resources)
+    expect(validateIntegratedGuardResources(resources,projectId,db.id,closure)).toEqual(resources)
+    for(const change of [()=>{db.ports=[54322]},()=>{db.labels['com.docker.compose.project']='pika'},()=>{db.createdAt='replacement'}]){
+      const before=structuredClone(resources);change();expect(()=>validateIntegratedGuardResources(resources,projectId,db.id,closure)).toThrow();Object.assign(db,before[0])
+    }
+    expect(()=>validateIntegratedGuardResources(resources,projectId,'different')).toThrow()
+    const foreign={...resources[0],id:'unrelated',name:'unrelated',labels:{'com.supabase.cli.project':'pika','com.docker.compose.project':'pika'},attachedIds:[db.id]}
+    expect(()=>validateIntegratedGuardResources([...resources,foreign],projectId,db.id,closure)).toThrow()
   })
   it('creates the synthetic link before submission and records submit history afterward without disabling guard099',()=>{
     const {f,projectId}=fixture();const sql=integratedSetupSql(f,projectId)

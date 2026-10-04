@@ -14,7 +14,7 @@ import { readContextualAssignmentInlineImage } from '../src/lib/server/contextua
 import { buildPrivateStorageRedirect } from '../src/lib/server/direct-storage-delivery'
 import { newAssignmentListProofFixture, assignmentListFixtureSetupSql } from './contextual-assignment-list-proof-fixture'
 import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError, type AssignmentListLifecycleAdapters } from './contextual-assignment-list-proof-lifecycle'
-import { createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations, assignmentListExpectedResources, assignmentListRestorationPolicy } from './contextual-assignment-list-proof-platform'
+import { createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations, assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListDockerInventory } from './contextual-assignment-list-proof-platform'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
@@ -29,6 +29,21 @@ type RpcPlan = { name:string; args:Record<string,unknown> }
 const API = 'http://127.0.0.1:54331'
 const cleanupMarker = 'PASS isolated assignment-learner-integrated exact teardown and unchanged canonical baseline.\n'
 const q = (value:string) => `'${value.replaceAll("'","''")}'`
+
+/** One fresh complete discovery; no cache, relaxed identity or broader cleanup. */
+export function validateIntegratedGuardResources(inventory:Awaited<ReturnType<typeof assignmentListDockerInventory>>,projectId:string,containerId:string,closure?:typeof inventory) {
+  const resources=inventory.filter(r=>r.labels['com.supabase.cli.project']===projectId)
+  const expected=assignmentListExpectedResources(projectId)
+  const names=(rows:Array<{kind:string;name:string}>)=>rows.map(r=>`${r.kind}:${r.name}`).sort()
+  assert.deepEqual(names(resources),names(expected))
+  for(const r of resources) {assert.equal(r.labels['com.docker.compose.project'],projectId);assert(r.ports.every(p=>[54331,54332,54340].includes(p)))}
+  const db=resources.find(r=>r.kind==='container'&&r.name===`supabase_db_${projectId}`)
+  assert(db&&db.id===containerId&&db.ports.length>0&&db.ports.every(p=>p===54332))
+  if(closure)assert(isDeepStrictEqual(resources,closure))
+  const owned=new Set(resources.map(r=>r.id))
+  assert(!inventory.some(r=>!owned.has(r.id)&&r.attachedIds.some(id=>owned.has(id))))
+  return closure??structuredClone(resources)
+}
 
 /** One immutable extension target and finite per-operation manifest. The caller
  * must set a read context or exact RPC body BEFORE invoking hot SDK methods. */
@@ -255,19 +270,14 @@ export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)
   const originalPal=process.env.PAL_ENABLED; process.env.PAL_ENABLED='false'
   async function guard() {
     assert(target&&bound)
-    const current=await native.verifyEphemeral({projectId,dbPort:54332,applicationName:`${projectId}_fixture`,target})
-    assert.equal(current.containerId,bound.containerId); assert(current.guard168Enabled&&current.persistedGatesOff&&current.activeNetworkCronAbsent)
-    const inventory=await native.inventory({projectId,workdir:assignmentListProofWorkdir(projectId),apiUrl:API,dbPort:54332})
-    const resources=inventory.resources.filter(r=>r.labels['com.supabase.cli.project']===projectId)
-    assert.equal(resources.length,assignmentListExpectedResources(projectId).length)
-    if(!resourceClosure)resourceClosure=structuredClone(resources)
-    assert(isDeepStrictEqual(resources,resourceClosure))
-    const owned=new Set(resources.map(r=>r.id))
-    assert(!inventory.resources.some(r=>!owned.has(r.id)&&r.attachedIds.some(id=>owned.has(id))))
-    for(const r of resources) { assert.equal(r.labels['com.docker.compose.project'],projectId)
-      assert(assignmentListExpectedResources(projectId).some(e=>e.kind===r.kind&&e.name===r.name))
-      assert(r.ports.every(p=>[54331,54332,54340].includes(p))) }
-    await native.executeSql({...bound,sql:integratedGuardSql(projectId)})
+    const inventory=await assignmentListDockerInventory()
+    resourceClosure=validateIntegratedGuardResources(inventory,projectId,bound.containerId,resourceClosure)
+    // Same enforced controls in one finite read-only query. Original lifecycle
+    // still owns full canonical snapshots and exact teardown; no unused whole-row
+    // hashing or repeated inventory inside this app's unchanged 20-second budget.
+    const output=execFileSync('docker',['exec','-i','-e',`PGAPPNAME=${projectId}_fixture`,bound.containerId,'psql','-U','postgres','-d','postgres','-XqAt','-v','ON_ERROR_STOP=1'],
+      {input:integratedGuardSql(projectId),encoding:'utf8',stdio:['pipe','pipe','pipe'],timeout:45000,maxBuffer:INTEGRATED_CAPS.responseBytes})
+    assert.equal(output.trim(),'ok')
   }
   let transport:ReturnType<typeof createIntegratedTransport>; let client:ReturnType<typeof createClient<Database>>
   async function rpc(name:string,values:Record<string,unknown>) {

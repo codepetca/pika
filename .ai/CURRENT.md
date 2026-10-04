@@ -1,4 +1,4 @@
-Prod DB 001–225(last verified);local/main243;1460merged.1461draft:SQLPASS/SDKopenFAIL/cleanup+baselinePASS;matrix/forced pending.36offline checks;diagnostic review next.1exit;2/3active;4/5dormant.164/236closed.Admission/cutover/billingOFF.Extensions/mergesauthorized;gates remain.Ent181/Plan206strict+autoFreeON;182–205/image213OFF.Plan:classroom-access-and-entitlements-roadmap.md.
+Prod DB 001–225(last verified);local/main243;1460merged.1461draft:SDKguard exhausted app20s;cleanup+baselinePASS;guard review/runtime next.1exit;2/3active;4/5dormant.164/236closed.Admission/cutover/billingOFF.Extensions/mergesauthorized;gates remain.Ent181/Plan206strict+autoFreeON;182–205/image213OFF.Plan:classroom-access-and-entitlements-roadmap.md.
 Attendance timing released;teacher_entitlements smoke 4/4 passed 2026-08-28. CI authority;student purge ON;others OFF. Pal OFF;UI CI off. See docs/integrations/pal-achievements-pilot.md.
 Flow:local app/DB checks → main → production;staging retired.
 WT:$HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika. Env:$HOME/Repos/.env/pika/.env.local;collaborators:.env.example.

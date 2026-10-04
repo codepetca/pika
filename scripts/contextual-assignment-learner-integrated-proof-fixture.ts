@@ -75,7 +75,7 @@ export function integratedObjectPath(f:IntegratedLearnerFixture, documents:Creat
 /** Repeated before every extension SQL/network dispatch; never changes settings. */
 export function integratedGuardSql(projectId:string) {
   assert.match(projectId,/^pika_assignment_list_[a-f0-9]{12}$/)
-  return `begin;set local lock_timeout='3s';set local statement_timeout='30s';
+  return `begin read only;set local lock_timeout='3s';set local statement_timeout='30s';
 do $guard$ begin
  if current_setting('application_name')<>${q(projectId+'_fixture')} then raise exception 'Integrated session mismatch';end if;
  if not exists(select 1 from pg_trigger where tgrelid='private.pal_membership_generations'::regclass and tgname='guard_pal_membership_evidence' and tgenabled='O')
@@ -83,10 +83,21 @@ do $guard$ begin
  or coalesce((select enabled from private.pal_classroom_signal_settings where singleton),true)
  or coalesce((select enabled from private.pal_membership_settings where singleton),true)
  or coalesce((select enabled or live_enabled or automatic_enabled from private.student_provider_cleanup_settings where singleton),true)
+ or coalesce((select enabled from private.removed_student_academic_settings where singleton),true)
+ or coalesce((select strict_enforcement_enabled from private.classroom_creation_entitlement_settings where singleton),true)
+ or exists(select 1 from public.test_ai_grading_runs)
+ or exists(select 1 from public.test_ai_grading_run_items)
+ or exists(select 1 from vault.secrets)
  or exists(select 1 from storage.buckets where id in ('submission-images','assignment-artifacts') and public)
  or (select count(*) from storage.buckets where id in ('submission-images','assignment-artifacts'))<>2
  then raise exception 'Integrated guards or buckets differ';end if;
-end;$guard$;rollback;`
+ if to_regclass('cron.job') is not null then
+  if exists(select 1 from cron.job where not coalesce(active is false or (active is true and (
+   (jobname='pika-removed-student-cleanup-watchdog' and btrim(command)='select private.run_removed_student_cleanup_watchdog()')
+   or (jobname='pika-test-ai-grading-watchdog' and btrim(command)='select private.watchdog_test_ai_grading_runs()')
+  )),false)) then raise exception 'Integrated cron differs';end if;
+ end if;
+end;$guard$;select 'ok';rollback;`
 }
 export function integratedSetupSql(f:IntegratedLearnerFixture,projectId:string) {
   const ids = f.allocatedIds.map(q).join(','); const stamp=q(f.now); const content=`'{"type":"doc","content":[]}'::jsonb`
