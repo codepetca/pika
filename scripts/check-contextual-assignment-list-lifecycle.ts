@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { newAssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
-import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError } from './contextual-assignment-list-proof-lifecycle'
+import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError, assignmentListLifecycleDiagnostic } from './contextual-assignment-list-proof-lifecycle'
 import { AssignmentListStartupError, assignmentListExpectedResources, assignmentListRestorationPolicy, createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations } from './contextual-assignment-list-proof-platform'
 
 export function parseAssignmentListLifecycleArgs(args: string[]): { head: string; mode: 'normal' | 'after-fixture' | 'before-capture' } {
@@ -40,6 +40,7 @@ export async function assignmentListLifecycleMain(args = process.argv.slice(2)) 
       process.stderr.write(`FAIL forced isolated assignment-list lifecycle: ${mode}.\n`); process.exitCode = 1; return
     }
     if (error instanceof AssignmentListLifecycleError) process.stderr.write(`DIAG isolated assignment-list stage=${error.primary?.stage ?? 'cleanup'} cleanup=${error.cleanupFailures.map(failure => failure.stage).join(',') || 'none'}.\n`)
+    if (error instanceof AssignmentListLifecycleError && error.primary?.stage === 'revocations') process.stderr.write(`DIAG isolated assignment-list ${assignmentListLifecycleDiagnostic(error.primary)}.\n`)
     throw new Error('Isolated assignment-list lifecycle failed; private details withheld')
   }
 }

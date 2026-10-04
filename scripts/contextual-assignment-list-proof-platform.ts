@@ -271,14 +271,14 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       const changes = assignmentListRowChanges(beforeTransition, after)
       const policy = assignmentListRestorationPolicy(fixture, plan)
       const permitted = (cell: Cell) => policy.allowedCells.some(allow => allow.schema === cell.schema && allow.table === cell.table && allow.id === cell.id && cell.columns.every(column => allow.columns.includes(column)))
-      assert(changes.every(permitted))
+      assert(changes.every(permitted), 'restoration-scope')
       const filter = (rows: Rows) => JSON.stringify(Object.fromEntries(Object.entries(rows).map(([name, values]) => [name, values.filter(row => !policy.allowedCells.some(c => `${c.schema}.${c.table}` === name && c.id === identity(row, name)))])))
-      const nonTargetBefore = sha(filter(beforeTransition)); const nonTargetAfter = sha(filter(after)); assert.equal(nonTargetBefore, nonTargetAfter)
+      const nonTargetBefore = sha(filter(beforeTransition)); const nonTargetAfter = sha(filter(after)); assert.equal(nonTargetBefore, nonTargetAfter, 'restoration-nontarget')
       // All business fields compare equal; only enumerated trigger bookkeeping
       // and fresh enrollment/generation rows may differ after restoration.
-      const classroom = after['public.classrooms'].find(row => row.id === plan.classroomId)!; assert.equal(classroom.teacher_id, fixture.classes[0].owner); assert.equal(classroom.archived_at, null)
-      assert((classroom.feature_visibility as Record<string, unknown>).classwork !== false)
-      assert(after['public.classroom_enrollments'].some(row => row.classroom_id === plan.classroomId && row.student_id === fixture.manifest.actors[2].id))
+      const classroom = after['public.classrooms'].find(row => row.id === plan.classroomId)!; assert.equal(classroom.teacher_id, fixture.classes[0].owner, 'restoration-owner'); assert.equal(classroom.archived_at, null, 'restoration-archive')
+      assert((classroom.feature_visibility as Record<string, unknown>).classwork !== false, 'restoration-visibility')
+      assert(after['public.classroom_enrollments'].some(row => row.classroom_id === plan.classroomId && row.student_id === fixture.manifest.actors[2].id), 'restoration-member')
       return { nonTargetBefore, nonTargetAfter, semanticRestored: true, changedCells: changes }
     },
     async teardown(input) {

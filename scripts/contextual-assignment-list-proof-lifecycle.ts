@@ -1,5 +1,6 @@
 /** Import-safe injected lifecycle. Only root-reviewed adapters perform platform operations. */
-import assert from 'node:assert/strict'
+import assert, { AssertionError } from 'node:assert/strict'
+import { ApiError } from '../src/lib/api-error'
 import { createHash } from 'node:crypto'
 import { isAbsolute } from 'node:path'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
@@ -91,7 +92,15 @@ type Migration = { name: string; sql: string; sha256: string }
 type Cell = { schema: 'public' | 'private'; table: string; id: string; columns: string[] }
 type Canonical = { rowDigests: string; guard168Metadata: string; settings: string; cronJobs: string; resources: string }
 type Session = { projectId: string; containerId: string; dbPort: 54332; applicationName: string }
-type Failure = { stage: string; error: unknown }
+type Failure = { stage: string; error: unknown; transition?: string; boundary?: string }
+/** Diagnosis contains no error messages, SQL, row values, IDs or credentials. */
+export function assignmentListLifecycleDiagnostic(failure: Failure) {
+  const closed = (value: unknown, allowed: string[]) => typeof value === 'string' && allowed.includes(value) ? value : 'none'
+  const assertion = failure.error instanceof AssertionError ? failure.error : undefined
+  const actual = assertion?.actual instanceof ApiError ? assertion.actual : failure.error instanceof ApiError ? failure.error : undefined
+  const status = actual && Number.isInteger(actual.statusCode) && actual.statusCode >= 100 && actual.statusCode <= 599 ? actual.statusCode : 'none'
+  return `transition=${closed(failure.transition, ['owner-transfer', 'member-remove', 'archive', 'visibility', 'grade-withdraw', 'feedback-withdraw'])} boundary=${closed(failure.boundary, ['first', 'later', 'terminal', 'returned-grade', 'released-feedback'])} operator=${closed(assertion?.operator, ['==', 'strictEqual', 'deepStrictEqual', 'rejects'])} status=${status} checkpoint=${closed(assertion?.message, ['restoration-scope', 'restoration-nontarget', 'restoration-owner', 'restoration-archive', 'restoration-visibility', 'restoration-member'])}`
+}
 export type AssignmentListLifecycleInput = {
   fixture: AssignmentListProofFixture; projectId: string; workdir: string; migrations: Migration[];
   reviewedManifestSha256: string; mode: Mode;
@@ -175,6 +184,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   let baseline: Canonical | undefined; let before: Inventory | undefined; let target: Target | undefined
   let prepared: Awaited<ReturnType<AssignmentListLifecycleAdapters['prepare']>> | undefined
   let prepareAttempted = false; let startAttempted = false; let stage = 'canonical-before'; let primary: Failure | undefined
+  let currentRevocation: AssignmentListRevocationPlan | undefined
   const cleanupFailures: Failure[] = []; const captured = new Map<string, AssignmentListResource>()
   const validateCanonical = (snapshot: Canonical) => { for (const k of ['rowDigests', 'guard168Metadata', 'settings', 'cronJobs', 'resources'] as const) assert(typeof snapshot[k] === 'string' && snapshot[k].length > 0) }
   const inspectFresh = async () => {
@@ -238,6 +248,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     }
     stage = 'revocations'
     for (const p of revocations) {
+      currentRevocation = p
       const policy = input.restorationPolicies.find(x => x.transition === p.transition && x.boundary === p.boundary)!
       let restored = false
       const verifyRestoration = async (received: AssignmentListRevocationPlan) => {
@@ -253,7 +264,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       await session(); const result = await adapters.runRevocation({ fixture, plan: p, target, executeSql: scopedSql, verifyRestoration })
       assert(restored); assert.deepEqual(result, { transition: p.transition, boundary: p.boundary, expectedStatus: p.expectedStatus })
     }
-  } catch (error) { primary = { stage, error } }
+  } catch (error) { primary = { stage, error, ...(currentRevocation ? { transition: currentRevocation.transition, boundary: currentRevocation.boundary } : {}) } }
   finally {
     const check = async (at: string, action: () => Promise<void>) => { try { await action() } catch (error) { cleanupFailures.push({ stage: at, error }) } }
     let closure: AssignmentListResource[] | undefined; let absent = !startAttempted

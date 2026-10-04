@@ -1,13 +1,21 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
+import { AssertionError } from 'node:assert'
+import { ApiError } from '../../src/lib/api-error'
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
 import { newAssignmentListProofFixture, assignmentListFixtureSetupSql } from '../../scripts/contextual-assignment-list-proof-fixture'
-import { assignmentListEphemeralPlan, validateAssignmentListEphemeralIdentity, assignmentListCanonicalFingerprintSql, runAssignmentListEphemeralLifecycle } from '../../scripts/contextual-assignment-list-proof-lifecycle'
+import { assignmentListEphemeralPlan, validateAssignmentListEphemeralIdentity, assignmentListCanonicalFingerprintSql, runAssignmentListEphemeralLifecycle, assignmentListLifecycleDiagnostic } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import type { AssignmentListLifecycleAdapters, AssignmentListResource } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { decodeAssignmentListProofManifest } from '../../scripts/check-contextual-assignment-list-reads'
 import { assignmentListRevocationPlans, observeAssignmentListRevocation } from '../../scripts/contextual-assignment-list-proof-revocations'
 
 describe('isolated assignment-list fixture source contracts', () => {
+  it('diagnoses revocation failures using only closed metadata, never error text or identities', () => {
+    const error = new AssertionError({ actual: new ApiError(503, 'private-token@example.com'), expected: 'private', operator: 'rejects' })
+    expect(assignmentListLifecycleDiagnostic({ stage: 'revocations', error, transition: 'owner-transfer', boundary: 'first' })).toBe('transition=owner-transfer boundary=first operator=rejects status=503 checkpoint=none')
+    expect(assignmentListLifecycleDiagnostic({ stage: 'revocations', error: new Error('private-token@example.com'), transition: 'private-token@example.com', boundary: 'secret' })).toBe('transition=none boundary=none operator=none status=none checkpoint=none')
+    expect(assignmentListLifecycleDiagnostic({ stage: 'revocations', error: new AssertionError({ message: 'restoration-scope', actual: false, expected: true, operator: '==' }) })).toBe('transition=none boundary=none operator=== status=none checkpoint=restoration-scope')
+  })
   it('allocates exact independent synthetic identities and large expected collections', () => {
     const f = newAssignmentListProofFixture(new Date('2026-10-03T12:00:00Z'))
     const manifest = decodeAssignmentListProofManifest(f.manifest)
