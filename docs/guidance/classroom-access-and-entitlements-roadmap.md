@@ -962,8 +962,10 @@ five exact-head checks37161407268 passed; canonical main is clean, local/main001
 Its retained-group consumers do not enable the grouped writer or remove164/236
 singleton defenses. Grouped write/lifecycle compatibility remains batch3 work.
 The next batch2 [Assignment list slice](contextual-assignment-list-reads.md)
-binds every payload page to the current relationship. Its source/offline evidence
-is prepared; independent review and isolated SDK/runtime/forced cleanup remain
+binds every payload page to the current relationship.322 focused checks and
+actual clean5ba2d3fa isolated nine SDK cases/fourteen revocations/normal plus two
+forced exact-cleanup and unchanged-canonical proofs pass. Initial/targeted
+reviews are clean; final cumulative review and exact-head CI/mainmerge remain
 gates. No new migration, production promotion or activation is included.
 
 Remaining batch-2 groups, in integration order: Assignment list/detail/open

@@ -1,7 +1,8 @@
 # Contextual Assignment list reads
 
-Status: source and offline verification only; actual isolated runtime proof,
-independent reviews, reviewed-main merge and production rollout remain gates.
+Status: local isolated normal and two forced-cleanup proofs accepted at5ba2d3fa;
+initial/targeted reviews are clean. Final cumulative review, exact-head CI,
+reviewed-main merge and production rollout remain gates.
 Risk: runtime-platform (authorization, privacy, query compatibility).
 
 This batch-2 slice extends the existing teacher/student GET adapters through the
@@ -45,8 +46,8 @@ head. The disposable project is `pika_assignment_list_<12hex>`, API54331/DB54332
 with a matching private temporary workdir under/private/tmp(macOS) or/tmp(Linux);
 normal Pika54321/54322 is read-only. Unsupported platforms fail closed.
 Replay only the reviewed immutable001–239 source, without seed, shared env files,
-history repair or canonical reset. This requires the239 consumer slice to merge
-before final main integration/runtime acceptance.
+history repair or canonical reset. The239 consumer slice is merged in1452;
+canonical main isf6b9c8a4. Production remains last verified001–225.
 
 The fixture creates1004 assignments,1001 current nonowner classroom members,
 1001 requirements and1002 documents, including returned zero grades. Nine SDK
@@ -73,7 +74,29 @@ Partial preparation removes only its exclusively created directory before rethro
 All ephemeral resources and the generated workdir must be absent afterward, and
 canonical public/private/storage row digests,168 metadata, settings, cron and
 resource identities must match byte-for-byte. Failure/cleanup uncertainty is not
-reported as success. Runtime execution is still pending.
+reported as success. Global inventory inspects at most128 exact IDs/names per
+command, validates every batch's returned identities and rediscovers all resources
+without caching or project filters; batching does not narrow the attachment checks.
 Startup failure may retain a bounded0600 no-overwrite diagnostic file beside the
 generated workdir. Only its path is printed; command output is private. This
 receipt is not an active resource or fixture and is preserved for diagnosis.
+
+## Accepted local execution — 2026-10-03 Toronto
+
+Clean code head5ba2d3faa1f8b80d510ac46a2aafa1c83ed59dc8, installed CLI2.109.1:
+normal mode passed all nine SDK cases and fourteen committed revocations.
+After-fixture and before-capture modes each exited1 with their exact intentional
+failure marker and the cleanup/baseline PASS marker. Every run removed only its
+fresh eight-resource project and generated directory; complete canonical row
+digests, immutable168 metadata, settings, cron and resource identities matched.
+The normal run completed01:30:55UTC; forced receipts were observed01:32:32 and
+01:34:04UTC.322 focused checks/8 skips, architecture/UI/design/TypeScript/lint,
+audit and separate ten-file proof TypeScript verification passed.
+
+Earlier failures exposed local shadow-port ownership, CLI ancillary defaults and
+per-resource inspection overhead during an injected transition. Corrections kept
+normal Pika and unrelated applications untouched and retained the application's
+20-second deadline and all authority, fixture,168 and teardown guards. Revocation
+failure diagnostics expose only closed scenario/assertion/status categories.
+These are installed-SDK/helper and isolated-cleanup receipts, not authenticated
+HTTP/browser, provider, Storage-byte, production or cutover evidence.
