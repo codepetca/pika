@@ -1088,6 +1088,8 @@ unrelatedschemas/literals/unusedreads rejected. Baseline24 unchanged; app/proof/
 CI/schema/depsidentical. ExistingTypeScript reused,no dependency. Samefixbudget4;
 originalclock/deadline/hardlimits retained; targetedreviewandfreshCIpending.
 
+## 2026-10-04 — Authentication S2/S3/S4 and partial S1
+
 ## 2026-10-04 — Broad audit remediation batch 1
 
 Owner authorized planning and orchestration to fix the 27-finding broad audit at main `3c5d7097`. Plan: `docs/guidance/codebase-audit-remediation-2026-10.md`; existing audit handoff tracks per-finding evidence and worker receipts. Feature worktree `codex/audit-remediation`; full startup passed after frozen-lockfile installation, with no dependency changes. Three bounded GPT-6.1 Sol workers (auth high; guidance and patterns medium) delivered non-overlapping source/tests. Auth regressions: 172/20 PASS, including one initial-password winner, login origin/JSON and UTF-8 limits; S1 remains partial pending atomic issuance/handoff generation fencing. Patterns regressions: 69/8 PASS, covering cache/poll retention, survey shapes and directly imported script-test selection. Guidance reconciles source/local/hosted checkpoints and routing, removes direct-main landing instructions, and fails startup for missing required inputs. Startup context ceiling deliberately increased from 16k to 17k characters for readable dated labels and receipt/remaining-gate text. No migration, database, hosted flag or production mutation. Draft publication and cumulative verification receipts remain with coordinator; independent review not yet launched. Codex weekly remaining at start 8%; DeepSeek paused through 2026-12-31; pr-review low-usage human checkpoint applies before reviewer launch. Goal remains active; no finding accepted from implementation delivery alone.
@@ -1114,6 +1116,7 @@ set permission; no database application, fixtures, feature activation or deploym
 Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
 account-wide; DeepSeek paused. Task low-usage/review-budget override retained.
 First remediation batch from the authorized 27-finding codebase audit, base main `3c5d7097`. Implementation copied from coordinator-verified delivery into its own branch; no dependency, database, schema application, rollout or production change. Coordinator handoff: `/Users/stew/.codex/audits/pika/2026-10-04-broad/handoff.json`. Targeted implementation tests passed; exact-branch focused checks run before draft publication. Independent review remains pending at the pr-review low-usage human checkpoint (8% weekly remaining at start, DeepSeek paused). S1 generation/issuance database fence remains open; no source delivery alone is accepted as goal completion.
+
 ## 2026-10-04 — Broad audit database source and isolated verification
 
 PR1463 remains draft. Reviewed001–246 replay at18d282bf succeeded once on new
@@ -1165,3 +1168,12 @@ changes evidence only. Stable final reviewed-SHA CI is the remaining PR1463 gate
 18/27 findings already accepted through five other ready green audit PRs.
 Detailed authority, attempt, runtime and cleanup receipts: external broad-audit
 handoff and corrected-local-replay directory.
+
+## 2026-10-04 — Audit PR 1463 main reconciliation 902cbf76
+
+Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
+bodies from both branches and the incoming contextual owner Test detail read
+and CI checks. Previously reviewed audit implementation bytes remain unchanged;
+shared continuity and CI composition receive bounded independent review.
+Final focused checks and exact reviewed-head CI are readiness gates.
+No migration reapplication, shared/hosted database operation, merge or deployment.
