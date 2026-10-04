@@ -36715,3 +36715,17 @@ zero residue and guardO preserved; no DBproof overlaps. A combined wrapper was
 rejected before execution because its temporarylog trap used blockedrm-f; that
 deletion was not retried and each proof ran directly instead. No actual proof
 or fixture started in the rejected wrapper. Full initial review/draft/main/CI next.
+
+<!-- pika-session-log-archive-batch:e9dfa856f5d814135d3165ce905fee39a06a6720e3e67e71ac0a2f85726c7774 -->
+## 2026-10-03 — Course Guide serialized-null compatibility correction
+
+PR1449 full initial security review CLEANbc15/158 assertions; compatibility review
+128 assertions found a reproducible P2: historical TEXT null parses to null, which
+the unchanged builder treats as empty but the new reader rejected503. Root
+confirmed it with regression RED1/72, then added parsed-null-only empty handling
+before unchanged bounded nonnull Tiptap validation and extended the real resource
+fixture matrix. Three affected suites98PASS. Legacy/public/SQL/schema/authority
+and cleanup unchanged. Batch3/launch5 retains original16:28:17 clock and hard caps;
+targeted review, serial runtime recheck and final integration precede readiness.
+Shared admission/cutover remainOFF; latest human explicitly authorizes routine
+steps and review extensions without repeated prompts.

@@ -10,8 +10,10 @@ grant usage on sequence private.test_attempt_draft_revision_seq to service_role;
 alter table public.test_attempts add column draft_revision bigint not null default nextval('private.test_attempt_draft_revision_seq')
   check (draft_revision between 1 and 9007199254740991);
 
+-- Direct service-role inserts/updates fire this trigger without private schema
+-- USAGE. Resolve its sequence under the owner, without exposing private helpers.
 create function private.advance_test_attempt_draft_revision()
-returns trigger language plpgsql set search_path = '' as $$
+returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   if tg_op = 'INSERT' then
     -- Ignore explicit archived/caller revisions; allocation gaps are harmless.

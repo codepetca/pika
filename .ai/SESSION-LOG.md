@@ -1177,3 +1177,15 @@ and CI checks. Previously reviewed audit implementation bytes remain unchanged;
 shared continuity and CI composition receive bounded independent review.
 Final focused checks and exact reviewed-head CI are readiness gates.
 No migration reapplication, shared/hosted database operation, merge or deployment.
+
+## 2026-10-04 — Audit CORE244 service-role revision allocator
+
+Final CI browser seeding exposed private schema resolution in the invoker
+revision trigger during direct service-role Test attempt inserts. The allocator
+now uses its owner with pinned empty search_path; sequence/default/backfill,
+revision fences and private ACLs remain unchanged. Actual-role rollback proof
+covers omitted/forged revisions, advancement, no-op/reset and recreation.
+Source tests67/5, scoped lint and TypeScript pass; actual proof and seed require
+final ephemeral CI. The approved local d50 replay and its immutable manifests
+remain receipts for earlier bytes, not this new244 hash. No local migration or
+fixture attempt was repeated; independent security review and final CI pending.

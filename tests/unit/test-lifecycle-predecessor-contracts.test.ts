@@ -24,6 +24,39 @@ function body(source: string, name: string) {
 }
 
 describe('migration244 preserves authoritative predecessor contracts', () => {
+  it('allocates revisions through a pinned private definer trigger without granting private schema or function access', () => {
+    const trigger = migration.split('create function private.advance_test_attempt_draft_revision()')[1].split('$$;')[0]
+    expect(trigger).toMatch(/returns trigger language plpgsql security definer set search_path = ''/)
+    expect(trigger).toContain("new.draft_revision := nextval('private.test_attempt_draft_revision_seq')")
+    expect(trigger).toContain('new.draft_revision := old.draft_revision')
+    expect(migration).toContain('revoke all on function private.advance_test_attempt_draft_revision() from public, anon, authenticated, service_role;')
+    expect(migration).not.toMatch(/grant\s+usage\s+on\s+schema\s+private/i)
+    // Keep the early-bound DDL default/backfill and sequence bound intact.
+    expect(migration).toContain("draft_revision bigint not null default nextval('private.test_attempt_draft_revision_seq')")
+    expect(migration).not.toMatch(/alter column draft_revision (?:set|drop) default/i)
+    expect(migration).toContain('check (draft_revision between 1 and 9007199254740991)')
+  })
+
+  it('prepares actual service-role direct insert/update checks in the rollback contract, not only postgres RPC calls', () => {
+    const contract = read('scripts/check-test-attempt-lifecycle.sql')
+    const role = contract.indexOf('set local role service_role;')
+    const probe = contract.indexOf('do $service_role_revision$')
+    const reset = contract.indexOf('reset role;', probe)
+    expect(role).toBeGreaterThan(-1)
+    expect(probe).toBeGreaterThan(role)
+    expect(reset).toBeGreaterThan(probe)
+    const service = contract.slice(probe, reset)
+    expect(service).toContain("current_user <> 'service_role'")
+    expect(service).toContain("has_schema_privilege(current_user, 'private', 'USAGE')")
+    expect(service).toContain('insert into public.test_attempts (id, test_id, student_id, responses)')
+    expect(service).toContain('insert into public.test_attempts (id, test_id, student_id, responses, draft_revision)')
+    expect(service).toContain('service-role default insert did not allocate a bounded revision')
+    expect(service).toContain('service-role response update did not advance revision')
+    expect(service).toContain('service-role no-op/reset changed revision')
+    expect(service).toContain('service-role recreate reused or accepted a supplied revision')
+    expect(contract.slice(reset)).toContain('rollback;')
+  })
+
   it('keeps the unsubmit empty no-op, then enforces149 actor and current locked Classroom authority before writes', () => {
     const unsubmit = body(migration, 'unsubmit_test_attempts_atomic')
     const noOp = unsubmit.indexOf("'unsubmitted_count', 0")

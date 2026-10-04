@@ -178,4 +178,58 @@ begin
  if (select returned_at from public.test_attempts where test_id=blank and student_id=student) is null then raise exception 'Repeated closure revoked Return'; end if;
 end;
 $contract$;
+
+-- The HTTP seed writes test_attempts directly as service_role. RPC-only calls
+-- above run under their definer and cannot detect an invoker-trigger regression.
+-- Use the existing disposable roots after the unstarted-student checks finish.
+set local role service_role;
+do $service_role_revision$
+declare
+ attempt_id uuid := 'a2440000-0000-4000-8000-000000000799';
+ revision bigint;
+ advanced bigint;
+ current_revision bigint;
+ recreated bigint;
+begin
+ if current_user <> 'service_role' then raise exception 'Revision probe is not running as service_role'; end if;
+ if has_schema_privilege(current_user, 'private', 'USAGE') then
+  raise exception 'Revision probe unexpectedly has private schema access';
+ end if;
+ if exists (
+  select 1 from pg_catalog.pg_proc fn
+  join pg_catalog.pg_namespace ns on ns.oid = fn.pronamespace
+  where ns.nspname = 'private' and fn.proname = 'advance_test_attempt_draft_revision'
+    and has_function_privilege(current_user, fn.oid, 'EXECUTE')
+ ) then raise exception 'Revision probe unexpectedly has private allocator execution'; end if;
+
+ -- Omit draft_revision exactly as the seed does: the early-bound default stays
+ -- unchanged, while the trigger allocates a fresh revision under its owner.
+ insert into public.test_attempts (id, test_id, student_id, responses)
+ values (attempt_id, 'a2440000-0000-4000-8000-000000000011', 'a2440000-0000-4000-8000-000000000003', '{}'::jsonb)
+ returning draft_revision into revision;
+ if revision is null or revision < 1 or revision > 9007199254740991 then
+  raise exception 'service-role default insert did not allocate a bounded revision';
+ end if;
+ update public.test_attempts set responses = jsonb_build_object(
+  'a2440000-0000-4000-8000-000000000101', jsonb_build_object('question_type', 'multiple_choice', 'selected_option', 1)
+ ) where id = attempt_id returning draft_revision into advanced;
+ if advanced is null or advanced <= revision then
+  raise exception 'service-role response update did not advance revision';
+ end if;
+ update public.test_attempts set draft_revision = 0, updated_at = updated_at
+ where id = attempt_id returning draft_revision into current_revision;
+ if current_revision is distinct from advanced then
+  raise exception 'service-role no-op/reset changed revision';
+ end if;
+ delete from public.test_attempts where id = attempt_id;
+ insert into public.test_attempts (id, test_id, student_id, responses, draft_revision)
+ values (attempt_id, 'a2440000-0000-4000-8000-000000000011', 'a2440000-0000-4000-8000-000000000003', '{}'::jsonb, 9007199254740991)
+ returning draft_revision into recreated;
+ if recreated is null or recreated <= advanced or recreated = 9007199254740991 then
+  raise exception 'service-role recreate reused or accepted a supplied revision';
+ end if;
+end;
+$service_role_revision$;
+reset role;
+\echo CORE244 service-role revision allocation and fencing: PASS
 rollback;
