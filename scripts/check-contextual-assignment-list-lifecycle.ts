@@ -7,7 +7,7 @@ import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-p
 import { newAssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
 import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError } from './contextual-assignment-list-proof-lifecycle'
-import { assignmentListExpectedResources, assignmentListRestorationPolicy, createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations } from './contextual-assignment-list-proof-platform'
+import { AssignmentListStartupError, assignmentListExpectedResources, assignmentListRestorationPolicy, createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations } from './contextual-assignment-list-proof-platform'
 
 export function parseAssignmentListLifecycleArgs(args: string[]): { head: string; mode: 'normal' | 'after-fixture' | 'before-capture' } {
   assert.equal(args.length, 4); assert.equal(args[0], '--reviewed-head'); assert.match(args[1], /^[a-f0-9]{40}$/)
@@ -33,6 +33,7 @@ export async function assignmentListLifecycleMain(args = process.argv.slice(2)) 
     }, createAssignmentListNativeAdapters(fixture))
     process.stdout.write('PASS isolated assignment-list nine SDK cases and fourteen revocations.\nPASS isolated assignment-list exact teardown and unchanged canonical baseline.\n')
   } catch (error) {
+    if (error instanceof AssignmentListLifecycleError && error.primary?.stage === 'start' && error.primary.error instanceof AssignmentListStartupError) process.stderr.write(`DIAG private startup receipt: ${error.primary.error.diagnosticPath}\n`)
     if (mode !== 'normal' && error instanceof AssignmentListLifecycleError && error.primary?.stage === mode
       && error.primary.error instanceof Error && error.primary.error.message === 'Forced isolated lifecycle failure' && error.cleanupFailures.length === 0) {
       process.stdout.write('PASS isolated assignment-list exact teardown and unchanged canonical baseline.\n')

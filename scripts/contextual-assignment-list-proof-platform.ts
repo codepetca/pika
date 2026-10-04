@@ -75,10 +75,30 @@ export function assignmentListRestorationPolicy(fixture: AssignmentListProofFixt
   return { transition: plan.transition, boundary: plan.boundary, allowedCells }
 }
 
-async function command(file: string, args: string[], options: { input?: string; timeout?: number } = {}): Promise<string> {
+export class AssignmentListStartupError extends Error {
+  constructor(public readonly diagnosticPath: string) { super('Private isolated startup failure'); this.name = 'AssignmentListStartupError' }
+}
+/** Startup-only output never includes canonical snapshot rows; do not print it. */
+export function writeAssignmentListStartupDiagnostic(projectId: string, evidence: { code: unknown; killed: boolean; stdout: string; stderr: string }) {
+  const path = `${assignmentListProofWorkdir(projectId)}-startup.json`
+  assert.equal(realpathSync(dirname(path)), dirname(path))
+  const receipt = { stage: 'start', code: typeof evidence.code === 'string' || typeof evidence.code === 'number' ? evidence.code : null,
+    killed: evidence.killed, stdout: evidence.stdout.slice(-16384), stderr: evidence.stderr.slice(-16384) }
+  writeFileSync(path, JSON.stringify(receipt), { mode: 0o600, flag: 'wx' })
+  return path
+}
+async function command(file: string, args: string[], options: { input?: string; timeout?: number; startupProjectId?: string } = {}): Promise<string> {
+  if (options.startupProjectId) {
+    assert.equal(file, 'supabase'); assert.equal(args[0], 'start'); assignmentListProofWorkdir(options.startupProjectId)
+  }
   return new Promise((resolve, reject) => {
-    const child = execFile(file, args, { timeout: options.timeout ?? 20000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' }, (error, stdout) => {
-      if (error) reject(new Error('Private platform command failed')); else resolve(stdout.trim())
+    const child = execFile(file, args, { timeout: options.timeout ?? 20000, maxBuffer: 64 * 1024 * 1024, encoding: 'utf8' }, (error, stdout, stderr) => {
+      if (error) {
+        try {
+          if (options.startupProjectId) return reject(new AssignmentListStartupError(writeAssignmentListStartupDiagnostic(options.startupProjectId, { code: error.code, killed: error.killed === true, stdout, stderr })))
+        } catch { return reject(new Error('Private startup diagnostic failed')) }
+        reject(new Error('Private platform command failed'))
+      } else resolve(stdout.trim())
     })
     child.stdin?.on('error', () => reject(new Error('Private platform input failed')))
     child.stdin?.end(options.input)
@@ -188,7 +208,7 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
     },
     async command(request) {
       assert.equal(request.workdir, workdir)
-      const output = await command('supabase', [...request.args], { timeout: request.timeoutMs })
+      const output = await command('supabase', [...request.args], { timeout: request.timeoutMs, ...(request.args[0] === 'start' ? { startupProjectId: projectId } : {}) })
       return request.args[0] === 'status' ? JSON.parse(output) : undefined
     },
     async verifyEphemeral(input) {

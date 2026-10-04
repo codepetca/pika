@@ -74,3 +74,6 @@ All ephemeral resources and the generated workdir must be absent afterward, and
 canonical public/private/storage row digests,168 metadata, settings, cron and
 resource identities must match byte-for-byte. Failure/cleanup uncertainty is not
 reported as success. Runtime execution is still pending.
+Startup failure may retain a bounded0600 no-overwrite diagnostic file beside the
+generated workdir. Only its path is printed; command output is private. This
+receipt is not an active resource or fixture and is preserved for diagnosis.
