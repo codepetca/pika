@@ -1,3 +1,4 @@
+import { withAIRequestDeadline, type AIRequestDeadlineOptions } from '@/lib/ai-request-deadline'
 import type { LogSummaryActionItem } from '@/types'
 import { z } from 'zod'
 import {
@@ -133,7 +134,8 @@ export interface RawSummaryResponse {
 export async function callOpenAIForSummary(
   systemPrompt: string,
   userPrompt: string,
-  sourceMap: Record<string, string>
+  sourceMap: Record<string, string>,
+  options: AIRequestDeadlineOptions = {},
 ): Promise<RawSummaryResponse> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
@@ -142,91 +144,94 @@ export async function callOpenAIForSummary(
 
   const model = process.env.OPENAI_SUMMARY_MODEL?.trim() || DEFAULT_MODEL
 
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    redirect: 'error',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      store: false,
-      input: [
-        {
-          role: 'system',
-          content: [{ type: 'input_text', text: systemPrompt }],
-        },
-        {
-          role: 'user',
-          content: [{ type: 'input_text', text: userPrompt }],
-        },
-      ],
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'daily_log_high_priority_summary',
-          strict: true,
-          schema: modelSummaryResponseJsonSchema,
-        },
+  return withAIRequestDeadline(async (signal) => {
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      signal,
+      method: 'POST',
+      redirect: 'error',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-    }),
-  })
+      body: JSON.stringify({
+        model,
+        store: false,
+        input: [
+          {
+            role: 'system',
+            content: [{ type: 'input_text', text: systemPrompt }],
+          },
+          {
+            role: 'user',
+            content: [{ type: 'input_text', text: userPrompt }],
+          },
+        ],
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'daily_log_high_priority_summary',
+            strict: true,
+            schema: modelSummaryResponseJsonSchema,
+          },
+        },
+      }),
+    })
 
-  if (!res.ok) {
-    await res.text().catch(() => '')
-    throw new Error(`OpenAI request failed (${res.status})`)
-  }
-
-  const payload = await res.json()
-  if (payload?.status !== 'completed' || payload?.incomplete_details) {
-    throw new Error('OpenAI response was incomplete')
-  }
-  if (responseContainsRefusal(payload)) {
-    throw new Error('OpenAI response was refused')
-  }
-
-  const outputText = extractResponseOutputText(payload)
-  if (!outputText) {
-    throw new Error('OpenAI response missing output text')
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(outputText)
-  } catch {
-    throw new Error('Failed to parse summary response as JSON')
-  }
-
-  const validated = modelSummaryResponseSchema.safeParse(parsed)
-  if (!validated.success) {
-    throw new Error('Summary response did not match the required schema')
-  }
-
-  const seenSourceRefs = new Set<string>()
-  const actionItems = validated.data.action_items.map((item) => {
-    const initials = sourceMap[item.source_ref]
-    if (!initials) {
-      throw new Error('Summary response referenced an unknown source')
+    if (!res.ok) {
+      await res.text().catch(() => '')
+      throw new Error(`OpenAI request failed (${res.status})`)
     }
-    if (seenSourceRefs.has(item.source_ref)) {
-      throw new Error('Summary response referenced a source more than once')
+
+    const payload = await res.json()
+    if (payload?.status !== 'completed' || payload?.incomplete_details) {
+      throw new Error('OpenAI response was incomplete')
     }
-    seenSourceRefs.add(item.source_ref)
+    if (responseContainsRefusal(payload)) {
+      throw new Error('OpenAI response was refused')
+    }
+
+    const outputText = extractResponseOutputText(payload)
+    if (!outputText) {
+      throw new Error('OpenAI response missing output text')
+    }
+
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(outputText)
+    } catch {
+      throw new Error('Failed to parse summary response as JSON')
+    }
+
+    const validated = modelSummaryResponseSchema.safeParse(parsed)
+    if (!validated.success) {
+      throw new Error('Summary response did not match the required schema')
+    }
+
+    const seenSourceRefs = new Set<string>()
+    const actionItems = validated.data.action_items.map((item) => {
+      const initials = sourceMap[item.source_ref]
+      if (!initials) {
+        throw new Error('Summary response referenced an unknown source')
+      }
+      if (seenSourceRefs.has(item.source_ref)) {
+        throw new Error('Summary response referenced a source more than once')
+      }
+      seenSourceRefs.add(item.source_ref)
+
+      return {
+        text: `${initials} ${ACTION_ITEM_COPY[item.category]}`,
+        initials,
+        source_ref: item.source_ref,
+        category: item.category,
+      }
+    })
 
     return {
-      text: `${initials} ${ACTION_ITEM_COPY[item.category]}`,
-      initials,
-      source_ref: item.source_ref,
-      category: item.category,
+      overview: canonicalOverview(actionItems.length),
+      provider_model: typeof payload.model === 'string' ? payload.model : undefined,
+      action_items: actionItems,
     }
-  })
-
-  return {
-    overview: canonicalOverview(actionItems.length),
-    provider_model: typeof payload.model === 'string' ? payload.model : undefined,
-    action_items: actionItems,
-  }
+  }, options)
 }
 
 /**

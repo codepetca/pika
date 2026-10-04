@@ -183,6 +183,8 @@ Legacy anon/service keys are supported but publishable/secret are preferred.
 - Supabase Cloud for DB; enable connection pooling; treat migrations as a separately authorized deploy step.
 - If using cron, configure schedules in `vercel.json` or the Vercel dashboard for production. On the Hobby plan, Vercel cron jobs must run at most once per day, so do not add sub-daily schedules. Current repo-managed schedules: nightly log summaries at `0 6 * * *` (06:00 UTC) and history cleanup at `0 7 * * *` (07:00 UTC).
 
+- Nightly summary HTTP503 recovery and same-date/classroom retries: [recovery procedure](../guidance/nightly-summary-recovery.md).
+
 ---
 
 ## Roster + Enrollment Rules
