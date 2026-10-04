@@ -35870,3 +35870,16 @@ No SQL application, DB proofs/reset/reseed or types regeneration performed.
 Focused checks against actual main pass273tests/17files plus architecture,
 UI/design policy, TypeScript and lint. Initial startup-summary budget excess
 was compacted; source preservation, history multiplicities and diff checks pass.
+
+<!-- pika-session-log-archive-batch:02aed02ed4f7d1bf52a3077765ff9a53078033f7629e47417291ec77df1bcf8b -->
+## 2026-10-03 — Roster1445 CI handoff-prefix correction
+
+Exact-head CI37136155311 on reviewed a9613f46 passed10431 tests but failed one
+attendance migration-state documentation contract: CURRENT compacted the required
+`Prod DB 001` prefix to `Prod DB001`. Returned1445 to draft before correction.
+Batch4 restores that single space and records the actual draft status; production
+225/local236 and every rollout control remain unchanged. No runtime, SQL, generated
+types, dependency or test assertion was changed. Original review clock and counters
+retained; narrow independent documentation recheck and focused checks precede the
+replacement exact-head ready CI. Other original CI jobs are allowed to finish for
+observed receipts; no duplicate watcher or dispatch.

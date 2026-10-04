@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Roster1445 CI handoff-prefix correction
-
-Exact-head CI37136155311 on reviewed a9613f46 passed10431 tests but failed one
-attendance migration-state documentation contract: CURRENT compacted the required
-`Prod DB 001` prefix to `Prod DB001`. Returned1445 to draft before correction.
-Batch4 restores that single space and records the actual draft status; production
-225/local236 and every rollout control remain unchanged. No runtime, SQL, generated
-types, dependency or test assertion was changed. Original review clock and counters
-retained; narrow independent documentation recheck and focused checks precede the
-replacement exact-head ready CI. Other original CI jobs are allowed to finish for
-observed receipts; no duplicate watcher or dispatch.
-
 ## 2026-10-03 — Shared calendar owner-write source and local verification
 
 Disjointchild of reviewed1444d8c828ad adds onlysharedPOST/PATCH/calendaradapter,
@@ -984,3 +972,34 @@ reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
 Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
 without stashing/popping unrelated entries, then frozen initial review/runtime.
 Production/admission/cutover/provider/account/billing unchanged.
+
+## 2026-10-04 — Supplemental learner local verification on actual main
+
+1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
+source tree; root168focused/static/47Bara/startup/audit PASS. Distinct5.6Sol/high
+initial reviews: securityCLEAN, compatibilityP1validpurged168 NULLscope disappears
+under NOT IN after fixture creation. Both baseline snapshots use correlated
+NOT EXISTS; meaningful1RED/21PASS→22GREEN. Source-only targeted reviewCLEAN.
+242 applied once locally, exact001–242history, genuine typesgenerate/check zero
+drift; SQLdigest48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e
+immutable/no reapplication. Actual PostgreSQL caught unparenthesized CASE in the
+new regression then original compatibility assertions. Root audited allCASE sites,
+two additional proof-only batches/regressions/targeted reviewsCLEAN; each failed
+transaction rolled back and wholecanonicalbaselinePASS. No SQL/application/control
+change, gate weakening or cleanup workaround. Original08:43clock/counters retained.
+
+Runtime d5dea393 new242/allsevenwrapper concealed+visible/ownerhistory/revision/
+restore/submission/nonemptyartifact/inlineeffects PASS; unchanged188189history and
+190artifact rollback contracts PASS. Fullcanonical public/private/Storage counts+
+digests/168metadata/settings/cron/resources unchanged. Full213inline script includes
+committed race fixture: finalCI ephemeral-only, never run on canonical retained
+identities. Strict001242 isolated replay9learnerprojections/6originalrevocations
+plus original listcontrols PASS; nine sealedRPCstubs falsecreated/view, zero actual
+openRPC/Storage/provider network. Bothforcedmodes exit1/exact2markers/teardown/full
+canonicalPASS, private0600 receipts UhgV7p/o2i0fH. Originalobserver authority unchanged;
+no realopen/nonemptySDKsupplements/liveSigning/authHTTP/browser/concurrentvisibility
+proof. Factualreceipt batch/finalcumulative/CI/mainmerge next. Latest213imageREAD
+concealment remains nextbounded prerequisite; assessments/goal incomplete. Local242/
+main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
+worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
+and localmigration override retained; no bypass or production permission inferred.

@@ -1118,6 +1118,20 @@ stillUNAPPLIED. Actualparent reconciliation, independent reviews and genuine loc
 types/runtime/disposable replay precede ready/CI/mainmerge. Assessmentphase/goal
 remain incomplete; no production/activation implied.
 
+Superseding1459 local verification: actual-parent branch reconciled onto61c44aec;
+242 applied once after independent source review, exact001–242 history and genuine
+generated types/check zero drift. Three proof-only corrections close NULL-scope
+retained-generation baseline and conditional CASE grammar, with RED→GREEN22checks
+and targeted reviews; applied SQL immutable. Actual new242 plus unchanged history/
+artifact rollback contracts PASS, all full canonical row/metadata/settings/cron/
+resource fingerprints unchanged. Runtime d5dea393 strict242 isolated normal and
+both forced modes PASS, exact teardown/private0600 receipts; original observer
+authority unchanged. These nine projections/six revocations use sealed false-open
+stubs, not actual open effects/nonempty SDK supplements/live signing/HTTP/browser.
+Final cumulative review/exact-head CI/mainmerge remain gates; main241/local242,
+productionlast225 and all activation controls unchanged. Inline-image read boundary
+remains the next bounded prerequisite before image admission. Phase/goal incomplete.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

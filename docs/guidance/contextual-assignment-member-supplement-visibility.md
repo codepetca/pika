@@ -1,9 +1,10 @@
 # Contextual Assignment supplemental learner boundaries
 
-Status: source-only preparation from reviewed1458 head28e8af46, now merged as
-actual main61c44aec with exact tree parity. Candidate242 is UNAPPLIED. Local/main001–241;
-production is last verified001–225, not freshly queried here. Reconcile this branch
-with actual merged main before publication/ready; preserve all applied migration bytes.
+Status: draft PR1459, reconciled onto actual main61c44aec after reviewed1458
+head28e8af46 merged with exact tree parity. Migration242 applied once locally after
+independent source review; local001–242/main001–241. Production is last verified
+001–225, not freshly queried here. Final cumulative review, exact-head CI and normal
+mainmerge remain gates; preserve all applied migration bytes.
 This is part of active assessment batch2, not its exit or a rollout milestone.
 
 ## Bounded implementation
@@ -61,8 +62,9 @@ transaction-only and coalesces only a fresh null boundary.
 
 Original isolated SDK fixture/transport/transitions/restoration/cleanup authority
 must remain immutable; these new rollback fixtures do not extend that observer.
-Actual SQL compilation, runtime behavior, generated types, concurrent visibility
-races and combined replay remain UNPROVED at source preparation. Existing committed
+Actual SQL compilation, runtime behavior, generated types and combined replay were
+unproved at source preparation; verified local receipts are recorded below. Concurrent
+visibility races are not proved by this single-session harness. Existing committed
 concurrency fixtures belong to ephemeral CI, not canonical local retained identities.
 Enrolled/outsider/cross-subject controls do not prove a same-actor post-revocation
 transition. This harness must not update guarded enrollment identities, directly
@@ -80,3 +82,30 @@ conceal hidden learner images while preserving owner inspection and the existing
 404 DTO/current-subject/object identity contracts before image delivery admission.
 Standalone image/artifact pair gates remain OFF; no compatibility gap is treated
 as proof of readiness merely because save/submission writes are guarded.
+
+## Verified local receipts — 2026-10-04
+
+Source reviews on89a479f5: security CLEAN; compatibility found a NULL-scope baseline
+bug for valid retained purged168 generations. Both snapshots now use null-safe
+correlated NOT EXISTS. PostgreSQL also caught unparenthesized CASE comparisons in
+the regression and compatibility assertions. Three proof-only batches, meaningful
+RED→GREEN regressions (22checks) and targeted reviews closed these issues; applied
+242 SQL digest remained48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e.
+Each failed transaction rolled back with full canonical fingerprints unchanged.
+
+Runtime head d5dea393: exact001–242 history, genuine generated types/check with zero
+drift, actual242 rollback contract and unchanged188/189 history and190 artifact
+rollback contracts PASS. All seven wrappers have concealed/visible controls;
+owner history, restore integrity/revisions, submitted freezes and nonempty artifact/
+inline reserve/finalize effects are exercised. Whole canonical public/private/Storage
+row counts+digests,168metadata/settings/cron/resources match the preapplication
+baseline. The unchanged full213 inline script includes committed race fixtures;
+its complete run belongs to ephemeral CI, not canonical retained identities.
+
+Strict001–242 isolated replay PASS: nine learner projections/six original revocations
+plus existing list cases/revocations. Nine sealed open-RPC stubs report created=false,
+view=false; zero network RPC/Storage/provider calls. Both forced modes exit1 with
+exact two closed markers, exact teardown and unchanged canonical baseline; private
+0600 receipts retained. Original fixture, transport, transitions, restoration and
+cleanup authority are unchanged. No actual open effects, nonempty SDK supplements,
+live signing, authenticated HTTP/browser or concurrent Classwork race proof is claimed.
