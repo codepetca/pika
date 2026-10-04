@@ -35883,3 +35883,36 @@ types, dependency or test assertion was changed. Original review clock and count
 retained; narrow independent documentation recheck and focused checks precede the
 replacement exact-head ready CI. Other original CI jobs are allowed to finish for
 observed receipts; no duplicate watcher or dispatch.
+
+<!-- pika-session-log-archive-batch:868ddce2f7e48b7279a6b95012d5bd68891bf022d3e14af4f53eb6021fde7ddb -->
+## 2026-10-03 — Shared calendar owner-write source and local verification
+
+Disjointchild of reviewed1444d8c828ad adds onlysharedPOST/PATCH/calendaradapter,
+namedvalidation/source/APItests and proofs.176new+315unchanged assertions pass;
+actualinstalled152SDK owner/member/archive/formerowner/Toronto/bounds/prompt/CTID
+and malformedactualresponse503aftercommit pass. Initialproof wrongly expected
+unchangedarchive revision on identicaltoggle; existing082/095BEFOREINSERT trigger
+bumpsrevisionevenwhen152performsnoUPDATE. Correctedproof explicitlyasserts+1,
+unrelatedclassrevision unchanged andidenticalrow/CTID, no appliedSQL changes.
+RollbackSQL andallfive pg_blocking_pids races pass. Bothnormal/forcedSDK andrace
+fixtures cleanup exactly/globalbaselinePASS. Reusedharness nowprovisions only
+exactsyntheticcreationgrant andremovesmanual/defaultFree audits. Sharedadmission
+OFF/prod225untouched; local235installed byseparate rosterwrites. Fullfocused,
+independentreview andactualparent/main integration precedefinalCI/merge.
+
+<!-- pika-session-log-archive-batch:e68cba613a5f55e68a5d80f7d3c685d1769290c347734ad83cb0960ba1e52808 -->
+## 2026-10-03 — Calendar1446 preparation on actual merged class-day main
+
+1444 actual normalmergea8c4e9b16:04:51Z verified withallfive exact7d341d23
+CI37133784223 SUCCESS (0queue/1697runseconds), canonicalcleanFF. Calendarchild
+rebased ontoactuala8 skippingonlyoldstackedd8 parent; allten ownedruntime/proof/
+test/guide files andmainGET remain byte-preserved. Conflicts onlyCURRENT/archive;
+Two exactsurplussessioncopies removed afterfull equality with retainedarchive;
+one auto-merge glued1441body removed onlyafter exactoriginalreceipt verification.
+Every unmodified main step and reviewed child CI step retained, including the
+previously reviewed calendar-concurrency forced-cleanup extension. Initialfull
+reviewsCLEAN544fe47b, unchanged152SQL/
+actualSDK/race/cleanup evidence reused. Actual235owner-write merge stillprecedes
+calendarfinalreconciliation/review/readyCI, no speculative heavyCI. Original
+15:07:20clock/counters retained; authorized elapsedextension to17:07:20Z.
+Local236 belongsseparatepreparation; noSQL/types/DB/provider/production/cohort edits.
