@@ -1037,6 +1037,26 @@ races and nonempty supplements remain unproved. Receipt-only review/exact-head
 CI/mainmerge remain gates. Production/admission/home/cutover unchanged. A separate
 child worktree prepares the dormant shared learner GET; it cannot activate it.
 
+Superseding locked-open receipt:1456 mergedc7e5a487 at2026-10-04T06:21:11Z
+after all five exact2c9ee58f CI37181022226 checks PASS, including PR Gate
+(0queue/1326runseconds). Normal squash tree equals the reviewed tree; canonical
+main cleanFF.240 applied once locally with exact001–240 history, genuine type
+generation/check with zero diff, new rollback proof and unchanged original
+atomicity/five concurrency scenarios PASS. Fixed-source security/compatibility
+and four-document receipt reviews CLEAN. Fresh240 detail SDK normal and both
+forced cleanup modes PASS with unchanged complete canonical fingerprints.
+No production, admission or UI activation accompanied this merge.
+
+The next bounded [shared learner Assignment GET](contextual-assignment-learner-open.md)
+preserves240's open transaction and existing learner response while binding every
+supplementary read to the current exact learner relationship. Source preparation
+has161 targeted checks passing. Its separate observer is read/projection-only:
+the open RPC is a sealed existing-fixture-document stub with no create/view/Pal
+effects; real supplementary SDK reads reuse the immutable fixture/transitions.
+Independent review and actual isolated proof remain gates, not claimed receipts.
+Integrated open effects, nonempty supplements/live signing and sibling visibility
+remain distinct work. Shared admission/page/home/cutover and production stay OFF.
+
 Remaining batch-2 groups, in integration order: Assignment detail/open
 enrichments; Tests owner operations then learner participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

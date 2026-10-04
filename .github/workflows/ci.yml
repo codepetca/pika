@@ -312,6 +312,12 @@ jobs:
           assignment_student_detail_head=$(git rev-parse HEAD)
           pnpm exec tsx scripts/check-contextual-assignment-student-detail-lifecycle.ts --reviewed-head "$assignment_student_detail_head" --mode normal
 
+      - name: Verify isolated contextual learner Assignment open projections
+        shell: bash
+        run: |
+          assignment_learner_open_head=$(git rev-parse HEAD)
+          pnpm exec tsx scripts/check-contextual-assignment-learner-open-lifecycle.ts --reviewed-head "$assignment_learner_open_head" --mode normal
+
       - name: Verify contextual learner assignment-open atomicity and privileges
         run: bash scripts/check-contextual-assignment-doc-open-database.sh
 

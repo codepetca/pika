@@ -35773,3 +35773,24 @@ and retains original historical records. Targeted reconciliation review precedes
 new exact-head CI. Original1443 review clock14:12:06Z/counters retained, necessary
 time extension authorized without repeat ask. Local235 installed by separate
 roster-owner-write work; this GET slice adds no schema. Prod001–225/sharedadmissionOFF.
+
+<!-- pika-session-log-archive-batch:7c1c104bbeafcde8d58a52533f1bbe57e26270242bec40c611ae6e58449861c7 -->
+## 2026-10-03 — Shared class-day GET consolidation
+
+Prepared dormant shared GETs for neutral class-day and teacher compatibility
+URLs. Auth precedes strict admission and shared parameters; current owner or
+active unarchived member is bound in every class-root payload/terminal page.
+Archived owner reads and owner precedence remain; global account role does not
+select relationship. Strict five-field projection/date-ID keysets cover >1000
+days. Legacy GET remainders and all POST/PATCH bytes unchanged. No schema/UI.
+Native source+proof workers owned disjoint files; coordinator owns actual local
+execution/CI/docs/review. TDD97 new+218 unchanged tests, TypeScript/scopedlint/
+architecture/diff pass. Actual local SDK normal proof passes1005days/both roles,
+transfer/removal/archive/deletion before payload/terminal and actual-array errors.
+Forced failure exits1 with expectederror and exact zero-residual/global-baseline
+sentinel; controlled status-command failure prints no captured credentials.
+Full focused gates/independent review/exact-head CI pending. Local001–234/prod
+001–225 unchanged; shared admission OFF. Shared152calendar writes and roster
+transaction fences remain batch1; linkedBlueprintGET is batch3-adjacent. Human
+authorizes in-scope work/local/reviews/extensions/main without repeated prompts;
+original budgets/counters and absolute skill caps/security/merge gates remain.
