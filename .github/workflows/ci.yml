@@ -809,15 +809,20 @@ jobs:
         shell: bash
         run: |
           command -v psql >/dev/null
-          node scripts/check-test-attempt-lifecycle-concurrency.mjs
+          lifecycle_normal_log="$(mktemp)"
           lifecycle_failure_log="$(mktemp)"
-          trap 'rm -f -- "$lifecycle_failure_log"' EXIT
+          trap 'rm -f -- "$lifecycle_normal_log" "$lifecycle_failure_log"' EXIT
+          node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_normal_log" 2>&1 || { cat "$lifecycle_normal_log"; exit 1; }
+          cat "$lifecycle_normal_log"
+          grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "$lifecycle_normal_log"
+          grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "$lifecycle_normal_log"
           lifecycle_status=0
           CORE244_FORCE_FAILURE=1 node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_failure_log" 2>&1 || lifecycle_status=$?
           cat "$lifecycle_failure_log"
           [[ "$lifecycle_status" -ne 0 ]] || exit 1
           grep -F 'Forced failure after fixture setup (teardown control)' "$lifecycle_failure_log"
-          grep -Fx 'Exact fixture teardown and baseline fingerprint: PASS' "$lifecycle_failure_log"
+          grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "$lifecycle_failure_log"
+          grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "$lifecycle_failure_log"
 
       - name: Verify Test lifecycle setup acknowledgement failure exact cleanup
         env:
@@ -836,7 +841,8 @@ jobs:
           cat "$lifecycle_ack_log"
           [[ "$lifecycle_ack_status" -ne 0 ]] || exit 1
           grep -F 'Forced setup COMMIT acknowledgement failure (ownership recovery control)' "$lifecycle_ack_log"
-          grep -Fx 'Exact fixture teardown and baseline fingerprint: PASS' "$lifecycle_ack_log"
+          grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "$lifecycle_ack_log"
+          grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "$lifecycle_ack_log"
 
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh

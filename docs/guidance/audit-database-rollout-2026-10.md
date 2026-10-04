@@ -29,7 +29,7 @@ edit the generated file or generate it from the shared243 database. Required
 final CI replays the branch schema and checks drift before contract harnesses.
 
 Runtime verification must include the244 rollback contract and observed
-Return/clear/reopen lock ordering, normal and forced-failure exact teardown,
+Return/clear/reopen lock ordering, normal and forced-failure exact public fixture teardown,
 245 storage queue/verify/rename/new-identity lock tests,246 latest-generation
 and credential/session contracts, and the two required isolated desktop Test
 lifecycle browser cases. Source checks, mock tests, collection and intercepted
@@ -74,3 +74,7 @@ resend invalidating a prior handoff, and Test Start/save/submit using returned
 revisions. Use owner-approved synthetic accounts, never an existing user's
 password or session. Record failures and durable state before selecting a
 compatible fix forward.
+
+## Disposable fixture residuals
+
+Migration168 retains immutable `private.pal_membership_generations` when a committed fixture enrollment is deleted. CORE concurrency, atomic-Test and real lifecycle browser checks can therefore remove all their owned public accounts/Classrooms/Test rows while retaining synthetic removed generations. Run these checks only on an explicitly approved disposable local target or CI's disposable database. The CORE proof must report and verify its exact run-owned generation, accurately scope its baseline claim to public tables, and never restore a removed enrollment using its closed generation ID. Do not bypass the evidence guard, delete private generations or change maintenance mode for cleanup. Include these residuals in the separate fixture authorization and execution receipt; stack removal remains separately authorized.

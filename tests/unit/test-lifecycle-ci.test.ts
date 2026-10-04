@@ -26,14 +26,14 @@ describe('required Test lifecycle verification', () => {
     const step = lane.split('name: Verify Test Return lifecycle concurrency and exact cleanup')[1]?.split('      - name:')[0]
     expect(step).toContain('node scripts/check-test-attempt-lifecycle-concurrency.mjs')
     expect(step).toContain('CORE244_FORCE_FAILURE=1')
-    expect(step).toContain('Exact fixture teardown and baseline fingerprint: PASS')
+    expect(step).toContain('Exact public fixture teardown and public baseline fingerprint: PASS')
     expect(step).not.toMatch(/continue-on-error|if:|\|\| true/)
   })
 
 
   it('requires setup acknowledgement recovery controls in the same disposable database lane', () => {
     for (const [name, flag, marker] of [
-      ['Verify Test lifecycle setup acknowledgement failure exact cleanup', 'CORE244_FORCE_SETUP_ACK_FAILURE=1', 'Exact fixture teardown and baseline fingerprint: PASS'],
+      ['Verify Test lifecycle setup acknowledgement failure exact cleanup', 'CORE244_FORCE_SETUP_ACK_FAILURE=1', 'Exact public fixture teardown and public baseline fingerprint: PASS'],
       ['Verify managed-storage setup acknowledgement failure exact cleanup', 'MANAGED_STORAGE_FORCE_SETUP_ACK_FAILURE=1', 'Exact managed-storage fixture teardown: PASS'],
     ]) {
       const step = workflow.split(`name: ${name}`)[1]?.split('      - name:')[0]
@@ -72,12 +72,42 @@ describe('required Test lifecycle verification', () => {
     expect(harness.indexOf('setupAttempted = true')).toBeLessThan(harness.indexOf('await sql(setup)'))
     expect(harness).toContain('const runSignature = randomUUID()')
     expect(harness).toContain('setupAttempted && !ownsFixture')
-    expect(harness).toContain('if (probe.owned) ownsFixture = true')
+    expect(harness).toContain("verifyGeneration(probe.generation, 'active')")
     expect(harness).toContain('refusing deletion. Exact residue fingerprint')
     expect(harness).toContain('CORE244 exact fixture residue after teardown')
-    expect(harness).toContain('await fingerprint() !== before')
+    expect(harness).toContain('await publicFingerprint() !== before')
     expect(harness.indexOf('CORE244_FORCE_SETUP_ACK_FAILURE')).toBeLessThan(harness.indexOf('ownsFixture = true\n  if'))
     expect(harness).toContain('await Promise.allSettled(unfinished.map')
+  })
+
+  it('keeps immutable migration168 evidence, removes membership last, and verifies its exact identity before cleanup', () => {
+    const harness = read('scripts/check-test-attempt-lifecycle-concurrency.mjs')
+    const migration = read('supabase/migrations/168_pal_membership_identity_foundation.sql')
+    expect(migration).toContain("message = 'pal_membership_generation_closed'")
+    expect(migration).toContain("message = 'pal_membership_evidence_retained'")
+    expect(harness).toContain('enrollment: randomUUID()')
+    expect(harness).toContain('insert into public.classroom_enrollments(id,classroom_id,student_id)')
+    expect(harness).not.toContain('jsonb_populate_record')
+    expect(harness.match(/insert into public.classroom_enrollments/g)).toHaveLength(1)
+    expect(harness).not.toMatch(/(?:delete from|update) private\.pal_membership_generations/i)
+    const removal = harness.lastIndexOf("await authorityRace('membership removal before reopen'")
+    expect(removal).toBeGreaterThan(harness.lastIndexOf("await authorityRace('owner drift before reopen'"))
+    expect(removal).toBeGreaterThan(harness.lastIndexOf("await authorityRace('archive before reopen'"))
+    expect(harness).toContain("null, '40001')")
+    expect(harness).toContain('id=${enrollment} and classroom_id=${literal(\'classroom\')} and student_id=${student}')
+    expect(harness).toContain("verifyGeneration(removed.generation, 'removed')")
+    expect(harness.indexOf("verifyGeneration(removed.generation, 'removed')")).toBeLessThan(harness.indexOf("expectedMembershipState = 'removed'"))
+    expect(harness).toContain("verifyGeneration(remaining.generation, 'removed')")
+    expect(harness).toContain("Retained run-owned private Pal membership generation (removed; disposable database only): PASS")
+  })
+
+  it('requires both public-cleanup and retained-generation receipts for normal and both CORE failure controls', () => {
+    for (const log of ['lifecycle_normal_log', 'lifecycle_failure_log', 'lifecycle_ack_log']) {
+      expect(workflow).toContain(`grep -Fx 'Exact public fixture teardown and public baseline fingerprint: PASS' "${'$'}${log}"`)
+      expect(workflow).toContain(`grep -Fx 'Retained run-owned private Pal membership generation (removed; disposable database only): PASS' "${'$'}${log}"`)
+    }
+    expect(workflow).not.toContain('Exact fixture teardown and baseline fingerprint: PASS')
+    expect(workflow).toContain('Exact managed-storage fixture teardown: PASS')
   })
 
   it('preserves archived academic rows while asserting a fresh restored attempt revision', () => {

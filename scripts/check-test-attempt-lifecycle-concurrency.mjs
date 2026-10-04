@@ -1,18 +1,24 @@
 #!/usr/bin/env node
 // SOURCE ONLY. Explicit approval is required before local execution.
 // Standalone on a fresh schema through244. Commits only its isolated shared
-// fixture and its temporary authority drift (required for cross-session visibility).
-// Ordinary races roll back; committed authority drift is restored before cleanup.
-// Finally deletes exact owned roots and verifies relevant-table fingerprints.
+// fixture and authority drift (required for cross-session visibility). Archive/
+// owner drift is restored; terminal membership removal retains immutable private
+// migration168 evidence. Disposable databases only: cleanup restores the checked
+// PUBLIC tables, verifies the exact retained generation, and never deletes it.
 import { spawn } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
 
 if (process.env.CORE244_ALLOW_LOCAL_VERIFICATION !== '1') throw new Error('Explicit local verification approval is required')
 if (!['localhost', '127.0.0.1', '::1'].includes(process.env.PGHOST ?? '')) throw new Error('PGHOST must name a local disposable database')
 const prefix = 'a2449000-0000-4000-8000-'
-const ids = { teacher: prefix + '000000000001', otherTeacher: prefix + '000000000003', student: prefix + '000000000002', classroom: prefix + '000000000010', test: prefix + '000000000011', question: prefix + '000000000101', response: prefix + '000000000201', attempt: prefix + '000000000301' }
+const ids = { enrollment: randomUUID(), teacher: prefix + '000000000001', otherTeacher: prefix + '000000000003', student: prefix + '000000000002', classroom: prefix + '000000000010', test: prefix + '000000000011', question: prefix + '000000000101', response: prefix + '000000000201', attempt: prefix + '000000000301' }
 const literal = (key) => `'${ids[key]}'::uuid`
 const test = literal('test'), student = literal('student'), teacher = literal('teacher'), question = literal('question')
+const enrollment = literal('enrollment')
+const membershipScope = createHash('sha256').update(`pika-membership-scope-v1:${ids.classroom}:${ids.student}`).digest('hex')
+let expectedMembershipState = 'active'
+let generationIdentity = null
 const stamp = `${process.pid}-${Date.now()}`
 const runSignature = randomUUID()
 const teacherEmail = `core244-${runSignature}-teacher@example.test`
@@ -50,12 +56,14 @@ async function sql(source) {
   session.end(source)
   return session.done
 }
-const fingerprint = () => sql(`select md5(string_agg(table_name || ':' || fingerprint, ',' order by table_name)) from (
+const publicFingerprint = () => sql(`select md5(string_agg(table_name || ':' || fingerprint, ',' order by table_name)) from (
  ${['users', 'classrooms', 'classroom_enrollments', 'tests', 'test_questions', 'test_attempts', 'test_responses', 'test_student_availability'].map((table) => `select '${table}' table_name, md5(coalesce(string_agg(md5(to_jsonb(row)::text), '' order by to_jsonb(row)::text), '')) fingerprint from public.${table} row`).join(' union all ')}
 ) fingerprints;`)
 const setup = `begin; set local lock_timeout='5s';
 do $guard$ begin
  if exists(select 1 from public.users where id in (${teacher},${student},${literal('otherTeacher')}))
+ or exists(select 1 from public.classroom_enrollments where id=${enrollment})
+ or exists(select 1 from private.pal_membership_generations where generation_id=${enrollment})
  or exists(select 1 from public.classrooms where id=${literal('classroom')})
  or exists(select 1 from public.tests where id=${test})
  or exists(select 1 from public.test_questions where id=${question})
@@ -64,7 +72,7 @@ do $guard$ begin
 end; $guard$;
 insert into public.users(id,email,role) values(${teacher},'${teacherEmail}','teacher'),(${student},'${studentEmail}','student'),(${literal('otherTeacher')},'${otherTeacherEmail}','teacher');
 insert into public.classrooms(id,teacher_id,title,class_code) values(${literal('classroom')},${teacher},'${classroomTitle}','CORE2441');
-insert into public.classroom_enrollments(classroom_id,student_id) values(${literal('classroom')},${student});
+insert into public.classroom_enrollments(id,classroom_id,student_id) values(${enrollment},${literal('classroom')},${student});
 insert into public.tests(id,classroom_id,title,status,points_possible,created_by) values(${test},${literal('classroom')},'${testTitle}','draft',5,${teacher});
 insert into public.test_questions(id,test_id,question_type,question_text,options,correct_option,points,response_max_chars,position) values(${question},${test},'open_response','Review me','[]',null,5,5000,0);
 update public.tests set status='closed' where id=${test};
@@ -73,7 +81,7 @@ insert into public.test_responses(id,test_id,question_id,student_id,response_tex
 commit;`
 // A failed acknowledgement is not proof that COMMIT failed. These signature
 // checks are read-only and cannot adopt another run's fixed IDs on collision.
-const ownershipPredicate = `
+const publicOwnershipPredicate = `
  (select count(*) from public.users where (id=${teacher} and email='${teacherEmail}' and role='teacher')
    or (id=${student} and email='${studentEmail}' and role='student')
    or (id=${literal('otherTeacher')} and email='${otherTeacherEmail}' and role='teacher')) = 3
@@ -88,6 +96,26 @@ const ownershipPredicate = `
  and exists(select 1 from public.test_responses where id=${literal('response')} and test_id=${test} and question_id=${question} and student_id=${student})
  and not exists(select 1 from public.classroom_enrollments where classroom_id=${literal('classroom')} and student_id<>${student})
  and not exists(select 1 from public.test_student_availability where test_id=${test} and student_id<>${student})`
+// Normal/setup recovery requires the exact ACTIVE enrollment, not merely the
+// absence of an outsider. Only the terminal committed-removal probe can adopt
+// missing enrollment, backed by its exact removed immutable generation.
+function ownershipPredicate(state) {
+  const membership = state === 'active'
+    ? `exists(select 1 from public.classroom_enrollments where id=${enrollment} and classroom_id=${literal('classroom')} and student_id=${student})
+       and (select count(*) from public.classroom_enrollments where classroom_id=${literal('classroom')}) = 1`
+    : `not exists(select 1 from public.classroom_enrollments where classroom_id=${literal('classroom')} or id=${enrollment})`
+  return `${publicOwnershipPredicate} and (${membership})
+    and exists(select 1 from private.pal_membership_generations where generation_id=${enrollment}
+      and scope_digest='${membershipScope}' and state='${state}')`
+}
+function verifyGeneration(generation, state) {
+  if (!generation || generation.generation_id !== ids.enrollment || generation.scope_digest !== membershipScope
+    || generation.state !== state || !/^pika-membership-v1-[0-9a-f]{32}$/.test(generation.pal_reference)
+    || (generationIdentity && !isDeepStrictEqual(generation, { ...generationIdentity, state }))) {
+    throw new Error(`CORE244 expected enrollment generation identity/state mismatch: ${JSON.stringify(generation)}`)
+  }
+  generationIdentity ??= generation
+}
 const residueQueries = {
   users: `select * from public.users where id in (${teacher},${student},${literal('otherTeacher')})`,
   classrooms: `select * from public.classrooms where id=${literal('classroom')}`,
@@ -100,14 +128,15 @@ const residueQueries = {
 }
 const residueSnapshot = `jsonb_build_object(${Object.entries(residueQueries).map(([table, query]) =>
   `'${table}', (select coalesce(jsonb_agg(jsonb_build_object('id', to_jsonb(row)->>'id', 'fingerprint', md5(to_jsonb(row)::text)) order by to_jsonb(row)::text), '[]'::jsonb) from (${query}) row)`).join(',')})`
-async function probeFixtureOwnership() {
-  return JSON.parse(await sql(`select jsonb_build_object('owned', (${ownershipPredicate}), 'residue', ${residueSnapshot});`))
+async function probeFixtureOwnership(state = expectedMembershipState) {
+  return JSON.parse(await sql(`select jsonb_build_object('owned', (${ownershipPredicate(state)}), 'residue', ${residueSnapshot},
+    'generation', (select to_jsonb(generation) from private.pal_membership_generations generation where generation_id=${enrollment}));`))
 }
-const teardown = `begin; set local lock_timeout='5s';
+const teardown = () => `begin; set local lock_timeout='5s';
 do $ownership$ begin
  perform 1 from public.classrooms where id=${literal('classroom')} for update;
  perform 1 from public.users where id in (${teacher},${student},${literal('otherTeacher')}) order by id for update;
- if not (${ownershipPredicate}) then raise exception 'CORE244 fixture ownership changed; refusing teardown'; end if;
+ if not (${ownershipPredicate(expectedMembershipState)}) then raise exception 'CORE244 fixture ownership changed; refusing teardown'; end if;
 end; $ownership$;
 delete from public.classrooms where id=${literal('classroom')} and teacher_id=${teacher} and title='${classroomTitle}';
 delete from public.users where (id=${teacher} and email='${teacherEmail}') or (id=${student} and email='${studentEmail}') or (id=${literal('otherTeacher')} and email='${otherTeacherEmail}');
@@ -188,16 +217,27 @@ async function authorityRace(name, mutation, restoration, expectedCode) {
   } finally {
     for (const session of [a,b]) if (active.has(session.child)) session.child.kill('SIGTERM')
     await Promise.allSettled([a.done,b.done])
-    // Recheck acknowledgement too: a disconnected COMMIT can still be durable.
-    if (committed || await sql(`select not exists(select 1 from public.classroom_enrollments where classroom_id=${literal('classroom')} and student_id=${student})
-      or exists(select 1 from public.classrooms where id=${literal('classroom')} and (teacher_id<>${teacher} or archived_at is not null));`) === 't') {
+    if (restoration === null) {
+      // A disconnected COMMIT can be durable. Adopt terminal ownership only
+      // after proving this exact enrollment is absent and its original ledger
+      // identity has moved to removed. Never reinsert a closed generation.
+      const removed = await probeFixtureOwnership('removed')
+      if (removed.owned) {
+        verifyGeneration(removed.generation, 'removed')
+        expectedMembershipState = 'removed'
+      } else {
+        const retained = await probeFixtureOwnership('active')
+        if (!retained.owned) throw new Error(`CORE244 terminal membership outcome is not owned; refusing cleanup. Exact public residue: ${JSON.stringify(retained.residue)}; exact private generation: ${JSON.stringify(retained.generation)}`)
+        verifyGeneration(retained.generation, 'active')
+      }
+    } else if (committed || await sql(`select exists(select 1 from public.classrooms where id=${literal('classroom')} and (teacher_id<>${teacher} or archived_at is not null));`) === 't') {
       await sql(`begin; ${restoration} commit;`)
     }
   }
 }
 let ownsFixture = false
 let setupAttempted = false
-const before = await fingerprint()
+const before = await publicFingerprint()
 try {
   setupAttempted = true
   await sql(setup)
@@ -206,6 +246,9 @@ try {
   if (process.env.CORE244_FORCE_SETUP_ACK_FAILURE === '1') throw new Error('Forced setup COMMIT acknowledgement failure (ownership recovery control)')
   ownsFixture = true
   if (process.env.CORE244_FORCE_FAILURE === '1') throw new Error('Forced failure after fixture setup (teardown control)')
+  const initialOwnership = await probeFixtureOwnership('active')
+  if (!initialOwnership.owned) throw new Error('CORE244 exact expected enrollment is missing; refusing fixture use')
+  verifyGeneration(initialOwnership.generation, 'active')
   await sql(`begin; do $revision$ declare before_clear bigint; begin
     perform ${returnCall};
     select draft_revision into before_clear from public.test_attempts where test_id=${test} and student_id=${student};
@@ -222,7 +265,6 @@ try {
   await sql(`begin;
     update public.test_attempts set is_submitted=false, submitted_at=null, closed_for_grading_at=now(), closed_for_grading_by=${teacher}, returned_at=now(), returned_by=${teacher} where id=${literal('attempt')};
     insert into public.test_student_availability(test_id,student_id,state,updated_by) values(${test},${student},'closed',${teacher}); commit;`)
-  const enrollment = await sql(`select to_jsonb(row)::text from public.classroom_enrollments row where classroom_id=${literal('classroom')} and student_id=${student};`)
   await sql(`begin; do $positive$ declare previous_revision bigint; begin
     select draft_revision into previous_revision from public.test_attempts where id=${literal('attempt')};
     perform public.update_test_student_access_atomic(${test},array[${student},${student}],'open',${teacher});
@@ -232,31 +274,41 @@ try {
       or not exists(select 1 from public.test_student_availability where test_id=${test} and student_id=${student} and state='open')
     then raise exception 'Current enrolled owner could not reopen retained work'; end if;
   end; $positive$; rollback;`)
-  await authorityRace('membership removal before reopen',
-    `delete from public.classroom_enrollments where classroom_id=${literal('classroom')} and student_id=${student};`,
-    `insert into public.classroom_enrollments select * from jsonb_populate_record(null::public.classroom_enrollments, '${enrollment.replaceAll("'", "''")}'::jsonb);`, '40001')
   await authorityRace('archive before reopen',
     `update public.classrooms set archived_at=now() where id=${literal('classroom')};`,
     `update public.classrooms set archived_at=null where id=${literal('classroom')};`, '42501')
   await authorityRace('owner drift before reopen',
     `update public.classrooms set teacher_id=${literal('otherTeacher')} where id=${literal('classroom')};`,
     `update public.classrooms set teacher_id=${teacher} where id=${literal('classroom')};`, '42501')
+  // LAST: migration168 permanently closes this per-run generation on removal.
+  await authorityRace('membership removal before reopen',
+    `delete from public.classroom_enrollments where id=${enrollment} and classroom_id=${literal('classroom')} and student_id=${student};`,
+    null, '40001')
 } finally {
   const unfinished = [...active]
   for (const child of unfinished) child.kill('SIGTERM')
   await Promise.allSettled(unfinished.map((child) => completions.get(child)))
   if (setupAttempted && !ownsFixture) {
     const probe = await probeFixtureOwnership()
-    if (probe.owned) ownsFixture = true
+    if (probe.owned) {
+      verifyGeneration(probe.generation, 'active')
+      ownsFixture = true
+    }
     else if (Object.values(probe.residue).some((rows) => rows.length > 0)) {
       throw new Error(`CORE244 setup outcome is not owned by this run; refusing deletion. Exact residue fingerprint: ${JSON.stringify(probe.residue)}`)
     }
   }
   if (ownsFixture) {
-    await sql(teardown)
-    const remaining = await probeFixtureOwnership()
+    const owned = await probeFixtureOwnership()
+    if (!owned.owned) throw new Error(`CORE244 exact expected enrollment/terminal proof is not owned; refusing cleanup. Exact public residue: ${JSON.stringify(owned.residue)}; exact private generation: ${JSON.stringify(owned.generation)}`)
+    verifyGeneration(owned.generation, expectedMembershipState)
+    await sql(teardown())
+    const remaining = await probeFixtureOwnership('removed')
+    verifyGeneration(remaining.generation, 'removed')
     if (Object.values(remaining.residue).some((rows) => rows.length > 0)) throw new Error(`CORE244 exact fixture residue after teardown: ${JSON.stringify(remaining.residue)}`)
-    if (await fingerprint() !== before) throw new Error('Relevant-table baseline changed after exact fixture teardown')
-    process.stdout.write('Exact fixture teardown and baseline fingerprint: PASS\n')
+    if (await publicFingerprint() !== before) throw new Error('Relevant public-table baseline changed after exact public fixture teardown')
+    process.stdout.write(`Retained private Pal membership generation_id=${ids.enrollment}, state=removed; disposable database only.\n`)
+    process.stdout.write('Retained run-owned private Pal membership generation (removed; disposable database only): PASS\n')
+    process.stdout.write('Exact public fixture teardown and public baseline fingerprint: PASS\n')
   }
 }
