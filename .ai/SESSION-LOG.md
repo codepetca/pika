@@ -886,3 +886,12 @@ a full event-loop turn. Combined187targeted/24proof-CI guards pass; full focused
 384PASS/8skip plus all static gates pass; explicit proof TypeScript programPASS.
 No real runtime execution or independent review yet; publication remains gated
 on1454actualmerge/base reconciliation. Nonempty supplements/signing remain unproven.
+
+Superseding receipt:1454 merged9591ee1e at04:27:09UTC after all five exactf93
+CI37175526420 gates passed (0queue/1754runseconds). Squash tree equals reviewed
+tree; canonical main cleanFF. Prepared detail branch reconciled onto actual merge;
+only CURRENT conflict resolved, preserving both histories and correct Prod DB
+prefix. Runtime unchanged except closed diagnostic repo-target alias correction.
+Production001–225 and all admission/cutover gates remain OFF. Weekly16% remaining,
+ordinary usage allowed; DeepSeek pause retained. Independent high-risk security
+and compatibility review follows focused verification; no live proof executed yet.

@@ -107,7 +107,7 @@ export async function assignmentStudentDetailLifecycleMain(args = process.argv.s
         assert(init?.signal instanceof AbortSignal)
         diagnostic.statement = ++statements
         diagnostic.phase = select.includes('requirements:') ? 'requirements' : select.includes('artifacts:') ? 'artifacts'
-          : select.includes('feedback:') ? 'feedback' : select.includes('reviews:') ? 'repo-review' : select.includes('repoTarget:') ? 'repo-target'
+          : select.includes('feedback:') ? 'feedback' : select.includes('reviews:') ? 'repo-review' : select.includes('targets:') ? 'repo-target'
             : select.includes('docs:') ? 'docs' : select.includes('instructions_markdown') ? 'assignment' : 'control'
         if (statements > 1) {
           assert.equal(url.searchParams.get('classrooms.teacher_id'), `eq.${expected.actorId}`)
