@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Preserving removal source and local236
-
-Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
-preapplication GPT5.6Sol/high review CLEAN with77source tests. Exactpika54322,
-001–235matched/currentmain3351numbering/236-onlydryrun preceded one successful
-ordinarylocal236push. ImmutableSHA24e23667b21580fdcadb7a64ca251725f87040fa52bf9a1fbe71e0c7b3c22249;
-service-only privileges, genuinegenerated eight-lineRPC/type drift/TypeScript pass.
-ActualSQL/SDK/cleanup/concurrency and fullPR lifecycle remain pending; proof worker
-owns onlyscripts, root ownsapplication/types/CI/docs/Git. Duplicate selected one
-or all rows fails withoutDML: immutable164index/173cleanupcontrols remain, with
-coordinated multirow retained-lifecycle prerequisite inbatch3 beforecutover.
-1445/1446 fullinitialreviews clean;1443exactCI/1444draft predecessor order retained.
-Latesthuman explicitlywaives repeatedroutineapprovals inclnecessaryreviewextensions;
-original clocks/counters andabsolute caps/merge/release gates preserved. Production
-001–225/sharedadmission/fullcutoverOFF unchanged; no accounts/provider/billing edits.
-
-Serial actual SQL proof passed ACL, identity, purge fences, retained history and
-fault rollback with zero residue/global baseline unchanged. Actual SDK normal
-passed both owner labels, bound/unbound learners, retained history, idempotent
-retry/invitation isolation and observed lock races. Three forced modes each exit1
-with exact expected failure and complete cleanup sentinels; suppressed deletion
-rolls back every cleanup mutation and restores the generation guard. Earlier
-proof-only setup/cleanup defects corrected without editing immutable236; exact
-abandoned synthetic closure independently reviewed/recovered, all unrelated
-whole-row fingerprints unchanged. Full draft review/final focused/CI remain gates.
-
 ## 2026-10-03 — Removal1448 updated-parent preparation
 
 Rebased reviewed8e81327a onto updated1445parenta9613f46 with oldparenta7613a5f
@@ -1104,3 +1078,42 @@ upload/sign/fetch/digest results andretains appHTTP/browser/removal/race exclusi
 No source/runtime/CI/schema bytes change or repeatedDBproof. Targetedsame-reviewer
 doccorrection check precedes stable-headCI;original10:46:45 clock/extension13:46:45,
 hard8fix/8target/12launch retained. No production/cohort/account/provider changes.
+
+## 2026-10-04 — Integrated learner proof merged; Test owner read preparation
+
+PR1461 reviewedff0a45a2 passed all5 CI37202212433 checks/PRGate and merged normal
+squash7c8fd90e at12:59:35Z. Fulltreeparity/cleanmainFF/36stashes PASS; runtime29SDK
+and2forced/wholecanonicalclosure retained. Ledger10launch/7target/1final/8fix,
+original10:46:45/extension13:46:45 retained; CIqueue0/run1816s; active/tokens unknown.
+No production/schema/cohort/account/provider/billing changes or phaseexit.
+Next Tests detailGET source-only map GPT6.1Sol/high13:01:16–13:05:30Z accepted
+after coordinator source verification. Real draft/managedref FK paths identified;
+draftGET excluded becauseensure writes. New dedicatedowner-detail WT based7c8fd90e
+passes startup/verifyenv; first invocation fromhub rejected, no codebeforecorrect
+WT verification. GPT6.1Sol/high owns onlynewhelper/validation/GETbranch/newtests;
+coordinator ownsdocs/proof/Git/integration. No actualTestSDKproof or source review
+acceptance yet. DeepSeek explicitpause honored; attributableworkerusage unknown.
+
+Appworker explicitlyrelinquished fiveownedpaths13:23:03Z: newowner-detailhelper/
+validation/GETbranch/unit+APItests. TDDmissingmoduleRED13:14–13:15→59GREEN13:22;
+scopedlint/diffPASS. Root read allnewappsource/schema/route delta andindependently
+ran39unit+6newAPI+14legacyroute=59PASS;43startup/docsPASS. No PATCH/DELETE change.
+Proofworker ownsdisjoint3newscript/testfiles; liveproof/completeintegrationchecks/
+independentreview/PR stillpending. No runtime permission inferred from sourceprep.
+
+Proofwriter offlineintegration identified2genericZoddecoder TS2352errors. Root
+constraineddecoder toTestoutput andsplitstrictJSON-envelope/rowschema parsing,
+withoutunsafe assertions or weakenedcontrols. FullTS/scopedlint/59app-routechecks
+PASS13:37Z. Root addednormal+2forced Testproof CIstep with exact2closedmarkers;
+preparedcode remainsinert untilfixed-source independentreview/manifestacceptance.
+
+Proofworker GPT6.1Sol/high13:17:40–13:42:42Z delivered/relinquished3paths:
+30newproof/151combined5files GREEN,scopedlint/fullTS/diffPASS. Rootreadallfixture/
+runner/testsource includinglastuploadfullPath/Idanddriftregressions. Original
+sealedsource untouched. Rootstage8TSauditPASS; frozenfocusedchecks running.
+Workeractive/tokens unknown; native delegation pause/control boundaries honored.
+
+Rootfrozenfocused197checks/14files+architecture/UI/designpolicy/fullTS/lintPASS;
+59app-route/30offlineproof counts distinct fromworker151original+newproof run.
+Audit8changedTS/diffPASS. Draftfixed-head source review precedesfinite live
+manifestacceptance; no actualTestDB/Storage or rollout evidence claimed yet.
