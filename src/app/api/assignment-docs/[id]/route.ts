@@ -24,6 +24,9 @@ import {
 import { createAssignmentDocWithPalEvent } from '@/lib/server/pal-source-writes'
 import { ApiError } from '@/lib/api-error'
 import { openContextualAssignmentDoc } from '@/lib/server/contextual-assignment-doc-open'
+import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { openSharedAssignmentLearnerDoc } from '@/lib/server/contextual-assignment-learner-open'
+import { assignmentLearnerOpenParamsSchema } from '@/lib/validations/contextual-assignment-learner-open'
 import {
   authorizeContextualAssignmentDocSaveRequest,
   assertContextualAssignmentGitHubIdentity,
@@ -95,6 +98,14 @@ async function loadStudentSubmissionContext(
 // The [id] here is the assignment_id, not the doc id
 export const GET = withErrorHandler('GetAssignmentDoc', async (request, context) => {
   const user = await requireAuth()
+  if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    const { id: assignmentId } = assignmentLearnerOpenParamsSchema.parse(await context.params)
+    if (new URL(request.url).searchParams.has('student_id')) {
+      throw new ApiError(400, 'student_id is not supported for classroom member assignment documents')
+    }
+    const result = await openSharedAssignmentLearnerDoc({ supabase: getServiceRoleClient(), actorId: user.id, assignmentId })
+    return NextResponse.json(result)
+  }
   const { id: requestedAssignmentId } = await context.params
   const assignmentAccess = resolveContextualAssignmentDocAccess(user, requestedAssignmentId)
   const assignmentId = assignmentAccess.assignmentId

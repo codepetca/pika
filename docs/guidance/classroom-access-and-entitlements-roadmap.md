@@ -1037,6 +1037,38 @@ races and nonempty supplements remain unproved. Receipt-only review/exact-head
 CI/mainmerge remain gates. Production/admission/home/cutover unchanged. A separate
 child worktree prepares the dormant shared learner GET; it cannot activate it.
 
+Superseding locked-open receipt:1456 mergedc7e5a487 at2026-10-04T06:21:11Z
+after all five exact2c9ee58f CI37181022226 checks PASS, including PR Gate
+(0queue/1326runseconds). Normal squash tree equals the reviewed tree; canonical
+main cleanFF.240 applied once locally with exact001–240 history, genuine type
+generation/check with zero diff, new rollback proof and unchanged original
+atomicity/five concurrency scenarios PASS. Fixed-source security/compatibility
+and four-document receipt reviews CLEAN. Fresh240 detail SDK normal and both
+forced cleanup modes PASS with unchanged complete canonical fingerprints.
+No production, admission or UI activation accompanied this merge.
+
+The next bounded [shared learner Assignment GET](contextual-assignment-learner-open.md)
+preserves240's open transaction and existing learner response while binding every
+supplementary read to the current exact learner relationship. Source preparation
+has161 targeted checks passing. Its separate observer is read/projection-only:
+the open RPC is a sealed existing-fixture-document stub with no create/view/Pal
+effects; real supplementary SDK reads reuse the immutable fixture/transitions.
+Independent review and actual isolated proof remain gates, not claimed receipts.
+Integrated open effects, nonempty supplements/live signing and sibling visibility
+remain distinct work. Shared admission/page/home/cutover and production stay OFF.
+
+Superseding learner-GET receipt: draft1457 initial ecfcf714 security/compatibility
+CLEAN; actual normal first failed with exact baseline/cleanup PASS. One proof-only
+stub-content regression REDtoGREEN and targeted ec274c75 review CLEAN preserve
+all application/SQL/fixture/platform/transition/cleanup authority. Actual ec274c75
+normal passes9projection/6original revocations/nine controlled false-flag RPCstubs
+and zero actualRPC/Storage/provider network, plus originallistcases/revocations;
+both forced modes exactexit1/two markers/full canonical unchanged PASS.
+318focused8skip/static/explicitproofTS/audit PASS. Final cumulative review and
+exact-head CI/mainmerge remain gates. Source-only next241 worker prepares hidden
+Classwork denial for save/submit/unsubmit/preflight only; history/restore/artifacts/
+inline images remain separate. No241application or production/activation implied.
+
 Remaining batch-2 groups, in integration order: Assignment detail/open
 enrichments; Tests owner operations then learner participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

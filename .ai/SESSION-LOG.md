@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Shared class-day GET consolidation
-
-Prepared dormant shared GETs for neutral class-day and teacher compatibility
-URLs. Auth precedes strict admission and shared parameters; current owner or
-active unarchived member is bound in every class-root payload/terminal page.
-Archived owner reads and owner precedence remain; global account role does not
-select relationship. Strict five-field projection/date-ID keysets cover >1000
-days. Legacy GET remainders and all POST/PATCH bytes unchanged. No schema/UI.
-Native source+proof workers owned disjoint files; coordinator owns actual local
-execution/CI/docs/review. TDD97 new+218 unchanged tests, TypeScript/scopedlint/
-architecture/diff pass. Actual local SDK normal proof passes1005days/both roles,
-transfer/removal/archive/deletion before payload/terminal and actual-array errors.
-Forced failure exits1 with expectederror and exact zero-residual/global-baseline
-sentinel; controlled status-command failure prints no captured credentials.
-Full focused gates/independent review/exact-head CI pending. Local001–234/prod
-001–225 unchanged; shared admission OFF. Shared152calendar writes and roster
-transaction fences remain batch1; linkedBlueprintGET is batch3-adjacent. Human
-authorizes in-scope work/local/reviews/extensions/main without repeated prompts;
-original budgets/counters and absolute skill caps/security/merge gates remain.
-
 ## 2026-10-03 — Roster1443 merged; class-day1444 actual-main reconciliation
 
 PR1443 normal squash merge7e5c6422 verified15:28:30Z after all five77995c95
@@ -943,3 +923,55 @@ both forcedmodes exit1/exact2markers/0600receipts, exactteardown/fullcanonical
 fingerprints unchanged. Nonempty supplements/signing unproved; receiptreview/CI
 next. Separate child learner-open worktree/source worker prepares shared GET only;
 no live worker operations, source remains dormant. Production/admission/cutoverOFF.
+
+## 2026-10-04 — Shared learner Assignment-open source preparation
+
+1456 mergedc7e5a487 at06:21:11UTC after all five exact2c9ee58f CI37181022226
+checks PASS (0queue/1326runseconds); normal squash tree equals reviewed tree and
+canonical main cleanFF.240 applied once locally, genuine types zero-diff, rollback
+and unchanged atomicity/five concurrency proofs PASS; fresh240 owner-detail normal
+and both forced modes accepted with full canonical baseline unchanged. Production
+last001–225 untouched; shared admission/UI/cutover/billing/provider remain OFF.
+
+Next dormant learner Assignment GET prefix reuses240's locked transaction, binds
+fresh own-document/supplement pages/signing/final evidence to exact current
+nonowner membership and preserves released disclosure. Legacy remainder/all write
+handlers unchanged. Source worker161targeted PASS; root moved the named schema
+to canonical validations and repeated the same161checks PASS. Separate worker
+53proof tests/17new and explicit TS/lint PASS, owns no live operation. Root owns
+Git/review/runtime/CI/docs. New observer maps9read/projection cases/6SAME original
+transfer/removal transitions, seals open RPC to existing fixture doc with
+created/viewfalse; zero actualRPC/Storage/provider network allowed. No fixture,
+SQL/restoration/cleanup or canonical DML expansion. Unsupported ClassB/noAssignment
+archived-hidden cases and nonempty supplements explicitly unproved. Serial CI
+guard RED before new step. Full checks, parent reconciliation, independent frozen
+reviews and actual observer normal/two forced modes remain gates; not runtime
+receipts or a full integration/phase exit. Existing original review clocks/caps
+retained; routine in-scope authority and local-approval override carried forward.
+
+Superseding1457receipt: initialecfcf714 security/compatibility CLEAN; each reviewer
+136offline PASS, root318focused8skip/static/explicitproofTS/audit PASS. Actual normal
+failed aftercontrol2 but exactteardown/fullcanonicalbaseline PASS. Closed-shape
+source-unchanged diagnosis: preflightparsedtrue; sealedstub omittedcontent and real
+reader correctlyfailsbound. One proof-only batch adds exactfixtureemptyJSONB;
+regressionREDtoGREEN53proof PASS,318focused8skip/static/explicitTS/audit PASS.
+Targeted ec274c75 proof-interface CLEAN/105tests. Actual ec274c75 normal PASS:
+9read/projection/6SAMEoriginaltransfers-removals/nine false-created-viewstubs,
+zero actualRPC/Storage/provider network and originallistcases/revocations; both
+forcedmodes exactexit1/twoexpectedmarkers/fullcanonicalunchanged/teardown PASS.
+0600receipts /private/tmp/pika-learner-open-cleanup.FXeytu and
+/private/tmp/pika-learner-open-cleanup.kV9zZS. No realRPC/create/view/Pal/signing/
+nonempty/authHTTP/browser claim. Original06:31:48clock/3launch/1target/1fix retained;
+finalcumulative/CI/mainmerge next. Separate source-only worker prepares241 save/
+submit/unsubmit/preflightClassworkguards fromactualc7main; rootownsGit/runtime/review,
+no workerliveoperations. Local240/prodlast225/admission/cutover/account/billing/provider
+unchanged;241UNAPPLIED. Branches and critical roster-owner node_modules retained.
+
+Superseding CI receipt: finalcumulative97a8950e CLEAN/136tests; exactreadyrun
+37184696910 Test&Build passes11781tests but one Bara documentation parser fails
+on CURRENT's compressed `Prod last` prefix. PR returned to draft before correction.
+Local original four-case suite reproduces1RED; third batch restores exact
+`Prod DB 001–225` prefix with last-verified annotation, keeps production evidence
+unchanged and preserves the original parser/test/gate. No executable source change
+or new runtime/production/activation operation. Targeted mechanical review and
+new stable-head CI required; original06:31:48clock/counters and absolutecaps remain.

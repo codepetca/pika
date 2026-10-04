@@ -16,6 +16,17 @@ describe('CI workflow', () => {
     expect(workflow.indexOf('      - name: Verify contextual learner assignment-open atomicity and privileges')).toBeLessThan(workflow.indexOf(name))
     expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual learner assignment-open concurrent authorization'))
   })
+  it('requires serial learner open read/projection evidence without claiming actual RPC effects', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual learner Assignment open projections'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_learner_open_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-learner-open-lifecycle.ts --reviewed-head "$assignment_learner_open_head" --mode normal')
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+    expect(workflow.indexOf('      - name: Verify isolated contextual Assignment student-detail reads')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual learner assignment-open atomicity and privileges'))
+  })
   it('requires a serial student-detail SDK and revocation observer with no extra fixture authority', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const name = '      - name: Verify isolated contextual Assignment student-detail reads'
