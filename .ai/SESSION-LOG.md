@@ -1317,3 +1317,8 @@ then failedmatrix/dispatch at19 attemptedrequests; exactteardown/SAMEbaselinePAS
 Proof-only closed timing/abort diagnostics RED→GREEN,51proof/245focusedallstaticPASS.
 Readonly sealedinventory sample993ms/742resources; timing cause not yet proved.
 App20s/transport15s, everyrequestguard and full global inventory remain unchanged.
+Diagnostic c2d independentSol5.6/high review CLEAN; read-only Sol6.1/high diagnosis
+narrows dispatch to fetch/abort family, not proven timeout or querycause. Its
+timing caveat accepted: freeze diagnostic at helper rejection before cleanup,
+including pendingguard time. RED→GREEN52proof/246focused14/allstatic/audit PASS;
+source-only targeted follow-up and actual evidence remain required. No gate weakened.

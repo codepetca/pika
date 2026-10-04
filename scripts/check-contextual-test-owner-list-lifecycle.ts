@@ -50,7 +50,7 @@ export function createTestOwnerListProofTransport(f: TestOwnerListFixture, rawTa
   const counts = { network: 0, storage: 0, rpc: 0 }
   const evidence = { testsEmpty: 0, rosterEmpty: 0, questionsEmpty: 0, attemptsEmpty: 0, responsesEmpty: 0, availabilityEmpty: 0, draftsEmpty: 0, final: 0 }
   let phase = 'idle'
-  let caseIndex = -1; let contextStarted: number | undefined; let guardMs = 0
+  let caseIndex = -1; let contextStarted: number | undefined; let guardMs = 0; let guardStarted: number | undefined; let frozenDiagnostic: string | undefined
   let projection: keyof typeof TEST_OWNER_LIST_PROJECTIONS | 'unknown' = 'unknown'
   let callerAborted = false; let failure: 'none' | 'aborted' | 'timeout' | 'rejected' = 'none'; let http = 0
   const boundedMs = (value: number) => Math.min(60000, Math.max(0, Math.trunc(value)))
@@ -58,7 +58,7 @@ export function createTestOwnerListProofTransport(f: TestOwnerListFixture, rawTa
     assert(f.classes.some(c => c.id === classroomId)); assert(f.actors.some(a => a.id === actorId))
     context = { classroomId, actorId }; preflight = false; stamps.clear()
     caseIndex = f.cases.findIndex(c => c.classroomId === classroomId && c.actorId === actorId)
-    contextStarted = Date.now(); guardMs = 0; projection = 'unknown'; callerAborted = false; failure = 'none'; http = 0
+    contextStarted = Date.now(); guardMs = 0; guardStarted = undefined; frozenDiagnostic = undefined; projection = 'unknown'; callerAborted = false; failure = 'none'; http = 0
   }
   function validate(url: URL) {
     assert(context); const { classroomId, actorId } = context
@@ -108,8 +108,8 @@ export function createTestOwnerListProofTransport(f: TestOwnerListFixture, rawTa
       for (const [name, value] of headers) assert(allowed[name]?.includes(value))
       const select = validate(url); assert(++counts.network <= TEST_OWNER_LIST_CAPS.networkRequests)
       projection = (Object.keys(TEST_OWNER_LIST_PROJECTIONS) as Array<keyof typeof TEST_OWNER_LIST_PROJECTIONS>).find(key => TEST_OWNER_LIST_PROJECTIONS[key] === select) ?? 'unknown'
-      phase = 'guard'; const guardStarted = Date.now()
-      try { await guard() } finally { guardMs = boundedMs(guardMs + boundedMs(Date.now() - guardStarted)) }
+      phase = 'guard'; guardStarted = Date.now()
+      try { await guard() } finally { guardMs = boundedMs(guardMs + boundedMs(Date.now() - guardStarted)); guardStarted = undefined }
       phase = 'dispatch'
       const timeout = AbortSignal.timeout(TEST_OWNER_LIST_CAPS.requestMs)
       const response = await original(resource, { ...init, redirect: 'error', signal: init?.signal ? AbortSignal.any([timeout, init.signal]) : timeout })
@@ -145,7 +145,8 @@ export function createTestOwnerListProofTransport(f: TestOwnerListFixture, rawTa
       throw new Error('Test owner list proof transport rejected; private details withheld')
     }
   }
-  return { target, fetch: safeFetch, counts, evidence, readContext, diagnostic: () => `DIAG test-owner-list transport phase=${phase} requests=${Math.min(counts.network, TEST_OWNER_LIST_CAPS.networkRequests + 1)} case=${caseIndex >= 0 && caseIndex < 8 ? caseIndex : 'unknown'} projection=${projection} contextMs=${contextStarted === undefined ? 0 : boundedMs(Date.now() - contextStarted)} guardMs=${guardMs} callerAborted=${callerAborted} failure=${failure} http=${http}.\n` }
+  const diagnosticLine = () => `DIAG test-owner-list transport phase=${phase} requests=${Math.min(counts.network, TEST_OWNER_LIST_CAPS.networkRequests + 1)} case=${caseIndex >= 0 && caseIndex < 8 ? caseIndex : 'unknown'} projection=${projection} contextMs=${contextStarted === undefined ? 0 : boundedMs(Date.now() - contextStarted)} guardMs=${boundedMs(guardMs + (guardStarted === undefined ? 0 : boundedMs(Date.now() - guardStarted)))} callerAborted=${callerAborted} failure=${failure} http=${http}.\n`
+  return { target, fetch: safeFetch, counts, evidence, readContext, diagnostic: () => frozenDiagnostic ?? diagnosticLine(), freezeDiagnostic: () => { frozenDiagnostic ??= diagnosticLine() } }
 }
 
 export function testOwnerListForcedReceipt(mode: string, error: unknown, complete: boolean) {
@@ -268,7 +269,10 @@ export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
     for (const proofCase of f.cases) {
       const before = await snapshot(); const rows = validateTestOwnerListSetupSnapshot(f, JSON.parse(before)); transport.readContext(proofCase.classroomId, proofCase.actorId)
       const count = transport.counts.network
-      const read = () => readContextualTestList({ supabase: client!, actorId: proofCase.actorId, classroomId: proofCase.classroomId })
+      const read = async () => {
+        try { return await readContextualTestList({ supabase: client!, actorId: proofCase.actorId, classroomId: proofCase.classroomId }) }
+        catch (error) { transport!.freezeDiagnostic(); throw error }
+      }
       if (proofCase.status === 403) { await assert.rejects(read, error => error instanceof ApiError && error.statusCode === 403); assert.equal(transport.counts.network - count, 1) }
       else {
         const result = await read()

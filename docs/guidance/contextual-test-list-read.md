@@ -125,3 +125,6 @@ baseline passed. Closed diagnostic counters now distinguish fixed case/projectio
 bounded context/guard elapsed time, caller abort, fixed failure classes and HTTP
 status, without private error strings or rows. No guard or deadline is relaxed.
 The timing cause remains unproved; forced runs have not been attempted.
+Timing diagnostics are frozen immediately when the helper rejects, including any
+in-flight guard time, so later teardown cannot inflate or overwrite that evidence.
+The freeze is diagnostic-only and does not cancel, skip or authorize any operation.

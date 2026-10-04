@@ -276,6 +276,23 @@ describe('finite owner Test list transport', () => {
       expect(x.transport.diagnostic()).toContain('case=1 projection=unknown contextMs=0 guardMs=0 callerAborted=false failure=none http=0')
     } finally { clock.mockRestore() }
   })
+  it('freezes in-flight guard timing at read rejection rather than after lifecycle cleanup', async () => {
+    const x = fixture(); let now = 1000; let finishGuard!: () => void
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    try {
+      x.guard.mockImplementationOnce(() => new Promise<void>(resolve => { finishGuard = resolve }))
+      x.transport.readContext(x.f.classes[0].id, x.f.actors[0].id)
+      const pending = x.transport.fetch(`${x.target.API_URL}/rest/v1/classrooms?select=${TEST_OWNER_LIST_PROJECTIONS.root}&id=eq.${x.f.classes[0].id}`, { headers: x.headers })
+      now += 20000; x.transport.freezeDiagnostic()
+      const frozen = x.transport.diagnostic()
+      expect(frozen).toContain('phase=guard')
+      expect(frozen).toContain('contextMs=20000 guardMs=20000')
+      now += 40000; finishGuard(); await pending
+      x.transport.freezeDiagnostic(); expect(x.transport.diagnostic()).toBe(frozen)
+      x.transport.readContext(x.f.classes[1].id, x.f.actors[1].id)
+      expect(x.transport.diagnostic()).toContain('case=1 projection=unknown contextMs=0 guardMs=0')
+    } finally { clock.mockRestore() }
+  })
   it('rejects foreign Test/draft/child cursors and any additional repeated predicate', async () => {
     const x = fixture(); const requests: string[] = []; const real = sourceFetch(x.f)
     const transport = createTestOwnerListProofTransport(x.f, x.target, x.projectId, async (resource, init) => { requests.push(String(resource)); return real(resource, init) }, x.guard)
