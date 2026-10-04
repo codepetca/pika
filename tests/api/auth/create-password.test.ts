@@ -152,8 +152,8 @@ describe('POST /api/auth/create-password', () => {
   })
 
   it('should reject an invalid, expired, or reused handoff token', async () => {
-    const userUpdate = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
+    const userUpdate = vi.fn(() => chainableUpdate({
+      data: { auth_credential_version: 1 }, error: null,
     }))
 
     const mockFrom = vi.fn((table: string) => {
@@ -195,8 +195,8 @@ describe('POST /api/auth/create-password', () => {
   })
 
   it('should create password for verified user with valid handoff token', async () => {
-    const userUpdate = vi.fn(() => ({
-      eq: vi.fn().mockResolvedValue({ error: null }),
+    const userUpdate = vi.fn(() => chainableUpdate({
+      data: { auth_credential_version: 1 }, error: null,
     }))
 
     const consumeBuilder = chainableUpdate({

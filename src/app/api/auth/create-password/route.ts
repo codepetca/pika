@@ -67,20 +67,29 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
   // Hash password
   const passwordHash = await hashPassword(password)
 
-  // Save password to user record
-  const { error: updateError } = await supabase
+  // PostgreSQL rechecks these predicates after competing updates. Exactly one
+  // sibling signup handoff may install the first password in this epoch.
+  const { data: credentialWinner, error: updateError } = await supabase
     .from('users')
     .update({ password_hash: passwordHash })
     .eq('id', user.id)
+    .is('password_hash', null)
+    .eq('auth_credential_version', user.auth_credential_version)
+    .select('auth_credential_version')
+    .maybeSingle()
 
   if (updateError) {
     logServerError('auth.verify', updateError)
     throw new ApiError(500, 'Failed to create password')
   }
 
-  // Create session
+  if (!credentialWinner) {
+    throw new ApiError(401, 'Verification session expired. Please verify your email again.')
+  }
+
+  // Session issuance rejects a credential epoch changed after the winning write.
   await createSession(user.id, user.email, user.role, {
-    expectedCredentialVersion: user.auth_credential_version,
+    expectedCredentialVersion: credentialWinner.auth_credential_version,
   })
 
   const redirectUrl = '/classrooms'

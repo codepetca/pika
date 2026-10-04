@@ -38,14 +38,12 @@ export const POST = withErrorHandler('ResetPasswordVerify', async (request: Next
   const eligibleUser = !userError && user?.password_hash ? user : null
 
   // Always perform the same code lookup and one bcrypt comparison. Only the
-  // latest code is valid after a resend, which also prevents code-count timing.
+  // newest issuance remains authoritative even when used or expired.
   const { data: codes, error: fetchError } = await supabase
     .from('verification_codes')
-    .select('*')
+    .select('id, code_hash, attempts, used_at, expires_at')
     .eq('user_id', eligibleUser?.id || NONEXISTENT_USER_ID)
     .eq('purpose', 'reset_password')
-    .is('used_at', null)
-    .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
 
   if (fetchError) {
@@ -55,15 +53,33 @@ export const POST = withErrorHandler('ResetPasswordVerify', async (request: Next
 
   const candidateCode = codes?.[0]
   const candidateUsable = candidateCode
+    && candidateCode.used_at === null
+    && Date.parse(candidateCode.expires_at) > Date.now()
     && candidateCode.attempts < MAX_VERIFICATION_ATTEMPTS
   const isValid = await verifyCode(
     normalizedCode,
     candidateUsable ? candidateCode.code_hash : DUMMY_AUTH_BCRYPT_HASH,
   )
 
-  if (!eligibleUser || !candidateUsable || !isValid) {
+  // A resend may finish while bcrypt runs. Re-read the newest issuance for
+  // every result so that a completed resend cannot mint an older handoff.
+  // Issuance and consumption still need a DB transaction for full serialization.
+  const { data: currentCodes, error: currentFetchError } = await supabase
+    .from('verification_codes')
+    .select('id')
+    .eq('user_id', eligibleUser?.id || NONEXISTENT_USER_ID)
+    .eq('purpose', 'reset_password')
+    .order('created_at', { ascending: false })
+
+  if (currentFetchError) {
+    logServerError('auth.verify', currentFetchError)
+    throw new ApiError(500, 'Internal server error')
+  }
+
+  const candidateStillLatest = candidateCode && currentCodes?.[0]?.id === candidateCode.id
+  if (!eligibleUser || !candidateUsable || !isValid || !candidateStillLatest) {
     const shouldIncrementCandidate = Boolean(
-      eligibleUser && candidateCode && candidateCode.attempts < MAX_VERIFICATION_ATTEMPTS,
+      eligibleUser && candidateUsable && candidateStillLatest,
     )
     await supabase
       .from('verification_codes')

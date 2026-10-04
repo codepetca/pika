@@ -100,12 +100,12 @@ describe('POST /api/auth/reset-password/verify', () => {
       },
       {
         user: { id: 'user-1', email: 'test@example.com', password_hash: 'hash' },
-        codes: [{ id: 'code-1', code_hash: 'different_hash', attempts: 0 }],
+        codes: [{ id: 'code-1', code_hash: 'different_hash', attempts: 0, used_at: null, expires_at: '2099-01-01T00:00:00Z' }],
         expectedUpdateId: 'code-1',
       },
       {
         user: { id: 'user-1', email: 'test@example.com', password_hash: 'hash' },
-        codes: [{ id: 'code-exhausted', code_hash: 'different_hash', attempts: 5 }],
+        codes: [{ id: 'code-exhausted', code_hash: 'different_hash', attempts: 5, used_at: null, expires_at: '2099-01-01T00:00:00Z' }],
         expectedUpdateId: sentinelCodeId,
       },
     ]
@@ -186,6 +186,8 @@ describe('POST /api/auth/reset-password/verify', () => {
               data: [{
                 id: 'code-1',
                 code_hash: 'hashed_ABC12',
+                used_at: null,
+                expires_at: '2099-01-01T00:00:00Z',
                 attempts: 0,
               }],
               error: null,

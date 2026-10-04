@@ -1,9 +1,12 @@
 import { z } from 'zod'
+import { isSupportedNewPassword, PASSWORD_BYTE_LIMIT_MESSAGE } from '@/lib/validations/password-policy'
 import { isSafeInternalPath } from '@/lib/navigation-safety'
 
-/**
- * Shared email validation: required string, email format, lowercased and trimmed.
- */
+// New bcrypt credentials must fit the byte limit; legacy login stays compatible.
+const newPasswordField = z.string().min(8, 'Password must be at least 8 characters')
+  .refine(isSupportedNewPassword, PASSWORD_BYTE_LIMIT_MESSAGE)
+
+/** Required email, normalized before validation. */
 const emailField = z.string().trim().toLowerCase().email('Invalid email format')
 const handoffTokenField = z.preprocess(
   value => (typeof value === 'string' ? value.trim() : ''),
@@ -30,7 +33,7 @@ export const verifySignupSchema = z.object({
  */
 export const createPasswordSchema = z.object({
   email: emailField,
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: newPasswordField,
   passwordConfirmation: z.string().min(1, 'Password confirmation is required'),
   handoffToken: handoffTokenField,
 }).refine(data => data.password === data.passwordConfirmation, {
@@ -94,7 +97,7 @@ export const resetPasswordVerifySchema = z.object({
  */
 export const resetPasswordConfirmSchema = z.object({
   email: emailField,
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: newPasswordField,
   passwordConfirmation: z.string().min(1, 'Password confirmation is required'),
   handoffToken: handoffTokenField,
 }).refine(data => data.password === data.passwordConfirmation, {
