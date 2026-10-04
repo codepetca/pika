@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { newAssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
 import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError } from './contextual-assignment-list-proof-lifecycle'
@@ -24,7 +25,7 @@ export async function assignmentListLifecycleMain(args = process.argv.slice(2)) 
   const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
   const mode = input.mode
   try {
-    await runAssignmentListEphemeralLifecycle({ fixture, projectId, workdir: `/private/tmp/pika-assignment-list-${fixture.manifest.syntheticTag.slice(-12)}`,
+    await runAssignmentListEphemeralLifecycle({ fixture, projectId, workdir: assignmentListProofWorkdir(projectId),
       migrations: loadAssignmentListReviewedMigrations(repository), mode,
       expectedResources: assignmentListExpectedResources(projectId),
       reviewedManifestSha256: createHash('sha256').update(JSON.stringify(fixture.manifest)).digest('hex'),

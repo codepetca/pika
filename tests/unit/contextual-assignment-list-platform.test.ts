@@ -3,8 +3,29 @@ import { assignmentListExpectedResources, assignmentListRestorationPolicy, assig
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { parseAssignmentListLifecycleArgs } from '../../scripts/check-contextual-assignment-list-lifecycle'
+import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
+import { prepareAssignmentListProjectFiles } from '../../scripts/contextual-assignment-list-proof-platform'
+import { assignmentListEphemeralPlan } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 
 describe('assignment-list native platform proof contracts (offline)', () => {
+  it('allocates platform-specific canonical temp roots without accepting a caller parent', () => {
+    const project = 'pika_assignment_list_abcdef123456'
+    expect(assignmentListProofWorkdir(project, 'linux')).toBe('/tmp/pika-assignment-list-abcdef123456')
+    expect(assignmentListProofWorkdir(project, 'darwin')).toBe('/private/tmp/pika-assignment-list-abcdef123456')
+    expect(() => assignmentListProofWorkdir(project, 'win32')).toThrow()
+    expect(() => assignmentListProofWorkdir('pika', 'linux')).toThrow()
+  })
+  it.each(['directory', 'migration'] as const)('removes only its owned generated directory after partial preparation failure at %s', checkpoint => {
+    const projectId = `pika_assignment_list_${randomUUID().replaceAll('-', '').slice(0, 12)}`
+    const workdir = assignmentListProofWorkdir(projectId)
+    const plan = assignmentListEphemeralPlan({ projectId, workdir })
+    const failure = new Error('Synthetic preparation failure')
+    expect(existsSync(workdir)).toBe(false)
+    expect(() => prepareAssignmentListProjectFiles(plan, [{ name: '001_fixture.sql', sql: 'select 1;', sha256: 'a'.repeat(64) }], stage => { if (stage === checkpoint) throw failure })).toThrow(failure)
+    expect(existsSync(workdir)).toBe(false)
+  })
   it('requires an exact reviewed head and a closed execution mode', () => {
     const head = 'a'.repeat(40)
     expect(parseAssignmentListLifecycleArgs(['--reviewed-head', head, '--mode', 'normal'])).toEqual({ head, mode: 'normal' })

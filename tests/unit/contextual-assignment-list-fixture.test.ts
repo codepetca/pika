@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
+import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
 import { newAssignmentListProofFixture, assignmentListFixtureSetupSql } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { assignmentListEphemeralPlan, validateAssignmentListEphemeralIdentity, assignmentListCanonicalFingerprintSql, runAssignmentListEphemeralLifecycle } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import type { AssignmentListLifecycleAdapters, AssignmentListResource } from '../../scripts/contextual-assignment-list-proof-lifecycle'
@@ -33,7 +34,7 @@ describe('isolated assignment-list fixture source contracts', () => {
   })
   it('keeps lifecycle source non-executing and proposes only one fresh isolated project', () => {
     const project = 'pika_assignment_list_abcdef123456'
-    const plan = assignmentListEphemeralPlan({ projectId: project, workdir: '/private/tmp/pika-assignment-list-abcdef123456' })
+    const plan = assignmentListEphemeralPlan({ projectId: project, workdir: assignmentListProofWorkdir(project) })
     expect(plan.apiUrl).toBe('http://127.0.0.1:54331')
     expect(plan.dbPort).toBe(54332)
     expect(plan.replayOwner).toBe('root')
@@ -112,7 +113,7 @@ describe('injected executable assignment-list lifecycle (no real commands)', () 
   function harness() {
     const fixture = newAssignmentListProofFixture(new Date('2026-10-03T12:00:00Z'))
     const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
-    const workdir = `/private/tmp/pika-assignment-list-${fixture.manifest.syntheticTag.slice(-12)}`
+    const workdir = assignmentListProofWorkdir(projectId)
     const resources: AssignmentListResource[] = [
       { kind: 'container', id: 'db-fresh', name: `supabase_db_${projectId}`, createdAt: 'created-fresh', labels: { 'com.supabase.cli.project': projectId }, attachedIds: ['volume-fresh', 'network-fresh'], ports: [54332] },
       { kind: 'container', id: 'kong-fresh', name: `supabase_kong_${projectId}`, createdAt: 'created-fresh', labels: { 'com.supabase.cli.project': projectId }, attachedIds: ['network-fresh'], ports: [54331] },
@@ -237,6 +238,14 @@ describe('injected executable assignment-list lifecycle (no real commands)', () 
     const { input, adapters } = harness(); input.migrations[0].sql += ' select 2;'
     await expect(runAssignmentListEphemeralLifecycle(input, adapters)).rejects.toThrow()
     expect(adapters.canonicalSnapshot).not.toHaveBeenCalled()
+  })
+  it('retains preparation failure and unchanged canonical evidence after native owned-directory cleanup', async () => {
+    const { input, adapters } = harness()
+    const failure = new Error('Synthetic partial preparation failure')
+    adapters.prepare = vi.fn(async () => { throw failure })
+    await expect(runAssignmentListEphemeralLifecycle(input, adapters)).rejects.toMatchObject({ primary: { stage: 'prepare', error: failure }, cleanupFailures: [] })
+    expect(adapters.canonicalSnapshot).toHaveBeenCalledTimes(2)
+    expect(adapters.command).not.toHaveBeenCalled(); expect(adapters.teardown).not.toHaveBeenCalled(); expect(adapters.removeWorkdir).not.toHaveBeenCalled()
   })
   it('rejects broad restoration allowances even for another captured fixture classroom', async () => {
     const { input, adapters } = harness()

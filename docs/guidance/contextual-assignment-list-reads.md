@@ -42,7 +42,8 @@ integration remain separate batch-2 work. This slice alone does not permit cutov
 Offline tests exercise nested authority predicates, pagination, malformed responses,
 privacy and admission order. Real fixture execution requires a clean exact reviewed
 head. The disposable project is `pika_assignment_list_<12hex>`, API54331/DB54332,
-with a matching private temporary workdir; normal Pika54321/54322 is read-only.
+with a matching private temporary workdir under/private/tmp(macOS) or/tmp(Linux);
+normal Pika54321/54322 is read-only. Unsupported platforms fail closed.
 Replay only the reviewed immutable001–239 source, without seed, shared env files,
 history repair or canonical reset. This requires the239 consumer slice to merge
 before final main integration/runtime acceptance.
@@ -68,6 +69,7 @@ containers/network/volumes even after ambiguous startup. Cleanup refuses preexis
 IDs, either wrong project label, foreign attachments or unknown resources. Only
 the complete closed eight-resource footprint permits exact-project CLI stop;
 partial startup uses exact captured IDs. No broad prune or existing-project stop.
+Partial preparation removes only its exclusively created directory before rethrowing.
 All ephemeral resources and the generated workdir must be absent afterward, and
 canonical public/private/storage row digests,168 metadata, settings, cron and
 resource identities must match byte-for-byte. Failure/cleanup uncertainty is not

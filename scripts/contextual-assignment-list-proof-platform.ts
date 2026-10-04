@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { createServer } from 'node:net'
 import { createClient } from '@supabase/supabase-js'
 import { ApiError } from '../src/lib/api-error'
@@ -14,6 +14,7 @@ import { readContextualAssignmentList } from '../src/lib/server/contextual-assig
 import { containedAssignmentListProofFetch } from './check-contextual-assignment-list-reads'
 import { observeAssignmentListRevocation, assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
 import { validateAssignmentListEphemeralIdentity } from './contextual-assignment-list-proof-lifecycle'
+import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import type { AssignmentListLifecycleAdapters, AssignmentListResource } from './contextual-assignment-list-proof-lifecycle'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import type { Database } from '../src/types/database'
@@ -48,7 +49,7 @@ export function assignmentListRowChanges(before: Rows, after: Rows): Cell[] {
   return changes
 }
 export function assignmentListExpectedResources(projectId: string) {
-  validateAssignmentListEphemeralIdentity({ projectId, workdir: `/private/tmp/pika-assignment-list-${projectId.slice(-12)}` })
+  validateAssignmentListEphemeralIdentity({ projectId, workdir: assignmentListProofWorkdir(projectId) })
   return [
     ...['db', 'storage', 'rest', 'auth', 'kong'].map(service => ({ kind: 'container' as const, name: `supabase_${service}_${projectId}` })),
     ...['db', 'storage'].map(service => ({ kind: 'volume' as const, name: `supabase_${service}_${projectId}` })),
@@ -136,9 +137,37 @@ export function loadAssignmentListReviewedMigrations(repository: string) {
   return names.map((name, n) => { assert(name.startsWith(`${String(n + 1).padStart(3, '0')}_`)); const content = readFileSync(join(folder, name), 'utf8'); return { name, sql: content, sha256: sha(content) } })
 }
 
+/** No database/resources exist yet. Partial writes remain exclusively ours. */
+export function prepareAssignmentListProjectFiles(
+  plan: Parameters<AssignmentListLifecycleAdapters['prepare']>[0],
+  migrations: Parameters<AssignmentListLifecycleAdapters['prepare']>[1],
+  checkpoint?: (stage: 'directory' | 'migration') => void,
+) {
+  validateAssignmentListEphemeralIdentity(plan)
+  for (const migration of migrations) assert.match(migration.name, /^\d{3}_[a-z0-9_]+\.sql$/)
+  const workdir = plan.workdir
+  assert.equal(realpathSync(dirname(workdir)), dirname(workdir)); assert(!existsSync(workdir))
+  mkdirSync(workdir, { mode: 0o700 })
+  try {
+    checkpoint?.('directory')
+    mkdirSync(join(workdir, 'supabase/migrations'), { recursive: true, mode: 0o700 })
+    writeFileSync(join(workdir, 'supabase/config.toml'), plan.config, { mode: 0o600, flag: 'wx' })
+    for (const migration of migrations) {
+      writeFileSync(join(workdir, 'supabase/migrations', migration.name), migration.sql, { mode: 0o600, flag: 'wx' })
+      checkpoint?.('migration')
+    }
+    return { workdir, realpath: realpathSync(workdir), created: true, configSha256: sha(readFileSync(join(workdir, 'supabase/config.toml'), 'utf8')),
+      migrations: migrations.map(m => ({ name: m.name, sha256: sha(readFileSync(join(workdir, 'supabase/migrations', m.name), 'utf8')) })), envFiles: [], symlinks: [] }
+  } catch (error) {
+    assert.equal(realpathSync(workdir), workdir)
+    rmSync(workdir, { recursive: true })
+    throw error
+  }
+}
+
 export function createAssignmentListNativeAdapters(fixture: AssignmentListProofFixture): AssignmentListLifecycleAdapters {
   const projectId = `pika_assignment_list_${fixture.manifest.syntheticTag.slice(-12)}`
-  const workdir = `/private/tmp/pika-assignment-list-${fixture.manifest.syntheticTag.slice(-12)}`
+  const workdir = assignmentListProofWorkdir(projectId)
   const createdDirectories = new Set<string>()
   let beforeTransition: Rows | undefined
   return {
@@ -152,13 +181,10 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       return { resources: await dockerInventory(), occupiedPorts: (await Promise.all([54330, 54331, 54332].map(async port => ({ port, busy: await occupied(port) })))).filter(r => r.busy).map(r => r.port), workdirExists: existsSync(workdir) }
     },
     async prepare(plan, migrations) {
-      assert.equal(plan.workdir, workdir); assert(!existsSync(workdir))
-      mkdirSync(workdir, { mode: 0o700 }); createdDirectories.add(workdir)
-      mkdirSync(join(workdir, 'supabase/migrations'), { recursive: true, mode: 0o700 })
-      writeFileSync(join(workdir, 'supabase/config.toml'), plan.config, { mode: 0o600, flag: 'wx' })
-      for (const migration of migrations) writeFileSync(join(workdir, 'supabase/migrations', migration.name), migration.sql, { mode: 0o600, flag: 'wx' })
-      return { workdir, realpath: realpathSync(workdir), created: true, configSha256: sha(readFileSync(join(workdir, 'supabase/config.toml'), 'utf8')),
-        migrations: migrations.map(m => ({ name: m.name, sha256: sha(readFileSync(join(workdir, 'supabase/migrations', m.name), 'utf8')) })), envFiles: [], symlinks: [] }
+      assert.equal(plan.workdir, workdir)
+      const prepared = prepareAssignmentListProjectFiles(plan, migrations)
+      createdDirectories.add(workdir)
+      return prepared
     },
     async command(request) {
       assert.equal(request.workdir, workdir)

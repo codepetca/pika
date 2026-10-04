@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { readContextualAssignmentList } from '../src/lib/server/contextual-assignment-list-read'
@@ -127,7 +128,7 @@ export async function assignmentListProofMain() {
     assert.equal(args[4], '--isolated-project'); assert.equal(args[6], '--isolated-workdir')
     projectId = args[5]; workdir = args[7]
     assert.equal(projectId, `pika_assignment_list_${fixture.syntheticTag.slice(-12)}`)
-    assert.equal(workdir, `/private/tmp/pika-assignment-list-${fixture.syntheticTag.slice(-12)}`)
+    assert.equal(workdir, assignmentListProofWorkdir(projectId))
     validateAssignmentListProofProject(projectId)
   }
   const actors = new Map(fixture.actors.map(a => [a.id, a])); const classrooms = new Map(fixture.classrooms.map(c => [c.id, c]))

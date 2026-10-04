@@ -2,14 +2,14 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { isAbsolute } from 'node:path'
+import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { assignmentListFixtureSetupSql, type AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans, type AssignmentListRevocationPlan } from './contextual-assignment-list-proof-revocations'
 import { decodeAssignmentListProofManifest, validateAssignmentListProofTarget, type AssignmentListProofManifest } from './check-contextual-assignment-list-reads'
 
 export function validateAssignmentListEphemeralIdentity(input: { projectId: string; workdir: string }) {
   assert.match(input.projectId, /^pika_assignment_list_[a-f0-9]{12}$/)
-  const suffix = input.projectId.slice(-12)
-  assert(isAbsolute(input.workdir) && input.workdir === `/private/tmp/pika-assignment-list-${suffix}`)
+  assert(isAbsolute(input.workdir) && input.workdir === assignmentListProofWorkdir(input.projectId))
   return { ...input, apiUrl: 'http://127.0.0.1:54331' as const, dbPort: 54332 as const }
 }
 
@@ -268,6 +268,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       })
     }
     if (prepareAttempted) await check('workdir', async () => {
+      if (!prepared) { assert(!startAttempted && !(await adapters.inventory(identity)).workdirExists); return }
       assert(prepared?.created && prepared.realpath === identity.workdir && absent)
       await adapters.removeWorkdir({ projectId: identity.projectId, workdir: identity.workdir, realpath: prepared.realpath })
       assert(!(await adapters.inventory(identity)).workdirExists)
