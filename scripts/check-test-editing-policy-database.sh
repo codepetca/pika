@@ -256,6 +256,9 @@ begin
             '14200000-0000-4000-8000-000000000013'
           )
           then row_data - 'questions_locked_at'
+        -- Legacy archives omit244's write epoch. Restore must allocate a new
+        -- revision while preserving every academic/lifecycle field below.
+        when table_name = 'test_attempts' then row_data - 'draft_revision'
         else row_data
       end
       order by row_id
@@ -331,7 +334,10 @@ begin
        from expected_test_policy_rows expected
        left join public.%I restored on restored.%I = expected.row_id
        where expected.table_name = $1
-         and (restored.%I is null or to_jsonb(restored) is distinct from expected.row_data)',
+         and (restored.%I is null or
+           (case when $1 = ''test_attempts'' then to_jsonb(restored) - ''draft_revision'' else to_jsonb(restored) end)
+           is distinct from
+           (case when $1 = ''test_attempts'' then expected.row_data - ''draft_revision'' else expected.row_data end))',
       v_resource.table_name,
       v_resource.primary_key_column,
       v_resource.primary_key_column
@@ -340,6 +346,16 @@ begin
       raise exception 'Test editing restored rows differ for %', v_resource.table_name;
     end if;
   end loop;
+
+  if exists (
+    select 1 from expected_test_policy_rows expected
+    join public.test_attempts restored on restored.id = expected.row_id
+    where expected.table_name = 'test_attempts'
+      and (restored.draft_revision <= (expected.row_data->>'draft_revision')::bigint
+        or restored.draft_revision > 9007199254740991)
+  ) then
+    raise exception 'Restored Test attempt did not receive a fresh safe revision';
+  end if;
 
   -- A started Test can correct one existing MC choice without rebinding the
   -- selected_option index to another position. Direct SQL must enforce the

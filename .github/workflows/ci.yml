@@ -767,6 +767,44 @@ jobs:
       - name: Verify assignment submission concurrency
         run: bash scripts/check-assignment-submission-concurrency.sh
 
+      - name: Verify authentication generation fencing
+        run: bash scripts/check-auth-verification-generation-database.sh --execute-local-contract --container supabase_db_pika
+
+      - name: Verify managed-storage write lock ordering
+        env:
+          MANAGED_STORAGE_DB_CONTAINER: supabase_db_pika
+        run: bash scripts/check-managed-storage-write-lock-order.sh --allow-fixture-writes
+
+      - name: Verify revision-aware Test lifecycle contracts
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+        run: psql -X -v ON_ERROR_STOP=1 -f scripts/check-test-attempt-lifecycle.sql
+
+      - name: Verify Test Return lifecycle concurrency and exact cleanup
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "54322"
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: postgres
+          CORE244_ALLOW_LOCAL_VERIFICATION: "1"
+        shell: bash
+        run: |
+          command -v psql >/dev/null
+          node scripts/check-test-attempt-lifecycle-concurrency.mjs
+          lifecycle_failure_log="$(mktemp)"
+          trap 'rm -f -- "$lifecycle_failure_log"' EXIT
+          lifecycle_status=0
+          CORE244_FORCE_FAILURE=1 node scripts/check-test-attempt-lifecycle-concurrency.mjs > "$lifecycle_failure_log" 2>&1 || lifecycle_status=$?
+          cat "$lifecycle_failure_log"
+          [[ "$lifecycle_status" -ne 0 ]] || exit 1
+          grep -F 'Forced failure after fixture setup (teardown control)' "$lifecycle_failure_log"
+          grep -Fx 'Exact fixture teardown and baseline fingerprint: PASS' "$lifecycle_failure_log"
+
       - name: Verify atomic student test submission
         run: bash scripts/check-atomic-test-submit.sh
 
@@ -973,6 +1011,7 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       SESSION_SECRET: ci-browser-session-secret-with-at-least-32-characters
       ENABLE_MOCK_EMAIL: "true"
+      PIKA_E2E_LIFECYCLE_FIXTURES: "true"
 
     steps:
       - name: Checkout code

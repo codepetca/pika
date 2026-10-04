@@ -63,9 +63,15 @@ begin
   where id = p_user_id
   for update;
 
+  -- The request may have waited for the user authority lock. Re-read the
+  -- wall clock before accepting its deadline or mutating older generations.
+  v_now := clock_timestamp();
+
   if not found
     or (p_purpose = 'signup' and v_password_hash is not null)
     or (p_purpose = 'reset_password' and v_password_hash is null)
+    or p_expires_at <= v_now
+    or p_expires_at > v_now + interval '1 hour'
   then
     return jsonb_build_object('ok', false);
   end if;
@@ -219,12 +225,22 @@ begin
   limit 1
   for update;
 
+  -- Both authority locks are now held. Expiry and the proposed handoff
+  -- deadline must be judged against this fresh clock, not function entry.
+  v_now := clock_timestamp();
+
   if not found
     or v_code.id is distinct from p_candidate_id
     or v_code.verification_generation is distinct from p_candidate_generation
     or v_code.used_at is not null
     or v_code.expires_at <= v_now
     or v_code.attempts >= p_max_attempts
+    or (
+      p_code_matched and (
+        p_handoff_expires_at <= v_now
+        or p_handoff_expires_at > v_now + interval '1 hour'
+      )
+    )
   then
     return jsonb_build_object('ok', false);
   end if;
@@ -318,9 +334,10 @@ security definer
 set search_path = ''
 as $function$
 declare
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz;
   v_user public.users%rowtype;
   v_code_id uuid;
+  v_handoff_expires_at timestamptz;
   v_credential_version bigint;
 begin
   if p_user_id is null
@@ -348,7 +365,7 @@ begin
     return null;
   end if;
 
-  select id into v_code_id
+  select id, handoff_expires_at into v_code_id, v_handoff_expires_at
   from public.verification_codes
   where user_id = p_user_id
     and purpose = 'signup'
@@ -356,7 +373,6 @@ begin
     and handoff_token_hash = p_handoff_token_hash
     and used_at is not null
     and handoff_consumed_at is null
-    and handoff_expires_at > v_now
     and verification_generation = (
       select max(latest.verification_generation)
       from public.verification_codes as latest
@@ -364,7 +380,14 @@ begin
     )
   for update;
 
-  if not found then
+  -- The code row may have been locked independently after the user lock.
+  -- Refresh time only after the complete authority set is held.
+  v_now := clock_timestamp();
+
+  if not found
+    or v_handoff_expires_at is null
+    or v_handoff_expires_at <= v_now
+  then
     return null;
   end if;
 
@@ -399,9 +422,10 @@ security definer
 set search_path = ''
 as $function$
 declare
-  v_now timestamptz := clock_timestamp();
+  v_now timestamptz;
   v_password_hash text;
   v_code_id uuid;
+  v_handoff_expires_at timestamptz;
   v_new_credential_version bigint;
 begin
   if p_user_id is null
@@ -423,7 +447,7 @@ begin
     return null;
   end if;
 
-  select id into v_code_id
+  select id, handoff_expires_at into v_code_id, v_handoff_expires_at
   from public.verification_codes
   where user_id = p_user_id
     and purpose = 'reset_password'
@@ -431,7 +455,6 @@ begin
     and handoff_token_hash = p_handoff_token_hash
     and used_at is not null
     and handoff_consumed_at is null
-    and handoff_expires_at > v_now
     and verification_generation = (
       select max(latest.verification_generation)
       from public.verification_codes as latest
@@ -439,7 +462,12 @@ begin
     )
   for update;
 
-  if not found then
+  v_now := clock_timestamp();
+
+  if not found
+    or v_handoff_expires_at is null
+    or v_handoff_expires_at <= v_now
+  then
     return null;
   end if;
 

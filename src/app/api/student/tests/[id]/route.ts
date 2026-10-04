@@ -30,6 +30,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
   const supabase = getServiceRoleClient()
 
   type AttemptRow = {
+    draft_revision: number
     responses: unknown
     is_submitted: boolean
     returned_at: string | null
@@ -42,13 +43,17 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
   {
     const attemptWithReturnResult = await supabase
       .from('test_attempts')
-      .select('responses, is_submitted, returned_at, closed_for_grading_at')
+      .select('responses, is_submitted, returned_at, closed_for_grading_at, draft_revision')
       .eq('test_id', testId)
       .eq('student_id', user.id)
       .maybeSingle()
 
     attempt = (attemptWithReturnResult.data as AttemptRow | null) || null
     attemptError = attemptWithReturnResult.error
+  }
+
+  if (attemptError && (attemptError.code === 'PGRST205' || ((attemptError.code === '42703' || attemptError.code === 'PGRST204') && `${attemptError.message ?? ''} ${attemptError.details ?? ''}`.includes('draft_revision')))) {
+    return NextResponse.json({ error: 'Test lifecycle migration 244 is required' }, { status: 503 })
   }
 
   if (
@@ -58,14 +63,14 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
   ) {
     const legacyAttemptResult = await supabase
       .from('test_attempts')
-      .select('responses, is_submitted')
+      .select('responses, is_submitted, draft_revision')
       .eq('test_id', testId)
       .eq('student_id', user.id)
       .maybeSingle()
 
     attempt = (legacyAttemptResult.data
       ? {
-          ...(legacyAttemptResult.data as { responses: unknown; is_submitted: boolean }),
+          ...(legacyAttemptResult.data as { responses: unknown; is_submitted: boolean; draft_revision: number }),
           returned_at: null,
           closed_for_grading_at: null,
         }
@@ -76,6 +81,10 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
   if (attemptError && attemptError.code !== 'PGRST205') {
     console.error('Error fetching student test attempt:', attemptError)
     return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
+  }
+
+  if (attempt && (!Number.isSafeInteger(attempt.draft_revision) || attempt.draft_revision < 1)) {
+    return NextResponse.json({ error: 'Unable to load the current Test revision' }, { status: 503 })
   }
 
   const draftResponses = normalizeTestResponses(attempt?.responses)
@@ -194,6 +203,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     questions: questions || [],
     student_status: studentStatus,
     student_responses: studentResponses,
+    draft_revision: attempt?.draft_revision ?? null,
     focus_summary: summarizeTestFocusEvents(focusEvents || []),
   })
 })

@@ -230,8 +230,8 @@ type TableOverrides = {
   >
   test_attempts: TableContract<
     'test_attempts',
-    { authenticity_flags: AuthenticityFlag[] | null },
-    { authenticity_flags?: AuthenticityFlag[] | null }
+    { authenticity_flags: AuthenticityFlag[] | null; draft_revision: number },
+    { authenticity_flags?: AuthenticityFlag[] | null; draft_revision?: number }
   >
   test_focus_events: TableContract<
     'test_focus_events',
@@ -279,6 +279,11 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  start_test_attempt_revision_atomic: { Args: { p_test_id: string; p_student_id: string }; Returns: Json }
+  save_test_attempt_revision_atomic: { Args: { p_test_id: string; p_student_id: string; p_responses: Json; p_expected_revision: number }; Returns: Json }
+  submit_test_attempt_revision_atomic: { Args: { p_test_id: string; p_student_id: string; p_responses: Json; p_expected_revision: number; p_submitted_at?: string }; Returns: Json }
+  return_test_attempts_checked_atomic: { Args: { p_test_id: string; p_student_ids: string[]; p_returned_by: string }; Returns: Json }
+
   // Installed239's optional cursor/subject/snapshot arguments accept SQLNULL.
   // Refine only their nullability while retaining genuine generated RPC keys.
   discover_retained_student_cleanup_groups: FunctionContract<
@@ -622,7 +627,7 @@ type FunctionOverrides = {
   >
   return_test_attempts_atomic: FunctionContract<
     'return_test_attempts_atomic',
-    { returned_count: number; updated_count: number; inserted_count: number }
+    { returned_count: number; already_returned_count: number; skipped_count: number; test_closed: false }
   >
   unsubmit_test_attempts_atomic: FunctionContract<
     'unsubmit_test_attempts_atomic',

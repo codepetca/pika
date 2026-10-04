@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, ConfirmDialog } from '@/ui'
+import { Button, ConfirmDialog, SaveStatus } from '@/ui'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import {
   DEFAULT_OPEN_RESPONSE_MAX_CHARS,
@@ -21,6 +21,7 @@ import type { TestAssessmentQuestion, TestResponseDraftValue } from '@/types'
 interface Props {
   testId: string
   questions: TestAssessmentQuestion[]
+  initialDraftRevision?: number | null
   initialResponses?: Record<string, number | TestResponseDraftValue> | TestResponses
   enableDraftAutosave?: boolean
   previewMode?: boolean
@@ -46,6 +47,7 @@ export function StudentTestForm({
   testId,
   questions,
   initialResponses,
+  initialDraftRevision,
   enableDraftAutosave = false,
   previewMode = false,
   isInteractionLocked = false,
@@ -64,6 +66,9 @@ export function StudentTestForm({
   const [responses, setResponses] = useState<TestResponses>(
     normalizeTestResponses(initialResponses)
   )
+  const [revisionConflict, setRevisionConflict] = useState(false)
+  const [showLoadSaved, setShowLoadSaved] = useState(false)
+  const [loadingSaved, setLoadingSaved] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -80,14 +85,12 @@ export function StudentTestForm({
   const pendingResponsesRef = useRef<TestResponses | null>(null)
   const lastSavedResponsesRef = useRef('')
   const lastSaveAttemptAtRef = useRef(0)
-  const saveRequestIdRef = useRef(0)
-  const latestSuccessfulSaveRequestIdRef = useRef(0)
+  const initializedTestIdRef = useRef<string | null>(null)
+  const draftScopeRef = useRef({ testId, revision: initialDraftRevision, conflicted: false, tail: Promise.resolve(true) })
 
   const allAnswered = questions.every((question) =>
     isCompleteTestResponseForQuestion(question, responses[question.id])
   )
-  const saveStatusLabel =
-    saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved' : 'Unsaved changes'
 
   const submitActions = (
     <div
@@ -98,7 +101,7 @@ export function StudentTestForm({
         <div className="space-y-1">
           {shouldAutosave && (
             <>
-              <p className="text-xs text-text-muted">{saveStatusLabel}</p>
+              <SaveStatus aria-hidden="true" status={revisionConflict ? 'error' : saveStatus} errorMessage="Save conflict" />
               <p
                 data-testid="student-test-autosave-status"
                 className="sr-only"
@@ -122,7 +125,7 @@ export function StudentTestForm({
               setShowConfirm(true)
             }
           }}
-          disabled={isInteractionLocked || !allAnswered || submitting}
+          disabled={isInteractionLocked || revisionConflict || !allAnswered || submitting || loadingSaved}
           className="w-full sm:min-w-[10rem] sm:w-auto"
         >
           Submit
@@ -132,13 +135,20 @@ export function StudentTestForm({
   )
 
   useEffect(() => {
+    // Background detail refreshes must never replace edits or reset a live CAS queue.
+    if (initializedTestIdRef.current === testId) return
+    initializedTestIdRef.current = testId
     const normalized = normalizeTestResponses(initialResponses)
+    draftScopeRef.current = { testId, revision: initialDraftRevision, conflicted: false, tail: Promise.resolve(true) }
+    setRevisionConflict(false)
+    setShowLoadSaved(false)
+    setError('')
     setResponses(normalized)
     pendingResponsesRef.current = normalized
     lastSavedResponsesRef.current = JSON.stringify(normalized)
     setSaveStatus('saved')
     setAutosaveAnnouncement('')
-  }, [initialResponses, testId])
+  }, [initialResponses, initialDraftRevision, testId])
 
   // Load and monitor flagged questions from localStorage
   useEffect(() => {
@@ -160,62 +170,98 @@ export function StudentTestForm({
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [testId])
 
-  const saveDraft = useCallback(async (
+  const saveDraft = useCallback((
     draftResponses: TestResponses,
     options?: { trigger?: 'autosave' | 'blur'; force?: boolean }
-  ) => {
-    if (!shouldAutosave) return
-
+  ): Promise<boolean> => {
+    if (!shouldAutosave) return Promise.resolve(true)
+    const scope = draftScopeRef.current
+    if (scope.testId !== testId || scope.conflicted) return Promise.resolve(false)
     const next = normalizeTestResponses(draftResponses)
     const serialized = JSON.stringify(next)
-    if (!options?.force && serialized === lastSavedResponsesRef.current) {
-      setSaveStatus('saved')
-      setAutosaveAnnouncement('')
-      return
-    }
-
-    setError('')
-    setSaveStatus('saving')
-    setAutosaveAnnouncement('Saving')
-    lastSaveAttemptAtRef.current = Date.now()
-    const requestId = ++saveRequestIdRef.current
-
-    const isLatestPendingDraft = () =>
-      pendingResponsesRef.current === null ||
-      serialized === JSON.stringify(pendingResponsesRef.current)
-
-    try {
-      const res = await fetch(`${apiBasePath}/${testId}/attempt`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          responses: next,
-          trigger: options?.trigger ?? 'autosave',
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to save draft')
-      }
-      if (requestId > latestSuccessfulSaveRequestIdRef.current) {
-        latestSuccessfulSaveRequestIdRef.current = requestId
+    const queued = scope.tail.then(async () => {
+      if (draftScopeRef.current !== scope || scope.conflicted) return false
+      if (!options?.force && serialized === lastSavedResponsesRef.current) return true
+      const isLatestPendingDraft = () => serialized === JSON.stringify(pendingResponsesRef.current)
+      setError('')
+      setSaveStatus('saving')
+      setAutosaveAnnouncement('Saving')
+      lastSaveAttemptAtRef.current = Date.now()
+      try {
+        if (!Number.isSafeInteger(scope.revision) || Number(scope.revision) < 1) {
+          throw new Error('Reload the test before saving. Your answers are still here.')
+        }
+        const res = await fetch(`${apiBasePath}/${testId}/attempt`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ responses: next, expected_revision: scope.revision, trigger: options?.trigger ?? 'autosave' }),
+        })
+        const data = await res.json()
+        if (draftScopeRef.current !== scope) return false
+        if (data.error_code === 'test_attempt_revision_conflict') {
+          scope.conflicted = true
+          setRevisionConflict(true)
+          setError('Saved answers changed in another tab. Your answers are still here. Load saved answers to continue.')
+          setSaveStatus('unsaved')
+          setAutosaveAnnouncement('Save conflict. Your answers are still here.')
+          return false
+        }
+        if (!res.ok) throw new Error(data.error || 'Failed to save draft')
+        const revision = data.attempt?.draft_revision
+        if (!Number.isSafeInteger(revision) || revision < 1) throw new Error('Unable to confirm the save. Reload the test before continuing.')
+        scope.revision = revision
         lastSavedResponsesRef.current = serialized
+        if (isLatestPendingDraft()) {
+          setSaveStatus('saved')
+          setAutosaveAnnouncement('Saved')
+        }
+        return true
+      } catch (saveError) {
+        if (draftScopeRef.current !== scope) return false
+        const message = saveError instanceof Error ? saveError.message : 'Failed to save draft'
+        if (isAssessmentAvailabilityError(message)) onAvailabilityLoss?.()
+        if (isLatestPendingDraft()) {
+          setError(message)
+          setSaveStatus('unsaved')
+          setAutosaveAnnouncement('Unsaved changes')
+        }
+        return false
       }
-      if (!isLatestPendingDraft()) return
-      setSaveStatus('saved')
-      setAutosaveAnnouncement('Saved')
-    } catch (saveError) {
-      console.error('Error saving test draft:', saveError)
-      const message = saveError instanceof Error ? saveError.message : 'Failed to save draft'
-      if (isAssessmentAvailabilityError(message)) {
-        onAvailabilityLoss?.()
-      }
-      if (!isLatestPendingDraft()) return
-      setError(message)
-      setSaveStatus('unsaved')
-      setAutosaveAnnouncement('Unsaved changes')
-    }
+    })
+    scope.tail = queued
+    return queued
   }, [apiBasePath, onAvailabilityLoss, testId, shouldAutosave])
+
+  async function loadSavedAnswers() {
+    const scope = draftScopeRef.current
+    setLoadingSaved(true)
+    try {
+      const res = await fetch(`${apiBasePath}/${testId}/attempt`, { cache: 'no-store' })
+      const data = await res.json()
+      if (draftScopeRef.current !== scope) return
+      const revision = data.attempt?.draft_revision
+      if (!res.ok || !Number.isSafeInteger(revision) || revision < 1) {
+        throw new Error(data.error || 'Unable to load saved answers. Your answers are still here.')
+      }
+      const saved = normalizeTestResponses(data.attempt.responses)
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+      if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
+      scope.revision = revision
+      scope.conflicted = false
+      pendingResponsesRef.current = saved
+      lastSavedResponsesRef.current = JSON.stringify(saved)
+      setResponses(saved)
+      setRevisionConflict(false)
+      setError('')
+      setSaveStatus('saved')
+      setAutosaveAnnouncement('Saved answers loaded')
+      setShowLoadSaved(false)
+    } catch (error) {
+      if (draftScopeRef.current === scope) setError(error instanceof Error ? error.message : 'Unable to load saved answers')
+    } finally {
+      if (draftScopeRef.current === scope) setLoadingSaved(false)
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -257,7 +303,7 @@ export function StudentTestForm({
   }, [AUTOSAVE_MIN_INTERVAL_MS, saveDraft, shouldAutosave])
 
   function handleOptionSelect(questionId: string, optionIndex: number) {
-    if (isInteractionLocked) return
+    if (isInteractionLocked || submitting || loadingSaved) return
     setResponses((prev) => {
       const next = normalizeTestResponses({
         ...prev,
@@ -282,7 +328,7 @@ export function StudentTestForm({
   }
 
   function handleOpenResponseChange(questionId: string, value: string, maxChars: number) {
-    if (isInteractionLocked) return
+    if (isInteractionLocked || submitting || loadingSaved) return
     const limited = value.slice(0, maxChars)
     setResponses((prev) => {
       const next = normalizeTestResponses({
@@ -312,7 +358,7 @@ export function StudentTestForm({
     questionId: string,
     maxChars: number
   ) {
-    if (isInteractionLocked) return
+    if (isInteractionLocked || submitting || loadingSaved) return
 
     const target = event.currentTarget
 
@@ -406,6 +452,7 @@ export function StudentTestForm({
   }
 
   async function handleSubmit() {
+    const scope = draftScopeRef.current
     setSubmitting(true)
     setError('')
     setPreviewSubmitMessage('')
@@ -417,7 +464,12 @@ export function StudentTestForm({
       }
 
       if (shouldAutosave) {
-        await saveDraft(responses, { trigger: 'blur', force: true })
+        const saved = await saveDraft(responses, { trigger: 'blur', force: true })
+        if (!saved) return
+      }
+      if (draftScopeRef.current !== scope) return
+      if (scope.conflicted || !Number.isSafeInteger(scope.revision) || Number(scope.revision) < 1) {
+        throw new Error('Reload the test before submitting. Your answers are still here.')
       }
 
       const res = await fetch(`${apiBasePath}/${testId}/respond`, {
@@ -425,9 +477,16 @@ export function StudentTestForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           responses,
+          expected_revision: scope.revision,
         }),
       })
       const data = await res.json()
+      if (draftScopeRef.current !== scope) return
+      if (data.error_code === 'test_attempt_revision_conflict') {
+        scope.conflicted = true
+        setRevisionConflict(true)
+        throw new Error('Saved answers changed in another tab. Your answers are still here. Load saved answers to continue.')
+      }
       if (!res.ok) {
         throw new Error(data.error || 'Failed to submit response')
       }
@@ -436,20 +495,23 @@ export function StudentTestForm({
       setFlaggedQuestions([])
       onSubmitted()
     } catch (err: any) {
+      if (draftScopeRef.current !== scope) return
       const message = err?.message || 'Failed to submit response'
       if (isAssessmentAvailabilityError(message)) {
         onAvailabilityLoss?.()
       }
       setError(message)
     } finally {
-      setSubmitting(false)
-      setShowConfirm(false)
-      setShowFlaggedWarning(false)
+      if (draftScopeRef.current === scope) {
+        setSubmitting(false)
+        setShowConfirm(false)
+        setShowFlaggedWarning(false)
+      }
     }
   }
 
   function handleToggleFlagged(questionId: string, questionNumber: number) {
-    if (isInteractionLocked) return
+    if (isInteractionLocked || submitting || loadingSaved) return
 
     const wasFlagged = isQuestionFlagged(testId, questionId)
     toggleFlaggedQuestion(testId, questionId)
@@ -499,7 +561,7 @@ export function StudentTestForm({
                       role="button"
                       aria-label={`Flag question ${index + 1} for review`}
                       aria-pressed={isFlagged}
-                      aria-disabled={isInteractionLocked}
+                      aria-disabled={isInteractionLocked || submitting || loadingSaved}
                       tabIndex={isInteractionLocked ? -1 : 0}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -538,7 +600,7 @@ export function StudentTestForm({
                         <textarea
                           aria-label={`Response for question ${index + 1}`}
                           value={openResponseText}
-                          disabled={isInteractionLocked}
+                          disabled={isInteractionLocked || submitting || loadingSaved}
                           onChange={(event) =>
                             handleOpenResponseChange(
                               question.id,
@@ -586,7 +648,7 @@ export function StudentTestForm({
                                 type="radio"
                                 name={`question-${question.id}`}
                                 checked={isSelected}
-                                disabled={isInteractionLocked}
+                                disabled={isInteractionLocked || submitting || loadingSaved}
                                 aria-label={option}
                                 onChange={() => handleOptionSelect(question.id, optionIndex)}
                                 className="peer absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 cursor-pointer opacity-0 disabled:cursor-not-allowed"
@@ -620,7 +682,8 @@ export function StudentTestForm({
               aria-live="assertive"
               aria-atomic="true"
             >
-              {error}
+              <p>{error}</p>
+              {revisionConflict && <Button variant="surface" className="mt-3" onClick={() => setShowLoadSaved(true)} disabled={loadingSaved}>Load saved answers</Button>}
             </div>
           )}
 
@@ -633,6 +696,18 @@ export function StudentTestForm({
           {submitActions}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showLoadSaved}
+        title="Load saved answers?"
+        description="This replaces the answers currently shown with the latest saved answers. Cancel to keep your current answers."
+        confirmLabel={loadingSaved ? 'Loading…' : 'Load saved answers'}
+        cancelLabel="Cancel"
+        isConfirmDisabled={loadingSaved}
+        isCancelDisabled={loadingSaved}
+        onCancel={() => setShowLoadSaved(false)}
+        onConfirm={loadSavedAnswers}
+      />
 
       <ConfirmDialog
         isOpen={showFlaggedWarning}

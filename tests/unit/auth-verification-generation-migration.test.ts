@@ -32,6 +32,33 @@ describe('authentication verification generation migration', () => {
     expect(migration).toContain('auth_credential_version is distinct from p_expected_credential_version')
   })
 
+  it('refreshes expiry authority only after the relevant locks are held', () => {
+    const issuance = migration.slice(
+      migration.indexOf('function public.issue_auth_verification_code_v1'),
+      migration.indexOf('function public.get_latest_auth_verification_code_v1'),
+    )
+    const finalization = migration.slice(
+      migration.indexOf('function public.finalize_auth_verification_attempt_v1'),
+      migration.indexOf('function public.inspect_latest_auth_handoff_v1'),
+    )
+    const signupConsume = migration.slice(
+      migration.indexOf('function public.consume_signup_password_handoff_v1'),
+      migration.indexOf('function public.consume_latest_password_reset_and_revoke_sessions_v1'),
+    )
+    const resetConsume = migration.slice(
+      migration.indexOf('function public.consume_latest_password_reset_and_revoke_sessions_v1'),
+      migration.indexOf('function public.consume_password_reset_and_revoke_sessions'),
+    )
+
+    expect(issuance).toMatch(/for update;[\s\S]*v_now := clock_timestamp\(\);[\s\S]*p_expires_at <= v_now/)
+    expect(finalization).toMatch(/limit 1\s+for update;[\s\S]*v_now := clock_timestamp\(\);[\s\S]*v_code\.expires_at <= v_now/)
+    for (const consumer of [signupConsume, resetConsume]) {
+      expect(consumer).toContain('select id, handoff_expires_at into v_code_id, v_handoff_expires_at')
+      expect(consumer).toMatch(/for update;[\s\S]*v_now := clock_timestamp\(\);[\s\S]*v_handoff_expires_at <= v_now/)
+      expect(consumer).not.toMatch(/handoff_consumed_at is null\s+and handoff_expires_at > v_now/)
+    }
+  })
+
   it('invalidates old codes and minted handoffs when issuing a new generation', () => {
     expect(migration).toMatch(/update public\.verification_codes[\s\S]*set used_at = coalesce\(used_at, v_now\)[\s\S]*handoff_consumed_at/)
   })
@@ -54,5 +81,18 @@ describe('authentication verification generation migration', () => {
     expect(harness).toContain('A superseded code minted a handoff.')
     expect(harness).toContain('A handoff minted before a resend remained current.')
     expect(harness).toContain('Wrong attempts exceeded the atomic limit.')
+    expect(harness).toContain('Expiring finalization was not observed waiting on the user lock.')
+    expect(harness).toContain('Expiring signup consume was not observed waiting on the user lock.')
+    expect(harness).toContain('Expiring reset consume was not observed waiting on the user lock.')
+    expect(harness).toContain('Finalization lock wait was not observed before code expiry.')
+    expect(harness).toContain('Signup consume lock wait was not observed before handoff expiry.')
+    expect(harness).toContain('Reset consume lock wait was not observed before handoff expiry.')
+    expect(harness).toContain('Refused signup consumption changed credentials or handoff state.')
+    expect(harness).toContain('Refused reset consumption changed credential, session, or handoff state.')
+    expect(harness).toContain('Direct signup password consumption did not succeed.')
+    expect(harness).toContain('Direct reset password consumption did not succeed.')
+    expect(harness).toContain('consume_signup_password_handoff_v1')
+    expect(harness).toContain('consume_latest_password_reset_and_revoke_sessions_v1')
+    expect(harness).toContain('AUTH_GENERATION_DB_PROJECT')
   })
 })

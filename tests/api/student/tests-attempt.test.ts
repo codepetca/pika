@@ -42,6 +42,7 @@ describe('PATCH /api/student/tests/[id]/attempt', () => {
         submitted_at: null,
         created_at: '2026-07-14T12:00:00.000Z',
         updated_at: '2026-07-14T12:00:00.000Z',
+        draft_revision: 2,
       },
       historyEntry: null,
     })
@@ -60,7 +61,7 @@ describe('PATCH /api/student/tests/[id]/attempt', () => {
     ['{', true, 'Invalid JSON body'],
     [null, false, 'Responses are required'],
     [{ responses: [] }, false, 'Responses are required'],
-    [{ responses: {}, trigger: 'submit' }, false, 'Invalid trigger'],
+    [{ expected_revision: 1, responses: {}, trigger: 'submit' }, false, 'Invalid trigger'],
   ])('rejects invalid request %#', async (body, raw, expectedError) => {
     const response = await PATCH(buildRequest(body, raw), routeContext)
 
@@ -71,6 +72,7 @@ describe('PATCH /api/student/tests/[id]/attempt', () => {
 
   it('normalizes the draft and telemetry before invoking the atomic workflow', async () => {
     const response = await PATCH(buildRequest({
+      expected_revision: 1,
       responses: { 'q-1': 1, 'q-2': 'Draft answer' },
       trigger: 'blur',
       paste_word_count: 2.6,
@@ -81,6 +83,7 @@ describe('PATCH /api/student/tests/[id]/attempt', () => {
     expect(saveStudentTestAttempt).toHaveBeenCalledWith({
       testId: '10000000-0000-4000-8000-000000000010',
       studentId: '10000000-0000-4000-8000-000000000002',
+      expectedRevision: 1,
       responses: {
         'q-1': { question_type: 'multiple_choice', selected_option: 1 },
         'q-2': { question_type: 'open_response', response_text: 'Draft answer' },
@@ -91,6 +94,21 @@ describe('PATCH /api/student/tests/[id]/attempt', () => {
     })
   })
 
+  it('returns the authoritative snapshot and revision on a stale write', async () => {
+    const attempt = {
+      id: '10000000-0000-4000-8000-000000000020',
+      test_id: '10000000-0000-4000-8000-000000000010',
+      student_id: '10000000-0000-4000-8000-000000000002',
+      responses: { q: { selected_option: 1 } }, is_submitted: false, submitted_at: null,
+      created_at: '2026-01-01', updated_at: '2026-01-01', draft_revision: 9,
+    }
+    vi.mocked(saveStudentTestAttempt).mockResolvedValueOnce({ ok: false, status: 409,
+      error: 'Reconcile answers', error_code: 'test_attempt_revision_conflict', attempt })
+    const response = await PATCH(buildRequest({ expected_revision: 7, responses: { q: 0 } }), routeContext)
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'Reconcile answers', error_code: 'test_attempt_revision_conflict', attempt })
+  })
+
   it('returns workflow errors', async () => {
     vi.mocked(saveStudentTestAttempt).mockResolvedValueOnce({
       ok: false,
@@ -98,7 +116,7 @@ describe('PATCH /api/student/tests/[id]/attempt', () => {
       error: 'Cannot edit a submitted test',
     })
 
-    const response = await PATCH(buildRequest({ responses: {} }), routeContext)
+    const response = await PATCH(buildRequest({ expected_revision: 1, responses: {} }), routeContext)
 
     expect(response.status).toBe(403)
     expect(await response.json()).toEqual({ error: 'Cannot edit a submitted test' })

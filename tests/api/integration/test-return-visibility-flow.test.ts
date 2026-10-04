@@ -7,7 +7,7 @@ import { POST as returnTeacherTest } from '@/app/api/teacher/tests/[id]/return/r
 
 type Role = 'student' | 'teacher'
 
-let currentUser: { id: string; role: Role } = { id: 'student-1', role: 'student' }
+let currentUser: { id: string; role: Role } = { id: '10000000-0000-4000-8000-000000000002', role: 'student' }
 
 const state = {
   tests: [
@@ -43,7 +43,7 @@ const state = {
       id: 'response-1',
       test_id: 'test-1',
       question_id: 'q-open-1',
-      student_id: 'student-1',
+      student_id: '10000000-0000-4000-8000-000000000002',
       selected_option: null,
       response_text: 'My explanation',
       score: 4,
@@ -55,7 +55,7 @@ const state = {
   testAttempts: [
     {
       test_id: 'test-1',
-      student_id: 'student-1',
+      student_id: '10000000-0000-4000-8000-000000000002',
       responses: {
         'q-open-1': {
           question_type: 'open_response',
@@ -63,6 +63,7 @@ const state = {
         },
       },
       is_submitted: true,
+      draft_revision: 7,
       submitted_at: '2026-03-05T11:30:00.000Z',
       returned_at: null as string | null,
       returned_by: null as string | null,
@@ -71,7 +72,7 @@ const state = {
   classroomEnrollments: [
     {
       classroom_id: 'classroom-1',
-      student_id: 'student-1',
+      student_id: '10000000-0000-4000-8000-000000000002',
     },
   ],
   testStudentAvailability: [] as Array<{
@@ -143,46 +144,26 @@ function setupSupabaseMock() {
         error: null,
       }
     }
-    if (fnName === 'return_test_attempts_atomic') {
+    if (fnName === 'return_test_attempts_checked_atomic') {
       const testId = params?.p_test_id
-      const studentIds = params?.p_student_ids || []
-      const returnedBy = params?.p_returned_by
-      const submittedAtByStudent = params?.p_submitted_at_by_student || {}
-      const returnedAt = new Date().toISOString()
-      let updatedCount = 0
-      let insertedCount = 0
-
+      const studentIds: string[] = params?.p_student_ids || []
+      const test = state.tests.find((row) => row.id === testId)
+      if (studentIds.some((studentId) => (state.testStudentAvailability.find((access) => access.test_id === testId && access.student_id === studentId)?.state ?? (test?.status === 'active' ? 'open' : 'closed')) === 'open')) {
+        return { data: null, error: { code: '40001', message: 'Close selected students before returning their test work.' } }
+      }
+      let returned = 0
+      let already = 0
+      let skipped = 0
       for (const studentId of studentIds) {
-        const attempt = state.testAttempts.find(
-          (row) => row.test_id === testId && row.student_id === studentId
-        )
-        if (attempt) {
-          attempt.returned_at = returnedAt
-          attempt.returned_by = returnedBy
-          updatedCount += 1
-          continue
-        }
-
-        state.testAttempts.push({
-          test_id: testId,
-          student_id: studentId,
-          responses: {},
-          is_submitted: true,
-          submitted_at: submittedAtByStudent[studentId] || returnedAt,
-          returned_at: returnedAt,
-          returned_by: returnedBy,
-        })
-        insertedCount += 1
+        const attempt = state.testAttempts.find((row) => row.test_id === testId && row.student_id === studentId)
+        const complete = state.testQuestions.filter((question) => question.test_id === testId).every((question) => state.testResponses.some((response) => response.question_id === question.id && response.student_id === studentId && Number.isFinite(response.score)))
+        if (!attempt?.is_submitted || !complete) { skipped += 1; continue }
+        if (attempt.returned_at) { already += 1; continue }
+        attempt.returned_at = new Date().toISOString()
+        attempt.returned_by = params?.p_returned_by
+        returned += 1
       }
-
-      return {
-        data: {
-          returned_count: updatedCount + insertedCount,
-          updated_count: updatedCount,
-          inserted_count: insertedCount,
-        },
-        error: null,
-      }
+      return { data: { returned_count: returned, already_returned_count: already, skipped_count: skipped, test_closed: false }, error: null }
     }
     throw new Error(`Unexpected RPC: ${fnName}`)
   })
@@ -437,7 +418,7 @@ function setupSupabaseMock() {
 describe('Test Return Visibility Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    currentUser = { id: 'student-1', role: 'student' }
+    currentUser = { id: '10000000-0000-4000-8000-000000000002', role: 'student' }
     state.tests[0].status = 'closed'
     state.testAttempts[0].returned_at = null
     state.testAttempts[0].returned_by = null
@@ -473,7 +454,7 @@ describe('Test Return Visibility Integration', () => {
     const returnResponse = await returnTeacherTest(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
         method: 'POST',
-        body: JSON.stringify({ student_ids: ['student-1'] }),
+        body: JSON.stringify({ student_ids: ['10000000-0000-4000-8000-000000000002'] }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
@@ -482,7 +463,7 @@ describe('Test Return Visibility Integration', () => {
     expect(returnData.returned_count).toBe(1)
     expect(state.testAttempts[0].returned_at).not.toBeNull()
 
-    currentUser = { id: 'student-1', role: 'student' }
+    currentUser = { id: '10000000-0000-4000-8000-000000000002', role: 'student' }
     const listAfter = await getStudentTests(
       new NextRequest('http://localhost:3000/api/student/tests?classroom_id=classroom-1')
     )
@@ -516,7 +497,7 @@ describe('Test Return Visibility Integration', () => {
     const returnWithoutClose = await returnTeacherTest(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
         method: 'POST',
-        body: JSON.stringify({ student_ids: ['student-1'] }),
+        body: JSON.stringify({ student_ids: ['10000000-0000-4000-8000-000000000002'] }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
@@ -527,13 +508,13 @@ describe('Test Return Visibility Integration', () => {
     expect(state.testAttempts[0].returned_at).toBeNull()
 
     state.testStudentAvailability = [
-      { test_id: 'test-1', student_id: 'student-1', state: 'closed' },
+      { test_id: 'test-1', student_id: '10000000-0000-4000-8000-000000000002', state: 'closed' },
     ]
 
     const returnAfterSelectedClose = await returnTeacherTest(
       new NextRequest('http://localhost:3000/api/teacher/tests/test-1/return', {
         method: 'POST',
-        body: JSON.stringify({ student_ids: ['student-1'] }),
+        body: JSON.stringify({ student_ids: ['10000000-0000-4000-8000-000000000002'] }),
       }),
       { params: Promise.resolve({ id: 'test-1' }) }
     )
@@ -543,7 +524,7 @@ describe('Test Return Visibility Integration', () => {
     expect(state.tests[0].status).toBe('active')
     expect(state.testAttempts[0].returned_at).not.toBeNull()
 
-    currentUser = { id: 'student-1', role: 'student' }
+    currentUser = { id: '10000000-0000-4000-8000-000000000002', role: 'student' }
     const listAfter = await getStudentTests(
       new NextRequest('http://localhost:3000/api/student/tests?classroom_id=classroom-1')
     )

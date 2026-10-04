@@ -14,9 +14,15 @@ vi.mock('@/lib/auth', () => authMocks)
 vi.mock('@/lib/crypto', () => ({ hashHandoffToken: (token: string) => `hashed_${token}`, hashPassword: cryptoMocks.hashPassword }))
 
 import { POST } from '@/app/api/auth/reset-password/confirm/route'
+import { ApiError } from '@/lib/api-handler'
 
 const body = { email: 'user@example.com', password: 'Password123', passwordConfirmation: 'Password123', handoffToken: HANDOFF }
-const request = (headers: Record<string, string> = { 'content-type': 'application/json' }) => new NextRequest('http://localhost:3000/api/auth/reset-password/confirm', { method: 'POST', headers, body: JSON.stringify(body) })
+const request = (
+  headers: Record<string, string> = { 'content-type': 'application/json' },
+  payload: Record<string, unknown> = body,
+) => new NextRequest('http://localhost:3000/api/auth/reset-password/confirm', {
+  method: 'POST', headers, body: JSON.stringify(payload),
+})
 const validHandoff = { user_id: '10000000-0000-4000-8000-000000000001', email: 'user@example.com', role: 'student', generation: 4, credential_version: 3, email_verified: true, password_set: true }
 
 describe('POST /api/auth/reset-password/confirm', () => {
@@ -36,6 +42,27 @@ describe('POST /api/auth/reset-password/confirm', () => {
     expect((await POST(request(headers))).status).toBe(status)
     expect(generationMocks.inspectLatestAuthHandoff).not.toHaveBeenCalled()
     expect(cryptoMocks.hashPassword).not.toHaveBeenCalled()
+  })
+
+  for (const [name, payload] of [
+    ['malformed email', { ...body, email: 'invalid' }],
+    ['missing handoff', { email: body.email, password: body.password, passwordConfirmation: body.password }],
+    ['mismatched confirmation', { ...body, passwordConfirmation: 'DifferentPassword' }],
+  ] as const) it(`rejects ${name} before auth work`, async () => {
+    expect((await POST(request(undefined, payload))).status).toBe(400)
+    expect(rateLimitMocks.consumeAuthRequestRateLimits).not.toHaveBeenCalled()
+    expect(generationMocks.inspectLatestAuthHandoff).not.toHaveBeenCalled()
+    expect(cryptoMocks.hashPassword).not.toHaveBeenCalled()
+    expect(authMocks.createSession).not.toHaveBeenCalled()
+  })
+
+  it('applies the confirmation limiter before handoff or password work', async () => {
+    rateLimitMocks.consumeAuthRequestRateLimits.mockRejectedValueOnce(new ApiError(429, 'slow down'))
+    expect((await POST(request())).status).toBe(429)
+    expect(generationMocks.inspectLatestAuthHandoff).not.toHaveBeenCalled()
+    expect(generationMocks.consumeLatestPasswordReset).not.toHaveBeenCalled()
+    expect(cryptoMocks.hashPassword).not.toHaveBeenCalled()
+    expect(authMocks.createSession).not.toHaveBeenCalled()
   })
 
   it('rejects a stale handoff before password hashing', async () => {

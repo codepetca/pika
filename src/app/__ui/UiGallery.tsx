@@ -61,6 +61,7 @@ import { RichTextEditor, RichTextViewer } from '@/components/editor'
 import type { HistoryPreviewMode } from '@/hooks/useHistoryPreviewViewport'
 import { buildAssignmentHistoryPreview } from '@/lib/assignment-doc-history'
 import { TeacherPatterns } from './TeacherPatterns'
+import { StudentTestAttemptPattern } from './StudentTestAttemptPattern'
 import { StudentTestListItem } from '@/components/StudentTestListItem'
 import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import { StatusPatterns } from './StatusPatterns'
@@ -649,6 +650,7 @@ export function UiGallery({ role }: Props) {
               <StudentTestExamples />
             </PatternSection>
 
+            <StudentTestAttemptPattern />
             {role === 'student' ? <StudentImageUploadGallery /> : null}
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />

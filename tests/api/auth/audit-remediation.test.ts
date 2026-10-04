@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
   code: null as CodeState | null,
   verifyBarrier: null as Promise<void> | null,
   verifyCount: 0,
+  verifyHashes: [] as string[],
   hashBarrier: null as Promise<void> | null,
   hashCount: 0,
   passwordWrites: [] as string[],
@@ -31,6 +32,7 @@ vi.mock('@/lib/server/auth-rate-limit', () => ({ consumeAuthRequestRateLimits: v
 vi.mock('@/lib/crypto', () => ({
   verifyCode: vi.fn(async (code: string, hash: string) => {
     state.verifyCount++
+    state.verifyHashes.push(hash)
     if (state.verifyBarrier) await state.verifyBarrier
     return code === hash
   }),
@@ -88,6 +90,8 @@ const supabase = {
       const valid = current?.generation === args.p_generation
         && current.handoff_token_hash === args.p_handoff_token_hash
         && current.handoff_consumed_at === null
+        && Date.parse(current.handoff_expires_at || '') > Date.now()
+        && Boolean(state.user.email_verified_at)
         && !state.user.password_hash
         && state.user.auth_credential_version === args.p_expected_credential_version
       if (!valid) return { data: null, error: null }
@@ -101,6 +105,8 @@ const supabase = {
       const valid = current?.generation === args.p_generation
         && current.handoff_token_hash === args.p_handoff_token_hash
         && current.handoff_consumed_at === null
+        && Date.parse(current.handoff_expires_at || '') > Date.now()
+        && Boolean(state.user.password_hash)
       if (!valid) return { data: null, error: null }
       current!.handoff_consumed_at = new Date().toISOString()
       state.user.password_hash = args.p_password_hash
@@ -116,7 +122,9 @@ vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => supabase }))
 import { POST as verifySignup } from '@/app/api/auth/verify-signup/route'
 import { POST as verifyReset } from '@/app/api/auth/reset-password/verify/route'
 import { POST as createPassword } from '@/app/api/auth/create-password/route'
+import { POST as confirmReset } from '@/app/api/auth/reset-password/confirm/route'
 import { POST as login } from '@/app/api/auth/login/route'
+import { DUMMY_AUTH_BCRYPT_HASH } from '@/lib/server/auth-response'
 
 const request = (path: string, body: Record<string, unknown> | string, headers: Record<string, string> = {}) => new NextRequest(
   `http://localhost:3000/api/auth/${path}`,
@@ -134,6 +142,7 @@ async function waitFor(predicate: () => boolean) {
 beforeEach(() => {
   state.user = { id: USER_ID, email: 'user@example.com', role: 'student', password_hash: null, email_verified_at: null, auth_credential_version: 1 }
   state.code = code(); state.verifyBarrier = null; state.verifyCount = 0; state.hashBarrier = null; state.hashCount = 0
+  state.verifyHashes = []
   state.passwordWrites = []; state.sessions = []
   vi.clearAllMocks()
 })
@@ -164,6 +173,34 @@ for (const [purpose, handler] of [['signup', verifySignup], ['reset_password', v
   })
 }
 
+for (const [purpose, handler, path] of [
+  ['signup', verifySignup, 'verify-signup'],
+  ['reset_password', verifyReset, 'reset-password/verify'],
+] as const) {
+  for (const candidateState of ['wrong', 'expired', 'used', 'exhausted', 'missing'] as const) {
+    it(`${purpose}: ${candidateState} code has the same helper-backed refusal`, async () => {
+      if (purpose === 'reset_password') state.user.password_hash = 'existing'
+      if (candidateState === 'expired') state.code!.expires_at = new Date(Date.now() - 1).toISOString()
+      if (candidateState === 'used') state.code!.used_at = new Date().toISOString()
+      if (candidateState === 'exhausted') state.code!.attempts = 5
+      if (candidateState === 'missing') state.code = null
+
+      const response = await handler(request(path, {
+        email: 'user@example.com',
+        code: candidateState === 'wrong' ? 'ZZZ99' : 'ABC12',
+      }))
+
+      expect(response.status).toBe(401)
+      expect(await response.text()).toBe('{"error":"Invalid email or code"}')
+      expect(state.verifyHashes).toEqual([
+        candidateState === 'wrong' ? 'ABC12' : DUMMY_AUTH_BCRYPT_HASH,
+      ])
+      expect(state.code?.handoff_token_hash).toBeFalsy()
+      expect(state.code?.attempts ?? 0).toBe(candidateState === 'wrong' ? 1 : candidateState === 'exhausted' ? 5 : 0)
+    })
+  }
+}
+
 it('a resend invalidates an already minted signup handoff before password hashing', async () => {
   expect((await verifySignup(request('verify-signup', { email: 'user@example.com', code: 'ABC12' }))).status).toBe(200)
   state.code = code(2)
@@ -191,6 +228,63 @@ it('two sibling confirmations create exactly one password and session', async ()
   expect(state.passwordWrites).toHaveLength(1)
   expect(state.sessions).toHaveLength(1)
 })
+
+type ConfirmationPurpose = 'signup' | 'reset_password'
+function prepareHandoff(purpose: ConfirmationPurpose) {
+  state.user.password_hash = purpose === 'signup' ? null : 'existing'
+  state.user.email_verified_at = new Date().toISOString()
+  state.code = {
+    ...code(), used_at: new Date().toISOString(), handoff_token_hash: HANDOFF_HASH,
+    handoff_expires_at: new Date(Date.now() + 60_000).toISOString(), handoff_consumed_at: null,
+  }
+}
+function confirm(purpose: ConfirmationPurpose, suffix = '3') {
+  const password = `Password12${suffix}`
+  const handoffToken = 'handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'
+  return purpose === 'signup'
+    ? createPassword(request('create-password', {
+        email: 'user@example.com', password, passwordConfirmation: password, handoffToken,
+      }))
+    : confirmReset(request('reset-password/confirm', {
+        email: 'user@example.com', password, passwordConfirmation: password, handoffToken,
+      }))
+}
+
+for (const purpose of ['signup', 'reset_password'] as const) {
+  for (const race of ['expiry', 'account', 'consumed'] as const) {
+    it(`${purpose}: ${race} changing during password hashing rejects confirmation`, async () => {
+      prepareHandoff(purpose)
+      let release!: () => void
+      state.hashBarrier = new Promise(resolve => { release = resolve })
+      const pending = confirm(purpose)
+      await waitFor(() => state.hashCount === 1)
+      if (race === 'expiry') state.code!.handoff_expires_at = new Date(Date.now() - 1).toISOString()
+      if (race === 'consumed') state.code!.handoff_consumed_at = new Date().toISOString()
+      if (race === 'account') {
+        if (purpose === 'signup') state.user.password_hash = 'external-winner'
+        else state.user.password_hash = null
+      }
+      release()
+
+      expect((await pending).status).toBe(401)
+      expect(state.passwordWrites).toHaveLength(0)
+      expect(state.sessions).toHaveLength(0)
+    })
+  }
+
+  it(`${purpose}: sibling confirmations racing during hashing produce one winner`, async () => {
+    prepareHandoff(purpose)
+    let release!: () => void
+    state.hashBarrier = new Promise(resolve => { release = resolve })
+    const pending = [confirm(purpose, '4'), confirm(purpose, '5')]
+    await waitFor(() => state.hashCount === 2)
+    release()
+
+    expect((await Promise.all(pending)).map(response => response.status).sort()).toEqual([200, 401])
+    expect(state.passwordWrites).toHaveLength(1)
+    expect(state.sessions).toHaveLength(1)
+  })
+}
 
 it('rejects a foreign-origin simple-form login before credential work', async () => {
   state.user.password_hash = 'hash_Password123'
