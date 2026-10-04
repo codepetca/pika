@@ -45,7 +45,7 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
   let phase:'not-started'|'validate'|'guard'|'dispatch'|'decode'|'complete'='not-started'
   let operation:'unknown'|'assignment-read'|'open-rpc'|'other-rpc'|'storage'|'signed-read'='unknown'
   let status:'unobserved'|'success'|'error'='unobserved'
-  let code='none';let appSignal:AbortSignal|null|undefined;let guardMs=0
+  let code='none';let appSignal:AbortSignal|null|undefined;let guardMs:number|undefined
   const knownCodes=new Set(['PGRST200','PGRST201','PGRST204','PGRST202','PGRST116','23514','23502','23503','23505','42501','P0002','22023','40001'])
   const paths = () => f.objects.filter(o=>f.assignments[o.index].docId || documents.has(f.assignments[o.index].id))
     .map(o=>({object:o,path:integratedObjectPath(f,documents,o)}))
@@ -98,7 +98,7 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
   }
   const safeFetch:typeof fetch=async(resource,init)=>{
     try {
-      phase='validate';operation='unknown';status='unobserved';code='none';guardMs=0;appSignal=init?.signal
+      phase='validate';operation='unknown';status='unobserved';code='none';guardMs=undefined;appSignal=init?.signal
       // Request objects could conceal a second body/credential source; SDK uses strings.
       assert(!(resource instanceof Request))
       const url=new URL(String(resource)); const method=init?.method??'GET'
@@ -160,7 +160,8 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
       }
       assert(++counts.network<=INTEGRATED_CAPS.networkRequests)
       if(url.pathname.startsWith('/storage/')) assert(++counts.storage<=INTEGRATED_CAPS.storageRequests)
-      phase='guard';const guardStarted=Date.now();await guard();guardMs=Math.max(0,Date.now()-guardStarted)
+      phase='guard';const guardStarted=Date.now()
+      try {await guard()}finally {guardMs=Math.max(0,Date.now()-guardStarted)}
       const timeout=AbortSignal.timeout(INTEGRATED_CAPS.requestMs)
       phase='dispatch'
       const response=await original(resource,{...init,redirect: 'error',signal:init?.signal?AbortSignal.any([timeout,init.signal]):timeout})
@@ -191,7 +192,7 @@ export function createIntegratedTransport(f:IntegratedLearnerFixture, documents:
     } catch { throw new Error('Integrated transport rejected; private details withheld') }
   }
   return { target, fetch:safeFetch, counts, readContext, planRpc, registerSignedUrl,
-    diagnostic() {const time=guardMs<1000?'under-1s':guardMs<5000?'under-5s':guardMs<15000?'under-15s':'at-least-15s'
+    diagnostic() {const time=guardMs===undefined?'unobserved':guardMs<1000?'under-1s':guardMs<5000?'under-5s':guardMs<15000?'under-15s':'at-least-15s'
       return `DIAG integrated transport phase=${phase} operation=${operation} status=${status} code=${code} aborted=${appSignal?.aborted===true} guard=${time} requests=${counts.network} rpc=${counts.rpc}.\n`},
     takeCreatedReceipt(assignmentId:string) { const receipt=createdReceipts.get(assignmentId);assert(receipt);createdReceipts.delete(assignmentId);return receipt },
     assertNoPendingRpc(){assert(!rpc)} }

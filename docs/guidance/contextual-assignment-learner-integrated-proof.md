@@ -103,6 +103,12 @@ identities, credentials or URLs, change dispatch, expand bounds or extend app
 deadlines. Two new offline regressions failed before implementation;36 new and163
 related checks now pass. Targeted review precedes another justified disposable run.
 
+Fourth targeted review found a receipt blocker before execution: reset-to-zero
+guard timing falsely implied a subsecond duration for validation failure or a
+rejected guard. Track unobserved timing explicitly and record elapsed guard time
+in `finally`; two failing regressions cover both paths before correction. This
+does not change guard enforcement or extend a deadline. Runtime still pending.
+
 Both historical member-role labels: real SDK open creates one own document and
 persists first view; repeat returns the same ID/false without duplication. Existing
 unviewed/returned documents exercise view without creation and preserve protected

@@ -1070,3 +1070,10 @@ allowlistederrorcode/aborted signal/timebucket/count diagnostics;2RED34PASS→36
 163related/ESLint/auditPASS. No underlyingprivatevalues or native/appguard/deadline
 changes. Humanexplicitreviewextension recorded13:46:45 original10:46:45 retained;
 4thbatch/targetreview before justifiedretry;production/admission/cutover untouched.
+
+FourthtargetSolreview blocks misleading reset-to-zero guardduration receipt;
+no runtime retry. Fifthbatch only undefined/unobserved timing plus finallyelapsed
+and2regressions(2RED36PASS beforefix), fixed labels/no enforcement/deadline changes.
+Explicituserextension13:46:45 keepsoriginalclock/counters/hardcaps;targetthen
+actualruntime/finalintegration required. Root offline mockedSDK realopen+transport
+10dispatchesPASS/no networkSQL;doesnot establishexclusiveactualfailurecause.

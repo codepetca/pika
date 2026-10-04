@@ -64,6 +64,22 @@ function fixture() {
   return {original,f,documents,projectId,target,headers,guard,fetcher,transport}
 }
 describe('finite integrated fixture and real transport boundary',()=>{
+  it('marks guard timing unobserved when validation rejects before guard entry',async()=>{
+    const x=fixture()
+    await expect(x.transport.fetch('https://unrelated.invalid',{headers:x.headers})).rejects.toThrow('private details withheld')
+    expect(x.transport.diagnostic()).toContain('phase=validate');expect(x.transport.diagnostic()).toContain('guard=unobserved')
+    expect(x.guard).not.toHaveBeenCalled();expect(x.fetcher).not.toHaveBeenCalled()
+  })
+  it('records elapsed guard timing even when a delayed guard rejects',async()=>{
+    const x=fixture();const a=x.f.assignments[0];x.transport.readContext(a.id,a.actorId)
+    let now=1000;const clock=vi.spyOn(Date,'now').mockImplementation(()=>now)
+    try {
+      x.guard.mockImplementationOnce(async()=>{now+=16000;throw new Error('SECRET delayed guard')})
+      await expect(x.transport.fetch(`${x.target.API_URL}/rest/v1/assignments?id=eq.${a.id}&select=id`,{headers:x.headers})).rejects.toThrow('private details withheld')
+      expect(x.transport.diagnostic()).toContain('phase=guard');expect(x.transport.diagnostic()).toContain('guard=at-least-15s')
+      expect(x.fetcher).not.toHaveBeenCalled();expect(x.transport.diagnostic()).not.toContain('SECRET')
+    }finally {clock.mockRestore()}
+  })
   it('reports a closed transport phase and known API error code without response bodies or identities',async()=>{
     const x=fixture();const a=x.f.assignments[0];x.transport.readContext(a.id,a.actorId)
     const url=`${x.target.API_URL}/rest/v1/assignments?id=eq.${a.id}&select=id`
