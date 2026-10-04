@@ -36751,3 +36751,25 @@ Prepared-base audit7files PASS; diff/full preservation PASS: Guide8/incoming45,
 original full bodies retained. Evidence/private verifier:
 /private/tmp/pika-guide-prepared-removal.UOmGQg; focused pika-focused-AaWC7U.
 This prepared dependency state is not ready/merged/activated.
+
+<!-- pika-session-log-archive-batch:00970462b9a4a26dec87cb0a2cf6711ec7da60791e62a9d4863c279b2a47a0c7 -->
+## 2026-10-03 — Course Guide prepared detail-parent reconciliation
+
+Prepared unchanged Guide61 onto frozen PENDING1447 detail a653d0ac using old
+reviewed88 parent; NOT actual detail main. Actual1448 merged73a85f26 matches88
+tree, all5CI37143487206 passed18:43:24/merged18:43:41; detail1447 remains draft
+and its changed-base review/CI are root-owned. Incoming detail/73 source, whole
+158-step parent CI plus the original Guide step, whole incoming CI-unit file,
+immutable001–238 and genuine generated40d/curated3cf are preserved. All8 Guide
+files remain byte-exactbd0. Prior prepared88 receipt and every full historical
+body/multiplicity retained: a653+61−88 plus this one receipt, official40 trim.
+No DB/status/runtime proofs/types/SQL/provider/network/publication/review/CI work.
+Root owns actual detail-squash reconciliation and later ONE changed-base review.
+Original16:28:17→19:28:17 ledger/7launch3target1final3fix unchanged; DeepSeek paused,
+sharedadmission/fullcutover/billing/production OFF. Explicit pending-parent focused
+219tests/15files and architecture/UI/design/TypeScript/lint PASS. Startup/env PASS;
+startup/Bara47PASS including16000cap; prepared-base audit7 PASS. Full preservation,
+diff and official trim PASS: Guide8/incoming11, whole parent158CI plus Guide,
+2101historical entries/recent40; two inherited bodies restored, none discarded.
+Evidence/verifier: /private/tmp/pika-guide-prepared-detail.hL07Ah;
+focused pika-focused-YJl0c9. Prepared state is not reviewed/ready/merged/activated.

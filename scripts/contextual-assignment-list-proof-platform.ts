@@ -13,7 +13,7 @@ import { ApiError } from '../src/lib/api-error'
 import { readContextualAssignmentList } from '../src/lib/server/contextual-assignment-list-read'
 import { containedAssignmentListProofFetch } from './check-contextual-assignment-list-reads'
 import { observeAssignmentListRevocation, assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
-import { validateAssignmentListEphemeralIdentity } from './contextual-assignment-list-proof-lifecycle'
+import { validateAssignmentListEphemeralIdentity, validateAssignmentListMigrationChain } from './contextual-assignment-list-proof-lifecycle'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import type { AssignmentListLifecycleAdapters, AssignmentListResource } from './contextual-assignment-list-proof-lifecycle'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
@@ -179,9 +179,12 @@ async function databaseSnapshot(projectId: string, rows: boolean) {
   return { tables, metadata: JSON.stringify(metadata), cron: JSON.stringify(lines.find(row => row.cron)?.cron ?? []) }
 }
 export function loadAssignmentListReviewedMigrations(repository: string) {
-  const folder = join(repository, 'supabase/migrations'); const names = readdirSync(folder).filter(name => /^\d{3}_.*\.sql$/.test(name)).sort()
-  assert.equal(names.length, 243)
-  return names.map((name, n) => { assert(name.startsWith(`${String(n + 1).padStart(3, '0')}_`)); const content = readFileSync(join(folder, name), 'utf8'); return { name, sql: content, sha256: sha(content) } })
+  // Entry points bind this inventory to an exact reviewed HEAD and clean root.
+  // Select every SQL file; a malformed extra must fail, never disappear in a filter.
+  const folder = join(repository, 'supabase/migrations'); const names = readdirSync(folder).filter(name => name.endsWith('.sql')).sort()
+  const migrations = names.map(name => { const content = readFileSync(join(folder, name), 'utf8'); return { name, sql: content, sha256: sha(content) } })
+  validateAssignmentListMigrationChain(migrations)
+  return migrations
 }
 
 /** No database/resources exist yet. Partial writes remain exclusively ours. */

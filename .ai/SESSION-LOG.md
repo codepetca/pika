@@ -1201,3 +1201,17 @@ source guards updated to match that projection/discard while preserving their
 security assertions;27 tests/3files pass. Independent review/focused checks and
 actual warning-free ephemeral CI remain gates. No local migration reapplication
 or fixture execution; prior approved manifests/runtime source identities remain.
+
+## 2026-10-04 — Audit shared SDK proof migration inventory
+
+Final ephemeral CI found two exact243 checks rejecting the reviewed001–246
+chain before any platform adapter. One shared pure validator now requires the
+complete243 baseline and ordered contiguous numbered SQL with exact hashes;
+the loader selects every SQL file and rejects malformed extras. Complete243,
+246 and247 inventories pass; gaps, duplicates, order/hash errors and short
+baselines refuse before any adapter. Prepared-copy mismatches refuse before
+startup or fixture writes. Reviewed-HEAD/clean-root, target identities, resource
+inventory, settings and cleanup guards remain.634 tests/54files and all focused
+source gates pass. Independent targeted review and final ephemeral CI remain.
+Migrations244–246 unchanged from e905; older approved local manifests and
+runtime receipts retain their actual source/target. No new local execution.

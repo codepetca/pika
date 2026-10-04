@@ -16,7 +16,7 @@ export function validateAssignmentListEphemeralIdentity(input: { projectId: stri
 
 export function assignmentListCanonicalFingerprintSql() {
   // query_to_xml executes only generated SELECTs; no temp function or DDL is
-  // needed in the canonical read-only session. Root may use reviewed243 SQL.
+  // needed in the canonical read-only session. Root binds the reviewed chain.
   return `select coalesce(jsonb_object_agg(n.nspname||'.'||c.relname,
 query_to_xml(format('select count(*) as count,md5(coalesce(string_agg(md5(to_jsonb(r)::text),'''' order by md5(to_jsonb(r)::text)),'''')) as digest from %I.%I r',n.nspname,c.relname),true,false,'')::text
 order by n.nspname,c.relname),'{}'::jsonb)
@@ -63,7 +63,7 @@ enable_signup = false
     reviewRequirements: [
       'Root records whole public/private/storage row counts+digests, immutable168 guard definition/state, persisted Pal/cleanup settings and scheduler configuration on canonical pika before any isolated operation.',
       'Root proves no containers or named volumes already belong to the freshly allocated project; records exact canonical container and volume IDs. Abort on collision; no adoption of existing resources.',
-      'Root creates only the exact empty private/tmp workdir, copies reviewed immutable001243 migration source there, verifies source digests, writes the isolated config, and never copies .env.local or links canonical state.',
+      'Root creates only the exact empty private/tmp workdir, copies the complete migration chain from the reviewed clean HEAD (at least001243), verifies source digests, writes the isolated config, and never copies .env.local or links canonical state.',
       'Root discovers installed CLI help and reviews its exact start/replay command. Checked-in CI uses supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector; do not assume unknown CLI flags. No canonical reset/push/status retargeting.',
       'Capture exact fresh project-labelled container IDs, Docker network and created named volumes immediately after launch, including ambiguous launch responses. Status must report only54331/54332 and local demo credentials. All writes and fetches bind these exact identities.',
       'Persisted Pal membership/classroom capture and automatic/provider/live student cleanup must be OFF before fixtures. Inspect cron.job; abort if any active scheduler can issue network/provider callbacks. Never change settings or weaken168 guards to make the proof pass.',
@@ -89,6 +89,18 @@ export type AssignmentListResource = {
 }
 type Inventory = { resources: AssignmentListResource[]; occupiedPorts: number[]; workdirExists: boolean }
 type Migration = { name: string; sql: string; sha256: string }
+/** Validate the complete reviewed source chain before any adapter operation.
+ * 243 is the required foundation, not a cutoff for later reviewed migrations.
+ */
+export function validateAssignmentListMigrationChain(migrations: readonly Migration[]) {
+  assert(migrations.length >= 243, 'The reviewed migration chain must include the complete 001–243 baseline')
+  migrations.forEach((m, n) => {
+    assert.match(m.name, /^\d{3}_[a-z0-9_]+\.sql$/)
+    assert(m.name.startsWith(`${String(n + 1).padStart(3, '0')}_`), 'The reviewed migration chain must be ordered and contiguous')
+    assert.match(m.sha256, /^[a-f0-9]{64}$/)
+    assert.equal(sha(m.sql), m.sha256)
+  })
+}
 type Cell = { schema: 'public' | 'private'; table: string; id: string; columns: string[] }
 type Canonical = { rowDigests: string; guard168Metadata: string; settings: string; cronJobs: string; resources: string }
 type Session = { projectId: string; containerId: string; dbPort: 54332; applicationName: string }
@@ -152,11 +164,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   assert.equal(identity.projectId, `pika_assignment_list_${manifest.syntheticTag.slice(-12)}`)
   assert.equal(sha(JSON.stringify(fixture.manifest)), input.reviewedManifestSha256)
   assert(['normal', 'after-fixture', 'before-capture'].includes(input.mode))
-  assert.equal(migrations.length, 243)
-  migrations.forEach((m, n) => {
-    assert.match(m.name, new RegExp(`^${String(n + 1).padStart(3, '0')}_[a-z0-9_]+\\.sql$`))
-    assert.match(m.sha256, /^[a-f0-9]{64}$/); assert.equal(sha(m.sql), m.sha256)
-  })
+  validateAssignmentListMigrationChain(migrations)
   const expected = new Set(input.expectedResources.map(resourceKey))
   assert.equal(expected.size, input.expectedResources.length)
   for (const r of input.expectedResources) assert.match(r.name, new RegExp(`^supabase_[a-z0-9_-]+_${identity.projectId}$`))
