@@ -999,8 +999,12 @@ Publication/review follows actual1454 merge and base reconciliation. Its new
 isolated observer reuses the immutable list fixture/platform and exact existing
 owner-transfer/member-removal SQL at six detail first/later/terminal boundaries;
 the original list observer owns the single restoration and fingerprint checks.
-Offline proof/serial-CI guards pass24 tests; actual runtime, independent review and
-exact-head CI/mainmerge remain gates. Empty artifact/feedback/repository fixture
+Offline proof/serial-CI guards pass24 tests. Superseding receipt:1455 initial
+security/compatibility reviews CLEAN at4716a817; actual isolated eight detail SDK
+cases/six live revocations plus existing nine list cases/fourteen revocations and
+both forced cleanup modes PASS, including unchanged full canonical fingerprints.
+384focused/8skip/all static gates pass; documentation re-review and exact-head
+CI/mainmerge remain gates. Empty artifact/feedback/repository fixture
 collections do not prove nonempty supplements or live Storage signing.
 The same slice closes1454's non-blocking exhausted-bound signing follow-up with
 a lazy overview request and two installed-SDK RED-to-GREEN zero-late-POST tests;

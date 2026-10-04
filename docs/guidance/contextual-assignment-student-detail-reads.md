@@ -1,7 +1,8 @@
 # Contextual Assignment student-detail reads
 
-Status: bounded backend implementation with offline evidence; independent review,
-local runtime proof, exact-head CI and main merge remain coordinator gates.
+Status: bounded backend implementation with clean initial independent reviews and
+accepted isolated runtime evidence. Documentation reconciliation, exact-head CI
+and main merge remain coordinator gates for PR1455.
 Risk: runtime-platform (authorization, private payloads, query compatibility).
 
 This slice changes only the shared-admitted path of
@@ -111,10 +112,36 @@ TypeScript, targeted ESLint and architecture checks pass. The architecture
 checker reports1154 modules and zero deletion-only allowances. The coordinator
 still owns the final focused checks and independent review for the complete diff.
 
-No live database, authenticated HTTP/browser, provider or Storage-byte operation
-was run by this implementation task. Existing empty artifact fixtures do not prove
+The implementation worker ran no live database, authenticated HTTP/browser,
+provider or Storage-byte operation. Existing empty artifact fixtures do not prove
 nonempty artifact/feedback/target/review or signing behavior in a real runtime.
 The coordinator owns a separate read-only SDK observer and the previously approved
 disposable lifecycle/revocation proof. Nonempty supplement/signing runtime evidence
 remains required before claiming those behaviors verified. This slice alone does
 not complete batch2, authorize an integrated release or activate cutover.
+
+## Coordinator isolated runtime receipt — 2026-10-04 Toronto
+
+Both initial fixed-source reviews at4716a817 are CLEAN (GPT5.6Sol/high security,
+GPT6.1Sol/high compatibility; Terra unavailable). Reconciled focused384pass/8skip,
+all static gates, explicit proof TypeScript and audit pass.
+
+The coordinator's actual Supabase CLI2.109.1 normal run at clean4716a817 passed
+eight installed-SDK detail cases and six owner-transfer/member-removal boundaries
+(first/later/terminal), plus existing nine list cases and fourteen list revocations.
+It proved both account-role labels, exact nonowner target, historical owner-self
+denial, private unreturned grades/feedback,1001 requirements, null optional fields
+and real PostgREST FK/query shapes. It did not execute an authenticated API route.
+
+The immutable prior fixture,001–239 migration source, platform targets, allowed
+transition SQL and original restoration/fingerprint checks remained unchanged.
+Fresh private/tmp project teardown and complete canonical public/private/storage
+row fingerprints,168 metadata/settings/cron and resource identities matched.
+After-fixture and before-capture each exited1 with only the exact expected forced
+failure and successful cleanup markers; no unexpected output. Private0600 receipts:
+`/private/tmp/pika-student-detail-cleanup.aRbYlu` and
+`/private/tmp/pika-student-detail-cleanup.kauZZN`.
+
+These proofs do not cover nonempty feedback/artifact/repository collections or
+live Storage signing, browser/auth HTTP, provider execution or production. Those
+remain separate integration requirements; shared admission and cutover remain OFF.
