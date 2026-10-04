@@ -139,31 +139,52 @@ export function testOwnerListForcedReceipt(mode: string, error: unknown, complet
     return { stdout: cleanupMarker, stderr: `FAIL forced isolated test-owner-list lifecycle: ${mode}.\n`, exitCode: 1 }
   return null
 }
-export function testOwnerListFailureDiagnostic(error: unknown, step: string) {
+const setupCheckpoints = ['shape', 'counts-users', 'counts-classrooms', 'counts-tests', 'counts-categories', 'counts-questions', 'counts-drafts', 'counts-attempts', 'counts-responses', 'counts-availability',
+  'counts-enrollments', 'counts-roster', 'counts-archive-revisions', 'counts-objects', 'counts-references', 'counts-pal-events', 'counts-membership-outbox', 'counts-generations', 'counts-membership-settings', 'counts-signal-settings',
+  'actors', 'classrooms', 'questions', 'work', 'drafts', 'revisions', 'categories', 'tests', 'generations', 'settings', 'complete'] as const
+type SetupCheckpoint = typeof setupCheckpoints[number]
+export function testOwnerListFailureDiagnostic(error: unknown, step: string, checkpoint?: string) {
   const stages = new Set(['canonical-before', 'preflight', 'prepare', 'pre-start', 'start', 'capture', 'status', 'fixture', 'cases', 'revocations', 'after-fixture', 'before-capture'])
   const failure = error instanceof AssignmentListLifecycleError ? error : undefined
-  const safeStep = ['not-started', 'setup', 'setup-complete', 'matrix', 'matrix-complete'].includes(step) ? step : 'unknown'
-  return `DIAG isolated test-owner-list stage=${failure?.primary && stages.has(failure.primary.stage) ? failure.primary.stage : 'unknown'} step=${safeStep} cleanup=${failure ? failure.cleanupFailures.length ? 'present' : 'none' : 'unknown'}.\n`
+  const safeStep = ['not-started', 'setup', 'setup-guard', 'setup-sql', 'setup-snapshot', 'setup-validate', 'setup-complete', 'matrix', 'matrix-complete'].includes(step) ? step : 'unknown'
+  const safeCheckpoint = setupCheckpoints.includes(checkpoint as SetupCheckpoint) ? checkpoint : 'unknown'
+  return `DIAG isolated test-owner-list stage=${failure?.primary && stages.has(failure.primary.stage) ? failure.primary.stage : 'unknown'} step=${safeStep} checkpoint=${safeCheckpoint} cleanup=${failure ? failure.cleanupFailures.length ? 'present' : 'none' : 'unknown'}.\n`
 }
 
 type Snapshot = Record<string, Array<Record<string, unknown>>>
-export function validateTestOwnerListSetupSnapshot(f: TestOwnerListFixture, input: unknown): Snapshot {
+export function validateTestOwnerListSetupSnapshot(f: TestOwnerListFixture, input: unknown, checkpoint: (value: SetupCheckpoint) => void = () => {}) : Snapshot {
+  checkpoint('shape')
   assert(input && typeof input === 'object' && !Array.isArray(input)); const snapshot = input as Snapshot
   const expectedCounts: Record<string, number> = { 'public.users': 5, 'public.classrooms': 3, 'public.tests': 4, 'public.gradebook_categories': 9, 'public.test_questions': 4,
     'public.assessment_drafts': 2, 'public.test_attempts': 4, 'public.test_responses': 5, 'public.test_student_availability': 5, 'public.classroom_enrollments': 4,
-    'public.classroom_roster': 0, 'public.classroom_archive_revisions': 0, 'public.managed_storage_objects': 0, 'public.managed_storage_json_references': 0, 'public.pal_event_outbox': 0,
+    'public.classroom_roster': 0, 'public.classroom_archive_revisions': 3, 'public.managed_storage_objects': 0, 'public.managed_storage_json_references': 0, 'public.pal_event_outbox': 0,
     'private.pal_membership_outbox': 0, 'private.pal_membership_generations': 5, 'private.pal_membership_settings': 1, 'private.pal_classroom_signal_settings': 1 }
   assert.deepEqual(Object.keys(snapshot).sort(), Object.keys(expectedCounts).sort())
-  for (const [table, count] of Object.entries(expectedCounts)) { assert(Array.isArray(snapshot[table])); assert.equal(snapshot[table].length, count); assert(snapshot[table].every(r => r && typeof r === 'object' && !Array.isArray(r))) }
+  const countCheckpoints: SetupCheckpoint[] = ['counts-users', 'counts-classrooms', 'counts-tests', 'counts-categories', 'counts-questions', 'counts-drafts', 'counts-attempts', 'counts-responses', 'counts-availability',
+    'counts-enrollments', 'counts-roster', 'counts-archive-revisions', 'counts-objects', 'counts-references', 'counts-pal-events', 'counts-membership-outbox', 'counts-generations', 'counts-membership-settings', 'counts-signal-settings']
+  for (const [i, [table, count]] of Object.entries(expectedCounts).entries()) { checkpoint(countCheckpoints[i]); assert(Array.isArray(snapshot[table])); assert.equal(snapshot[table].length, count); assert(snapshot[table].every(r => r && typeof r === 'object' && !Array.isArray(r))) }
   function subset(table: string, plans: Array<{ id: string }>) {
     assert.equal(new Set(snapshot[table].map(r => r.id)).size, plans.length)
     for (const plan of plans) { const row = snapshot[table].find(r => r.id === plan.id); assert(row); for (const [key, value] of Object.entries(plan)) assert.deepEqual(row[key], value) }
   }
-  subset('public.users', f.actors)
+  checkpoint('actors'); subset('public.users', f.actors)
+  checkpoint('classrooms')
   subset('public.classrooms', f.classes.map(c => ({ id: c.id, teacher_id: c.owner, title: c.title, class_code: c.code })))
-  subset('public.test_questions', f.questions); subset('public.test_attempts', f.attempts)
+  checkpoint('questions'); subset('public.test_questions', f.questions)
+  checkpoint('work'); subset('public.test_attempts', f.attempts)
   subset('public.test_responses', f.responses); subset('public.test_student_availability', f.availability)
-  subset('public.assessment_drafts', f.drafts.map(d => ({ id: d.id, assessment_id: d.assessment_id, classroom_id: d.classroom_id, assessment_type: 'test', version: d.version, content: d.content, created_by: d.owner, updated_by: d.owner })))
+  checkpoint('drafts'); subset('public.assessment_drafts', f.drafts.map(d => ({ id: d.id, assessment_id: d.assessment_id, classroom_id: d.classroom_id, assessment_type: 'test', version: d.version, content: d.content, created_by: d.owner, updated_by: d.owner })))
+  checkpoint('revisions')
+  assert.equal(new Set(snapshot['public.classroom_archive_revisions'].map(r => r.classroom_id)).size, 3)
+  for (const effect of f.sideEffects) {
+    const classroom = snapshot['public.classrooms'].find(r => r.id === effect.classroomId)!
+    assert.equal(classroom.blueprint_source_revision, effect.blueprintSourceRevision)
+    const revision = snapshot['public.classroom_archive_revisions'].find(r => r.classroom_id === effect.classroomId); assert(revision)
+    assert.deepEqual(Object.keys(revision).sort(), ['classroom_id', 'revision', 'updated_at'])
+    assert.equal(revision.revision, effect.archiveRevision)
+    assert(typeof revision.updated_at === 'string' && Number.isFinite(Date.parse(revision.updated_at)))
+  }
+  checkpoint('categories')
   const categories = snapshot['public.gradebook_categories']; const ids = new Set<string>()
   for (const c of f.classes) {
     const own = categories.filter(row => row.classroom_id === c.id); assert.equal(own.length, 3)
@@ -172,7 +193,7 @@ export function validateTestOwnerListSetupSnapshot(f: TestOwnerListFixture, inpu
       assert(typeof row.id === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(row.id) && !ids.has(row.id) && !f.allocatedIds.includes(row.id)); ids.add(row.id)
     }
   }
-  for (const t of f.tests) {
+  checkpoint('tests'); for (const t of f.tests) {
     const row = snapshot['public.tests'].find(r => r.id === t.id); assert(row)
     for (const [key, value] of Object.entries(t)) {
       if (key === 'created_at' || key === 'updated_at') { assert(typeof row[key] === 'string'); assert.equal(new Date(row[key]).toISOString(), value) }
@@ -181,7 +202,7 @@ export function validateTestOwnerListSetupSnapshot(f: TestOwnerListFixture, inpu
     assert(categories.some(c => c.id === row.gradebook_category_id && c.classroom_id === t.classroom_id && c.name === 'Term' && c.is_default === true))
     assert.deepEqual(Object.keys(row).sort(), fields.split(',').sort())
   }
-  for (const e of f.enrollments) {
+  checkpoint('generations'); for (const e of f.enrollments) {
     const generation = snapshot['private.pal_membership_generations'].find(r => r.generation_id === e.id); assert(generation)
     assert.equal(generation.state, e === f.enrollments[3] ? 'removed' : 'active')
     assert.equal(generation.scope_digest, testOwnerDigest(`pika-membership-scope-v1:${e.classroomId}:${e.actorId}`))
@@ -191,7 +212,8 @@ export function validateTestOwnerListSetupSnapshot(f: TestOwnerListFixture, inpu
     else assert(enrollment?.classroom_id === e.classroomId && enrollment.student_id === e.actorId)
   }
   assert.equal(new Set(snapshot['private.pal_membership_generations'].map(r => r.pal_reference)).size, 5)
-  assert(snapshot['private.pal_membership_settings'][0].enabled === false && snapshot['private.pal_classroom_signal_settings'][0].enabled === false)
+  checkpoint('settings'); assert(snapshot['private.pal_membership_settings'][0].enabled === false && snapshot['private.pal_classroom_signal_settings'][0].enabled === false)
+  checkpoint('complete')
   return snapshot
 }
 
@@ -203,7 +225,7 @@ export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
   const native = createAssignmentListNativeAdapters(original); const originalSetup = assignmentListFixtureSetupSql(original, projectId)
   const setupSql = testOwnerListSetupSql(f, projectId); const snapshotSql = testOwnerListSnapshotSql(f)
   const setupHash = testOwnerDigest(setupSql); const snapshotHash = testOwnerDigest(snapshotSql)
-  let target: ReturnType<typeof validateAssignmentListProofTarget> | undefined; let session: Session | undefined; let complete = false; let matrixComplete = false; let step = 'not-started'
+  let target: ReturnType<typeof validateAssignmentListProofTarget> | undefined; let session: Session | undefined; let complete = false; let matrixComplete = false; let step = 'not-started'; let checkpoint: SetupCheckpoint | undefined
   let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined
   let transport: ReturnType<typeof createTestOwnerListProofTransport> | undefined; let client: ReturnType<typeof createClient<Database>> | undefined
   const originalPal = process.env.PAL_ENABLED; process.env.PAL_ENABLED = 'false'
@@ -220,8 +242,10 @@ export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
     assert(Buffer.byteLength(result) <= TEST_OWNER_LIST_CAPS.responseBytes); return result
   }
   async function setup() {
-    step = 'setup'; assert.equal(testOwnerDigest(setupSql), setupHash); await guard(); assert(session)
-    await native.executeSql({ ...session, sql: setupSql }); validateTestOwnerListSetupSnapshot(f, JSON.parse(await snapshot())); complete = true; step = 'setup-complete'
+    step = 'setup-guard'; assert.equal(testOwnerDigest(setupSql), setupHash); await guard(); assert(session)
+    step = 'setup-sql'; await native.executeSql({ ...session, sql: setupSql })
+    step = 'setup-snapshot'; const captured = await snapshot()
+    step = 'setup-validate'; validateTestOwnerListSetupSnapshot(f, JSON.parse(captured), value => { checkpoint = value }); complete = true; step = 'setup-complete'
   }
   async function matrix() {
     assert(complete && !matrixComplete && client && transport); step = 'matrix'
@@ -258,7 +282,7 @@ export async function testOwnerListLifecycleMain(args = process.argv.slice(2)) {
   } catch (error) {
     const receipt = testOwnerListForcedReceipt(input.mode, error, complete)
     if (receipt) { process.stdout.write(receipt.stdout); process.stderr.write(receipt.stderr); process.exitCode = receipt.exitCode; return }
-    process.stderr.write(testOwnerListFailureDiagnostic(error, step)); if (transport) process.stderr.write(transport.diagnostic())
+    process.stderr.write(testOwnerListFailureDiagnostic(error, step, checkpoint)); if (transport) process.stderr.write(transport.diagnostic())
     throw new Error('Test owner list lifecycle failed; private details withheld')
   } finally { if (originalPal === undefined) delete process.env.PAL_ENABLED; else process.env.PAL_ENABLED = originalPal }
 }

@@ -1284,3 +1284,18 @@ history copies while retaining original full bodies. Startup budget failed17149;
 CURRENT-only shortening gives76startup tests PASS, without gate changes. Full
 230focused/14files and all static gates PASS; history multiset/no missing/surplus
 PASS. Runtime verification remains required;36stashes/prod225 preserved.
+
+## 2026-10-04 — Owner Test list proof-only natural revision correction
+
+Observed normal5004fed7 Storage healthy, then fixture setup failed beforeSDK;
+exact teardown and SAME once-captured1469 fivefield baseline equality PASS.
+Resumed original proof worker Sol6.1/high,18:46:32–18:55:53Z manualwall561s,
+three files relinquished; no live/Git operations, active/tokens unknown. RED→GREEN
+shows archive0 expectation contradicted existing Class initialization. Frozen
+footprint now requires three Class-bound archive rows/revisions41/7/4 and blueprint
+10/2/1. No additional DML/Storage/RPC or native/platform/deadline/control changes;
+locks/timestamps remain exact. Closed setup diagnostics add no raw private data.
+49proof/122combined/fullTS/scopedlint PASS. Root fixed-source review, updated
+manifest acceptance, actualnormal/twofullforced, finalCI/mainmerge remain gates.
+Root243focused/14files/allstatic gates, three-file audit, diff/trim and complete
+history multiset preservation PASS. App/sealed platform/lifecycle/schema unchanged.

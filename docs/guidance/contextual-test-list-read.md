@@ -91,3 +91,22 @@ Caps:64KiB extension SQL,256 network requests,15-second requests and8MiB respons
 Freeze the setup/snapshot generators and exact Class-root projection/filter/control
 manifest after source completion and review. Its8 helper/SDK cases are distinct
 from unit-only saturation, malformed payload, timeout and race scenarios.
+
+## Runtime recovery and proof correction
+
+The initial disk/API failure was recovered without deleting canonical data.
+Exact owned failed-start resources were removed after global identity/attachment
+checks; the same once-captured canonical baseline then compared equal. A later
+Storage-unhealthy startup also completed teardown and baseline equality. A narrow
+read-only observer verified healthy Storage on the next run, which reached but
+failed the extension fixture setup before any extension SDK request.
+
+Source analysis and a RED→GREEN regression found an incorrect zero-row archive
+expectation: existing082/095/112/147 triggers create three owned-Class archive
+rows. The corrected frozen footprint requires exact archive revisions41/7/4 and
+blueprint revisions10/2/1, with exact Class IDs, cardinality and archive columns.
+No extra fixture DML, guard bypass, lock/timestamp reset, Storage/RPC operation,
+schema or application behavior is added. Closed setup checkpoints distinguish
+guard, SQL, snapshot-read and validation failures without raw errors or row data.
+49 proof tests and122 combined tests passed; actual normal/two full-setup forced
+runs remain required after independent correction review and manifest acceptance.

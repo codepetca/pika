@@ -7,7 +7,7 @@ import { testOwnerDigest, testOwnerGuardSql } from './contextual-test-owner-deta
 export { testOwnerDigest, testOwnerGuardSql }
 export const TEST_OWNER_LIST_CAPS = Object.freeze({ sqlBytes: 65536, networkRequests: 256, storageRequests: 0, rpcRequests: 0, requestMs: 15000, responseBytes: 8388608 })
 export const TEST_OWNER_LIST_INVENTORY = Object.freeze({ actors: 5, classes: 3, tests: 4, questions: 4, drafts: 2, attempts: 4, responses: 5, availability: 5,
-  allocatedEnrollments: 5, liveEnrollments: 4, removedGenerations: 1, activeGenerations: 4, triggerCategories: 9, cases: 8 })
+  allocatedEnrollments: 5, liveEnrollments: 4, removedGenerations: 1, activeGenerations: 4, triggerCategories: 9, archiveRevisionRows: 3, cases: 8 })
 const q = (value: string) => `'${value.replaceAll("'", "''")}'`
 const json = (value: unknown) => `${q(JSON.stringify(value))}::jsonb`
 function freeze<T>(value: T): T {
@@ -20,6 +20,13 @@ export function newTestOwnerListFixture(original: AssignmentListProofFixture) {
   const id = (label: string) => { const h = testOwnerDigest(`${tag}:${label}`); return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}` }
   const actors = (['student', 'teacher', 'student', 'teacher', 'student'] as const).map((role, i) => ({ id: id(`actor${i}`), role, email: `${tag}_${i}@example.invalid` }))
   const classes = [0, 1, 2].map(i => ({ id: id(`class${i}`), owner: actors[i === 0 ? 0 : 1].id, title: `${tag} class ${i}`, code: `${tag}_${i}` }))
+  // 082/095: revision=1 + resource changes + Class updates. 112 makes
+  // each Test/question/Test-draft insert update its Class blueprint revision.
+  // 147 creates three category resources per Class. No maintenance bypass.
+  // A: 1+3 categories+5 enrollment mutations+3 Tests+4 questions+2 drafts
+  // +4 attempts+5 responses+5 availability+9 blueprint Class updates = 41.
+  // B: 1+3 categories+1 enrollment+1 Test+1 blueprint update = 7; C: 1+3 = 4.
+  const sideEffects = classes.map((c, i) => ({ classroomId: c.id, archiveRevision: [41, 7, 4][i], blueprintSourceRevision: [10, 2, 1][i] }))
   const tests = (['draft', 'active', 'closed', 'draft'] as const).map((status, i) => ({ id: id(`test${i}`), classroom_id: classes[i === 3 ? 1 : 0].id,
     created_by: classes[i === 3 ? 1 : 0].owner, title: `${tag} test ${i}`, status, show_results: false, position: i === 0 ? 17 : 9,
     points_possible: 100, include_in_final: i !== 2, created_at: new Date(Date.parse(original.manifest.now) - i * 1000).toISOString(), updated_at: original.manifest.now,
@@ -45,7 +52,7 @@ export function newTestOwnerListFixture(original: AssignmentListProofFixture) {
   const allocatedIds = [...actors.map(r => r.id), ...classes.map(r => r.id), ...tests.flatMap(r => [r.id, r.artifact_id]), ...enrollments.map(r => r.id),
     ...questions.flatMap(r => [r.id, r.artifact_id]), ...drafts.map(r => r.id), draftQuestionIds[1], id('text-document'), ...attempts.map(r => r.id), ...responses.map(r => r.id), ...availability.map(r => r.id)]
   assert.equal(new Set(allocatedIds).size, allocatedIds.length); assert(allocatedIds.every(value => !original.allocatedIds.includes(value)))
-  return freeze({ version: 1 as const, tag, now: original.manifest.now, inventory: TEST_OWNER_LIST_INVENTORY, actors, classes, tests, enrollments, questions, drafts, attempts, responses, availability, cases, stats, allocatedIds })
+  return freeze({ version: 1 as const, tag, now: original.manifest.now, inventory: TEST_OWNER_LIST_INVENTORY, sideEffects, actors, classes, tests, enrollments, questions, drafts, attempts, responses, availability, cases, stats, allocatedIds })
 }
 export type TestOwnerListFixture = ReturnType<typeof newTestOwnerListFixture>
 function bounded(sql: string) { assert(Buffer.byteLength(sql) <= TEST_OWNER_LIST_CAPS.sqlBytes); return sql }
@@ -95,7 +102,15 @@ do $removed$ declare affected integer; begin
  or exists(select 1 from unnest(array[${f.classes.map(c => q(c.id)).join(',')}]::uuid[]) c(id)
  where (select count(*) from public.gradebook_categories g where g.classroom_id=c.id)<>3)
  then raise exception 'Test list generated categories differ';end if;
-end;$removed$;commit;`)
+end;$removed$;
+do $effects$ begin
+ if (select count(*) from public.classroom_archive_revisions where classroom_id in (${f.classes.map(c => q(c.id)).join(',')}))<>3
+ or exists(select 1 from (values ${f.sideEffects.map(e => `(${q(e.classroomId)}::uuid,${e.archiveRevision},${e.blueprintSourceRevision})`).join(',')}) expected(classroom_id,archive_revision,blueprint_revision)
+ left join public.classroom_archive_revisions a using(classroom_id)
+ left join public.classrooms c on c.id=expected.classroom_id
+ where a.revision is distinct from expected.archive_revision or c.blueprint_source_revision is distinct from expected.blueprint_revision)
+ then raise exception 'Test list natural revision effects differ';end if;
+end;$effects$;commit;`)
 }
 export function testOwnerListSnapshotSql(f: TestOwnerListFixture) {
   const actors = f.actors.map(r => q(r.id)).join(','); const classes = f.classes.map(r => q(r.id)).join(','); const tests = f.tests.map(r => q(r.id)).join(',')

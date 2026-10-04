@@ -32,12 +32,12 @@ function sourceSnapshot(f: ReturnType<typeof newTestOwnerListFixture>) {
   const categories = f.classes.flatMap((c, ci) => [['Attendance', 10, false], ['Term', 65, true], ['Final', 25, false]].map(([name, percentage, is_default], i) => ({
     id: `00000000-0000-4000-8000-${String(ci * 3 + i + 1).padStart(12, '0')}`, classroom_id: c.id, name, percentage, is_default, position: i, default_assessment_weight: 10 })))
   return {
-    'public.users': f.actors, 'public.classrooms': f.classes.map(c => ({ id: c.id, teacher_id: c.owner, title: c.title, class_code: c.code })),
+    'public.users': f.actors, 'public.classrooms': f.classes.map((c, i) => ({ id: c.id, teacher_id: c.owner, title: c.title, class_code: c.code, blueprint_source_revision: [10, 2, 1][i] })),
     'public.tests': f.tests.map(t => ({ ...t, gradebook_category_id: categories.find(c => c.classroom_id === t.classroom_id && c.name === 'Term')!.id })),
     'public.gradebook_categories': categories, 'public.test_questions': f.questions, 'public.assessment_drafts': f.drafts.map(d => ({ id: d.id, assessment_id: d.assessment_id, classroom_id: d.classroom_id, assessment_type: 'test', version: d.version, content: d.content, created_by: d.owner, updated_by: d.owner })),
     'public.test_attempts': f.attempts, 'public.test_responses': f.responses, 'public.test_student_availability': f.availability,
     'public.classroom_enrollments': f.enrollments.filter(e => e !== f.enrollments[3]).map(e => ({ id: e.id, classroom_id: e.classroomId, student_id: e.actorId })),
-    'public.classroom_roster': [], 'public.classroom_archive_revisions': [], 'public.managed_storage_objects': [], 'public.managed_storage_json_references': [],
+    'public.classroom_roster': [], 'public.classroom_archive_revisions': f.classes.map((c, i) => ({ classroom_id: c.id, revision: [41, 7, 4][i], updated_at: f.now })), 'public.managed_storage_objects': [], 'public.managed_storage_json_references': [],
     'public.pal_event_outbox': [], 'private.pal_membership_outbox': [],
     'private.pal_membership_generations': f.enrollments.map((e, i) => ({ generation_id: e.id, scope_digest: testOwnerDigest(`pika-membership-scope-v1:${e.classroomId}:${e.actorId}`),
       state: i === 3 ? 'removed' : 'active', pal_reference: `pika-membership-v1-${String(i).padStart(32, '0')}` })),
@@ -115,6 +115,33 @@ describe('finite owner Test list fixture', () => {
     expect(() => validateTestOwnerListSetupSnapshot(f, removed)).toThrow()
     const content = structuredClone(snapshot); content['public.tests'][1].title = 'substituted'
     expect(() => validateTestOwnerListSetupSnapshot(f, content)).toThrow()
+  })
+  it('accepts exact natural archive/blueprint revision side effects without changing Test controls', () => {
+    const { f } = fixture(); const rows = structuredClone(sourceSnapshot(f))
+    rows['public.classrooms'] = rows['public.classrooms'].map((c, i) => ({ ...c, blueprint_source_revision: [10, 2, 1][i] }))
+    Object.assign(rows, { 'public.classroom_archive_revisions': f.classes.map((c, i) => ({ classroom_id: c.id, revision: [41, 7, 4][i], updated_at: f.now })) })
+    expect(() => validateTestOwnerListSetupSnapshot(f, rows)).not.toThrow()
+    expect(rows['public.tests'].every(t => t.questions_locked_at === null && t.updated_at === f.now)).toBe(true)
+  })
+  it.each(['missing', 'extra', 'foreign-class', 'duplicate-class', 'revision', 'blueprint', 'extra-column', 'timestamp'] as const)('rejects archive effect mismatch %s', kind => {
+    const { f } = fixture(); const rows = structuredClone(sourceSnapshot(f))
+    if (kind === 'missing') rows['public.classroom_archive_revisions'].pop()
+    if (kind === 'extra') rows['public.classroom_archive_revisions'].push({ ...rows['public.classroom_archive_revisions'][0] })
+    if (kind === 'foreign-class') rows['public.classroom_archive_revisions'][0].classroom_id = f.actors[0].id
+    if (kind === 'duplicate-class') rows['public.classroom_archive_revisions'][1].classroom_id = f.classes[0].id
+    if (kind === 'revision') rows['public.classroom_archive_revisions'][0].revision++
+    if (kind === 'blueprint') rows['public.classrooms'][0].blueprint_source_revision++
+    if (kind === 'extra-column') Object.assign(rows['public.classroom_archive_revisions'][0], { substituted: true })
+    if (kind === 'timestamp') rows['public.classroom_archive_revisions'][0].updated_at = 'invalid'
+    expect(() => validateTestOwnerListSetupSnapshot(f, rows)).toThrow()
+  })
+  it('reports only the exact closed validation checkpoint, never input labels', () => {
+    const { f } = fixture(); const rows = structuredClone(sourceSnapshot(f)); rows['public.classroom_archive_revisions'].pop()
+    let checkpoint = ''
+    expect(() => validateTestOwnerListSetupSnapshot(f, rows, value => { checkpoint = value })).toThrow()
+    expect(checkpoint).toBe('counts-archive-revisions')
+    expect(testOwnerListFailureDiagnostic(new Error('PRIVATE'), 'setup-validate', checkpoint)).toContain('step=setup-validate checkpoint=counts-archive-revisions')
+    expect(testOwnerListFailureDiagnostic(new Error('PRIVATE'), 'PRIVATE', 'PRIVATE')).not.toContain('PRIVATE')
   })
   it('freezes the complete finite request manifest and retains the original read-only guard', () => {
     const { f, projectId } = fixture(); const manifest = testOwnerListRequestManifest(f)
@@ -239,7 +266,7 @@ describe('finite owner Test list transport', () => {
 })
 
 describe('offline sealed lifecycle composition', () => {
-  it.each(['normal', 'after-fixture', 'before-capture', 'snapshot-drift', 'bad-generation', 'bad-resource'] as const)('finishes full fixture before original checkpoint, %s', async scenario => {
+  it.each(['normal', 'after-fixture', 'before-capture', 'snapshot-drift', 'bad-generation', 'bad-resource', 'bad-archive-revision', 'setup-sql-failure', 'snapshot-read-failure'] as const)('finishes full fixture before original checkpoint, %s', async scenario => {
     const x = fixture(); const head = 'a'.repeat(40); const mode = scenario === 'after-fixture' || scenario === 'before-capture' ? scenario : 'normal'
     const exit = process.exitCode; const pal = process.env.PAL_ENABLED; const events: string[] = []
     const resources = platform.assignmentListExpectedResources(x.projectId).map((r, n) => ({ ...r, id: String(n + 1).padStart(64, '0'), createdAt: 'synthetic',
@@ -247,6 +274,7 @@ describe('offline sealed lifecycle composition', () => {
     const session = { projectId: x.projectId, containerId: resources.find(r => r.name === `supabase_db_${x.projectId}`)!.id, dbPort: 54332 as const, applicationName: `${x.projectId}_fixture` }
     const native = { executeSql: vi.fn(async () => { events.push('sql') }), runCase: vi.fn(async () => { events.push('original-case') }), command: vi.fn(async () => x.target),
       canonicalSnapshot: vi.fn(), teardown: vi.fn(), inventory: vi.fn(), prepare: vi.fn(), verifyEphemeral: vi.fn(), runRevocation: vi.fn(), verifyRestoration: vi.fn(), removeWorkdir: vi.fn() }
+    if (scenario === 'setup-sql-failure') native.executeSql.mockImplementation(async () => { events.push('sql'); if (events.length === 2) throw new Error('PRIVATE SQL cause') })
     const stdout = vi.spyOn(process.stdout, 'write').mockReturnValue(true); const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true)
     vi.spyOn(originalFixture, 'newAssignmentListProofFixture').mockReturnValue(x.original)
     vi.spyOn(platform, 'createAssignmentListNativeAdapters').mockReturnValue(native as unknown as ReturnType<typeof platform.createAssignmentListNativeAdapters>)
@@ -258,9 +286,11 @@ describe('offline sealed lifecycle composition', () => {
       const sql = (options as { input: string }).input
       if (sql === testOwnerGuardSql(x.projectId)) return 'ok\n'
       expect(sql).toBe(testOwnerListSnapshotSql(x.f)); snapshots++
+      if (scenario === 'snapshot-read-failure') throw new Error('PRIVATE snapshot cause')
       const rows = sourceSnapshot(x.f)
       if (scenario === 'bad-generation') rows['private.pal_membership_generations'][3].state = 'active'
       if (scenario === 'snapshot-drift' && snapshots === 3) rows['public.tests'][0].title = 'PRIVATE source drift'
+      if (scenario === 'bad-archive-revision') rows['public.classroom_archive_revisions'][0].revision++
       return JSON.stringify(rows) + '\n'
     })
     vi.stubGlobal('fetch', vi.fn(sourceFetch(x.f)))
@@ -277,10 +307,15 @@ describe('offline sealed lifecycle composition', () => {
     })
     try {
       const running = testOwnerListLifecycleMain(['--reviewed-head', head, '--mode', mode])
-      if (['snapshot-drift', 'bad-generation', 'bad-resource'].includes(scenario)) {
+      if (['snapshot-drift', 'bad-generation', 'bad-resource', 'bad-archive-revision', 'setup-sql-failure', 'snapshot-read-failure'].includes(scenario)) {
         await expect(running).rejects.toThrow('private details withheld'); expect(stdout).not.toHaveBeenCalled()
         expect(stderr.mock.calls.flat().join('')).not.toContain('PRIVATE'); expect(stderr.mock.calls.flat().join('')).not.toContain(x.f.classes[0].id)
         if (scenario !== 'snapshot-drift') expect(events).not.toContain('checkpoint')
+        const diagnostic = stderr.mock.calls.flat().join('')
+        if (scenario === 'bad-archive-revision') expect(diagnostic).toContain('step=setup-validate checkpoint=revisions')
+        if (scenario === 'setup-sql-failure') expect(diagnostic).toContain('step=setup-sql checkpoint=unknown')
+        if (scenario === 'snapshot-read-failure') expect(diagnostic).toContain('step=setup-snapshot checkpoint=unknown')
+        if (scenario === 'bad-resource') expect(diagnostic).toContain('step=setup-guard checkpoint=unknown')
       } else {
         await running; expect(sealed).toHaveBeenCalledOnce(); expect(native.executeSql).toHaveBeenCalledTimes(2)
         if (mode === 'normal') { expect(native.runCase).toHaveBeenCalledOnce(); expect(snapshots).toBe(17); expect(stderr).not.toHaveBeenCalled(); expect(stdout.mock.calls.flat().join('')).toContain('eight actual SDK cases') }
