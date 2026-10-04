@@ -153,13 +153,15 @@ content/history/submission state. Nonempty own link/image artifacts, released
 feedback and synthetic identity must be returned; cross-subject/private grading
 must stay excluded.
 
-Using only supported managed-object protocols, future real synthetic byte upload,
-SDK signing and bounded digest fetch should prove artifact delivery. The separate
-inline read adapter/private302 builder must enforce learner verified/ready and
-owner ready precedence; hidden/outsider/cross-subject/wrong-binding cases must issue
-no signing call or unintended write. Owner hidden/archive/draft inspection remains
-allowed for enrolled subjects. Already-issued links remain expiry-limited, not
-instantly revoked by a later denial.
+Using only supported managed-object protocols, the recorded disposable run uploaded
+fixed synthetic PNG bytes, signed and fetched them through the SDK, and verified
+bounded sizes/digests. The separate inline read adapter/private302 builder enforced
+learner verified/ready and owner ready precedence in the recorded matrix;
+hidden/outsider/cross-subject/wrong-binding cases issued no signing call or
+unintended write. Owner hidden/archive/draft inspection remained allowed for
+enrolled subjects. Already-issued links remain expiry-limited, not instantly
+revoked by a later denial. This does not add authenticated app HTTP/browser or
+same-actor removal/concurrent-visibility evidence.
 
 Normal and both forced modes must include extension setup and any approved bytes
 before the intentional failure checkpoint. Require exact expectedexit1/two closed
