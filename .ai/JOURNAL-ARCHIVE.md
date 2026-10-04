@@ -35918,6 +35918,7 @@ calendarfinalreconciliation/review/readyCI, no speculative heavyCI. Original
 Local236 belongsseparatepreparation; noSQL/types/DB/provider/production/cohort edits.
 
 <!-- pika-session-log-archive-batch:08319393e21a1a92e2454be3920c4953dee78741993106bd2cb11a0d416519e8 -->
+<!-- pika-session-log-archive-batch:f386bcad73581e314c8f5713d405edad07f08942a912011a744cbe5f0ef99e87 -->
 ## 2026-10-03 — Calendar1446 actual roster235-main reconciliation
 
 Root verified1445 squashmerge2fe79a8b at17:03:33Z after allfive exact596081dc
@@ -35941,6 +35942,98 @@ Root-owned changed-base review and exact frozen-head readyCI remain required;
 shared admission and fullcutoverOFF; no batch completion or activation claimed.
 
 <!-- pika-session-log-archive-batch:51e3d894735bb18b555815883ca6dcaa140f32ce7628b9f51385d60a7ac2845d -->
+<!-- pika-session-log-archive-batch:9b3cc78e1dd3de5c6f7209a4f11326b36ed6ae0f81220ed884129557118675f4 -->
+## 2026-10-03 — Preserving removal source and local236
+
+Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
+preapplication GPT5.6Sol/high review CLEAN with77source tests. Exactpika54322,
+001–235matched/currentmain3351numbering/236-onlydryrun preceded one successful
+ordinarylocal236push. ImmutableSHA24e23667b21580fdcadb7a64ca251725f87040fa52bf9a1fbe71e0c7b3c22249;
+service-only privileges, genuinegenerated eight-lineRPC/type drift/TypeScript pass.
+ActualSQL/SDK/cleanup/concurrency and fullPR lifecycle remain pending; proof worker
+owns onlyscripts, root ownsapplication/types/CI/docs/Git. Duplicate selected one
+or all rows fails withoutDML: immutable164index/173cleanupcontrols remain, with
+coordinated multirow retained-lifecycle prerequisite inbatch3 beforecutover.
+1445/1446 fullinitialreviews clean;1443exactCI/1444draft predecessor order retained.
+Latesthuman explicitlywaives repeatedroutineapprovals inclnecessaryreviewextensions;
+original clocks/counters andabsolute caps/merge/release gates preserved. Production
+001–225/sharedadmission/fullcutoverOFF unchanged; no accounts/provider/billing edits.
+
+Serial actual SQL proof passed ACL, identity, purge fences, retained history and
+fault rollback with zero residue/global baseline unchanged. Actual SDK normal
+passed both owner labels, bound/unbound learners, retained history, idempotent
+retry/invitation isolation and observed lock races. Three forced modes each exit1
+with exact expected failure and complete cleanup sentinels; suppressed deletion
+rolls back every cleanup mutation and restores the generation guard. Earlier
+proof-only setup/cleanup defects corrected without editing immutable236; exact
+abandoned synthetic closure independently reviewed/recovered, all unrelated
+whole-row fingerprints unchanged. Full draft review/final focused/CI remain gates.
+
+<!-- pika-session-log-archive-batch:1ad629d6a522945ba792684a4c5c8a3c477ffb0227203fbfc8d84a7776ff1a39 -->
+## 2026-10-03 — Removal1448 updated-parent preparation
+
+Rebased reviewed8e81327a onto updated1445parenta9613f46 with oldparenta7613a5f
+as the exact exclusion boundary. Only CURRENT/archive continuity conflicted;
+all14child runtime/schema/SQL/genuine-types/proof/test/guide files remain
+byte-identical, including immutable236. All updatedparent/main and childCIsteps
+are preserved. Removed four surplus exact session copies whose original archive
+entries remain; combined parent+child−oldparent historical multiplicities persist.
+ActualSQL/SDKnormal and three forced-cleanup proofs already PASS;236 itself was
+unchanged by the earlier harness repairs. Full initial security/compat review
+is CLEAN. Original1448clock15:19:13Z/extension17:19:13Z, launch8/initial1/
+targeted5/fix5 retained; no new review launch. This prepares a draft stack only:
+actual1445main squash merge/reconciliation, changed-base review and final exactCI
+remain. Local001–236/prod001–225/sharedadmission/fullcutoverOFF unchanged.
+No DB operations/proofs/types regeneration, publication, PR/CI/provider changes.
+Focused against updatedparenta961 passes183tests/15files plus architecture,
+UI/design policy, TypeScript and lint; startup/diff/history/preservation pass.
+Reconciliation audit reports no TypeScript edits. Actual-main focused checks
+remain required after the parent's eventual squash merge and child reconciliation.
+
+## 2026-10-03 — Removal1448 actual calendar-main reconciliation
+
+Rebased preparedb47c6fa7 onto actual calendar1446 main2095efec, usinga9613f46
+as the exact old-parent boundary. Root verified1446 squash merge at17:40:27Z,
+reviewed795a528a/all five eligibleCI37139673399 checks and PR Gate passed.
+All13nonshared reviewed8e81327a feature files remain byte-identical: runtime,
+schema, guide, proofs/tests, immutable236 and genuine generated eight-line RPC.
+The approved shared CI test union preserves exact main roster/calendar blocks
+first, unchanged removal block next, and the full common remainder; whole main
+CI plus original removal proof insertion preserves every calendar cleanup gate.
+History full-body multiplicities are actual2095+preparedb47−a961+this one entry.
+Removed only two exact surplus session copies (Release Java and Person/code
+roles), with original full bodies retained in the archive. All main roadmap
+text and both historical child removal paragraphs remain unchanged, plus one
+new reconciliation receipt. Canonical Prod DB 001–225 spacing restored;
+shared local001–237 metadata differs from this source001–236/actualmain235.
+No database/status/proof/type generation/provider/remote publication/CI writes.
+Original clock15:19:13Z/extended18:19:13Z, launch8/initial1/targeted5/fix5 remain.
+Changed-base independent review, publication and final exact-head CI remain
+pending; sharedadmission/fullcutover/billing remainOFF. Actual-main focused
+184tests/15files, architecture/UI/design/TypeScript/lint all PASS; explicit Bara
+spacing regression4/4 and actual-main-aware audit10files PASS. Private full
+preservation verifier/diff/official trim pass,40recent/2092combined entries.
+Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
+pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
+remain untouched. This is implementation evidence, not the independent review.
+
+## 2026-10-03 — Removal1448 forward-only database lint correction
+
+Exact reviewed787e623f CI37141937671 failed warning-free lint for private result
+validator IMMUTABLE/STABLE mismatch; returned1448 to draft. Run cancelled after
+566seconds, database andPRGate failed, no merge. Preserve immutable236/237.
+Contiguous inventory requires exact237 dormant service-role SQL dependency and
+atomic238: only validator ALTER STABLE plus metadata empty-effective-slug guard.
+No metadata app/helper/UI imported and no cohort/account/production activation.
+Whole genuine001–237 generated artifact copied byte-exact40d0289d; root will
+regenerate/check from matching001–238 history after reviewed local application.
+New direct regression/source gates14PASS, root full208line metadata replacement
+and existing236validator body/ACL/call graph inspected. Metadata rollback-only
+proof runs before unchanged removal SQL/SDK/three forced modes in CI. Review
+clock/counters retained: original15:19:13Z; launch9/target6/fix6, deadline19:19:13.
+Source/preapply review, local238-only application, actual serial regression proofs,
+final focused/cumulative independent review and exact-headCI remain pending.
+
 ## 2026-10-03 — Preserving removal source and local236
 
 Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen

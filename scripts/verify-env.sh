@@ -67,11 +67,16 @@ if [[ ! -d ".ai" ]]; then
 fi
 echo "✅ AI continuity layer present"
 
-if [[ -f "scripts/features.mjs" && -f ".ai/features.json" ]]; then
-  echo "Validating .ai/features.json..."
-  node scripts/features.mjs validate >/dev/null
-  echo "✅ features.json valid"
-fi
+for required in .ai/START-HERE.md .ai/CURRENT.md .ai/features.json docs/ai-instructions.md scripts/features.mjs; do
+  if [[ ! -f "$required" || ! -r "$required" ]]; then
+    echo "❌ Missing or unreadable required startup input: $required"
+    exit 1
+  fi
+done
+
+echo "Validating .ai/features.json..."
+node scripts/features.mjs validate >/dev/null
+echo "✅ features.json valid"
 
 if [[ ! -d "node_modules" ]]; then
   echo "❌ node_modules not found"

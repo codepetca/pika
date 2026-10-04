@@ -45,5 +45,5 @@ Use the audit to catch common drift early, then use human review for edge cases 
 
 ## Script
 
-- Main: `scripts/audit.sh`
-- Dry run (always non-destructive): `bash scripts/audit.sh`
+- Main (repository-relative): `.codex/skills/pika-audit/scripts/audit.sh`
+- Dry run (always non-destructive): `bash .codex/skills/pika-audit/scripts/audit.sh`

@@ -11,70 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Removal1448 updated-parent preparation
-
-Rebased reviewed8e81327a onto updated1445parenta9613f46 with oldparenta7613a5f
-as the exact exclusion boundary. Only CURRENT/archive continuity conflicted;
-all14child runtime/schema/SQL/genuine-types/proof/test/guide files remain
-byte-identical, including immutable236. All updatedparent/main and childCIsteps
-are preserved. Removed four surplus exact session copies whose original archive
-entries remain; combined parent+child−oldparent historical multiplicities persist.
-ActualSQL/SDKnormal and three forced-cleanup proofs already PASS;236 itself was
-unchanged by the earlier harness repairs. Full initial security/compat review
-is CLEAN. Original1448clock15:19:13Z/extension17:19:13Z, launch8/initial1/
-targeted5/fix5 retained; no new review launch. This prepares a draft stack only:
-actual1445main squash merge/reconciliation, changed-base review and final exactCI
-remain. Local001–236/prod001–225/sharedadmission/fullcutoverOFF unchanged.
-No DB operations/proofs/types regeneration, publication, PR/CI/provider changes.
-Focused against updatedparenta961 passes183tests/15files plus architecture,
-UI/design policy, TypeScript and lint; startup/diff/history/preservation pass.
-Reconciliation audit reports no TypeScript edits. Actual-main focused checks
-remain required after the parent's eventual squash merge and child reconciliation.
-
-## 2026-10-03 — Removal1448 actual calendar-main reconciliation
-
-Rebased preparedb47c6fa7 onto actual calendar1446 main2095efec, usinga9613f46
-as the exact old-parent boundary. Root verified1446 squash merge at17:40:27Z,
-reviewed795a528a/all five eligibleCI37139673399 checks and PR Gate passed.
-All13nonshared reviewed8e81327a feature files remain byte-identical: runtime,
-schema, guide, proofs/tests, immutable236 and genuine generated eight-line RPC.
-The approved shared CI test union preserves exact main roster/calendar blocks
-first, unchanged removal block next, and the full common remainder; whole main
-CI plus original removal proof insertion preserves every calendar cleanup gate.
-History full-body multiplicities are actual2095+preparedb47−a961+this one entry.
-Removed only two exact surplus session copies (Release Java and Person/code
-roles), with original full bodies retained in the archive. All main roadmap
-text and both historical child removal paragraphs remain unchanged, plus one
-new reconciliation receipt. Canonical Prod DB 001–225 spacing restored;
-shared local001–237 metadata differs from this source001–236/actualmain235.
-No database/status/proof/type generation/provider/remote publication/CI writes.
-Original clock15:19:13Z/extended18:19:13Z, launch8/initial1/targeted5/fix5 remain.
-Changed-base independent review, publication and final exact-head CI remain
-pending; sharedadmission/fullcutover/billing remainOFF. Actual-main focused
-184tests/15files, architecture/UI/design/TypeScript/lint all PASS; explicit Bara
-spacing regression4/4 and actual-main-aware audit10files PASS. Private full
-preservation verifier/diff/official trim pass,40recent/2092combined entries.
-Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
-pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
-remain untouched. This is implementation evidence, not the independent review.
-
-## 2026-10-03 — Removal1448 forward-only database lint correction
-
-Exact reviewed787e623f CI37141937671 failed warning-free lint for private result
-validator IMMUTABLE/STABLE mismatch; returned1448 to draft. Run cancelled after
-566seconds, database andPRGate failed, no merge. Preserve immutable236/237.
-Contiguous inventory requires exact237 dormant service-role SQL dependency and
-atomic238: only validator ALTER STABLE plus metadata empty-effective-slug guard.
-No metadata app/helper/UI imported and no cohort/account/production activation.
-Whole genuine001–237 generated artifact copied byte-exact40d0289d; root will
-regenerate/check from matching001–238 history after reviewed local application.
-New direct regression/source gates14PASS, root full208line metadata replacement
-and existing236validator body/ACL/call graph inspected. Metadata rollback-only
-proof runs before unchanged removal SQL/SDK/three forced modes in CI. Review
-clock/counters retained: original15:19:13Z; launch9/target6/fix6, deadline19:19:13.
-Source/preapply review, local238-only application, actual serial regression proofs,
-final focused/cumulative independent review and exact-headCI remain pending.
-
 ## 2026-10-03 — Forward238 local catalog and serial regression receipts
 
 Reviewed23847a9bf5d ordinarylocalpush ONCE EXIT0, source/history001–237 matched,
@@ -663,6 +599,11 @@ Returned PR1454 to draft before a docs-only correction; restore the two spaces,
 retain225/239 schema floors and all dormant gates. Targeted guidance re-review
 and new exact-head CI remain gates; reviewed runtime source remains unchanged.
 
+## 2026-10-04 Broad audit: readable continuity CI regression
+
+- Full ready-SHA CI exposed one documentation assertion frozen to the old compact CURRENT first line (11870passed,1failed,8skipped). Returned PR1462 to draft before corrections.
+- Updated the attendance rollout test to validate the labeled hosted receipt, production migration floor, recorded smoke and explicit absence of a fresh hosted query. Local focused PASS144tests/11files and allothergates. Targeted independent review and new stable-SHA CI required.
+
 ## 2026-10-04 — Shared owner Assignment student-detail preparation
 
 PR1454 final19f91 cumulativeCLEAN; CI37174745897 exposed only CURRENT prefix
@@ -1163,3 +1104,16 @@ trace; cachedpromises/localreturnedreaders/multipart/aliases covered; shadowing,
 unrelatedschemas/literals/unusedreads rejected. Baseline24 unchanged; app/proof/
 CI/schema/depsidentical. ExistingTypeScript reused,no dependency. Samefixbudget4;
 originalclock/deadline/hardlimits retained; targetedreviewandfreshCIpending.
+
+## 2026-10-04 — Broad audit remediation batch 1
+
+Owner authorized planning and orchestration to fix the 27-finding broad audit at main `3c5d7097`. Plan: `docs/guidance/codebase-audit-remediation-2026-10.md`; existing audit handoff tracks per-finding evidence and worker receipts. Feature worktree `codex/audit-remediation`; full startup passed after frozen-lockfile installation, with no dependency changes. Three bounded GPT-6.1 Sol workers (auth high; guidance and patterns medium) delivered non-overlapping source/tests. Auth regressions: 172/20 PASS, including one initial-password winner, login origin/JSON and UTF-8 limits; S1 remains partial pending atomic issuance/handoff generation fencing. Patterns regressions: 69/8 PASS, covering cache/poll retention, survey shapes and directly imported script-test selection. Guidance reconciles source/local/hosted checkpoints and routing, removes direct-main landing instructions, and fails startup for missing required inputs. Startup context ceiling deliberately increased from 16k to 17k characters for readable dated labels and receipt/remaining-gate text. No migration, database, hosted flag or production mutation. Draft publication and cumulative verification receipts remain with coordinator; independent review not yet launched. Codex weekly remaining at start 8%; DeepSeek paused through 2026-12-31; pr-review low-usage human checkpoint applies before reviewer launch. Goal remains active; no finding accepted from implementation delivery alone.
+
+## 2026-10-04 — Audit PR 1462 main reconciliation 902cbf76
+
+Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
+bodies from both branches and the incoming contextual owner Test detail read
+and CI checks. Previously reviewed audit implementation bytes remain unchanged;
+shared continuity and CI composition receive bounded independent review.
+Final focused checks and exact reviewed-head CI are readiness gates.
+No migration reapplication, shared/hosted database operation, merge or deployment.
