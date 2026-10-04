@@ -330,6 +330,9 @@ jobs:
       - name: Verify contextual learner assignment-save atomicity and privileges
         run: bash scripts/check-contextual-assignment-doc-save-database.sh
 
+      - name: Verify contextual assignment-member locked Classwork concealment
+        run: bash scripts/check-contextual-assignment-member-classwork-database.sh
+
       - name: Verify contextual Daily Log save atomicity and privileges
         run: bash scripts/check-contextual-daily-log-save-database.sh
 

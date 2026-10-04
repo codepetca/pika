@@ -1070,7 +1070,19 @@ Classwork denial for save/submit/unsubmit/preflight only; history/restore/artifa
 inline images remain separate. No241application or production/activation implied.
 
 Remaining batch-2 groups, in integration order: Assignment detail/open
-enrichments; Tests owner operations then learner participation/disclosure; complete
+enrichments and [locked learner write visibility](contextual-assignment-member-classwork.md).
+Candidate241 replaces four complete214 member save/submit/unsubmit/preflight
+definitions, only adding240's locked Classwork predicate. Root inspected source,
+corrected the rollback fixture's fresh-null activation prerequisite without changing
+169's immutable boundary/guard, and retains regression-first evidence. Source-only,
+UNAPPLIED; independent source review, exact local preview/application/types and
+rollback/runtime proofs precede ready/CI/mainmerge. Existing001–240 SQL, fixture DML,
+allowed transitions and cleanup authority remain unchanged; the explicit disposable
+replay floor advances only to241. Sibling history/restore/artifact/inline guards
+and integrated authenticated opening remain separate pre-cutover work.
+
+Further batch-2 groups, in integration order: Tests owner operations then learner
+participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading
 entrypoint/job authorization and compatibility, without activating AI or billing.
 Existing062/063 actor stamps do not constitute owner checks;143 participation also
