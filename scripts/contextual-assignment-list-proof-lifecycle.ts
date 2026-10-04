@@ -154,10 +154,10 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   for (const p of revocations) assert(policyKeys.has(`${p.transition}:${p.boundary}`))
   for (const p of input.restorationPolicies) for (const cell of p.allowedCells) {
     assert(['public', 'private'].includes(cell.schema))
-    assert(['classrooms', 'assignment_docs', 'classroom_enrollments', 'pal_membership_generations'].includes(cell.table))
+    assert(['classrooms', 'classroom_archive_revisions', 'assignment_docs', 'classroom_enrollments', 'pal_membership_generations'].includes(cell.table))
     assert(fixture.allocatedIds.some(id => id === cell.id)); assert(cell.columns.length > 0 && cell.columns.every(c => c === '__row__' || /^[a-z][a-z0-9_]*$/.test(c)))
     const transition = revocations.find(r => r.transition === p.transition && r.boundary === p.boundary)!
-    if (cell.table === 'classrooms') assert(cell.schema === 'public' && cell.id === transition.classroomId)
+    if (cell.table === 'classrooms' || cell.table === 'classroom_archive_revisions') assert(cell.schema === 'public' && cell.id === transition.classroomId)
     else if (cell.table === 'assignment_docs') assert(cell.schema === 'public' && ['grade-withdraw', 'feedback-withdraw'].includes(p.transition) && cell.id === fixture.docs.find(d => d.returned)!.id)
     else {
       assert.equal(p.transition, 'member-remove')

@@ -8,7 +8,7 @@ import { assignmentListRevocationPlans } from './contextual-assignment-list-proo
 import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError } from './contextual-assignment-list-proof-lifecycle'
 import { assignmentListExpectedResources, assignmentListRestorationPolicy, createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations } from './contextual-assignment-list-proof-platform'
 
-export function parseAssignmentListLifecycleArgs(args: string[]) {
+export function parseAssignmentListLifecycleArgs(args: string[]): { head: string; mode: 'normal' | 'after-fixture' | 'before-capture' } {
   assert.equal(args.length, 4); assert.equal(args[0], '--reviewed-head'); assert.match(args[1], /^[a-f0-9]{40}$/)
   assert.equal(args[2], '--mode'); assert(args[3] === 'normal' || args[3] === 'after-fixture' || args[3] === 'before-capture')
   return { head: args[1], mode: args[3] }

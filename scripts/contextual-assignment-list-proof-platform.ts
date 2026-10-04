@@ -22,7 +22,7 @@ const sha = (value: string) => createHash('sha256').update(value).digest('hex')
 type Rows = Record<string, Array<Record<string, unknown>>>
 type Cell = { schema: 'public' | 'private'; table: string; id: string; columns: string[] }
 type Plan = ReturnType<typeof assignmentListRevocationPlans>[number]
-const identity = (row: Record<string, unknown>) => String(row.id ?? row.generation_id ?? row.user_id ?? JSON.stringify(row))
+const identity = (row: Record<string, unknown>, table: string) => String(row.id ?? row.generation_id ?? row.user_id ?? (table === 'public.classroom_archive_revisions' ? row.classroom_id : undefined) ?? JSON.stringify(row))
 /** Callers must also prove cleanup gates OFF, no grading work and no Vault secrets.
  * The two installed SQL watchdogs then cannot issue network callbacks. */
 export function assignmentListSafeCronJobs(jobs: Array<Record<string, unknown>>): boolean {
@@ -36,8 +36,8 @@ export function assignmentListRowChanges(before: Rows, after: Rows): Cell[] {
   const changes: Cell[] = []
   for (const name of [...new Set([...Object.keys(before), ...Object.keys(after)])].sort()) {
     const [schema, table] = name.split('.'); assert(schema && table)
-    const previous = new Map((before[name] ?? []).map(row => [identity(row), row]))
-    const current = new Map((after[name] ?? []).map(row => [identity(row), row]))
+    const previous = new Map((before[name] ?? []).map(row => [identity(row, name), row]))
+    const current = new Map((after[name] ?? []).map(row => [identity(row, name), row]))
     assert.equal(previous.size, (before[name] ?? []).length); assert.equal(current.size, (after[name] ?? []).length)
     for (const id of [...new Set([...previous.keys(), ...current.keys()])].sort()) {
       const a = previous.get(id); const b = current.get(id)
@@ -56,7 +56,10 @@ export function assignmentListExpectedResources(projectId: string) {
   ]
 }
 export function assignmentListRestorationPolicy(fixture: AssignmentListProofFixture, plan: Plan) {
-  const allowedCells: Cell[] = [{ schema: 'public', table: 'classrooms', id: plan.classroomId, columns: ['archive_revision', 'updated_at'] }]
+  const allowedCells: Cell[] = [
+    { schema: 'public', table: 'classrooms', id: plan.classroomId, columns: ['blueprint_source_revision', 'updated_at'] },
+    { schema: 'public', table: 'classroom_archive_revisions', id: plan.classroomId, columns: ['revision', 'updated_at'] },
+  ]
   if (plan.transition === 'member-remove') {
     const removals = assignmentListRevocationPlans(fixture).filter(p => p.transition === 'member-remove')
     const n = removals.findIndex(p => p.boundary === plan.boundary)
@@ -217,7 +220,7 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       const policy = assignmentListRestorationPolicy(fixture, plan)
       const permitted = (cell: Cell) => policy.allowedCells.some(allow => allow.schema === cell.schema && allow.table === cell.table && allow.id === cell.id && cell.columns.every(column => allow.columns.includes(column)))
       assert(changes.every(permitted))
-      const filter = (rows: Rows) => JSON.stringify(Object.fromEntries(Object.entries(rows).map(([name, values]) => [name, values.filter(row => !policy.allowedCells.some(c => `${c.schema}.${c.table}` === name && c.id === identity(row)))])))
+      const filter = (rows: Rows) => JSON.stringify(Object.fromEntries(Object.entries(rows).map(([name, values]) => [name, values.filter(row => !policy.allowedCells.some(c => `${c.schema}.${c.table}` === name && c.id === identity(row, name)))])))
       const nonTargetBefore = sha(filter(beforeTransition)); const nonTargetAfter = sha(filter(after)); assert.equal(nonTargetBefore, nonTargetAfter)
       // All business fields compare equal; only enumerated trigger bookkeeping
       // and fresh enrollment/generation rows may differ after restoration.
