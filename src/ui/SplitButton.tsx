@@ -10,6 +10,7 @@ import {
   useState,
   type ButtonHTMLAttributes,
   type ReactNode,
+  type KeyboardEvent,
 } from 'react'
 import { Button, type ButtonProps } from './Button'
 import { cn } from './utils'
@@ -59,6 +60,7 @@ export function SplitButton({
   primaryButtonProps,
 }: SplitButtonProps) {
   const { className: primaryClassName, ...restPrimaryButtonProps } = primaryButtonProps ?? {}
+  const [activeOptionId, setActiveOptionId] = useState<string | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const primaryButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -70,6 +72,8 @@ export function SplitButton({
   const normalOptions = options.filter((option) => !option.destructive)
   const destructiveOptions = options.filter((option) => option.destructive)
   const orderedOptions = [...normalOptions, ...destructiveOptions]
+  const activeOption = orderedOptions.find((option) => option.id === activeOptionId && !option.disabled)
+    ?? orderedOptions.find((option) => !option.disabled)
   const firstDestructiveOption = destructiveOptions[0] ?? null
   const hasLeadingVisual = options.some((option) => option.icon || option.checked !== undefined)
   const primaryIsMenuTrigger = primaryOpensMenu || singleMenuTrigger
@@ -112,7 +116,10 @@ export function SplitButton({
       return
     }
 
-    if (!focusedOnOpenRef.current) {
+    const activeElement = document.activeElement
+    const lostMenuFocus = (activeElement === document.body || menuRef.current?.contains(activeElement))
+      && !getEnabledMenuItems().includes(activeElement as HTMLButtonElement)
+    if (!focusedOnOpenRef.current || lostMenuFocus) {
       getEnabledMenuItems()[0]?.focus()
       focusedOnOpenRef.current = true
     }
@@ -120,47 +127,48 @@ export function SplitButton({
     function handleClickOutside(event: MouseEvent) {
       if (!containerRef.current) return
       if (!containerRef.current.contains(event.target as Node)) {
-        closeMenu({ restoreFocus: true })
+        closeMenu()
       }
     }
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        closeMenu({ restoreFocus: true })
-        return
-      }
-
-      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
-
-      const enabledItems = getEnabledMenuItems()
-      if (enabledItems.length === 0) return
-
-      event.preventDefault()
-      const currentIndex = enabledItems.indexOf(document.activeElement as HTMLButtonElement)
-      const lastIndex = enabledItems.length - 1
-      const nextIndex =
-        event.key === 'Home'
-          ? 0
-          : event.key === 'End'
-            ? lastIndex
-            : event.key === 'ArrowUp'
-              ? currentIndex <= 0
-                ? lastIndex
-                : currentIndex - 1
-              : currentIndex === -1 || currentIndex === lastIndex
-                ? 0
-                : currentIndex + 1
-
-      enabledItems[nextIndex]?.focus()
+    function handleFocusOutside(event: FocusEvent) {
+      if (!containerRef.current?.contains(event.target as Node)) closeMenu()
     }
 
     document.addEventListener('mousedown', handleClickOutside)
-    window.addEventListener('keydown', handleKeyDown)
+    document.addEventListener('focusin', handleFocusOutside)
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
-      window.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('focusin', handleFocusOutside)
     }
   }, [closeMenu, getEnabledMenuItems, isOpen])
+
+  function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!isOpen) return
+    if (event.key === 'Tab') {
+      // Allow the browser to choose the normal next/previous tab stop before
+      // removing the focused menu item. Never return focus on keyboard exit.
+      window.setTimeout(() => closeMenu(), 0)
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      closeMenu({ restoreFocus: true })
+      return
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+    const items = getEnabledMenuItems()
+    if (!items.length) return
+    event.preventDefault()
+    event.stopPropagation()
+    const current = items.indexOf(document.activeElement as HTMLButtonElement)
+    const last = items.length - 1
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? last
+      : event.key === 'ArrowUp' ? current <= 0 ? last : current - 1
+        : current < 0 || current === last ? 0 : current + 1
+    items[next]?.focus()
+  }
 
   function handleOptionSelect(onSelect: () => void) {
     const existingModals = new Set(document.querySelectorAll('[aria-modal="true"]'))
@@ -175,11 +183,12 @@ export function SplitButton({
       return
     }
     activeTriggerRef.current = trigger
+    setActiveOptionId(null)
     setIsOpen(true)
   }
 
   return (
-    <div ref={containerRef} className={cn('relative inline-flex', className)}>
+    <div ref={containerRef} onKeyDown={handleMenuKeyDown} className={cn('relative inline-flex', className)}>
       <Button
         ref={primaryButtonRef}
         type="button"
@@ -245,9 +254,10 @@ export function SplitButton({
                 role={option.checked === undefined ? 'menuitem' : 'menuitemradio'}
                 aria-checked={option.checked === undefined ? undefined : option.checked}
                 disabled={option.disabled}
+                tabIndex={option === activeOption ? 0 : -1}
                 onMouseEnter={() => option.onHoverChange?.(true)}
                 onMouseLeave={() => option.onHoverChange?.(false)}
-                onFocus={() => option.onHoverChange?.(true)}
+                onFocus={() => { setActiveOptionId(option.id); option.onHoverChange?.(true) }}
                 onBlur={() => option.onHoverChange?.(false)}
                 onClick={(event) => {
                   event.stopPropagation()
