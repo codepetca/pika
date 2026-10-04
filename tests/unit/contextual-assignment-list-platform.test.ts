@@ -14,9 +14,12 @@ describe('assignment-list native platform proof contracts (offline)', () => {
     const project = `pika_assignment_list_${randomUUID().replaceAll('-', '').slice(0, 12)}`
     const path = `${assignmentListProofWorkdir(project)}-startup.json`
     try {
-      expect(writeAssignmentListStartupDiagnostic(project, { code: 1, killed: false, stdout: 'Synthetic private output', stderr: 'Synthetic private error' })).toBe(path)
+      expect(writeAssignmentListStartupDiagnostic(project, { code: 1, killed: false, stdout: '漢'.repeat(6000), stderr: 'Synthetic private error' })).toBe(path)
       expect(statSync(path).mode & 0o777).toBe(0o600)
-      expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({ code: 1, stdout: 'Synthetic private output', stderr: 'Synthetic private error' })
+      const receipt = JSON.parse(readFileSync(path, 'utf8'))
+      expect(receipt).toMatchObject({ code: 1, stderr: 'Synthetic private error' })
+      expect(Buffer.byteLength(receipt.stdout, 'utf8')).toBeLessThanOrEqual(16384)
+      expect(receipt.stdout).not.toContain('�')
       expect(() => writeAssignmentListStartupDiagnostic(project, { code: 2, killed: false, stdout: 'overwrite', stderr: '' })).toThrow()
       expect(readFileSync(path, 'utf8')).not.toContain('overwrite')
       expect(() => writeAssignmentListStartupDiagnostic('pika', { code: 1, killed: false, stdout: '', stderr: '' })).toThrow()

@@ -78,12 +78,18 @@ export function assignmentListRestorationPolicy(fixture: AssignmentListProofFixt
 export class AssignmentListStartupError extends Error {
   constructor(public readonly diagnosticPath: string) { super('Private isolated startup failure'); this.name = 'AssignmentListStartupError' }
 }
+function boundedStartupTail(value: string) {
+  const bytes = Buffer.from(value, 'utf8')
+  let start = Math.max(0, bytes.length - 16384)
+  while (start < bytes.length && (bytes[start] & 0xc0) === 0x80) start++
+  return bytes.subarray(start).toString('utf8')
+}
 /** Startup-only output never includes canonical snapshot rows; do not print it. */
 export function writeAssignmentListStartupDiagnostic(projectId: string, evidence: { code: unknown; killed: boolean; stdout: string; stderr: string }) {
   const path = `${assignmentListProofWorkdir(projectId)}-startup.json`
   assert.equal(realpathSync(dirname(path)), dirname(path))
   const receipt = { stage: 'start', code: typeof evidence.code === 'string' || typeof evidence.code === 'number' ? evidence.code : null,
-    killed: evidence.killed, stdout: evidence.stdout.slice(-16384), stderr: evidence.stderr.slice(-16384) }
+    killed: evidence.killed, stdout: boundedStartupTail(evidence.stdout), stderr: boundedStartupTail(evidence.stderr) }
   writeFileSync(path, JSON.stringify(receipt), { mode: 0o600, flag: 'wx' })
   return path
 }
