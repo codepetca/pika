@@ -985,6 +985,23 @@ finding and a real sparse-history pagination issue were corrected without new
 SQL or relaxed limits. Final cumulative review and exact-head CI/mainmerge
 remain gates; shared admission, home cutover and production remain untouched.
 
+The next bounded [owner student-detail GET](contextual-assignment-student-detail-reads.md)
+is being prepared separately while1454 finishes CI. It preserves complete sensitive
+owner-work fields and proves both current ownership and exact nonowner target
+enrollment at every payload/page/terminal/final statement, including before image
+signing. No migration, provider operation, UI or admission activation is included.
+Publication/review waits for actual1454 merge and base reconciliation. Its new
+isolated observer reuses the immutable list fixture/platform and exact existing
+owner-transfer/member-removal SQL at six detail first/later/terminal boundaries;
+the original list observer owns the single restoration and fingerprint checks.
+Offline proof/serial-CI guards pass24 tests; actual runtime, independent review and
+exact-head CI/mainmerge remain gates. Empty artifact/feedback/repository fixture
+collections do not prove nonempty supplements or live Storage signing.
+The same slice closes1454's non-blocking exhausted-bound signing follow-up with
+a lazy overview request and two installed-SDK RED-to-GREEN zero-late-POST tests;
+no DTO/query/relationship/limit change. This correction is required before
+admission/cutover activation; it is not a deployment or live-signing claim.
+
 Remaining batch-2 groups, in integration order: Assignment detail/open
 enrichments; Tests owner operations then learner participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

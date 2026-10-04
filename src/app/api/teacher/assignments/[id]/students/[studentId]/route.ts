@@ -16,6 +16,9 @@ import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions
 import { parseContentField } from '@/lib/tiptap-content'
 import { withErrorHandler } from '@/lib/api-handler'
 import { ApiError } from '@/lib/api-error'
+import { authorizeSharedAssignmentOverviewReadActor } from '@/lib/server/contextual-assignment-overview-read'
+import { readContextualAssignmentStudentDetail } from '@/lib/server/contextual-assignment-student-detail-read'
+import { contextualAssignmentStudentDetailQuerySchema } from '@/lib/validations/contextual-assignment-student-detail-read'
 import {
   assertContextualAssignmentDetailArtifacts,
   assertContextualAssignmentDetailRequirements,
@@ -35,6 +38,12 @@ export const revalidate = 0
 
 // GET /api/teacher/assignments/[id]/students/[studentId] - Get specific student's work
 export const GET = withErrorHandler('GetTeacherAssignmentStudent', async (request, context) => {
+  const sharedActor = await authorizeSharedAssignmentOverviewReadActor()
+  if (sharedActor.mode === 'shared') {
+    const params = await context.params
+    const { assignmentId, studentId } = contextualAssignmentStudentDetailQuerySchema.parse({ assignmentId: params.id, studentId: params.studentId })
+    return NextResponse.json(await readContextualAssignmentStudentDetail({ supabase: getServiceRoleClient(), actorId: sharedActor.user.id, assignmentId, studentId }))
+  }
   let resolvedParams: { id: string; studentId: string } | null = null
   const resolveParams = async () => {
     resolvedParams ??= await context.params as { id: string; studentId: string }

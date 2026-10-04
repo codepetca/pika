@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Shared roster management read preparation
-
-Owner explicitly authorized remaining in-scope implementation, reviews, normal
-main merges, local migrations and review extensions without repeated prompts.
-Original review counters remain and absolute hard caps/checks still apply.
-Attached contextual-roster-management-read prepares only the shared owner GET:
-auth before admission/params, current-owner classroom-rooted UUID keyset pages,
-real roster-binding/enrollment-user evidence, strict safe output and unchanged
-legacy/purge mutation contracts. Multiple legitimate roster rows bound to one
-learner remain displayable; availability deduplicates canonical eligible IDs.
-Native source and installed-SDK proof workers own disjoint files; coordinator
-owns actual local execution, CI, docs, independent review and merge evidence.
-No new schema/types/UI, production/provider/account/plan or admission activation.
-Roster write fences and class-day/core reconciliation remain in batch1; linked
-Blueprint material read work is batch3-adjacent, not full-phase completion.
-
-407 focused tests/21files and all static/lint gates pass. Actual local installed
-SDK normal proof passed >1000 learners/bindings/pages, duplicate stable display,
-both global-role owners, archived/removed/member policy, current-owner change
-before first/later/terminal roster and enrollment pages, actual-array corruption
-and exact safe projection. Forced post-fixture proof exited1 with its expected
-error and exact zero-residual/global baseline cleanup sentinel. No SQL application
-or hosted changes; independent review/final stable-head CI still required.
-
 ## 2026-10-03 — Verified linked-material merge and roster-read main reconciliation
 
 PR1442 merged3351d85f3c9d47ae6c8a5a0cbdd6ab4b1baef7aa at14:56:00Z after
@@ -882,3 +858,31 @@ continuity-format failure:ProdDB001 lacked the tested Prod DB 001 prefix.
 Returned PR1454 to draft before a docs-only correction; restore the two spaces,
 retain225/239 schema floors and all dormant gates. Targeted guidance re-review
 and new exact-head CI remain gates; reviewed runtime source remains unchanged.
+
+## 2026-10-04 — Shared owner Assignment student-detail preparation
+
+PR1454 final19f91 cumulativeCLEAN; CI37174745897 exposed only CURRENT prefix
+format regression, locally reproduced. Docs-onlyf93a411e targetedCLEAN;
+47attendance/startup +266focused/1skip/staticPASS. Exact-head37175526420 running.
+No merge/production/rollout receipt yet. Seven launches/fourfix/fourtarget/onefinal
+retain original02:42:02 clock, extended04:42:02 deadline and absolute caps.
+
+Parallel isolated codex/contextual-assignment-student-detail-reads starts at
+reviewed19f91; publication/review waits for actual1454merge/base reconciliation.
+One GPT6.1Sol/high writer owns GET/helper/schema/route+SDKtests/contract; root
+owns immutable-lifecycle observer/CI/continuity/integration. Boundary map verified
+full owner-private DTO, no unavoidable SQL, perstatement exact target membership,
+archived-owner reads and historical owner-selftarget denial. No activation.
+Pure proof/CI guards TDDRED then24PASS, including exact-one-transition/no retry
+on ambiguous commit and no vacuous boundary acceptance. Observer wraps only the
+existing approved revoke request, native list observer restores/fingerprints once;
+no added fixture DML/platform/cleanup authority. Actual runtime not executed.
+DeepSeek remains explicitlyPAUSED; recent weekly19%, ordinary useallowed.
+Writer returned six owned files with107targeted/TypeScript/lint/architecturePASS.
+Root verified literal legacy body unchanged, added a bounded overview lazy-sign
+correction: two installed-SDK regressions failRED with one deferred POST after
+rejection, then passGREEN with no late request. Both readers' assertions observe
+a full event-loop turn. Combined187targeted/24proof-CI guards pass; full focused
+384PASS/8skip plus all static gates pass; explicit proof TypeScript programPASS.
+No real runtime execution or independent review yet; publication remains gated
+on1454actualmerge/base reconciliation. Nonempty supplements/signing remain unproven.

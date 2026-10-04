@@ -6,6 +6,16 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires a serial student-detail SDK and revocation observer with no extra fixture authority', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual Assignment student-detail reads'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_student_detail_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-student-detail-lifecycle.ts --reviewed-head "$assignment_student_detail_head" --mode normal')
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+    expect(workflow.indexOf('      - name: Verify isolated contextual Assignment overview reads')).toBeLessThan(workflow.indexOf(name))
+  })
   it('requires an additional serial overview SDK proof using the reviewed existing disposable fixture', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const name = '      - name: Verify isolated contextual Assignment overview reads'

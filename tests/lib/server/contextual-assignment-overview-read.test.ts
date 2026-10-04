@@ -174,6 +174,36 @@ describe('statement-bound assignment overview with installed SDK', () => {
     const denied = fixture({ docs: [d], requirements: [requirement(0, 'image')], artifacts: [a], intercept: (row, url) => url.searchParams.has('docs.artifacts.id') ? null : row })
     await expect(denied.read()).rejects.toMatchObject({ statusCode: 403 }); expect(denied.bodies).toHaveLength(0)
   })
+  it('does not start a signing POST when the fresh proof consumes statement1024', async () => {
+    const d = doc(0)
+    const a = { ...artifact(0, d, 'image'), storage_path: `${d.student_id}/${assignmentId}/${uuid(30000)}-123-${uuid(999)}.png` }
+    const requirements = Array.from({ length: 1012 }, (_, n) => requirement(n, n === 0 ? 'image' : 'link'))
+    const f = fixture({ docs: [d], requirements, artifacts: [a], intercept: (row, url) => {
+      if (url.searchParams.get('select')?.includes('requirements:')) row.requirements = row.requirements.slice(0, 1)
+      return row
+    } })
+    await expect(f.read()).rejects.toMatchObject({ statusCode: 503 })
+    // The SDK's async credential/header work can defer its hot request until
+    // after the reader rejects. Observe a full turn before asserting no POST.
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(f.urls.filter(url => url.pathname === '/rest/v1/assignments')).toHaveLength(1024)
+    expect(f.urls.filter(url => url.pathname.includes('/storage/v1/'))).toHaveLength(0)
+  })
+  it('checks the deadline before starting a signing POST after its fresh proof', async () => {
+    const d = doc(0)
+    const a = { ...artifact(0, d, 'image'), storage_path: `${d.student_id}/${assignmentId}/${uuid(30000)}-123-${uuid(999)}.png` }
+    let atProof = false; let ticksAfterProof = 0
+    const now = vi.spyOn(Date, 'now').mockImplementation(() => atProof && ++ticksAfterProof > 1 ? 20000 : 0)
+    try {
+      const f = fixture({ docs: [d], requirements: [requirement(0, 'image')], artifacts: [a], intercept: (row, url) => {
+        if (url.searchParams.get('docs.artifacts.id')?.startsWith('in.')) atProof = true
+        return row
+      } })
+      await expect(f.read()).rejects.toMatchObject({ statusCode: 503 })
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(f.urls.filter(url => url.pathname.includes('/storage/v1/'))).toHaveLength(0)
+    } finally { now.mockRestore() }
+  })
   it('keeps archived owner access and denies missing/foreign control before payload queries', async () => {
     await expect(fixture({ intercept: row => ({ ...row, classrooms: { ...row.classrooms, archived_at: stamp } }) }).read()).resolves.toHaveProperty('students')
     for (const [control, status] of [[null, 404], [{ id: assignmentId, classroom_id: classroomId, classrooms: { ...classroom, teacher_id: uuid(5) } }, 403]] as const) {

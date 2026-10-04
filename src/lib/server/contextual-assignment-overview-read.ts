@@ -53,13 +53,15 @@ export async function readContextualAssignmentOverview(input: { supabase: Client
   const timer = setTimeout(() => controller.abort(), ASSIGNMENT_LIST_DEADLINE_MS)
   let statements = 0
   const checkDeadline = () => { if (controller.signal.aborted || Date.now() >= deadline) throw unavailable() }
-  async function execute(query: PromiseLike<unknown>) {
+  async function execute(query: PromiseLike<unknown> | (() => PromiseLike<unknown>)) {
     checkDeadline()
     if (++statements > ASSIGNMENT_LIST_STATEMENT_LIMIT) throw unavailable()
+    // Storage calls return hot promises. Do not begin one outside the bounds.
+    const pending = typeof query === 'function' ? query() : query
     const result = await new Promise<unknown>((resolve, reject) => {
       const abort = () => reject(unavailable())
       controller.signal.addEventListener('abort', abort, { once: true })
-      Promise.resolve(query).then(resolve, reject).finally(() => controller.signal.removeEventListener('abort', abort))
+      Promise.resolve(pending).then(resolve, reject).finally(() => controller.signal.removeEventListener('abort', abort))
     })
     checkDeadline()
     if (!boundedAssignmentListJson(result, ASSIGNMENT_LIST_DTO_BYTES)) throw unavailable()
@@ -257,7 +259,7 @@ export async function readContextualAssignmentOverview(input: { supabase: Client
         }
       }
       if (proven.size !== batch.length) throw unavailable()
-      const result = await execute(input.supabase.storage.from('assignment-artifacts').createSignedUrls(batch.map(a => a.storage_path!), 3600))
+      const result = await execute(() => input.supabase.storage.from('assignment-artifacts').createSignedUrls(batch.map(a => a.storage_path!), 3600))
       const signed = z.object({ data: z.array(z.object({ path: z.string(), signedURL: z.string().nullable(), signedUrl: z.string().nullable(), error: z.string().nullable() }).strict()).nullable(), error: z.unknown() }).strict().safeParse(result)
       if (!signed.success) throw unavailable()
       if (signed.data.error || !signed.data.data) continue
