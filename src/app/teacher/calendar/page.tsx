@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
-import { Button, IconButton, AlertDialog } from '@/ui'
+import { Button, IconButton, AlertDialog, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { CreateClassroomModal } from '@/components/CreateClassroomModal'
 import { PageActionBar, PageContent, PageLayout } from '@/components/PageLayout'
@@ -29,7 +29,11 @@ export default function CalendarPage() {
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingCalendar, setLoadingCalendar] = useState(false)
-  const [classDays, setClassDays] = useState<ClassDay[]>([])
+  const [calendarSnapshot, setCalendarSnapshot] = useState<{ classroomId: string; days: ClassDay[] } | null>(null)
+  const [classroomsError, setClassroomsError] = useState(false)
+  const [calendarError, setCalendarError] = useState<string | null>(null)
+  const classroomsRequestIdRef = useRef(0)
+  const classDays = calendarSnapshot?.classroomId === selectedClassroom?.id ? calendarSnapshot?.days ?? [] : []
   const [generating, setGenerating] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
 
@@ -82,27 +86,28 @@ export default function CalendarPage() {
     return { semester1Year, semester2Year }
   }
 
-  // Load classrooms
-  useEffect(() => {
-    async function loadClassrooms() {
-      try {
-        const nextClassrooms = await fetchTeacherClassrooms()
-
-        setClassrooms(nextClassrooms)
-
-        // Auto-select first classroom
-        if (nextClassrooms.length > 0) {
-          setSelectedClassroom(nextClassrooms[0])
-        }
-      } catch (err) {
-        console.error('Error loading classrooms:', err)
-      } finally {
-        setLoading(false)
-      }
+  const loadClassrooms = useCallback(async () => {
+    const requestId = ++classroomsRequestIdRef.current
+    setLoading(true)
+    setClassroomsError(false)
+    try {
+      const nextClassrooms = await fetchTeacherClassrooms()
+      if (classroomsRequestIdRef.current !== requestId) return
+      setClassrooms(nextClassrooms)
+      setSelectedClassroom((current) => nextClassrooms.find((item) => item.id === current?.id) ?? nextClassrooms[0] ?? null)
+    } catch (err) {
+      if (classroomsRequestIdRef.current !== requestId) return
+      console.error('Error loading classrooms:', err)
+      setClassroomsError(true)
+    } finally {
+      if (classroomsRequestIdRef.current === requestId) setLoading(false)
     }
-
-    loadClassrooms()
   }, [])
+
+  useEffect(() => {
+    void loadClassrooms()
+    return () => { classroomsRequestIdRef.current++; classDaysRequestIdRef.current++ }
+  }, [loadClassrooms])
 
   const loadClassDays = useCallback(async () => {
     const classroomId = selectedClassroom?.id
@@ -111,13 +116,16 @@ export default function CalendarPage() {
     classDaysRequestIdRef.current = requestId
 
     setLoadingCalendar(true)
+    setCalendarError(null)
+    setCalendarSnapshot(null)
     try {
       const nextClassDays = await fetchClassDaysForClassroom(classroomId)
       if (classDaysRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
-      setClassDays(nextClassDays)
+      setCalendarSnapshot({ classroomId, days: nextClassDays })
     } catch (err) {
       if (classDaysRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
       console.error('Error loading class days:', err)
+      setCalendarError(classroomId)
     } finally {
       if (classDaysRequestIdRef.current !== requestId || selectedClassroomIdRef.current !== classroomId) return
       setLoadingCalendar(false)
@@ -128,7 +136,7 @@ export default function CalendarPage() {
   useEffect(() => {
     if (!selectedClassroom) {
       classDaysRequestIdRef.current += 1
-      setClassDays([])
+      setCalendarSnapshot(null)
       return
     }
 
@@ -138,6 +146,7 @@ export default function CalendarPage() {
   async function handleGenerate() {
     if (!selectedClassroom) return
 
+    const classroomId = selectedClassroom.id
     setGenerating(true)
     try {
       let body: any = { classroom_id: selectedClassroom.id }
@@ -167,17 +176,22 @@ export default function CalendarPage() {
       if (response.ok) {
         // Refresh classroom list to pick up start/end date updates.
         invalidateTeacherClassrooms()
-        invalidateClassDaysForClassroom(selectedClassroom.id)
+        invalidateClassDaysForClassroom(classroomId)
+        if (selectedClassroomIdRef.current !== classroomId) return
         const nextClassrooms = await fetchTeacherClassrooms()
+        if (selectedClassroomIdRef.current !== classroomId) return
         setClassrooms(nextClassrooms)
         const refreshed = nextClassrooms.find(c => c.id === selectedClassroom.id) ?? null
         if (refreshed) setSelectedClassroom(refreshed)
         await loadClassDays()
       } else {
+        if (selectedClassroomIdRef.current !== classroomId) return
         const data = await response.json()
+        if (selectedClassroomIdRef.current !== classroomId) return
         showError('Error', data.error || 'Failed to generate calendar')
       }
     } catch (err) {
+      if (selectedClassroomIdRef.current !== classroomId) return
       console.error('Error generating calendar:', err)
       showError('Error', 'An error occurred')
     } finally {
@@ -476,6 +490,10 @@ export default function CalendarPage() {
     )
   }
 
+  if (classroomsError) {
+    return <PageState kind="error" title="Could not load classrooms" description="Try loading your classrooms again." action={<Button onClick={() => { invalidateTeacherClassrooms(); void loadClassrooms() }}>Try again</Button>} />
+  }
+
   // Empty state - no classrooms
   if (classrooms.length === 0) {
     return (
@@ -500,9 +518,9 @@ export default function CalendarPage() {
 
   return (
     <>
-      <div className="flex gap-6">
+      <div className="flex flex-col gap-6 md:flex-row">
       {/* Classroom List Sidebar */}
-      <div className="w-64 flex-shrink-0">
+      <div className="w-full flex-shrink-0 md:w-64">
         <div className="bg-surface rounded-lg shadow-sm p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-text-default">Classes</h3>
@@ -542,7 +560,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         {selectedClassroom ? (
           <PageLayout>
             <PageActionBar
@@ -554,14 +572,16 @@ export default function CalendarPage() {
                   <div className="text-xs text-text-muted truncate">
                     <span className="font-mono">{selectedClassroom.class_code}</span>
                     {' • '}
-                    {classDays.filter(d => d.is_class_day).length} class days
+                    {calendarSnapshot?.classroomId === selectedClassroom.id ? `${classDays.filter(d => d.is_class_day).length} class days` : 'Calendar unavailable'}
                   </div>
                 </div>
               }
             />
 
             <PageContent>
-              {loadingCalendar ? (
+              {calendarError === selectedClassroom.id ? (
+                <PageState kind="error" title="Could not load calendar" description="Try loading this classroom’s calendar again." action={<Button onClick={() => { invalidateClassDaysForClassroom(selectedClassroom.id); void loadClassDays() }}>Try again</Button>} />
+              ) : loadingCalendar || calendarSnapshot?.classroomId !== selectedClassroom.id ? (
                 <div className="flex justify-center py-12">
                   <Spinner size="lg" />
                 </div>
