@@ -1194,6 +1194,24 @@ unchanged in the final facts-only batch; final cumulative review/exactCI/mainmer
 pending. This is NOT authenticated appHTTP/browser/removal-race or phase-exit
 evidence. Tests/Surveys/Grades groups below and later cutover gates still apply.
 
+Final1461 receipt supersedes the pending state: exact reviewedff0a45a2 passed all
+five CI37202212433 checks including PR Gate; normal squash7c8fd90e merged
+2026-10-04T12:59:35Z. Reviewed/squash full-tree parity and clean canonical main
+fast-forward verified;36 unrelated stashes and dependency worktrees retained.
+No production, cohort, account, provider or billing activation. The next bounded
+Tests slice is [owner Test detail GET](contextual-test-detail-read.md), using
+existing shared admission and current owner-bound nested reads. Draft GET is
+excluded because its ensure helper can create/repair a draft; its transaction
+boundary belongs to subsequent owner authoring work. Source preparation and a
+schema relationship map are not actual SDK evidence or a phase exit.
+
+PR1468 now contains that owner Test detail GET. Its ba42f662 disposable run passed
+eight actual SDK cases plus both full-setup forced teardown modes; separate saved
+whole-canonical fingerprints match after every run. Initial/targeted source
+reviews are clean, including copied-question/cache compatibility coverage.
+Final cumulative review, stable-head CI and normal main merge remain pending;
+all broader Tests operations and the existing rollout/phase-exit gates remain.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

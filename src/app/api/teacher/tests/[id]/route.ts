@@ -23,6 +23,8 @@ import {
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TableRow } from '@/types/database'
 import type { TestDraftContent } from '@/types'
+import { authorizeSharedTestDetailReadActor, readContextualTestDetail } from '@/lib/server/contextual-test-detail-read'
+import { contextualTestDetailQuerySchema } from '@/lib/validations/contextual-test-detail-read'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -61,6 +63,12 @@ function toTestQuestionResponse(
 
 // GET /api/teacher/tests/[id] - Get test with questions
 export const GET = withErrorHandler('GetTestById', async (_request, context) => {
+  const actor = await authorizeSharedTestDetailReadActor()
+  if (actor.mode === 'shared') {
+    const { id } = await context.params
+    const { testId } = contextualTestDetailQuerySchema.parse({ testId: id })
+    return NextResponse.json(await readContextualTestDetail({ supabase: getServiceRoleClient(), actorId: actor.user.id, testId }))
+  }
   const user = await requireRole('teacher')
   const { id } = await context.params
   const supabase = getServiceRoleClient()
