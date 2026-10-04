@@ -111,7 +111,7 @@ export default function CalendarPage() {
 
   const loadClassDays = useCallback(async () => {
     const classroomId = selectedClassroom?.id
-    if (!classroomId) return
+    if (!classroomId || selectedClassroomIdRef.current !== classroomId) return
     const requestId = classDaysRequestIdRef.current + 1
     classDaysRequestIdRef.current = requestId
 
@@ -201,9 +201,10 @@ export default function CalendarPage() {
 
   async function toggleClassDay(date: string, currentValue: boolean) {
     if (!selectedClassroom) return
+    const classroomId = selectedClassroom.id
 
     try {
-      const response = await fetch(`/api/classrooms/${selectedClassroom.id}/class-days`, {
+      const response = await fetch(`/api/classrooms/${classroomId}/class-days`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -213,7 +214,8 @@ export default function CalendarPage() {
       })
 
       if (response.ok) {
-        invalidateClassDaysForClassroom(selectedClassroom.id)
+        invalidateClassDaysForClassroom(classroomId)
+        if (selectedClassroomIdRef.current !== classroomId) return
         await loadClassDays()
       }
     } catch (err) {

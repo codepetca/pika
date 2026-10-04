@@ -405,4 +405,64 @@ describe('Teacher calendar page', () => {
     })
     expect(invalidateCachedJSON).toHaveBeenCalledWith('class-days:c1')
   })
+
+  it.each(['error', 'success', 'pending'] as const)(
+    'preserves B %s and recovery when an earlier A day toggle completes',
+    async (state) => {
+      const patched = deferred<Response>()
+      const secondRead = deferred<Response>()
+      let retrySecond = false
+      const fetchMock = installFetchMock({
+        classrooms: [
+          createMockClassroom({ id: 'c1', title: 'First Class', start_date: '2026-06-01', end_date: '2026-06-30' }),
+          createMockClassroom({ id: 'c2', title: 'Second Class', start_date: '2026-06-01', end_date: '2026-06-30' }),
+        ],
+        classDaysByClassroom: { c1: [classDay('2026-06-08')] },
+      })
+      const originalFetch = fetchMock.getMockImplementation()!
+      fetchMock.mockImplementation((input, init) => {
+        if (String(input) === '/api/classrooms/c1/class-days' && init?.method === 'PATCH') return patched.promise
+        if (String(input) === '/api/classrooms/c2/class-days') {
+          return retrySecond ? Promise.resolve(jsonResponse({ class_days: [classDay('2026-06-09')] })) : secondRead.promise
+        }
+        return originalFetch(input, init)
+      })
+
+      renderCalendarPage()
+      fireEvent.click(await screen.findByRole('button', { name: '8' }))
+      expect(fetchMock).toHaveBeenCalledWith('/api/classrooms/c1/class-days', expect.objectContaining({
+        method: 'PATCH', body: JSON.stringify({ date: '2026-06-08', is_class_day: false }),
+      }))
+      fireEvent.click(screen.getByRole('button', { name: /Second Class/ }))
+      expect(screen.queryByRole('button', { name: '8' })).not.toBeInTheDocument()
+
+      if (state === 'error') {
+        await act(async () => { secondRead.reject(new Error('B offline')) })
+        await screen.findByRole('heading', { name: 'Could not load calendar' })
+      } else if (state === 'success') {
+        await act(async () => { secondRead.resolve(jsonResponse({ class_days: [classDay('2026-06-09')] })) })
+        await screen.findByRole('button', { name: '9' })
+      }
+
+      await act(async () => { patched.resolve(jsonResponse({ ok: true })) })
+      expect(invalidateCachedJSON).toHaveBeenCalledWith('class-days:c1')
+      expect(invalidateCachedJSON).not.toHaveBeenCalledWith('class-days:c2')
+      if (state === 'error') {
+        expect(screen.getByRole('heading', { name: 'Could not load calendar' })).toBeInTheDocument()
+        retrySecond = true
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      } else if (state === 'pending') {
+        expect(screen.getByText('Loading...')).toBeInTheDocument()
+        await act(async () => { secondRead.resolve(jsonResponse({ class_days: [classDay('2026-06-09')] })) })
+      }
+      expect(await screen.findByRole('button', { name: '9' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '9' })).toHaveClass('bg-success-bg')
+      expect(screen.getByRole('button', { name: '8' })).not.toHaveClass('bg-success-bg')
+      expect(screen.getByTestId('calendar-action-primary')).toHaveTextContent('Second Class')
+      expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
+      const aReads = fetchMock.mock.calls.filter(([input, init]) => String(input) === '/api/classrooms/c1/class-days' && !init?.method)
+      expect(aReads).toHaveLength(1)
+      expect(fetchMock).toHaveBeenLastCalledWith('/api/classrooms/c2/class-days')
+    },
+  )
 })
