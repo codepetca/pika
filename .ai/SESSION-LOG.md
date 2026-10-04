@@ -1260,3 +1260,11 @@ proved; no data-change claim either. Host177MiB free; temporary workdir retained
 No forced runs, ready CI, merge, production or activation. Preserve SAME baseline;
 recover stable disk/API, inspect and finish exact owned-resource cleanup, verify
 baseline, then retry. Private1469 ledger contains receipts; no baseline recapture.
+
+Human then authorized Mac-space cleanup. Removed only npm's reconstructible3GiB
+download cache and pnpm's unreferenced cached packages (68334files/1597packages,
+no force/alien deletion). Hostfree486MiB→7.2GiB, approx6.7GiB recovered. Installed
+dependencies/source/worktrees/36stashes/Playwright browsers and Docker data remain.
+Docker-only cache pruning could not load its builder; API still unresponsive
+after space recovery. No new SDK attempt or baseline recapture. Preserve prior
+failed-proof namespace2e6078d26139 for exact owned cleanup/equality verification.
