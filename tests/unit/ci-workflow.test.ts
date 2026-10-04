@@ -6,6 +6,25 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires a separate serial integrated SDK rehearsal and exact forced-cleanup receipts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual Assignment integrated SDK effects and private delivery'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_integrated_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-learner-integrated-lifecycle.ts --reviewed-head "$assignment_integrated_head" --mode normal')
+    expect(step).toContain('for assignment_integrated_mode in after-fixture before-capture; do')
+    expect(step).toContain('--mode "$assignment_integrated_mode" > "$assignment_integrated_log" 2>&1 || assignment_integrated_status=$?')
+    expect(step).toContain('[[ "$assignment_integrated_status" -eq 1 ]] || exit 1')
+    expect(step).toContain('[[ "$(wc -l < "$assignment_integrated_log" | tr -d \' \')" -eq 2 ]] || exit 1')
+    expect(step).toContain('chmod 600 "$assignment_integrated_log"')
+    expect(step).toContain("trap 'rm -f -- \"$assignment_integrated_log\"' EXIT")
+    expect(step).toContain('grep -Fx "FAIL forced isolated assignment-learner-integrated lifecycle: ${assignment_integrated_mode}."')
+    expect(step).toContain("grep -Fx 'PASS isolated assignment-learner-integrated exact teardown and unchanged canonical baseline.'")
+    expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
+    expect(workflow.indexOf('      - name: Verify contextual Assignment inline-image locked Classwork reads')).toBeLessThan(workflow.indexOf(name))
+    expect(workflow.indexOf(name)).toBeLessThan(workflow.indexOf('      - name: Verify contextual Daily Log save atomicity and privileges'))
+  })
   it('requires locked inline-image reads after supplemental visibility contracts', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const name = '      - name: Verify contextual Assignment inline-image locked Classwork reads'

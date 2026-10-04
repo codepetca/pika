@@ -1167,6 +1167,33 @@ remain; main242/local243, productionlast225 and all admission/home/cutover contr
 unchanged. Actual open/private-delivery integration remains a separate prerequisite;
 original observer authority is not silently extended. Phase/goal incomplete.
 
+Historical source preparation of [integrated SDK proof](contextual-assignment-learner-integrated-proof.md)
+is a sibling runner with a finite, disjoint extension manifest, not a migration or
+silent expansion of the sealed observer. Its intended cases include real open/
+create/view, nonempty own supplements and private byte/signing delivery. Original
+fixtures/transport/SQL allowlist/transitions/restoration/cleanup stay immutable.
+Only source preparation is underway; no extension SQL/Storage bytes/signing calls
+are authorized by preparation or have run. Root must accept an independently
+reviewed finite manifest before later execution. Authenticated route/browser and
+same-actor removal/race remain separate.1460 reviewed e98b78ef merged as3c5d7097
+on2026-10-04T10:43:25Z after all five exact CI37194768940 checks passed; reviewed/
+squash full-tree parity and clean canonical main fast-forward verified. Prepared
+source31 new offline checks/136 related checks/full TypeScript/ESLint pass, not a
+runtime receipt. Actual-parent reconciliation precedes next publication.
+Local/main243/productionlast225 and all admission/home/cutover controls unchanged.
+
+Superseding1461 receipt: actual-parent reconciliation/publication complete;
+targeted45084a8b guard-equivalence review CLEAN and root finite-manifest acceptance
+preceded serial runtime. Normal29 actual SDK cases PASS with real create/view,
+nonempty own supplements and bounded artifact/inline signed PNG reads. Both
+after-fixture/before-capture expectedexit1/exact2marker forced modes PASS after
+full setup/eight uploads, exact owned teardown and full canonical closure.
+Independent saved public/private/Storage/168/settings/cron/resource fingerprints
+match before/after the run. Runtime/app/schema/native original proof bytes remain
+unchanged in the final facts-only batch; final cumulative review/exactCI/mainmerge
+pending. This is NOT authenticated appHTTP/browser/removal-race or phase-exit
+evidence. Tests/Surveys/Grades groups below and later cutover gates still apply.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading

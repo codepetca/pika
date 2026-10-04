@@ -35916,3 +35916,26 @@ actualSDK/race/cleanup evidence reused. Actual235owner-write merge stillprecedes
 calendarfinalreconciliation/review/readyCI, no speculative heavyCI. Original
 15:07:20clock/counters retained; authorized elapsedextension to17:07:20Z.
 Local236 belongsseparatepreparation; noSQL/types/DB/provider/production/cohort edits.
+
+<!-- pika-session-log-archive-batch:08319393e21a1a92e2454be3920c4953dee78741993106bd2cb11a0d416519e8 -->
+## 2026-10-03 — Calendar1446 actual roster235-main reconciliation
+
+Root verified1445 squashmerge2fe79a8b at17:03:33Z after allfive exact596081dc
+CI37137272675 SUCCESS (0queue/1755runseconds). Calendar preparedb685 rebased
+ontoactualmain2fe, preserving nine reviewed544fe47b ownedfiles byte-exact.
+The sole additive source exception retains both complete reviewed CI test blocks:
+main roster then child calendar, with original remainder unchanged. Every other
+incomingmainfile, genuine235SQL/generated/curatedtypes and every CIstep/order/
+multiplicity remain exact; reviewed concurrency normal+forced supersedes only its
+oldnormal step. History preserves actualmain+preparedchild-a8 bodies/multiplicities;
+removed only one exact JavaPrint session surplus already archived and an exact
+glued1441body whose complete original remains retained. CURRENT keeps canonical
+Prod DB 001 spacing, local001–236 immutable/separate removal and production225.
+Original15:07:20 clock/launch2/fix0 retained under explicit human extension to
+18:07:20Z. No DB/proof/type generation/SQL/remote publication/CI/provider actions.
+Exact preservation verification passes2089 combined history entries/40 recent.
+Focused origin/main gate passes436tests/18files and all static checks; explicit
+attendance prefix regression4/4 and actual-main-aware audit8files pass. Logs:
+/private/tmp/pika-1446-reconcile.d4sa0y; fullfocused pika-focused-ejT1iX.
+Root-owned changed-base review and exact frozen-head readyCI remain required;
+shared admission and fullcutoverOFF; no batch completion or activation claimed.
