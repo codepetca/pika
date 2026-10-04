@@ -1268,3 +1268,19 @@ dependencies/source/worktrees/36stashes/Playwright browsers and Docker data rema
 Docker-only cache pruning could not load its builder; API still unresponsive
 after space recovery. No new SDK attempt or baseline recapture. Preserve prior
 failed-proof namespace2e6078d26139 for exact owned cleanup/equality verification.
+
+## 2026-10-04 — Owner Test list disk recovery and guidance-main reconciliation
+
+Docker29.7.2 recovered; host144GiB free observed independently, not attributed to
+our6.7GiB package-cache cleanup. Fresh global/label/attachment checks authorized
+exact failed-startup2containers/1network/1volume cleanup; generated directory stays
+private for diagnostics. SAME1469 canonical baseline fivefield equality PASS.
+Unchanged-source normal retry65de445a exited1: Storage unhealthy, no extension
+setup. Exact teardown succeeded and SAME independent baseline equality PASS.
+No forced modes/readyCI/merge/activation; one Sol6.1/high read-only worker diagnoses
+Storage startup. Rebased onto guidance-only1462/main24cb8847; app/proof/CI/schema/
+package/lock bytes unchanged. Kept incoming guidance, removed three proven surplus
+history copies while retaining original full bodies. Startup budget failed17149;
+CURRENT-only shortening gives76startup tests PASS, without gate changes. Full
+230focused/14files and all static gates PASS; history multiset/no missing/surplus
+PASS. Runtime verification remains required;36stashes/prod225 preserved.
