@@ -178,7 +178,7 @@ export function createAssignmentListNativeAdapters(fixture: AssignmentListProofF
       return { rowDigests: JSON.stringify(baseline.tables), guard168Metadata: baseline.metadata, settings: baseline.metadata, cronJobs: baseline.cron, resources: JSON.stringify(resources) }
     },
     async inventory() {
-      return { resources: await dockerInventory(), occupiedPorts: (await Promise.all([54330, 54331, 54332].map(async port => ({ port, busy: await occupied(port) })))).filter(r => r.busy).map(r => r.port), workdirExists: existsSync(workdir) }
+      return { resources: await dockerInventory(), occupiedPorts: (await Promise.all([54340, 54331, 54332].map(async port => ({ port, busy: await occupied(port) })))).filter(r => r.busy).map(r => r.port), workdirExists: existsSync(workdir) }
     },
     async prepare(plan, migrations) {
       assert.equal(plan.workdir, workdir)

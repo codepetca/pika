@@ -39,7 +39,7 @@ extra_search_path = ["public", "extensions"]
 max_rows = 1000
 [db]
 port = 54332
-shadow_port = 54330
+shadow_port = 54340
 major_version = 17
 [db.seed]
 enabled = false
@@ -184,7 +184,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       assert(!before.resources.some(old => old.id === r.id || (old.kind === r.kind && old.name === r.name)))
       assert.equal(r.labels['com.supabase.cli.project'], identity.projectId); assert.equal(r.labels['com.docker.compose.project'], identity.projectId)
       assert(expected.has(resourceKey(r))); assert(r.createdAt.length > 0 && r.attachedIds.every(id => ids.has(id)))
-      assert(r.ports.every(port => [54330, 54331, 54332].includes(port)))
+      assert(r.ports.every(port => [54340, 54331, 54332].includes(port)))
       const old = captured.get(r.id); if (old) { assert.equal(resourceKey(old), resourceKey(r)); assert.equal(old.createdAt, r.createdAt) }
     }
     return { current, selected }
@@ -211,7 +211,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
   try {
     baseline = structuredClone(await adapters.canonicalSnapshot(canonicalRequest)); validateCanonical(baseline)
     stage = 'preflight'; before = structuredClone(await adapters.inventory(identity))
-    assert(!before.workdirExists && !before.occupiedPorts.some(port => [54330, 54331, 54332].includes(port)))
+    assert(!before.workdirExists && !before.occupiedPorts.some(port => [54340, 54331, 54332].includes(port)))
     assert(!before.resources.some(r => isProjectResource(r, identity.projectId)))
     stage = 'prepare'; prepareAttempted = true; prepared = await adapters.prepare(plan, migrations)
     assert(prepared.created); assert.equal(prepared.workdir, identity.workdir); assert.equal(prepared.realpath, identity.workdir)
@@ -219,7 +219,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
     assert.deepEqual(prepared.envFiles, []); assert.deepEqual(prepared.symlinks, [])
     // Recheck global resources and port ownership immediately before launching.
     stage = 'pre-start'; const fresh = await adapters.inventory(identity)
-    assert(!fresh.occupiedPorts.some(port => [54330, 54331, 54332].includes(port))); assert(!fresh.resources.some(r => isProjectResource(r, identity.projectId)))
+    assert(!fresh.occupiedPorts.some(port => [54340, 54331, 54332].includes(port))); assert(!fresh.resources.some(r => isProjectResource(r, identity.projectId)))
     before.resources = structuredClone(fresh.resources)
     stage = 'start'; startAttempted = true
     await adapters.command({ args: ['start', '--workdir', identity.workdir, '-x', 'analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector'], workdir: identity.workdir, timeoutMs: 180000 })
@@ -264,7 +264,7 @@ export async function runAssignmentListEphemeralLifecycle(input: AssignmentListL
       await check('absence', async () => {
         const current = await adapters.inventory(identity)
         assert(!current.resources.some(r => captured.has(r.id) || isProjectResource(r, identity.projectId)))
-        assert(!current.occupiedPorts.some(port => [54330, 54331, 54332].includes(port))); absent = true
+        assert(!current.occupiedPorts.some(port => [54340, 54331, 54332].includes(port))); absent = true
       })
     }
     if (prepareAttempted) await check('workdir', async () => {
