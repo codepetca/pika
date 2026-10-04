@@ -80,6 +80,18 @@ labels, never underlying errors, identities, tokens, URLs or bodies. Its new
 regression failed1/32pass before implementation. Review this diagnostic correction
 before another run; no retry expands SQL/Storage authority or weakens cleanup.
 
+Diagnostic review of287de55c CLEAN; the subsequent normal attempt reports
+`stage=fixture step=extension-sql cleanup=none`, before any SDK case. Independent
+canonical fingerprints again match. Source inspection identifies a definite
+guard099 violation: the fixture inserted a link into an already-submitted doc.
+Build only that new synthetic document as a draft, insert its link, transition
+it to submitted/returned, then insert the exact179 snapshot before the deferred099
+commit check. Do not disable the artifact or history guards, alter existing docs,
+or expand caps. New ordering regression failed1/33pass before correction; all34
+new checks and172 related checks pass after correction. This fixture-only change
+needs targeted compatibility review and explicit updated-manifest acceptance
+before execution. It has not yet produced a successful runtime matrix.
+
 Both historical member-role labels: real SDK open creates one own document and
 persists first view; repeat returns the same ID/false without duplication. Existing
 unviewed/returned documents exercise view without creation and preserve protected

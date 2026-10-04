@@ -88,6 +88,15 @@ describe('finite integrated fixture and real transport boundary',()=>{
     expect(sql).toContain('due_at');expect(sql).not.toMatch(/disable trigger|truncate|delete from|update private\./i)
     expect(sql).toMatch(/commit;$/)
   })
+  it('creates the synthetic link before submission and records submit history afterward without disabling guard099',()=>{
+    const {f,projectId}=fixture();const sql=integratedSetupSql(f,projectId)
+    const artifact=sql.indexOf('insert into public.assignment_submission_artifacts')
+    const submit=sql.indexOf('update public.assignment_docs set is_submitted=true')
+    const history=sql.indexOf('insert into public.assignment_doc_history')
+    expect(artifact).toBeGreaterThan(-1);expect(submit).toBeGreaterThan(artifact);expect(history).toBeGreaterThan(submit)
+    expect(sql.slice(submit,history)).toContain(`where id='${f.assignments[3].docId}' and is_submitted=false`)
+    expect(sql).not.toMatch(/disable trigger|maintenance_mode|session_replication_role/i)
+  })
   it('only accepts a one-time closed receipt bound to a no-document Assignment',()=>{
     const {f,documents}=fixture();const a=f.assignments[0]
     const receipt={id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',actorId:a.actorId,assignmentId:a.id,classroomId:a.classroomId}
