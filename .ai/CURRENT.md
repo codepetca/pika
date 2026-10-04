@@ -7,6 +7,8 @@ schema/application, canaries and braces exception remain pending; see
 Local 243 receipts remain in SESSION-LOG; audit disposable receipts are source-
 pinned historical evidence, not new application permission. #1461: 29 SDK cases,
 forced teardown/cleanup and baseline; [proof](../docs/guidance/contextual-assignment-learner-integrated-proof.md).
+Owner Test list #1469 remains draft: source reviews and focused checks passed;
+disposable SDK startup/health recovery is incomplete, not rollout evidence.
 
 Hosted: Prod DB 001–225 (fresh read-only verification 2026-10-04; exact prefix).
 Pending 226–246 require coordinated application/schema and exact-set permission.
