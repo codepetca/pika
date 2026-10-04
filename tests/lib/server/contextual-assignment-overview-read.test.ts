@@ -26,7 +26,7 @@ const artifact = (n: number, parent = doc(0), type = 'link') => ({ id: uuid(n + 
 const run = { id: uuid(90000), assignment_id: assignmentId, status: 'running', model: 'test', requested_count: 1001, gradable_count: 1001, processed_count: 0,
   completed_count: 0, skipped_missing_count: 0, skipped_empty_count: 0, failed_count: 0, error_samples_json: [], started_at: stamp, completed_at: null, created_at: stamp }
 
-function fixture(options: { count?: number; docs?: any[]; requirements?: any[]; artifacts?: any[]; history?: any[]; run?: any; items?: any[];
+function fixture(options: { count?: number; docs?: any[]; requirements?: any[]; artifacts?: any[]; history?: any[]; run?: any; items?: any[]; childServerCap?: number;
   intercept?: (row: any, url: URL, index: number) => unknown; sign?: (paths: string[]) => unknown } = {}) {
   const urls: URL[] = []
   const bodies: any[] = []
@@ -51,9 +51,11 @@ function fixture(options: { count?: number; docs?: any[]; requirements?: any[]; 
         const ids = (url.searchParams.get('docs.id') ?? '').slice(4, -1).split(',')
         const scoped = url.searchParams.get('docs.artifacts.id')
         const scopedIds = scoped?.startsWith('in.') ? scoped.slice(4, -1).split(',') : undefined
+        const alternatives = url.searchParams.get(`docs.${kind}.or`)
+        const parentCursor = (id: string) => alternatives?.match(new RegExp(`and\\(assignment_doc_id\\.eq\\.${id},id\\.gt\\.([0-9a-f-]+)\\)`))?.[1] ?? after(`docs.${kind}.id`)
         row.docs = parents.filter(d => ids.includes(d.id)).map(d => ({ id: d.id, assignment_id: d.assignment_id, student_id: d.student_id, participant: d.participant,
-          [kind]: (options[kind] ?? []).filter(c => c.assignment_doc_id === d.id && c.id > after(`docs.${kind}.id`) && (!scopedIds || scopedIds.includes(c.id)))
-            .slice(0, Number(url.searchParams.get(`docs.${kind}.limit`))) }))
+          [kind]: (options[kind] ?? []).filter(c => c.assignment_doc_id === d.id && c.id > parentCursor(d.id) && (!scopedIds || scopedIds.includes(c.id)))
+            .slice(0, Math.min(Number(url.searchParams.get(`docs.${kind}.limit`)), options.childServerCap ?? Infinity)) }))
       } else row.docs = parents.filter(d => d.id > after('docs.id')).slice(0, 1000)
     } else if (select.includes('runs:')) row.runs = options.run ? [select.includes('items:') ? { id: options.run.id, assignment_id: options.run.assignment_id, status: options.run.status,
       items: (options.items ?? []).filter(i => i.id > after('runs.items.id')).slice(0, 1000) } : options.run] : []
@@ -115,12 +117,34 @@ describe('statement-bound assignment overview with installed SDK', () => {
     }
   })
   it('retains every nested sibling when child tails differ', async () => {
-    const docs = [doc(0), doc(1)]; const history = Array.from({ length: 201 }, (_, n) => ({ id: uuid(n + 70000), assignment_doc_id: n % 2 ? docs[0].id : docs[1].id, created_at: stamp }))
+    const docs = [doc(0), doc(1)]; const history = Array.from({ length: 201 }, (_, n) => ({ id: uuid(n + 70000), assignment_doc_id: n % 2 ? docs[0].id : docs[1].id, created_at: new Date(Date.parse(stamp) + n * 1000).toISOString() }))
     const f = fixture({ count: 2, docs, history }); const result = await f.read()
-    expect(result.students.every(s => s.student_updated_at === stamp)).toBe(true)
+    expect(result.students.find(s => s.student_id === docs[0].student_id)?.student_updated_at).toBe(history[199].created_at)
+    expect(result.students.find(s => s.student_id === docs[1].student_id)?.student_updated_at).toBe(history[200].created_at)
     const pages = f.urls.filter(u => u.searchParams.get('select')?.includes('history:'))
-    expect(pages).toHaveLength(4)
-    expect(pages[1].searchParams.get('docs.history.id')).toBe(`gt.${uuid(70198)}`)
+    expect(pages).toHaveLength(3)
+    expect(pages[1].searchParams.get('docs.history.or')).toContain(`and(assignment_doc_id.eq.${docs[0].id},id.gt.${uuid(70199)})`)
+    expect(pages[1].searchParams.get('docs.history.or')).toContain(`and(assignment_doc_id.eq.${docs[1].id},id.gt.${uuid(70198)})`)
+  })
+  it('reads sparse per-document histories without exhausting the fixed statement budget', async () => {
+    const docs = Array.from({ length: 1001 }, (_, n) => doc(n))
+    const history = docs.map((d, n) => ({ id: uuid(n + 70000), assignment_doc_id: d.id, created_at: stamp }))
+    const f = fixture({ count: 1001, docs, history }); const result = await f.read()
+    expect(result.students).toHaveLength(1001)
+    expect(result.students.every(s => s.student_updated_at === stamp)).toBe(true)
+    expect(f.urls.filter(u => u.searchParams.get('select')?.includes('history:'))).toHaveLength(82)
+    expect(f.urls.length).toBeLessThan(150)
+    expect(f.urls.every(url => url.href.length < 8000)).toBe(true)
+  })
+  it('preserves independent cursor progress when the server returns shorter child pages', async () => {
+    const docs = [doc(0), doc(1)]
+    const history = Array.from({ length: 5 }, (_, n) => ({ id: uuid(n + 70000), assignment_doc_id: docs[0].id,
+      created_at: new Date(Date.parse(stamp) + n * 1000).toISOString() }))
+    history.push({ id: uuid(90000), assignment_doc_id: docs[1].id, created_at: stamp })
+    const f = fixture({ count: 2, docs, history, childServerCap: 2 }); const result = await f.read()
+    expect(result.students.find(s => s.student_id === docs[0].student_id)?.student_updated_at).toBe(history[4].created_at)
+    expect(result.students.find(s => s.student_id === docs[1].student_id)?.student_updated_at).toBe(stamp)
+    expect(f.urls.filter(u => u.searchParams.get('select')?.includes('history:'))).toHaveLength(4)
   })
   it.each(['roster', 'doc', 'parent', 'requirement', 'history', 'artifact', 'run', 'item'])('rejects exact identity substitutions for %s', async kind => {
     const d = doc(0); const a = artifact(0)
@@ -195,7 +219,7 @@ describe('statement-bound assignment overview with installed SDK', () => {
     for (const kind of ['artifacts', 'history', 'items']) {
       const f = fixture({ docs: [d], requirements: [requirement(0)], artifacts: [artifact(0)], history: [{ id: uuid(70000), assignment_doc_id: d.id, created_at: stamp }], run,
         items: [{ id: uuid(80000), run_id: run.id, assignment_id: assignmentId, student_id: d.student_id, status: 'queued', next_retry_at: null }], intercept: (row, url) => {
-          if (url.searchParams.has(`docs.${kind}.id`)) row.docs = []
+          if (url.searchParams.has(`docs.${kind}.or`)) row.docs = []
           if (url.searchParams.has(`runs.${kind}.id`)) row.runs = []
           return row
         } })

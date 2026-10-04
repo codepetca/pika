@@ -860,3 +860,10 @@ First normal isolated runtime failed in cases, cleanup=none; not accepted.
 Root adds closed case/phase/statement/HTTP/error-code diagnostics with unitTDD,
 not raw rows/messages/URLs/IDs/secrets, to diagnose a reviewed isolated retry.
 Fixture SQL/platform authority and canonical database remain unchanged.
+eb40a477 diagnostics targetedCLEAN;264focused/1skip+proofTypeScriptPASS.
+Second normal failed owner_student/history at1024statements withHTTP200,cleanup
+none. Existing099 submit trigger creates1001 histories, contrary to prior empty
+fixture assumption. Root reproduced sparse-child cap failure, switched to25parent
+independent child cursors (all terminal/current-member proofs retained), corrected
+timestamp expectations to exact fixture submission time; no limits weakened or
+fixture SQL/platform edits. Targeted review and actual normal/forced proof pending.

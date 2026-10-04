@@ -40,6 +40,12 @@ alphanumeric extension limit. Exact bucket/path, classroom, student, document,
 purpose and state binding still apply; foreign namespaces and traversal fail
 before signing. Restored paths require current exact managed-object evidence.
 
+History/artifact pages use independent parent cursors in25-document batches,
+with100 rows per child page. Sparse parents cannot consume one statement per
+row, shorter server pages cannot skip sibling rows, and every batch still needs
+an empty terminal read with all current-parent identities. Cursor predicates use
+only strictly decoded UUIDs; the smaller batch bounds request-line size.
+
 Bounds:10000 rows per collection,1024 statements,20 seconds,8MiB per statement
 and final DTO; uncertain, malformed, duplicate, stalled, truncated or overflow
 evidence fails503 without a partial result. The contract is statement-current
@@ -59,10 +65,12 @@ or SQL authority. Seven added read-only overview cases cover both owner-role
 labels, historical self-enrollment, members/outsiders,1001 students/documents and
 1001 requirements. It also runs the existing nine list cases and fourteen list
 revocations; those are not claims of real overview revocations. Overview
-revocations are initially covered offline. Artifact/history collections are empty
-and no AI run or managed Storage object is created in this real fixture;
-nonempty history/artifact/grading-item pagination and signing require separate
-evidence before claiming those runtime behaviors verified.
+revocations are initially covered offline. The existing099 submission trigger
+creates one history snapshot for each submitted fixture document; the proof
+asserts its latest timestamp against the exact fixture submission timestamp.
+Artifact collections are empty and no AI run or managed Storage object is
+created in this real fixture. Nonempty artifact/grading-item pagination and
+signing require separate evidence before claiming those runtime behaviors verified.
 
 The canonical Pika database54322 is read-only. The wrapper uses the same fresh
 `pika_assignment_list_<12hex>`54331/54332 project as the reviewed list lifecycle,

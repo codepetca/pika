@@ -35,6 +35,8 @@ const docFields = `${docIdentityFields},content,is_submitted,submitted_at,update
 const artifactFields = 'id,assignment_doc_id,requirement_id,student_id,type,url,storage_path,managed_object_id,metadata_json,validation_status,validation_message,validated_at,created_at,updated_at,requirement:assignment_submission_requirements!assignment_submission_artifacts_requirement_id_fkey!inner(id,assignment_id,type),managed_object:managed_storage_objects!assignment_submission_artifacts_managed_object_id_fkey(id,classroom_id,data_subject_user_id,resource_type,resource_id,purpose,status,storage_bucket,storage_path)'
 const runFields = 'id,assignment_id,status,model,requested_count,gradable_count,processed_count,completed_count,skipped_missing_count,skipped_empty_count,failed_count,error_samples_json,started_at,completed_at,created_at'
 const runItemFields = 'id,run_id,assignment_id,student_id,status,next_retry_at'
+// Per-parent cursor predicates stay below ordinary request-line limits.
+const childParentBatchSize = 25
 
 export async function authorizeSharedAssignmentOverviewReadActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
@@ -132,40 +134,38 @@ export async function readContextualAssignmentOverview(input: { supabase: Client
 
     async function docChildren<T extends z.ZodType<{ id: string; assignment_doc_id: string }>>(kind: 'artifacts' | 'history', fields: string, schema: T) {
       const rows: z.infer<T>[] = []; const seen = new Set<string>()
-      for (let start = 0; start < docs.length; start += ASSIGNMENT_LIST_BATCH_SIZE) {
-        const batch = docs.slice(start, start + ASSIGNMENT_LIST_BATCH_SIZE); const expected = new Map(batch.map(d => [d.id, d])); let cursor: string | undefined
+      for (let start = 0; start < docs.length; start += childParentBatchSize) {
+        const batch = docs.slice(start, start + childParentBatchSize); const expected = new Map(batch.map(d => [d.id, d])); const cursors = new Map<string, string>()
         const parentSchema = contextualAssignmentOverviewDocIdentitySchema.extend({ [kind]: z.array(schema).max(ASSIGNMENT_LIST_CHILD_PAGE_SIZE) }).strict()
-        const pageSchema = contextualAssignmentOverviewControlSchema.extend({ docs: z.array(parentSchema).max(ASSIGNMENT_LIST_BATCH_SIZE) }).strict()
+        const pageSchema = contextualAssignmentOverviewControlSchema.extend({ docs: z.array(parentSchema).max(childParentBatchSize) }).strict()
         for (;;) {
           const relation = kind === 'artifacts' ? 'assignment_submission_artifacts!assignment_submission_artifacts_assignment_doc_id_fkey' : 'assignment_doc_history!assignment_doc_history_assignment_doc_id_fkey'
           let query = queryFor(`${controlFields},docs:assignment_docs!assignment_docs_assignment_id_fkey(${docIdentityFields},${kind}:${relation}(${fields}))`)
             .in('docs.id', batch.map(d => d.id)).neq('docs.student_id', actorId).eq('docs.participant.enrollment.classroom_id', classroomId)
-            .order('id', { ascending: true, referencedTable: 'docs' }).limit(ASSIGNMENT_LIST_BATCH_SIZE, { referencedTable: 'docs' })
+            .order('id', { ascending: true, referencedTable: 'docs' }).limit(childParentBatchSize, { referencedTable: 'docs' })
           if (kind === 'artifacts') query = query.eq('docs.artifacts.requirement.assignment_id', assignmentId)
-          if (cursor) query = query.gt(`docs.${kind}.id`, cursor)
+          if (cursors.size) query = query.or(batch.map(parent => {
+            const cursor = cursors.get(parent.id)
+            return cursor ? `and(assignment_doc_id.eq.${parent.id},id.gt.${cursor})` : `assignment_doc_id.eq.${parent.id}`
+          }).join(','), { referencedTable: `docs.${kind}` })
           const root = await decode(query.order('id', { ascending: true, referencedTable: `docs.${kind}` }).limit(ASSIGNMENT_LIST_CHILD_PAGE_SIZE, { referencedTable: `docs.${kind}` }).maybeSingle(), pageSchema)
           if (root.docs.length !== batch.length) throw unavailable()
-          const parents = new Set<string>(); const statementIds = new Set<string>(); const candidates: z.infer<T>[] = []; const tails: string[] = []
+          const parents = new Set<string>(); const statementIds = new Set<string>(); let found = false
           for (const parent of root.docs as Array<DocIdentity & Record<string, unknown>>) {
             const base = expected.get(parent.id)
             if (!base || parents.has(parent.id) || base.student_id !== parent.student_id) throw unavailable()
-            assertDoc(parent); parents.add(parent.id); let last = cursor
+            assertDoc(parent); parents.add(parent.id); let last = cursors.get(parent.id)
             const children = (parent as any)[kind] as z.infer<T>[]
             for (const child of children) {
-              if (child.assignment_doc_id !== parent.id || statementIds.has(child.id) || (last && child.id <= last)) throw unavailable()
-              statementIds.add(child.id); last = child.id; candidates.push(child)
+              if (child.assignment_doc_id !== parent.id || statementIds.has(child.id) || seen.has(child.id) || (last && child.id <= last)) throw unavailable()
+              statementIds.add(child.id); seen.add(child.id); last = child.id
+              add(kind); rows.push(child); found = true
             }
-            if (children.length) tails.push(last!)
+            if (children.length) cursors.set(parent.id, last!)
           }
-          if (!tails.length) break
-          // A common cursor must use the smallest nonempty tail to retain fuller siblings.
-          const next = tails.sort()[0]
-          if (cursor && next <= cursor) throw unavailable()
-          for (const child of candidates) if (child.id <= next) {
-            if (seen.has(child.id)) throw unavailable()
-            add(kind); seen.add(child.id); rows.push(child)
-          }
-          cursor = next
+          // Every parent advances independently; even sparse/short pages require
+          // the next bound terminal read, never an assumed server page capacity.
+          if (!found) break
         }
       }
       return rows

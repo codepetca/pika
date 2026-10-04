@@ -108,7 +108,12 @@ export async function assignmentOverviewLifecycleMain(args = process.argv.slice(
         assert.deepEqual(body.students.filter(s => s.doc?.is_submitted).map(s => s.student_id).sort(), expected.submittedStudentIds)
         assert.equal(body.active_ai_grading_run, null)
         for (const student of body.students) {
-          assert.equal(student.student_updated_at, null)
+          // Migration099's existing submission trigger creates a snapshot for
+          // every submitted fixture document at the fixture's submitted_at.
+          if (student.doc) {
+            assert.equal(Date.parse(student.doc.submitted_at!), Date.parse(fixture.manifest.now))
+            assert.equal(Date.parse(student.student_updated_at!), Date.parse(fixture.manifest.now))
+          } else assert.equal(student.student_updated_at, null)
           assert.deepEqual(student.submission_artifacts, [])
           assert.deepEqual(student.artifacts, [])
         }
