@@ -8502,6 +8502,7 @@ export type Database = {
           closed_for_grading_at: string | null
           closed_for_grading_by: string | null
           created_at: string
+          draft_revision: number
           id: string
           is_submitted: boolean
           responses: Json
@@ -8518,6 +8519,7 @@ export type Database = {
           closed_for_grading_at?: string | null
           closed_for_grading_by?: string | null
           created_at?: string
+          draft_revision?: number
           id?: string
           is_submitted?: boolean
           responses?: Json
@@ -8534,6 +8536,7 @@ export type Database = {
           closed_for_grading_at?: string | null
           closed_for_grading_by?: string | null
           created_at?: string
+          draft_revision?: number
           id?: string
           is_submitted?: boolean
           responses?: Json
@@ -9098,6 +9101,7 @@ export type Database = {
           purpose: string
           used_at: string | null
           user_id: string
+          verification_generation: number
         }
         Insert: {
           attempts?: number
@@ -9111,6 +9115,7 @@ export type Database = {
           purpose: string
           used_at?: string | null
           user_id: string
+          verification_generation: number
         }
         Update: {
           attempts?: number
@@ -9124,6 +9129,7 @@ export type Database = {
           purpose?: string
           used_at?: string | null
           user_id?: string
+          verification_generation?: number
         }
         Relationships: [
           {
@@ -10760,8 +10766,27 @@ export type Database = {
         Args: { p_actor_key_hash: string; p_invitation_key_hash: string }
         Returns: Json
       }
+      consume_latest_password_reset_and_revoke_sessions_v1: {
+        Args: {
+          p_generation: number
+          p_handoff_token_hash: string
+          p_password_hash: string
+          p_user_id: string
+        }
+        Returns: number
+      }
       consume_password_reset_and_revoke_sessions: {
         Args: {
+          p_handoff_token_hash: string
+          p_password_hash: string
+          p_user_id: string
+        }
+        Returns: number
+      }
+      consume_signup_password_handoff_v1: {
+        Args: {
+          p_expected_credential_version: number
+          p_generation: number
           p_handoff_token_hash: string
           p_password_hash: string
           p_user_id: string
@@ -11747,6 +11772,19 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_auth_verification_attempt_v1: {
+        Args: {
+          p_candidate_generation: number
+          p_candidate_id: string
+          p_code_matched: boolean
+          p_handoff_expires_at: string
+          p_handoff_token_hash: string
+          p_max_attempts: number
+          p_purpose: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       finalize_cold_archived_classroom_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -11889,6 +11927,10 @@ export type Database = {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: Json
       }
+      get_latest_auth_verification_code_v1: {
+        Args: { p_purpose: string; p_user_id: string }
+        Returns: Json
+      }
       get_managed_deletion_deep_health_snapshot: { Args: never; Returns: Json }
       get_managed_deletion_health_snapshot: {
         Args: { p_stuck_after_seconds?: number }
@@ -11961,6 +12003,10 @@ export type Database = {
           p_source_course_blueprint_id: string
         }
         Returns: boolean
+      }
+      inspect_latest_auth_handoff_v1: {
+        Args: { p_handoff_token_hash: string; p_purpose: string }
+        Returns: Json
       }
       instantiate_course_blueprint_atomic: {
         Args: {
@@ -12041,6 +12087,15 @@ export type Database = {
           p_workos_user_id: string
         }
         Returns: boolean
+      }
+      issue_auth_verification_code_v1: {
+        Args: {
+          p_code_hash: string
+          p_expires_at: string
+          p_purpose: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       join_classroom_by_code_atomic_v1: {
         Args: {
@@ -12230,6 +12285,10 @@ export type Database = {
         Returns: Json
       }
       normalize_classroom_archive_restore_row_v147: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      normalize_classroom_archive_restore_row_v243: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
@@ -12933,6 +12992,14 @@ export type Database = {
         }
         Returns: Json
       }
+      return_test_attempts_checked_atomic: {
+        Args: {
+          p_returned_by: string
+          p_student_ids: string[]
+          p_test_id: string
+        }
+        Returns: Json
+      }
       save_assignment_ai_grade_atomic: {
         Args: {
           p_ai_feedback_model: string
@@ -13155,6 +13222,15 @@ export type Database = {
       }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
+      save_test_attempt_revision_atomic: {
+        Args: {
+          p_expected_revision: number
+          p_responses: Json
+          p_student_id: string
+          p_test_id: string
+        }
         Returns: Json
       }
       save_test_draft_atomic: {
@@ -13480,6 +13556,10 @@ export type Database = {
         Args: { p_objects: Json; p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
+      start_test_attempt_revision_atomic: {
+        Args: { p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
       student_purge_conflict: {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: string
@@ -13570,6 +13650,16 @@ export type Database = {
           }
       submit_test_attempt_atomic: {
         Args: {
+          p_responses: Json
+          p_student_id: string
+          p_submitted_at?: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      submit_test_attempt_revision_atomic: {
+        Args: {
+          p_expected_revision: number
           p_responses: Json
           p_student_id: string
           p_submitted_at?: string

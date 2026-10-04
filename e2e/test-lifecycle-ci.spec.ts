@@ -5,7 +5,7 @@ import { createIsolatedLifecycleFixture } from './helpers/isolated-test-lifecycl
 type OwnedFixture = Awaited<ReturnType<typeof createIsolatedLifecycleFixture>>
 type Attempt = { responses: Record<string, unknown>; draft_revision: number; is_submitted: boolean }
 type Answer = { response_id: string; response_revision: number; score: number | null; selected_option: number | null; response_text: string | null }
-type Results = { students: Array<{ student_id: string; returned_at: string | null; answers: Record<string, Answer>; focus_summary: { route_exit_attempts: number; window_unmaximize_attempts: number } | null }> }
+type Results = { questions: Array<{ id: string; question_type: 'open_response' | 'multiple_choice'; question_text: string }>; students: Array<{ student_id: string; returned_at: string | null; answers: Record<string, Answer>; focus_summary: { route_exit_attempts: number; window_unmaximize_attempts: number } | null }> }
 const test = base.extend<{ owned: OwnedFixture }>({
   owned: async ({}, runFixture) => {
     const owned = await createIsolatedLifecycleFixture()
@@ -21,7 +21,7 @@ async function json<T>(request: APIRequestContext, method: string, path: string,
 async function login(page: Page, email: string, password: string) {
   await page.goto('/login')
   await page.getByLabel('School Email').fill(email)
-  await page.getByLabel('Password', { exact: true }).fill(password)
+  await page.getByLabel(/^Password(?:\s*\*)?$/).fill(password)
   await page.getByRole('button', { name: 'Login', exact: true }).click()
   await expect(page).toHaveURL(/\/classrooms/)
 }
@@ -33,9 +33,22 @@ async function createTest(request: APIRequestContext, owned: OwnedFixture, mixed
   const openId = randomUUID(), mcId = randomUUID()
   const open = { id: openId, question_type: 'open_response', question_text: 'Explain your reasoning.', options: [], correct_option: null, answer_key: 'A reasoned response', sample_solution: null, points: 5, response_max_chars: 2000, response_monospace: false }
   const mc = { id: mcId, question_type: 'multiple_choice', question_text: 'Choose the correct answer.', options: ['Alpha', 'Beta'], correct_option: 1, answer_key: null, sample_solution: null, points: 5, response_max_chars: 2000, response_monospace: false }
-  await json(request, 'PATCH', `/api/teacher/tests/${id}/draft`, { version: draft.draft.version, content: { ...draft.draft.content, title, show_results: false, questions: mixed ? [mc, open] : [open] } })
-  await json(request, 'PATCH', `/api/teacher/tests/${id}`, { status: 'active' })
-  return { id, title, openId, mcId }
+  const saved = await json<{ draft: { version: number } }>(request, 'PATCH', `/api/teacher/tests/${id}/draft`, { version: draft.draft.version, content: { ...draft.draft.content, title, show_results: false, questions: mixed ? [mc, open] : [open] } })
+  const published = await json<{ test: { status: string } }>(request, 'PATCH', `/api/teacher/tests/${id}`, { status: 'closed', draft_version: saved.draft.version })
+  expect(published.test.status).toBe('closed')
+  // Draft IDs are portable artifact IDs. Teacher result/grade contracts use
+  // persisted row IDs; read that mapping instead of assuming they are equal.
+  const results = await json<Results>(request, 'GET', `/api/teacher/tests/${id}/results`)
+  expect(results.questions).toHaveLength(mixed ? 2 : 1)
+  const persistedOpen = results.questions.filter((question) => question.question_type === 'open_response')
+  const persistedMc = results.questions.filter((question) => question.question_type === 'multiple_choice')
+  expect(persistedOpen).toHaveLength(1)
+  expect(persistedOpen[0].question_text).toBe(open.question_text)
+  expect(persistedMc).toHaveLength(mixed ? 1 : 0)
+  if (mixed) expect(persistedMc[0].question_text).toBe(mc.question_text)
+  const opened = await json<{ updated_count: number; skipped_count: number; state: string }>(request, 'POST', `/api/teacher/tests/${id}/student-access`, { student_ids: [owned.studentId], state: 'open' })
+  expect(opened).toMatchObject({ updated_count: 1, skipped_count: 0, state: 'open' })
+  return { id, title, openId: persistedOpen[0].id, mcId: persistedMc[0]?.id }
 }
 async function start(page: Page, classroomId: string, title: string) {
   await page.goto(`/classrooms/${classroomId}?tab=tests`, { waitUntil: 'domcontentloaded' })
@@ -48,7 +61,7 @@ async function start(page: Page, classroomId: string, title: string) {
     Object.defineProperty(window.screen, 'availHeight', { configurable: true, value: 900 })
   })
   await page.getByRole('button', { name: 'Start the Test', exact: true }).click()
-  await page.getByRole('button', { name: 'Start test', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Start this test?' }).getByRole('button', { name: 'Start test', exact: true }).click()
   await expect(page.getByTestId('student-test-split-container')).toBeVisible()
 }
 async function saveText(page: Page, value: string) {
@@ -111,6 +124,7 @@ test('real desktop lifecycle: closure zero, reopen, submit, grade clear and idem
     await login(teacher, owned.teacherEmail, owned.password)
     await login(student, owned.studentEmail, owned.password)
     const exam = await createTest(teacherContext.request, owned, true)
+    if (!exam.mcId) throw new Error('Published mixed Test must contain a multiple-choice question')
     const selected = { student_ids: [owned.studentId] }
     await start(student, owned.classroomId, exam.title)
     await saveText(student, 'Draft survives teacher closure.')
@@ -138,9 +152,15 @@ test('real desktop lifecycle: closure zero, reopen, submit, grade clear and idem
     const open = ungraded.answers[exam.openId]
     await json(teacherContext.request, 'PATCH', `/api/teacher/tests/${exam.id}/students/${owned.studentId}/grades`, { grades: [{ question_id: exam.openId, response_id: open.response_id, expected_response_revision: open.response_revision, score: 4, feedback: 'Reviewed' }] })
     expect(await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/return`, selected)).toMatchObject({ returned_count: 1, skipped_count: 0 })
-    const published = await json<{ test: { returned_at: string }; my_responses: unknown[] }>(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`)
+    const published = await json<{ test: { returned_at: string }; my_responses: Record<string, number>; question_results: Array<{ question_id: string; score: number; response_text: string | null; selected_option: number | null }>; summary: { earned_points: number; possible_points: number } }>(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`)
     expect(published.test.returned_at).toBeTruthy()
-    expect(published.my_responses).toHaveLength(2)
+    expect(published.my_responses).toEqual({ [exam.mcId]: 1 })
+    expect(published.question_results).toHaveLength(2)
+    expect(published.question_results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ question_id: exam.mcId, selected_option: 1, score: 5 }),
+      expect.objectContaining({ question_id: exam.openId, response_text: 'Draft survives teacher closure.', score: 4 }),
+    ]))
+    expect(published.summary).toMatchObject({ earned_points: 9, possible_points: 10 })
     expect(await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/return`, selected)).toMatchObject({ returned_count: 0, already_returned_count: 1 })
     const graded = await teacherResults(teacherContext.request, exam.id, owned.studentId)
     await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/clear-open-grades`, { ...selected, responses: [{ response_id: graded.answers[exam.openId].response_id, expected_response_revision: graded.answers[exam.openId].response_revision }] })

@@ -1,4 +1,3 @@
-import type { PostgrestError } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { generateHandoffToken, hashHandoffToken, verifyCode } from '@/lib/crypto'
 import type { getServiceRoleClient } from '@/lib/supabase'
@@ -6,8 +5,6 @@ import { DUMMY_AUTH_BCRYPT_HASH } from '@/lib/server/auth-response'
 
 export type AuthVerificationPurpose = 'signup' | 'reset_password'
 type ServiceRoleClient = ReturnType<typeof getServiceRoleClient>
-type RpcResponse = Promise<{ data: unknown; error: PostgrestError | null }>
-type RpcInvoker = (name: string, args: Record<string, unknown>) => RpcResponse
 
 const generationSchema = z.number().int().positive()
 const issueResultSchema = z.object({ ok: z.boolean() })
@@ -38,16 +35,6 @@ export type AuthVerificationCandidate = z.infer<typeof candidateSchema>
 export type AuthHandoffInspection = z.infer<typeof handoffSchema>
 export const NONEXISTENT_AUTH_CODE_ID = '00000000-0000-0000-0000-000000000001'
 
-function invokeRpc(
-  supabase: ServiceRoleClient,
-  name: string,
-  args: Record<string, unknown>,
-): RpcResponse {
-  // Migration 246 is intentionally ahead of generated database types. Keep the
-  // temporary cast at this single seam until the coordinator regenerates them.
-  return (supabase.rpc as unknown as RpcInvoker)(name, args)
-}
-
 export async function issueAuthVerificationCode(
   supabase: ServiceRoleClient,
   input: {
@@ -57,7 +44,7 @@ export async function issueAuthVerificationCode(
     expiresAt: string
   },
 ) {
-  const response = await invokeRpc(supabase, 'issue_auth_verification_code_v1', {
+  const response = await supabase.rpc('issue_auth_verification_code_v1', {
     p_user_id: input.userId,
     p_purpose: input.purpose,
     p_code_hash: input.codeHash,
@@ -73,7 +60,7 @@ export async function getLatestAuthVerificationCode(
   supabase: ServiceRoleClient,
   input: { userId: string; purpose: AuthVerificationPurpose },
 ) {
-  const response = await invokeRpc(supabase, 'get_latest_auth_verification_code_v1', {
+  const response = await supabase.rpc('get_latest_auth_verification_code_v1', {
     p_user_id: input.userId,
     p_purpose: input.purpose,
   })
@@ -98,7 +85,7 @@ export async function finalizeAuthVerificationAttempt(
     maxAttempts: number
   },
 ) {
-  const response = await invokeRpc(supabase, 'finalize_auth_verification_attempt_v1', {
+  const response = await supabase.rpc('finalize_auth_verification_attempt_v1', {
     p_user_id: input.userId,
     p_purpose: input.purpose,
     p_candidate_id: input.candidateId,
@@ -164,7 +151,7 @@ export async function inspectLatestAuthHandoff(
   supabase: ServiceRoleClient,
   input: { purpose: AuthVerificationPurpose; handoffTokenHash: string },
 ) {
-  const response = await invokeRpc(supabase, 'inspect_latest_auth_handoff_v1', {
+  const response = await supabase.rpc('inspect_latest_auth_handoff_v1', {
     p_purpose: input.purpose,
     p_handoff_token_hash: input.handoffTokenHash,
   })
@@ -184,7 +171,7 @@ export async function consumeSignupPasswordHandoff(
     expectedCredentialVersion: number
   },
 ) {
-  const response = await invokeRpc(supabase, 'consume_signup_password_handoff_v1', {
+  const response = await supabase.rpc('consume_signup_password_handoff_v1', {
     p_user_id: input.userId,
     p_generation: input.generation,
     p_handoff_token_hash: input.handoffTokenHash,
@@ -208,16 +195,12 @@ export async function consumeLatestPasswordReset(
     passwordHash: string
   },
 ) {
-  const response = await invokeRpc(
-    supabase,
-    'consume_latest_password_reset_and_revoke_sessions_v1',
-    {
-      p_user_id: input.userId,
-      p_generation: input.generation,
-      p_handoff_token_hash: input.handoffTokenHash,
-      p_password_hash: input.passwordHash,
-    },
-  )
+  const response = await supabase.rpc('consume_latest_password_reset_and_revoke_sessions_v1', {
+    p_user_id: input.userId,
+    p_generation: input.generation,
+    p_handoff_token_hash: input.handoffTokenHash,
+    p_password_hash: input.passwordHash,
+  })
   return {
     error: response.error,
     credentialVersion: response.error || response.data === null

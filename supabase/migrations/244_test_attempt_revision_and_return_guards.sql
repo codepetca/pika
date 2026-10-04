@@ -686,13 +686,36 @@ as $$
 declare
   v_attempts jsonb := '[]'::jsonb;
   v_deleted_responses integer := 0;
+  v_test public.tests%rowtype;
+  v_classroom_teacher_id uuid;
+  v_archived_at timestamptz;
 begin
-  perform private.lock_test_lifecycle(p_test_id);
   if coalesce(array_length(p_student_ids, 1), 0) = 0 then
     return jsonb_build_object(
       'unsubmitted_count', 0,
       'attempts', '[]'::jsonb
     );
+  end if;
+
+  -- Preserve migration149's actor/active-Classroom authority after taking the
+  -- shared advisory -> Classroom -> Test locks. Its empty-selection no-op and
+  -- missing-parent 42501 contract also remain unchanged.
+  begin
+    v_test := private.lock_test_lifecycle(p_test_id);
+  exception
+    when no_data_found then
+      raise exception 'Test unsubmission is not allowed' using errcode = '42501';
+  end;
+  select classroom.teacher_id, classroom.archived_at
+  into v_classroom_teacher_id, v_archived_at
+  from public.classrooms classroom
+  where classroom.id = v_test.classroom_id;
+  if not found
+    or p_updated_by is null
+    or v_classroom_teacher_id is distinct from p_updated_by
+    or v_archived_at is not null
+  then
+    raise exception 'Test unsubmission is not allowed' using errcode = '42501';
   end if;
 
   with target_attempts as materialized (
@@ -761,6 +784,12 @@ declare
   v_deleted_attempts integer := 0;
 begin
   perform private.lock_test_lifecycle(p_test_id);
+  perform 1
+  from public.test_attempts
+  where test_id = p_test_id
+    and student_id = p_student_id
+  for update;
+
   with deleted_ai_items as (
     delete from public.test_ai_grading_run_items
     where test_id = p_test_id
@@ -822,7 +851,6 @@ declare
   v_deleted_attempts integer := 0;
   v_deleted_ids uuid[] := array[]::uuid[];
 begin
-  perform private.lock_test_lifecycle(p_test_id);
   with requested as (
     select distinct student_id
     from unnest(coalesce(p_student_ids, array[]::uuid[])) as requested(student_id)
@@ -843,6 +871,14 @@ begin
       'deleted_ai_grading_items', 0
     );
   end if;
+
+  perform private.lock_test_lifecycle(p_test_id);
+  perform 1
+  from public.test_attempts
+  where test_id = p_test_id
+    and student_id = any(v_student_ids)
+  order by student_id
+  for update;
 
   with deleted_ai_items as (
     delete from public.test_ai_grading_run_items
@@ -1349,7 +1385,8 @@ begin
   if v_requested_count = 0 or v_requested_count > 100 then
     raise exception 'Student IDs must contain between 1 and 100 values' using errcode = '22023';
   end if;
-  if p_expected_responses is null
+  if p_now is null
+    or p_expected_responses is null
     or jsonb_typeof(p_expected_responses) <> 'array'
     or jsonb_array_length(p_expected_responses) > 1000
   then
@@ -1571,6 +1608,9 @@ begin
       where question.test_id = p_test_id and (response.id is null or response.score is null or response.score::text in ('NaN', 'Infinity', '-Infinity'))
     );
   select count(*) into v_already from public.test_attempts where test_id = p_test_id and student_id = any(v_eligible) and returned_at is not null;
+  -- Preserve migration104's AFTER returned_at review finalizer. Its metadata-
+  -- only response updates are excluded by stamp_test_response_revision; do not
+  -- duplicate that trigger with a second review/revision writer here.
   update public.test_attempts set returned_at = clock_timestamp(), returned_by = p_returned_by
     where test_id = p_test_id and student_id = any(v_eligible) and returned_at is null;
   get diagnostics v_returned = row_count;
@@ -1581,7 +1621,17 @@ $$;
 -- Retain the old signature only as a checked delegate; the caller's stale timestamps have no authority.
 create or replace function public.return_test_attempts_atomic(p_test_id uuid, p_student_ids uuid[], p_returned_by uuid, p_submitted_at_by_student jsonb default '{}'::jsonb)
 returns jsonb language plpgsql security definer set search_path = '' as $$
-begin return public.return_test_attempts_checked_atomic(p_test_id, p_student_ids, p_returned_by); end;
+declare v_result jsonb;
+begin
+  if coalesce(array_length(p_student_ids, 1), 0) = 0 then
+    return jsonb_build_object('returned_count', 0, 'updated_count', 0, 'inserted_count', 0);
+  end if;
+  v_result := public.return_test_attempts_checked_atomic(p_test_id, p_student_ids, p_returned_by);
+  -- Legacy callers retain their count keys. Only current eligible attempts can
+  -- be returned: no synthetic submitted row or caller-provided timestamp can
+  -- bypass the checked lifecycle/score guards. Replays update zero rows.
+  return v_result || jsonb_build_object('updated_count', (v_result->>'returned_count')::integer, 'inserted_count', 0);
+end;
 $$;
 
 -- Cold archives predating 244 must still restore an exact current-schema attempt row.

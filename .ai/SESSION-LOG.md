@@ -1113,3 +1113,29 @@ remaining merges. Production244–246 need matching application and exact-target
 set permission; no database application, fixtures, feature activation or deployment.
 Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
 account-wide; DeepSeek paused. Task low-usage/review-budget override retained.
+First remediation batch from the authorized 27-finding codebase audit, base main `3c5d7097`. Implementation copied from coordinator-verified delivery into its own branch; no dependency, database, schema application, rollout or production change. Coordinator handoff: `/Users/stew/.codex/audits/pika/2026-10-04-broad/handoff.json`. Targeted implementation tests passed; exact-branch focused checks run before draft publication. Independent review remains pending at the pr-review low-usage human checkpoint (8% weekly remaining at start, DeepSeek paused). S1 generation/issuance database fence remains open; no source delivery alone is accepted as goal completion.
+## 2026-10-04 — Broad audit database source and isolated verification
+
+PR1463 remains draft. Reviewed001–246 replay at18d282bf succeeded once on new
+local pika_audit_20261004 (DB64322/API64321), without seeds/reset/shared schema.
+Seven named SQL groups, forced teardown controls and actual auth HTTP canary
+passed. Genuine generated types replaced temporary RPC casts; four-file typed
+source/lifecycle setup correction is independently accepted. Two browser cases
+remain pending a corrected run; prior failed setup attempts and cleanup recorded.
+
+Migration244 now preserves installed149 owner/archive/null-actor/null-clock
+contracts, predecessor empty no-ops/delete locks and safe legacy Return counts.
+The existing104 returned_at review trigger remains authoritative; a preliminary
+metadata-loss concern was unsupported. Security/compatibility source re-reviews
+are clean;561 focused tests/52files and policy/TypeScript/lint checks pass. These
+corrected SQL bytes are unapplied. Fresh exact-target replay permission and real
+predecessor/CORE/browser proof remain gates before stable-head final CI/readiness.
+
+Other audit PRs1462/1464/1465/1466/1467 have accepted source and green final CI;
+18/27 findings accepted, none merged here. UI293passes/six retry flakes/20existing
+skips disclosed; dependency tree retains one braces advisory. Human task waiver
+continues low-usage/review-budget work; cumulative counts retained. Approve-all
+authorized exact earlier replay/fixtures and guarded accidental synthetic user
+cleanup, now complete. Immutable removed private generations/limiter metadata
+remain in disposable target. No migration retry/deploy/production/shared change.
+Evidence: ~/.codex/audits/pika/2026-10-04-broad/handoff.json and replay manifests.

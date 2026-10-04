@@ -279,10 +279,15 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
-  start_test_attempt_revision_atomic: { Args: { p_test_id: string; p_student_id: string }; Returns: Json }
-  save_test_attempt_revision_atomic: { Args: { p_test_id: string; p_student_id: string; p_responses: Json; p_expected_revision: number }; Returns: Json }
-  submit_test_attempt_revision_atomic: { Args: { p_test_id: string; p_student_id: string; p_responses: Json; p_expected_revision: number; p_submitted_at?: string }; Returns: Json }
-  return_test_attempts_checked_atomic: { Args: { p_test_id: string; p_student_ids: string[]; p_returned_by: string }; Returns: Json }
+  // PostgreSQL function metadata does not encode nullable input contracts.
+  finalize_auth_verification_attempt_v1: FunctionContract<
+    'finalize_auth_verification_attempt_v1',
+    Json,
+    Replace<GeneratedFunctions['finalize_auth_verification_attempt_v1']['Args'], {
+      p_handoff_expires_at: string | null
+      p_handoff_token_hash: string | null
+    }>
+  >
 
   // Installed239's optional cursor/subject/snapshot arguments accept SQLNULL.
   // Refine only their nullability while retaining genuine generated RPC keys.
