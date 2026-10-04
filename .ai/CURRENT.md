@@ -1,8 +1,10 @@
 # Checkpoint — 2026-10-04
 
-Source: main `3c5d7097`; PR #1460 merged. Migration 243 source and local
-application/types/replay/revocation receipts are recorded in `.ai/SESSION-LOG.md`.
-PR #1461 integrated assignment proof is tracked separately; not verified here.
+Source: main `902cbf76`; PRs #1460/#1461/#1468 merged. Migration 243 local
+application/types/replay/revocation receipts remain in `.ai/SESSION-LOG.md`.
+#1461 proof receipts: 29 SDK cases, two forced teardowns/cleanup and baseline;
+see [integrated proof](../docs/guidance/contextual-assignment-learner-integrated-proof.md).
+No fresh DB query; #1468 proofs recorded.
 Authorized 27-finding effort: [remediation plan](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Hosted: Prod DB 001–225 (last verified); no fresh hosted query here. Recorded
