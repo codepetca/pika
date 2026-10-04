@@ -11,51 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Shared material-list reads preparation
-
-Prepared the next independent batch-1 consumer while reviewed announcement receipt
-PR1439 runs exact-head CI37118772779 at2166a3c6. No repeated routine approval;
-standing main lifecycle/local migration authority remains bounded to this task,
-with production and cohort activation separate. Native implementation and proof
-workers own disjoint source/script files; coordinator owns docs/CI/acceptance.
-Early shared material GETs bind every classroom-rooted payload to current owner or
-active non-owner membership, retaining14 fields, draft-only member visibility,
-negative positions, rich Tiptap, historical authorship and precise timestamp/null
-keysets. Existing exact-pair/legacy remainder and all mutation endpoints unchanged.
-TDD26cases initially10red/16green;116 new tests then green,182 material regressions,
-TypeScript/scopedlint pass. Worker and coordinator real SDK runs prove1007/1006rows,
-microsecond one-row cursors, empty/draft/archive/transfer semantics, first/later/
-terminal revocation, JSONBnull and malformed/error fail-closed behavior; forced
-setup failure still cleans exact fixtures. Public fixture table counts return to
-baseline3/1/0/2/1/0/0/0/15; no tagged sessions remain. No schema/type generation,
-reset/reseed, real-account, provider or hosted writes. Local installed233 belongs
-to1439; do not regenerate types until its merge and this branch's main reconciliation.
-1439 subsequently squash-merged98887743 at11:39:01Z after final2166a3c6 integration
-review and all five CI37118772779 gates passed (0queue/1715run seconds). Canonical
-main fast-forwarded cleanly;10 lifecycle receipts,1correction/syncpush; active/token
-metrics unknown. Material rebase has continuity-only overlaps, no runtime/schema
-conflicts; all21 branch-archived entries already exist canonically. Preserved main
-archive exactly before trimming, removed only a reintroduced rolling-log copy of
-its already-archived Bulk entry. No stash or migration rename/application. Root
-verified the read-only later material-owner-write design; no implementation yet.
-Reconciled focused checks, fixed-SHA review/CI/merge next; batch1/cutover incomplete.
-
-Reconciled241focused/static and genuine001–233type check pass at09103e47; draft
-PR1440 published and attached. Initial independent compatibility review clean
-with245tests; security found one accepted P2: canonical artifact_id is NOTNULL in
-112/generatedRow but the new response validator allowednull. No other privacy or
-authorization blocker. Initialwave completed before one correctionbatch; root
-liveSDK later-page null-identity probe reproduces Missingexpectedrejection while
-finallycleanup returns baseline. Tightenonlynewvalidator, canonicalizevalidfixtures,
-andaddbothowner/memberunit/API/SDKfail-closedregressions; legacy/exactpair untouched.
-Reviewledger retains11:42:21Z start/12:42:21Z deadline,2launches/1batch inprogress.
-Targeted security re-review and final cumulative integration remain required.
-Correction TDD produces4red/122green before the one-field fix;186 material/API
-regressions then pass. Coordinator reruns actualSDKnormal/forcedfailure: both
-owner/member null artifact evidence onpage2 now503 with no partiallist; all prior
-1007/1006/keyset/revocation cases and exactcleanup remain green.245reconciledfocused
-checks and static gates are the batch acceptance before fixed-SHA targeted review.
-
 ## 2026-10-03 — Material reads merged; owner-write source preparation
 
 PR1440 normal squash merged04f8d1e3 at12:17:30Z after clean initial/targeted/final
@@ -934,3 +889,17 @@ private receipt /private/tmp/pika-239-singleton-regressions.1POYKb. SQL239 and00
 remain immutable;164/236closed/allactivationOFF. One final cumulative reviewer
 and exact-head CI remain. Original ledger22:05:32 and counters preserved;
 explicit elapsed extension to00:05:32UTC, no reset or approval re-prompt.
+
+## 2026-10-03 — Retained consumers merged; Assignment list source prepared
+
+1452 exact reviewed7941 passed all5 checks37161407268; squashf6b9c8a4 verified
+merged00:28:12UTC and canonicalmain clean/treeidentical.1451 actual3b62 retained.
+Local/main001–239; productionlastverified225. Groupedwriter164/236 staysclosed.
+Assignment-list worktree rebased losslessly ontoactualmain; root owns all16source
+paths after workerhandoff. Current statement-bound owner/member pages, disclosure,
+pagination and strictadmission preserve literallegacy/POST. Prior311focused+static
+checks and73offlineproof tests pass; scopedproof TypeScript checked separately.
+CI hookup TDD RED then implementation; new focused gate/reviews precede actual
+isolated001239 replay/nineSDKcases/fourteenrevocations/twoforcedteardowns. No
+fixture execution, canonicalDB writes, migrationapplication, activation orcleanup.
+Ownerlocal/reviewextensions/mainmerge authority continues; hardcaps/gates retained.

@@ -35598,3 +35598,49 @@ trimmed rolling log to40. No stash created/consumed, no migration renamed. Insta
 233 source remains byte-identical. Reconciled startup set exceeded its16,000-character
 budget by43; compressed CURRENT status without changing the production-prefix
 contract or weakening the test. Final focused gate and cumulative review next.
+
+<!-- pika-session-log-archive-batch:c557e6a5e90b9391862ed4e17b678b234c75ae19ddf62e7ef27aa9dd235cdbbb -->
+## 2026-10-03 — Shared material-list reads preparation
+
+Prepared the next independent batch-1 consumer while reviewed announcement receipt
+PR1439 runs exact-head CI37118772779 at2166a3c6. No repeated routine approval;
+standing main lifecycle/local migration authority remains bounded to this task,
+with production and cohort activation separate. Native implementation and proof
+workers own disjoint source/script files; coordinator owns docs/CI/acceptance.
+Early shared material GETs bind every classroom-rooted payload to current owner or
+active non-owner membership, retaining14 fields, draft-only member visibility,
+negative positions, rich Tiptap, historical authorship and precise timestamp/null
+keysets. Existing exact-pair/legacy remainder and all mutation endpoints unchanged.
+TDD26cases initially10red/16green;116 new tests then green,182 material regressions,
+TypeScript/scopedlint pass. Worker and coordinator real SDK runs prove1007/1006rows,
+microsecond one-row cursors, empty/draft/archive/transfer semantics, first/later/
+terminal revocation, JSONBnull and malformed/error fail-closed behavior; forced
+setup failure still cleans exact fixtures. Public fixture table counts return to
+baseline3/1/0/2/1/0/0/0/15; no tagged sessions remain. No schema/type generation,
+reset/reseed, real-account, provider or hosted writes. Local installed233 belongs
+to1439; do not regenerate types until its merge and this branch's main reconciliation.
+1439 subsequently squash-merged98887743 at11:39:01Z after final2166a3c6 integration
+review and all five CI37118772779 gates passed (0queue/1715run seconds). Canonical
+main fast-forwarded cleanly;10 lifecycle receipts,1correction/syncpush; active/token
+metrics unknown. Material rebase has continuity-only overlaps, no runtime/schema
+conflicts; all21 branch-archived entries already exist canonically. Preserved main
+archive exactly before trimming, removed only a reintroduced rolling-log copy of
+its already-archived Bulk entry. No stash or migration rename/application. Root
+verified the read-only later material-owner-write design; no implementation yet.
+Reconciled focused checks, fixed-SHA review/CI/merge next; batch1/cutover incomplete.
+
+Reconciled241focused/static and genuine001–233type check pass at09103e47; draft
+PR1440 published and attached. Initial independent compatibility review clean
+with245tests; security found one accepted P2: canonical artifact_id is NOTNULL in
+112/generatedRow but the new response validator allowednull. No other privacy or
+authorization blocker. Initialwave completed before one correctionbatch; root
+liveSDK later-page null-identity probe reproduces Missingexpectedrejection while
+finallycleanup returns baseline. Tightenonlynewvalidator, canonicalizevalidfixtures,
+andaddbothowner/memberunit/API/SDKfail-closedregressions; legacy/exactpair untouched.
+Reviewledger retains11:42:21Z start/12:42:21Z deadline,2launches/1batch inprogress.
+Targeted security re-review and final cumulative integration remain required.
+Correction TDD produces4red/122green before the one-field fix;186 material/API
+regressions then pass. Coordinator reruns actualSDKnormal/forcedfailure: both
+owner/member null artifact evidence onpage2 now503 with no partiallist; all prior
+1007/1006/keyset/revocation cases and exactcleanup remain green.245reconciledfocused
+checks and static gates are the batch acceptance before fixed-SHA targeted review.
