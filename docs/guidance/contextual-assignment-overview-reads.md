@@ -33,6 +33,13 @@ existing response/status/instruction/completion contract. Image signing must
 follow verified current artifact/doc/requirement/student evidence; existing
 signed URLs retain their documented expiry limitation.
 
+Managed images support current upload names, registry-bound legacy names and
+the canonical classroom archive-restore namespace. Upload extensions retain
+the existing producer's MIME/size validation contract rather than an invented
+alphanumeric extension limit. Exact bucket/path, classroom, student, document,
+purpose and state binding still apply; foreign namespaces and traversal fail
+before signing. Restored paths require current exact managed-object evidence.
+
 Bounds:10000 rows per collection,1024 statements,20 seconds,8MiB per statement
 and final DTO; uncertain, malformed, duplicate, stalled, truncated or overflow
 evidence fails503 without a partial result. The contract is statement-current

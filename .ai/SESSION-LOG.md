@@ -848,3 +848,10 @@ gap in existing214 RPC. Reuse1453 disposable fixture/platform/SQL authority for
 seven extra readonly overviewcases; no additional DML or migration. CI guard TDD
 expectedRED then15PASS; proof expectation20combinedPASS. New source/runtime/
 independent-review/CI/merge gates remain; not a rollout or completion receipt.
+
+1454 draftfcdf478c:255focused/1skip plus89compatibility tests and explicitproof
+TypeScript/stagedauditPASS. Initial2reviewerwave completed:securityCLEAN;
+compatibilityP1 upload-only path rejects restore/backfill/accepted filenames.
+Root verified producers117/restore/upload, reproduced3red regressions, batched
+namespace-compatible path correction while retaining exact registry/member/owner
+checks and adding5negative namespace/traversal checks. No runtime execution yet.

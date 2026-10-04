@@ -229,6 +229,36 @@ describe('statement-bound assignment overview with installed SDK', () => {
       await expect(f.read()).rejects.toMatchObject({ statusCode: 503 }); expect(f.bodies).toHaveLength(0)
     }
   })
+  it.each(['restored', 'backfilled', 'extensionless-name'])('preserves valid %s managed image paths from existing producers', async kind => {
+    const d = doc(0); const objectId = uuid(999)
+    const storagePath = kind === 'restored'
+      ? `restores/${classroomId}/${uuid(998)}/${'a'.repeat(64)}-${'b'.repeat(64)}`
+      : kind === 'backfilled'
+        ? `${d.student_id}/${assignmentId}/${uuid(30000)}-123-${uuid(997)}.png`
+        : `classrooms/${classroomId}/students/${d.student_id}/assignment-docs/${d.id}/artifacts/${objectId}.Screenshot 2026-10-03`
+    const a = { ...artifact(0, d, 'image'), storage_path: storagePath, managed_object_id: objectId,
+      managed_object: { id: objectId, classroom_id: classroomId, data_subject_user_id: d.student_id, resource_type: 'assignment_doc', resource_id: d.id,
+        purpose: 'student_assignment_artifact', status: 'ready', storage_bucket: 'assignment-artifacts', storage_path: storagePath } }
+    const f = fixture({ docs: [d], requirements: [requirement(0, 'image')], artifacts: [a] })
+    const result = await f.read()
+    expect(result.students[0].submission_artifacts[0].storage_path).toBe(storagePath)
+    expect(new URL(result.students[0].submission_artifacts[0].url!).pathname).toBe(`/storage/v1/object/sign/assignment-artifacts/${encodeURI(storagePath)}`)
+    expect(f.bodies).toEqual([{ expiresIn: 3600, paths: [storagePath] }])
+  })
+  it.each(['foreign-classroom', 'unbound-restored', 'invalid-restored', 'traversal', 'backslash'])('rejects %s storage paths before signing', async kind => {
+    const d = doc(0); const objectId = uuid(999)
+    const path = kind === 'foreign-classroom' ? `restores/${uuid(996)}/${uuid(998)}/${'a'.repeat(64)}-${'b'.repeat(64)}`
+      : kind === 'invalid-restored' ? `restores/${classroomId}/not-an-operation/${'a'.repeat(64)}-${'b'.repeat(64)}`
+        : kind === 'traversal' ? `classrooms/${classroomId}/students/${d.student_id}/assignment-docs/${d.id}/artifacts/${objectId}.png/../foreign`
+          : kind === 'backslash' ? `classrooms/${classroomId}/students/${d.student_id}/assignment-docs/${d.id}/artifacts/${objectId}.png\\foreign`
+            : `restores/${classroomId}/${uuid(998)}/${'a'.repeat(64)}-${'b'.repeat(64)}`
+    const object = { id: objectId, classroom_id: classroomId, data_subject_user_id: d.student_id, resource_type: 'assignment_doc', resource_id: d.id,
+      purpose: 'student_assignment_artifact', status: 'ready', storage_bucket: 'assignment-artifacts', storage_path: path }
+    const a = { ...artifact(0, d, 'image'), storage_path: path, managed_object_id: kind === 'unbound-restored' ? null : objectId,
+      managed_object: kind === 'unbound-restored' ? null : object }
+    const f = fixture({ docs: [d], requirements: [requirement(0, 'image')], artifacts: [a] })
+    await expect(f.read()).rejects.toMatchObject({ statusCode: 503 }); expect(f.bodies).toHaveLength(0)
+  })
   it('rejects unexpected signing identities/paths and tolerates closed per-path signing errors', async () => {
     const d = doc(0); const a = { ...artifact(0, d, 'image'), storage_path: `${d.student_id}/${assignmentId}/${uuid(30000)}-123-${uuid(999)}.png` }
     for (const response of [[{ path: 'foreign', error: null, signedURL: '/object/sign/foreign?token=x' }],

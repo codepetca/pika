@@ -183,11 +183,17 @@ export async function readContextualAssignmentOverview(input: { supabase: Client
         || object.classroom_id !== classroomId || object.data_subject_user_id !== doc.student_id || object.resource_id !== doc.id || object.storage_path !== artifact.storage_path) throw unavailable()
       if (artifact.storage_path !== null) {
         if (artifact.type !== 'image') throw unavailable()
-        const prefix = object ? `classrooms/${classroomId}/students/${doc.student_id}/assignment-docs/${doc.id}/artifacts/${object.id}.`
-          : `${doc.student_id}/${assignmentId}/${requirement.id}-`
-        if (!artifact.storage_path.startsWith(prefix)) throw unavailable()
-        const tail = artifact.storage_path.slice(prefix.length)
-        if (object ? !/^[a-zA-Z0-9]{1,10}$/.test(tail) : !/^\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-zA-Z0-9]{1,10}$/.test(tail)) throw unavailable()
+        const path = artifact.storage_path
+        if (path.includes('\\') || path.split('/').some(segment => segment === '.' || segment === '..')) throw unavailable()
+        const legacyPrefix = `${doc.student_id}/${assignmentId}/${requirement.id}-`
+        // Registry backfill preserves legacy names. Upload producers validate MIME/size,
+        // not filename extensions; namespace and exact registry scope prove authority.
+        const legacy = path.startsWith(legacyPrefix)
+          && /^\d+-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[\s\S]+$/.test(path.slice(legacyPrefix.length))
+        const uploadPrefix = object ? `classrooms/${classroomId}/students/${doc.student_id}/assignment-docs/${doc.id}/artifacts/${object.id}.` : ''
+        const upload = !!object && path.startsWith(uploadPrefix) && path.length > uploadPrefix.length
+        const restored = !!object && new RegExp(`^restores/${classroomId}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{64}-[0-9a-f]{64}$`).test(path)
+        if (!legacy && !upload && !restored) throw unavailable()
       } else if (object || artifact.managed_object_id) throw unavailable()
     }
     for (const artifact of artifacts) {
