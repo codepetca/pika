@@ -125,6 +125,7 @@ describe('contextual Assignment member supplement visibility', () => {
     expect(source).toContain('Retained purged generation disappeared from unrelated-evidence snapshot')
     expect(source).toContain("('purged'::text, null::text)")
     expect(source).toContain('array[false, true]')
+    expect(source.includes("v_retained is distinct from (case when v_fixture_exists then array['live','purged'] else array['fixture','live','purged'] end)")).toBe(true)
   })
 
   it('uses meaningful denied and visible evidence for both historical role labels', () => {

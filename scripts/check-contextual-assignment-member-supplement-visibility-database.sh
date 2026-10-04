@@ -133,7 +133,7 @@ begin
       select 1 from (values ('synthetic'::text)) fixture(scope_digest)
       where v_fixture_exists and g.scope_digest = fixture.scope_digest
     );
-    if v_retained is distinct from case when v_fixture_exists then array['live','purged'] else array['fixture','live','purged'] end
+    if v_retained is distinct from (case when v_fixture_exists then array['live','purged'] else array['fixture','live','purged'] end)
     then raise exception 'Retained purged generation disappeared from unrelated-evidence snapshot'; end if;
   end loop;
 end;
