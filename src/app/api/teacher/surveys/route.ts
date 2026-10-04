@@ -8,6 +8,7 @@ import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import { loadChunkedRows } from '@/lib/server/query-chunks'
 import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contextual-classwork-creation-access'
 import { createSurveyForOwner } from '@/lib/server/contextual-classwork-creation'
+import { surveyCreateSchema } from '@/lib/validations/surveys'
 import { contextualSurveyCreateSchema } from '@/lib/validations/classwork-authoring'
 
 export const dynamic = 'force-dynamic'
@@ -200,17 +201,8 @@ export const POST = withErrorHandler('PostTeacherSurvey', async (request) => {
   const rawBody = await resolveRawBody()
   const body = surveyAccess.mode === 'contextual'
     ? contextualSurveyCreateSchema.parse(rawBody)
-    : rawBody
-  const { classroom_id, title, show_results = true, dynamic_responses = false } = body as {
-    classroom_id?: string
-    title?: string
-    show_results?: boolean
-    dynamic_responses?: boolean
-  }
-
-  if (!classroom_id) {
-    return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
-  }
+    : surveyCreateSchema.parse(rawBody)
+  const { classroom_id, title, show_results = true, dynamic_responses = false } = body
 
   const cleanTitle = title?.trim() || getFallbackAssessmentTitle()
 
