@@ -285,6 +285,21 @@ jobs:
       - name: Verify contextual enrollment concurrent writers and guess limits
         run: node scripts/check-contextual-enrollment-concurrency.mjs
 
+      - name: Verify isolated contextual Assignment list pagination and revocations
+        shell: bash
+        run: |
+          assignment_list_head=$(git rev-parse HEAD)
+          assignment_list_log=$(mktemp)
+          trap 'rm -f -- "$assignment_list_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-assignment-list-lifecycle.ts --reviewed-head "$assignment_list_head" --mode normal
+          for assignment_list_mode in after-fixture before-capture; do
+            assignment_list_status=0
+            pnpm exec tsx scripts/check-contextual-assignment-list-lifecycle.ts --reviewed-head "$assignment_list_head" --mode "$assignment_list_mode" > "$assignment_list_log" 2>&1 || assignment_list_status=$?
+            [[ "$assignment_list_status" -eq 1 ]] || exit 1
+            grep -Fx "FAIL forced isolated assignment-list lifecycle: ${assignment_list_mode}." "$assignment_list_log"
+            grep -Fx 'PASS isolated assignment-list exact teardown and unchanged canonical baseline.' "$assignment_list_log"
+          done
+
       - name: Verify contextual learner assignment-open atomicity and privileges
         run: bash scripts/check-contextual-assignment-doc-open-database.sh
 

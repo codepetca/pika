@@ -6,6 +6,21 @@ const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
 
 describe('CI workflow', () => {
+  it('requires isolated Assignment list runtime and both exact failed-start cleanup receipts serially', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const name = '      - name: Verify isolated contextual Assignment list pagination and revocations'
+    expect(workflow.split(name)).toHaveLength(2)
+    const step = workflow.split(name)[1]?.split('      - name:')[0]
+    expect(step).toContain('assignment_list_head=$(git rev-parse HEAD)')
+    expect(step).toContain('pnpm exec tsx scripts/check-contextual-assignment-list-lifecycle.ts --reviewed-head "$assignment_list_head" --mode normal')
+    expect(step).toContain('for assignment_list_mode in after-fixture before-capture; do')
+    expect(step).toContain('--mode "$assignment_list_mode" > "$assignment_list_log" 2>&1 || assignment_list_status=$?')
+    expect(step).toContain('[[ "$assignment_list_status" -eq 1 ]] || exit 1')
+    expect(step).toContain('grep -Fx "FAIL forced isolated assignment-list lifecycle: ${assignment_list_mode}."')
+    expect(step).toContain("grep -Fx 'PASS isolated assignment-list exact teardown and unchanged canonical baseline.'")
+    expect(step).toContain("trap 'rm -f -- \"$assignment_list_log\"' EXIT")
+    expect(step).not.toMatch(/wait |tee |\s&\s|continue-on-error/)
+  })
   it('requires retained consumer two-session locks and installed-SDK ACL with exact forced baseline receipts', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const step = workflow.split('      - name: Verify retained cleanup two-session locks and installed SDK ACL')[1]?.split('      - name:')[0]

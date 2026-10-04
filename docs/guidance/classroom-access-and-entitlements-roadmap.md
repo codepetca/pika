@@ -956,6 +956,18 @@ GET/open supplemental payload reads remain unchanged until their following
 statement-bound read slice. Independent review and an exact-cleanup local
 route-to-RPC proof are required before this deliverable can merge.
 
+Superseding integration receipt (2026-10-03 Toronto):1451 is merged as3b62de06,
+all five exact-head checks37156761577 passed.1452 is merged asf6b9c8a4 after all
+five exact-head checks37161407268 passed; canonical main is clean, local/main001–239.
+Its retained-group consumers do not enable the grouped writer or remove164/236
+singleton defenses. Grouped write/lifecycle compatibility remains batch3 work.
+The next batch2 [Assignment list slice](contextual-assignment-list-reads.md)
+binds every payload page to the current relationship.322 focused checks and
+actual clean5ba2d3fa isolated nine SDK cases/fourteen revocations/normal plus two
+forced exact-cleanup and unchanged-canonical proofs pass. Initial/targeted
+reviews are clean; final cumulative review and exact-head CI/mainmerge remain
+gates. No new migration, production promotion or activation is included.
+
 Remaining batch-2 groups, in integration order: Assignment list/detail/open
 enrichments; Tests owner operations then learner participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading
