@@ -1242,8 +1242,8 @@ its hidden create/repair behavior. Source preparation on main7570 uses a two-pha
 service-only snapshot/CAS transaction, unchanged legacy dispatch and public DTO,
 current owner/fixed-parent checks and explicit retired-Test inspection/write rules.
 Additive247 is source only. Initial/targeted source reviews, normal finite native/SQL
-proof, genuine isolated contracts and after-fixture cleanup passed. Before-capture
-cleanup, final cumulative review, exact-head CI and normal merge remain pending.
+proof, genuine isolated contracts, both forced cleanup modes and corrected full
+coverage passed. Targeted/final review, exact-head CI and normal merge remain pending.
 No shared-local or production migration, cohort, home, provider or billing action
 is implied; other Test authoring and learner operations remain future slices.
 

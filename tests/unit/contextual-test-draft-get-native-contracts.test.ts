@@ -1,11 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
 import { PassThrough, Writable } from 'node:stream'
-const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn(), inventory: vi.fn() }))
+const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn(), inventory: vi.fn(),
+  snapshotSqlReads: false, sourceDrift: false, sqlFileCache: new Map<string, string>() }))
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn, execFile: mocks.execFile, execFileSync: vi.fn() }))
 vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs')>()
   return { ...actual, realpathSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? path : actual.realpathSync(path),
+    readFileSync: ((path, options) => {
+      // Offline transport tests use immutable fixture bytes, but still execute every source-hash guard.
+      if (mocks.snapshotSqlReads && typeof path === 'string' && options === 'utf8'
+        && /\/supabase\/migrations\/\d{3}_[a-z0-9_]+\.sql$/.test(path)) {
+        let source = mocks.sqlFileCache.get(path)
+        if (source === undefined) { source = actual.readFileSync(path, 'utf8'); mocks.sqlFileCache.set(path, source) }
+        return mocks.sourceDrift && path.endsWith('/247_contextual_test_draft_owner_get.sql')
+          ? `${source}\n-- offline source drift` : source
+      }
+      return actual.readFileSync(path, options)
+    }) as typeof actual.readFileSync,
     statSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? { isSocket: () => true, dev: 1, ino: 2, mode: 3, rdev: 4 } : actual.statSync(path) }
 })
 vi.mock('../../scripts/contextual-test-owner-list-proof-inventory', () => ({ testOwnerListDockerInventory: mocks.inventory }))
@@ -72,6 +84,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   const factory = () => createDraftGetNativeContracts({ repository, reviewedHead: head, original, capturedResources: resources,
     containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id, acceptedManifestSha256: testOwnerDigest(JSON.stringify(manifest)) })
   beforeEach(() => {
+    mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
     vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
     mocks.inventory.mockResolvedValue(resources)
@@ -126,7 +139,18 @@ describe('native persistent-session transport with offline child mocks', () => {
       children.push(child); return child
     })
   })
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => { vi.useRealTimers(); mocks.snapshotSqlReads = false; mocks.sourceDrift = false; mocks.sqlFileCache.clear() })
+  it('snapshots the complete offline SQL fixture and still rejects changed source before work', async () => {
+    const adapter = factory(); await adapter.setup()
+    expect(mocks.sqlFileCache.size).toBe(247)
+    const dispatchedSql = sqlControls.length
+    const spawnedChildren = children.length
+    mocks.sourceDrift = true
+    await expect(adapter.run()).rejects.toThrow('Expected values to be strictly equal')
+    expect(sqlControls.slice(dispatchedSql).every(control => control.args[0] === 'rev-parse' || control.args[0] === 'status')).toBe(true)
+    expect(children).toHaveLength(spawnedChildren)
+    expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
+  })
   it('runs the finite protocol through persistent sessions and binds every exact child command', async () => {
     const adapter = factory(); await adapter.setup(); const result = await adapter.run()
     expect(result.races.schedules).toHaveLength(DRAFT_GET_CAPS.schedules)

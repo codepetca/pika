@@ -4,9 +4,9 @@ Status: source preparation on `codex/contextual-test-owner-draft-get`, based on
 verified main `7570a9d60591183f0699001f47a6528045a392ee`. Migration247 is additive
 source only. Shared local schema was last verified001–243 and production001–225;
 neither is changed by this preparation. Initial and targeted source reviews,
-normal runtime proof and after-fixture cleanup have passed. Genuine isolated
-schema contracts are installed. Before-capture cleanup, final integration
-review, stable-head CI and normal main merge remain pending.
+normal runtime proof and both forced cleanup modes have passed. Genuine isolated
+schema contracts are installed and full coverage passes. Targeted correction
+review, final integration review, stable-head CI and normal main merge remain pending.
 
 ## Boundary
 
@@ -252,7 +252,7 @@ RPC contracts. Artifact SHA-256:
 The exact generated output is installed without manual typing edits. Public
 schema generation did not alter either shared-local or production schema.
 
-Before-capture mode remains unaccepted. A platform-command failure before setup
+Before-capture mode was initially unaccepted. A platform-command failure before setup
 left an owned stack; an instrumented bounded retry proved its54332 binding then
 blocked a fresh launch. Exact resource recovery and SAMEbaseline checks passed,
 but the next clean retry again failed before setup. There are no synthetic
@@ -260,4 +260,23 @@ containers remaining after that attempt. Do not retry blindly or claim forced
 cleanup from canonical equality alone. Closed diagnostics now retain the inherited
 lifecycle-stage enum and cleanup-present/none/unknown state without raw errors,
 SQL, credentials or row/resource identities. This is diagnostic-only preparation;
-the genuine final before-capture cleanup, final review and CI gates still apply.
+the genuine final before-capture cleanup, final review and CI gates still applied.
+
+Superseding runtime receipt: reviewed75c source reached the before-capture
+intentional checkpoint after complete original/app/SQL setup. It exited1 with
+exactly one cleanup PASS and one expected forced-failure line; exact teardown and
+the SAME saved canonical baseline passed. Normal/after-fixture80aa evidence remains
+applicable: application, SQL, fixtures, native controls, guards and ceilings are
+byte-identical; targeted review verified the diagnostic/generated-type changes.
+
+The first full coverage run retained12664 passing,2 failing and8 skipped tests.
+One failure exposed missing historical attendance continuity phrases after doc
+compaction; these were restored without changing its assertion. The offline
+persistent-protocol test exceeded its unchanged five-second test limit under
+coverage. Its mocked transport now snapshots all247 actual SQL files once per
+test while retaining every source-hash check; a source-drift regression proves
+rejection before native dispatch. Real native source reads and all runtime caps
+are unchanged. The corrected full suite passes12667 tests with8 skipped and no
+failures; coverage thresholds pass (statements85.03%, branches77.06%, functions
+91.42%, lines86.98%). Focused checks410/17, TypeScript, lint and policies pass.
+Independent review and exact-head CI remain separate readiness gates.
