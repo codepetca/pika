@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Supplemental learner permission source preparation
-
-1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
-single eligible CI37188214976 running with Test&Build/browser PASS, database/PRGate
-pending. Reviewed1458source frozen; next branch depends on that exact commit,
-not yet an actual merged parent. Local241/prodlast225 unchanged.
-
-Bounded6.1Sol/high worker relinquished only242SQL/structuraltest/rollbackharness.
-Four complete latest214/213 definitions preserve byteparity after onlylocked
-visibility additions; owner-history exception and member-only42501 precedence
-remain.21new/80related workerchecks PASS; root65related PASS, inspected harness,
-removed onlycosmetic trailing blankline, SQLdigest unchanged
-48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e.
-NewserialCI/floor regression23RED then61GREEN.242UNAPPLIED; all001241SQL and
-isolatedfixture/transport/transitions/restoration/cleanup authority unchanged.
-Harness PREPARED NOTRUN: exactcanonical/c242sc242 collisionguards/BEGINROLLBACK/
-168169ON/settingscronACL unchanged; synthetic Storage metadata only, no physical
-bytes/API/network/cleanup/activation. Outsider/crosssubject checks are notsameactor
-revocation; actualremoval/concurrency remains integrationwork. Solelatest213
-imageREAD lacksClasswork concealment and is explicit separate prerequisite;
-current4function slice doesnotclaim otherwise. Rootowns Git/review/application/
-types/runtime/CI; actualparentmerge/reconcile beforepublication. Sharedadmission/
-home/cutover/account/billing/providerOFF; assessmentphase/epic incomplete.
-
-Superseding parent receipt:1458 reviewed28e8af46 merged61c44aec at08:38:57Z,
-exactCI37188214976/all5PASS (0queue/1426runseconds), including actual unchanged
-save concurrent-authorization and new241rollback steps. Normal squash exacthead,
-reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
-13files plus architecture/UI/design/TypeScript/lint PASS for prepared242 branch.
-Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
-without stashing/popping unrelated entries, then frozen initial review/runtime.
-Production/admission/cutover/provider/account/billing unchanged.
-
 ## 2026-10-04 — Supplemental learner local verification on actual main
 
 1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
@@ -905,3 +872,16 @@ only those two prefixes, retaining verified001–248 history and twelve unchange
 controls from the production receipt. CI implementation and tests unchanged.
 Affected/focused verification and independent launch9 are pending; no budget
 reset or further review extension. Host/private runner activation remains pending.
+
+## 2026-10-05 — Survey Pattern Lab prototype
+
+Owner requested Survey prototype informed by the Test modal. Added experimental
+SurveyEditSplitPattern and teacher gallery discovery. Reuses CreationModalShell,
+MarkdownContentEditor, canonical action menus and UI controls. Fixed fixtures;
+local MC/open-response authoring, keyboard option reorder, settings, full Markdown,
+student preview and simulated publish. No API writes or production student changes.
+Playwright authoring flow PASS4/4 desktop/mobile light/dark; screenshots inspected
+against Test at matching desktop viewport, plus stacked mobile/open and preview.
+GPT6.1Sol/medium bounded worker delivered focused browser coverage in one pass,
+roughly3min with no implementation rework; weekly48% remaining at start.
+New prototype remains experimental pending owner feedback; no shared-shell extraction.

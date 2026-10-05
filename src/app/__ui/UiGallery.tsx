@@ -69,6 +69,7 @@ import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { TestEditSplitPattern } from './TestEditSplitPattern'
+import { SurveyEditSplitPattern } from './SurveyEditSplitPattern'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
 import { GradebookCompactPattern } from './GradebookCompactPattern'
 import { PageMockups } from './PageMockups'
@@ -124,6 +125,7 @@ const QUICK_LINK_LABELS: Record<string, string> = {
   'status-colors': 'Status colors',
   'assignment-edit-split': 'Assignment edit',
   'test-edit-split': 'Test edit',
+  'survey-edit-split': 'Survey edit',
   'assignment-creation': 'Assignment dialog',
   controls: 'Controls',
   'student-tests': 'Student tests',
@@ -142,7 +144,7 @@ export function UiGallery({ role }: Props) {
   const referenceRoutes = REFERENCE_ROUTES[role]
   const navigationDestinations = getPatternLabDestinations(role)
   const quickLinkIds = role === 'teacher'
-    ? ['page-mockups', 'page-actions', 'status-colors', 'assignment-edit-split', 'test-edit-split', 'assignment-creation']
+    ? ['page-mockups', 'page-actions', 'status-colors', 'assignment-edit-split', 'test-edit-split', 'survey-edit-split', 'assignment-creation']
     : ['page-mockups', 'controls', 'student-tests', 'history-preview']
   const quickLinks = quickLinkIds
     .map((id) => navigationDestinations.find((destination) => destination.value === id))
@@ -632,6 +634,7 @@ export function UiGallery({ role }: Props) {
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentEditSplitPattern />}
             {role === 'teacher' && <TestEditSplitPattern />}
+            {role === 'teacher' && <SurveyEditSplitPattern />}
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"
@@ -732,6 +735,7 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
       { value: 'assignment-creation', label: 'Creation dialogs — Assignment' },
       { value: 'assignment-edit-split', label: 'Assignment edit — Split prototype' },
       { value: 'test-edit-split', label: 'Test edit — Split prototype' },
+      { value: 'survey-edit-split', label: 'Survey edit — Split prototype' },
     ] : [
       { value: 'page-mockups', label: 'Page mockups — Today, classwork, tests, grades, calendar, announcements, and resources' },
       { value: 'mockup-student-today-panel', label: 'Page mockups — Today' },

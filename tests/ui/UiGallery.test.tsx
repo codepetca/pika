@@ -28,6 +28,7 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 describe('UiGallery accessibility contracts', () => {
   it.each(['teacher', 'student'] as const)('demonstrates normal and exam header navigation for %s', (role) => {
     renderGallery(role)
+    if (role === 'student') expect(screen.queryByRole('button', { name: 'Open survey edit prototype' })).not.toBeInTheDocument()
     const references = within(screen.getByRole('region', { name: 'Application header references' }))
     const headers = references.getAllByRole('banner')
     expect(within(headers[0]).getByRole('heading', { name: 'Classrooms' })).toBeInTheDocument()
@@ -185,6 +186,11 @@ describe('UiGallery accessibility contracts', () => {
     expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeVisible()
     expect(scrollIntoView).toHaveBeenCalledTimes(3)
     requestAnimationFrame.mockRestore()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Find a pattern' }), { target: { value: 'survey-edit-split' } })
+    expect(window.location.hash).toBe('#survey-edit-split')
+    expect(screen.getByRole('button', { name: 'Open survey edit prototype' })).toBeVisible()
+    expect(within(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).getByRole('link', { name: 'Survey edit' })).toHaveAttribute('href', '#survey-edit-split')
   })
 
   it('exposes role-appropriate page mockups and named interactive owners', async () => {

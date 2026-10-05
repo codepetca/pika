@@ -2,6 +2,147 @@ import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
 test.setTimeout(90_000)
 
+test('prototypes survey editing with accessible split panes and local authoring actions', async ({ page }, testInfo) => {
+  const writes: string[] = []
+  const pageErrors: string[] = []
+  page.on('pageerror', (error) => pageErrors.push(error.message))
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method())) writes.push(request.url())
+  })
+  await openPatternLab(page, testInfo, 'teacher')
+  await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('survey-edit-split')
+  await page.getByRole('button', { name: 'Open survey edit prototype' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Edit Survey', exact: true })
+  const details = dialog.getByTestId('survey-editor-details-pane')
+  const content = dialog.getByTestId('survey-editor-content-pane')
+  const number = content.getByRole('spinbutton', { name: 'Question number' })
+  const actions = content.getByRole('button', { name: 'Question actions', exact: true })
+  const settings = details.getByRole('button', { name: 'Settings', exact: true })
+  const capture = async (name: string, wholePage = false) => {
+    await testInfo.attach(name, {
+      body: wholePage
+        ? await page.screenshot({ path: testInfo.outputPath(`${name}.png`), animations: 'disabled' })
+        : await page.getByRole('dialog').screenshot({ path: testInfo.outputPath(`${name}.png`), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+  }
+  const expectNoOverflow = async () => {
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    expect(await page.getByRole('dialog').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+  }
+
+  await expect(content.getByRole('textbox', { name: 'Question 1 prompt' })).toContainText('wetland ecosystem')
+  await expect(details.getByText('3 total', { exact: true })).toBeVisible()
+  const detailsBounds = (await details.boundingBox())!
+  const contentBounds = (await content.boundingBox())!
+  if (testInfo.project.metadata.viewport === 'desktop') {
+    expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
+    expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThanOrEqual(1)
+  } else {
+    expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
+    expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThanOrEqual(1)
+  }
+  await content.getByRole('button', { name: /Reorder option A;/ }).focus()
+  await page.keyboard.press('ArrowDown')
+  await expect(content.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('The group discussion')
+  await expect(content.getByRole('button', { name: /Reorder option B;/ })).toBeFocused()
+  await page.keyboard.press('ArrowUp')
+  await expect(content.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('The field observations')
+  await content.getByRole('textbox', { name: 'Question 1 option A' }).fill('Updated field observations')
+  await content.getByRole('textbox', { name: 'Question 1 option E' }).fill('The reflection journal')
+  await expect(content.getByRole('textbox', { name: 'Question 1 option F' })).toHaveValue('')
+  await content.getByRole('button', { name: 'Delete option E', exact: true }).click()
+  await expect(content.getByRole('textbox', { name: 'Question 1 option E' })).toHaveValue('')
+  await expectNoOverflow()
+  await capture('survey-edit-multiple-choice')
+
+  await content.getByRole('button', { name: 'Next question' }).click()
+  await expect(number).toHaveValue('2')
+  await content.getByRole('textbox', { name: 'Question 2 prompt' }).fill('What would you investigate next?')
+  await content.getByRole('spinbutton', { name: 'Response character limit' }).fill('1200')
+  await expect(content.getByText('Students answer in their own words.')).toBeVisible()
+  await expect(content.getByRole('textbox', { name: /option A/ })).toHaveCount(0)
+  await capture('survey-edit-open-response')
+
+  await settings.focus()
+  await settings.press('Enter')
+  const resultsSetting = page.getByRole('menuitemcheckbox', { name: 'Show class results to students' })
+  await expect(resultsSetting).toHaveAttribute('aria-checked', 'false')
+  await expect(resultsSetting).toBeFocused()
+  await page.keyboard.press('Space')
+  await settings.click()
+  await expect(resultsSetting).toHaveAttribute('aria-checked', 'true')
+  await page.keyboard.press('ArrowDown')
+  const responsesSetting = page.getByRole('menuitemcheckbox', { name: 'Allow students to update responses' })
+  await expect(responsesSetting).toBeFocused()
+  await page.keyboard.press('Enter')
+  await settings.click()
+  await expect(responsesSetting).toHaveAttribute('aria-checked', 'true')
+  await capture('survey-edit-settings', true)
+  await page.keyboard.press('Escape')
+  await expect(settings).toBeFocused()
+
+  await actions.click()
+  await page.getByRole('menuitem', { name: 'Add multiple-choice question' }).click()
+  await expect(number).toHaveValue('4')
+  await content.getByRole('textbox', { name: 'Question 4 prompt' }).fill('Would you repeat the activity?')
+  await content.getByRole('textbox', { name: 'Question 4 option A' }).fill('Yes')
+  await content.getByRole('textbox', { name: 'Question 4 option B' }).fill('No')
+  await actions.click()
+  await page.getByRole('menuitem', { name: 'Add open-response question' }).click()
+  await expect(number).toHaveValue('5')
+  await content.getByRole('textbox', { name: 'Question 5 prompt' }).fill('Share a suggestion.')
+  await actions.click()
+  await page.getByRole('menuitem', { name: 'Duplicate question' }).click()
+  await expect(number).toHaveValue('6')
+  await expect(content.getByRole('textbox', { name: 'Question 6 prompt' })).toContainText('Share a suggestion.')
+  await expect(details.getByText('6 total', { exact: true })).toBeVisible()
+  for (let remaining = 5; remaining >= 1; remaining -= 1) {
+    await actions.click()
+    await page.getByRole('menuitem', { name: 'Delete question' }).click()
+    await expect(details.getByText(`${remaining} total`, { exact: true })).toBeVisible()
+  }
+  await actions.click()
+  await expect(page.getByRole('menuitem', { name: 'Delete question' })).toBeDisabled()
+  await page.keyboard.press('Escape')
+  await expect(actions).toBeFocused()
+
+  await details.getByRole('button', { name: 'Markdown', exact: true }).click()
+  const markdown = content.getByRole('textbox', { name: 'Survey markdown editor' })
+  const originalMarkdown = await markdown.inputValue()
+  expect(originalMarkdown).toContain('Show Results: true')
+  expect(originalMarkdown).toContain('Dynamic Responses: true')
+  await markdown.fill(originalMarkdown.replace('Type: multiple_choice', 'Type: unsupported'))
+  await content.getByRole('button', { name: 'Apply Markdown' }).click()
+  await expect(content.getByRole('alert')).toBeVisible()
+  await expect(markdown).toBeVisible()
+  await markdown.fill(originalMarkdown.replace('Title: Wetland field study feedback', 'Title: Updated field study feedback').replace('Which activity helped you understand the wetland ecosystem best?', 'Which activity would you recommend?'))
+  await capture('survey-edit-markdown')
+  await content.getByRole('button', { name: 'Apply Markdown' }).click()
+  await expect(details.getByRole('textbox', { name: 'Title' })).toHaveValue('Updated field study feedback')
+  await expect(content.getByRole('textbox', { name: 'Question 1 prompt' })).toContainText('Which activity would you recommend?')
+  await expect(content.getByRole('alert')).toHaveCount(0)
+
+  await details.getByRole('button', { name: 'Preview', exact: true }).click()
+  const preview = page.getByRole('dialog', { name: 'Survey preview', exact: true })
+  await expect(preview.getByRole('heading', { name: 'Updated field study feedback' })).toBeVisible()
+  await expect(preview.getByText('Which activity would you recommend?')).toBeVisible()
+  await preview.getByRole('radio', { name: 'Updated field observations' }).check()
+  await expect(preview.getByRole('radio', { name: 'Updated field observations' })).toBeChecked()
+  await expectNoOverflow()
+  await capture('survey-edit-preview')
+  await preview.getByRole('button', { name: 'Back to editor', exact: true }).click()
+  await expect(details.getByRole('button', { name: 'Preview', exact: true })).toBeFocused()
+  await expect(content.getByRole('textbox', { name: 'Question 1 prompt' })).toContainText('Which activity would you recommend?')
+  await details.getByRole('button', { name: 'Publish', exact: true }).click()
+  await expect(details.getByRole('status').filter({ hasText: 'Published in this prototype only.' })).toBeVisible()
+  await expectNoOverflow()
+  await dialog.getByRole('button', { name: 'Close survey edit prototype' }).click()
+  await expect(dialog).toHaveCount(0)
+  expect(writes).toEqual([])
+  expect(pageErrors).toEqual([])
+})
+
 test('teacher WorkSurfaceMockup keeps the selected table and inspector usable', async ({ page }, testInfo) => {
   await openPatternLab(page, testInfo, 'teacher')
   await page.getByRole('tab', { name: 'Workspaces', exact: true }).click()
