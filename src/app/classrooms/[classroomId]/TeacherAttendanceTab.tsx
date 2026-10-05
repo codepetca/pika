@@ -198,6 +198,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const currentClassroomIdRef = useRef(classroom.id)
   const currentSelectedDateRef = useRef('')
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
+  const [summaryResizing, setSummaryResizing] = useState(false)
+  const selectedStudentIdRef = useRef<string | null>(null)
+  selectedStudentIdRef.current = selectedStudentId
   const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
   const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
   const [summaryReadyScopeKey, setSummaryReadyScopeKey] = useState<string | null>(null)
@@ -350,6 +353,13 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     }
   }, [selectedDate, onDateChange])
 
+  // Selection belongs to a classroom/date, not to a refresh of that snapshot.
+  useLayoutEffect(() => {
+    setSelectedStudentId(null)
+    selectedStudentIdRef.current = null
+    onSelectEntryRef.current?.(null, '', null)
+  }, [classroom.id, selectedDate])
+
   // Fetch logs when date changes
   useEffect(() => {
     async function loadLogs() {
@@ -393,9 +403,18 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         setLogs(mappedLogs)
         setLogsError(null)
 
-        // Clear selection when date changes so summary is visible
-        setSelectedStudentId(null)
-        onSelectEntryRef.current?.(null, '', null)
+        const selectedId = selectedStudentIdRef.current
+        if (selectedId) {
+          const selectedLog = mappedLogs.find((log: LogRow) => log.student_id === selectedId)
+          if (selectedLog) {
+            const name = [selectedLog.student_first_name, selectedLog.student_last_name]
+              .filter(Boolean).join(' ') || selectedLog.email_username
+            onSelectEntryRef.current?.(selectedLog.entry, name, selectedId)
+          } else {
+            setSelectedStudentId(null)
+            onSelectEntryRef.current?.(null, '', null)
+          }
+        }
         hasLoadedOnceRef.current = true
       } catch (err) {
         if (!isCurrentLogsRequest(requestId, classroomId, date)) return
@@ -587,7 +606,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
     function handleEscapeKey(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
-      if (document.querySelector('[role="menu"]')) return
+      const hasOpenMenu = Array.from(document.querySelectorAll('[role="menu"]'))
+        .some((menu) => !menu.closest('[hidden], [inert], [aria-hidden="true"]'))
+      if (hasOpenMenu) return
       event.preventDefault()
       handleKeyboardDeselect()
     }
@@ -707,6 +728,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     (event: ReactPointerEvent<HTMLDivElement>) => {
       event.preventDefault()
 
+      setSummaryResizing(true)
       const startY = event.clientY
       const collapsedAtStart = summaryPanelCollapsed
       const startHeight = collapsedAtStart ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight
@@ -722,6 +744,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       }
 
       const handleResizeEnd = () => {
+        setSummaryResizing(false)
         document.body.style.cursor = previousCursor
         document.body.style.userSelect = previousUserSelect
         window.removeEventListener('pointermove', handlePointerMove)
@@ -1262,121 +1285,119 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       )}
     />
   ) : (
-    selectedRow ? (
-      <div
-        ref={selectedWorkspaceRef}
-        className="daily-workspace-enter flex min-h-0 flex-1"
-        data-testid="daily-selected-student-workspace"
-      >
-        <TeacherWorkspaceSplit
-          className="flex-1"
-          splitVariant="gapped"
-          primaryClassName="min-h-[200px] rounded-lg bg-surface"
-          inspectorClassName="daily-inspector-enter flex flex-col rounded-lg bg-surface"
-          inspectorCollapsed={false}
-          inspectorWidth={detailPaneWidth}
-          minInspectorPx={280}
-          minPrimaryPx={320}
-          minInspectorPercent={28}
-          maxInspectorPercent={72}
-          defaultInspectorWidth={50}
-          onInspectorWidthChange={setDetailPaneWidth}
-          dividerLabel="Resize Daily panes"
-          primary={
-            // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div
+      ref={selectedWorkspaceRef}
+      className="flex min-h-0 flex-1"
+      data-testid={selectedRow ? 'daily-selected-student-workspace' : undefined}
+    >
+      <TeacherWorkspaceSplit
+        className="flex-1"
+        splitVariant="gapped"
+        animateInspector
+        primaryClassName="min-h-0"
+        inspectorClassName="flex flex-col rounded-lg bg-surface"
+        inspectorCollapsed={!selectedRow}
+        inspectorWidth={detailPaneWidth}
+        minInspectorPx={280}
+        minPrimaryPx={320}
+        minInspectorPercent={28}
+        maxInspectorPercent={72}
+        defaultInspectorWidth={50}
+        onInspectorWidthChange={setDetailPaneWidth}
+        dividerLabel="Resize Daily panes"
+        primary={(
+          <div className={cn(
+            'flex h-full min-h-0 flex-col overflow-hidden transition-[gap] duration-standard ease-standard motion-reduce:transition-none',
+            selectedRow ? 'gap-0' : 'gap-3',
+          )}>
+            {/* The table remains the same scroll/focus owner in both layouts. */}
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
             <div
               ref={studentTableScrollRef}
-              className="relative h-full min-h-0 overflow-auto overscroll-y-contain"
+              className="relative min-h-[180px] flex-1 overflow-auto overscroll-y-contain rounded-lg bg-surface"
               data-testid="daily-student-scroll-pane"
               onScroll={preserveStudentTableScrollPosition}
-              onClick={(e) => {
-                // Deselect when clicking outside the table
-                if (selectedStudentId && (e.target as HTMLElement).closest('table') === null) {
+              onClick={(event) => {
+                if (selectedStudentId && (event.target as HTMLElement).closest('table') === null) {
                   handleDeselect()
                 }
               }}
             >
-              {renderStudentTable(false)}
+              {renderStudentTable(!selectedRow)}
             </div>
-          }
-          inspector={
-            <>
-              <div className="flex min-h-10 items-center px-3 py-2">
-                <span className="truncate text-sm font-semibold text-text-default">
-                  {selectedStudentName}
-                </span>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                {detailPane}
-              </div>
-            </>
-          }
-        />
-      </div>
-    ) : (
-      <div className="daily-table-enter flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        <div
-          ref={studentTableScrollRef}
-          className="relative min-h-[180px] flex-1 overflow-auto overscroll-y-contain rounded-lg bg-surface"
-          data-testid="daily-student-scroll-pane"
-          onScroll={preserveStudentTableScrollPosition}
-        >
-          {renderStudentTable(true)}
-        </div>
-        {selectedDate && (
-          <section
-            role="region"
-            aria-label="Class Log Summary"
-            data-state={summaryPanelCollapsed ? 'collapsed' : 'expanded'}
-            hidden={!summaryPanelVisible}
-            className={cn(
-              summaryPanelCollapsed
-                ? 'flex h-10 min-h-10 shrink-0 flex-col overflow-hidden rounded-lg bg-surface'
-                : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface',
-              !summaryPanelVisible && '!hidden',
+            {selectedDate && (
+              <section
+                role="region"
+                aria-label="Class Log Summary"
+                data-state={summaryPanelCollapsed ? 'collapsed' : 'expanded'}
+                hidden={!summaryPanelVisible}
+                aria-hidden={!!selectedRow || undefined}
+                ref={(element) => { element?.toggleAttribute('inert', Boolean(selectedRow)) }}
+                className={cn(
+                  selectedRow
+                    ? 'min-h-0 shrink-0 overflow-hidden rounded-lg bg-surface'
+                    : summaryPanelCollapsed
+                    ? 'flex h-10 min-h-10 shrink-0 flex-col overflow-hidden rounded-lg bg-surface'
+                    : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface',
+                  !summaryPanelVisible && '!hidden',
+                  !summaryResizing && 'transition-[height] duration-standard ease-standard motion-reduce:transition-none',
+                )}
+                style={{ height: `${selectedRow ? 0 : summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}px` }}
+                onDoubleClick={handleSummaryPanelDoubleClick}
+              >
+                <div
+                  role="separator"
+                  aria-label="Resize class log summary"
+                  aria-orientation="horizontal"
+                  aria-valuemin={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : SUMMARY_PANEL_MIN_HEIGHT}
+                  aria-valuemax={SUMMARY_PANEL_MAX_HEIGHT}
+                  aria-valuenow={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}
+                  tabIndex={0}
+                  className={
+                    summaryPanelCollapsed
+                      ? 'flex h-10 shrink-0 cursor-ns-resize items-center justify-center gap-2 px-3 text-sm font-semibold text-text-default outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg'
+                      : 'flex h-5 shrink-0 cursor-ns-resize items-center justify-center text-text-muted outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg focus:text-text-default'
+                  }
+                  onPointerDown={handleSummaryResizeStart}
+                  onKeyDown={handleSummaryResizeKeyDown}
+                >
+                  <GripHorizontal className="h-4 w-4" aria-hidden="true" />
+                  {summaryPanelCollapsed ? <span>Log Summary</span> : null}
+                </div>
+                {!summaryPanelCollapsed && (
+                  <div className="flex items-center px-3 pt-3">
+                    <h3 className="truncate text-sm font-semibold text-text-default">
+                      Class Log Summary
+                    </h3>
+                  </div>
+                )}
+                <div hidden={summaryPanelCollapsed} className="min-h-0 flex-1 overflow-y-auto">
+                  <LogSummary
+                    key={summaryScopeKey}
+                    classroomId={classroom.id}
+                    date={selectedDate}
+                    onStudentClick={selectStudentByName}
+                    onAvailabilityChange={handleSummaryAvailabilityChange}
+                  />
+                </div>
+              </section>
             )}
-            style={{ height: `${summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}px` }}
-            onDoubleClick={handleSummaryPanelDoubleClick}
-          >
-            <div
-              role="separator"
-              aria-label="Resize class log summary"
-              aria-orientation="horizontal"
-              aria-valuemin={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : SUMMARY_PANEL_MIN_HEIGHT}
-              aria-valuemax={SUMMARY_PANEL_MAX_HEIGHT}
-              aria-valuenow={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}
-              tabIndex={0}
-              className={
-                summaryPanelCollapsed
-                  ? 'flex h-10 shrink-0 cursor-ns-resize items-center justify-center gap-2 px-3 text-sm font-semibold text-text-default outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg'
-                  : 'flex h-5 shrink-0 cursor-ns-resize items-center justify-center text-text-muted outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg focus:text-text-default'
-              }
-              onPointerDown={handleSummaryResizeStart}
-              onKeyDown={handleSummaryResizeKeyDown}
-            >
-              <GripHorizontal className="h-4 w-4" aria-hidden="true" />
-              {summaryPanelCollapsed ? <span>Log Summary</span> : null}
-            </div>
-            {!summaryPanelCollapsed && (
-              <div className="flex items-center px-3 pt-3">
-                <h3 className="truncate text-sm font-semibold text-text-default">
-                  Class Log Summary
-                </h3>
-              </div>
-            )}
-            <div hidden={summaryPanelCollapsed} className="min-h-0 flex-1 overflow-y-auto">
-              <LogSummary
-                key={summaryScopeKey}
-                classroomId={classroom.id}
-                date={selectedDate}
-                onStudentClick={selectStudentByName}
-                onAvailabilityChange={handleSummaryAvailabilityChange}
-              />
-            </div>
-          </section>
+          </div>
         )}
-      </div>
-    )
+        inspector={(
+          <>
+            <div className="flex min-h-10 items-center px-3 py-2">
+              <span className="truncate text-sm font-semibold text-text-default">
+                {selectedStudentName}
+              </span>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {selectedRow ? detailPane : null}
+            </div>
+          </>
+        )}
+      />
+    </div>
   )
 
   const attendanceWarning = (manualAttendanceEnabled && manualAttendance.error) ? (

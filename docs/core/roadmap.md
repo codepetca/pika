@@ -23,6 +23,14 @@ Do not reopen completed MVP work from the historical checklist below.
 
 ---
 
+## Fluid classroom experience
+
+Active coordinator goal: [audit, Daily pilot and phased continuity work](../guidance/ui/fluid-classroom-plan.md).
+The first slice preserves Daily's table identity and valid same-date selection;
+experimental motion needs human acceptance before broader promotion/adoption.
+
+---
+
 ## Historical MVP phases (completed by 2025-12-14)
 
 The inventory records Phases 0–6 as passed. This is the original MVP scope,

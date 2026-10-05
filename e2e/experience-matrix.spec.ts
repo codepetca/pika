@@ -1179,10 +1179,46 @@ test.describe('Daily scroll containment', () => {
         }
 
         await verifyScrollContainment('table')
+        const originalScroller = await scrollPane.elementHandle()
         await scrollPane.evaluate((element) => { element.scrollTop = 0 })
-        await page.getByRole('cell', { name: 'Student 01', exact: true }).click()
+        const firstCell = page.getByRole('cell', { name: 'Student 01', exact: true })
+        const originalRow = await firstCell.locator('..').elementHandle()
+        const measurements = await firstCell.evaluate(async (cell) => {
+          const samples: Array<{ elapsedMs: number; width: number; opacity: number }> = []
+          const started = performance.now()
+          ;(cell as HTMLElement).click()
+          await new Promise<void>((resolve) => {
+            function measure() {
+              const inspector = document.querySelector<HTMLElement>('[data-workspace-inspector]')!
+              samples.push({
+                elapsedMs: performance.now() - started,
+                width: inspector.getBoundingClientRect().width,
+                opacity: Number(getComputedStyle(inspector).opacity),
+              })
+              if (performance.now() - started < 350) requestAnimationFrame(measure)
+              else resolve()
+            }
+            requestAnimationFrame(measure)
+          })
+          const inspector = document.querySelector<HTMLElement>('[data-workspace-inspector]')!
+          return { samples, transitionDuration: getComputedStyle(inspector).transitionDuration }
+        })
+        await testInfo.attach('Daily inspector motion measurements', {
+          body: JSON.stringify(measurements, null, 2),
+          contentType: 'application/json',
+        })
+        expect(measurements.transitionDuration).toBe(reducedMotion === 'reduce' ? '0s' : '0.2s')
+        if (reducedMotion === 'no-preference') {
+          expect(measurements.samples.some((sample) => sample.opacity > 0 && sample.opacity < 1)).toBe(true)
+        }
         await expect(page.getByTestId('daily-selected-student-workspace')).toBeVisible()
+        expect(await scrollPane.evaluate((element, original) => element === original, originalScroller)).toBe(true)
+        expect(await firstCell.locator('..').evaluate((element, original) => element === original, originalRow)).toBe(true)
         await verifyScrollContainment('selected')
+        await page.keyboard.press('Escape')
+        await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
+        expect(await scrollPane.evaluate((element, original) => element === original, originalScroller)).toBe(true)
+        await expect(page.locator('[data-workspace-inspector]')).toHaveAttribute('inert', '')
       })
     }
   }

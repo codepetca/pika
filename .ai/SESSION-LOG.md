@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Locked learner writes local verification and parent reconciliation
-
-1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
-(0queue/1696runseconds), tree parity and canonical cleanFF verified.1458 initial
-security/compatibility source reviews clean (distinct5.6Sol/high reviewers after
-two6.1 launch failures, both counted).241 applied once locally; exact001–241history
-and genuine generated types/check zero drift. First rollback fixture run failed
-five null due dates, but rollback and separate whole-canonical baseline PASS.
-Proof-only correction regression1RED/20PASS then21GREEN; targeted review clean.
-New241 and unchanged save rollback harnesses PASS, including actual nonempty
-artifact freeze/preflight and nonvacuous legacy/membershipPal; full canonical
-public/private/Storage fingerprints,168metadata/settings/cron/resources unchanged.
-
-Rebasecc206cce onto actual2595main keeps immutable241SQL/rollback/tests/floor
-bytes unchanged; resolves only continuity conflicts, preserves both archive batch
-markers and one identical historical entry. No stash/pop/history repair/reapply.
-104rebase checks PASS. Strict001–241 combined replay PASS9projections/6original
-revocations plus original list controls; nine sealed false-created/view RPCstubs,
-zero actualopenRPC/Storage/provider network. Both forcedmodes exit1/exact2markers,
-exactteardown/fullcanonicalunchanged PASS; private0600 receipts oe8GJq/mZNJ54.
-No realopen/signing/nonemptySDKsupplement/authHTTP/browser proof claimed. Existing
-committed-fixture concurrency is finalCI ephemeral-only because168 retains private
-identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clock,
-5launch/1target/2batch retained; factual receipt batch/finalcumulative/CI next.
-Productionlast225/admission/home/cutover/account/billing/provider unchanged;
-batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
-
 ## 2026-10-04 — Supplemental learner permission source preparation
 
 1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
@@ -926,3 +899,9 @@ only those two prefixes, retaining verified001–248 history and twelve unchange
 controls from the production receipt. CI implementation and tests unchanged.
 Affected/focused verification and independent launch9 are pending; no budget
 reset or further review extension. Host/private runner activation remains pending.
+
+## 2026-10-05 — Fluid classroom Daily pilot
+
+Set active goal and audited continuity using one bounded GPT-6.1 Sol/medium worker; DeepSeek remains owner-paused. New fluid-classroom-plan records experience contract, governed reuse/extend choices and later teacher/student slices. Daily now keeps one table/split owner, retains valid same-date selection, clears changed scope/removed students, and discloses details with existing tokens and inert hidden controls. Escape now ignores the mounted hidden user menu while deferring to an open menu. Pattern Lab real-owner candidate remains experimental; owner acceptance requested before promotion/broader adoption. No dependency or database changes.
+
+20 Daily matrix +8 existing teacher/student reference +4 new inspector browser cases PASS; six normal/reduced light/dark desktop/mobile capture variants preserve scroll/DOM/focus and direct drag resize. Visual review caught and fixed the Lab demo's mobile height constraint. Evidence is the chat visualization fluid-pilot directory; local first-observed-selection 42–63ms is fixture-only frame sampling, not production INP. Final serial focused gate, draft publication and fixed-SHA review results tracked on the PR; concurrent gallery timeouts are addressed through serial checks without weakened limits. Goal remains active; no merge/deployment authority added.

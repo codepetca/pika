@@ -164,6 +164,30 @@ describe('TeacherWorkspaceSplit', () => {
     expect(primary.compareDocumentPosition(desktopInspector!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 
+  it('keeps an animated inspector mounted but inert when collapsed, preserving its draft', () => {
+    const props = {
+      splitVariant: 'gapped' as const,
+      animateInspector: true,
+      primary: <div>Stable table</div>,
+      inspector: <input aria-label="Inspector draft" defaultValue="Unsent note" />,
+      inspectorWidth: 50,
+      onInspectorWidthChange: vi.fn(),
+    }
+    const view = render(<TeacherWorkspaceSplit {...props} inspectorCollapsed={false} />)
+    const primary = screen.getByText('Stable table')
+    const draft = screen.getByRole('textbox', { name: 'Inspector draft' })
+    fireEvent.change(draft, { target: { value: 'Edited note' } })
+    view.rerender(<TeacherWorkspaceSplit {...props} inspectorCollapsed />)
+    expect(screen.getByText('Stable table')).toBe(primary)
+    expect(draft).toHaveValue('Edited note')
+    expect(draft.parentElement).toHaveAttribute('inert')
+    expect(draft.parentElement).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument()
+    view.rerender(<TeacherWorkspaceSplit {...props} inspectorCollapsed={false} />)
+    expect(screen.getByRole('textbox', { name: 'Inspector draft' })).toBe(draft)
+    expect(draft.parentElement).not.toHaveAttribute('inert')
+  })
+
   it('supports keyboard resizing for the shared resize handle', () => {
     const onInspectorWidthChange = vi.fn()
 
