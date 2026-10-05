@@ -885,3 +885,14 @@ One batch adds visible/shell close, stale unmount response invalidation and
 Cancel restoring prior selection with no POST. Component40/40 and real browser
 4/4 PASS; recovery and staged-form screenshots inspected. Required focused rerun
 and targeted review pending; phase ledger1launch/1fix, roughly4min review.
+Targeted recovery review clean. Cumulative reviewer identified first-question
+variant; second small batch exposes Cancel for dirty first drafts too. Gallery
+navigator test caches stable semantic query results, retaining all assertions
+after repeated5s DOM-query timeouts. Workspace/gallery48/48 and isolated startup
+76/76 PASS; prior aggregate retry368/377 had nine timeouts in startup/gallery.
+Final narrow review and static/browser evidence recorded in PR, preserving exact
+head; no changes to timeouts, gates, dependencies or production.
+Final first-question discard browserPASS16.7s after a30s overall deadline during
+concurrent static checks; all intended assertions passed when run alone. Final
+architecture/UI/design/TypeScript/lint and auditPASS; required aggregate rerun
+uses unchanged gate. Phase ledger3reviews/2fixes before final targeted acceptance.

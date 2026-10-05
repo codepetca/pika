@@ -1088,7 +1088,7 @@ export function TeacherSurveyWorkspace({
             ) : (
               <>
                 <SurveyQuestionFields questionType={newQuestionType} questionText={newQuestionText} optionsText={newOptionsText} responseMaxChars={newResponseMaxChars} disabled={isReadOnly || busy} promptLabel="New question" onTextChange={setNewQuestionText} onOptionsChange={setNewOptionsText} onLimitChange={setNewResponseMaxChars} />
-                <div className="flex justify-end gap-2">{questions.length > 0 ? <Button type="button" variant="secondary" size="sm" aria-label="Cancel new question" disabled={busy} onClick={cancelNewQuestion}>Cancel</Button> : null}<Button type="button" size="sm" onClick={() => { void addQuestion() }} disabled={isReadOnly || busy || !newQuestionValid}><Plus className="h-4 w-4" aria-hidden="true" />{addingQuestion ? 'Adding...' : 'Add question'}</Button></div>
+                <div className="flex justify-end gap-2">{questions.length > 0 || newQuestionDirty ? <Button type="button" variant="secondary" size="sm" aria-label="Cancel new question" disabled={busy} onClick={cancelNewQuestion}>Cancel</Button> : null}<Button type="button" size="sm" onClick={() => { void addQuestion() }} disabled={isReadOnly || busy || !newQuestionValid}><Plus className="h-4 w-4" aria-hidden="true" />{addingQuestion ? 'Adding...' : 'Add question'}</Button></div>
               </>
             )}
           </>

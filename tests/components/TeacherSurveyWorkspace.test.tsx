@@ -155,6 +155,18 @@ describe('TeacherSurveyWorkspace', () => {
     expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(0)
   })
 
+  it('clears an incomplete first question so an empty Survey can close without a question POST', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [] }))
+    const onBack = vi.fn()
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.change(await screen.findByLabelText('New question'), { target: { value: 'Incomplete first question' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel new question' }))
+    expect(screen.getByLabelText('New question')).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey editor' }))
+    await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+    expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(0)
+  })
+
   it('ignores stale detail responses after selected survey changes', async () => {
     const staleDetail = createDeferred<Response>()
     const currentDetail = createDeferred<Response>()

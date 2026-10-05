@@ -153,21 +153,23 @@ describe('UiGallery accessibility contracts', () => {
       value: scrollIntoView,
     })
     renderGallery('teacher')
+    const navigator = screen.getByRole('combobox', { name: 'Find a pattern' })
+    const sectionNavigation = screen.getByRole('navigation', { name: 'Pattern Lab sections' })
 
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Find a pattern' }),
+      navigator,
       'page-mockups',
     )
 
     expect(window.location.hash).toBe('#page-mockups')
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
-    expect(within(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).getByRole('link', { name: 'Page mockups' })).toHaveAttribute(
+    expect(within(sectionNavigation).getByRole('link', { name: 'Page mockups' })).toHaveAttribute(
       'href',
       '#page-mockups',
     )
 
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Find a pattern' }),
+      navigator,
       'status-colors',
     )
     expect(window.location.hash).toBe('#status-colors')
@@ -178,7 +180,7 @@ describe('UiGallery accessibility contracts', () => {
       return 1
     })
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Find a pattern' }),
+      navigator,
       'mockup-settings-panel',
     )
     expect(window.location.hash).toBe('#mockup-settings-panel')
@@ -187,10 +189,10 @@ describe('UiGallery accessibility contracts', () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(3)
     requestAnimationFrame.mockRestore()
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Find a pattern' }), { target: { value: 'survey-edit-split' } })
+    fireEvent.change(navigator, { target: { value: 'survey-edit-split' } })
     expect(window.location.hash).toBe('#survey-edit-split')
     expect(screen.getByRole('button', { name: 'Open survey edit prototype' })).toBeVisible()
-    expect(within(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).getByRole('link', { name: 'Survey edit' })).toHaveAttribute('href', '#survey-edit-split')
+    expect(within(sectionNavigation).getByRole('link', { name: 'Survey edit' })).toHaveAttribute('href', '#survey-edit-split')
   })
 
   it('exposes role-appropriate page mockups and named interactive owners', async () => {
