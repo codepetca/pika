@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Locked inline-image read source preparation
-
-1459 final cumulative security review CLEAN on9f15e6e2; one ready-event exact CI
-37191597295 is running. Source frozen, original review clock/counters retained;
-explicit human-authorized extension to10:43Z for CI/normal merge only. No duplicate
-watcher, production operation or activation. Local242/main241 still.
-
-Disjoint243 source worker6.1Sol/high completed/relinquished only SQL/test/harness;
-root sole writer verified complete213 body preservation after minimal locked
-nonowner Classwork predicate. Owner inspection, original locks/error/DTO/status/
-ACL contracts unchanged.9new/90related worker checks PASS; root71new/CI/floor checks,
-bash-n/diff PASS. New exactcanonical c243/sc243 rollback metadata fixture prepared
-NOTRUN: verified/ready controls, both role labels, hidden404/owner inspection and
-invalid bindings with whole-row/settings/cron/resources/guards equality. Existing
-117 begin/schema accepts synthetic metadata; no physical Storage bytes/API/network.
-NULL-scope retained evidence and CASE grammar regressions retained from242.
-Strict replay floor only advances to243; fixture/transitions/restoration/cleanup
-authority unchanged. Candidate243 UNAPPLIED; actual1459merge/tree parity/reconcile,
-independent reviews and genuine local types/runtime/replay precede ready/CI/merge.
-No realopen/signing/nonemptySDK/HTTP/browser/concurrency proof inferred. Assessment
-phase/goal incomplete; productionlast225/admission/home/cutover/billing/providerOFF.
-
-Superseding parent receipt:1459 exactreviewed9f15e6e2 all5CI37191597295PASS
-(0queue/1698runseconds), normal squash01aedcec8 merged09:46:04Z; actualmerged state,
-tree parity and canonical cleanFF verified.243 clean prepared branch rebase--onto
-actualmain preserves complete source tree and unrelated stashes; no resequencing
-or applied-SQL edits. Local/main242;243UNAPPLIED. Frozen-source highriskreview next.
-
 ## 2026-10-04 — Inline-image read local verification
 
 1460 draft47724239 distinct5.6Sol/high security+compatibility initial reviews CLEAN.
@@ -1025,3 +997,22 @@ Worker delivered four-read allSettled parallelism only; all checkpoints/caps
 unchanged. Six trueREDs then89offlinePASS, ESLint/diffPASS; root inspected diff.
 Real180sfit unproven. Focused checks/commit and targeted source acceptance next;
 final review, genuine types, exact CI/main merge remain required.
+
+## 2026-10-05 — Draft-save native failure retained after guard improvement
+
+Parallel guard b1f targeted security/finite-plan review CLEAN,89independentPASS;
+original clock retained,7launches/5targeted/4batches/0final. Approved one normal
+rehearsal reached42SDKrequests then native generic failure, not earlier closed
+concurrency-total label. Exact cleanup/separateSAMEcanonicalbaselinePASS; no
+normal/types receipt, forced reruns, canonical migration or production action.
+Do not infer all races/budgets passed. Same GPT6.1Sol/high worker prepares only
+closed native phase/counter/known-error diagnostics with offlineTDD; no runtime,
+caps/guards/app/SQL changes. Source/plan acceptance before another invocation.
+PR1480 stays draft; all activation OFF, goal/phase incomplete.
+
+Closed diagnostic worker delivered/relinquished: first-fault fixed native phase,
+role, known SQLSTATE/counters only; psql reporting sqlstate, no raw text emitted.
+7trueRED then98PASS/3files8.27s, lint/diffPASS; root inspected complete3filediff.
+Observed15:51:27–16:01:01UTC partialwall, attributableusageunknown. Cleanup checks,
+original caps/SQL/app/guards unchanged. Fifthbatch pending focused/stagedaudit,
+stable commit and targeted source/one-normal-plan review; actual cause unknown.

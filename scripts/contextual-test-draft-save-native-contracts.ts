@@ -21,6 +21,29 @@ const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, cont
   actionMs: 90000, totalMs: 900000, outputBytes: 8 * 1024 * 1024, stderrBytes: 65536, totalBytes: 64 * 1024 * 1024 })
 const failure = () => new Error('Private native Test draft contracts failed; exact project disposal required')
 const contextTemplate = '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}'
+const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503', '42501', '55P03', '40P01', '40001', '57014',
+  'P0001', '23502', '23503', '23505', '23514', '22P02', '25P02', '57P01', '57P02', '57P03'])
+type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'complete'
+type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
+type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'
+// Retain only one allowlisted code. Untrusted stderr lines are bounded and
+// discarded; neither their text nor an exception is part of the diagnostic.
+function captureSqlstate() {
+  let line = ''; let discard = false; let observed: string | undefined
+  function consume() {
+    if (!discard && observed === undefined) {
+      const match = line.match(/^(?:psql:<stdin>:[1-9]\d{0,6}: )?(?:ERROR|FATAL):[ \t]+([A-Z0-9]{5})[ \t\r]*$/)
+      if (match) observed = sqlstates.has(match[1]) ? match[1] : 'unknown'
+    }
+    line = ''; discard = false
+  }
+  return { push(chunk: Buffer | string) {
+    for (const character of chunk.toString()) {
+      if (character === '\n') consume()
+      else if (!discard) { if (line.length < 128) line += character; else { line = ''; discard = true } }
+    }
+  }, code() { consume(); return observed ?? 'unknown' } }
+}
 const boot = `set statement_timeout='8s';set lock_timeout='1s';set idle_in_transaction_session_timeout='180s';
 do $session$ begin if exists(select 1 from pg_stat_activity where application_name=current_setting('application_name') and pid<>pg_backend_pid())
 then raise exception 'Reserved proof session already exists';end if;end;$session$;
@@ -128,20 +151,44 @@ export function createDraftSaveNativeContracts(input: {
   const closure = structuredClone(input.capturedResources)
   const start = Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let probed = false
   const sessions = new Set<NativeSession>()
+  let phase: Phase = 'idle'
+  let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number }> | undefined
+  function role(name: string): Role {
+    if (name === `${project}_fixture`) return 'fixture'
+    if (name === `${project}_draft_contracts`) return 'contracts'
+    if (name === `${project}_draft_holder`) return 'holder'
+    if (name === `${project}_draft_contender`) return 'contender'
+    return 'none'
+  }
+  function record(kind: Fault, ownedRole: Role = 'none', sqlstate = 'unknown') {
+    firstFault ??= Object.freeze({ phase, failure: kind, role: ownedRole, sqlstate: sqlstates.has(sqlstate) ? sqlstate : 'unknown',
+      controls: Math.min(controls, CAPS.controlCalls + 1), actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1) })
+  }
   let endpoint: { host: string; identity: number[] } | undefined
-  function check() { assert(!failed && Date.now() - start < CAPS.totalMs && controls <= CAPS.controlCalls - 32) }
+  function check(observe = true) {
+    if (observe && !failed && Date.now() - start >= CAPS.totalMs) record('timeout')
+    if (observe && controls > CAPS.controlCalls - 32) record('budget')
+    assert(!failed && Date.now() - start < CAPS.totalMs && controls <= CAPS.controlCalls - 32)
+  }
   function dockerArgs(name: string, variables: string[] = []) {
     assert([`${project}_fixture`, `${project}_draft_contracts`, `${project}_draft_holder`, `${project}_draft_contender`].includes(name))
     assert(endpoint)
     return ['--host', endpoint.host, 'exec', '-i', '-e', `PGAPPNAME=${name}`, input.containerId, 'psql', '-U', 'postgres', '-d', 'postgres',
-      '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=terse', ...variables]
+      '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=sqlstate', ...variables]
   }
-  function command(file: 'git' | 'docker', args: string[], sql?: string, timeout = CAPS.controlMs): Promise<string> {
+  function command(file: 'git' | 'docker', args: string[], sql?: string, timeout = CAPS.controlMs, diagnosticRole?: Role): Promise<string> {
     assert(++controls <= CAPS.controlCalls)
     return new Promise((resolveResult, reject) => {
       let inputFailed = false
-      const child = execFile(file, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes }, (error, stdout) => {
-        if (error || inputFailed || Buffer.byteLength(stdout) > CAPS.outputBytes) reject(failure())
+      const child = execFile(file, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes }, (error, stdout, stderr) => {
+        if (error || inputFailed || Buffer.byteLength(stdout) > CAPS.outputBytes) {
+          if (diagnosticRole !== undefined) {
+            const state = captureSqlstate()
+            if (typeof stderr === 'string' && Buffer.byteLength(stderr) <= CAPS.stderrBytes) state.push(stderr)
+            record('guard', diagnosticRole, state.code())
+          }
+          reject(failure())
+        }
         else { exchanged += Buffer.byteLength(stdout); exchanged > CAPS.totalBytes ? reject(failure()) : resolveResult(stdout.trim()) }
       })
       child.stdin?.on('error', () => { inputFailed = true; child.kill('SIGKILL') })
@@ -164,8 +211,8 @@ export function createDraftSaveNativeContracts(input: {
     const observed = { host: `unix://${canonical}`, identity: [socket.dev, socket.ino, socket.mode, socket.rdev] }
     if (endpoint) assert.deepEqual(observed, endpoint); else endpoint = observed
   }
-  async function inventory(cleanup = false) {
-    if (!cleanup) check()
+  async function inventory(cleanup = false, observe = !cleanup) {
+    if (!cleanup) check(observe)
     // These fresh read-only children are independent. Settle all of them even
     // on rejection before resource discovery, SQL, or session work can begin.
     const checks = await Promise.allSettled([
@@ -180,12 +227,14 @@ export function createDraftSaveNativeContracts(input: {
     const all = await testOwnerListDockerInventory()
     validateIntegratedGuardResources(all, project, input.containerId, closure as AssignmentListResource[])
     await verifyEndpoint()
-    if (!cleanup) check()
+    if (!cleanup) check(observe)
   }
-  async function guard(cleanup = false) {
-    await inventory(cleanup)
-    assert.equal(await command('docker', dockerArgs(`${project}_fixture`), manifest.guard), 'ok')
-    if (!cleanup) check()
+  async function guard(cleanup = false, ownedRole: Role = 'none', observe = !cleanup) {
+    try {
+    await inventory(cleanup, observe)
+    assert.equal(await command('docker', dockerArgs(`${project}_fixture`), manifest.guard, CAPS.controlMs, observe ? ownedRole : undefined), 'ok')
+    if (!cleanup) check(observe)
+    } catch (error) { if (observe) record('guard', ownedRole); throw error }
   }
   // On any failed dispatch, all exact owned backends are terminated and both
   // local docker children are reaped. A failed remote confirmation fails closed.
@@ -211,12 +260,18 @@ export function createDraftSaveNativeContracts(input: {
     private active?: { reject: (error: Error) => void; finish: () => void; timer: ReturnType<typeof setTimeout>; end: string; lines: string[]; bytes: number }
     private partial = ''; private stderr = 0; private frame = 0; private closing?: Promise<void>
     private decoder = new StringDecoder('utf8')
+    private sqlstate = captureSqlstate()
+    private cleaning = false
+    private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
     constructor(name: string) {
       this.name = name
       this.child = spawn('docker', dockerArgs(name), { cwd: input.repository, stdio: ['pipe', 'pipe', 'pipe'] })
-      this.closed = new Promise(resolveClose => this.child.once('close', () => { this.ended = true; this.reject(); resolveClose() }))
-      this.child.on('error', () => { this.reject(); void closeAll().catch(() => {}) })
-      this.child.stdin.on('error', () => { this.reject(); void closeAll().catch(() => {}) })
+      this.closed = new Promise(resolveClose => this.child.once('close', () => {
+        if (this.active) this.fault('child-exit')
+        this.ended = true; this.reject(); resolveClose()
+      }))
+      this.child.on('error', () => { this.fault('child-exit'); this.reject(); void closeAll().catch(() => {}) })
+      this.child.stdin.on('error', () => { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) })
       this.child.stdout.on('data', (chunk: Buffer) => {
         try {
           assert(Buffer.isBuffer(chunk)); assert(chunk.length <= CAPS.outputBytes - Buffer.byteLength(this.partial))
@@ -230,37 +285,42 @@ export function createDraftSaveNativeContracts(input: {
             assert(this.active.bytes <= CAPS.outputBytes && exchanged <= CAPS.totalBytes)
             if (line) this.active.lines.push(line)
           }
-        } catch { this.reject(); void closeAll().catch(() => {}) }
+        } catch { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
       })
-      this.child.stderr.on('data', (chunk: Buffer) => { this.stderr += chunk.length; if (this.stderr > CAPS.stderrBytes) { this.reject(); void closeAll().catch(() => {}) } })
+      this.child.stderr.on('data', (chunk: Buffer) => {
+        this.stderr += chunk.length
+        if (this.stderr > CAPS.stderrBytes) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
+        else this.sqlstate.push(chunk)
+      })
     }
     private reject() { if (this.active) { clearTimeout(this.active.timer); this.active.reject(failure()); this.active = undefined } }
     private raw(sql: string, timeoutMs: number): Promise<readonly { result?: unknown }[]> {
       assert(!this.ended && !this.active); assert(timeoutMs > 0 && timeoutMs <= CAPS.actionMs)
       const marker = `__draft_save_end_${++this.frame}__`
       return new Promise((resolveRows, reject) => {
-        const timer = setTimeout(() => { this.reject(); void closeAll().catch(() => {}) }, timeoutMs)
+        const timer = setTimeout(() => { this.fault('timeout'); this.reject(); void closeAll().catch(() => {}) }, timeoutMs)
         this.active = { timer, reject, end: marker, bytes: 0, lines: [], finish: () => {
           const active = this.active!; this.active = undefined; clearTimeout(timer)
           try { resolveRows(active.lines.map(line => {
             try { return { result: JSON.parse(line) as unknown } }
             catch { assert(/^[a-f0-9-]{36}$/.test(line) || /^-?[0-9]+$/.test(line) || line === 'ok'); return { result: line } }
-          })) } catch { reject(failure()); void closeAll().catch(() => {}) }
+          })) } catch { this.fault('protocol'); reject(failure()); void closeAll().catch(() => {}) }
         } }
         this.child.stdin.write(`${sql}\n\\echo ${marker}\n`)
       })
     }
     async initialize() {
-      await guard()
+      await guard(false, role(this.name))
       const rows = await this.raw(manifest.bootstrap, CAPS.closeMs)
       assert.equal(rows.length, 1); this.owned = backend(rows[0].result, this.name)
     }
     async execute(sql: string, timeoutMs: number) {
-      try { check(); assert(validateDraftSaveNativeSql(manifest, sql)); assert(++actions <= CAPS.actions); await guard(); check(); return await this.raw(sql, timeoutMs) }
-      catch { await closeAll(); throw failure() }
+      try { check(!this.cleaning); assert(validateDraftSaveNativeSql(manifest, sql)); assert(++actions <= CAPS.actions); await guard(false, role(this.name), !this.cleaning); check(!this.cleaning); return await this.raw(sql, timeoutMs) }
+      catch { this.fault('unknown'); await closeAll(); throw failure() }
     }
     async destroy() {
       if (this.closing) return this.closing
+      this.cleaning = true
       this.closing = (async () => {
         this.reject()
         let remoteError: unknown
@@ -278,6 +338,7 @@ export function createDraftSaveNativeContracts(input: {
     }
     async rollbackAndClose(timeoutMs: number) {
       if (this.closing) return this.closing
+      this.cleaning = true
       try { if (!failed && !this.ended && !this.active) await this.execute(manifest.close, timeoutMs) }
       finally { await this.destroy() }
     }
@@ -292,9 +353,9 @@ export function createDraftSaveNativeContracts(input: {
     return {
       async verifyTarget() { await guard(); return bound },
       async openSession(name) {
-        check(); assert(sessions.size < CAPS.sessions && ![...sessions].some(s => s.name === name)); await guard(); check()
+        check(); assert(sessions.size < CAPS.sessions && ![...sessions].some(s => s.name === name)); await guard(false, role(name)); check()
         const session = new NativeSession(name); sessions.add(session)
-        try { await session.initialize(); return session } catch { await closeAll(); throw failure() }
+        try { await session.initialize(); return session } catch { record('unknown', role(name)); await closeAll(); throw failure() }
       },
     }
   }
@@ -313,12 +374,22 @@ export function createDraftSaveNativeContracts(input: {
     return output ? [{ result: JSON.parse(output) as unknown }] : []
   }
   return Object.freeze({ manifest,
+    diagnostic() {
+      const d = firstFault ?? { phase, failure: 'none', role: 'none', sqlstate: 'unknown', controls: Math.min(controls, CAPS.controlCalls + 1),
+        actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1) }
+      return `DIAG test-owner-draft-save native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}.\n`
+    },
     async setup() {
+      phase = 'setup'
+      try {
       assert(!setupDone && !ran); check()
       await single(manifest.setup, true); setupDone = true
       return Object.freeze({ fixtureSha256: testOwnerDigest(JSON.stringify(manifest.fixture)), setupSha256: testOwnerDigest(manifest.setup) })
+      } catch (error) { record('unknown'); throw error }
     },
     async probeSnapshotPrivilegeDrift(probe: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) {
+      phase = 'privilege'
+      try {
       assert(setupDone && !ran && !probed && sessions.size === 0); probed = true; check()
       const rowsBefore = await single(manifest.snapshot)
       const catalogBefore = decodeSnapshotCatalog(await single(manifest.privilege.catalog))
@@ -334,7 +405,7 @@ export function createDraftSaveNativeContracts(input: {
         await guard(); check()
         assert.deepEqual(await probe(), manifest.privilege.expectedEvidence)
         check()
-      } catch { failed = true; throw failure()
+      } catch { record('unknown'); failed = true; throw failure()
       } finally {
         if (restoreRequired) {
           try {
@@ -346,19 +417,28 @@ export function createDraftSaveNativeContracts(input: {
       }
       return Object.freeze({ privilegeRestored: true, fixtureUnchanged: true,
         snapshotAclSha256: testOwnerDigest(JSON.stringify(catalogBefore)) })
+      } catch (error) { record('unknown'); throw error }
     },
     async run() {
+      phase = 'snapshot'
+      try {
       assert(setupDone && !ran); ran = true; check()
       const before = await single(manifest.snapshot)
+      phase = 'contracts'
       const contractTarget = target(testOwnerDigest(JSON.stringify(manifest.contracts)))
       const contracts = await runDraftSaveContracts(manifest.fixture, contractTarget, input.repository, driver(contractTarget))
+      phase = 'contracts-verify'
       assert.deepEqual(await single(manifest.snapshot), before, 'Rollback contract whole-row equality differs')
       const raceTarget = target(testOwnerDigest(JSON.stringify(manifest.concurrency)))
+      phase = 'races'
       const races = await runDraftSaveConcurrency(manifest.fixture, raceTarget, input.repository, driver(raceTarget))
+      phase = 'races-verify'
       assert.deepEqual(await single(manifest.snapshot), before, 'Rollback schedule whole-row equality differs')
       assert.equal(sessions.size, 0)
+      phase = 'complete'
       return Object.freeze({ contracts, races, fixtureUnchanged: true, manifestSha256: input.acceptedManifestSha256,
         controls,actions,exchangeBytes:exchanged,remainingSessions:sessions.size })
+      } catch (error) { record('unknown'); throw error }
     },
   })
 }

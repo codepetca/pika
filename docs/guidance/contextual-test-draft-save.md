@@ -163,3 +163,21 @@ Offline verification and independent source/plan acceptance precede any further
 native execution; do not increase budgets or skip health checks to obtain a pass.
 Offline overlap, failure settlement, dispatch barriers and source/socket/resource
 drift tests passed 89/89; actual completion inside 180 seconds remains unproven.
+
+The parallel-guard correction at `b1f52789` passed targeted security/plan review.
+One normal run reached 42 SDK requests, then failed through the native adapter's
+generic private error; it did not emit the earlier concurrency-budget label.
+Do not infer that all races or budgets passed. Exact teardown and a separate
+SAME-canonical-baseline check passed; normal/types receipts remain absent.
+The next narrow change is privacy-closed native phase/counter/error-code failure
+reporting, preserving failure, guard, timeout and cleanup behavior. Its own
+offline tests and independent execution-plan review are required before retry.
+
+The diagnostic preparation now reports only fixed phase/failure/session-role
+labels, an allowlisted SQLSTATE and bounded control/action/session counters.
+Untrusted stderr is never printed, and the first observed fault is retained
+through cleanup. Offline regression checks passed 98/98; the real native failure
+is still unknown. Independent fixed-source acceptance precedes one normal
+rehearsal. Only a complete normal pass permits both forced-cleanup reruns and
+acceptance of genuinely generated contracts. No cap, SQL or application change
+is included in this diagnostic preparation.

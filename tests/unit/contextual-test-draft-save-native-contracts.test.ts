@@ -77,6 +77,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   const terminations: string[][] = []
   const sqlControls: Array<{ args: string[]; sql: string }> = []
   let hangingSetup = false; let failContender = false; let terminationConfirmed = true
+  let setupExit = false; let malformedSetup = false; let stderrChunks: string[] = []
   let serviceExecute = true; let fixtureChanged = false; let catalogChanged = false; let restorationFails = false; let publicGrant = false
   const catalog = () => ({ owner: 'postgres', definition: catalogChanged ? 'changed function' : 'reviewed function',
     acl: [{ grantor: 'postgres', grantee: 'postgres', privilege_type: 'EXECUTE', is_grantable: false },
@@ -88,6 +89,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
     vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
+    setupExit = false; malformedSetup = false; stderrChunks = []
     mocks.inventory.mockResolvedValue(resources)
     mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: unknown, stdout: string) => void) => {
       const child = new EventEmitter() as EventEmitter & { stdin: Writable; kill: ReturnType<typeof vi.fn> }
@@ -122,6 +124,11 @@ describe('native persistent-session transport with offline child mocks', () => {
         let response = ''
         if (sql === manifest.bootstrap) response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
         else if (sql === manifest.setup && hangingSetup) { done(); return }
+        else if (sql === manifest.setup && setupExit) {
+          for (const chunk of stderrChunks) child.stderr.write(chunk)
+          queueMicrotask(() => child.emit('close', 1)); done(); return
+        }
+        else if (sql === manifest.setup && malformedSetup) response = 'PRIVATE malformed row'
         else if (sql === manifest.concurrency.observe) response = JSON.stringify({ held:true,transaction:true })
         else if (sql === manifest.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
         else if (sql === manifest.privilege.catalog) response = JSON.stringify(catalog())
@@ -160,6 +167,69 @@ describe('native persistent-session transport with offline child mocks', () => {
     return { jobs, release() { holding = false; for (const job of jobs) job.settle() } }
   }
   async function flushGuardReads() { for (let i = 0; i < 12; i++) await Promise.resolve() }
+  it('reports a closed guard failure and preserves it across subsequent work', async () => {
+    const adapter = factory()
+    mocks.inventory.mockRejectedValueOnce(Error('PRIVATE inventory failure'))
+    await expect(adapter.setup()).rejects.toThrow()
+    const diagnostic = adapter.diagnostic()
+    expect(diagnostic).toMatch(/^DIAG test-owner-draft-save native phase=setup failure=guard role=fixture sqlstate=unknown controls=\d{1,4} actions=\d{1,3} sessions=\d\.\n$/)
+    await expect(adapter.run()).rejects.toThrow()
+    expect(adapter.diagnostic()).toBe(diagnostic)
+    expect(diagnostic).not.toContain('PRIVATE')
+  })
+  it('captures only the closed SQLSTATE of a failed private SQL guard', async () => {
+    const adapter = factory()
+    const implementation = mocks.execFile.getMockImplementation()!
+    mocks.execFile.mockImplementation((file: string, args: string[], options: unknown, callback: (error: unknown, stdout: string, stderr?: string) => void) =>
+      implementation(file, args, options, (error: unknown, stdout: string) => {
+        if (args.includes('exec')) callback(Error('PRIVATE guard message'), '', 'PRIVATE secret\nERROR:  42501\n')
+        else callback(error, stdout)
+      }))
+    await expect(adapter.setup()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain('phase=setup failure=guard role=fixture sqlstate=42501')
+    expect(adapter.diagnostic()).not.toContain('PRIVATE')
+    expect(mocks.spawn).not.toHaveBeenCalled()
+  })
+  it.each([
+    [['PRIVATE secret\nERR', 'OR:  57', '014\n'], '57014'],
+    [['FAT', 'AL: PT409\nPRIVATE secret\n'], 'PT409'],
+    [['ERROR: ZZ999\nPRIVATE secret\n'], 'unknown'],
+    [['PRIVATE token ERROR: 42501 extra secret\n'], 'unknown'],
+  ] as const)('reports only allowlisted SQLSTATE after split stderr and child exit %s', async (chunks, code) => {
+    const adapter = factory(); setupExit = true; stderrChunks = [...chunks]
+    await expect(adapter.setup()).rejects.toThrow('exact project disposal required')
+    const diagnostic = adapter.diagnostic()
+    expect(diagnostic).toContain('phase=setup failure=child-exit role=fixture')
+    expect(diagnostic).toContain(`sqlstate=${code} `)
+    expect(diagnostic).not.toContain('PRIVATE'); expect(diagnostic).not.toContain('secret')
+    expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
+    expect(terminations).toHaveLength(1)
+  })
+  it('reports protocol failure without the malformed private row or cleanup overwriting it', async () => {
+    const adapter = factory(); malformedSetup = true; terminationConfirmed = false
+    await expect(adapter.setup()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain('phase=setup failure=protocol role=fixture sqlstate=unknown')
+    expect(adapter.diagnostic()).not.toContain('PRIVATE')
+    expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
+  })
+  it('retains the existing stderr cap and emits no raw stderr during rejection', async () => {
+    const adapter = factory(); setupExit = true; stderrChunks = ['PRIVATE'.repeat(10000)]
+    const write = vi.spyOn(process.stderr, 'write')
+    try {
+      await expect(adapter.setup()).rejects.toThrow()
+      expect(adapter.diagnostic()).toContain('phase=setup failure=protocol role=fixture sqlstate=unknown')
+      expect(write).not.toHaveBeenCalled()
+      expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
+    } finally { write.mockRestore() }
+  })
+  it('retains the native total cap and records only bounded budget counters', async () => {
+    vi.useFakeTimers()
+    const adapter = factory(); await adapter.setup()
+    await vi.advanceTimersByTimeAsync(900000)
+    await expect(adapter.run()).rejects.toThrow()
+    expect(adapter.diagnostic()).toMatch(/phase=snapshot failure=timeout role=none sqlstate=unknown controls=\d{1,4} actions=\d{1,3} sessions=0\.\n$/)
+    expect(children).toHaveLength(1)
+  })
   it('overlaps the four fresh read checks and waits for all before inventory, SQL or sessions', async () => {
     const held = holdInitialGuard()
     const pending = factory().setup()
@@ -186,7 +256,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   ] as const)('settles every independent read after %s before rejecting without dispatch', async (_label, index, error, output) => {
     const held = holdInitialGuard()
     let finished = false
-    const pending = factory().setup()
+    const adapter = factory(); const pending = adapter.setup()
     const outcome = pending.then(() => { finished = true }, () => { finished = true })
     try {
       await flushGuardReads()
@@ -199,6 +269,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       expect(sqlControls.every(control => !control.args.includes('exec'))).toBe(true)
     } finally { held.release(); await outcome }
     await expect(pending).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain('phase=setup failure=guard role=fixture sqlstate=unknown')
     expect(mocks.inventory).not.toHaveBeenCalled()
     expect(mocks.spawn).not.toHaveBeenCalled()
   })
@@ -267,6 +338,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     vi.useFakeTimers(); hangingSetup = true
     const adapter = factory(); const pending = adapter.setup(); const assertion = expect(pending).rejects.toThrow('exact project disposal required')
     await vi.advanceTimersByTimeAsync(90000); await assertion
+    expect(adapter.diagnostic()).toContain('phase=setup failure=timeout role=fixture sqlstate=unknown')
     expect(terminations).toHaveLength(1)
     expect(terminations[0]).toContain('owned_pid=1000'); expect(terminations[0]).toContain('owned_started=2026-10-05T00:00:00+00:00')
     expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
@@ -276,6 +348,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     await expect(adapter.run()).rejects.toThrow()
     expect(children.slice(-2).every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
     expect(terminations.length).toBe(children.length)
+    expect(adapter.diagnostic()).toContain('phase=races failure=child-exit role=contender sqlstate=unknown')
   })
   it('fails cleanup when remote termination cannot be confirmed, even after local children close', async () => {
     terminationConfirmed = false

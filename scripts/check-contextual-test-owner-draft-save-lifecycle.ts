@@ -361,6 +361,7 @@ export async function testOwnerDraftSaveLifecycleMain(args = process.argv.slice(
     const receipt = testOwnerDraftSaveForcedReceipt(input.mode, error, complete)
     if (receipt) { process.stdout.write(receipt.stdout); process.stderr.write(receipt.stderr); process.exitCode = receipt.exitCode; return }
     process.stderr.write(testOwnerDraftSaveSetupDiagnostic(setupStage, error))
+    if (sqlContracts) process.stderr.write(sqlContracts.diagnostic())
     if (transport) process.stderr.write(transport.diagnostic()); throw new Error('Test owner draft save lifecycle failed; private details withheld')
   } finally { if (originalPal === undefined) delete process.env.PAL_ENABLED; else process.env.PAL_ENABLED = originalPal }
 }
