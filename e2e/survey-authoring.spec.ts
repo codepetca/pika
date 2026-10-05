@@ -29,6 +29,7 @@ for (const mobile of [false, true]) {
       ]
       let createCount = 0
       let nextQuestionId = 3
+      let loadError = true
       await page.route('**/api/**', async (route) => {
         const request = route.request()
         const path = new URL(request.url()).pathname
@@ -41,6 +42,10 @@ for (const mobile of [false, true]) {
             body = { survey }
           } else body = { surveys: [survey] }
         } else if (path === `/api/teacher/surveys/${surveyId}`) {
+          if (request.method() === 'GET' && loadError) {
+            await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Survey unavailable' }) })
+            return
+          }
           if (request.method() === 'PATCH') survey = { ...survey, ...request.postDataJSON() }
           body = { survey, questions }
         } else if (path === `/api/teacher/surveys/${surveyId}/questions`) {
@@ -69,6 +74,18 @@ for (const mobile of [false, true]) {
       await page.getByTestId('survey-workspace-actionbar-center').getByRole('button').nth(1).click()
       await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
       const dialog = page.getByRole('dialog', { name: 'Edit survey', exact: true })
+      await expect(dialog.getByRole('alert')).toHaveText('Survey unavailable')
+      await dialog.screenshot({ path: testInfo.outputPath('unavailable.png'), animations: 'disabled' })
+      await dialog.getByRole('button', { name: 'Close survey editor' }).click()
+      await expect(dialog).toHaveCount(0)
+      await page.getByTestId('survey-workspace-actionbar-center').getByRole('button').nth(1).click()
+      await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
+      await expect(dialog.getByRole('alert')).toHaveText('Survey unavailable')
+      await page.keyboard.press('Escape')
+      await expect(dialog).toHaveCount(0)
+      loadError = false
+      await page.getByTestId('survey-workspace-actionbar-center').getByRole('button').nth(1).click()
+      await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
       await expect(dialog.getByRole('textbox', { name: 'Prompt', exact: true })).toContainText(questions[0].question_text)
       await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/)
       const capture = async (state: string) => {
@@ -101,6 +118,15 @@ for (const mobile of [false, true]) {
       await expect(number).toHaveValue('2')
       await expect(dialog.getByRole('spinbutton', { name: 'Response character limit' })).toHaveValue('1200')
       await capture('open-response')
+
+      await actions.click()
+      await page.getByRole('menuitem', { name: 'Add multiple-choice question', exact: true }).click()
+      await dialog.getByRole('textbox', { name: 'New question', exact: true }).fill('An incomplete question to discard')
+      await capture('staged-question')
+      await dialog.getByRole('button', { name: 'Cancel new question' }).click()
+      await expect(prompt).toContainText('What would you like to practise next?')
+      await expect(number).toHaveValue('2')
+      expect(questions.length).toBe(2)
 
       await actions.click()
       await page.getByRole('menuitem', { name: 'Duplicate question', exact: true }).click()

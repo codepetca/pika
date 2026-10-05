@@ -495,6 +495,7 @@ export function TeacherSurveyWorkspace({
   const titleFocusRequestedRef = useRef(autoEditTitle)
   if (autoEditTitle) titleFocusRequestedRef.current = true
   const createPendingRef = useRef<Promise<boolean> | null>(null)
+  const questionBeforeNewRef = useRef<string | null>(null)
   const [addingQuestion, setAddingQuestion] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [statusChanging, setStatusChanging] = useState(false)
@@ -573,6 +574,7 @@ export function TeacherSurveyWorkspace({
 
   useEffect(() => {
     void loadSurvey()
+    return () => { loadRequestIdRef.current += 1 }
   }, [loadSurvey])
 
   useEffect(() => {
@@ -860,6 +862,7 @@ export function TeacherSurveyWorkspace({
 
   function startQuestion(type: SurveyQuestionType) {
     void navigate(() => {
+      questionBeforeNewRef.current = selectedQuestionId
       setSelectedQuestionId(null)
       setEditingQuestionType(null)
       setSurveyEditMode('edit')
@@ -869,6 +872,15 @@ export function TeacherSurveyWorkspace({
       setNewResponseMaxChars(String(defaultMaxChars(type)))
       setQuestionStatus('saved')
     })
+  }
+
+  function cancelNewQuestion() {
+    setSelectedQuestionId(questions.find((question) => question.id === questionBeforeNewRef.current)?.id ?? questions.at(-1)?.id ?? null)
+    setEditingQuestionType(null)
+    setNewQuestionText('')
+    setNewOptionsText('\n')
+    setError('')
+    setQuestionStatus('saved')
   }
 
   function duplicateQuestion() {
@@ -894,6 +906,10 @@ export function TeacherSurveyWorkspace({
   }
 
   async function closeEditor() {
+    if (!survey) {
+      onBack()
+      return
+    }
     if (surveyMarkdownDirty) {
       setError('Apply or undo Markdown edits before closing.')
       return
@@ -916,18 +932,11 @@ export function TeacherSurveyWorkspace({
     return () => onCloseReady?.(null)
   })
 
-  if (loading || (detail !== null && !activeDetail)) {
+  if (loading || (detail !== null && !activeDetail) || !survey) {
     return (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <Spinner />
-      </div>
-    )
-  }
-
-  if (!survey) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-6 text-sm text-danger">
-        {error || 'Survey unavailable'}
+      <div className="relative flex flex-1 items-center justify-center p-6">
+        <Tooltip content="Close"><Button type="button" variant="ghost" size="sm" aria-label="Close survey editor" onClick={() => { void closeEditor() }} className="absolute right-3 top-3 h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
+        {loading || (detail !== null && !activeDetail) ? <Spinner /> : <p className="text-sm text-danger" role="alert">{error || 'Survey unavailable'}</p>}
       </div>
     )
   }
@@ -1079,7 +1088,7 @@ export function TeacherSurveyWorkspace({
             ) : (
               <>
                 <SurveyQuestionFields questionType={newQuestionType} questionText={newQuestionText} optionsText={newOptionsText} responseMaxChars={newResponseMaxChars} disabled={isReadOnly || busy} promptLabel="New question" onTextChange={setNewQuestionText} onOptionsChange={setNewOptionsText} onLimitChange={setNewResponseMaxChars} />
-                <div className="flex justify-end"><Button type="button" size="sm" onClick={() => { void addQuestion() }} disabled={isReadOnly || busy || !newQuestionValid}><Plus className="h-4 w-4" aria-hidden="true" />{addingQuestion ? 'Adding...' : 'Add question'}</Button></div>
+                <div className="flex justify-end gap-2">{questions.length > 0 ? <Button type="button" variant="secondary" size="sm" aria-label="Cancel new question" disabled={busy} onClick={cancelNewQuestion}>Cancel</Button> : null}<Button type="button" size="sm" onClick={() => { void addQuestion() }} disabled={isReadOnly || busy || !newQuestionValid}><Plus className="h-4 w-4" aria-hidden="true" />{addingQuestion ? 'Adding...' : 'Add question'}</Button></div>
               </>
             )}
           </>

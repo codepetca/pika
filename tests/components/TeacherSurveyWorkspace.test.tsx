@@ -118,6 +118,43 @@ describe('TeacherSurveyWorkspace', () => {
     vi.restoreAllMocks()
   })
 
+  it.each(['loading', 'failed'] as const)('allows the shell and visible close control to dismiss a %s survey', async (state) => {
+    fetchMock.mockReturnValue(state === 'loading' ? new Promise(() => {}) : Promise.resolve({ ok: false, json: async () => ({ error: 'Survey unavailable' }) }))
+    const onBack = vi.fn()
+    const onCloseReady = vi.fn()
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack} onCloseReady={onCloseReady} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    if (state === 'failed') expect(await screen.findByRole('alert')).toHaveTextContent('Survey unavailable')
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey editor' }))
+    expect(onBack).toHaveBeenCalledTimes(1)
+    await act(async () => { await onCloseReady.mock.calls.at(-1)?.[0]() })
+    expect(onBack).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a detail response after the loading workspace is closed', async () => {
+    const pendingDetail = createDeferred<Response>()
+    fetchMock.mockReturnValue(pendingDetail.promise)
+    const onSurveyUpdated = vi.fn()
+    const view = render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={onSurveyUpdated} onSurveyDeleted={vi.fn()} />)
+    view.unmount()
+    await act(async () => { pendingDetail.resolve(jsonResponse({ survey: makeSurvey(), questions: [] })); await pendingDetail.promise })
+    expect(onSurveyUpdated).not.toHaveBeenCalled()
+  })
+
+  it.each(['', 'Incomplete prompt'] as const)('cancels an unwanted staged question with prompt %j without creating it', async (prompt) => {
+    fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion(), makeQuestion({ id: 'question-2', question_text: 'Original second question' })] }))
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    await screen.findByLabelText('Prompt')
+    selectQuestion(2)
+    await waitFor(() => expect(screen.getByLabelText('Prompt')).toHaveValue('Original second question'))
+    questionAction('Add multiple-choice question')
+    fireEvent.change(await screen.findByLabelText('New question'), { target: { value: prompt } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel new question' }))
+    expect(await screen.findByLabelText('Prompt')).toHaveValue('Original second question')
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
+    expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(0)
+  })
+
   it('ignores stale detail responses after selected survey changes', async () => {
     const staleDetail = createDeferred<Response>()
     const currentDetail = createDeferred<Response>()

@@ -879,3 +879,9 @@ isolated retryPASS in2.45s. Architecture/UI/design/TypeScript/lint and auditPASS
 prototype unit4/4 and production-workflow fixture4/4 isolatedPASS. Final desktop
 browser retryPASS after faithful draft-status fixture correction. Independent
 standard-risk review precedes ready CI on PR1483; no production promotion.
+Full integration review GPT6.1Sol/high found twoP2 recovery blockers: closing
+loading/unavailable detail and returning from an unwanted staged question.
+One batch adds visible/shell close, stale unmount response invalidation and
+Cancel restoring prior selection with no POST. Component40/40 and real browser
+4/4 PASS; recovery and staged-form screenshots inspected. Required focused rerun
+and targeted review pending; phase ledger1launch/1fix, roughly4min review.
