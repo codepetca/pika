@@ -260,13 +260,20 @@ describe('StudentLessonCalendarTab', () => {
     render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
 
     const retryButton = await screen.findByRole('button', { name: 'Retry assignments' })
+    await waitFor(() => {
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
+      expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-count', '1')
+    })
     retryButton.focus()
     fireEvent.click(retryButton)
 
     expect(await screen.findByRole('button', { name: 'Retrying assignments' })).toBeDisabled()
     expect(document.activeElement).toBe(retryButton)
 
-    resolveAssignmentRetry({ ok: true, json: async () => ({ assignments: [{ id: 'assignment-1' }] }) })
+    await act(async () => {
+      resolveAssignmentRetry({ ok: true, json: async () => ({ assignments: [{ id: 'assignment-1' }] }) })
+      await assignmentRetry
+    })
 
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-count', '1')
