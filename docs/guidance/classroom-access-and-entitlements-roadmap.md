@@ -1237,7 +1237,25 @@ canonical main fast-forward passed; all36 unrelated stashes and env link remain.
 The earlier failed attempts and native receipts remain recorded. This completes
 only owner Test list GET, not a phase exit or activation.
 
-Next is [contextual owner Test draft GET](contextual-test-draft-get.md), including
+Superseding 2026-10-05 coordinator receipt: owner draft GET PR #1473 merged
+as `6586847c1` after five exact-head CI37258057073 gates passed on reviewed
+`f5ba277a5`. Normal installed-SDK/SQL/native proof, both full-setup forced cleanup
+modes, genuinely generated contracts and unchanged canonical baseline passed.
+Audit #1474 is merged as `5708750d0`, retaining its conflict fix at 248 and our
+immutable GET at 247. Its separate production receipt records schema001–248;
+this does not activate shared admission, home/page or full cutover.
+
+The next bounded slice is [owner Test draft saves](contextual-test-draft-save.md),
+preparing only admitted PATCH with current-owner transaction/source/document CAS,
+existing durable started-Test restrictions and literal legacy compatibility.
+GET owns initialization/repair; a missing/invalid draft baseline requires reload
+without partial PATCH writes. No Storage fallback or immediate deletion belongs
+to this boundary. Coordinator begins on actual main `c25ebf78f`; source-only
+workers own separate application, SQL and proof files. Full runtime evidence,
+independent review and exact-head CI remain required. No goal or phase exit.
+
+Historical source preparation below predates that actual merge receipt:
+[contextual owner Test draft GET](contextual-test-draft-get.md), including
 its hidden create/repair behavior. Source preparation on main7570 uses a two-phase
 service-only snapshot/CAS transaction, unchanged legacy dispatch and public DTO,
 current owner/fixed-parent checks and explicit retired-Test inspection/write rules.
