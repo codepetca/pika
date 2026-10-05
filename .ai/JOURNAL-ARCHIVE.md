@@ -37123,3 +37123,9 @@ continuity-format failure:ProdDB001 lacked the tested Prod DB 001 prefix.
 Returned PR1454 to draft before a docs-only correction; restore the two spaces,
 retain225/239 schema floors and all dormant gates. Targeted guidance re-review
 and new exact-head CI remain gates; reviewed runtime source remains unchanged.
+
+<!-- pika-session-log-archive-batch:c2d74468fa83bba4605c8b00f94193dbd087da7769394c9564918157982439c1 -->
+## 2026-10-04 Broad audit: readable continuity CI regression
+
+- Full ready-SHA CI exposed one documentation assertion frozen to the old compact CURRENT first line (11870passed,1failed,8skipped). Returned PR1462 to draft before corrections.
+- Updated the attendance rollout test to validate the labeled hosted receipt, production migration floor, recorded smoke and explicit absence of a fresh hosted query. Local focused PASS144tests/11files and allothergates. Targeted independent review and new stable-SHA CI required.

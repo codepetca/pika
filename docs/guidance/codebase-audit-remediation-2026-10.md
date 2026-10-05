@@ -25,34 +25,42 @@ source-run failures; audit lifecycle cases passed without retry. Database replay
 and all selected Test/auth/storage/concurrency contracts passed. The five-route
 validation-debt deletion and optional worker limit preserved their intended scope.
 Sibling #1464–#1467 drafts are closed as superseded after merged-source parity.
-Phases 1 and 2 have their source/integration exit evidence; production verification
-remains incomplete. On 2026-10-05 UTC, approved migrations 226–246 were applied
-through run 37252303894 and production 83b683c deployed. Public traffic is still
-held by the temporary operator-only WAF. Authentication/reset and two exact
-synthetic signed downloads passed. Reopened Return exposed custom 40001 retries
-in hosted PostgREST; the three identified canary backends were stopped. Forward
-248 and dual-code 409 handling are prepared. Owner task-wide approval waives
-further approval requests; fresh combined247–248 CI/preview remains required.
-Lifecycle completion and fixture
-cleanup remain pending. The original migration permission is consumed.
+Phases 1 and 2 have their source/integration exit evidence. Production is public
+and usable as of **2026-10-05 06:27UTC**. Migrations226–246 applied in37252303894;
+247–248 applied-verified in37267393757 after complete preview37267273069.
+Hosted history001–248 is complete, seven installed function bodies/security/
+owners/ACLs match, and twelve operational controls are unchanged. Both apply
+permissions are consumed. Forward248 fixes the hosted custom40001 retry loop;
+the original244 is unchanged. PR1476 promoted c6f23b4b after all required gates
+passed in [37268657918](https://github.com/codepetca/pika/actions/runs/37268657918)
+at b5cf85b9. Merged-tree parity and Vercel READY/active aliases for both production
+domains match c6f23b4b. Authentication/reset, signed downloads and the final
+Test canary passed: reopened Return409 in2.47s, close/grade/Return, withheld then
+released student results and idempotence. Exact synthetic Test, two Storage files,
+new student provider identity, Classroom and two Pika users were cleaned; owned
+logout returns401. Existing teacher provider and real student accounts remain.
+Unrelated285 managed objects retain their exact digest and17 pending rows.
+Temporary WAF removed; public login200 and unauthenticated auth401 verified.
+Private completion receipt: `production-public-live-completion-receipt.json` in
+the evidence directory below. Owner task-wide approval waived further approval
+requests; CI/protection and actual runtime limits remained enforced.
 
-Production promotion [#1470](https://github.com/codepetca/pika/pull/1470) remains
-a draft for cumulative release review and the coordinated owner gates. Workflow preview
+Initial production promotion [#1470](https://github.com/codepetca/pika/pull/1470)
+merged on 2026-10-05; #1476 supersedes that application deployment. Historical preview
 [37228560431](https://github.com/codepetca/pika/actions/runs/37228560431) passed
 against merged source `5a396899198397e93ffc3dfcc0908bfceaa4f676` and full CI
 37226522459: exact production history 001–225, ordered pending 226–246 and all
 21 hashes match the reviewed manifest. Approval digest:
 `645873e4078494fc1d7ad73bb739706352413af4950388ddfec484e6312d8c8c`.
-The preview is preparation, not migration application authority.
+That preview and its subsequent application authority are consumed, not reusable.
 One unsuppressed `braces` advisory remains. The dependency PR provides a bounded
 recursion mitigation; it does not resolve every width/cycle case or establish
 zero registry advisories. Its remaining resolution has a separate checkpoint
 below, without rewriting the accepted source-work receipts.
 
-The next outcome is to land the reviewed fixes, verify their integrated behavior,
-promote the matching application/schema safely, and record deployment evidence
-for every affected finding. The remaining advisory must either be fully resolved
-or receive an explicit owner-approved, evidence-backed exception.
+The coordinated source/schema/application release is complete. The remaining
+advisory retains the owner-approved temporary exception through 2026-11-04 and
+its reassessment triggers below; this release does not establish zero advisories.
 
 The original audit base was `3c5d7097e78258f70c368789e14f88ac2419c1d8`.
 Evidence remains in `/Users/stew/.codex/audits/pika/2026-10-04-broad/`:
@@ -220,8 +228,8 @@ own exit evidence; never infer hosted state from a source merge.
 
 Owner: coordinator prepares a bounded dependency proposal; independent reviewer
 checks compatibility; maintainer decides any remaining exception. The read-only investigation and coordinator reproductions are complete. A
-concrete temporary-exception proposal through 2026-11-04 is awaiting the owner
-decision; it keeps depth mitigation and the advisory visible. Width expansion
+temporary exception through 2026-11-04 was accepted by Stewart Chan when directing
+the recommended release to proceed; it keeps depth mitigation and the advisory visible. Width expansion
 and a plain-AST parent cycle were reproduced; verified Pika inputs are small
 repository-authored build globs, with no request-controlled path established.
 Full proposal: `/Users/stew/.codex/audits/pika/2026-10-04-broad/advisory-resolution-proposal.md`.
