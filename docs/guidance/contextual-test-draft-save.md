@@ -181,3 +181,44 @@ is still unknown. Independent fixed-source acceptance precedes one normal
 rehearsal. Only a complete normal pass permits both forced-cleanup reruns and
 acceptance of genuinely generated contracts. No cap, SQL or application change
 is included in this diagnostic preparation.
+
+### Awake rehearsal and inventory scheduling follow-up
+
+The eighth normal rehearsal at reviewed `90f21c410` ran with the lid open and
+a temporary command-scoped idle-sleep assertion. Its 42 installed-SDK requests,
+rollback SQL contracts and pre-race whole-fixture comparison completed. The
+two-session race suite then exhausted its unchanged 180-second total bound;
+2444 controls, 162 actions and zero remaining sessions were observed. This is
+not a complete normal or sixteen-schedule pass. Exact disposable cleanup and
+a separate whole pinned canonical checkpoint comparison passed. No accepted
+normal receipt, generated artifact or canonical migration249 application exists.
+
+The immutable original checkpoint and separately captured historical-reconciliation
+checkpoint remain preserved. Every within-run comparison includes all canonical
+tables, including authentication and retained membership generations; there is
+no table exemption or recapture on failure. Historical membership additions were
+accounted for by separately recorded synthetic local smoke runs, not attributed
+to individual historical IDs. This does not authorize new canonical writes.
+
+Three read-only timing samples identify complete Docker inventory as the largest
+observed stage (463–798ms versus roughly45ms warm Git/source checks). Variance
+precludes a speedup claim. A PATCH-only inventory transport seam is now prepared
+to subdivide large container-inspection batches while retaining the original
+collector's complete graph, endpoint/config/socket validation, volume HTTP and
+sealed parser. Two CLI workers reserve a third slot for the existing single bulk
+volume request; queue-inclusive deadlines, bounded aggregate output, failure
+settlement and all pre-dispatch checks must remain. Original shared Assignment,
+GET and owner-list implementations, race SQL/order and all runtime limits remain
+unchanged. Offline RED/GREEN checks and fixed-source independent review precede
+any further normal invocation; only an actual complete pass proves it is fast
+enough. No timeout increase, guard caching, dropped check or blind retry is allowed.
+
+The additive collector's 16 offline cases and unchanged native/shared collector
+tests passed 154/154 in coordinator verification. The real shared collector and
+sealed parser were exercised with 129 containers, 617 volumes and 23 networks;
+one original bulk-volume request, final socket identity check, ordered reconstruction
+and zero remaining child/request resources were verified. This is fixture evidence,
+not proof of native timing. The fresh invocation retains a two-CLI pool, a
+queue-inclusive 20-second logical deadline and aggregate retained CLI-output bound.
+All race, SQL, migration and application contracts remain unchanged. Fixed-source
+independent review and one separately accepted finite normal execution remain next.

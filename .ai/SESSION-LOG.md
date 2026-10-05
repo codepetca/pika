@@ -11,170 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Broad audit remediation batch 1
-
-Owner authorized planning and orchestration to fix the 27-finding broad audit at main `3c5d7097`. Plan: `docs/guidance/codebase-audit-remediation-2026-10.md`; existing audit handoff tracks per-finding evidence and worker receipts. Feature worktree `codex/audit-remediation`; full startup passed after frozen-lockfile installation, with no dependency changes. Three bounded GPT-6.1 Sol workers (auth high; guidance and patterns medium) delivered non-overlapping source/tests. Auth regressions: 172/20 PASS, including one initial-password winner, login origin/JSON and UTF-8 limits; S1 remains partial pending atomic issuance/handoff generation fencing. Patterns regressions: 69/8 PASS, covering cache/poll retention, survey shapes and directly imported script-test selection. Guidance reconciles source/local/hosted checkpoints and routing, removes direct-main landing instructions, and fails startup for missing required inputs. Startup context ceiling deliberately increased from 16k to 17k characters for readable dated labels and receipt/remaining-gate text. No migration, database, hosted flag or production mutation. Draft publication and cumulative verification receipts remain with coordinator; independent review not yet launched. Codex weekly remaining at start 8%; DeepSeek paused through 2026-12-31; pr-review low-usage human checkpoint applies before reviewer launch. Goal remains active; no finding accepted from implementation delivery alone.
-
-## 2026-10-04 — Audit PR 1462 main reconciliation 902cbf76
-
-Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
-bodies from both branches and the incoming contextual owner Test detail read
-and CI checks. Previously reviewed audit implementation bytes remain unchanged;
-shared continuity and CI composition receive bounded independent review.
-Final focused checks and exact reviewed-head CI are readiness gates.
-No migration reapplication, shared/hosted database operation, merge or deployment.
-
-## 2026-10-04 — Broad audit authorized landing reconciliation
-
-Owner instructed this task to orchestrate the all27-finding plan. Guidance1462
-merged at24cb8847; canonical hub fast-forwarded and exact source-tree parity PASS.
-Five remaining ready PRs conflict only in journal archival placement. Coordinator
-prepares one common history union preserving all complete prior body multiplicities;
-reviewed application/migration bytes remain pinned and pending source-parity checks.
-New-base focused checks, independent integration review and exact-head CI precede
-remaining merges. Production244–246 need matching application and exact-target/full-
-set permission; no database application, fixtures, feature activation or deployment.
-Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
-account-wide; DeepSeek paused. Task low-usage/review-budget override retained.
-
-## 2026-10-04 — Broad audit combined landing candidate
-
-After guidance1462 merge24cb8847, consolidated the five remaining reviewed source
-packages in draft1463. Identical journal union preserves complete prior body
-multiplicities; application/migration byte parity is checked against source-package
-heads, with explicit package/UiGallery/deletion-only validation-baseline composition.
-Baseline removes five actually validated routes, no new debt. Focused runner adds
-optional positive-integer --max-workers forwarding only to Vitest;24 controls PASS,
-selection unchanged; earlier default-capacity run retained10 UI timeout failures.
-No timeout/assertion/scope reduction. Final combined focused run uses2 workers;
-independent cumulative integration review and exact-head CI remain pending.
-Fresh read-only production history is exact001–225; target/ref matches GitHub
-migration environment. Complete pending226–246 impact review is underway; no apply,
-fixture/reset/cleanup/flag change or deployment. Braces width/parent-cycle limits
-reproduced; temporary exception throughNov4 proposed, owner decision pending.
-Old local application authority remains consumed; immutable receipts retained.
-
-## 2026-10-04 — Audit continuity format correction
-
-Combined cadf CI37225590466 passed12,215 full tests with8 configured skips;
-one continuity parser failed because CURRENT lost its required Hosted: Prod DB
-prefix. Restored that machine-readable prefix with the fresh001–225 verification
-date; no product, migration, type, dependency or test assertion change.1463 returned
-to draft before correction. Independent targeted review and fresh exact-head CI
-remain required; original frozen receipts and full failure log are retained.
-No production apply, provider, canary, flags or deployment operation.
-
-## 2026-10-04 Audit source landing and coordinated release preparation
-
-- Guidance #1462 and combined #1463 are merged; main `5a396899198397e93ffc3dfcc0908bfceaa4f676` has exact reviewed-source tree parity and the hub fast-forwarded cleanly. All 27 original findings retain accepted source remedies; production runtime closure is separate. #1464–#1467 closed as superseded only after parity.
-- Final combined full CI 37226522459 and PR Gate PASS: 12,216 unit/API tests (8 configured skips), full build/static gates, all selected disposable database contracts, browser 298 passed/3 retry passes/20 configured skips. Three browser retries match previously accepted source-run failures; audit lifecycle cases passed without retry. Prior continuity assertion failure/cancellation and draft-event race receipts are preserved.
-- Production draft #1470 is prepared for cumulative independent release review. Fresh read-only production history is exactly001–225; complete pending226–246 (21 files), hashes/impact and prepared read-only contract packet are recorded externally. Workflow preview37228560431 PASS at merged source5a396899/fullCI37226522459; exact225-history/ordered226–246 and all21hashes verified against source/manifest. Digest645873e4078494fc1d7ad73bb739706352413af4950388ddfec484e6312d8c8c. Preview is preparation only; no migration apply, deployment, canary/provider/fixture/cleanup write or flag activation occurred.
-- Remaining owner gates: exact production226–246/source/digest and irreversible-authority acknowledgement, coordinated affected-traffic hold/window and compatible app release, separately scoped canary/provider/cleanup operations, and explicit residual braces risk decision. Task low-usage/review-budget waiver remains; actual authority/provider/runtime/correctness gates remain. No epic status changed without its exit evidence.
-- Evidence: `/Users/stew/.codex/audits/pika/2026-10-04-broad/` retains immutable original acceptance and cumulative execution in handoff.json; integrated-main-merge-receipt.json, corrected-integrated-ci-final.json, integrated-browser-retry-triage.md, production-pending-chain-manifest.json and static packet reviews. Canonical plan: docs/guidance/codebase-audit-remediation-2026-10.md.
-
-## 2026-10-04 — Broad audit source landing and production history reconciliation
-
-All27 accepted audit source findings landed through reviewed main PRs1462/1463;
-application source5a396899 and documentation checkpoint1471/a2175080 are merged.
-Final application CI37226522459 passed12216 tests (8 configured skips), database
-contracts and browser lane (298 passed,3 known retries,20 configured skips).
-Production history remains001–225. Exact226–246 preview37228560431 passed at
-source5a396899; digest645873e4078494fc1d7ad73bb739706352413af4950388ddfec484e6312d8c8c.
-Draft production PR1470 remains held for exact migration/effects authorization,
-coordinated traffic window, canary/provider/cleanup scope and braces residual
-exception decision. No schema application, deployment, flag changes or fixtures.
-
-Coordinator reconciles the production journal conflict on main while preserving
-all2198 prior complete dated-entry body multiplicities and both archive preambles.
-The transitional recent log retains all40 production entries plus the latest19
-main entries and this receipt; trim --keep60 keeps the permitted cap and allows
-GitHub to combine the canonical main SHA without reintroducing archived entries.
-Remaining main recent entries are preserved in the archive. Source/runtime,
-workflow, tests, dependency and migration files remain unchanged. Independent
-history review and exact-head documentation CI precede main merge. Source acceptance
-and historical review counters remain intact; low-usage/review-budget waiver persists.
-
-## 2026-10-04 — Test detail merged; owner Test list source preparation
-
-1468 reviewed039642ac exactCI37211414037 all5SUCCESS/PRGate; normalSHA-matched
-squash902cbf76 merged15:36:48Z. Whole reviewed/merged tree parity and clean hub
-mainFF passed;36 unrelated stashes/critical dependency worktrees preserved.
-ObservedCI queue0/run1918s; singlewatcherclosedexit0, no duplicateCI or bypass.
-6reviewlaunch/3target/1final/4fix, original13:44clock and explicit extensions
-preserved. Privateappend-onlymetric reports6correctionpushes from cumulative
-entry error; actual4pushes, correction documented without deleting events.
-
-Ownerlist source prepared alongsideCI onisolated039base; appGPT6.1Sol/high
-relinquished5files~15:28Z after43new/10legacy/50related/TS/lintPASS. Rootread
-238helper/54validation/fullnewtests/GET-onlydiff;93integration+24correctlegacy
-checksPASS. Initialtwo legacyfilterfilenames were nonexistent/ignored; only
-actualmatched counts claimed. FullDTO/persistedMIME/sixstats preserved, noStorage
-orprovider calls. Bounds/pagination/currentowner/Test/control/enrollment/final
-roster checks source-only; no SDK orphaseexitclaim yet.
-
-ProofdesignGPT6.1Sol/high15:12:47–15:23:52Z11m05s delivered/verified:5actors,
-3Classes,4Tests/4questions/2drafts/4attempts/5responses/5availability/5enrollments,
-onefreshremoval leaves4active+1retained168generation;169OFF meansno signals.
-147creates9owneddefaultcategories; include exactClass-bound side-effect closure,
-no trigger bypass/manual inserts. Sameworker relinquished3proof files15:53Z,
-21m29s manualwall,36new/109combined/TS/lintPASS; no live/Git operations. Root
-inspectedall3files and independently passed133checks/6files; parent ownsall
-integration before new-scopecommit/rebaseonto actual902main. Fixedindependent
-review/rootfinite-manifestacceptance precede actualdisposableSDKnormal+2forced.
-Attributableactive/tokensunknown. Originalsealedauthority/lifecycle/controls/
-cleanup/native bytesunchanged. No migration/production/cohort/home/account/
-provider/billing activation; phase2/3active,4/5dormant,goal incomplete.
-
-## 2026-10-04 — Docker recovery; owner Test list runtime held
-
-1469 remains draft/unmerged, reviewed a000cb3c with two independent CLEAN source
-reviews, launch2/initial1/fix0. Original16:03Z review clock/counters retained;
-direct human task-stop override waives workflow review/usage stops, not proof,
-CI, source authority or rollout gates. Human Yes authorized Docker restart.
-Normal CLI restart timed out; seven verified Docker-app processes received TERM,
-one stuck verified backend then KILL; official start recovered engine29.7.2.
-No images, volumes, container data or unrelated source/stashes were deleted.
-
-External dependency target was missing. Root restored only this worktree's own
-dependencies with unchanged-lockfile install:696 reused/zero downloads. Recovery
-load caused2 test timeouts, isolated39 passed, then full197/14 and all static gates
-passed without weakening timeouts. Source/lock and reviewed HEAD remain unchanged
-apart from this pending continuity entry. Finite manifests explicitly accepted;
-new once-wx0600 private1469 canonical baseline captured, old1468 preserved.
-
-Normal SDK attempt17:39:35Z failed startup180s before extension setup. Exact owned
-CLI descendants outlived wrapper timeout; root verified project2e6078d26139 and
-TERM'd only those two processes. Cleanup failures and closed-platform independent
-baseline verification failure mean neither cleanup nor canonical equality is
-proved; no data-change claim either. Host177MiB free; temporary workdir retained.
-No forced runs, ready CI, merge, production or activation. Preserve SAME baseline;
-recover stable disk/API, inspect and finish exact owned-resource cleanup, verify
-baseline, then retry. Private1469 ledger contains receipts; no baseline recapture.
-
-Human then authorized Mac-space cleanup. Removed only npm's reconstructible3GiB
-download cache and pnpm's unreferenced cached packages (68334files/1597packages,
-no force/alien deletion). Hostfree486MiB→7.2GiB, approx6.7GiB recovered. Installed
-dependencies/source/worktrees/36stashes/Playwright browsers and Docker data remain.
-Docker-only cache pruning could not load its builder; API still unresponsive
-after space recovery. No new SDK attempt or baseline recapture. Preserve prior
-failed-proof namespace2e6078d26139 for exact owned cleanup/equality verification.
-
-## 2026-10-04 — Owner Test list disk recovery and guidance-main reconciliation
-
-Docker29.7.2 recovered; host144GiB free observed independently, not attributed to
-our6.7GiB package-cache cleanup. Fresh global/label/attachment checks authorized
-exact failed-startup2containers/1network/1volume cleanup; generated directory stays
-private for diagnostics. SAME1469 canonical baseline fivefield equality PASS.
-Unchanged-source normal retry65de445a exited1: Storage unhealthy, no extension
-setup. Exact teardown succeeded and SAME independent baseline equality PASS.
-No forced modes/readyCI/merge/activation; one Sol6.1/high read-only worker diagnoses
-Storage startup. Rebased onto guidance-only1462/main24cb8847; app/proof/CI/schema/
-package/lock bytes unchanged. Kept incoming guidance, removed three proven surplus
-history copies while retaining original full bodies. Startup budget failed17149;
-CURRENT-only shortening gives76startup tests PASS, without gate changes. Full
-230focused/14files and all static gates PASS; history multiset/no missing/surplus
-PASS. Runtime verification remains required;36stashes/prod225 preserved.
-
 ## 2026-10-04 — Owner Test list proof-only natural revision correction
 
 Observed normal5004fed7 Storage healthy, then fixture setup failed beforeSDK;
@@ -837,3 +673,42 @@ equal previously reviewedcab; no generated-type fabrication or runtime retry.
 Historical B1/receipt remain immutable; verify-only exact-rebase binding requires
 bounded independent acceptance before an awake rehearsal. Original counters
 retained; current correction is continuity-only, not another app/schema fix.
+
+## 2026-10-05 — Awake draft-save rehearsal retained; inventory bottleneck isolated
+
+Normal8 onreviewed90f under utilityscopedcaffeinate/lidopen reached42SDKrequests
+and completed rollbackSQLcontracts plus wholefixture comparison before races.
+Race suite exhausted unchanged180s total atconcurrency.ts:80; native2444controls/
+162actions/0sessions, not all16schedulePASS. Exactephemeralcleanup and separate
+WHOLEpinnedB1 comparison PASS; no normalreceipt/genuineartifact/canonical249apply.
+Original B0/B1/receipt/provenance retained; no auth/PAL exemption or recapture.
+
+Bounded6.1Sol/high read-only investigation measured completeinventory463–798ms
+versus warmGit/source~45ms, three samplesonly/noSQL. Variance doesnotprove speedup.
+Rootaccepted proposalonly: PATCH-native seam chunks largecontainer inspections
+while preserving original collector/parser/nativeendpoint/config/socket checks.
+TwoCLIworkers reserve thirdslot for oneexistingbulkvolumeHTTP; samefreshgraph,
+20s/64MiB/failure settlement/dispatch barriers, originalguards/caps unchanged.
+Worker owns onlynewhelper/newoffline tests/nativecallsite; rootdocs/Git/review/
+runtime. Source TDD/independent acceptance before anynew rehearsal; no blindretry.
+
+Rebased onto84a657ebe/main1486, preserving approvedUI motion; archive conflict
+union keeps completeupstream histories and allbranchmarkers without adding
+already-present identical receipt bodies. Application/249/native/sharedcollector
+byteequal90f; no migrationrenumbering/newstash/pop,36unrelatedstashes preserved.
+Reviewclock12:51:50Z/cumulative15launch13target7batch0final retained under human
+workflowwaiver. Weekly43percentremainingaccountwide/attributableunknown; DeepSeek
+paused. Draft1480 notready; finalsource review/normal+bothforced/genuinecontracts/
+exactCI/mainmerge remain. No production/account/cohort/billing/provider operation.
+
+## 2026-10-05 — PATCH inventory chunk correction prepared
+
+Bounded Sol6.1/high worker delivered four source/test paths in approximately12min;
+root inspected full output and independently verified154/154 tests in8.36s. Offline
+realsharedcollector/parser graph129containers/617volumes/23networks preserves
+completeinventory, bulkHTTP/socketchecks, ordered32-IDchunks, twoCLIworker bound,
+queueinclusive20s/output64MiB/failure settlement. Actual180s race fit remains
+unproved. No native/SQL/Docker/typegeneration/CI/prod operation by implementation
+worker; effectiveconfig/attributableusage unknown. Root owns sourcefreeze,
+requiredchecks, originalaudit, targetedindependent review/newverifyonlyB1binding
+and onefinite normalplan before execution. Originalcheckpoints/counters preserved.

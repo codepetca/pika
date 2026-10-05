@@ -7,7 +7,7 @@ import { isAbsolute, normalize, resolve } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import type { AssignmentListResource } from './contextual-assignment-list-proof-lifecycle'
-import { testOwnerListDockerInventory } from './contextual-test-owner-list-proof-inventory'
+import { draftSaveProofDockerInventory } from './contextual-test-draft-save-proof-inventory'
 import { validateIntegratedGuardResources } from './check-contextual-assignment-learner-integrated-lifecycle'
 import { testOwnerDigest, testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import {
@@ -224,7 +224,7 @@ export function createDraftSaveNativeContracts(input: {
     for (const result of checks) if (result.status === 'rejected') throw result.reason
     assert.equal(draftSaveMigrationManifestSha256(input.repository), manifest.migrationManifestSha256)
     assert.equal(testOwnerDigest(readFileSync(resolve(input.repository, 'supabase/migrations/249_contextual_test_draft_owner_save.sql'), 'utf8')), manifest.sourceSha256)
-    const all = await testOwnerListDockerInventory()
+    const all = await draftSaveProofDockerInventory()
     validateIntegratedGuardResources(all, project, input.containerId, closure as AssignmentListResource[])
     await verifyEndpoint()
     if (!cleanup) check(observe)

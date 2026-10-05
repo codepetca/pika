@@ -38151,6 +38151,7 @@ unrelatedschemas/literals/unusedreads rejected. Baseline24 unchanged; app/proof/
 CI/schema/depsidentical. ExistingTypeScript reused,no dependency. Samefixbudget4;
 originalclock/deadline/hardlimits retained; targetedreviewandfreshCIpending.
 
+<!-- pika-session-log-archive-batch:3ed2d4e7fea2f07553574e1e74a557b2defed0e03078fb295b52f12986a948c2 -->
 ## 2026-10-04 — Broad audit remediation batch 1
 
 Owner authorized planning and orchestration to fix the 27-finding broad audit at main `3c5d7097`. Plan: `docs/guidance/codebase-audit-remediation-2026-10.md`; existing audit handoff tracks per-finding evidence and worker receipts. Feature worktree `codex/audit-remediation`; full startup passed after frozen-lockfile installation, with no dependency changes. Three bounded GPT-6.1 Sol workers (auth high; guidance and patterns medium) delivered non-overlapping source/tests. Auth regressions: 172/20 PASS, including one initial-password winner, login origin/JSON and UTF-8 limits; S1 remains partial pending atomic issuance/handoff generation fencing. Patterns regressions: 69/8 PASS, covering cache/poll retention, survey shapes and directly imported script-test selection. Guidance reconciles source/local/hosted checkpoints and routing, removes direct-main landing instructions, and fails startup for missing required inputs. Startup context ceiling deliberately increased from 16k to 17k characters for readable dated labels and receipt/remaining-gate text. No migration, database, hosted flag or production mutation. Draft publication and cumulative verification receipts remain with coordinator; independent review not yet launched. Codex weekly remaining at start 8%; DeepSeek paused through 2026-12-31; pr-review low-usage human checkpoint applies before reviewer launch. Goal remains active; no finding accepted from implementation delivery alone.
@@ -38264,3 +38265,54 @@ review/rootfinite-manifestacceptance precede actualdisposableSDKnormal+2forced.
 Attributableactive/tokensunknown. Originalsealedauthority/lifecycle/controls/
 cleanup/native bytesunchanged. No migration/production/cohort/home/account/
 provider/billing activation; phase2/3active,4/5dormant,goal incomplete.
+
+## 2026-10-04 — Docker recovery; owner Test list runtime held
+
+1469 remains draft/unmerged, reviewed a000cb3c with two independent CLEAN source
+reviews, launch2/initial1/fix0. Original16:03Z review clock/counters retained;
+direct human task-stop override waives workflow review/usage stops, not proof,
+CI, source authority or rollout gates. Human Yes authorized Docker restart.
+Normal CLI restart timed out; seven verified Docker-app processes received TERM,
+one stuck verified backend then KILL; official start recovered engine29.7.2.
+No images, volumes, container data or unrelated source/stashes were deleted.
+
+External dependency target was missing. Root restored only this worktree's own
+dependencies with unchanged-lockfile install:696 reused/zero downloads. Recovery
+load caused2 test timeouts, isolated39 passed, then full197/14 and all static gates
+passed without weakening timeouts. Source/lock and reviewed HEAD remain unchanged
+apart from this pending continuity entry. Finite manifests explicitly accepted;
+new once-wx0600 private1469 canonical baseline captured, old1468 preserved.
+
+Normal SDK attempt17:39:35Z failed startup180s before extension setup. Exact owned
+CLI descendants outlived wrapper timeout; root verified project2e6078d26139 and
+TERM'd only those two processes. Cleanup failures and closed-platform independent
+baseline verification failure mean neither cleanup nor canonical equality is
+proved; no data-change claim either. Host177MiB free; temporary workdir retained.
+No forced runs, ready CI, merge, production or activation. Preserve SAME baseline;
+recover stable disk/API, inspect and finish exact owned-resource cleanup, verify
+baseline, then retry. Private1469 ledger contains receipts; no baseline recapture.
+
+Human then authorized Mac-space cleanup. Removed only npm's reconstructible3GiB
+download cache and pnpm's unreferenced cached packages (68334files/1597packages,
+no force/alien deletion). Hostfree486MiB→7.2GiB, approx6.7GiB recovered. Installed
+dependencies/source/worktrees/36stashes/Playwright browsers and Docker data remain.
+Docker-only cache pruning could not load its builder; API still unresponsive
+after space recovery. No new SDK attempt or baseline recapture. Preserve prior
+failed-proof namespace2e6078d26139 for exact owned cleanup/equality verification.
+
+<!-- pika-session-log-archive-batch:ef694feb37ac75bb14d2c314f78c1a3561dc06f6ff971f1d53b1eab5b8a02d27 -->
+## 2026-10-04 — Owner Test list disk recovery and guidance-main reconciliation
+
+Docker29.7.2 recovered; host144GiB free observed independently, not attributed to
+our6.7GiB package-cache cleanup. Fresh global/label/attachment checks authorized
+exact failed-startup2containers/1network/1volume cleanup; generated directory stays
+private for diagnostics. SAME1469 canonical baseline fivefield equality PASS.
+Unchanged-source normal retry65de445a exited1: Storage unhealthy, no extension
+setup. Exact teardown succeeded and SAME independent baseline equality PASS.
+No forced modes/readyCI/merge/activation; one Sol6.1/high read-only worker diagnoses
+Storage startup. Rebased onto guidance-only1462/main24cb8847; app/proof/CI/schema/
+package/lock bytes unchanged. Kept incoming guidance, removed three proven surplus
+history copies while retaining original full bodies. Startup budget failed17149;
+CURRENT-only shortening gives76startup tests PASS, without gate changes. Full
+230focused/14files and all static gates PASS; history multiset/no missing/surplus
+PASS. Runtime verification remains required;36stashes/prod225 preserved.
