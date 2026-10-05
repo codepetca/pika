@@ -8,7 +8,7 @@ body/security/owner/ACL checks PASS, history complete, twelve controls unchanged
 Application83b683c READY; public traffic held by operator-only WAF.
 Forward248 fixes hosted custom40001 retry loops with PT409 and dual-code API409.
 CI37264085316: all gates PASS. Details in the session log.
-History reconciliation: normal main PR; app/SQL unchanged.
+Release branch reconciles production history; app/SQL unchanged.
 Matching deployment, canaries, cleanup and traffic release pending.
 Owner task-wide instruction waives further approval requests.
 
