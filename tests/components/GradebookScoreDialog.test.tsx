@@ -57,3 +57,12 @@ describe('GradebookScoreDialog original marks', () => {
     expect(screen.getByRole('button', { name: 'Clear mark' })).toBeDisabled()
   })
 })
+
+
+it('explains immediate student visibility only for standalone item marks', () => {
+  const props = { isOpen: true, student: null, isSaving: false, onClose: vi.fn(), onSave: vi.fn() }
+  const view = render(<GradebookScoreDialog {...props} target={{ kind: 'item', title: 'Participation', value: 8, possible: 10 }} />)
+  expect(screen.getByText('Marks are visible to students as soon as you save them.')).toBeVisible()
+  view.rerender(<GradebookScoreDialog {...props} target={{ kind: 'assessment', title: 'Essay', value: 8, possible: 10 }} />)
+  expect(screen.queryByText('Marks are visible to students as soon as you save them.')).not.toBeInTheDocument()
+})

@@ -37304,7 +37304,7 @@ billing/provider changes; critical roster-owner node_modules and prior branches
 retained. Existing authorization covers routine local application/review/extensions/
 normal mainmerge, not bypass or uncontrolled production activation.
 
-<!-- pika-session-log-archive-batch:1f59b7f5a13cdf76355d6c0be50ea0a3a96036b197b1eba96de05f54799a464d -->
+<!-- pika-session-log-archive-batch:d4b732948795178faac943b61ddbe318abb8a11f6b2523d8c17f864600a6da23 -->
 ## 2026-10-04 — Locked learner writes local verification and parent reconciliation
 
 1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
@@ -37332,7 +37332,7 @@ identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clo
 Productionlast225/admission/home/cutover/account/billing/provider unchanged;
 batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
 
-<!-- pika-session-log-archive-batch:1e29af9b258866ff20bfb46212a51805c44df8c8019bd005b93ec9479e1a7ce1 -->
+<!-- pika-session-log-archive-batch:a6d73911fd7534beebc4fde4d09e909f0394180eaedeac6eb0d0ef56cf561560 -->
 ## 2026-10-04 — Supplemental learner permission source preparation
 
 1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
@@ -37397,3 +37397,189 @@ concealment remains nextbounded prerequisite; assessments/goal incomplete. Local
 main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
 worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
 and localmigration override retained; no bypass or production permission inferred.
+
+<!-- pika-session-log-archive-batch:bf758b43b29bf205b588307db3287def334f352c93ab2140d07c300fadbcc881 -->
+## 2026-10-04 — Supplemental learner local verification on actual main
+
+1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
+source tree; root168focused/static/47Bara/startup/audit PASS. Distinct5.6Sol/high
+initial reviews: securityCLEAN, compatibilityP1validpurged168 NULLscope disappears
+under NOT IN after fixture creation. Both baseline snapshots use correlated
+NOT EXISTS; meaningful1RED/21PASS→22GREEN. Source-only targeted reviewCLEAN.
+242 applied once locally, exact001–242history, genuine typesgenerate/check zero
+drift; SQLdigest48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e
+immutable/no reapplication. Actual PostgreSQL caught unparenthesized CASE in the
+new regression then original compatibility assertions. Root audited allCASE sites,
+two additional proof-only batches/regressions/targeted reviewsCLEAN; each failed
+transaction rolled back and wholecanonicalbaselinePASS. No SQL/application/control
+change, gate weakening or cleanup workaround. Original08:43clock/counters retained.
+
+Runtime d5dea393 new242/allsevenwrapper concealed+visible/ownerhistory/revision/
+restore/submission/nonemptyartifact/inlineeffects PASS; unchanged188189history and
+190artifact rollback contracts PASS. Fullcanonical public/private/Storage counts+
+digests/168metadata/settings/cron/resources unchanged. Full213inline script includes
+committed race fixture: finalCI ephemeral-only, never run on canonical retained
+identities. Strict001242 isolated replay9learnerprojections/6originalrevocations
+plus original listcontrols PASS; nine sealedRPCstubs falsecreated/view, zero actual
+openRPC/Storage/provider network. Bothforcedmodes exit1/exact2markers/teardown/full
+canonicalPASS, private0600 receipts UhgV7p/o2i0fH. Originalobserver authority unchanged;
+no realopen/nonemptySDKsupplements/liveSigning/authHTTP/browser/concurrentvisibility
+proof. Factualreceipt batch/finalcumulative/CI/mainmerge next. Latest213imageREAD
+concealment remains nextbounded prerequisite; assessments/goal incomplete. Local242/
+main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
+worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
+and localmigration override retained; no bypass or production permission inferred.
+
+## 2026-10-04 — Locked inline-image read source preparation
+
+1459 final cumulative security review CLEAN on9f15e6e2; one ready-event exact CI
+37191597295 is running. Source frozen, original review clock/counters retained;
+explicit human-authorized extension to10:43Z for CI/normal merge only. No duplicate
+watcher, production operation or activation. Local242/main241 still.
+
+Disjoint243 source worker6.1Sol/high completed/relinquished only SQL/test/harness;
+root sole writer verified complete213 body preservation after minimal locked
+nonowner Classwork predicate. Owner inspection, original locks/error/DTO/status/
+ACL contracts unchanged.9new/90related worker checks PASS; root71new/CI/floor checks,
+bash-n/diff PASS. New exactcanonical c243/sc243 rollback metadata fixture prepared
+NOTRUN: verified/ready controls, both role labels, hidden404/owner inspection and
+invalid bindings with whole-row/settings/cron/resources/guards equality. Existing
+117 begin/schema accepts synthetic metadata; no physical Storage bytes/API/network.
+NULL-scope retained evidence and CASE grammar regressions retained from242.
+Strict replay floor only advances to243; fixture/transitions/restoration/cleanup
+authority unchanged. Candidate243 UNAPPLIED; actual1459merge/tree parity/reconcile,
+independent reviews and genuine local types/runtime/replay precede ready/CI/merge.
+No realopen/signing/nonemptySDK/HTTP/browser/concurrency proof inferred. Assessment
+phase/goal incomplete; productionlast225/admission/home/cutover/billing/providerOFF.
+
+Superseding parent receipt:1459 exactreviewed9f15e6e2 all5CI37191597295PASS
+(0queue/1698runseconds), normal squash01aedcec8 merged09:46:04Z; actualmerged state,
+tree parity and canonical cleanFF verified.243 clean prepared branch rebase--onto
+actualmain preserves complete source tree and unrelated stashes; no resequencing
+or applied-SQL edits. Local/main242;243UNAPPLIED. Frozen-source highriskreview next.
+
+## 2026-10-04 — Inline-image read local verification
+
+1460 draft47724239 distinct5.6Sol/high security+compatibility initial reviews CLEAN.
+Root157focused/static/47Bara/startup/audit PASS on actualmain01aedcec8. Explicit
+local preview only243; appliedonce, exact001–243 history, genuine typesgenerate/
+check zero drift. SQLhash7de3fd531a1c4144dbb6b0fc2ede3c1ba4a6503d4305af1df3cf0a3fbb21779d
+immutable/no reapplication. First actual fixture run rejected baseline history on
+already-submitted docs under untouched179 guard; full transaction rolledback and
+independent wholecanonical baselinePASS. Two-file proof-only40ce325b correction
+uses exact submit snapshots;1RED/9PASS→10GREEN,158focused/static and targeted
+compatibility review CLEAN. No migration/guard/control/application change.
+
+Actual243 complete visible/hidden/default shapes, genuine verified/ready metadata,
+both rolelabels/owner hiddenarchive/draft inspection, enrollment/subject/object/
+lifecycle/status/error/fullDTO/noeffects and unchanged242 rollback PASS. Original
+strict001243 isolated normal9projections/6SAMEoriginalrevocations plus oldlist
+controls PASS; nine sealedRPCstubs falsecreated/view, zero actualRPC/Storage/provider.
+Both forcedmodes expectedexit1/exact2markers/ownedcleanup/fullcanonicalPASS;private
+0600 receipts67HS1D/25vnVp. Independent preapplication full public/private/Storage
+rowdigests+168metadata/settings/cron/resources equality afterallPASS. No liveSigning/
+actualopen/nonemptySDK/authHTTP/browser/visibilityrace claim. Fullold213 committed
+race only inephemeralCI, never canonical retained168identities. Receiptbatch/final
+cumulative review/exactCI/normalmainmerge next. Original09:48:11clock/counters kept.
+Local243/main242/prodlast225; admission/home/cutover/billing/providerOFF. Read-only
+next integration proposal separate from immutable observer authority; no phaseexit.
+
+## 2026-10-04 — Assignment integrated SDK source preparation
+
+1460 final cumulative5.6Sol/high review CLEAN e98b78ef,158focused/static/47Bara/
+startup PASS. Ready event10:15:15Z started singleeligibleCI37194768940;source frozen.
+Original09:48:11clock/counters4launch/1target/1final/2fix retained, explicit human
+reviewextension to11:48:11Z for CI/normalmerge only. No duplicate watcher or bypass.
+Local243/main242;productionlast225 unchanged,admission/home/cutover/providerOFF.
+
+Read-only6.1Sol/high proposal identifies realopen/nonemptySDK/signing gaps beyond
+sealedobserver. Separate validatedworktree startsfromreviewede98; worker owns only
+three new proof files,source-only/no DB/network/Storagecalls. Originalfixture/
+observer/SQLallowlist/transitions/restoration/lifecycle/platform/cleanup immutable.
+Proposed disjoint finiteextension caps4actors/3classes/8assignments/8images<=1024B,
+SQL<=256KiB,512requests/64Storage/15s perrequest;exactfresh54331/54332 identities,
+168169guardsON/persistedgatesOFF/no provider/cron/vault,canonicalreadonly/no cleanup
+of individualrows/objects. Independentreview and rootexactmanifestacceptance before
+futureexecution;source preparation itself grants no new livebytes authority. Root
+serialCI exactforced2marker regression1RED/21PASS→22GREEN/ESLint/diffPASS;guide records
+constraints and unprovedHTTP/browser/removal/race. No newmigration/productcode or
+phaseexit implied. Actual1460merge/treeparity/reconcile precede next publication.
+
+Superseding parent receipt:1460 exacthead e98b78ef allfiveCI37194768940 checks
+SUCCESS includingPRGate;normal squash3c5d7097 at10:43:25Z verified, full-treeparity
+and clean canonical main fast-forward. ObservedCI0queue/1541runseconds; lifecycle
+receipts recorded. Keep dependencyworktrees/36unrelatedstashes;no production.
+Sourceworker explicitly relinquishedthree newfiles at10:43Z;8RED→31GREEN/136related/
+TypeScript/ESLintPASS. Root independently readall source;141checks/3suitesPASS
+(newproof/learneropen/CI;one mistakenly requested nonexistent observerpath didnot
+run). Frozen generator/template acceptance means exact per-run SQLdigest checked
+at dispatch, not operator reapproval of random IDs. No liveextensioncalls yet.
+
+Draft1461 exact1963f88e published afteractualmain rebase/139focused11suites/static/
+47startup/auditPASS. Two distinct5.6Sol/high initialsource reviews CLEAN(53security/
+201compatibility checks), no liveexecution. Root independently reproduced omitted
+feedback.assignment_id SDKpredicate rejection;new1RED31PASS→32GREEN fixes only
+currentAssignment exact-equality predicate, otherAssignment substitution denied.
+Single proof-only batch plus targetedreview before anyruntime;initialCLEANdoesnot
+override rootblocker. Budgetoriginal10:46:45/2launch1initial0target0final retained.
+Attachment attempted;identitylimit>100,no unrelateddeletion. Local/main243/prodlast225
+and all rolloutcontrols unchanged;assessmentphase incomplete.
+
+Targeted5114fff5 feedbackpredicate review CLEAN/32new120relatedPASS;root140focused/
+staticPASS. Root explicit finite reviewed disposable-local manifest acceptance,
+private0600 baseline capture thennormalruntime exit1/closedgenericfailure. Independent
+wholecanonical fivefields unchanged afterward;forced modesnotstarted, actualmatrix
+unproved. Root adds onlyclosed stage/step/cleanupdiagnostic labels with1RED32PASS
+regression;no privatevalues serialized/nativeauthority/product/schema/gates changes.
+Secondproof-only correction requiresreview before retry;original10:46:45 budget,
+3launch1initial1target0final1fix retained untilbatchcomplete. No production.
+
+Closeddiagnostic287de55c reviewedCLEAN/33newPASS;root141focused/staticPASS. Retry
+normal reportsfixture/extension-sql/cleanupnone;independentfivefieldbaselineunchanged.
+No SDKmatrix/forcedsuccess inferred. Sourcefound099artifact insert-after-submit
+violation;thirdfixture-only TDDordering1RED33PASS→34GREEN/172relatedPASS: newdocdraft,
+linkinsert, syntheticdocsubmit/return, then179snapshot beforedeferred099commit.
+Noexistingrows/guard/historyrepair/product/schema/capchanges. Targetedcompatibility
+andupdatedfinite manifest acceptance before anyretry;original10:46:45 clock kept.
+
+Thirdattempt60b3f874 aftertargetCLEAN:fixtureSQL passed;normalfailedopen-create,
+cleanupnone/independentwholecanonicalfivefields unchanged. Forcednotstarted/no
+matrixPASS claim. Root adds proof-onlyclosed transportphase/operation/status,
+allowlistederrorcode/aborted signal/timebucket/count diagnostics;2RED34PASS→36GREEN,
+163related/ESLint/auditPASS. No underlyingprivatevalues or native/appguard/deadline
+changes. Humanexplicitreviewextension recorded13:46:45 original10:46:45 retained;
+4thbatch/targetreview before justifiedretry;production/admission/cutover untouched.
+
+FourthtargetSolreview blocks misleading reset-to-zero guardduration receipt;
+no runtime retry. Fifthbatch only undefined/unobserved timing plus finallyelapsed
+and2regressions(2RED36PASS beforefix), fixed labels/no enforcement/deadline changes.
+Explicituserextension13:46:45 keepsoriginalclock/counters/hardcaps;targetthen
+actualruntime/finalintegration required. Root offline mockedSDK realopen+transport
+10dispatchesPASS/no networkSQL;doesnot establishexclusiveactualfailurecause.
+
+Fifthtargetb433b883 CLEAN. Fourthnormal SDKrequest5/openRPC1 aborted=true during
+heavyguard checks;fixtureSQL+cleanupPASS/independentcanonical5fields unchanged.
+Sixthbatch removes repeated inventories/unusedtablehashes insideapp20s, NOTguards:
+freshcompleteinventory/exactownedclosure/labels/54332dbport/foreignattachment plus
+oneboundreadonlySQL retains168169/all5gatesOFF/noAIruns/Vault/privatebuckets/cron.
+Original native/lifecycle/wholebaseline/cases/teardown immutable;no caching or
+deadline/cap/control expansion.2RED38PASS→40GREEN/179related/ESLint/auditPASS;
+targetreview andupdatedrootfiniteguard manifestacceptance before retry. ProdOFF.
+
+Sixthtarget45084a8b guard-equivalence CLEAN/40newPASS. Root explicitly accepted
+frozenfinitequery/template/manifest;serialnormal29actualSDKcases PASS(create/view,
+repeat,supplements,artifact+inline signing/tinyPNGdigest) plusoriginallist/revocation/
+restoration/ownedteardown+canonical closure. Both forcedmodes expectedexit1/exact2
+markers afterfullsetup/eightuploads PASS. Savedindependentpublic/private/Storage/
+168/settings/cron/resources unchanged before/afternormal/afterpair. Private0600
+CyJkHx/EN7APq receipts;no reset/canonicalDML/providers/appHTTP/browser/race/activation.
+Seventhbatch facts-only retains runtime source45084a8b;finalcumulativereview/CI/
+normalmainmerge next. Original10:46:45/extended13:46:45,8launch/6target/6fix retained
+untilbatchcommit;hard12/8/8 andphaseexitgates unchanged. Local243/prodlast225.
+
+Finalcumulative52c8b526 review found one stale future-tense delivery paragraph
+despite completeactualreceipt;eighth/finalfacts-onlybatch corrects to recorded
+upload/sign/fetch/digest results andretains appHTTP/browser/removal/race exclusions.
+No source/runtime/CI/schema bytes change or repeatedDBproof. Targetedsame-reviewer
+doccorrection check precedes stable-headCI;original10:46:45 clock/extension13:46:45,
+hard8fix/8target/12launch retained. No production/cohort/account/provider changes.
