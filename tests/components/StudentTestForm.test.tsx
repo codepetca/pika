@@ -21,6 +21,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-preview-id"
         questions={[
           createMockTestQuestion({
@@ -51,6 +52,7 @@ describe('StudentTestForm', () => {
   it('labels open-response textboxes for assistive technology', () => {
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-open-response-label-id"
         questions={[
           createMockTestQuestion({
@@ -71,6 +73,7 @@ describe('StudentTestForm', () => {
   it('requires non-blank open responses before enabling submit', () => {
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-open-response-submit-id"
         questions={[
           createMockTestQuestion({
@@ -103,6 +106,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-flag-id"
         questions={[
           createMockTestQuestion({
@@ -149,6 +153,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-existing-flag-id"
         questions={[
           createMockTestQuestion({
@@ -174,6 +179,7 @@ describe('StudentTestForm', () => {
   it('toggles flagged state exactly once for Enter and Space', () => {
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-flag-keyboard-id"
         questions={[
           createMockTestQuestion({
@@ -214,8 +220,8 @@ describe('StudentTestForm', () => {
     vi.setSystemTime(new Date('2026-08-10T12:00:00Z'))
 
     const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
-    let resolveSave!: (value: { ok: boolean; json: () => Promise<Record<string, never>> }) => void
-    const saveResponse = new Promise<{ ok: boolean; json: () => Promise<Record<string, never>> }>(
+    let resolveSave!: (value: { ok: boolean; json: () => Promise<{ attempt: { draft_revision: number } }> }) => void
+    const saveResponse = new Promise<{ ok: boolean; json: () => Promise<{ attempt: { draft_revision: number } }> }>(
       (resolve) => {
         resolveSave = resolve
       }
@@ -224,6 +230,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-autosave-status-id"
         questions={[
           createMockTestQuestion({
@@ -250,7 +257,7 @@ describe('StudentTestForm', () => {
 
     fireEvent.change(textbox, { target: { value: 'A retained response.' } })
 
-    expect(screen.getByText('Unsaved changes', { selector: '.text-xs' })).toBeInTheDocument()
+    expect(screen.getByText('Unsaved', { selector: '.text-xs' })).toBeInTheDocument()
     expect(autosaveStatus).toHaveTextContent('Unsaved changes')
 
     await act(async () => {
@@ -258,11 +265,11 @@ describe('StudentTestForm', () => {
     })
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(screen.getByText('Saving...')).toBeInTheDocument()
+    expect(screen.getByText('Saving…')).toBeInTheDocument()
     expect(autosaveStatus).toHaveTextContent('Saving')
 
     await act(async () => {
-      resolveSave({ ok: true, json: async () => ({}) })
+      resolveSave({ ok: true, json: async () => ({ attempt: { draft_revision: 42 } }) })
       await saveResponse
       await Promise.resolve()
     })
@@ -272,7 +279,7 @@ describe('StudentTestForm', () => {
   })
 
   it.each([
-    ['succeeds', { ok: true, json: async () => ({}) }],
+    ['succeeds', { ok: true, json: async () => ({ attempt: { draft_revision: 42 } }) }],
     ['fails', { ok: false, json: async () => ({ error: 'Stale save failed' }) }],
   ])(
     'keeps newer changes unsaved when an older autosave %s',
@@ -283,13 +290,13 @@ describe('StudentTestForm', () => {
 
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       let resolveFirstSave!: (value: typeof firstSaveResult) => void
-      let resolveSecondSave!: (value: { ok: boolean; json: () => Promise<Record<string, never>> }) => void
+      let resolveSecondSave!: (value: { ok: boolean; json: () => Promise<{ attempt: { draft_revision: number } }> }) => void
       const firstSaveResponse = new Promise<typeof firstSaveResult>((resolve) => {
         resolveFirstSave = resolve
       })
       const secondSaveResponse = new Promise<{
         ok: boolean
-        json: () => Promise<Record<string, never>>
+        json: () => Promise<{ attempt: { draft_revision: number } }>
       }>((resolve) => {
         resolveSecondSave = resolve
       })
@@ -299,7 +306,8 @@ describe('StudentTestForm', () => {
 
       render(
         <StudentTestForm
-          testId="test-stale-autosave-id"
+          initialDraftRevision={1}
+        testId="test-stale-autosave-id"
           questions={[
             createMockTestQuestion({
               id: 'q1',
@@ -335,7 +343,7 @@ describe('StudentTestForm', () => {
       })
 
       expect(textbox).toHaveValue('Newer response.')
-      expect(screen.getByText('Unsaved changes', { selector: '.text-xs' })).toBeInTheDocument()
+      expect(screen.getByText('Unsaved', { selector: '.text-xs' })).toBeInTheDocument()
       expect(autosaveStatus).toHaveTextContent('Unsaved changes')
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
@@ -347,7 +355,7 @@ describe('StudentTestForm', () => {
       expect(autosaveStatus).toHaveTextContent('Saving')
 
       await act(async () => {
-        resolveSecondSave({ ok: true, json: async () => ({}) })
+        resolveSecondSave({ ok: true, json: async () => ({ attempt: { draft_revision: 42 } }) })
         await secondSaveResponse
         await Promise.resolve()
       })
@@ -370,6 +378,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-autosave-error-id"
         questions={[
           createMockTestQuestion({
@@ -405,6 +414,7 @@ describe('StudentTestForm', () => {
   it('does not render autosave status in preview mode', () => {
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-preview-autosave-id"
         questions={[
           createMockTestQuestion({
@@ -434,6 +444,7 @@ describe('StudentTestForm', () => {
   it('exposes locked flag controls as disabled and does not toggle them', () => {
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-flag-locked-id"
         questions={[
           createMockTestQuestion({
@@ -471,6 +482,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-warning-id"
         questions={[
           createMockTestQuestion({
@@ -507,6 +519,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-footer-id"
         questions={[
           createMockTestQuestion({
@@ -551,6 +564,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-radio-position-id"
         questions={[
           createMockTestQuestion({
@@ -580,6 +594,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-markdown-options-id"
         questions={[
           createMockTestQuestion({
@@ -614,6 +629,7 @@ describe('StudentTestForm', () => {
 
     render(
       <StudentTestForm
+        initialDraftRevision={1}
         testId="test-closed-id"
         questions={[
           createMockTestQuestion({

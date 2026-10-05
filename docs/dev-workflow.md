@@ -298,30 +298,18 @@ transition.
 
 `main` is configured to reject merge commits. Use linear history only.
 
-Preferred:
-- Open a PR and use **Squash and merge**.
+Land changes through a PR after the automatic draft-first lifecycle above:
 
-If landing from local CLI:
-```bash
-cd "$HOME/Repos/pika"
-git fetch origin
-git checkout main
-git pull --ff-only origin main
+1. Confirm the final reviewed SHA is stable and `PR Gate` passes on that SHA.
+2. Confirm the normal merge authority gate is satisfied.
+3. Use **Squash and merge**, or from the feature worktree:
+   ```bash
+   gh pr merge <PR> --squash
+   ```
 
-# Option A: squash feature branch into one commit
-git merge --squash origin/<feature-branch>
-git commit -m "<summary>"
-git push origin main
-
-# Option B: cherry-pick specific commits (also linear)
-git cherry-pick <sha> [<sha>...]
-git push origin main
-```
-
-Avoid:
-```bash
-git merge --no-ff <branch>   # creates merge commit (rejected on main)
-```
+Do not create local landing commits or push directly to `main`. The hub is for
+worktree administration; keep implementation and PR operations in the owning
+feature worktree. Production promotion has its separate protected PR procedure.
 
 ## Post-merge cleanup
 

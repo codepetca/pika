@@ -7,11 +7,20 @@ import {
   assertTeacherOwnsClassroom,
 } from '@/lib/server/classrooms'
 import { getClassroomCourseGuide } from '@/lib/server/course-guide'
+import { authorizeSharedCourseGuideReadActor, readContextualCourseGuide } from '@/lib/server/contextual-course-guide-read'
+import { contextualCourseGuideReadParamsSchema } from '@/lib/validations/contextual-course-guide-read'
+import { getServiceRoleClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = withErrorHandler('GetClassroomCourseGuide', async (_request, context) => {
+  const sharedAccess = await authorizeSharedCourseGuideReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { classroomId } = contextualCourseGuideReadParamsSchema.parse(await context.params)
+    const guide = await readContextualCourseGuide({ supabase: getServiceRoleClient(), actorId: sharedAccess.user.id, classroomId })
+    return NextResponse.json({ guide })
+  }
   const { classroomId } = await context.params
   const coreAccess = await authorizeClassroomCoreRequest(classroomId, { permission: 'read' })
   const { user } = coreAccess

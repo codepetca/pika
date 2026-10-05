@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { RichTextViewer } from '@/components/editor'
+import { ClassroomBlueprintMaterials } from '@/components/ClassroomBlueprintMaterials'
 import { markdownToTiptapContent } from '@/lib/limited-markdown'
 import { fetchCachedJSON } from '@/lib/request-cache'
 import type { CourseBlueprintAuthoringGuidance } from '@/lib/course-blueprint-authoring-guidance'
@@ -247,6 +248,9 @@ export function TeacherBlueprintTab({ classroom, isActive, sectionParam, onSecti
                 <div className="grid gap-4 md:grid-cols-2">
                   <TitleList title="Assignments" titles={course.assignment_titles} />
                   <TitleList title="Tests" titles={course.test_titles} />
+                  <div className="md:col-span-2">
+                    <ClassroomBlueprintMaterials classroomId={classroom.id} />
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">

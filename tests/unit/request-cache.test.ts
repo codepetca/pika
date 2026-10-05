@@ -23,6 +23,7 @@ function deferred<T>() {
 describe('request cache', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   afterEach(() => {
@@ -54,6 +55,44 @@ describe('request cache', () => {
     await expect(second).resolves.toEqual({ version: 1 })
     expect(fetcher).toHaveBeenCalledTimes(1)
     expect(skippedFetcher).not.toHaveBeenCalled()
+  })
+
+  it('deduplicates zero-TTL pending reads without retaining settled values', async () => {
+    const key = `${TEST_PREFIX}zero-ttl`
+    const stored = vi.spyOn(Map.prototype, 'set')
+    const pending = deferred<{ version: number }>()
+    const fetcher = vi.fn(() => pending.promise)
+    const first = fetchJSONWithCache(key, fetcher, 0)
+    const second = fetchJSONWithCache(key, fetcher, 0)
+    pending.resolve({ version: 1 })
+    await expect(first).resolves.toEqual({ version: 1 })
+    await expect(second).resolves.toEqual({ version: 1 })
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(stored.mock.calls.filter(([storedKey, entry]) => storedKey === key && !entry.pending)).toEqual([])
+    stored.mockRestore()
+    await expect(fetchJSONWithCache(key, async () => ({ version: 2 }), 0)).resolves.toEqual({ version: 2 })
+  })
+
+  it('evicts expired unique keys on the next read while preserving pending requests', async () => {
+    const key = `${TEST_PREFIX}expired`
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1000)
+    await fetchJSONWithCache(key, async () => ({ version: 1 }), 10)
+    const pending = deferred<{ version: number }>()
+    const pendingKey = `${TEST_PREFIX}expired-pending`
+    const read = fetchJSONWithCache(pendingKey, () => pending.promise, 10)
+    const removed = vi.spyOn(Map.prototype, 'delete')
+    clock.mockReturnValue(1011)
+    await fetchJSONWithCache(`${TEST_PREFIX}other`, async () => null, 10)
+    expect(removed).toHaveBeenCalledWith(key)
+    expect(removed).not.toHaveBeenCalledWith(pendingKey)
+    const skippedFetcher = vi.fn(async () => ({ version: 2 }))
+    const concurrentRead = fetchJSONWithCache(pendingKey, skippedFetcher, 10)
+    pending.resolve({ version: 1 })
+    await expect(read).resolves.toEqual({ version: 1 })
+    await expect(concurrentRead).resolves.toEqual({ version: 1 })
+    expect(skippedFetcher).not.toHaveBeenCalled()
+    removed.mockRestore()
+    clock.mockRestore()
   })
 
   it('does not cache a stale in-flight value after direct invalidation', async () => {

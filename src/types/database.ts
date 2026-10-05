@@ -230,8 +230,8 @@ type TableOverrides = {
   >
   test_attempts: TableContract<
     'test_attempts',
-    { authenticity_flags: AuthenticityFlag[] | null },
-    { authenticity_flags?: AuthenticityFlag[] | null }
+    { authenticity_flags: AuthenticityFlag[] | null; draft_revision: number },
+    { authenticity_flags?: AuthenticityFlag[] | null; draft_revision?: number }
   >
   test_focus_events: TableContract<
     'test_focus_events',
@@ -279,6 +279,45 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // PostgreSQL function metadata does not encode nullable input contracts.
+  finalize_auth_verification_attempt_v1: FunctionContract<
+    'finalize_auth_verification_attempt_v1',
+    Json,
+    Replace<GeneratedFunctions['finalize_auth_verification_attempt_v1']['Args'], {
+      p_handoff_expires_at: string | null
+      p_handoff_token_hash: string | null
+    }>
+  >
+
+  // Installed239's optional cursor/subject/snapshot arguments accept SQLNULL.
+  // Refine only their nullability while retaining genuine generated RPC keys.
+  discover_retained_student_cleanup_groups: FunctionContract<
+    'discover_retained_student_cleanup_groups',
+    Json,
+    Replace<GeneratedFunctions['discover_retained_student_cleanup_groups']['Args'], {
+      p_student_id?: string | null
+      p_after_student_id?: string | null
+      p_snapshot_sha256?: string | null
+    }>
+  >
+  // Installed235 accepts SQLNULL to clear a counselor; generatedpg metadata
+  // does not encode input nullability. Retain every other genuine RPC argument.
+  update_classroom_roster_counselor_for_owner_v1: FunctionContract<
+    'update_classroom_roster_counselor_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['update_classroom_roster_counselor_for_owner_v1']['Args'], {
+      p_counselor_email: string | null
+    }>
+  >
+  // Generated PostgreSQL metadata does not encode nullable input contracts.
+  create_announcement_for_owner_v1: FunctionContract<
+    'create_announcement_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['create_announcement_for_owner_v1']['Args'], {
+      p_scheduled_for: string | null
+      p_title: string | null
+    }>
+  >
   set_gradebook_maximum_override: FunctionContract<
     'set_gradebook_maximum_override',
     Json,
@@ -593,7 +632,7 @@ type FunctionOverrides = {
   >
   return_test_attempts_atomic: FunctionContract<
     'return_test_attempts_atomic',
-    { returned_count: number; updated_count: number; inserted_count: number }
+    { returned_count: number; already_returned_count: number; skipped_count: number; test_closed: false }
   >
   unsubmit_test_attempts_atomic: FunctionContract<
     'unsubmit_test_attempts_atomic',

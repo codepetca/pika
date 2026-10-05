@@ -16,6 +16,19 @@ describe('AssignmentArtifactsCell', () => {
     expect(screen.getByText('-')).toBeInTheDocument()
   })
 
+  it('keeps compact visible pills inside separate keyboard-operable targets', async () => {
+    const user = userEvent.setup()
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={[
+      { type: 'link', url: 'https://example.com/a' }, { type: 'repo', url: 'https://example.com/b' },
+    ]} isCompact />)
+    await user.tab()
+    const first = screen.getByRole('button', { name: /artifact 1 is link/i })
+    expect(first).toHaveFocus()
+    await user.keyboard('{Enter}')
+    const dialog = screen.getByRole('dialog', { name: 'Open artifact' })
+    expect(within(dialog).getByRole('link', { name: /example.com\/a/i })).toHaveAttribute('href', 'https://example.com/a')
+  })
+
   it('renders one icon pill per artifact', () => {
     const artifacts: AssignmentArtifact[] = [
       { type: 'link', url: 'https://example.com/a' },
@@ -91,8 +104,8 @@ describe('AssignmentArtifactsCell', () => {
     expect(within(publishedDemoButton).queryByText('R')).not.toBeInTheDocument()
     expect(within(sourceRepoButton).queryByText('R')).not.toBeInTheDocument()
     expect(within(freeNoteButton).queryByText('R')).not.toBeInTheDocument()
-    expect(publishedDemoButton).toHaveClass('bg-info-bg-hover')
-    expect(sourceRepoButton).toHaveClass('bg-info-bg-hover')
+    expect(within(publishedDemoButton).getByText('1').parentElement).toHaveClass('bg-info-bg-hover')
+    expect(within(sourceRepoButton).getByText('2').parentElement).toHaveClass('bg-info-bg-hover')
     expect(freeNoteButton).not.toHaveClass('bg-info-bg-hover')
     expect(freeNoteButton).not.toHaveAccessibleName(/required submission/i)
 

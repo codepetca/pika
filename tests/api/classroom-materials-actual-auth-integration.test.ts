@@ -23,6 +23,7 @@ const memberB = 'b2222222-2222-4222-8222-222222222222'
 const outsiderC = 'c3333333-3333-4333-8333-333333333333'
 const classroomId = 'd4444444-4444-4444-8444-444444444444'
 const materialId = 'e5555555-5555-4555-8555-555555555555'
+const timestamp = '2026-10-03T12:00:00.123456+00:00'
 
 type Classroom = { id: string; teacher_id: string; archived_at: string | null }
 type Enrollment = { classroom_id: string; student_id: string } | null
@@ -36,8 +37,17 @@ function materialRows(isDraft = false) {
     id: materialId,
     classroom_id: classroomId,
     title: 'Bound material',
+    content: { type: 'doc', content: [] },
     is_draft: isDraft,
+    released_at: isDraft ? null : timestamp,
+    created_by: ownerA,
+    created_at: timestamp,
+    updated_at: timestamp,
     position: 1,
+    artifact_id: materialId,
+    source_artifact_id: null,
+    blueprint_archived_at: null,
+    source_blueprint_version_id: null,
   }]
 }
 
@@ -46,8 +56,26 @@ function database({ classroom, enrollment, rows = [] }: {
   enrollment: Enrollment
   rows?: unknown
 }) {
+  let page = 0
+  const payloads: ReturnType<typeof payloadBuilder>[] = []
+  function payloadBuilder(member: boolean) {
+    const payload = {
+      eq: vi.fn(() => payload),
+      neq: vi.fn(() => payload),
+      is: vi.fn(() => payload),
+      or: vi.fn(() => payload),
+      order: vi.fn(() => payload),
+      limit: vi.fn(() => payload),
+      maybeSingle: vi.fn(async () => ({
+        data: { ...classroom, materials: page++ === 0 ? rows : [], ...(member ? { membership: enrollment ? [enrollment] : [] } : {}) },
+        error: null, count: null, status: 200, statusText: 'OK',
+      })),
+    }
+    payloads.push(payload)
+    return payload
+  }
   const classrooms = {
-    select: vi.fn(() => classrooms),
+    select: vi.fn((fields: string) => fields.includes('materials:') ? payloadBuilder(fields.includes('membership:')) : classrooms),
     eq: vi.fn(() => classrooms),
     maybeSingle: vi.fn().mockResolvedValue({ data: classroom, error: null }),
   }
@@ -56,22 +84,12 @@ function database({ classroom, enrollment, rows = [] }: {
     eq: vi.fn(() => enrollments),
     maybeSingle: vi.fn().mockResolvedValue({ data: enrollment, error: null }),
   }
-  let materialOrderCalls = 0
-  const materials = {
-    select: vi.fn(() => materials),
-    eq: vi.fn(() => materials),
-    order: vi.fn(() => {
-      materialOrderCalls += 1
-      return materialOrderCalls === 2 ? Promise.resolve({ data: rows, error: null }) : materials
-    }),
-  }
   const from = vi.fn((table: string) => {
     if (table === 'classrooms') return classrooms
     if (table === 'classroom_enrollments') return enrollments
-    if (table === 'classwork_materials') return materials
     throw new Error(`Unexpected table: ${table}`)
   })
-  return { client: { from }, from, classrooms, enrollments, materials }
+  return { client: { from }, from, classrooms, enrollments, payloads }
 }
 
 function configureSharedAdmission(actorId: string) {
@@ -126,11 +144,22 @@ describe('actual shared-admission classroom material reads', () => {
       }
       if (scenario.status === 200) {
         expect(await response.json()).toEqual({ materials: rows })
-        expect(db.materials.eq).toHaveBeenCalledWith('classroom_id', scenario.id)
-        if (!scenario.draft) expect(db.materials.eq).toHaveBeenCalledWith('is_draft', false)
+        expect(db.payloads).toHaveLength(2)
+        for (const payload of db.payloads) {
+          expect(payload.eq).toHaveBeenCalledWith('id', scenario.id)
+          if (scenario.owner === actor.id) {
+            expect(payload.eq).toHaveBeenCalledWith('teacher_id', actor.id)
+          } else {
+            expect(payload.neq).toHaveBeenCalledWith('teacher_id', actor.id)
+            expect(payload.is).toHaveBeenCalledWith('archived_at', null)
+            expect(payload.eq).toHaveBeenCalledWith('membership.student_id', actor.id)
+            expect(payload.eq).toHaveBeenCalledWith('materials.is_draft', false)
+          }
+        }
       } else {
-        expect(db.from).not.toHaveBeenCalledWith('classwork_materials')
+        expect(db.payloads).toHaveLength(0)
       }
+      expect(db.from).not.toHaveBeenCalledWith('classwork_materials')
       expect(actor).toEqual(user(ownerA, 'teacher'))
     }
   })
@@ -152,7 +181,12 @@ describe('actual shared-admission classroom material reads', () => {
     expect(requireAuth).toHaveBeenCalledTimes(1)
     expect(db.classrooms.eq).toHaveBeenCalledWith('id', classroomId)
     expect(db.from).not.toHaveBeenCalledWith('classroom_enrollments')
-    expect(db.materials.eq).toHaveBeenCalledWith('classroom_id', classroomId)
+    expect(db.payloads).toHaveLength(2)
+    for (const payload of db.payloads) {
+      expect(payload.eq).toHaveBeenCalledWith('id', classroomId)
+      expect(payload.eq).toHaveBeenCalledWith('teacher_id', ownerA)
+    }
+    expect(db.from).not.toHaveBeenCalledWith('classwork_materials')
   })
 
   it('keeps member B as the member and returns only the published member projection', async () => {
@@ -172,8 +206,15 @@ describe('actual shared-admission classroom material reads', () => {
     expect(requireAuth).toHaveBeenCalledTimes(1)
     expect(db.enrollments.eq).toHaveBeenCalledWith('classroom_id', classroomId)
     expect(db.enrollments.eq).toHaveBeenCalledWith('student_id', memberB)
-    expect(db.materials.eq).toHaveBeenCalledWith('classroom_id', classroomId)
-    expect(db.materials.eq).toHaveBeenCalledWith('is_draft', false)
+    expect(db.payloads).toHaveLength(2)
+    for (const payload of db.payloads) {
+      expect(payload.eq).toHaveBeenCalledWith('id', classroomId)
+      expect(payload.neq).toHaveBeenCalledWith('teacher_id', memberB)
+      expect(payload.is).toHaveBeenCalledWith('archived_at', null)
+      expect(payload.eq).toHaveBeenCalledWith('membership.student_id', memberB)
+      expect(payload.eq).toHaveBeenCalledWith('materials.is_draft', false)
+    }
+    expect(db.from).not.toHaveBeenCalledWith('classwork_materials')
   })
 
   it('denies admitted outsider C before querying material rows', async () => {
@@ -190,7 +231,7 @@ describe('actual shared-admission classroom material reads', () => {
     expect(response.status).toBe(403)
     expect(db.enrollments.eq).toHaveBeenCalledWith('student_id', outsiderC)
     expect(db.from).not.toHaveBeenCalledWith('classwork_materials')
-    expect(db.materials.select).not.toHaveBeenCalled()
+    expect(db.payloads).toHaveLength(0)
   })
 
   it('permits an admitted archived owner read while denying an archived member before material rows', async () => {
@@ -206,7 +247,12 @@ describe('actual shared-admission classroom material reads', () => {
 
     expect((await teacherGet(new NextRequest(`http://localhost/api/teacher/classrooms/${classroomId}/materials`), context())).status)
       .toBe(200)
-    expect(ownerDatabase.from).toHaveBeenCalledWith('classwork_materials')
+    expect(ownerDatabase.payloads).toHaveLength(2)
+    for (const payload of ownerDatabase.payloads) {
+      expect(payload.eq).toHaveBeenCalledWith('teacher_id', ownerA)
+      expect(payload.is).not.toHaveBeenCalledWith('archived_at', null)
+    }
+    expect(ownerDatabase.from).not.toHaveBeenCalledWith('classwork_materials')
 
     configureSharedAdmission(memberB)
     vi.mocked(requireAuth).mockResolvedValue(user(memberB, 'teacher'))
@@ -219,7 +265,8 @@ describe('actual shared-admission classroom material reads', () => {
     expect((await studentGet(new NextRequest(`http://localhost/api/student/classrooms/${classroomId}/materials`), context())).status)
       .toBe(403)
     expect(memberDatabase.classrooms.eq).toHaveBeenCalledWith('id', classroomId)
-    expect(memberDatabase.enrollments.eq).toHaveBeenCalledWith('student_id', memberB)
+    expect(memberDatabase.from).not.toHaveBeenCalledWith('classroom_enrollments')
+    expect(memberDatabase.payloads).toHaveLength(0)
     expect(memberDatabase.from).not.toHaveBeenCalledWith('classwork_materials')
   })
 

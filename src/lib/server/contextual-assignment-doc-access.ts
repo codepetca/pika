@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
 import type { AuthenticatedUser } from '@/types'
+import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 
 export type ContextualAssignmentDocAccess =
   | { mode: 'legacy'; user: AuthenticatedUser; assignmentId: string }
@@ -82,6 +83,16 @@ function configuredArtifactAssignmentPairs(): z.infer<typeof assignmentPairsSche
 export async function authorizeContextualAssignmentArtifactRequest(
   assignmentId: string | (() => string | Promise<string>),
 ): Promise<ContextualAssignmentArtifactAccess> {
+  if (isClassroomExperienceAdmissionConfigured()) {
+    const user = await requireAuth()
+    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+      const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
+      const requestedId = canonicalUuid.safeParse(rawId)
+      if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')
+      return { mode: 'contextual', user, assignmentId: requestedId.data }
+    }
+  }
+
   if (process.env.PIKA_CLASSROOM_ASSIGNMENT_ARTIFACT_ACCESS_ENABLED !== 'true') {
     const user = await requireRole('student')
     const resolvedAssignmentId = typeof assignmentId === 'function'
@@ -117,6 +128,16 @@ async function resolveContextualAssignmentDocHistoryAccess(
   assignmentId: string | (() => string | Promise<string>),
   legacyAuth: 'authenticated' | 'student',
 ): Promise<ContextualAssignmentDocHistoryAccess> {
+  if (isClassroomExperienceAdmissionConfigured()) {
+    const user = await requireAuth()
+    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+      const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
+      const requestedId = canonicalUuid.safeParse(rawId)
+      if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')
+      return { mode: 'contextual', user, assignmentId: requestedId.data }
+    }
+  }
+
   if (process.env.PIKA_CLASSROOM_ASSIGNMENT_DOC_HISTORY_ACCESS_ENABLED !== 'true') {
     const user = legacyAuth === 'student' ? await requireRole('student') : await requireAuth()
     const resolvedAssignmentId = typeof assignmentId === 'function'
@@ -166,6 +187,16 @@ export function authorizeContextualAssignmentDocRestoreRequest(
 export async function authorizeContextualAssignmentDocSubmissionRequest(
   assignmentId: string | (() => string | Promise<string>),
 ): Promise<ContextualAssignmentDocSubmissionAccess> {
+  if (isClassroomExperienceAdmissionConfigured()) {
+    const user = await requireAuth()
+    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+      const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
+      const requestedId = canonicalUuid.safeParse(rawId)
+      if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')
+      return { mode: 'contextual', user, assignmentId: requestedId.data }
+    }
+  }
+
   if (process.env.PIKA_CLASSROOM_ASSIGNMENT_DOC_SUBMISSION_ACCESS_ENABLED !== 'true') {
     const user = await requireRole('student')
     const resolvedAssignmentId = typeof assignmentId === 'function'
@@ -201,6 +232,16 @@ export async function authorizeContextualAssignmentDocSubmissionRequest(
 export async function authorizeContextualAssignmentDocSaveRequest(
   assignmentId: string | (() => string | Promise<string>),
 ): Promise<ContextualAssignmentDocSaveAccess> {
+  if (isClassroomExperienceAdmissionConfigured()) {
+    const user = await requireAuth()
+    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+      const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
+      const requestedId = canonicalUuid.safeParse(rawId)
+      if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')
+      return { mode: 'contextual', user, assignmentId: requestedId.data }
+    }
+  }
+
   if (process.env.PIKA_CLASSROOM_ASSIGNMENT_DOC_SAVE_ACCESS_ENABLED !== 'true') {
     const user = await requireRole('student')
     const resolvedAssignmentId = typeof assignmentId === 'function'

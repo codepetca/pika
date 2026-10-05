@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const migration = readFileSync(
@@ -13,6 +14,12 @@ const route = readFileSync(
 const attemptRoute = readFileSync(
   resolve(process.cwd(), 'src/app/api/student/tests/[id]/attempt/route.ts'),
   'utf8',
+)
+const attemptRouteSource = ts.createSourceFile('route.ts', attemptRoute, ts.ScriptTarget.Latest, true)
+const attemptPatch = attemptRouteSource.statements.find(statement =>
+  ts.isVariableStatement(statement) && statement.declarationList.declarations.some(declaration =>
+    ts.isIdentifier(declaration.name) && declaration.name.text === 'PATCH',
+  ),
 )
 
 describe('atomic test submit contract', () => {
@@ -49,7 +56,10 @@ describe('atomic test submit contract', () => {
     )
     expect(attemptRoute).toContain('saveTestAttemptSchema.safeParse')
     expect(attemptRoute).toContain('saveStudentTestAttempt')
-    expect(attemptRoute).not.toContain(".from('test_attempts')")
+    // PATCH stays RPC-only; the separately authorized GET may read a revision.
+    expect(attemptPatch).toBeDefined()
+    expect(attemptPatch!.getText(attemptRouteSource)).not.toContain(".from('test_attempts')")
+    expect(attemptRoute).not.toMatch(/\.\s*(?:insert|upsert|update|delete)\s*\(/)
   })
 
   it('serializes availability changes through the parent test row', () => {

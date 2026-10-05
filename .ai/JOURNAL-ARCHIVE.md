@@ -16,6 +16,2123 @@
 ```markdown
 ---
 ---
+
+## 2026-10-03 — Bounded shared Course Guide source preparation
+
+On actual1444 maina8c4e9b2, prepared schema-free Course Guide GET under existing
+shared admission. One feature-owned actor/config-guarded reader selects only
+enabled DTO content; every later/terminal/final statement rechecks authority and
+raw JSONB configuration. Preserves current publication, genuine resource FK,
+negative/tied ordering, duplicate titles and microsecond-to-millisecond release
+behavior without answer-bearing broad loaders. Legacy/public/meta/UI untouched.
+Source TDD RED then125 affected assertions/nine suites, TypeScript, scoped lint,
+architecture, diff and six-file audit PASS. Synthetic local SDK source covers both
+collections beyond1000 and exact cleanup including commit-before-reference-capture.
+Actual DB proofs, CI hook, full independent review and merge remain pending; no
+runtime behavior inferred from serialization tests. Original local001–236 SQL
+remains immutable; production001–225/sharedadmission/fullcutoverOFF. Human approval
+and review extensions carry forward without routine prompts or hard-cap resets.
+
+Pre-execution Sol review CLEAN/81source tests; actual normal then one safe
+diagnostic run passed firsttwo proof sections and completecleanup but failed
+illegal persistedfeaturevisibility fixtures. Read-only live constraint205 confirms
+JSONnull/scalars/presentknownnonbooleans forbidden. Batch1 corrects onlyharness
+fixtures, proves exact23514/constraint denial in rollback-only subtransactions
+with fullrow/globalbaseline preservation, and adds fixedsafephase labels. Reader,
+SQL and constraints unchanged; accepteddesign correction recorded. CIhook TDD14
+tests with fake-shell exactexit1/ownmarker/cleanup rejection passes; refinednormal
+marker temporarily reproduced one focusedfailure before corresponding CI/test
+update. Targeted recheck and actualserialproofs stillpending.
+
+Targeted Sol recheck CLEANa02fffea/101source assertions. Root inspected166 before
+rerun and found synthetic transfer target also needs creation capacity; add only
+that preallocated test identity to existing tagged manual grants (exact cleanup
+already derives the same grant set). Structural RED1/16 reproduced before tiny
+fixture correction. No trigger/constraint bypass, product/SQL change, real account
+change or additional failed DB execution. Tiny targeted recheck precedes normal.
+
+Tiny recheck CLEAN1777f9f0/16source tests. Actual normal32267 passes all four
+markers and exact cleanup: genuine JSONB/resource wire, both paginated collections,
+millisecond release parity, tamper/transport denials and40 committed revocations
+plus finalclass deletion. Forcedfixture58792 and precapture54830 each exactexit1/
+ownexpectedFAIL/exactcleanupPASS. All whole-row public/private/storage baselines,
+zero residue and guardO preserved; no DBproof overlaps. A combined wrapper was
+rejected before execution because its temporarylog trap used blockedrm-f; that
+deletion was not retried and each proof ran directly instead. No actual proof
+or fixture started in the rejected wrapper. Full initial review/draft/main/CI next.
+
+## 2026-10-03 — Course Guide serialized-null compatibility correction
+
+PR1449 full initial security review CLEANbc15/158 assertions; compatibility review
+128 assertions found a reproducible P2: historical TEXT null parses to null, which
+the unchanged builder treats as empty but the new reader rejected503. Root
+confirmed it with regression RED1/72, then added parsed-null-only empty handling
+before unchanged bounded nonnull Tiptap validation and extended the real resource
+fixture matrix. Three affected suites98PASS. Legacy/public/SQL/schema/authority
+and cleanup unchanged. Batch3/launch5 retains original16:28:17 clock and hard caps;
+targeted review, serial runtime recheck and final integration precede readiness.
+Shared admission/cutover remainOFF; latest human explicitly authorizes routine
+steps and review extensions without repeated prompts.
+
+## 2026-10-03 — Course Guide prepared removal-parent reconciliation
+
+Prepared the unchanged bd0 Course Guide source onto reviewed pending1448 parent
+88a1bfd6; this is NOT merged main (actual2095), and parent CI remains pending.
+Every incoming runtime, genuine generated40d contract, curated types and immutable
+SQL001–238 is preserved; whole parent CI plus the original Guide step and original
+Guide source guards remain intact. The old ci-workflow test has no Guide block:
+retain incoming88 test whole, original Guide proof-unit guards byte-exact.
+Full history arithmetic is 88+bd0−a8 plus this one receipt, official40-entry trim.
+No database/status/runtime proofs/type generation/providers/network/remote Git,
+review or CI launch. Root owns actual-parent reconciliation after1448/1447 squash
+merges, then changed-base review and exact-head CI. Sharedadmission/fullcutover
+and billing remain OFF; original review clocks/caps retained. Prepared-parent
+focused218tests/15files and architecture/UI/design/TypeScript/lint all PASS.
+Startup/environment PASS; startup/Bara47PASS (including canonical Prod spacing).
+Prepared-base audit7files PASS; diff/full preservation PASS: Guide8/incoming45,
+2097historical entries/recent40, only9 copied-surplus duplicates removed while
+original full bodies retained. Evidence/private verifier:
+/private/tmp/pika-guide-prepared-removal.UOmGQg; focused pika-focused-AaWC7U.
+This prepared dependency state is not ready/merged/activated.
+
+## 2026-10-03 — Course Guide prepared detail-parent reconciliation
+
+Prepared unchanged Guide61 onto frozen PENDING1447 detail a653d0ac using old
+reviewed88 parent; NOT actual detail main. Actual1448 merged73a85f26 matches88
+tree, all5CI37143487206 passed18:43:24/merged18:43:41; detail1447 remains draft
+and its changed-base review/CI are root-owned. Incoming detail/73 source, whole
+158-step parent CI plus the original Guide step, whole incoming CI-unit file,
+immutable001–238 and genuine generated40d/curated3cf are preserved. All8 Guide
+files remain byte-exactbd0. Prior prepared88 receipt and every full historical
+body/multiplicity retained: a653+61−88 plus this one receipt, official40 trim.
+No DB/status/runtime proofs/types/SQL/provider/network/publication/review/CI work.
+Root owns actual detail-squash reconciliation and later ONE changed-base review.
+Original16:28:17→19:28:17 ledger/7launch3target1final3fix unchanged; DeepSeek paused,
+sharedadmission/fullcutover/billing/production OFF. Explicit pending-parent focused
+219tests/15files and architecture/UI/design/TypeScript/lint PASS. Startup/env PASS;
+startup/Bara47PASS including16000cap; prepared-base audit7 PASS. Full preservation,
+diff and official trim PASS: Guide8/incoming11, whole parent158CI plus Guide,
+2101historical entries/recent40; two inherited bodies restored, none discarded.
+Evidence/verifier: /private/tmp/pika-guide-prepared-detail.hL07Ah;
+focused pika-focused-YJl0c9. Prepared state is not reviewed/ready/merged/activated.
+
+## 2026-10-03 — Course Guide actual detail1447-main reconciliation
+
+Actual1447 reviewed a653d0ac passed all5CI37145738614 at19:22:19 (1884s,0queue)
+and merged19:23:04 as db37ca8f; actual squash tree equals reviewed detail tree.
+Guide prepared d0db1331 rebased conflict-free from pendinga653 onto actualdb37
+without source fixes. All8 originalbd0 Guide files, incoming detail/main source,
+whole159-step combined CI, whole CI-unit/Guide guard files, roadmap and immutable
+SQL001–238/genuine generated40d/curated3cf remain byte-exact. Prior prepared
+receipts/historical pending notes retained. History formula db37+d0−a653 plus
+this ONE actual-parent receipt, official40 trim. No DB/proof replay/types/SQL
+application/provider/network/publication/CI/review launch; accepted Guide normal
+25794/twoforced95169/74527 unchanged. Root owns ONE actual changed-base check,
+then draft lease-push/readyCI/merge. Original16:28:17→20:28:17 ledger/7launch3target
+1final3fix/hard12/8/8 retained; no budget reset. Admission/fullcutover/billing and
+production promotion OFF. Actual-origin/main db37 focused219tests/15files and all
+architecture/UI/design/TypeScript/lint PASS; startup/environment PASS. Explicit
+startup/Bara47PASS includes16000cap; actual-base audit7 PASS; diff/full preservation
+PASS. All3199 incoming parent blobs outside the explicit union unchanged; only
+CURRENT/session/journal differ from d0. History2102/recent40; no body discarded.
+Evidence/full optional-checkout verifier: /private/tmp/pika-guide-actual-detail.fmSK7K;
+focused pika-focused-gDDEOx. This is not independent review, readiness or activation.
+
+## 2026-10-03 — Contextual classroom metadata source preparation
+
+Accepted bounded architecture and prepared early shared metadata-only PATCH,
+feature-owned strict13-key schemas, role-neutral current-owner adapter and tests.
+GET and literal legacy PATCH remain unchanged; shared archived/unknown/empty keys
+reject before mutation. New90 assertions PASS; two old detail-test assertions
+updated to retain absent-admission teacher guard and malformed-config denial,
+three suites110PASS. Lint/architecture/diff PASS; exactlyone missing-RPC compiler
+error awaits genuine schema contract, no casts/types fabrication. Dedicated208line
+SQL body remains PRIVATE and uninstalled pending exactmain/migration reconciliation,
+frozen digestf61ec76016a13c2b2e5fd22f765857304d5798617cf96fc0720585fff699d883.
+Metadata changes no owner/lifecycle/position/plan; full persisted row and revision
+postconditions are transactional, not a promise of rollback after lost transport.
+Preapplication security and actual serial rollback/SDK/concurrency/cleanup evidence
+remain gates. Shared admission/cutover OFF; local001–236/prod001–225 unchanged.
+
+## 2026-10-03 — Metadata rollback and SDK proof source safety
+
+Preapplication Sol security CLEANc995/privateSQLdigestf61/110tests, source only.
+Prepared rollback-only SQL124/shell8, SDK312 and sourceguards70; actual execution
+UNEXECUTED. Root full proof inspection found missing cleanup candidate locks
+before snapshots/scans; batch1 adds exact operation locks and deterministic
+synthetic parent/allowed-child NOWAIT row locks, full-row/provenance-bound audit
+deletes, retaining entire precommit/post baseline/residue/guard checks. Regression
+RED7/8→GREEN8/8; four affected suites118PASS, lint/bash/diff PASS. No generation
+guard bypass or committed enrollments in SDK fixtures; rollback SQL covers member
+denial and fault-trigger rollback. SQLRPCbody unchanged/private; only expected
+missing genuine metadata RPC compiler error remains. Independent preexecution
+proof review and exact actual235/pending236 schema reconciliation precede migration
+naming/application/types/runtime evidence. PR1445 merged2fe79a8b with allfiveCI
+checks, canonicalcleanFF. Production/admission/fullcutover remain unchanged/OFF.
+
+## 2026-10-03 — Metadata actual roster235-main and immutable236 dependency receipt
+
+Rebased all five reviewed detail/metadata commits from a8 onto actual PR1445
+main2fe79a8b; retained reviewed130 child runtime/proof/test bytes, main235 runtime
+and genuine generated/curated types, exact main+detail CI/test union and history.
+Imported ONLY reviewed/installed236 source from b47c6fa7, SHA256
+24e23667b21580fdcadb7a64ca251725f87040fa52bf9a1fbe71e0c7b3c22249;
+PR1448 remains pending, not merged. Complete001–236 source supports coordinator
+reconciliation; no repeated application, migration237 naming, generation, database,
+provider, remote, activation or publication. Private metadata SQLf61 unchanged.
+Source checks/logs: /private/tmp/pika-metadata-reconcile.IPpLtQ. Only expected
+missing metadata RPC type contract remains until coordinator application/genuine
+generation. Actual metadata proofs unexecuted; prod001–225/admission/cutover OFF.
+Preservation verifier PASS: 18 child/18 incoming main files, exact CI/test union,
+2090 history entries and immutable235/236/privatef61 hashes. Focused354tests,
+startup+Bara47, architecture1141modules, UI/design policy and scopedlint PASS.
+Focused stops ONLY at helper line30 missing-RPC TS2345. Audit correctly skips
+this dependency/docs-only uncommitted diff; no runtime byte edits or cast fixes.
+
+## 2026-10-03 — Metadata local237 proof checkpoint and serial CI registration
+
+Coordinator applied immutable metadata237/privatef61 locally once after exact
+001–236 reconciliation and a237-only preview. Service-only ACL/full30 verification,
+genuine12RPC generation/type drift/TSC0 and124line rollback SQL EXIT0/complete
+marker17:23:59UTC PASS; serviceTRUE/anon+authenticatedFALSE, no reapplication.
+Normal SDK reached all3behavior/race/uncertain markers but exited1 without cleanup:
+readonly diagnosis found6fixture-created default gradebook categories omitted
+from the teardown whitelist. Cleanup correctly refused and rolled back. Targeted
+Sol5.6 review CLEAN2cf proof-only correction/private9aa5e2b8 recovery; rootexactone
+recovery EXIT0 at17:37:18 removed ONLY20syntheticclosure rows, zero targets/168O,
+current untouched whole-row baseline equal beforeCOMMIT+after—not certification
+of the first process's original baseline. Correctednormal60635 EXIT0 all3behavior
++exactcleanup at17:37:48; then forcedfixture20684 EXIT1 exactownFAIL+cleanupPASS;
+only after closure pre-capture56515 EXIT1 exactownFAIL+cleanupPASS at17:38:31.
+All3corrected modes restore their global full-row baseline/zeroresidue/guardO;
+arbitrary failures do not count. Product/RPC237f61 unchanged by proof correction.
+Added metadata guide, one roadmap paragraph and serial CI SQL→normalSDK→twoforced
+registration, each requiring exact own exit/status/markers and full cleanup.
+CI-hook RED reproduced before insertion; offline source checks only here.
+Runtime237/source proof/installedSQL/types untouched by this docs/CI worker;
+no DB/status/provider/network/Git mutation. Local001–237/prod001–225;
+shared admission/fullcutover OFF. Full initial source review/exact-head CI and
+actual-main integration remain pending; no final-review/merge claim.
+Offline checkpoint63tests/4suites PASS before concurrent proof remediation;
+scopedlint, metadata CI shellsyntax, exact existing CI-byte/one-paragraph roadmap
+preservation and diff PASS. Evidence metadata-ci-doc-tests.log in
+/private/tmp/pika-metadata-reconcile.IPpLtQ; no commit by this worker.
+Final factual receipt update:64offline CI/source/startup/Bara tests PASS;
+exact prior CI/test/roadmap/history preservation, metadata bashsyntax, trim and
+diff PASS. Final log metadata-final-doc-tests.log; no DB or Git mutation here.
+
+## 2026-10-03 — Metadata actual calendar1446-main reconciliation
+
+Rebased all eight metadata/detail commits from2fe onto actual calendar1446
+main2095efec, merged17:40:27UTC after all5exact795/CI37139673399 gates (1605s).
+All23f5 runtime/schema/API/proof/guide/immutable23624e+237f61 and genuine
+generated237 bytes retained; every incoming calendar file and main235 nullability
+retained. CI keeps entire actual2095 calendar concurrency/owner proof steps plus
+exact original detail→metadata insertions. CI tests are the explicit additive
+main roster→calendar + original child metadata→detail + unchanged remainder union.
+Full main roadmap plus original detail/metadata paragraphs and every historical
+body/multiplicity remain; this receipt is the only new history entry.
+Private verifier/check logs: /private/tmp/pika-metadata-1446-reconcile.yyXsml.
+Prior actual SQL and corrected normal/twoforced SDK receipts remain source-exact;
+no database/status/runtimeproof/generation/schema/provider/UI/dependency/remote
+operations or review launches here. Local001–237 immutable/prod001–225 unchanged;
+1447/1448/1449/metadata drafts and fullreview/CI/main integration remain pending.
+Shared admission/fullcutover OFF; original metadata review ledger/caps retained.
+Offline final checks:357tests/20files PASS; architecture/UI/design/TSC/lint PASS.
+Startup/verify-env PASS; explicit startup+Bara47tests PASS; one-file audit PASS.
+Initial union splitter mistakenly retained headers only; focused RED exposed it.
+Corrected full-body splitter and exact22child/9main/CI/roadmap/2095entry verifier
+PASS, officialtrim/diff PASS. Logs focused-final.log/startup-bara.log/audit.log
+and preservation.log in the private directory above. No DB/proof reruns here.
+
+## 2026-10-03 — Metadata persisted-empty-slug forward correction source
+
+Frozen0af full initial wave completed: securityCLEAN; compatibilityP2 confirmed
+persisted actual_site_slug='' with omitted slug/publish-only can commit under
+immutable237 before SDK503, unlike legacy400. Root accepted bounded batch3fix.
+Authored unnumbered private forward draft at
+/private/tmp/pika-contextual-classroom-metadata-empty-slug.sql: verbatim237 except
+CREATE OR REPLACE and locked effectivepublished NULL-or-empty guard beforeUPDATE.
+237f61 remains byteexact. SQL rollback regression requires publish-onlyPT400/full
+classroom+095archive row equality (112revision included); unpublish allowed.
+ActualSDK normal source regresses both owner roles/one call/full state unchanged.
+Source tests RED2/9existingPASS→GREEN11; private forward exactdiff guard PASS.
+No new runtime/application evidence: allocation/preapplyreview/application/proofs
+remain root-owned. Number not assumed; root may combine the separate1448
+private-validator correction in the forward source. No DB/status/provider/network/Git/typegeneration here;
+source-only correction, production225/local237/admissionOFF/originalclock retained.
+Offline157tests/6files PASS; TSC/scopedlint/bashsyntax/audit2files/trim/diff PASS.
+Private exactguard/237digest/entirefrozen source and history+one receipt PASS.
+Evidence /private/tmp/pika-metadata-empty-slug-{red,green,offline,tsc,lint,audit}.log;
+private source checker/draft remain unnumbered and no runtime PASS is claimed.
+
+## 2026-10-03 — Metadata1450 pending Guide/detail preparation
+
+Prepared source0cfb4c26 on PENDING Guide d0db1331/detaila653d0ac, NOT actualmain.
+Actualmain remains73a85f26/PR1448; detail CI37145738614 and Guide actual-parent
+integration are root-owned. Rebase excludes only three already-present detail
+dependency commits07c6c4734/013345620/c22dcf5b4; every metadata-owned product,
+schema/test/proof/guide file remains byte-exact0cf. Approved teacher-route metadata
+imports/early PATCH and two PATCH-test replacements retain whole incoming GET,
+literal legacy PATCH and GET-test remainder. Whole incoming CI159 plus original
+metadata step, whole CI tests plus exact metadata block and roadmap are preserved.
+History full-body multiset is d0+0cf−2095+one preparation receipt:2109 entries;
+twelve proven exact surplus copies removed once with originals retained; one
+genuine old detail receipt restored to mandatory multiplicity2. Official trim40.
+Incoming immutable001–238/genuine generated40d/curated3cf remain byte-exact.
+No DB/status/proof replay/types generation/provider/publication/ready/CI/merge here.
+Prior accepted SQL/SDK/two forced cleanup receipts on238 remain historical evidence,
+not a new execution claim. Production001–225/shared admission/full cutover stayOFF.
+Original metadata ledger16:57:13→19:57:13,launch6/target2/final0/fix3 unchanged;
+actual-squash reconciliation, final cumulative review and exact-head CI remain gates.
+Explicit pendingparentd0 focused263tests/17files, architecture/UI/design policy,
+TSC/lint PASS; startup/CI/Bara57tests/3files PASS; pendingbase audit9files PASS.
+Env/session-start, startup15971/16000, full preservation/trim/diff PASS.
+Evidence /private/tmp/pika-1450-pending-guide-reconcile.1YMa74; focused runner
+/var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-PrlXBG.
+
+## 2026-10-03 — Metadata1450 actual Guide1449-main reconciliation
+
+Actual1449 reviewed ce68b9e1 passed all5CI37148238240 (0queue/1871s) and merged
+2026-10-03T20:03:52Z as668912ab; squash tree812b2efc equals reviewed Guide tree.
+Rebased prepared f8b91ec3 from pendingd0 onto actual6689 without feature fixes.
+All11 metadata-owned files exact0cf; approved route imports/early PATCH and two
+PATCH-test replacements preserve whole incoming GET/literal legacy PATCH/GET tests.
+All incoming actual-main blobs outside explicit unions, SQL001–238/gen40d/curated3cf,
+dependencies, whole CI159+metadata=160 and whole CI-unit union remain exact.
+Whole roadmap plus original metadata paragraph/old prepared receipt and ONE current
+receipt retained. Full-body history actual6689+f8−d0+one actual-parent receipt:
+2102+2109−2101+1=2111/recent40; exact bodies/multiplicities checked. Rebase produced
+one proven surplus Blueprint correction copy; removed once, genuine original kept.
+Earlier twelve surplus/restored-detail decisions and historical pending notes remain.
+No DB/status/proof replay/types generation/provider/remote publication/CI/review launch.
+Prior accepted metadata SQL/SDK/two forced238 receipts remain unchanged evidence.
+Production lastverified001–225/shared admission/full cutover/billing remainOFF.
+Original metadata16:57:13→extended20:57:13 ledger6launch/2target/1initial/0final/3fix
+unchanged; root owns ONE final cumulative independent review/publication/exactCI/merge.
+Actual-origin/main focused263tests/17files and architecture/UI/design/TSC/lint PASS;
+startup/CI/Bara57tests/3files PASS; actual-base audit9files PASS; environment/startup
+15975/16000/full preservation/trim/diff PASS. Exact incoming modes/blobs3202 PASS.
+Evidence/full optional-checkout verifier: /private/tmp/pika-1450-actual-guide-reconcile.fXoDni;
+focused runner /var/folders/qp/f66_vfps3839pj76pb3d_9fr0000gn/T/pika-focused-Z4AMsV.
+
+## 2026-10-03 — Batch1 backend exit and Assignment shared-write start
+
+Metadata1450 reviewedaa27 passed all5exactCI37150788872 (0queue/1823runseconds),
+normal squash-merged20:44:36UTC as e86283f82741078563cd4d1e49710f501c074891.
+Verified merged state/time/SHA, identical reviewed/squash tree and clean canonical
+main fast-forward. Original7launch/2target/1final/3fix ledger retained; prior actual
+238 SQL/SDKnormal/twoforced cleanup accepted without replay. Batch1everyday backend
+exit recorded in existing roadmap; not full rollout. Multirow retained-roster
+lifecycle remains batch3 prerequisite, assessments/grades nowbatch2. New managed
+codex/contextual-assignment-shared-writes starts actuale862; startup/dependencies
+verified before edits. Sol6.1/high owns bounded access-adapter TDD; separate
+Sol6.1/high owns source-only actual-route proof/guarded cleanup. Root owns docs,
+CI/Git/reviews and serialDB execution, held until fixed-proof independent review.
+No SQL/types/dependency change expected. User explicitly includes review extensions
+in routine task authority; original clocks/counters/absolute caps remain. Local
+001–238 immutable, production lastverified001–225, admission/home/page/fullcutover/
+billing OFF. No production/account/cohort/provider work or worktree cleanup here.
+
+## 2026-10-03 — Shared Assignment proof-only correction
+
+PR1451 draft9843ebe1 passed focused945/68files and independent initial Sol5.6/high
+security + Sol6.1/high compatibility reviews, including fixed-proof cleanup safety.
+Actual local preflight confirms immutable001–238,3users1class,Palcapture/settingsOFF,
+guard168O. Normal real-route run failed without safe stage detail; exact whole-row
+cleanupPASS and independent3/1/zero synthetic identities/guardO verified. No passing
+runtime lifecycle claimed. One proof-only correction preserves087 return clearing
+and099 not-submitted-first400/error_code, and adds closed-vocabulary diagnostics.
+TDD3newRED→13GREEN; cleanup SQL/application/adapters/types/deps unchanged. Original
+21:00:59→22:00:59 review ledger2launch/1initial/firstfix pending retained; targeted
+fixed-SHA review precedes rerun. Both forced modes, finalintegration/exactCI/merge
+remain pending. No production/migration/activation/provider/account mutation.
+
+## 2026-10-03 — Shared Assignment verified local proofs and CI portability correction
+
+Targeted security and final cumulative integration are CLEAN atb09fb2e9. Focused948/
+68files+staticPASS. Serial actual normal exit0 and both intended forced exit1 modes
+each pass exact whole-row baseline/zero residue/guard168O cleanup; independent final
+SQL confirms238receipts/3users/1class/Palcapture+scheduledOFF. No browser/provider/
+Storage-byte claim. ExactheadCI37154626010 database lane failed new wrapper because
+CI lacksrg; build passed, returntodraft canceled browsers and gatefailed. Root
+verified two closed missing-executable lines and the exact missing-cleanup receipt;
+no CI runtime pass inferred. Second proof-only batch uses existinggrep for identical
+fixed/whole-line sentinels and bounded enum diagnostics. OfflineTDD3RED→14GREEN,
+actualgrep synthetic portability controls/bash/lint/diffPASS. Cleanup SQL/helper/
+integration/app/types/deps/CI unchanged; targeted review and reruns precede newready.
+Original21:00:59clock and consumed4launch/1target/1final/1fix retained, explicit
+extensions authorized with hardcaps intact. No production/migration/activation.
+
+## 2026-10-03 — Retained group consumer source preparation
+
+1450 actually merged as e86283f8 after all5CI37150788872; batch1 exit verified.
+1451 reviewed9af shared Assignment writes remain ready on singleunchanged-head
+CI37156761577 retry: prior three unchangedUiGallery5000/5000/15000ms timeouts;
+both files locally23/23PASS. No source/gate weakening or repeatedreview; original
+ledger21:00:59/counters retained under explicit review-extension authorization.
+Recovered frozen SliceA source after interruption, then6.1Sol/high finished source
+only: coherent retained generations, exact finalization and OLD/NEW binding fences,
+first-insert queue kick and owner-bound digest/keyset discovery.239 remains NOT
+APPLIED;164singleton/236duplicate guards unchanged. Offline related150/12 and full
+focused180/18/TSC/lint/architecture/audit5/bash/diffPASS. New rollback proof transient
+indexdrop/callback-counter/101groups/faults requires independent frozen-source
+review BEFORE rootexecution; wrapperforcedfailure afterteardown, not committedcrash.
+Root updates existingremovalproof acceptance for239 without openingduplicatewriter.
+No SQL/provider/Storage execution, generatedtypes, production, account/plan/billing,
+cohort/UI/fullcutover activation or worktree/stash cleanup. Independent source-only
+assignmentlist reader proceeds in separate ownedWT; root owns integration/numbering.
+
+## 2026-10-03 — Retained group actual-main integration and local239
+
+1451 reviewed9af passed all5CI37156761577 (queue0/run1875s), actually squash-merged
+22:30:00UTC as3b62de062; reviewed/squash tree853261be identical, canonicalmain cleanFF.
+Retained consumers initial Sol5.6/high security CLEAN and6.1/high compatibility
+found one proof-only trigger-order expectation. Corrected existing exact deny and
+independently ordered NEWguard withinrollback with everyguardenabled;9checks/target
+CLEAN9bb518d9. Rebased onactual3b62; allnonunion reviewed feature blobs unchanged,
+3216 incoming mode/blobpaths exact;2111base+2114incoming+2112source=2115wholehistory
+bodies/multiplicities preserved. Two proven surplus recent copies removed once,
+canonical archive originals retained. Startupbudget16001 failedby1; CURRENT wording
+compressed, no gate weakening. Fresh190checks/19files+allstaticPASS.
+Verified canonicalPikaAPI127.0.0.1:54321/DBloopback54322/containerpika; exactlocal001238
+and dryrunONLY239. Applied239once viaCLI, exactposthistory001239. Immutable001238
+and239hash7f60164a retained. SQLnormal exit0/exactteardownPASS and intendedforced
+exit1 with ownmarker+exactteardownPASS;101groups/finalizationfaults/OLDNEW fences/
+first-job callbackcounter/whole-row rollback covered. No HTTP or Storage-byte claim.
+Genuinegeneration/check addsONLYdiscoveryRPC; curatednullableinputs retaingenerated
+keys; provisionalSDKcast removed. New read-only installedSDK/2-session source and
+CI/offlinecontrols prepared, notexecuted until targetedsource review. Original
+22:05:32→23:05:32 ledger/counters retained, explicitextensions authorized. Local
+239doesnotactivate groupedwriter (164/236stillclosed) orproduction/cohort/UI. Batch2
+list-source proof usesisolatedfuturetestproject toavoid168 ledgerguard weakening;
+neither SDKfixture provisioning norfinalcutover completed. No worktree/stashcleanup.
+
+## 2026-10-03 — Retained consumers actual SDK and advisory exclusion
+
+Draft1452 b4c5 fixed-source Sol5.6/high target security review CLEAN before
+execution. Two owned persistent sessions pass exact classroom/student busy errors,
+postrollback owner denial and unchanged whole local baseline (8945 exit0).
+InstalledSDK normal empty-owner/nullargs/anonymousACL passes (1364 exit0);
+intentional forced mode exits1 with own marker and exact unchanged baseline
+(58083). No fixture,101-group SDK paging, providerHTTP or Storage-byte claim.
+Existing provider171 and live175 singleton rollback regressions pass unchanged;
+private receipt /private/tmp/pika-239-singleton-regressions.1POYKb. SQL239 and001238
+remain immutable;164/236closed/allactivationOFF. One final cumulative reviewer
+and exact-head CI remain. Original ledger22:05:32 and counters preserved;
+explicit elapsed extension to00:05:32UTC, no reset or approval re-prompt.
+
+## 2026-10-03 — Retained consumers merged; Assignment list source prepared
+
+1452 exact reviewed7941 passed all5 checks37161407268; squashf6b9c8a4 verified
+merged00:28:12UTC and canonicalmain clean/treeidentical.1451 actual3b62 retained.
+Local/main001–239; productionlastverified225. Groupedwriter164/236 staysclosed.
+Assignment-list worktree rebased losslessly ontoactualmain; root owns all16source
+paths after workerhandoff. Current statement-bound owner/member pages, disclosure,
+pagination and strictadmission preserve literallegacy/POST. Prior311focused+static
+checks and73offlineproof tests pass; scopedproof TypeScript checked separately.
+CI hookup TDD RED then implementation; new focused gate/reviews precede actual
+isolated001239 replay/nineSDKcases/fourteenrevocations/twoforcedteardowns. No
+fixture execution, canonicalDB writes, migrationapplication, activation orcleanup.
+Ownerlocal/reviewextensions/mainmerge authority continues; hardcaps/gates retained.
+
+## 2026-10-03 — Assignment list local proof accepted; final review pending
+
+Draft1453 code5ba2d3fa:322focused/8skip, allstatic/audit and explicit10proofTSC
+pass. Initial/targeted reviews fixed portable preparation, shadowport collision,
+private UTF8 startup diagnosis, ancillary CLI defaults and expensive single-object
+Docker inspections. Complete global discovery now batches128 exact IDs/names;
+foreign attachments, immutable168,20s reader deadline and all cleanup gates remain.
+Actual CLI2.109.1 normal nineSDK/fourteen committed revocations PASS01:30:55UTC;
+after-fixture/before-capture each intentionalexit1 with exactcleanup/baselinePASS
+observed01:32:32/01:34:04. Generatedprojects/directories removed; whole canonical
+rowdigests/168metadata/settings/cron/resourceidentities unchanged. No normalPika or
+unrelatedapp writes/stops; no auth-cookie/browser/providerHTTP/Storagebyte claim.
+1451/1452actualmerges3b62/f6b9 retained; local/main239, prodlastverified225.
+Final cumulative review and exact-head CI precede ready/mainmerge. Originalledger
+00:32:24 clock,9launches/7targets/7fixes retained; explicit owner extension permits
+elapsed through02:32:24, hard8fix/8target/12launch/1final/30single still apply.
+Sharedadmission/home/cutover/billing/providerOFF; groupedwriter164/236 staysclosed.
+
+## 2026-09-30 — Test references stay inside the assessment
+
+Added the repository test-authoring rule prohibiting hyperlinks and link-type reference documents, including clickable links in uploaded PDFs. Replaced the language-reference link recommendation with documentation excerpts, added a student-preview check, and aligned the schema guide’s authored example while preserving its existing format contract. Documentation only; the migration and production release hold remains in place.
+
+## 2026-09-30 — Hosted migration workflow (PR1404)
+
+Implemented the manual school-accessible GitHub migration workflow, portable runner, exact source/target/migration/hash approval, CI replay evidence binding, history drift checks, one-attempt failure handling, and minimal trusted CLI configuration. Production is the default target; preview is the default mode. No live migration or billing change is authorized or performed. PR1404 received independent security and operations review; one correction batch pinned actions and verified CLI download checksums before execution, and explicitly reports unknown durable state. The 128-test focused gate and all required CI lanes/PR Gate passed on reviewed d7120d73; four reviewer launches completed with no unresolved findings.
+
+Main advanced during CI. The owner approved one archive-only sync, one focused review, fresh CI and merge on green. Both archive batch markers and current main changes are retained. The dedicated migrations-production environment permits only branch main and is bound to verified Pika/zhioqbapgfcrronyuidm; credentials await secure owner entry. Staging remains deferred; existing Vercel environments are unchanged. Final sync review, exact-head CI and merge are pending; this authorization does not allow hosted SQL application or app promotion.
+
+## 2026-09-30 Allow today's Class Days correction
+
+- User approved same-day edits: Settings now allows adding today immediately, confirms before excluding today, and disables all past dates to match the API. Existing logs remain stored; Toronto-midnight and archived-classroom guards are retained.
+- UI brief: teacher Settings > Class Days; extend the existing calendar and reuse ConfirmDialog, referenced against Pattern Lab's student attachment confirmation. Teacher desktop1440x900/mobile390x844, light/dark, selected/open/cancel/confirm/error/focus states; student n/a (teacher-only editor). No redesign, new shared components, or experimental pattern. Composite accessibility reviewed; Escape, focus trapping/return and pressed state verified.
+- Verification: regression tests reproduced six failures before implementation; final focused checks passed 200 tests, architecture/UI/design policy, TypeScript and lint. Playwright matrix passed with deterministic class-day API fixtures, including missing today, cancellation, restoration and save-error rollback. Evidence: /tmp/pika-class-day-visuals; Pika audit passed. No migration or production application deployment.
+
+- Independent review found past-day colour precedence hid historical class-day status; one remediation batch preserves muted-success past days without hover and adds a visual-state regression. The same batch checks Toronto's current date when clicked so a future class day that becomes today requires confirmation. Synced main and retained continuity history without duplicate archive entries. Final focused200tests, architecture/UI/design/TypeScript/lint, audit and the four-case browser matrix pass; updated past-day visuals inspected. Stable-SHA re-review follows.
+
+- Initial/targeted/final independent review completed (three launches, one code correction batch); exact-head CI36737461379 passed Test & Build, Browser Experience Matrix and PR Gate on5c6de421. Main then advanced with unrelated authoring docs; second synchronization batch retains both continuity histories and leaves the three implementation/test files byte-identical. Focused recheck and bounded synchronization review precede fresh candidate CI.
+
+## 2026-09-30 — Supabase grading conflict I/O incident
+
+Read the Disk IO Budget warning and production catalog/log evidence. Confirmed a PostgREST internal retry storm on manual Assignment grading SQLSTATE40001; stopped the exact matched runaway backend. Follow-up shows no runaway process and essentially flat rollbacks. Stored database size remains below the free quota. Prepared migration223 changing only the manual stale-revision error to PT409, dual-code legacy/contextual adapter support, regressions and recovery guidance. Isolated disposable-database replay verifies stale rejection, complete batch rollback, nonowner rejection, fresh save and unchanged grants/security. Production migration and application rollout remain pending explicit authorization; other current custom40001 RPCs need a separate audit.
+
+## 2026-09-30 — Guided assignment Markdown boundaries
+
+Classroom guided assignment previews now normalize generated prose that resembles Blueprint delimiters and protect fenced code during the existing single-assignment create parse. The Karel-shaped task/reference regression and route creation check preserve 10 points, draft status, student content, and verbatim backtick/tilde code examples. Shared Blueprint parser, migrations, and provider settings are unchanged. Affected tests and focused checks passed; PR review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the bounded server serialization fix.
+
+## 2026-09-30 — Guided assignment correction review
+
+Remediated first review findings in classroom guided assignment previews. Ambiguous teacher edits (interior divider, body metadata, or unparseable reserved section) now fail before the create RPC; valid submission requirements remain accepted. LimitedMarkdown recognizes long backtick and tilde fences, preserves inner short markers and following prose, and gives code the existing inverse text token for contrast. The production renderer's Pattern Lab fixture passed eight teacher/student, desktop/mobile, light/dark Playwright captures; screenshots were reviewed. Focused gate, independent review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for this bounded parser/rendering correction.
+
+## 2026-09-30 — Guided assignment correction review
+
+Remediated first review findings in classroom guided assignment previews. Ambiguous teacher edits (interior divider, body metadata, or unparseable reserved section) now fail before the create RPC; valid submission requirements remain accepted. LimitedMarkdown recognizes long backtick and tilde fences, preserves inner short markers and following prose, and gives code the existing inverse text token for contrast. The production renderer's Pattern Lab fixture passed eight teacher/student, desktop/mobile, light/dark Playwright captures; screenshots were reviewed. Focused gate, independent review and release remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for this bounded parser/rendering correction.
+
+## 2026-09-30 — Guided assignment parser grammar follow-up
+
+Second targeted review found that spaced field labels, indented reserved section headings, and nonblank pre-title text could bypass the classroom guided preview guard and lose or mutate content. The classroom-only helper now classifies exactly the eight fields accepted by the unchanged legacy parser, recognizes sections after trim, and rejects ignored prefaces before the create RPC. Generated prose with those field and heading forms remains visible and keeps its original points. Focused checks and stable-SHA re-review remain with the owning task. Risk profile: none. Model recommendation: GPT-6 Sol for the narrow parser boundary correction.
+
+## 2026-09-30 — Guided assignment documentation checkpoint
+
+Owner approved one documentation correction/main sync and one brief review after the review-budget checkpoint. Restored the missing space in CURRENT migration history while retaining verified production 222 and the new main deployment flow. Application changes remain unchanged; exact-head checks and main merge remain gated.
+
+## 2026-09-30 — Password-free hosted migration authentication
+
+Replaced the manual rollout's permanent database-password requirement with pinned CLI native temporary logins from a production-project scoped PAT. The runner checks token syntax and rejects password fallback, isolates PostgreSQL environment variables, and binds the authentication strategy into format-2 preview digests. Existing exact migration authorization remains required. Documented six token capabilities, Database Read-write authority, temporary-role creation during preview, Beta endpoint dependency, and server-enforced denial of network-ban removal. The owner declined password reset; none was performed. A targeted review corrected prefix-based scope assurance: legacy tokens can share the prefix, so Dashboard review is the scope control. Offline rollout tests pass43; focused checks, independent review, owner approval for expanded token authority, credential replacement and hosted preview remain pending. No production migration was applied.
+
+## 2026-09-30 — Reconcile dormant Daily Log saves with current main
+
+Owner requested pull/reconciliation. Rebased PR1380 onto main32ad59f5, preserving both histories in the sole archive conflict. Resequenced the branch migration from218 to223 because main now occupies218–222; updated harnesses, regressions and rollout receipts. SQL checksum and Daily Log runtime code match the previously reviewed1eda5574. PR returned to draft before reconciliation; backup branch retains the original SHA. Current local history is through220 with Blueprint218 and no Daily Log function; Sep27 local218 proof is historical. No database application, reset/history repair, production promotion or cohort activation. Focused verification and targeted stable-SHA integration review remain pending.
+
+## 2026-09-30 — Authorized local migrations 221–223 applied
+
+Owner explicitly approved exactly221–223 locally. Verified exact local project/container/port, matching001–220 history, and dry-run containing only the approved set; one application succeeded. Approval is consumed. Local history now matches001–223, Daily Log function exists, generated types match and security advisor reports no issues. Exact-head PR1380 CI36745657706 and final independent integration review passed at656a9a1e. Pinned local Blueprint provenance/adoption and lifecycle-lock contracts pass; Daily Log rollback behavior and all eight concurrency cases pass, with synthetic fixtures removed. The initial Blueprint helper selected a similarly named scratch database; stopped that chain and pinned the verification target to supabase_db_pika. Docker execution delays resolved without restarting or resetting. No reset, reseed, history repair, production write or admission activation. Receipt changes are local documentation only; reviewed remote SHA remains unchanged.
+
+## 2026-09-30 — Pull reveals new applied migration collision
+
+Pulled hub main to3e4d9f1b; feature remote remains656a9a1e. PR1380 is open with prior exact-head CI green but now conflicting with main. Main223 is stop_assignment_grade_conflict_retries; fresh local history223 remains contextual_daily_log_save. Preserve the applied SQL/history and local verification receipts. Next source reconciliation must allocate a new Daily number and explicitly plan local history alignment; no renumber, application, reset or history repair was performed during this report-only request. Shared full-experience admission remains dormant; Daily reads and the remaining five-batch integrations are unfinished.
+
+## 2026-09-30 — Approved Daily Log conflict retry correction
+
+Owner approved narrow225 fix, one seventh targeted review and exactly225 locally after verification. Generated migration via CLI and allocated225; installed224 bytes unchanged. Full replacement differs only in declaration/customPT409 error; service-only grants/security/metadata retained. Adapter accepts PT409 and40001, with one-call/privacy regressions. Tests reproduced missingPT409 mapping before fix; static tests compare complete definition/grants and224hash. Extended existing rollback-only CI harness with a malformed inner-result fault and PT409/no-entry-change assertion; temporary function replacement rolls back. No225 application yet at this implementation checkpoint; focused verification and the one bounded fixed-SHA review precede its approved application. PR1380 will carry latest application/review/CI receipt. Production and admission unchanged. Risk: runtime-platform. Model recommendation: GPT-5.6 Sol/high targeted correction review.
+
+## 2026-10-01 — Hosted migration CLI companion diagnosis
+
+The owner created the reviewed Pika-only 90-day scoped token and saved GitHub migrations-production/SUPABASE_ACCESS_TOKEN at 08:02 Toronto time. The first hosted preview, run36859514133 at merged5f74d08d with verified CI36853538954, failed before a migration plan. Reproduced the installer defect using a fake credential: CLI2.103.0 ships a supabase shim plus supabase-go engine, but the installer extracted only the shim. With both checksum-verified binaries present, linking reaches the expected Unauthorized response for the fake token. Prepared a narrow installer correction and engine-version preflight without changing credentials, scopes, target bindings or migration approval policy. The focused gate passed95 tests plus architecture, UI/design policy, TypeScript and lint; the Linux archive contains both regular x86_64 executables under the unchanged checksum, and the installer shell/version preflight passes. A bounded independent operations review, required CI and the production preview retry remain pending. No production migration or password reset occurred. Risk profile: runtime-platform.
+
+## 2026-10-01 — Assignment AI feedback wording
+
+- Removed the assignment prompt's required `Next Step:` line without adding a prohibition; retained Strength/Missed/optional Tip and all scoring rules. Prompt provenance advanced to v4.
+- Verified: 20 focused grading tests; `pnpm check:focused -- --base origin/main` (250 tests plus architecture, UI/design policy, TypeScript and lint). Teacher/student feedback visually inspected at desktop/mobile in light/dark with intercepted local fixture feedback; captures in `output/playwright/`.
+
+## 2026-10-01 — Production migrations skill and rollout receipt
+
+- Added repository skill `pika-prod-migrations`, routed from AGENTS and the AI instructions. Future production migration work defaults to the existing manual GitHub workflow, with exact one-time authorization, compatible CI proof, preview-bound approval, one apply attempt and read-only semantic verification. Local migrations and app promotion retain their own procedures.
+- Recorded the owner-authorized application of exactly 224 and 225 on production: GitHub run https://github.com/codepetca/pika/actions/runs/36869449834 passed in 39 seconds with `applied-verified`, source `658ee5f5366c59b4d59b56c18a28dd64442b84d8`, CI proof `36862441326` and verified history count 225. Independent read-only checks matched the exact 225 function body and service-only execution grants. No rollout flag activation or application promotion occurred.
+- Updated CURRENT with the verified production state. Skill validation and all 91 documentation/workflow contract tests passed; independent review and final CI are pending. No runtime, migration SQL, credentials or workflow controls are changed by this PR.
+
+## 2026-10-01 — Dormant contextual learner Daily Log reads
+
+Owner approved the next Daily read slice. Learner GET now consumes the existing shared admission for classroom and broad history; legacy requests remain unchanged. A single joined entry/classroom/enrollment statement binds own identity, active membership and non-owner status; validated rows strip relationship metadata. Unit/API tests pass78 including existing writes and legacy reads. Real local PostgREST proves both account-role values, own-entry isolation, owner precedence, outsider denial and removal/archive committing between preflight and SELECT; all synthetic fixtures removed. Added this contract to ephemeral CI. No schema application, UI, signup, account grant, flag activation or production change. Teacher Daily reads remain next. Risk: runtime-platform. Independent review and stable-head CI remain pending; model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility (Terra unavailable).
+
+## 2026-10-01 — Orchestrate contextual teacher Daily reads
+
+Owner requested orchestration of the remaining five batches, retaining this coordinator and the separate billing/UI owners. Learner PR1418 is merged in main at6c44c254 after two clean reviews and all exact-head CI36901168889 gates passed; no promotion or activation. A bounded source investigation selected teacher entry drill-down and learner history before roster-wide logs/previews and cached summaries. One worker implements only the two routes, helper and focused tests; coordinator owns roadmap, documentation, local PostgREST harness and CI wiring. Same-statement owner evidence governs drill-down; history also joins current target enrollment at the entry read, preserving legacy and archived-owner behavior. Real local checks pass both role values, projection/date isolation, removal/transfer races and exact synthetic cleanup. A separate startup/workflow run has fixture timeouts under host load; canonical focused validation and independent stable-SHA review remain required. No migration, UI, account grant, billing, rollout configuration or production change. Risk: runtime-platform; review risk high. Model recommendation: GPT-5.6 Sol/high security plus GPT-6 Sol/high compatibility fallback (Terra unavailable).
+
+Resumed from preserved files after interruption; no worker remained active. Coordinator reproduced the non-owner 503/403 ordering defect with two failing regressions and corrected it before publication. Targeted unit/API and unchanged legacy suites now pass40tests; real PostgREST contract passes again, including archived reads and post-preflight removal/ownership transfer, with cleanup verified. Canonical focused checks and independent review remain pending; no production change.
+
+## 2026-10-01 — Contextual teacher Daily reads merged; roster logs next
+
+PR1420 merged main at3cf01b06 after four bounded independent review launches and one correction batch: joined learner identity/projection and rejected history errors. Final44targeted/135focused tests, static checks and real PostgREST contract passed; exact-head CI36936773832 passed all gates atreviewed5d795bb0. CI took1547run seconds plus3queue seconds. No production, schema, cohort or account change. Hub fast-forwarded and only this slice's finished implementation/four review worktrees cleaned; Git history preserves their contents.
+
+Next worktree codex/contextual-teacher-daily-logs starts from3cf01b06. A bounded read-only proposal plus coordinator schema/SDK checks and a zero-result local PostgREST syntax probe selected enrollment-rooted nested profiles/selected entries/previews; no migration or N+1 fallback. One worker owns helper/route/input and TDD tests; coordinator owns real1001learner/seven-entry fixture contract, CI wiring and docs. Actual per-learner limits, projection, keyset pagination, current membership/owner races and cleanup remain acceptance gates; syntax alone proves none of them. Shared admission remains off; cached summary is next. Risk runtime-platform; high-risk independent review models GPT-5.6 Sol/high security and GPT-6 Sol/high compatibility fallback (Terra unavailable).
+
+Worker completed23focused tests plus TypeScript, architecture and ESLint. Real PostgREST passes every1001learner/pagination/projection/profile/date/archive/denial/removal/transfer contract with exactcleanup. First harness attempt tried to resurrect a closed membership generation; its cleanup passed, fixture rejoin now uses a new enrollment UUID as required by the existing Pal lifecycle, and the rerun is green. No product change or weakened trigger was needed. Canonical focused verification, independent review and exact-head CI remain pending.
+
+## 2026-10-01 Teacher Daily logs review corrections
+
+PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
+correction validates malformed query envelopes and catches builder failures as
+generic 503 (five TDD regressions); both teacher Daily local harnesses now retain
+exact entitlement operation IDs and assert live-state/audit cleanup. Removed only
+six identified synthetic logs-harness audit rows from local, retaining a private
+recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
+119 focused tests and static checks pass. Targeted/final review pending. No
+production, migration, cohort, plan or UI change; summary read remains next.
+
+## 2026-10-01 Teacher Daily logs review corrections
+
+PR #1421 initial security/compatibility reviews found two accepted P2s. One batched
+correction validates malformed query envelopes and catches builder failures as
+generic 503 (five TDD regressions); both teacher Daily local harnesses now retain
+exact entitlement operation IDs and assert live-state/audit cleanup. Removed only
+six identified synthetic logs-harness audit rows from local, retaining a private
+recovery snapshot. Both real PostgREST harnesses pass, including 1001 learners;
+119 focused tests and static checks pass. Targeted/final review pending. No
+production, migration, cohort, plan or UI change; summary read remains next.
+
+## 2026-10-01 — Dormant teacher cached Daily summary implementation
+
+While independently reviewed roster-logs PR1421 runs CI, a separate worktree
+codex/contextual-teacher-daily-summary starts from merged1420 actor admission.
+Worker owns only summary route/helper/schema and unit/API tests; coordinator owns
+local fixtures/CI/docs/Git. Every stats/count/cache statement binds current owner,
+classroom and date; existing ready/pending/no_entries/unavailable semantics and
+name restoration remain. Owner caught result-envelope validation gaps before
+initial review; ten TDD regressions now fail closed. 62 targeted/153 focused tests
+and all static checks pass; real local PostgREST verifies both owner role values,
+cache states/isolation, archived owner and transfers before all three reads, with
+exact fixture/audit cleanup. Independent review and final main reconciliation
+pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
+No AI, billing, migration, UI, cohort activation or production change.
+
+## 2026-10-01 — Dormant teacher cached Daily summary implementation
+
+While independently reviewed roster-logs PR1421 runs CI, a separate worktree
+codex/contextual-teacher-daily-summary starts from merged1420 actor admission.
+Worker owns only summary route/helper/schema and unit/API tests; coordinator owns
+local fixtures/CI/docs/Git. Every stats/count/cache statement binds current owner,
+classroom and date; existing ready/pending/no_entries/unavailable semantics and
+name restoration remain. Owner caught result-envelope validation gaps before
+initial review; ten TDD regressions now fail closed. 62 targeted/153 focused tests
+and all static checks pass; real local PostgREST verifies both owner role values,
+cache states/isolation, archived owner and transfers before all three reads, with
+exact fixture/audit cleanup. Independent review and final main reconciliation
+pending. Read-only lesson-plan inventory verifies later read/write race boundaries.
+No AI, billing, migration, UI, cohort activation or production change.
+
+## 2026-10-01 — Roster logs merged; cached summary review corrections
+
+PR1421 merged main e87d322a after four independent reviews, one correction batch,
+119 focused tests/static checks, real1001-learner database checks and every exact
+head CI36940960454 gate at5adf5905. Hub is synchronized; no production activation.
+PR1422 initial reviews at6f255b32 accepted microsecond freshness loss and unresolved
+name-map warning suppression. One batch preserves full timestamp precision and
+requires nonblank own map references before restoration (14 new tests,11 red).
+76 targeted/167 focused tests and real PostgreSQL microsecond/map/race/cleanup
+cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
+application source has no rebase conflicts and no migration was renumbered.
+Targeted security and final integration review remain pending. No AI, schema,
+cohort, UI, billing or production change; lesson-plan list reads follow.
+
+## 2026-10-01 — Roster logs merged; cached summary review corrections
+
+PR1421 merged main e87d322a after four independent reviews, one correction batch,
+119 focused tests/static checks, real1001-learner database checks and every exact
+head CI36940960454 gate at5adf5905. Hub is synchronized; no production activation.
+PR1422 initial reviews at6f255b32 accepted microsecond freshness loss and unresolved
+name-map warning suppression. One batch preserves full timestamp precision and
+requires nonblank own map references before restoration (14 new tests,11 red).
+76 targeted/167 focused tests and real PostgreSQL microsecond/map/race/cleanup
+cases pass. Rebased onto merged1421, preserving both CI steps and continuity;
+application source has no rebase conflicts and no migration was renumbered.
+Targeted security and final integration review remain pending. No AI, schema,
+cohort, UI, billing or production change; lesson-plan list reads follow.
+
+## 2026-10-01 — Daily outer-scroll investigation
+
+- User clarified the defect: Daily's whole page scrolls vertically into blank space below the table, in wide and narrow windows; only the table should scroll.
+- Read-only local investigation in app-managed worktree `daily-scroll-containment`; startup verification passed. With 80 mocked roster rows and the full classroom shell, Chromium1440×900 keeps document900px and table578px;1000/390px widths grow document3326px and table3004px because AppShell confinement is desktop-only. Exact wide-window blank-space symptom remains unreproduced; awaiting clarification about table-end versus outside-table scrolling. Product source unchanged.
+- Debug screenshots `/tmp/pika-daily-summary-{1440,1000,390}.png`; reference historical PR775/test-pane overflow and PR578/student-scroll persistence. Automatic DeepSeek delegation paused through2026-12-31 per shared pilot record.
+
+## 2026-10-01 — Daily outer-scroll investigation
+
+- User clarified the defect: Daily's whole page scrolls vertically into blank space below the table, in wide and narrow windows; only the table should scroll.
+- Read-only local investigation in app-managed worktree `daily-scroll-containment`; startup verification passed. With 80 mocked roster rows and the full classroom shell, Chromium1440×900 keeps document900px and table578px;1000/390px widths grow document3326px and table3004px because AppShell confinement is desktop-only. Exact wide-window blank-space symptom remains unreproduced; awaiting clarification about table-end versus outside-table scrolling. Product source unchanged.
+- Debug screenshots `/tmp/pika-daily-summary-{1440,1000,390}.png`; reference historical PR775/test-pane overflow and PR578/student-scroll persistence. Automatic DeepSeek delegation paused through2026-12-31 per shared pilot record.
+
+## 2026-10-01 — Daily blank-space cause confirmed in Chrome
+
+- Inspected user's existing production Daily tab read-only. At1152×608, body/AppShell608px but document953px and page scrollY300px, with the table independently scrolled551px. Hidden `No QR check-in` spans in Check-in cells extend to document953px because every ancestor through the scroller is statically positioned.
+- User has reduced motion enabled: Daily entry animation/transform is disabled. The animation otherwise incidentally creates a containing block, explaining why local default-motion screenshots missed the desktop defect. Containment should be explicit for screen-reader labels in both Daily table modes; retain their accessible text. Narrow shell-height issue from earlier investigation is separate.
+- Product source unchanged. Next implementation: regression with reduced-motion and missing check-ins, explicit local positioned containment, compare default/selected Daily states and wide/narrow viewports.
+
+## 2026-10-01 — Daily blank-space cause confirmed in Chrome
+
+- Inspected user's existing production Daily tab read-only. At1152×608, body/AppShell608px but document953px and page scrollY300px, with the table independently scrolled551px. Hidden `No QR check-in` spans in Check-in cells extend to document953px because every ancestor through the scroller is statically positioned.
+- User has reduced motion enabled: Daily entry animation/transform is disabled. The animation otherwise incidentally creates a containing block, explaining why local default-motion screenshots missed the desktop defect. Containment should be explicit for screen-reader labels in both Daily table modes; retain their accessible text. Narrow shell-height issue from earlier investigation is separate.
+- Product source unchanged. Next implementation: regression with reduced-motion and missing check-ins, explicit local positioned containment, compare default/selected Daily states and wide/narrow viewports.
+
+## 2026-10-01 — Daily scroll containment fix
+
+- Made both teacher Daily roster scrollers positioned containers so hidden check-in labels remain inside the table without depending on animation transforms. Added an AppShell narrow-viewport opt-in used only by teacher Daily; reused the Daily/TeacherWorkspaceSplit composition and `/pattern-lab` Daily reference. No new visual pattern or data behavior.
+- Browser regression failed before the fix (reduced-motion document1455px for a900px viewport). Final Playwright matrix passes20: teacher fixture/full classroom, selected/unselected, normal/reduced motion,1440×900/390×844, light/dark; student Daily regression/screenshots pass all4 projects. Exact user-size1152×608 reduced-motion smoke keeps document608px and context bar56px before/after table-end wheel scrolling. Screenshots inspected in `test-results/` and `/tmp/pika-daily-exact-classroom.png`.
+- Focused gate passes223 tests plus architecture, UI/design policy, TypeScript and lint; audit/diff checks pass. An earlier concurrent run timed out two unrelated startup-doc harness tests; serial rerun passes. Risk profile:none. Independent review and final PR CI pending; use one GPT-5.6 Sol/high behavior reviewer because Terra is unavailable. DeepSeek pilot remains paused.
+
+## 2026-10-01 — Daily scroll containment fix
+
+- Made both teacher Daily roster scrollers positioned containers so hidden check-in labels remain inside the table without depending on animation transforms. Added an AppShell narrow-viewport opt-in used only by teacher Daily; reused the Daily/TeacherWorkspaceSplit composition and `/pattern-lab` Daily reference. No new visual pattern or data behavior.
+- Browser regression failed before the fix (reduced-motion document1455px for a900px viewport). Final Playwright matrix passes20: teacher fixture/full classroom, selected/unselected, normal/reduced motion,1440×900/390×844, light/dark; student Daily regression/screenshots pass all4 projects. Exact user-size1152×608 reduced-motion smoke keeps document608px and context bar56px before/after table-end wheel scrolling. Screenshots inspected in `test-results/` and `/tmp/pika-daily-exact-classroom.png`.
+- Focused gate passes223 tests plus architecture, UI/design policy, TypeScript and lint; audit/diff checks pass. An earlier concurrent run timed out two unrelated startup-doc harness tests; serial rerun passes. Risk profile:none. Independent review and final PR CI pending; use one GPT-5.6 Sol/high behavior reviewer because Terra is unavailable. DeepSeek pilot remains paused.
+
+## 2026-10-01 — Contain long student tables across classroom workspaces
+
+Extended the Daily scroll fix to Roster and assignment/test grading, including Tests before student selection. Teacher table workspaces now keep the narrow shell within the viewport; Gradebook retains its existing mobile selector flow. Explicit containing blocks keep hidden row labels inside table scrollers, and vertical gesture containment prevents viewport bounce at the last row. The shared gapped split gives stacked table/inspector panes available height so an open Assignment inspector cannot squeeze the table to one row. Existing Pattern Lab Roster, Gradebook and Workspaces owners are reused; no new UI pattern. Added a strictly development-only full ClassroomPageClient fixture with synthetic identities and mocked read-only data. Production API authorization is unchanged. All 60 teacher/student light/dark desktop/mobile and normal/reduced-motion browser cases pass; 18 additional reduced-motion checks pass at 1152x608, 1000x608 and 390x608. Checks cover last-row reachability, selected states, sticky headers where present, usable table height and inspector bottom controls. Screenshots visually reviewed under ignored artifacts/scroll-audit. Focused checks pass 581 tests in 37 files, architecture, UI/design policy, TypeScript and lint. Legacy teacher dashboard was inspected in source: its normal page flow contains actual content, without the hidden-label empty-tail mechanism. Local authenticated backend verification was unavailable because shared local Pika PostgreSQL was unhealthy; no database changes were made. PR1419 remains draft for expanded independent review. Risk: standard UI behavior; model recommendation: GPT-6 Sol.
+
+## 2026-10-01 — Contain long student tables across classroom workspaces
+
+Extended the Daily scroll fix to Roster and assignment/test grading, including Tests before student selection. Teacher table workspaces now keep the narrow shell within the viewport; Gradebook retains its existing mobile selector flow. Explicit containing blocks keep hidden row labels inside table scrollers, and vertical gesture containment prevents viewport bounce at the last row. The shared gapped split gives stacked table/inspector panes available height so an open Assignment inspector cannot squeeze the table to one row. Existing Pattern Lab Roster, Gradebook and Workspaces owners are reused; no new UI pattern. Added a strictly development-only full ClassroomPageClient fixture with synthetic identities and mocked read-only data. Production API authorization is unchanged. All 60 teacher/student light/dark desktop/mobile and normal/reduced-motion browser cases pass; 18 additional reduced-motion checks pass at 1152x608, 1000x608 and 390x608. Checks cover last-row reachability, selected states, sticky headers where present, usable table height and inspector bottom controls. Screenshots visually reviewed under ignored artifacts/scroll-audit. Focused checks pass 581 tests in 37 files, architecture, UI/design policy, TypeScript and lint. Legacy teacher dashboard was inspected in source: its normal page flow contains actual content, without the hidden-label empty-tail mechanism. Local authenticated backend verification was unavailable because shared local Pika PostgreSQL was unhealthy; no database changes were made. PR1419 remains draft for expanded independent review. Risk: standard UI behavior; model recommendation: GPT-6 Sol.
+
+## 2026-10-01 — Selected Workspaces reference containment
+
+An extra selected-state Pattern Lab capture after the clean expanded review exposed an unbounded gallery canvas and missing flex display on its active Students panel. Reused the existing h-96 preview size as a bounded canvas for Students, leaving inactive panels hidden and summary/overview sizing unchanged. The shared production split remains unchanged. Browser coverage verifies both panes retain usable height, the last student and inspector content are reachable, and the hidden panel stays hidden. All four desktop/mobile light/dark reference cases pass and screenshots are inspected. Focused checks still pass 581 tests in 37 files plus policy, architecture, TypeScript and lint. PR1419 returned to draft and its previous ready CI was cancelled before this first remediation batch; targeted and final integration review remain pending.
+
+## 2026-10-01 — Approved scrolling PR main synchronization
+
+PR1419 at d03d91f2 passed independent cumulative, targeted and final integration reviews and exact-head CI36938870903, including Test & Build, Browser Experience Matrix and PR Gate. Main advanced during CI, creating archive marker conflicts. Owner approved one bounded main sync, one additional compatibility review and fresh CI. Rebased onto e87d322a, incorporating contextual teacher Daily entry/history and roster-log authorization work without changing its behavior. Resolved three duplicate archive-marker conflicts using main's markers; automated comparisons confirm all historical archive text from both tips is retained and all21 scrolling implementation/test files are byte-identical to the reviewed version. No dependencies, schema, migration application, production promotion or merge is authorized by this synchronization approval. Fresh focused checks pass581 tests/37files plus architecture, policy, TypeScript and lint; all51 incoming Daily API/server tests and four reduced-motion Daily browser cases pass. Screenshots are preserved under ignored artifacts/scroll-audit/main-sync-results. One compatibility review and new stable-head CI remain pending. Review ledger: fourth reviewer launch planned, second correction/sync batch; no broader review loop.
+
+## 2026-10-01 — Student table scrolling merge authorization
+
+Owner requested pull, conflict resolution and merge of PR1419. Rebased onto main7c0ded24 (cached Daily summary reads); archive-only conflicts retain both histories. All21 feature implementation/test blobs remain unchanged from c7a48cb1. Previous exact-head CI36944522875 passed all eligible gates. One additional bounded compatibility reviewer and fresh focused/incoming-summary checks precede fresh final CI and the authorized squash merge to main. No production promotion or database change.
+
+## 2026-10-01 — Final scrolling synchronization without archive churn
+
+Main advanced to478fd94e before the final ready event. Owner's pull/resolve/merge instruction covers this follow-up synchronization. No application conflict; all21 scrolling implementation/test files and cached-summary source remain unchanged. Retained the canonical main archive byte-for-byte and preserved this task's seven unique entries in the recent log, using the supported --keep60 setting within its60-entry cap. All historical bodies from both parents remain present; this avoids rewriting unrelated archive batches. Fresh focused and incoming lesson-plan tests, final fixed-SHA compatibility verification and exact-head CI precede the authorized main squash merge. Production promotion remains separate.
+
+## 2026-10-02 — ICS3U Java lesson review draft
+
+- Reviewed all 15 pages of JavaExplained.pdf. Owner selected concepts-only content, CodeHS/Replit context, and Markdown presented as a site. Created nine-section student lesson, separate teacher notes, and dependency-free reading/presentation site in docs/curriculum/ics3u/java.
+- Dedicated worktree: /Users/stew/.codex/worktrees/ics3u-java-intro/pika; branch codex/ics3u-java-intro. Startup verification passed after frozen-lockfile dependency install; no new dependencies or product runtime/schema changes. DeepSeek remains paused through 2026-12-31; weekly remaining 55%.
+- Verified all nine presentation sections visually and by content bounds, keyboard navigation and Escape, mobile reading layout, syntax checks, and student-only deployment archive. Private hosted review version succeeded: https://ics3u-java-explained.stewchan.chatgpt.site (Sites project appgprj_6abfba35d1488191a95161dc1d5353a6, source 7b4996988647426df5e0d4421734dded0f04cc75). Bundled Sites helpers disappeared during the run; used a credential-safe exact source push and committed-asset archive with native private deployment.
+- Teacher Chrome session verified P3 - ICS3U classroom 0a103a76-2b60-4fb6-8158-4a97727bd35f; saved and reopened Material 1.1 Java explained as a draft; verified the Draft label and clickable hosted lesson link. Public access and student posting await content review. Repo artifacts remain uncommitted for collaborative revision; no PR or classroom release yet.
+
+## 2026-10-02 — Bulk merged; prepare contextual lesson-plan copy
+
+1426 reviewed38c7edfb passed all five exact-head gates in37014848829; normal squash
+mergea101fb28 verified and canonical main fast-forwarded.239 focused checks;226/227
+unchanged. User-authorized billing notification delivered; heartbeat stays paused.
+New managed copy checkout based ona101fb28; startup verified, frozen install only.
+Bounded Astra/high design plus Sol/high writer; coordinator owns docs/harness/CI/Git.
+Prepared229 adds current-owner atomic copy with strict recursive source validation,
+raw content/nullable Markdown, preserved destination identity/lineage and no heads.
+Pre-review inspection fixed nullable node validation and SQL COALESCE syntax.
+CI-wrapper TDD red/green; source tests pass, legacy eight checked separately.
+Read-only local list/preview found installed228 absent from branch/main; dry-run
+stopped on history mismatch. No repair, schema apply, generated-type fabrication,
+production, billing/account or admission changes. Wait billing228 reconciliation,
+SQL preapplication review and fresh exact LOCAL229 approval before runtime tests.
+Sol/high independent preapplication review at1d3ff46f is clean; no DB operation.
+32 source/legacy tests, architecture and audit pass. Full focused workflow checks
+found only CURRENT/startup cap68characters over; compact handoff fixes that limit.
+TypeScript still has the expected unapplied-RPC generated-type error. Review ledger
+started14:37:47Z,1launch/0fullwaves; preserve the budget across the owner checkpoint.
+After compression262workflow/affected tests and architecture/UI/design policy pass;
+focused gate stops at the expected generated-RPC type error, not a green gate.
+
+## 2026-10-02 — Local copy approval and prerequisite reconciliation
+
+Human approved LOCAL229 only after billing228 reconciliation; no apply attempt.
+Human authorized billing coordination and60additional copy review minutes from
+16:50:54Z to17:50:54Z; original1review/1docfix counters retained, not reset.
+Sent bounded request to billing-owned task; separate human billing approval verified.
+Own branch rebased cleanly onto maina6c23954/1428; copy source/SQL unchanged,
+only incoming SESSION-LOG histories differ. Billing1429 sync review clean at87007a8e;
+fresh CI exposed required Prod DB summary prefix. Reproduced same omission in copy
+handoff with existing Bara policy test, restored the prefix without weakening the
+startup byte cap or tests. Migration229 digest9b4c9b8b unchanged. Wait billing merge;
+no production, plan/account, billing activation, history repair/reset/reseed changes.
+
+## 2026-10-02 — Apply and verify local copy229
+
+Billing1429 merged25cc0691; all five gates onfe228354/run37039171724. Rebased copy,
+retaining both histories. Matching228 digest7aba5de5, pika/54322,001–228 history and
+229-only preview verified; approved LOCAL229 applied once, permission consumed.
+Local001–229/service-only grants/legitimate generated types pass. Fixture active
+lineage uniqueness collision reproduced red/green; distinct source artifact fix,
+no SQL/guard changes. Positive and forced-failure harness pass with zero residue;
+late rollback verified before outer rollback.263focused+architecture/policies/
+TypeScript/lint pass.229 digest9b4c9b8b unchanged/immutable. Draft/full PR review next;
+1review/3fixbatches, extension ends17:50:54Z after prerequisite CI. No production,
+account plan, billing activation or admission changes.
+
+## 2026-10-02 — Reconcile copy1431 after green CI and attendance1430
+
+Both independent full reviews clean at4516bc85; all five CI gates pass on
+37046563313. Final merge gate caught1430 advancing main to8dc05d47 and one
+JOURNAL-ARCHIVE conflict. Returned1431 to draft; no bypass or stale-head merge.
+Owner approved20more review minutes18:55:24–19:15:24Z; counters retained.
+Rebased onto1430 preserving both histories. All16 non-log owned files match
+the reviewed candidate before receipt updates; installed229 digest9b4c9b8b
+unchanged/immutable, local001–229 unchanged. Batch4 records reconciliation;
+no further default fix batch. One final changed-base integration review and
+fresh exact-head CI remain. Production, accounts, billing and admission held.
+
+## 2026-10-02 — Approved copy1431 continuity cleanup
+
+Final integration review confirmed source/SQL preservation and found two surplus
+historical Daily entries from reconciliation. Owner approved exactly one extra
+documentation-only batch5 and one final recheck, plus10review minutes; counters
+retained. Removed only the later duplicates, preserving each original record.
+263focused tests and all local gates passed at a60a2db9. No application/SQL/type/CI
+changes, migration application, production promotion or activation. Frozen final
+recheck and new exact-head CI must pass before normal main merge.
+
+## 2026-10-02 — Approved copy1431 scrollbar-main reconciliation
+
+Owner approved one synchronization batch6, one changed-base final recheck and
+15review minutes19:34:36–19:49:36Z, plus a temporary main-merge hold request to
+the attendance and billing chats during final CI. Both can continue independent
+work; no task pause or production authority was transferred. Rebased onto1432
+bf3754c4; journal conflict only. Removed one surplus exact historical entry,
+preserving its original. Combined history equals6ad8140f+bf3754c4−8dc05d47
+plus this receipt. All16 non-log owned files and installed229 bytes unchanged.
+263focused tests and architecture/UI/design/TypeScript/lint pass. Final frozen
+recheck and fresh exact-head CI remain before normal main merge. No schema
+application, production promotion, account/billing changes or admission activation.
+
+## 2026-10-02 — Copy1431 merged; announcement shared GET integration
+
+Verified1431 normal squash merge493e752a after all five gates passed on unchanged
+reviewedca403202, CI37076238068. Canonical main fast-forwarded cleanly; no worktree
+cleanup, production promotion or rollout activation. Local001–230 observed;230 is
+billing-owned and unmerged into this base, with no reapply/reset/types regeneration.
+Owner approved continuing batch1 announcement integration. New attached worktree
+codex/contextual-announcement-reads starts at493e752a; startup verifies. Astra/high
+confirmed schema-free current-classroom payload joins and precise composite keysets.
+Sol6.1/high owns helper/schema/GET tests; coordinator owns actual SDK fixture proof,
+CI and docs. Writes, read receipts, notification/export consumers and live activation
+remain deferred. Independent bounded PR review follows local acceptance, not this
+architecture preparation. No migration or UI change is included.
+Local acceptance:65new/134announcement tests;189focused checks plus architecture,
+UI/design policy, TypeScript and lint pass. Actual SDK/PostgREST proves1009rows,
+precise/null keysets, schedules, role-neutral relationships and first/later/terminal
+revocation; positive and forced-failure cleanup leave zero synthetic rows. New
+announcement PR requires its own fixed-SHA high-risk review budget; copy1431's
+closed ledger is not reset or reused. Rollout and production remain held.
+Initial1436 review was clean at5f2bdd3c (2launches,0fixes); CI37082238009 then
+found only api-route-standards debt26vs25: new GET schema parsing incorrectly
+credited an untouched POST at file scope. Returned draft. Batch1 removes redundant
+route parsing; the named feature helper still rejects invalid inputs before any
+SDK query. Baseline, mutation handlers and shared read logic remain unchanged;
+real-helper route regressions plus the standards check cover the correction.
+One targeted compatibility recheck and final integration precede new exact-head CI.
+Batch1 local acceptance passes191focused checks, standards/announcement subset117,
+TypeScript/lint/audit. Shared helper/schema/database contract are unchanged, so
+earlier actual PostgREST and exact cleanup evidence remain applicable.
+
+## 2026-10-02 — Minimal Java lesson viewer
+
+- Removed the header, sidebar, and Previous/Next buttons at the owner's request. All viewer controls now live in a compact fixed footer: page count, Read/Present, fullscreen, print, and three-dot options with Light/Dark appearance. Keyboard navigation remains; reading scroll tracks the current page. Included Lucide icon license alongside generated assets.
+- Visually checked desktop light/dark and phone-width layouts; verified view switching, Arrow/Page keys, menu Escape, no header, and no horizontal overflow. Build/syntax/diff checks pass. Native fullscreen events toggle the control label, though the automated embedded browser does not retain fullscreen. Private deployment succeeded from pushed source 51027a7847c6271f5587e5eff923a4b0391720d7, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_b83acb0cc9f88191929a85adc6460ec6. Same hosted URL and Material draft; audience unchanged. Screenshot: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-minimal-viewer.png.
+
+## 2026-10-02 — Visual Java slides and presenter notes
+
+- Owner requested ultra-simple Present diagrams and a detailed Read view in a separate notes window. Added nine diagram selections to the Markdown with SVG/mobile templates in site/visuals.mjs; original reading explanations retained, downloaded student Markdown strips the visual directives. Footer menu now opens presenter notes as a named popup with normal link fallback. Ephemeral session-scoped BroadcastChannel synchronizes current section/theme and allows notes keyboard navigation to control the presentation. No Pika runtime/schema changes; risk none; weekly remaining53%, prior DeepSeek pause retained.
+- Verified all nine diagrams visually, desktop light/dark and 402px mobile with no horizontal overflow, one diagram/no paragraphs in Present, all nine detailed sections/no slide art in Read, menu access, and actual Chrome popup with slide6→7 notes sync and notes PageDown→slide8. Existing print retains detailed notes through print CSS. Build, syntax, and diff checks pass. Evidence: /Users/stew/.codex/visualizations/2026/10/02/01a0fce3-083f-7dd3-91f7-af434311fc72/java-visual-presentation.png and java-presenter-notes.png.
+- Sites helper restored; normal existing-source opening/push/package workflow used. Private deployment succeeded from5997c568b63389585c1a23cf02e89ec56d2bdfdc, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_06ce177f16308191955bc4090a1bf0a2. Same hosted URL and Material draft; audience unchanged. Repository artifacts remain in collaborative review worktree.
+
+## 2026-10-02 — Java viewer icon toggle
+
+- Replaced visible Read/Present labels with existing licensed Lucide book-open/presentation geometry; retained accessible names, titles, pressed states, and 44px touch targets. Verified both view switches, light/dark state, and screenshot java-icon-toggle.png in this task’s visualizations directory. Build/syntax/diff checks pass; standalone artifact, risk none.
+- Normal Sites workflow and private deployment succeeded from ac8c61bd089267634b6cc5b90e41334a90637128, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_a5774f13b6a8819185f0e0a29a3eda90. Same URL, audience, and Material draft.
+
+## 2026-10-02 — Java viewer Print menu
+
+- Moved Print lesson from the standalone footer icon into the three-dot menu, with an icon/label row. Retained the same print handler and detailed lesson print behavior. Verified closed/open menu snapshots, screenshot java-print-menu.png, build/syntax/diff checks. Standalone artifact, risk none.
+- Private deployment succeeded from5d60a47875b85a5f6117acf8926c3b116c85ae7a, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_26ddf43ab1f481919b0befea1c0809c6. Same URL, audience, and Material draft.
+
+## 2026-10-02 — Presentation diagrams in Read notes
+
+- Moved each existing presentation visual between its Read heading and detailed notes, with a compact 640px desktop preview and condensed mobile diagram layout. Presenter notes inherit the same layout; Present keeps only the full-size diagram. Preserved text-only print output and fixed quoted syntax diagram accessibility labels. Standalone artifact, risk none.
+- Verified nine visible diagrams plus nine detailed sections in Read, Chrome light/dark screenshots, 402px mobile diagram with no overflow, and full-size Present diagram with heading/details hidden. Build/syntax/diff checks pass. Evidence: task visualizations/java-read-diagrams.png. Private deployment succeeded from8225d108361d62b1f14ac470727dbab2e57ce717, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_93b77fe0a0b88191b4130f516c559fbe. Same URL, audience, and Material draft.
+
+## 2026-10-02 — Release Java lesson to ICS3U students
+
+- Owner explicitly requested course inclusion and student viewing. Verified Stewart Chan teacher session in exact P3 - ICS3U classroom 0a103a76-2b60-4fb6-8158-4a97727bd35f, existing Material title/content, and latest hosted URL. Changed Sites audience from owner-private to public via native access update (revision2); no external viewer invitations. An unauthenticated HTTP request returned200 and the correct title/all9 sections/9 diagrams. No code/build/deployment change.
+- Posted the existing 1.1 Java explained Material through the teacher UI; verified Posted badge after server save, reload, and reopening, with the correct clickable lesson link. Material has no due date/submission. Renamed local mirror to material.json and set is_draft=false; updated teaching notes/README to record public access and posted state. Evidence: task visualizations/java-material-posted.png. Future site edits must preserve public audience and use ordinary save/deploy, not owner-private deployment.
+
+## 2026-10-02 — Person/code/group icons for Java roles
+
+- Updated Who does what diagram: Programmer uses Lucide user-round, Program uses </>, User uses Lucide users-round. Same mapping in Present, compact Read, and mobile variants; existing labels/arrows retained. License already included; no new dependency. Standalone artifact, risk none.
+- Visual Chrome screenshot verified dark Present; DOM confirmed matching Read/mobile icon geometry and code label. Build/syntax/diff checks pass; evidence task visualizations/java-role-icons.png. Existing public audience verified, source pushed and archive saved; ordinary public save/deploy succeeded from35da6cb671f9f55661d473a754951b044dbac354, version appgprj_6abfba35d1488191a95161dc1d5353a6~appgver_3a42d83540608191ba94725137d180cd. Posted P3 ICS3U Material already points to the same updated URL.
+
+## 2026-10-02 — Prorated-upgrade backend candidate
+
+Coordinator owns codex/subscription-plan-changes from merged1429/25cc0691. Added dormant, authenticated frozen-invoice upgrade APIs and recovery; provider preview, signed amounts, confirmation digest, captured-card proof, original-term preservation and version writer. Candidate230 unapplied; shared local229 belongs to classroom task, billing OFF. Three bounded GPT workers completed owned schema/provider/API files; no real provider calls or generated-type edits. Repeated same-term upgrades need receipt chains; scheduled downgrade grace awaits owner decision. Billing tests pass; required compile/type checks blocked only by new RPCs until exact local230 permission/type generation. Preapplication review completed: two independent initial reviews and two targeted passes (four launches/two fix batches). Fixed crash-before-payment replay, invoice cleanup after the paid boundary and realistic partial-credit draft totals. Corrected source c962f622;576 billing/API tests pass, lint/audit pass; tsc retains exactly two pending new-RPC errors. Owner approved one exact local230 application, conditional on classroom229 PR1431 merging and an only230 dry run; permission remains unconsumed. Verified Pika/54322 target through229; four existing billing database harnesses passed with rollback and unchanged counts (3 users/1 classroom/0 plans, bindings or access), sandbox OFF. Classroom229 PR1431 awaits its owner-controlled review/CI/main reconciliation. SQL230 unchanged since initial review. Final cumulative PR review/types/database harness remain; no production/reset/reseed/activation/merge authority.
+
+## 2026-10-02 — Local230 application and generated contracts
+
+1431 merged493e752a; rebased billing with continuity-only conflicts, preserving reviewed230 SHA25627da3d0c09a2566c5a10fc051c225dc6c4f12ef4a250914003355a6eef915d1f and all billing behavior. Owner's conditional approval consumed by one successful local230-only push after matching001–229 history/dry run and629preapplication tests. Local001–230 matches; generated types/check, focused TypeScript/lint/architecture gates and four existing rollback database harnesses pass. Security advisor clean; RLS/service-only ACL probes pass; 3users/1classroom/0plans,bindings,access,upgrade operations/receipts unchanged; sandbox OFF. New230harness rolled back at unparenthesized CASE assertion; prepared two-line fixture patch, not applied. Four prior review launches/two financial fix batches/one main sync; review clock expired during1431wait, so bounded final correction/review extension remains needed. No repeated application, production/reset/reseed/Stripe/payment/activation/merge authority.
+
+## 2026-10-02 — Approved upgrade fixture correction
+
+The owner approved two CASE assertion parentheses and a20-minute final-review
+extension at2026-10-03T00:15:11Z, ending00:35:11Z. The new migration230 upgrade
+database harness now passes with rollback. Installed230 and provider behavior
+are unchanged; no migration reapplication, Stripe writes or activation occurred.
+Four prior review launches, two financial fixes and one main sync remain counted;
+this fixture correction and one final integration reviewer are the bounded next
+step before stable-SHA CI.
+
+## 2026-10-02 — Upgrade final integration review checkpoint
+
+Draft PR1435 publishes cc2217bc after520focused tests,53continuity tests, matching
+generated types and the corrected rollback harness. Final GPT-5.6 Sol/high review
+(launch5;48targeted tests) found one verified P1: revision conflicts leave active
+upgrade rows queued but undiscoverable, hiding attention and blocking ordinary
+subscription processing. No other blockers reported. CI remains unstarted and
+billing OFF. Five launches, two financial fixes, one main sync and one fixture
+correction are used. Owner checkpoint required for additive conflict-recovery
+correction and targeted review; applied230 must remain immutable. These handoff
+notes are local and uncommitted; the published candidate remains cc2217bc.
+
+## 2026-10-03 — Blueprint Materials visibility
+
+Owner approved addressing Java Explained in both current classroom Blueprint tabs. Source inspection found the tabs omit Materials entirely; refined to a read-only latest-saved linked-Blueprint Materials list rather than changing snapshot provenance or weakening reconciliation. Teacher-only endpoint checks classroom and Blueprint ownership, projects validated materials only, preserves historical missing-Materials snapshots and distinguishes failures from empty lists. Separate source label retains frozen Content/Guidance versions; student Posted Materials and public Sites lesson unchanged. UI brief: existing Blueprint Content and Pattern Lab page states; reuse PageLayout/PageState/Button/RichTextViewer, teacher desktop/mobile light/dark, loaded/focus and desktop loading/error/empty/retry, student UI n/a (teacher-only) with real API rejection covered; composite checklist reviewed, existing segmented semantics retained, new link keyboard focus verified; no experimental patterns or migrations. Focused170 tests, architecture/UI/design/TypeScript/lint and audit pass. Eight unique browser scenarios pass, covering four layouts, loading, error/empty retry, real API null/student403, and Pattern Lab; one broader classroom read failed during dev recompilation and passed targeted rerun after source stabilized. Eight screenshots visually reviewed and retained at /tmp/pika-java-review/blueprint-materials-2026-10-03. Lesson viewer build/syntax checks pass. Lesson/viewer/guidance saved in feature branch; synced origin/main66fa5de3 while preserving both continuity histories. Draft-first independent review follows. Risk profile: none. Model recommendation: GPT-6 Sol for bounded read-only application work.
+
+## 2026-10-02 — Java lesson presentation scale
+
+Enlarged desktop presentation diagrams: removed the 1400px width cap, reduced gutters, filled the viewport above the footer, and increased titles, symbols, labels, and role icons. Kept Read thumbnails compact. Added asset content hashes to prevent stale cached CSS/JS after updates. Visually checked syntax, roles, instructions, JVM labels, portability, and compact Read mode in Chrome. Build, JavaScript syntax checks, and diff whitespace check passed. Published public Sites version appgver_e4dbd3b5b8e88191852c3c3ff7512c47 from source f381bf40d3ad01cd9c7afcff52407eb477ae29f4; deployment appgdep_6abfc759541c81919e05791ad6d938f6 succeeded. Existing posted P3 - ICS3U Material uses the same URL. Standalone curriculum artifact; no Pika runtime/schema changes.
+
+## 2026-10-02 — Java compiler factory icon
+
+Replaced the compiler symbol with a locally drawn SVG factory icon on Compile (slide 6) and Explain the journey (slide 9), including compact reading and mobile variants. Visually verified both presentation slides and the reading thumbnail; build, syntax check, and diff check passed. Public Sites version appgver_277614cd4f6c81918b1028c326c58d4b published from source 40657ba98389d84c09f970ff1652c2b76e5f0952; deployment appgdep_6abfc7d6ac288191993370cc20045412 succeeded. Existing student Material retains the same link. No Pika runtime or database changes.
+
+## 2026-10-02 — Program game controller icon
+
+Replaced the Program code symbol in Who does what (slide 3) with a locally drawn game controller SVG, including reading/mobile variants. Visually verified Present and Read in Chrome. Build, syntax check, and whitespace check passed. Public Sites version appgver_b856dce49cb08191ba15841e9f27ca94 published from source 68c563f63a627b20e7111ccd8d869c85641e7ce0; deployment appgdep_6abfc84610548191ab624a497a4fe005 succeeded. Same student Material URL. No Pika runtime/schema changes.
+
+## 2026-10-02 — Reusable lesson viewer guidance
+
+Saved docs/curriculum/lesson-viewer-guide.md with the agreed visual Present / detailed Read format, minimal footer, synchronized notes, source file map, Markdown example, reuse steps, visual verification, hosting/audience and Material guidance. Added a compact task route in docs/ai-instructions.md and linked from the Java site README. Documentation only; risk none; direct Codex editing/verification. All 43 ai-startup-docs tests passed after shortening the new route to fit the existing context budget; 10 local links and whitespace validated. Viewer/lesson/guidance remain saved in codex/ics3u-java-intro worktree, uncommitted/unmerged. No public lesson deployment or classroom change required.
+
+## 2026-10-02 — Java lesson in ICS3U Blueprint
+
+Added Java Explained as a Material in the P3-linked ICS3U-4 Blueprint through the signed-in teacher UI. Materials were empty; assignments occupied positions 0–13 and the survey position 14, so the new Material uses position 15 without altering existing classwork. Artifact ID 8ad9cfa1-1c8e-4733-a16f-90cbc0a35111 links the public Java lesson. Export Course Package saved Version 5 from Draft revision 6, verified after reloading, with persisted Material Markdown and screenshots in /tmp/pika-java-review/blueprint-{version-5,java-material}.png. CLI production session was unavailable; used existing authenticated Chrome session. Mirrored blueprint Material beside lesson source and refreshed the classroom Material title to the observed Java Explained. Existing classrooms were not updated or created. Documentation/data mirror only; no Pika runtime, schema, or site changes.
+
+## 2026-10-02 — P3/P5 Blueprint scope verification
+
+Confirmed both P3 - ICS3U and P5 - ICS3U use shared ICS3U-4 Blueprint; both classroom Blueprint tabs show Content Version 3 / Guidance Version 4. Shared Blueprint already contains Java Explained (version 5). Java Explained is Posted in both classrooms; P5 Material opens the same public URL. Preparing P5 inverse Blueprint update was blocked by new classroom artifacts requiring promotion/reconciliation; no proposal/classroom content update applied. P5 has a classroom-only verification assignment in addition to local Java Material, so unrelated promotion was not attempted. Asked whether the user means the shared reusable Blueprint or both current classroom Blueprint tabs; clarification pending. Updated lesson README with verified scope and classroom IDs. No app/source/site changes.
+
+## 2026-10-02 — Classroom Blueprint reconciliation review
+
+Owner confirmed updating both current classroom Blueprint tabs. Inspected P3/P5 merge suggestions through authenticated Chrome without saving: both contain local Unit 1 tests and Java Material; P3 also has a verification test, P5 a verification assignment. P3 lesson promotion would remove templates 91–95 and change many existing lessons. Source review confirmed preparation blocks on all untracked artifacts and promotion replaces entire selected artifact areas. A Java-only promotion cannot clear the gate; broader promotion is outside this lesson request. No proposal, classroom update, or reconciliation writes made. Asked for scope choice: implement targeted Java-only update support (recommended), review broader reconciliation, or retain current snapshots. Updated lesson README; shared Blueprint Version 5 and both Posted student Materials remain available. Documentation only; no app/runtime/schema/site changes.
+
+## 2026-10-03 — Shared classroom-detail read preparation
+
+PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
+allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
+normal squash/no bypass and clean canonical main fast-forward. Classday1444
+ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
+initial security/compatibility reviews are clean, pending actual-parent integration.
+This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
+current relationship bound in the full30field payload, real enrollment FK inner
+join, archive-owner reads and owner-self-participation denial, preserved hydration
+and member guide-draft/guidance privacy projection. Original fallback/pair GETs
+and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
+TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
+CI hook prepared; actual execution and independent review still pending.
+Local236 installed by separate preserving-removal work; no schema/types here.
+Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
+attendance protection; coordinator repairs only synthetic teardown before more
+DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
+The owner's all-work/review-extension authorization retains original clocks,
+counters, absolute review caps and normal technical/release gates.
+
+1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
+(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
+ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
+replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
+unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
+and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
+Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
+allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
+entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
+integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
+
+## 2026-10-03 — Shared classroom-detail read preparation
+
+PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
+allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
+normal squash/no bypass and clean canonical main fast-forward. Classday1444
+ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
+initial security/compatibility reviews are clean, pending actual-parent integration.
+This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
+current relationship bound in the full30field payload, real enrollment FK inner
+join, archive-owner reads and owner-self-participation denial, preserved hydration
+and member guide-draft/guidance privacy projection. Original fallback/pair GETs
+and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
+TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
+CI hook prepared; actual execution and independent review still pending.
+Local236 installed by separate preserving-removal work; no schema/types here.
+Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
+attendance protection; coordinator repairs only synthetic teardown before more
+DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
+The owner's all-work/review-extension authorization retains original clocks,
+counters, absolute review caps and normal technical/release gates.
+
+1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
+(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
+ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
+replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
+unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
+and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
+Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
+allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
+entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
+integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
+
+## 2026-10-03 — Shared classroom-detail read preparation
+
+PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
+allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
+normal squash/no bypass and clean canonical main fast-forward. Classday1444
+ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
+initial security/compatibility reviews are clean, pending actual-parent integration.
+This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
+current relationship bound in the full30field payload, real enrollment FK inner
+join, archive-owner reads and owner-self-participation denial, preserved hydration
+and member guide-draft/guidance privacy projection. Original fallback/pair GETs
+and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
+TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
+CI hook prepared; actual execution and independent review still pending.
+Local236 installed by separate preserving-removal work; no schema/types here.
+Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
+attendance protection; coordinator repairs only synthetic teardown before more
+DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
+The owner's all-work/review-extension authorization retains original clocks,
+counters, absolute review caps and normal technical/release gates.
+
+1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
+(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
+ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
+replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
+unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
+and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
+Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
+allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
+entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
+integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
+
+## 2026-10-03 — Blueprint Materials review correction
+
+PR1437 initial independent GPT-5.6 Sol review at99704ad8 found one blocking malformed-title boundary and stale posting notes. Verified canonical Material writes trim and require nonempty titles; applied matching read validation and two empty/whitespace snapshot regressions, updated teacher notes to Java Explained Posted in P3/P5, and clarified read-only tab visibility rather than snapshot adoption. One batched correction; affected checks and targeted plus final cumulative review follow. No runtime writes, migration or deployment. Review budget: one launch/one initial wave consumed; elapsed initial review about4m30s, coordinator tokens unknown.
+
+## 2026-10-03 — Approved upgrade conflict recovery batch
+
+The owner approved one correction and one targeted financial review with30minutes
+from08:09:58Z to08:39:58Z. Forward231 keeps applied230 immutable, durably audits
+conflicts, closes only operations before invoice intent, quarantines uncertain
+provider writes, preserves stale-claim fences and blocks ordinary requeue from
+erasing financial recovery. Expanded rollback fixtures cover each revision,
+unknown invoice/pay outcomes, quote queue visibility and retired bindings.
+49targeted runtime/service/reconciliation and521focused tests pass, including
+TypeScript/lint/architecture gates. Main66fa5de3 integrated with only continuity
+conflicts; all billing source and230 remain byte-identical to the prepared fix.
+231 application and database regressions await separate exact approval; the
+harness correctly refuses230. One targeted fixed-SHA financial reviewer is next
+(launch6); no further correction or final wave is authorized. Billing OFF; no provider calls or reset.
+
+## 2026-10-03 — Upgrade231 preapplication review cleared
+
+Targeted GPT-5.6 Sol/high reviewer cleared exact4209da62 with no verified blockers
+and246upgrade/API tests. Installed230 checksum unchanged;231 public RPC types
+unchanged. Six launches and five composite correction/sync batches are consumed;
+the30-minute extension's one correction and targeted reviewer are complete. Local
+history001–230 matches and a read-only dry run lists only231. User/classroom/
+upgrade/receipt counts3/1/0/0; sandbox OFF. Exact local231 permission is required
+before one application attempt, rollback DB harness, types/security checks and
+ready-head CI. No merge, production, Stripe writes or reset authority conveyed.
+These review receipts are uncommitted continuity notes; PR1435 remains draft at
+reviewed4209da62.
+
+## 2026-10-03 — Local231 receipt and fixture checkpoint
+
+Direct human local-migration approval override verified in owning classroom task.
+That coordinator applied only reviewed231 once from4209da62; I independently
+verified history001–231 and immutable230/231 checksums. Types match; security
+advisor clean; four existing billing DB harnesses pass. The expanded upgrade
+harness fails initial synthetic Stripe-ID validation because conflict_* fixture
+names include underscores. Transaction rolled back; data3/1/0/0, sandboxOFF.
+Prepared two-line ID normalization patch at/private/tmp/pika-231-stripe-fixture-id.patch
+passes git-apply-check, but source is unchanged. One authorized correction/review
+is consumed (6launches/5composite batches). A bounded fixture-only correction,
+database rerun and brief targeted review need the human budget checkpoint.
+PR1435 remains draft at4209da62; no migration retry, reset, production or Stripe.
+
+## 2026-10-03 — Shared local232 coordination hold
+
+Announcement coordinator reports one successful reviewed232 local application
+and holds the DB writer slot for rollback/SDK/concurrency proof. Independently
+read history tail232/231/230; billing source stays4209da62 and230/231 checksums
+unchanged. Types last matched001–231 before232; current drift is expected and
+must not trigger reset/repair or unrelated232 source adoption into billing. No
+fixtures, generation, migration or provider writes run here. Announcement proof/cleanup completed and its writer slot is now released;
+independent reads confirm local232 and persistent counts3/1/0/0,sandboxfalse.
+Billing fixture-only correction/review approval remains pending; coordinate the
+writer slot before any resumed fixtures. No budget extension inferred. PR1435 stays draft; continuity only dirty.
+
+## 2026-10-03 — Approval override and upgrade database acceptance
+
+Human overrides correction and main-merge approval checkpoints; review and CI
+gates remain. Fixture-only batch6 normalizes synthetic Stripe IDs, isolates an
+earlier valid queue fixture through a real lease, and removes a PL/pgSQL alias
+collision. Full expanded rollback harness passes on local001–232; cleanup counts
+3/1/0/0,sandboxfalse, shared writer slot released. Billing code, installed230/231
+and generated types remain byte-identical to reviewed4209da62. Types last matched
+001–231 before announcement232; branch CI must verify its own schema replay.
+One mechanical fixture reviewer (launch7) follows focused checks/frozen commit;
+no fresh full-diff wave. PR1435 is draft until review/exact-head CI, then authorized
+main merge. Billing OFF; no migration reapplication, reset or provider call.
+
+## 2026-10-03 — Java Materials approved main synchronization
+
+Owner authorized PR1437 main merge. Main advanced to efe4eb3f through dormant billing PR1435, producing only an archive conflict. Kept the canonical main archive and all branch additions byte-for-byte; application files merged without conflict. All lesson/viewer/API/UI/test files remain unchanged from independently reviewed73ff84fb, whose full CI37110290722 passed. One bounded compatibility review, focused checks and fresh stable-head CI precede the authorized squash merge. No production promotion, migration application, billing activation or provider calls are authorized.
+
+## 2026-10-03 — Announcement reads merged; owner-write preparation
+
+PR1436 merged66fa5de3 after clean initial, targeted and final integration reviews,
+191 focused checks and all exact-head CI37083358161 gates; hub fast-forwarded clean.
+Owner authorizes routine implementation/review/normal main merges through integrated
+cutover, retaining failed-gate, exact migration and bounded-review checkpoints.
+New worktree codex/contextual-announcement-owner-writes starts66fa5de3; startup passes.
+Astra/high designed transaction/legacy concurrency semantics; Sol6.1/high implements
+only schemas/helper/owner routes/tests while coordinator owns SQL/harnesses/CI/docs.
+Prepared service-only current-owner create/edit/delete under shared admission; legacy
+GETs and mutations unchanged.209 announcement tests, TypeScript and lint pass.
+Rollback-only definition rehearsal proves owner/publication/transfer/privileges,
+UTF16 title limits, hot/decommission fences and receipt cascade with zero residue and
+no installed schema/history change. Actual local SDK proves legacy empty PATCH406,
+unchanged time/revision and exact cleanup even after forced failure; shared path
+intentionally corrects this to successful no-op. New concurrency/SDK harness prepared
+but unrun until authorized schema installation.232 provisional; billing retains
+installed immutable230 and reviewed forward231, PR1435 draft pending local apply.
+No generated-type edits, new cohort, production promotion or activation. Independent
+source review, canonical numbering/types, actual concurrency, CI and merge remain.
+Risk runtime-platform; high auth/schema review uses Sol5.6/high and Sol6.1/high
+compatibility fallback (Terra unavailable). Current roadmap remains five batches;
+this does not close batch1 or authorize partial classroom/home cutover.
+Final preparation passes245focused checks plus architecture/UI/design policy,
+TypeScript/lint and rollback rehearsal. Billing231 source4209da62 has one clean
+targeted financial review; actual schema/concurrency and main dependency still wait.
+Requested exact local231/232 approval asynchronously. Formal owner-write review
+budget is not started while that checkpoint remains unresolved; draft source may
+be published for continuity, never marked ready or merged before complete evidence.
+
+## 2026-10-03 — Local migration override; announcement owner runtime proof
+
+Owner explicitly overrides separate local migration approvals for this task only;
+exact reviewed source, local target/history checks and non-destructive limits remain.
+Production permission, review budgets and integrated cutover gates are unchanged.
+Coordinator applied reviewed billing231 once from4209da62 after sole-file preview,
+Pika/54322 binding and matching230/231 digests; local history advanced001–231.
+Billing independently verified the receipt/types/security; four existing rollback
+harnesses pass. Its new fixture uses invalid synthetic Stripe IDs and rolled back;
+the fixture-only correction/review is held at its already-consumed budget checkpoint.
+No billing source edit or implied budget extension by the classroom coordinator.
+PR1438 initial Sol5.6 security and Sol6.1 compatibility reviews clean at2f6fe7e;
+ledger08:33:44UTC,2launches/0fixes,60-minute elapsed limit retains dependency waits.
+After billing released the shared writer slot, applied sole232 once from application-only
+checkout4209da62 plus byte-identical reviewed232, SHA2563f57cc55ac37cf5338edf78b988278339e3044cee582a12e56dc142c164218c7.
+Local001–232 matches application checkout; service-only definer/empty-path ACLs pass.
+Installed rollback contract and cross-role SDK/concurrency/publication/403/404/409,
+parent/resource contention, lifecycle/class-delete/resource races and late rollback pass.
+Forced post-fixture error exits1 after exact cleanup; users/classrooms/upgrades/receipts
+remain3/1/0/0,sandboxfalse, zero synthetic rows/test sessions. Shared writer released.
+No reset/repair/reseed, manual generated types, production or cohort/UI changes.
+1438 stays draft: canonical1435 source dependency/types, final integration, exact-head
+CI and normal merge remain. Member read receipts follow; batch1/cutover not complete.
+Receipt update initially exceeded the16,000-character startup budget by54; compressed
+CURRENT without weakening the gate.245focused checks,architecture/UI/design/TS/lint
+now pass. One documentation-only correction batch; no SQL/runtime changes.
+
+## 2026-10-03 — Announcement canonical source/type integration
+
+Owner clarification approves the requested30-minute elapsed review extension,
+ending10:03:44UTC; prior3launches/1docsfix/1targetedwave remain counted. Billing1435
+merged efe4eb3f after all five exact-head gates passed on0de5d0ea. Rebased1438 with
+continuity-only conflicts, preserving all historical archive entries, CI steps,
+runtime/SQL and immutable230–232 digests. Genuine type generation/check against
+matching001–232 adds only the three announcement RPCs; generated-key wrapper now
+refines nullable create inputs instead of provisional function declarations.
+Installed SDK/concurrency/rollback/forced-cleanup proofs remain applicable to the
+unchanged runtime/SQL. Fresh focused gate and final integration review are next;
+PR remains draft. No database reapplication, production, billing/provider operation,
+cohort activation or full cutover. Member read receipts follow normal1438 merge.
+
+## 2026-10-03 — Announcement CI continuity-format correction
+
+Final Sol5.6/high integration clean at c30273a2; exact ready CI37114314545 started.
+Test lane passed9618 tests but failed the attendance continuity contract because
+CURRENT's compressed production-history prefix omitted its required ` DB ` label.
+Returned1438 to draft before changing that single documentation contract; restored
+the canonical prefix without altering the test, schema, runtime or rollout state.
+Targeted failing test and focused gate rerun; targeted documentation review next.
+Original review ledger retains counters/deadline10:03:44UTC; no reset or new full wave.
+
+## 2026-10-03 — Java Materials second approved merge synchronization
+
+Main advanced to875316af through reviewed dormant announcement owner writes PR1438 before PR1437 could merge. Resolved only the archive conflict, preserving canonical main and the complete feature append. Lesson, viewer, API, UI, tests and guidance remain byte-identical to reviewed73ff84fb; incoming application/workflow/schema/test files match main exactly. Prior sync CI37115051242 passed browser and database contracts but hit one unchanged TestDetailPanel Markdown confirmation assertion; all57 tests in that file pass locally under coverage instrumentation, while the partial run cannot meet whole-repository coverage floors. One bounded compatibility review and fresh focused/exact-head checks cover the new combined head before the already-authorized squash merge. No production promotion, hosted writes, migration application or activation.
+
+## 2026-10-03 — Java Materials startup budget correction
+
+Second bounded sync review verified archive/log preservation and unchanged application boundaries, then confirmed the required startup context exceeds16000characters by3 after incoming CURRENT growth. Shortened the existing router sentence from Read routed docs before edits to Read routed docs first, preserving all routing and invariants; the startup set now totals15996. This is the fourth correction/sync batch, with a brief targeted verification and fresh focused gate before final CI. Owner main merge authorization persists; production/migrations remain separate.
+
+## 2026-10-03 — Announcement owner slice merged
+
+Final cumulative Sol5.6/high review clean c30273a2; docs-only production-history
+prefix correction b4eb9801 received clean targeted Luna5.6/medium review. Four
+targeted tests/245focused+all gates pass; no runtime/SQL/types/test weakening.
+Exact-head ready CI37114898975 passed all five gates including installed owner
+contracts/concurrency, canonical generated types, full tests/build and browsers.
+Verified no blocking reviews/threads or head/base drift; normal authorized squash
+merged1438 at10:25:03UTC as875316af9777cece4480e63532f2d27e53a60afb. Canonical
+main fast-forwarded cleanly; worktrees/history preserved. Original ledger retained
+5launches/3batches/2targeted/1final wave with explicit30-minute elapsed extension.
+No migration retry/production/provider/cohort/home activation. Local001–232 and
+production lastverified001–225 unchanged. Member read receipts next; goal incomplete.
+Post-merge continuity notes are uncommitted here, not part of the reviewed SHA.
+
+## 2026-10-03 — Member announcement receipts prepared
+
+New managed codex/contextual-announcement-member-receipts worktree starts875316af;
+startup passes with frozen existing dependencies. Read-only Astra/high design pass
+selected one service-only atomic mark-all RPC. Sol6.1/high owns source/TDD and
+Sol6/high owns bounded concurrency/SDK probes; coordinator owns SQL/CI/docs/Git.
+New API TDD reproduced25 failures before runtime changes;93 new and282 announcement
+regression checks pass. Canonical focused gate passes217 tests plus architecture,
+UI/design policy, TypeScript and lint. No user-visible UI changes.
+Proposed233 SHA25603183be05ca88736cd7558844594ee56dec8161cdd65966b934be04a272efb26
+passes definition-only rollback authorization/publication/1003-row/count/ACL and
+real hot/cold/decommission/member fence proofs, including empty/duplicate sets,
+late-insert and suppressed-receipt rollback of both receipts and revisions.
+No migration application/history change or residue. Installed local001–232,
+baseline3 users/1 classroom unchanged; production lastverified001–225. Independent
+fixed-SHA review precedes local233 application under the explicit task waiver;
+installed concurrency/SDK, genuine type generation and final CI remain pending.
+Shared admission/cutover, production/provider/billing/account settings remain off
+or unchanged. Goal stays batch1 of five; this slice is not rollout completion.
+
+PR1439 published draft f7550d57; initial Sol5.6/high security and Sol6.1/high
+compatibility reviews clean. Ledger starts10:57:20UTC with original60-minute budget,
+2 launches/no corrections yet. Source233 unchanged and installed once after exact
+pika/54322/history001–232 and one-file preview; no repeated application/reset/repair.
+Genuine generated types add only the receipt RPC and check matches001–233; removed
+the provisional helper cast. Expanded actual SDK proof to call the application
+adapter. Its ESM/TS harness import failed initially and was corrected to the existing
+tsx .ts pattern; exact fixture cleanup passed on failure. Next live run exposed
+an incorrect immediate enrollment-removal conflict assumption: real row locks
+block removal until completion. Correcting the proof, not SQL or authority.
+Main advanced with independent Java/Blueprint PR1437 (af793b2f); reconcile only
+continuity overlaps and retain its source. Installed races/forced cleanup and final
+integration/CI still pending. Local baseline3 users/1 classroom unchanged.
+
+Installed concurrency/real application-adapter SDK proofs now pass for both global
+roles, membership moves/removal in both orders, subject-first locks, owner/archive,
+class/resource deletion/rebind/publication races, contextual owner serialization,
+receipt contention, cutoff waits and1003-row complete-set count. Forcedpostfixture
+failure exits1 as intended with exact cleanup; baseline3/1 and zero announcements,
+receipts, test audits and harness sessions restored. No SQL changes;233 digest
+unchanged. One integration/remediation batch removes provisional RPC casting,
+adds genuine generated types and real adapter SDK proof, corrects actual lock-order
+and publication-valid fixtures, and records lifecycle receipts. Reconcile current
+main, rerun required checks and final fixed-SHA independent integration review next.
+
+Rebased onto af793b2f; only archive-note conflict, no application/schema conflict.
+Preserved main history/source and deduplicated two exactly identical archived entries;
+trimmed rolling log to40. No stash created/consumed, no migration renamed. Installed
+233 source remains byte-identical. Reconciled startup set exceeded its16,000-character
+budget by43; compressed CURRENT status without changing the production-prefix
+contract or weakening the test. Final focused gate and cumulative review next.
+
+## 2026-10-03 — Shared material-list reads preparation
+
+Prepared the next independent batch-1 consumer while reviewed announcement receipt
+PR1439 runs exact-head CI37118772779 at2166a3c6. No repeated routine approval;
+standing main lifecycle/local migration authority remains bounded to this task,
+with production and cohort activation separate. Native implementation and proof
+workers own disjoint source/script files; coordinator owns docs/CI/acceptance.
+Early shared material GETs bind every classroom-rooted payload to current owner or
+active non-owner membership, retaining14 fields, draft-only member visibility,
+negative positions, rich Tiptap, historical authorship and precise timestamp/null
+keysets. Existing exact-pair/legacy remainder and all mutation endpoints unchanged.
+TDD26cases initially10red/16green;116 new tests then green,182 material regressions,
+TypeScript/scopedlint pass. Worker and coordinator real SDK runs prove1007/1006rows,
+microsecond one-row cursors, empty/draft/archive/transfer semantics, first/later/
+terminal revocation, JSONBnull and malformed/error fail-closed behavior; forced
+setup failure still cleans exact fixtures. Public fixture table counts return to
+baseline3/1/0/2/1/0/0/0/15; no tagged sessions remain. No schema/type generation,
+reset/reseed, real-account, provider or hosted writes. Local installed233 belongs
+to1439; do not regenerate types until its merge and this branch's main reconciliation.
+1439 subsequently squash-merged98887743 at11:39:01Z after final2166a3c6 integration
+review and all five CI37118772779 gates passed (0queue/1715run seconds). Canonical
+main fast-forwarded cleanly;10 lifecycle receipts,1correction/syncpush; active/token
+metrics unknown. Material rebase has continuity-only overlaps, no runtime/schema
+conflicts; all21 branch-archived entries already exist canonically. Preserved main
+archive exactly before trimming, removed only a reintroduced rolling-log copy of
+its already-archived Bulk entry. No stash or migration rename/application. Root
+verified the read-only later material-owner-write design; no implementation yet.
+Reconciled focused checks, fixed-SHA review/CI/merge next; batch1/cutover incomplete.
+
+Reconciled241focused/static and genuine001–233type check pass at09103e47; draft
+PR1440 published and attached. Initial independent compatibility review clean
+with245tests; security found one accepted P2: canonical artifact_id is NOTNULL in
+112/generatedRow but the new response validator allowednull. No other privacy or
+authorization blocker. Initialwave completed before one correctionbatch; root
+liveSDK later-page null-identity probe reproduces Missingexpectedrejection while
+finallycleanup returns baseline. Tightenonlynewvalidator, canonicalizevalidfixtures,
+andaddbothowner/memberunit/API/SDKfail-closedregressions; legacy/exactpair untouched.
+Reviewledger retains11:42:21Z start/12:42:21Z deadline,2launches/1batch inprogress.
+Targeted security re-review and final cumulative integration remain required.
+Correction TDD produces4red/122green before the one-field fix;186 material/API
+regressions then pass. Coordinator reruns actualSDKnormal/forcedfailure: both
+owner/member null artifact evidence onpage2 now503 with no partiallist; all prior
+1007/1006/keyset/revocation cases and exactcleanup remain green.245reconciledfocused
+checks and static gates are the batch acceptance before fixed-SHA targeted review.
+
+## 2026-10-03 — Material reads merged; owner-write source preparation
+
+PR1440 normal squash merged04f8d1e3 at12:17:30Z after clean initial/targeted/final
+reviews on5a1df811 and all five ready-event CI37120967402 gates (0queue/1509run).
+Canonical main fast-forwarded cleanly. Lifecycle10events/1correctionpush; active
+time/tokens unknown. Reviewledger closes with4launches/1batch and originaldeadline.
+Local001–233 and production001–225 unchanged; shared admission/cutover remain OFF.
+
+Separate attached codex/contextual-material-owner-writes prepared shared-only
+POST/PATCH/DELETE with strict inputs and actor/class-bound service-only atomicRPCs,
+retaining legacy/exact-pair creator193 and all triggers/publication/lineage semantics.
+Implementation and SDK workers own disjoint files; neither executed database fixtures.
+Coordinator caught and corrected local helper environment binding, complete reorder
+snapshots and valid negative mixed positions before review.207tests/10suites, lint,
+architecture1128modules, shell/diff/audit and API-boundary ratchet pass. TypeScript
+has only3 expected genuine unappliedRPC-name errors; no generated types fabricated.
+Candidate234 SHA256fed955b0557ff461ef79fb22b2372a6672a6ca15df6324059d00dd140ffaf8a7
+remains UNAPPLIED and database behavior UNVERIFIED. Clean rebase onto actual1440
+merge skips stacked read commits; runtime/script/SQL trees byte-identical. Independent
+review precedes exact local history/one-file preview/application under the explicit
+local approval waiver, genuine types and serialized rollback/SDK/forced-cleanup proofs.
+No production/provider/real-account/plan/activation authority is inferred. Batch1 of
+five remains incomplete; linked Blueprint/material-adjacent/roster boundaries follow.
+
+Draft PR1441 initial compatibility review clean; security accepted one HIGH partial-save
+blocker for preserved legacy malformed content/timestamps. Remediation1 validates the
+complete14-field persisted transport inside create/update transactions, including SDK
+UUID and actual serialized timestamp constraints; malformed history returnsPT503 with
+row/archive/Blueprint revisions unchanged. Explicit valid content repairs remain possible;
+delete does not need a read payload.245tests/10suites pass; candidate234 corrected SHA256
+aca48e5b00c1642f487799771a8278bd411c46f40fdec1f6edf9849936078f20 remains UNAPPLIED.
+Two initial reviewers completed before editing. Targeted review/local proof next; original
+ledger start12:20:40Z/deadline13:20:40Z retained,2launches/1batch. No production changes.
+
+Targeted security review clean atf3d879ca and exactaca48e5b SQL. Strict localpika54322
+target/history/latestmain/234-only preview confirmed; one normalpush applied234,
+001–234 matches and genuine generatedtypes add only3RPCs. InstalledSQL immutable.
+Local DB execution revealed fixture-role and mutation/subquery evaluation issues;
+batched harness correction usespostgres only for synthetic fence setup, restores
+service_role before testedRPCs and checks deletion in a separate statement. Genuine
+Json transport refinements fix2real compiler errors without fabricated contracts.
+322tests/18files+allfocusedstatic/lint gates, type drift and audit pass. Standalone
+SQL rollback harness passes malformed historical transports/repair and exact both-
+revision rollback. ActualSDK normal/concurrency proof exits0; forcedfailure exits1
+with expectederror and exactcleanupPASS. All syntheticfixtures absent afterward.
+Reviewlaunch3clean; batch2 now ready for targeted/final review. Production001–225,
+shared admission/cutover OFF, provider/account/plan untouched; no repeated localask.
+
+Targeted batch2 and final cumulative reviews CLEAN atf4b7efcf, ready once for exact
+CI37123589006. Database job failed before material-write proofs because runner lacks
+rg at the harness's port check; returnedPR1441 to draft immediately. Batch3 changes
+only that shell check to standardgrep; standalone rollback proofs pass with rg absent
+fromPATH. Runtime/installedSQL/generatedcontracts unchanged. Fresh targeted portability
+review and exact corrected-head CI required; original review budget retained.
+
+Corrected CI37124061293 coverage job passed10024 tests but failed one existing
+continuity-format assertion: CURRENT production-history prefix had lost spaces.
+ReturnedPR to draft. Reproduced1red/3green locally, restored `Prod DB 001–225`
+without changing rollout state or weakening the test. Batch4 is documentation-only;
+all runtime/schema/types/workflow/proof source remains unchanged. Last bounded
+targeted review and corrected-head CI required; original clock/limits retained.
+
+Independent linked Blueprint material read prepared in a separate worktree seeded
+at reviewed1441 head74995349. Shared-only GET binds current classroom/link/Blueprint
+owners and latest saved version in one actual SDK statement; unmatched legacy is
+unchanged. Both role owners, archived/no-link, frozen/Draft exclusion,1,001-version
+ordering/limit, owner/link transitions, malformed evidence,500/501 and purge-shaped
+detach pass locally. Corrected proof facade targets the actual GET wire array before
+maybeSingle unwrapping. Normal exit0 and forced exit1 prove zero residual fixtures
+and baseline equality.402focused tests21files and all policy/type/lint gates pass.
+No new schema/types/UI/activation. After explicit review-extension authorization,
+stacked draft1442 gets independent scope-only review; ready/merge still waits1441
+merge/reconciliation. Blueprint UI's separate guidance is batch3 work; this does
+not complete batch1. Production unchanged.
+
+## 2026-10-03 — Verified material-write merge and read dependency reconciliation
+
+PR1441 normal squash merge d913eebd71e94e6dee4fd0be2d24b7371b5ccb15 verified
+at14:18:23Z after all five exact-reviewed-head74995349 CI37127414505 gates pass
+(observed0queue/1774runseconds). No admin/auto-merge/bypass. Canonical main cleanly
+fast-forwarded. Original review clock and7launch/4batch counters retained under
+the user's explicit review-extension authority; no repeated approval requested.
+Installed234 digest unchanged/immutable; local001–234, production001–225 untouched.
+This child rebased onto actual squash skipping stacked749; full pre-receipt tree
+matches its previous candidate exactly. Only continuity/merge receipts change.
+Main retarget, changed-base review where needed, and final exact-head CI still
+precede child merge. Parent worktree retained while dependents remain. Shared
+admission/cutover OFF; no provider/account/plan/billing activation.
+
+## 2026-10-03 — Shared roster management read preparation
+
+Owner explicitly authorized remaining in-scope implementation, reviews, normal
+main merges, local migrations and review extensions without repeated prompts.
+Original review counters remain and absolute hard caps/checks still apply.
+Attached contextual-roster-management-read prepares only the shared owner GET:
+auth before admission/params, current-owner classroom-rooted UUID keyset pages,
+real roster-binding/enrollment-user evidence, strict safe output and unchanged
+legacy/purge mutation contracts. Multiple legitimate roster rows bound to one
+learner remain displayable; availability deduplicates canonical eligible IDs.
+Native source and installed-SDK proof workers own disjoint files; coordinator
+owns actual local execution, CI, docs, independent review and merge evidence.
+No new schema/types/UI, production/provider/account/plan or admission activation.
+Roster write fences and class-day/core reconciliation remain in batch1; linked
+Blueprint material read work is batch3-adjacent, not full-phase completion.
+
+407 focused tests/21files and all static/lint gates pass. Actual local installed
+SDK normal proof passed >1000 learners/bindings/pages, duplicate stable display,
+both global-role owners, archived/removed/member policy, current-owner change
+before first/later/terminal roster and enrollment pages, actual-array corruption
+and exact safe projection. Forced post-fixture proof exited1 with its expected
+error and exact zero-residual/global baseline cleanup sentinel. No SQL application
+or hosted changes; independent review/final stable-head CI still required.
+
+## 2026-10-03 — Verified linked-material merge and roster-read main reconciliation
+
+PR1442 merged3351d85f3c9d47ae6c8a5a0cbdd6ab4b1baef7aa at14:56:00Z after
+allfive exact-reviewed-headcc2681d8 CI37129553521 gates pass (0queue/1757runseconds).
+Normal squash matchhead/no bypass, canonicalcleanFF. This roster child reconciles
+onto that actual main merge; runtime/SDK/test files remain byte-identical todeec268b.
+Both unrelated CI proof steps are preserved; continuity combines receipts once
+and retains original historical records. Targeted reconciliation review precedes
+new exact-head CI. Original1443 review clock14:12:06Z/counters retained, necessary
+time extension authorized without repeat ask. Local235 installed by separate
+roster-owner-write work; this GET slice adds no schema. Prod001–225/sharedadmissionOFF.
+
+## 2026-10-03 — Shared class-day GET consolidation
+
+Prepared dormant shared GETs for neutral class-day and teacher compatibility
+URLs. Auth precedes strict admission and shared parameters; current owner or
+active unarchived member is bound in every class-root payload/terminal page.
+Archived owner reads and owner precedence remain; global account role does not
+select relationship. Strict five-field projection/date-ID keysets cover >1000
+days. Legacy GET remainders and all POST/PATCH bytes unchanged. No schema/UI.
+Native source+proof workers owned disjoint files; coordinator owns actual local
+execution/CI/docs/review. TDD97 new+218 unchanged tests, TypeScript/scopedlint/
+architecture/diff pass. Actual local SDK normal proof passes1005days/both roles,
+transfer/removal/archive/deletion before payload/terminal and actual-array errors.
+Forced failure exits1 with expectederror and exact zero-residual/global-baseline
+sentinel; controlled status-command failure prints no captured credentials.
+Full focused gates/independent review/exact-head CI pending. Local001–234/prod
+001–225 unchanged; shared admission OFF. Shared152calendar writes and roster
+transaction fences remain batch1; linkedBlueprintGET is batch3-adjacent. Human
+authorizes in-scope work/local/reviews/extensions/main without repeated prompts;
+original budgets/counters and absolute skill caps/security/merge gates remain.
+
+## 2026-10-03 — Roster1443 merged; class-day1444 actual-main reconciliation
+
+PR1443 normal squash merge7e5c6422 verified15:28:30Z after all five77995c95
+CI37131666194 gates (0queue/1642runseconds). Canonicalmain cleanFF. This1444
+candidate rebases onto actual7e5main; all eight runtime/schema/proof/test/doc
+files and every main/childCIstep byte-preserved. Continuity conflicts preserve
+both histories; duplicate identical1441receipt and copied already-archived
+copy1431entry removed onlyonce, originals retained. Original14:26:22clock and
+counters remain; documented human-authorized60minute extension ends16:26:22Z.
+Targeted changed-base review/final exact-head CI stillprecede merge. Local236
+is installedby separate preservingremoval work; thisread addsnoSQL/types/UI.
+Production001–225/sharedadmission/fullcutoverOFF; no provider/account/billing edits.
+
+## 2026-10-03 — Shared roster owner-write source preparation
+
+Verified1441 merge d913eebd after all five exact-head37127414505 gates; canonical
+main cleanly fast-forwarded. Local001–234 unchanged, production001–225 and shared
+admission/cutover OFF. Owner explicitly authorizes needed review extensions without
+repeat prompts; original clocks/counters and absolute safety/merge caps remain.
+Disjoint source/proof workers prepare roster add/CSV/counselor transactions.176
+source tests, scoped lint, architecture and API standards pass; two expected new
+RPC-name compiler errors remain until genuine local generation. Candidate235
+SHA256557469c5a86479d4b440d05534bc2f37084355436589f0b8b7f8b13df47b82c4 is UNAPPLIED.
+Archived edits deny403 and stable bindings win over current-email fallback. Actual
+SQL/SDK behavior is unverified; frozen source security check precedes exact local
+preview/application, genuine types, database proofs and full draft-PR lifecycle.
+
+Pre-application Sol review accepted a retained-identity gap for a second stable-
+bound row after first-row removal and account-email change. Batch1 rejects the
+resolved learner after pair locking and before preview/DML; structural RED then
+11green. Source235 remains UNAPPLIED, superseded candidate SHA256
+0a91c5702e5c7a1cbae573e30721d38f8ab90789643983cb242d57422cfd5ebf. Real rollback
+proof now covers all upsert modes and counselor edits through that second row;
+runtime execution remains pending. Targeted security recheck precedes application.
+
+Targeted retained-identity review clean. First ordinary local235 application failed
+SQLSTATE42601 at an unparenthesized CASE within IF; aftermath confirmed235history
+false/newfunctions0/max234, complete atomic rollback. Batch2 parenthesizes onlythe
+operand; RED then12/12green and narrow Sol recheck CLEAN39a4f206. Freshpika54322,
+matching001–234/currentmain234/exact235-onlypreview preceded successful secondpush.
+Installed immutable235 SHA256dded003c0fdd92235af163ef73751e1a9442146ee2129015ace83acdc2ff685b.
+History001–235/publicRPCs2/genuine generatedtypes+driftcheck pass. Serialized SQL
+proofs pass fullrow/binding/revision rollback including retainedsecondboundidentity.
+ActualSDK/focused/fullPR review remain pending;3launches/2targeted/2batches, original
+14:38:45Z clock retained. Production001–225/sharedadmissionOFF unchanged.
+
+ActualSDK normal/forcedfixture proofs pass exactcleanup/globalbaseline after every
+run.273focused tests17files+allstaticlint pass. Genuine235nullabletextmetadata
+refined onlythrough existingcuratedFunctionContract/Replace seam, no casts/newSQL
+or manualgeneratedcontract. Runtime/schema/proofs/newtests byte-identical after
+actual1442main3351d85f rebase; bothCIproofsteps preserved. Narrowpreapplyreviews
+are notfullPRreview: stable draft/fullinitialwave next. User-authorized extensions
+retain originalclock and3launches/2targeted/3fixbatches. Local235immutable/prod225,
+sharedadmissionOFF; no repeatedroutine approval asked.
+
+## 2026-10-03 — Roster1445 actual-main reconciliation after class-day1444
+
+PR1444 merged actual maina8c4e9b2 at16:04:51Z after all fiveCI37133784223 gates.
+Rebased1445 from reviewed a7613a5f onto that actual main. Conflicts only in
+roadmap/current/CI/archive continuity; every reviewed feature source/proof/test,
+generated/curated contract and installed235 byte remains unchanged, alongside
+all main read files and every main/child CI step. Removed only three surplus
+exact historical session copies already preserved in the archive; original
+entries and combined main+child−base historical multiplicities are retained.
+Original review clock/counters remain. Changed-base integration review and fresh
+exact-head CI precede merge. Local001–236 includes separate unmerged removal
+work; production001–225/sharedadmission/fullcutoverOFF.1441–1444merged;
+1445rebased awaiting integration/1446prepared/removal1448draft/detail1447draft.
+No SQL application, DB proofs/reset/reseed or types regeneration performed.
+Focused checks against actual main pass273tests/17files plus architecture,
+UI/design policy, TypeScript and lint. Initial startup-summary budget excess
+was compacted; source preservation, history multiplicities and diff checks pass.
+
+## 2026-10-03 — Roster1445 CI handoff-prefix correction
+
+Exact-head CI37136155311 on reviewed a9613f46 passed10431 tests but failed one
+attendance migration-state documentation contract: CURRENT compacted the required
+`Prod DB 001` prefix to `Prod DB001`. Returned1445 to draft before correction.
+Batch4 restores that single space and records the actual draft status; production
+225/local236 and every rollout control remain unchanged. No runtime, SQL, generated
+types, dependency or test assertion was changed. Original review clock and counters
+retained; narrow independent documentation recheck and focused checks precede the
+replacement exact-head ready CI. Other original CI jobs are allowed to finish for
+observed receipts; no duplicate watcher or dispatch.
+
+## 2026-10-03 — Shared calendar owner-write source and local verification
+
+Disjointchild of reviewed1444d8c828ad adds onlysharedPOST/PATCH/calendaradapter,
+namedvalidation/source/APItests and proofs.176new+315unchanged assertions pass;
+actualinstalled152SDK owner/member/archive/formerowner/Toronto/bounds/prompt/CTID
+and malformedactualresponse503aftercommit pass. Initialproof wrongly expected
+unchangedarchive revision on identicaltoggle; existing082/095BEFOREINSERT trigger
+bumpsrevisionevenwhen152performsnoUPDATE. Correctedproof explicitlyasserts+1,
+unrelatedclassrevision unchanged andidenticalrow/CTID, no appliedSQL changes.
+RollbackSQL andallfive pg_blocking_pids races pass. Bothnormal/forcedSDK andrace
+fixtures cleanup exactly/globalbaselinePASS. Reusedharness nowprovisions only
+exactsyntheticcreationgrant andremovesmanual/defaultFree audits. Sharedadmission
+OFF/prod225untouched; local235installed byseparate rosterwrites. Fullfocused,
+independentreview andactualparent/main integration precedefinalCI/merge.
+
+## 2026-10-03 — Calendar1446 preparation on actual merged class-day main
+
+1444 actual normalmergea8c4e9b16:04:51Z verified withallfive exact7d341d23
+CI37133784223 SUCCESS (0queue/1697runseconds), canonicalcleanFF. Calendarchild
+rebased ontoactuala8 skippingonlyoldstackedd8 parent; allten ownedruntime/proof/
+test/guide files andmainGET remain byte-preserved. Conflicts onlyCURRENT/archive;
+Two exactsurplussessioncopies removed afterfull equality with retainedarchive;
+one auto-merge glued1441body removed onlyafter exactoriginalreceipt verification.
+Every unmodified main step and reviewed child CI step retained, including the
+previously reviewed calendar-concurrency forced-cleanup extension. Initialfull
+reviewsCLEAN544fe47b, unchanged152SQL/
+actualSDK/race/cleanup evidence reused. Actual235owner-write merge stillprecedes
+calendarfinalreconciliation/review/readyCI, no speculative heavyCI. Original
+15:07:20clock/counters retained; authorized elapsedextension to17:07:20Z.
+Local236 belongsseparatepreparation; noSQL/types/DB/provider/production/cohort edits.
+
+## 2026-10-03 — Calendar1446 actual roster235-main reconciliation
+
+Root verified1445 squashmerge2fe79a8b at17:03:33Z after allfive exact596081dc
+CI37137272675 SUCCESS (0queue/1755runseconds). Calendar preparedb685 rebased
+ontoactualmain2fe, preserving nine reviewed544fe47b ownedfiles byte-exact.
+The sole additive source exception retains both complete reviewed CI test blocks:
+main roster then child calendar, with original remainder unchanged. Every other
+incomingmainfile, genuine235SQL/generated/curatedtypes and every CIstep/order/
+multiplicity remain exact; reviewed concurrency normal+forced supersedes only its
+oldnormal step. History preserves actualmain+preparedchild-a8 bodies/multiplicities;
+removed only one exact JavaPrint session surplus already archived and an exact
+glued1441body whose complete original remains retained. CURRENT keeps canonical
+Prod DB 001 spacing, local001–236 immutable/separate removal and production225.
+Original15:07:20 clock/launch2/fix0 retained under explicit human extension to
+18:07:20Z. No DB/proof/type generation/SQL/remote publication/CI/provider actions.
+Exact preservation verification passes2089 combined history entries/40 recent.
+Focused origin/main gate passes436tests/18files and all static checks; explicit
+attendance prefix regression4/4 and actual-main-aware audit8files pass. Logs:
+/private/tmp/pika-1446-reconcile.d4sa0y; fullfocused pika-focused-ejT1iX.
+Root-owned changed-base review and exact frozen-head readyCI remain required;
+shared admission and fullcutoverOFF; no batch completion or activation claimed.
+
+## 2026-10-03 — Preserving removal source and local236
+
+Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
+preapplication GPT5.6Sol/high review CLEAN with77source tests. Exactpika54322,
+001–235matched/currentmain3351numbering/236-onlydryrun preceded one successful
+ordinarylocal236push. ImmutableSHA24e23667b21580fdcadb7a64ca251725f87040fa52bf9a1fbe71e0c7b3c22249;
+service-only privileges, genuinegenerated eight-lineRPC/type drift/TypeScript pass.
+ActualSQL/SDK/cleanup/concurrency and fullPR lifecycle remain pending; proof worker
+owns onlyscripts, root ownsapplication/types/CI/docs/Git. Duplicate selected one
+or all rows fails withoutDML: immutable164index/173cleanupcontrols remain, with
+coordinated multirow retained-lifecycle prerequisite inbatch3 beforecutover.
+1445/1446 fullinitialreviews clean;1443exactCI/1444draft predecessor order retained.
+Latesthuman explicitlywaives repeatedroutineapprovals inclnecessaryreviewextensions;
+original clocks/counters andabsolute caps/merge/release gates preserved. Production
+001–225/sharedadmission/fullcutoverOFF unchanged; no accounts/provider/billing edits.
+
+Serial actual SQL proof passed ACL, identity, purge fences, retained history and
+fault rollback with zero residue/global baseline unchanged. Actual SDK normal
+passed both owner labels, bound/unbound learners, retained history, idempotent
+retry/invitation isolation and observed lock races. Three forced modes each exit1
+with exact expected failure and complete cleanup sentinels; suppressed deletion
+rolls back every cleanup mutation and restores the generation guard. Earlier
+proof-only setup/cleanup defects corrected without editing immutable236; exact
+abandoned synthetic closure independently reviewed/recovered, all unrelated
+whole-row fingerprints unchanged. Full draft review/final focused/CI remain gates.
+
+## 2026-10-03 — Preserving removal source and local236
+
+Seven-file source93daed54 passes241tests/scopedlint/architecture/audit. Frozen
+preapplication GPT5.6Sol/high review CLEAN with77source tests. Exactpika54322,
+001–235matched/currentmain3351numbering/236-onlydryrun preceded one successful
+ordinarylocal236push. ImmutableSHA24e23667b21580fdcadb7a64ca251725f87040fa52bf9a1fbe71e0c7b3c22249;
+service-only privileges, genuinegenerated eight-lineRPC/type drift/TypeScript pass.
+ActualSQL/SDK/cleanup/concurrency and fullPR lifecycle remain pending; proof worker
+owns onlyscripts, root ownsapplication/types/CI/docs/Git. Duplicate selected one
+or all rows fails withoutDML: immutable164index/173cleanupcontrols remain, with
+coordinated multirow retained-lifecycle prerequisite inbatch3 beforecutover.
+1445/1446 fullinitialreviews clean;1443exactCI/1444draft predecessor order retained.
+Latesthuman explicitlywaives repeatedroutineapprovals inclnecessaryreviewextensions;
+original clocks/counters andabsolute caps/merge/release gates preserved. Production
+001–225/sharedadmission/fullcutoverOFF unchanged; no accounts/provider/billing edits.
+
+Serial actual SQL proof passed ACL, identity, purge fences, retained history and
+fault rollback with zero residue/global baseline unchanged. Actual SDK normal
+passed both owner labels, bound/unbound learners, retained history, idempotent
+retry/invitation isolation and observed lock races. Three forced modes each exit1
+with exact expected failure and complete cleanup sentinels; suppressed deletion
+rolls back every cleanup mutation and restores the generation guard. Earlier
+proof-only setup/cleanup defects corrected without editing immutable236; exact
+abandoned synthetic closure independently reviewed/recovered, all unrelated
+whole-row fingerprints unchanged. Full draft review/final focused/CI remain gates.
+
+## 2026-10-03 — Removal1448 updated-parent preparation
+
+Rebased reviewed8e81327a onto updated1445parenta9613f46 with oldparenta7613a5f
+as the exact exclusion boundary. Only CURRENT/archive continuity conflicted;
+all14child runtime/schema/SQL/genuine-types/proof/test/guide files remain
+byte-identical, including immutable236. All updatedparent/main and childCIsteps
+are preserved. Removed four surplus exact session copies whose original archive
+entries remain; combined parent+child−oldparent historical multiplicities persist.
+ActualSQL/SDKnormal and three forced-cleanup proofs already PASS;236 itself was
+unchanged by the earlier harness repairs. Full initial security/compat review
+is CLEAN. Original1448clock15:19:13Z/extension17:19:13Z, launch8/initial1/
+targeted5/fix5 retained; no new review launch. This prepares a draft stack only:
+actual1445main squash merge/reconciliation, changed-base review and final exactCI
+remain. Local001–236/prod001–225/sharedadmission/fullcutoverOFF unchanged.
+No DB operations/proofs/types regeneration, publication, PR/CI/provider changes.
+Focused against updatedparenta961 passes183tests/15files plus architecture,
+UI/design policy, TypeScript and lint; startup/diff/history/preservation pass.
+Reconciliation audit reports no TypeScript edits. Actual-main focused checks
+remain required after the parent's eventual squash merge and child reconciliation.
+
+## 2026-10-03 — Removal1448 updated-parent preparation
+
+Rebased reviewed8e81327a onto updated1445parenta9613f46 with oldparenta7613a5f
+as the exact exclusion boundary. Only CURRENT/archive continuity conflicted;
+all14child runtime/schema/SQL/genuine-types/proof/test/guide files remain
+byte-identical, including immutable236. All updatedparent/main and childCIsteps
+are preserved. Removed four surplus exact session copies whose original archive
+entries remain; combined parent+child−oldparent historical multiplicities persist.
+ActualSQL/SDKnormal and three forced-cleanup proofs already PASS;236 itself was
+unchanged by the earlier harness repairs. Full initial security/compat review
+is CLEAN. Original1448clock15:19:13Z/extension17:19:13Z, launch8/initial1/
+targeted5/fix5 retained; no new review launch. This prepares a draft stack only:
+actual1445main squash merge/reconciliation, changed-base review and final exactCI
+remain. Local001–236/prod001–225/sharedadmission/fullcutoverOFF unchanged.
+No DB operations/proofs/types regeneration, publication, PR/CI/provider changes.
+Focused against updatedparenta961 passes183tests/15files plus architecture,
+UI/design policy, TypeScript and lint; startup/diff/history/preservation pass.
+Reconciliation audit reports no TypeScript edits. Actual-main focused checks
+remain required after the parent's eventual squash merge and child reconciliation.
+
+## 2026-10-03 — Removal1448 actual calendar-main reconciliation
+
+Rebased preparedb47c6fa7 onto actual calendar1446 main2095efec, usinga9613f46
+as the exact old-parent boundary. Root verified1446 squash merge at17:40:27Z,
+reviewed795a528a/all five eligibleCI37139673399 checks and PR Gate passed.
+All13nonshared reviewed8e81327a feature files remain byte-identical: runtime,
+schema, guide, proofs/tests, immutable236 and genuine generated eight-line RPC.
+The approved shared CI test union preserves exact main roster/calendar blocks
+first, unchanged removal block next, and the full common remainder; whole main
+CI plus original removal proof insertion preserves every calendar cleanup gate.
+History full-body multiplicities are actual2095+preparedb47−a961+this one entry.
+Removed only two exact surplus session copies (Release Java and Person/code
+roles), with original full bodies retained in the archive. All main roadmap
+text and both historical child removal paragraphs remain unchanged, plus one
+new reconciliation receipt. Canonical Prod DB 001–225 spacing restored;
+shared local001–237 metadata differs from this source001–236/actualmain235.
+No database/status/proof/type generation/provider/remote publication/CI writes.
+Original clock15:19:13Z/extended18:19:13Z, launch8/initial1/targeted5/fix5 remain.
+Changed-base independent review, publication and final exact-head CI remain
+pending; sharedadmission/fullcutover/billing remainOFF. Actual-main focused
+184tests/15files, architecture/UI/design/TypeScript/lint all PASS; explicit Bara
+spacing regression4/4 and actual-main-aware audit10files PASS. Private full
+preservation verifier/diff/official trim pass,40recent/2092combined entries.
+Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
+pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
+remain untouched. This is implementation evidence, not the independent review.
+
+## 2026-10-03 — Removal1448 actual calendar-main reconciliation
+
+Rebased preparedb47c6fa7 onto actual calendar1446 main2095efec, usinga9613f46
+as the exact old-parent boundary. Root verified1446 squash merge at17:40:27Z,
+reviewed795a528a/all five eligibleCI37139673399 checks and PR Gate passed.
+All13nonshared reviewed8e81327a feature files remain byte-identical: runtime,
+schema, guide, proofs/tests, immutable236 and genuine generated eight-line RPC.
+The approved shared CI test union preserves exact main roster/calendar blocks
+first, unchanged removal block next, and the full common remainder; whole main
+CI plus original removal proof insertion preserves every calendar cleanup gate.
+History full-body multiplicities are actual2095+preparedb47−a961+this one entry.
+Removed only two exact surplus session copies (Release Java and Person/code
+roles), with original full bodies retained in the archive. All main roadmap
+text and both historical child removal paragraphs remain unchanged, plus one
+new reconciliation receipt. Canonical Prod DB 001–225 spacing restored;
+shared local001–237 metadata differs from this source001–236/actualmain235.
+No database/status/proof/type generation/provider/remote publication/CI writes.
+Original clock15:19:13Z/extended18:19:13Z, launch8/initial1/targeted5/fix5 remain.
+Changed-base independent review, publication and final exact-head CI remain
+pending; sharedadmission/fullcutover/billing remainOFF. Actual-main focused
+184tests/15files, architecture/UI/design/TypeScript/lint all PASS; explicit Bara
+spacing regression4/4 and actual-main-aware audit10files PASS. Private full
+preservation verifier/diff/official trim pass,40recent/2092combined entries.
+Evidence: /private/tmp/pika-1448-calendar-main-reconcile.cj433M; full focused
+pika-focused-kfYAfx. No migration renumbering or task stash;36unrelated stashes
+remain untouched. This is implementation evidence, not the independent review.
+
+## 2026-10-03 — Removal1448 forward-only database lint correction
+
+Exact reviewed787e623f CI37141937671 failed warning-free lint for private result
+validator IMMUTABLE/STABLE mismatch; returned1448 to draft. Run cancelled after
+566seconds, database andPRGate failed, no merge. Preserve immutable236/237.
+Contiguous inventory requires exact237 dormant service-role SQL dependency and
+atomic238: only validator ALTER STABLE plus metadata empty-effective-slug guard.
+No metadata app/helper/UI imported and no cohort/account/production activation.
+Whole genuine001–237 generated artifact copied byte-exact40d0289d; root will
+regenerate/check from matching001–238 history after reviewed local application.
+New direct regression/source gates14PASS, root full208line metadata replacement
+and existing236validator body/ACL/call graph inspected. Metadata rollback-only
+proof runs before unchanged removal SQL/SDK/three forced modes in CI. Review
+clock/counters retained: original15:19:13Z; launch9/target6/fix6, deadline19:19:13.
+Source/preapply review, local238-only application, actual serial regression proofs,
+final focused/cumulative independent review and exact-headCI remain pending.
+
+## 2026-10-03 — Removal1448 forward-only database lint correction
+
+Exact reviewed787e623f CI37141937671 failed warning-free lint for private result
+validator IMMUTABLE/STABLE mismatch; returned1448 to draft. Run cancelled after
+566seconds, database andPRGate failed, no merge. Preserve immutable236/237.
+Contiguous inventory requires exact237 dormant service-role SQL dependency and
+atomic238: only validator ALTER STABLE plus metadata empty-effective-slug guard.
+No metadata app/helper/UI imported and no cohort/account/production activation.
+Whole genuine001–237 generated artifact copied byte-exact40d0289d; root will
+regenerate/check from matching001–238 history after reviewed local application.
+New direct regression/source gates14PASS, root full208line metadata replacement
+and existing236validator body/ACL/call graph inspected. Metadata rollback-only
+proof runs before unchanged removal SQL/SDK/three forced modes in CI. Review
+clock/counters retained: original15:19:13Z; launch9/target6/fix6, deadline19:19:13.
+Source/preapply review, local238-only application, actual serial regression proofs,
+final focused/cumulative independent review and exact-headCI remain pending.
+
+## 2026-10-03 — Forward238 local catalog and serial regression receipts
+
+Reviewed23847a9bf5d ordinarylocalpush ONCE EXIT0, source/history001–237 matched,
+only238 preview/projectpika54322/API54321 guards verified. Posthistory001–238;
+private validator body5af12d2f owner/ACL/security/search/arguments unchanged,
+only volatilitys; metadata sourcefde368b5 matchesreviewed238/service-only ACL.
+Genuine generation/drift40d0289d unchanged; warning-free lintPASS. Strictserial
+81872SQL metadata+roster PASS by18:07:17Z, exactnewempty-slugPT400/fullrows/revisions.
+55752metadataSDKnormal EXIT0/all4markers;33554twoforcedeachEXIT1 exactFAIL+cleanup.
+12656rosterSDKnormal EXIT0/all4markers;4693threeforcedeachEXIT1 exactFAIL+cleanup,
+suppressed-delete complete rollback+guardrestored. No duplicateDBproofs/recovery.
+Startupfirstfocused187PASS/onebudgetFAIL16022 correctedcompactCURRENT without
+changing16000threshold orhistory. Final188tests16files/allstaticTSC/lint PASS.
+TargetedSol5.6/high CLEAN439+d132 (69+110offline); original review clocks/caps
+retained. Docs/startupreceipt batch7; pendingone final cumulative reviewer launch11
+andstableSHA CI. No production/account/cohort/feature activation; main2095 unchanged.
+
+## 2026-10-03 — Forward238 local catalog and serial regression receipts
+
+Reviewed23847a9bf5d ordinarylocalpush ONCE EXIT0, source/history001–237 matched,
+only238 preview/projectpika54322/API54321 guards verified. Posthistory001–238;
+private validator body5af12d2f owner/ACL/security/search/arguments unchanged,
+only volatilitys; metadata sourcefde368b5 matchesreviewed238/service-only ACL.
+Genuine generation/drift40d0289d unchanged; warning-free lintPASS. Strictserial
+81872SQL metadata+roster PASS by18:07:17Z, exactnewempty-slugPT400/fullrows/revisions.
+55752metadataSDKnormal EXIT0/all4markers;33554twoforcedeachEXIT1 exactFAIL+cleanup.
+12656rosterSDKnormal EXIT0/all4markers;4693threeforcedeachEXIT1 exactFAIL+cleanup,
+suppressed-delete complete rollback+guardrestored. No duplicateDBproofs/recovery.
+Startupfirstfocused187PASS/onebudgetFAIL16022 correctedcompactCURRENT without
+changing16000threshold orhistory. Final188tests16files/allstaticTSC/lint PASS.
+TargetedSol5.6/high CLEAN439+d132 (69+110offline); original review clocks/caps
+retained. Docs/startupreceipt batch7; pendingone final cumulative reviewer launch11
+andstableSHA CI. No production/account/cohort/feature activation; main2095 unchanged.
+
+## 2026-10-03 — Detail1447 pending-parent238 preparation
+
+Prepared reviewed293d35cf locally on pending1448 head88a1bfd6, excludingoldparent
+a8c4e9b. Parent final cumulative review CLEAN and one readyCI37143487206 running
+per root handoff; parent is NOT merged, actual main remains2095/calendar1446.
+All10detail runtime/schema/helper/proof/test/guide files remain byte-identical.
+Whole incoming roster/calendar/removal/237238 SQL, scripts/tests, genuine generated
+and curated types remain unchanged. CI preserves whole parent plus original
+detail proof step; CI tests preserve whole parent roster/calendar/removal/remainder
+plus unchanged detail block. Main roadmap and original child paragraphs/receipts
+remain intact, with one explicit preparation receipt only. History multiset is
+88+293−a8+this one entry; removed ten proven surplus session copies whose complete
+original bodies remain in the archive. Official trim retains40recent entries.
+Canonical Prod DB 001–225 spacing and local001–238 context restored. No database,
+status, proof execution, type generation, stashes, network/publication/CI writes.
+Original review clocks/counters/extensions remain root-owned and unchanged.
+Actual-parent reconciliation, changed-base independent review, publication and
+detail exact-head CI remain required; sharedadmission/fullcutover/billingOFF.
+This is implementation preparation, not an independent review or phase completion.
+Focused against actualorigin/main2095 passes352tests/23files and architecture,
+UI/design policy, TypeScript and lint. Startup budget regression reproduced RED
+at16001chars; CURRENT-only shortening gives15986chars and GREEN56startup/CI/Bara
+tests. Actual-main-aware audit20files, diff/trim and full preservation verifier
+PASS. Evidence /private/tmp/pika-1447-pending-parent-reconcile.oDB0ec; full focused
+pika-focused-psfLyl. No migrations created/renamed,36unrelated stashes untouched.
+
+## 2026-10-03 — Detail1447 pending-parent238 preparation
+
+Prepared reviewed293d35cf locally on pending1448 head88a1bfd6, excludingoldparent
+a8c4e9b. Parent final cumulative review CLEAN and one readyCI37143487206 running
+per root handoff; parent is NOT merged, actual main remains2095/calendar1446.
+All10detail runtime/schema/helper/proof/test/guide files remain byte-identical.
+Whole incoming roster/calendar/removal/237238 SQL, scripts/tests, genuine generated
+and curated types remain unchanged. CI preserves whole parent plus original
+detail proof step; CI tests preserve whole parent roster/calendar/removal/remainder
+plus unchanged detail block. Main roadmap and original child paragraphs/receipts
+remain intact, with one explicit preparation receipt only. History multiset is
+88+293−a8+this one entry; removed ten proven surplus session copies whose complete
+original bodies remain in the archive. Official trim retains40recent entries.
+Canonical Prod DB 001–225 spacing and local001–238 context restored. No database,
+status, proof execution, type generation, stashes, network/publication/CI writes.
+Original review clocks/counters/extensions remain root-owned and unchanged.
+Actual-parent reconciliation, changed-base independent review, publication and
+detail exact-head CI remain required; sharedadmission/fullcutover/billingOFF.
+This is implementation preparation, not an independent review or phase completion.
+Focused against actualorigin/main2095 passes352tests/23files and architecture,
+UI/design policy, TypeScript and lint. Startup budget regression reproduced RED
+at16001chars; CURRENT-only shortening gives15986chars and GREEN56startup/CI/Bara
+tests. Actual-main-aware audit20files, diff/trim and full preservation verifier
+PASS. Evidence /private/tmp/pika-1447-pending-parent-reconcile.oDB0ec; full focused
+pika-focused-psfLyl. No migrations created/renamed,36unrelated stashes untouched.
+
+## 2026-10-04 Broad audit: immutable membership proof correction
+
+- Independent targeted review accepts locked current ownership/enrollment checks and storage setup recovery. CORE committed-removal proof needs a further correction: migration168 forbids reactivating the removed enrollment generation.
+- Prepared-only correction uses the expected run-owned generation and reports intentionally retained private membership evidence; public fixture teardown must not claim a complete database baseline. Production evidence guards remain unchanged. No SQL, migration, seed, cleanup or runtime operation executed.
+
+## 2026-10-04 Broad audit: locked access authority and exact setup recovery
+
+- PR #1463 correction batch revalidates current Classroom owner/archive, locked Test status and the complete selected enrollment set before selected-student access writes; route maps domain errors before missing-RPC fallback.
+- Added committed roster/archive/owner drift race proofs and positive enrolled-owner reopen control, prepared only. CORE/storage fixture harnesses recover uncertain setup COMMIT acknowledgements using per-run ownership, refuse collisions, verify exact residue, and retain failure outcome. CI requires both acknowledgement-failure teardown controls.
+- Source/mock verification passed; SQL execution, fresh matching generated types and real runtime canaries remain pending exact local-target permission. No shared database writes or cleanup were authorized by the task-scoped usage/review-budget waiver.
+
+## 2026-10-04 Coordinated audit database remediation
+
+Draft PR1463 combines migrations244–246 with revision-aware Test clients, atomic
+Return/closure guards, storage writer lock ordering, auth generation/expiry fencing,
+and required lifecycle CI source. Restored authentication refusal and hashing-race
+coverage; added post-lock expiry checks and guarded exact-target fixture harnesses.
+The rollout runbook requires coordinated application/schema promotion and compatible
+fix forward. Generated database types and SQL/browser runtime contracts remain
+pending an explicitly authorized isolated local replay; no shared migration or
+seed/reset/cleanup was performed by this batch. Intercepted Test conflict/recovery
+and teacher closure visuals are UI evidence only. Root source gates precede review.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-10-04 Broad audit: password-session review remediation
+
+- Independently validated PR1463 security finding: create-password/reset-confirm accepted foreign-Origin simple-form JSON and issued sessions. Generalized the same-origin+JSON guard across all three password-session routes before body parsing.
+- Added8 fail-before handler regressions, asserting rejection before rate limits, handoff lookup, hashing, reset RPC and session issuance; existing no-Origin JSON success fixtures preserved. Full focused gate PASS226tests/23files, architecture/UI/design/TypeScript/lint.
+- Independent targeted security re-review required on newSHA; S1 transactional generation fence remains explicitly partial. Human override covers usage/review budgets for current audit task only; no merge/migration authority added.
+
+## 2026-10-04 — Authentication S2/S3/S4 and partial S1
+
+First remediation batch from the authorized 27-finding codebase audit, base main `3c5d7097`. Implementation copied from coordinator-verified delivery into its own branch; no dependency, database, schema application, rollout or production change. Coordinator handoff: `/Users/stew/.codex/audits/pika/2026-10-04-broad/handoff.json`. Targeted implementation tests passed; exact-branch focused checks run before draft publication. Independent review remains pending at the pr-review low-usage human checkpoint (8% weekly remaining at start, DeepSeek paused). S1 generation/issuance database fence remains open; no source delivery alone is accepted as goal completion.
+
+## 2026-10-04 — Broad audit database source and isolated verification
+
+PR1463 remains draft. Reviewed001–246 replay at18d282bf succeeded once on new
+local pika_audit_20261004 (DB64322/API64321), without seeds/reset/shared schema.
+Seven named SQL groups, forced teardown controls and actual auth HTTP canary
+passed. Genuine generated types replaced temporary RPC casts; four-file typed
+source/lifecycle setup correction is independently accepted. Two browser cases
+remain pending a corrected run; prior failed setup attempts and cleanup recorded.
+
+Migration244 now preserves installed149 owner/archive/null-actor/null-clock
+contracts, predecessor empty no-ops/delete locks and safe legacy Return counts.
+The existing104 returned_at review trigger remains authoritative; a preliminary
+metadata-loss concern was unsupported. Security/compatibility source re-reviews
+are clean;561 focused tests/52files and policy/TypeScript/lint checks pass. These
+corrected SQL bytes are unapplied. Fresh exact-target replay permission and real
+predecessor/CORE/browser proof remain gates before stable-head final CI/readiness.
+
+Other audit PRs1462/1464/1465/1466/1467 have accepted source and green final CI;
+18/27 findings accepted, none merged here. UI293passes/six retry flakes/20existing
+skips disclosed; dependency tree retains one braces advisory. Human task waiver
+continues low-usage/review-budget work; cumulative counts retained. Approve-all
+authorized exact earlier replay/fixtures and guarded accidental synthetic user
+cleanup, now complete. Immutable removed private generations/limiter metadata
+remain in disposable target. No migration retry/deploy/production/shared change.
+Evidence: ~/.codex/audits/pika/2026-10-04-broad/handoff.json and replay manifests.
+
+## 2026-10-04 — Corrected audit database runtime verified
+
+Human approved exact d50d419e source001–246 and seven fixture units on fresh
+local pika_audit_20261004_corrected (DB64422/API64421). One approved application
+succeeded; durable history and actual generated type drift check match. CORE
+rollback/concurrency and both forced teardown controls, restored149 authority/
+null-clock/lock races, atomic grading with104 review finalization, atomic submit
+and editing/archive contracts all PASS. Two actual desktop lifecycle cases PASS
+without retries using the owned3320 app, isolated backend and verified Pal/WorkOS
+OFF. All12 checked public fixture tables, private adapters and temporary fixture
+constraints are empty afterward;19 immutable removed private membership
+generations remain intentionally. Auth limiter metadata can remain; no complete
+DB restoration, private-ledger deletion or stack-removal claim.
+
+Two empty-platform startups failed before application; CLI auto-cleaned its
+failed resources. Final startup excluded unused auxiliary services using actual
+CLI container names and retained essential health checks. No application retry,
+reset/seed/down/history repair, shared/production migration or merge/deploy.
+The original approved643xx target and unchanged AUTH/storage receipts remain
+separately identified. Production244–246/runbook and typed/browser source are
+independently accepted;561 focused tests/52files/static gates pass. This entry
+changes evidence only. Stable final reviewed-SHA CI is the remaining PR1463 gate;
+18/27 findings already accepted through five other ready green audit PRs.
+Detailed authority, attempt, runtime and cleanup receipts: external broad-audit
+handoff and corrected-local-replay directory.
+
+## 2026-10-04 — Audit PR 1463 main reconciliation 902cbf76
+
+Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
+bodies from both branches and the incoming contextual owner Test detail read
+and CI checks. Previously reviewed audit implementation bytes remain unchanged;
+shared continuity and CI composition receive bounded independent review.
+Final focused checks and exact reviewed-head CI are readiness gates.
+No migration reapplication, shared/hosted database operation, merge or deployment.
+
+## 2026-10-04 — Audit CORE244 service-role revision allocator
+
+Final CI browser seeding exposed private schema resolution in the invoker
+revision trigger during direct service-role Test attempt inserts. The allocator
+now uses its owner with pinned empty search_path; sequence/default/backfill,
+revision fences and private ACLs remain unchanged. Actual-role rollback proof
+covers omitted/forged revisions, advancement, no-op/reset and recreation.
+Source tests67/5, scoped lint and TypeScript pass; actual proof and seed require
+final ephemeral CI. The approved local d50 replay and its immutable manifests
+remain receipts for earlier bytes, not this new244 hash. No local migration or
+fixture attempt was repeated; independent security review and final CI pending.
+
+## 2026-10-04 — Audit migration warning-free cleanup
+
+Final CI stopped on unused compatibility arguments in CORE244 submit/Return
+and unused selected code IDs in two AUTH246 handoff consumers. Retained RPC
+signatures now deliberately discard ignored inputs; AUTH selects only its read
+expiry value while preserving predicates, FOR UPDATE and post-lock clocks.
+No warning suppression, privilege, authority or expiry-rule change. Existing
+source guards updated to match that projection/discard while preserving their
+security assertions;27 tests/3files pass. Independent review/focused checks and
+actual warning-free ephemeral CI remain gates. No local migration reapplication
+or fixture execution; prior approved manifests/runtime source identities remain.
+
+## 2026-10-04 — Audit shared SDK proof migration inventory
+
+Final ephemeral CI found two exact243 checks rejecting the reviewed001–246
+chain before any platform adapter. One shared pure validator now requires the
+complete243 baseline and ordered contiguous numbered SQL with exact hashes;
+the loader selects every SQL file and rejects malformed extras. Complete243,
+246 and247 inventories pass; gaps, duplicates, order/hash errors and short
+baselines refuse before any adapter. Prepared-copy mismatches refuse before
+startup or fixture writes. Reviewed-HEAD/clean-root, target identities, resource
+inventory, settings and cleanup guards remain.634 tests/54files and all focused
+source gates pass. Independent targeted review and final ephemeral CI remain.
+Migrations244–246 unchanged from e905; older approved local manifests and
+runtime receipts retain their actual source/target. No new local execution.
+
+## 2026-10-04 — Audit full-suite source-contract alignment
+
+Final CI full coverage found two stale source expectations: the atomic-save
+contract prohibited the separate authorized GET revision read, and the body-Zod
+baseline retained the now-validated teacher Return route. The contract now
+extracts PATCH structurally and keeps it RPC-only; all direct route mutation
+methods remain prohibited. Removed only Return from the deletion-only Zod debt
+baseline, with its request-body parser intact and the debt test unchanged.
+Ten targeted tests pass. Product, migration and SDK runtime bytes unchanged.
+Independent targeted review, focused gates and final stable-SHA CI remain.
+No local database, application or fixture execution; approved receipts preserved.
+
+## 2026-10-04 — PAT-01/PAT-02 and V3 cache/survey/focused-check fixes
+
+First remediation batch from the authorized 27-finding codebase audit, base main `3c5d7097`. Implementation copied from coordinator-verified delivery into its own branch; no dependency, database, schema application, rollout or production change. Coordinator handoff: `/Users/stew/.codex/audits/pika/2026-10-04-broad/handoff.json`. Targeted implementation tests passed; exact-branch focused checks run before draft publication. Independent review remains pending at the pr-review low-usage human checkpoint (8% weekly remaining at start, DeepSeek paused). S1 generation/issuance database fence remains open; no source delivery alone is accepted as goal completion.
+
+## 2026-10-04 — Audit PR 1464 main reconciliation 902cbf76
+
+Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
+bodies from both branches and the incoming contextual owner Test detail read
+and CI checks. Previously reviewed audit implementation bytes remain unchanged;
+shared continuity and CI composition receive bounded independent review.
+Final focused checks and exact reviewed-head CI are readiness gates.
+No migration reapplication, shared/hosted database operation, merge or deployment.
+
+## 2026-10-04 Broad audit: bounded nightly summaries
+
+- Revalidated V2 provider/job stalls. Required summaries20s, optionalfeedback5s, applicationjob50s/maxDuration60; parent cancellation reaches provider bodyreads and SDK fetch. Required work precedes optionalfeedback.
+- Incomplete required work503 includes Toronto date/pending IDs; persisted sanitizedinput digest preserves matching results, and authenticated same-date/classroom retries avoid early-failure starvation. Added recovery runbook; no automatic scheduling/lease claim.
+- Worker focused PASS294tests/19files+allgates, rootactualsource/reportinspected. No realprovider/DB/hostedcalls. Source readyfor draftPR and independentreview, not acceptedfromimplementationalone.
+
+## 2026-10-04 — Audit PR 1465 main reconciliation 902cbf76
+
+Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
+bodies from both branches and the incoming contextual owner Test detail read
+and CI checks. Previously reviewed audit implementation bytes remain unchanged;
+shared continuity and CI composition receive bounded independent review.
+Final focused checks and exact reviewed-head CI are readiness gates.
+No migration reapplication, shared/hosted database operation, merge or deployment.
+
+## 2026-10-04 Audit calendar ownership correction
+
+Independent review found a late classroom A day-toggle could clear selected B's
+calendar recovery or supersede its pending read. Entry/caller guards now reject
+obsolete loaders before any state or request-ID mutation, retaining A's cache
+invalidation. Three regressions failed before the fix, then14 calendar tests and
+121 focused tests plus all source gates passed. Twelve actual-owner browser
+cases cover B error/retry, success and pending reads across desktop/mobile and
+light/dark; API responses were intercepted, with no backend writes. Root inspected
+the actual diff and representative screenshots. Targeted independent review next.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-10-04 — Broad audit menu, calendar and artifact consistency
+
+PAT03/04/05 now keep SplitButton keyboard/focus ownership local with a roving
+menu item, distinguish failed classroom/calendar reads from successful empty
+state, reject stale classroom completions, and keep compact attachment pills
+inside44px targets. Actual mobile teacher table now scrolls within its card so
+those targets fit their cells. Experimental brief records approved reference
+reuse/extension; no stable pattern promotion. Focused1896tests/180files and all
+architecture/UI/design/TypeScript/lint gates PASS. Production-owner intercepted
+browser matrix12cases covers shared menus in both roles and teacher-only
+calendar/artifacts across1440/390px light/dark; screenshots inspected. One
+resource-contention test timeout was retained and passed isolated/final rerun;
+no test timeout was weakened. Live auth/database workflows and hosted CI remain
+separate gates. Coordinator owns independent review and PR readiness.
+
+## 2026-10-04 — Audit UI Linux baseline correction
+
+Reviewed the four deterministic teacher Pattern Lab contract failures from CI
+37205763470 at e52bc647. The approved production-owner menu/artifact examples
+add 390px desktop and 610px mobile to the existing contract capture. Accepted
+all four original Linux actual images after visual and pixel comparison; each
+initial/retry capture is byte-identical. Copied exact CI bytes into four PNGs,
+without changing product code, assertions, thresholds, skips, or retries.
+Existing teacher/student interaction and source reviews remain applicable.
+Independent baseline acceptance and new exact-head final CI remain pending.
+Evidence: external audit remediation-ui-linux-baselines.md and image-inventory.json.
+No database, seed, provider, migration, or fixture cleanup operation occurred.
+
+## 2026-10-04 — Audit PR 1466 main reconciliation 902cbf76
+
+Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
+bodies from both branches and the incoming contextual owner Test detail read
+and CI checks. Previously reviewed audit implementation bytes remain unchanged;
+shared continuity and CI composition receive bounded independent review.
+Final focused checks and exact reviewed-head CI are readiness gates.
+No migration reapplication, shared/hosted database operation, merge or deployment.
+
+## 2026-10-04 — Broad audit dependency advisories
+
+DEP01 coordinated existing Tiptap packages to3.31.4, existing transitive js-yaml
+to4.3.2 and moment to2.31.0. No new direct dependency. The unpatched braces3.0.3
+advisory has a version-scoped pnpm depth guard with installed-package tests;
+registry audit still reports that one advisory and is not suppressed. Nine RED
+regressions then ten PASS; editor/content/Markdown round-trip suites126/6 PASS,
+focused117/11/allgates PASS. Full suite11866 PASS/one UiGallery timeout under
+concurrent load; isolated exact test plus dependency regressions24/2 PASS with
+no timeout weakening. Final visual/frozen-install/review/CI remain separate gates.
+
+## 2026-10-04 — Broad audit dependency visual and frozen-install receipt
+
+Existing Tiptap upgrade now passed actual Pattern Lab student editing with
+Mac keyboard bold and teacher history viewer, all eight role/viewport/theme
+captures. Representative screenshots inspected; no uploads/DB writes. Final
+version-scoped braces patch preserves stringify parent semantics; frozen install
+and installed-dependency regressions PASS. Full-suite retry now PASS11867tests/1016files,8existing skips; independent
+security/compatibility review and finalCI remain separate gates; audit metadata still lists
+only the unpatched-upstream braces advisory despite local mitigation.
+
+## 2026-10-04 — Audit PR 1467 main reconciliation 902cbf76
+
+Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
+bodies from both branches and the incoming contextual owner Test detail read
+and CI checks. Previously reviewed audit implementation bytes remain unchanged;
+shared continuity and CI composition receive bounded independent review.
+Final focused checks and exact reviewed-head CI are readiness gates.
+No migration reapplication, shared/hosted database operation, merge or deployment.
+
+## 2026-10-03 — Detail1447 actual removal238-main reconciliation
+
+Rebased prepared7b421097 onto verified actual1448 squash73a85f26 using reviewed
+pendingparent88a1bfd6 as the exclusion boundary. Root verified all five exact-head
+CI37143487206 checks SUCCESS (18:15:08–18:43:24Z) and normal merge18:43:41Z;
+canonicalmain clean fast-forwarded73. Actual73 and reviewed88 have identical
+tree0200f897e44b029b0ce12b55b107fdfa5b79e584. Rebase had no conflicts or tree
+changes. All10original293 detail runtime/schema/helper/test/proof/guide files,
+44incoming parent files, whole prepared CI/test unions, entire roadmap and
+immutable235–238/genuine generated40d/curated3cf contracts remain unchanged.
+The pending-parent roadmap/session receipt is retained as historical preparation
+evidence; CURRENT and this receipt supersede its pending-main status. History
+is actual73+prepared7b−old88+this one new receipt; no surplus copies removed here.
+Official trim retains40recent entries, preserving all historical full bodies.
+Local/main001–238 and canonical Prod DB 001–225 recorded without activation.
+No DB/status/proof replay/type generation/migration application/provider/network/
+publication/readyCI/review/merge/stash/cleanup actions. Original detail ledger
+15:54Z/extended19:54Z and all launch/wave/fix counts remain unchanged/root-owned.
+Changed-actual-base independent review, publication and detail exact-head CI
+remain required; sharedadmission/fullcutover/billing/production promotionOFF.
+Actualorigin/main73 focused258tests/17files and architecture/UI/design/TypeScript/
+lint PASS; startup/CI/Bara56tests/3files PASS, startup15975/16000. Actual-main-aware
+audit10files, diff, trim and full preservation verifier PASS. Evidence:
+/private/tmp/pika-1447-actual-removal-reconcile.BKLnlz; fullfocused pika-focused-4MMNPL.
+No migration renumbering or task stash;36unrelated shared stashes untouched.
+
 ## 2025-12-18 10:16 [AI - Codex]
 **Goal:** Remove the student History tab from the classroom dashboard/sidebar
 **Completed:** Removed the student “History” nav item and disallowed `?tab=history` for students (falls back to Today); removed the UI gallery link to the classroom history tab and updated the Today history component test to match the non-clickable list rows

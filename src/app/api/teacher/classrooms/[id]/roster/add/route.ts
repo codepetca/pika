@@ -4,12 +4,21 @@ import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentsCanBeAddedToRoster, throwIfRemovedStudentRosterError } from '@/lib/server/classroom-student-removal'
+import { authorizeSharedRosterMutationActor, upsertContextualRoster } from '@/lib/server/contextual-roster-mutation'
+import { rosterClassParamsSchema, rosterManualBodySchema } from '@/lib/validations/roster-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // Add invitations, never restore a removed membership.
 export const POST = withErrorHandler('PostAddRosterStudents', async (request, context) => {
+  const shared = await authorizeSharedRosterMutationActor()
+  if (shared.mode === 'shared') {
+    const { id } = rosterClassParamsSchema.parse(await context.params)
+    const { students, errors } = rosterManualBodySchema.parse(await request.json())
+    const result = await upsertContextualRoster({ actorId: shared.user.id, classroomId: id, students, mode: 'manual' })
+    return NextResponse.json({ ...result, errors: errors.length > 0 ? errors : undefined })
+  }
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()

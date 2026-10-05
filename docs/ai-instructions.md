@@ -26,6 +26,7 @@ History: append/trim `.ai/SESSION-LOG.md`; archive for investigation only.
 | Large TSX/shared shell refactors | [Refactor checklist](./guidance/component-refactor-checklist.md) |
 | TDD, coverage, or test design | [Tests](./core/tests.md) |
 | Classroom assessment authoring | [Guide](./guidance/teacher-test-authoring.md) |
+| Lesson slides/sites | [Guide](./curriculum/lesson-viewer-guide.md) |
 | Grading behavior, profiles, providers, provenance, or evals | [Architecture](./guidance/grading-architecture.md), [Egress](./guidance/ai-grading-egress.md), [Evals](./guidance/teacher-grading-evals.md) |
 | Student Grades visibility, disclosure, or calculation | [Student Grades](./guidance/student-grades.md) |
 | Setup, runtime, or deployment questions | [Project context](./core/project-context.md) |
@@ -36,7 +37,7 @@ History: append/trim `.ai/SESSION-LOG.md`; archive for investigation only.
 | Course blueprint package import/export | [Blueprint packages](./guidance/course-blueprint-packages.md) |
 | Feature-specific behavior | `docs/guidance/*.md` or the closest focused spec |
 
-Read startup and routed docs before edits.
+Read routed docs first.
 
 ## Repo Invariants
 

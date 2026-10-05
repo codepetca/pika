@@ -4,6 +4,9 @@ import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentsCanBeAddedToRoster, throwIfRemovedStudentRosterError } from '@/lib/server/classroom-student-removal'
+import { authorizeSharedRosterMutationActor, upsertContextualRoster } from '@/lib/server/contextual-roster-mutation'
+import { rosterClassParamsSchema, rosterCsvBodySchema } from '@/lib/validations/roster-mutations'
+import { decodeRosterCsv } from '@/lib/roster-csv'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -30,6 +33,13 @@ function normalizeCsvHeader(value: string | undefined) {
 
 // POST /api/teacher/classrooms/[id]/roster/upload-csv - Upload CSV roster
 export const POST = withErrorHandler('PostUploadRosterCsv', async (request, context) => {
+  const shared = await authorizeSharedRosterMutationActor()
+  if (shared.mode === 'shared') {
+    const { id } = rosterClassParamsSchema.parse(await context.params)
+    const body = rosterCsvBodySchema.parse(await request.json())
+    return NextResponse.json(await upsertContextualRoster({ actorId: shared.user.id, classroomId: id,
+      students: decodeRosterCsv(body.csvData), mode: body.confirmed ? 'csv-confirmed' : 'csv-preview' }))
+  }
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()

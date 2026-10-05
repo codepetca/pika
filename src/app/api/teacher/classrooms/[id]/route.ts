@@ -9,12 +9,24 @@ import { normalizeActualCourseSiteConfig } from '@/lib/course-site-publishing'
 import { isMissingClassroomFeatureVisibilityColumnError } from '@/lib/classroom-feature-visibility'
 import { mapClassroomCreationDatabaseError } from '@/lib/server/classroom-creation-entitlement'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
+import { authorizeSharedClassroomDetailReadActor, readContextualClassroomDetail } from '@/lib/server/contextual-classroom-detail'
+import { contextualClassroomDetailParamsSchema } from '@/lib/validations/contextual-classroom-detail'
+import { authorizeSharedClassroomMetadataActor, updateContextualClassroomMetadata } from '@/lib/server/contextual-classroom-metadata'
+import { contextualClassroomMetadataParamsSchema, contextualClassroomMetadataPatchSchema } from '@/lib/validations/contextual-classroom-metadata'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // GET /api/teacher/classrooms/[id] - Get classroom details
 export const GET = withErrorHandler('GetClassroomById', async (_request, context) => {
+  const actor = await authorizeSharedClassroomDetailReadActor()
+  if (actor.mode === 'shared') {
+    const { id: classroomId } = contextualClassroomDetailParamsSchema.parse(await context.params)
+    const classroom = await readContextualClassroomDetail({
+      supabase: getServiceRoleClient(), actorId: actor.user.id, classroomId, permission: 'owner',
+    })
+    return NextResponse.json({ classroom })
+  }
   const { id: classroomId } = await context.params
   const access = await authorizeClassroomCoreRequest(classroomId, { legacyRole: 'teacher', permission: 'owner' })
   const { user } = access
@@ -49,6 +61,13 @@ export const GET = withErrorHandler('GetClassroomById', async (_request, context
 
 // PATCH /api/teacher/classrooms/[id] - Update classroom
 export const PATCH = withErrorHandler('PatchUpdateClassroom', async (request, context) => {
+  const actor = await authorizeSharedClassroomMetadataActor()
+  if (actor.mode === 'shared') {
+    const { id: classroomId } = contextualClassroomMetadataParamsSchema.parse(await context.params)
+    const patch = contextualClassroomMetadataPatchSchema.parse(await request.json())
+    const classroom = await updateContextualClassroomMetadata({ supabase: getServiceRoleClient(), actorId: actor.user.id, classroomId, patch })
+    return NextResponse.json({ classroom })
+  }
   const { id: classroomId } = await context.params
   const access = await authorizeClassroomCoreRequest(classroomId, { legacyRole: 'teacher', permission: 'owner' })
   const { user } = access

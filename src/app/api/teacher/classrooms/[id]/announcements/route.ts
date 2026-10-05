@@ -11,6 +11,9 @@ import {
   assertContextualAnnouncementRows,
   authorizeClassroomAnnouncementRequest,
 } from '@/lib/server/classroom-announcement-access'
+import { authorizeSharedAnnouncementReadActor, readContextualAnnouncements } from '@/lib/server/contextual-announcement-read'
+import { createContextualAnnouncement } from '@/lib/server/contextual-announcement-mutation'
+import { parseAnnouncementCreateParams, parseAnnouncementCreateBody } from '@/lib/validations/announcement-mutations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -18,6 +21,14 @@ export const revalidate = 0
 // GET /api/teacher/classrooms/[id]/announcements - List announcements (newest first)
 export const GET = withErrorHandler('GetAnnouncements', async (_request, context) => {
   const params = context.params
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = await params
+    return NextResponse.json(await readContextualAnnouncements({
+      supabase: getServiceRoleClient(), actorId: sharedAccess.user.id,
+      classroomId, permission: 'owner',
+    }))
+  }
   const announcementAccess = await authorizeClassroomAnnouncementRequest(async () => (
     await params
   ).id, {
@@ -62,6 +73,12 @@ export const GET = withErrorHandler('GetAnnouncements', async (_request, context
 
 // POST /api/teacher/classrooms/[id]/announcements - Create announcement
 export const POST = withErrorHandler('PostCreateAnnouncement', async (request, context) => {
+  const sharedAccess = await authorizeSharedAnnouncementReadActor()
+  if (sharedAccess.mode === 'shared') {
+    const { id: classroomId } = parseAnnouncementCreateParams(await context.params)
+    const body = parseAnnouncementCreateBody(await request.json())
+    return NextResponse.json(await createContextualAnnouncement({ actorId: sharedAccess.user.id, classroomId, body }), { status: 201 })
+  }
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()

@@ -58,6 +58,12 @@ function makeVerifyEnvFixture() {
 
   mkdirSync(join(repoRoot, '.ai'), { recursive: true })
   mkdirSync(join(repoRoot, 'node_modules'), { recursive: true })
+  mkdirSync(join(repoRoot, 'scripts'), { recursive: true })
+  mkdirSync(join(repoRoot, 'docs'), { recursive: true })
+  for (const file of ['.ai/START-HERE.md', '.ai/CURRENT.md', 'docs/ai-instructions.md']) {
+    writeFileSync(join(repoRoot, file), '# Required fixture guidance\n')
+  }
+  writeFileSync(join(repoRoot, 'scripts/features.mjs'), 'JSON.parse(await (await import("node:fs/promises")).readFile(".ai/features.json", "utf8"))\n')
 
   writeFileSync(
     join(repoRoot, 'package.json'),
@@ -94,7 +100,8 @@ describe('AI startup docs', () => {
   it('keeps the default startup set under the budget', () => {
     const totalChars = requiredStartupFiles.reduce((sum, file) => sum + readRepoFile(file).length, 0)
 
-    expect(totalChars).toBeLessThanOrEqual(16_000)
+    // Allow 1k for dated source/local/hosted labels and receipt/remaining-gate text.
+    expect(totalChars).toBeLessThanOrEqual(17_000)
   })
 
   it('keeps journal reads out of the default startup flow', () => {
@@ -246,6 +253,33 @@ describe('AI startup docs', () => {
       expect(prompt).toContain('gh pr ready')
       expect(prompt).toContain('PR Gate')
       expect(prompt).toContain('record:ai-pr-lifecycle')
+    }
+  })
+
+  it('keeps main landing behind the reviewed PR gate', () => {
+    const workflow = readRepoFile('docs/dev-workflow.md')
+    const landing = workflow.split('## Landing changes to `main`')[1].split('## Post-merge cleanup')[0]
+    expect(landing).toContain('gh pr merge <PR> --squash')
+    expect(landing).toContain('PR Gate')
+    expect(landing).toContain('final reviewed SHA')
+    expect(workflow).not.toMatch(/git push(?: --\S+)* origin main/)
+    expect(landing).not.toMatch(/git (?:checkout main|merge --squash|cherry-pick)/)
+  })
+
+  it('routes both API scaffold adapters to maintained boundary examples and real imports', () => {
+    for (const path of ['.claude/commands/add-api-route.md', '.codex/prompts/add-api-route.md']) {
+      const prompt = readRepoFile(path)
+      expect(prompt).toContain('docs/guidance/api-boundary-validation.md')
+      expect(prompt).toContain('src/app/api/teacher/classrooms/route.ts')
+      expect(prompt).toContain('getServiceRoleClient')
+      expect(prompt).not.toContain('supabase-server')
+      expect(prompt).not.toContain('supabase-route')
+      expect(prompt).not.toContain('createSupabaseServer')
+    }
+    expect(readRepoFile('src/lib/supabase.ts')).toContain('export function getServiceRoleClient')
+    const auditSkill = readRepoFile('.codex/skills/pika-audit/SKILL.md')
+    for (const [, commandPath] of auditSkill.matchAll(/`bash ([^`]+)`/g)) {
+      expect(existsSync(resolve(testDir, '../..', commandPath))).toBe(true)
     }
   })
 
@@ -476,6 +510,71 @@ describe('AI startup docs', () => {
       expect(`${result.stdout}\n${result.stderr}`).toContain('Current repo is the hub')
     } finally {
       rmSync(homeRoot, { recursive: true, force: true })
+    }
+  })
+
+  for (const flags of [[], ['--context-loaded'], ['--orient-only'], ['--orient-only', '--context-loaded']]) {
+    for (const missing of [...requiredStartupFiles, 'scripts/verify-env.sh', 'scripts/features.mjs']) {
+      it(`fails startup with missing ${missing} under ${flags.join(' ') || 'default'}`, () => {
+        const repoRoot = makeFixtureWorktree()
+        const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
+        rmSync(join(repoRoot, missing))
+        try {
+          const result = spawnSync('bash', [scriptPath, ...flags], {
+            cwd: repoRoot, env: { ...process.env, HOME: repoRoot }, encoding: 'utf8',
+          })
+          expect(result.status).not.toBe(0)
+          expect(result.stdout).toContain(missing)
+          expect(result.stdout).not.toContain('Session ready')
+          expect(result.stdout).not.toContain('Context loaded for read-only work.')
+        } finally {
+          rmSync(repoRoot, { recursive: true, force: true })
+        }
+      })
+    }
+  }
+
+  it('fails orientation when the feature inventory cannot be validated', () => {
+    const repoRoot = makeFixtureWorktree()
+    const scriptPath = resolve(testDir, '../../.codex/skills/pika-session-start/scripts/session_start.sh')
+    writeFileSync(join(repoRoot, 'scripts/features.mjs'), 'process.exit(1)\n')
+    try {
+      const result = spawnSync('bash', [scriptPath, '--orient-only', '--context-loaded'], {
+        cwd: repoRoot, env: { ...process.env, HOME: repoRoot }, encoding: 'utf8',
+      })
+      expect(result.status).not.toBe(0)
+      expect(result.stdout).not.toContain('Context loaded for read-only work.')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
+    }
+  })
+
+  for (const missing of [...requiredStartupFiles, 'scripts/features.mjs']) {
+    it(`fails direct environment verification with missing ${missing}`, () => {
+      const repoRoot = makeVerifyEnvFixture()
+      const scriptPath = resolve(testDir, '../../scripts/verify-env.sh')
+      rmSync(join(repoRoot, missing))
+      try {
+        const result = spawnSync('bash', [scriptPath], { cwd: repoRoot, encoding: 'utf8' })
+        expect(result.status).not.toBe(0)
+        expect(result.stdout).toContain(missing)
+        expect(result.stdout).not.toContain('Environment verified. Ready for development.')
+      } finally {
+        rmSync(repoRoot, { recursive: true, force: true })
+      }
+    })
+  }
+
+  it('fails direct verification for malformed inventory JSON', () => {
+    const repoRoot = makeVerifyEnvFixture()
+    const scriptPath = resolve(testDir, '../../scripts/verify-env.sh')
+    writeFileSync(join(repoRoot, '.ai/features.json'), '{ malformed')
+    try {
+      const result = spawnSync('bash', [scriptPath], { cwd: repoRoot, encoding: 'utf8' })
+      expect(result.status).not.toBe(0)
+      expect(result.stdout).not.toContain('Environment verified. Ready for development.')
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true })
     }
   })
 

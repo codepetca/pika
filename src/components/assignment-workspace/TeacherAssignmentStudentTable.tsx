@@ -156,7 +156,7 @@ export function TeacherAssignmentStudentTable({
         onDeselect={onDeselectStudent}
         getRowId={getAssignmentStudentRowId}
       >
-        <TableCard chrome="flush">
+        <TableCard chrome="flush" overflowX>
           {loading ? (
             <div className="flex justify-center py-10">
               <Spinner />
@@ -166,7 +166,7 @@ export function TeacherAssignmentStudentTable({
               {error}
             </div>
           ) : (
-            <div className="relative">
+            <div className="relative" style={{ minWidth: `calc(${40 + Object.values(columnWidths).reduce((sum, width) => sum + width, 0)}px + var(--size-control-min) + var(--space-field))` }}>
               {busyOverlay}
               <DataTable density={density} className="table-fixed">
                 <colgroup>

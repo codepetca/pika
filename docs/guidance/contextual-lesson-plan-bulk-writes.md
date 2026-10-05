@@ -2,7 +2,8 @@
 
 This is preparation within batch 1, not activation. The single-date transaction
 in PR1424 merged as42789d40 after all five exact-head CI gates passed. This slice
-is now reconciled onto that main commit for draft publication and full review.
+merged in PR1426 as a101fb28 after exact-head CI37014848829 passed all five gates
+on reviewed38c7edfb.239 focused checks and independent targeted/final review pass.
 Migrations226 and227 are installed locally and must remain unchanged. Exact227
 LOCAL authorization was consumed by one successful application on2026-10-01.
 Matching generated types, service-only privileges and the real synthetic database
@@ -69,10 +70,11 @@ legacy tests, generated-type verification and TypeScript pass. SQL227 retains
 SHA256 `c840869da61aa5a343a225f02d06cd99e428c93cb9a707f7e61f8cbb66097b8a`.
 Local strict creation enforcement was false during these runs: cleanup of durable
 auto-Free provisioning audits has static independent-review coverage, not a claim
-that the strict-enabled provisioning branch ran locally. Final full-PR review and
-exact-head CI remain required.
+that the strict-enabled provisioning branch ran locally. Full-PR review and
+exact-head CI are now complete; these receipts do not enable the admitted path.
 
-Copy remains a separate later slice. Complete decommission transitions remain an
+Copy is the separate [next prepared slice](contextual-lesson-plan-copy-writes.md).
+Complete decommission transitions remain an
 integrated lifecycle/release gate. Production schema, billing, AI, account plans,
 cohort admission and the live home/page routing remain unchanged. The five-batch
 goal is not complete until its integrated rehearsal and authorized release.

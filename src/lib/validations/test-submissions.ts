@@ -13,7 +13,12 @@ export const submitTestResponsesSchema = z.unknown().transform((raw, context) =>
     return z.NEVER
   }
 
-  return { responses: normalizeTestResponses(responses) }
+  const expectedRevision = (raw as Record<string, unknown>).expected_revision
+  if (typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+    context.addIssue({ code: 'custom', message: 'A valid expected_revision is required' })
+    return z.NEVER
+  }
+  return { responses: normalizeTestResponses(responses), expectedRevision }
 })
 
 export type SubmitTestResponsesInput = z.infer<typeof submitTestResponsesSchema>
@@ -37,6 +42,7 @@ export const saveTestAttemptSchema = z.unknown().transform((raw, context) => {
 
   return {
     responses: parsedResponses.data.responses,
+    expectedRevision: parsedResponses.data.expectedRevision,
     trigger: trigger as 'autosave' | 'blur' | undefined,
     pasteWordCount: Math.max(0, Math.round(Number(record.paste_word_count) || 0)),
     keystrokeCount: Math.max(0, Math.round(Number(record.keystroke_count) || 0)),

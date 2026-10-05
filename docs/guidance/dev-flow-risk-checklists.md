@@ -74,6 +74,8 @@ Applies when changing student test taking, fullscreen/maximize checks, focus/awa
 
 ## Runtime Platform
 
+Nightly summary deadline and explicit retry contract: [recovery procedure](./nightly-summary-recovery.md).
+
 Applies when changing cron, background work, deployment config, long-running routes, or Vercel behavior.
 
 - Check current Vercel plan constraints before adding repo-managed schedules.

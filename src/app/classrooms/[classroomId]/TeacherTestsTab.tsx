@@ -998,14 +998,9 @@ export function TeacherTestsTab({
     }
     setGradingError('')
     try {
-      const { ok, data } = await fetchJSONWithCache<{ ok: boolean; data: TeacherTestResultsPayload }>(
-        `teacher-test-results:${requestedTestId}:${requestId}`,
-        async () => {
-          const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
-          return { ok: response.ok, data: await response.json() }
-        },
-        0,
-      )
+      const response = await fetch(`${apiBasePath}/${requestedTestId}/results`, { cache: 'no-store' })
+      const data: TeacherTestResultsPayload = await response.json()
+      const ok = response.ok
       if (isStaleRequest()) return
       const results = readTeacherTestResultsFromPayload(data)
       if (!ok) throw new Error(results.error || 'Failed to load test results')

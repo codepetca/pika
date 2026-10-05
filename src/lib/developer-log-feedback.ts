@@ -1,3 +1,4 @@
+import { withAIRequestDeadline, type AIRequestDeadlineOptions } from '@/lib/ai-request-deadline'
 import { randomUUID } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { redactDirectIdentifiers } from '@/lib/log-summary'
@@ -116,7 +117,8 @@ ${logEntries}`
 
 export async function callOpenAIForDeveloperFeedback(
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  options: AIRequestDeadlineOptions = {},
 ): Promise<DeveloperFeedbackExtractionResponse> {
   const apiKey = getOpenAIKey()
   if (!apiKey) {
@@ -124,41 +126,44 @@ export async function callOpenAIForDeveloperFeedback(
   }
 
   const model = getDeveloperFeedbackModel()
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    redirect: 'error',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      store: false,
-      input: [
-        {
-          role: 'system',
-          content: [{ type: 'input_text', text: systemPrompt }],
-        },
-        {
-          role: 'user',
-          content: [{ type: 'input_text', text: userPrompt }],
-        },
-      ],
-    }),
-  })
+  return withAIRequestDeadline(async (signal) => {
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      signal,
+      method: 'POST',
+      redirect: 'error',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        store: false,
+        input: [
+          {
+            role: 'system',
+            content: [{ type: 'input_text', text: systemPrompt }],
+          },
+          {
+            role: 'user',
+            content: [{ type: 'input_text', text: userPrompt }],
+          },
+        ],
+      }),
+    })
 
-  if (!res.ok) {
-    await res.text().catch(() => '')
-    throw new Error(`OpenAI request failed (${res.status})`)
-  }
+    if (!res.ok) {
+      await res.text().catch(() => '')
+      throw new Error(`OpenAI request failed (${res.status})`)
+    }
 
-  const payload = await res.json()
-  const outputText = extractResponseOutputText(payload)
-  if (!outputText) {
-    throw new Error('OpenAI response missing output text')
-  }
+    const payload = await res.json()
+    const outputText = extractResponseOutputText(payload)
+    if (!outputText) {
+      throw new Error('OpenAI response missing output text')
+    }
 
-  return parseDeveloperFeedbackResponse(outputText)
+    return parseDeveloperFeedbackResponse(outputText)
+  }, options, 5_000)
 }
 
 export function parseDeveloperFeedbackResponse(outputText: string): DeveloperFeedbackExtractionResponse {
@@ -196,25 +201,31 @@ export function normalizeDeveloperFeedbackDedupeKey(input: string): string {
 
 export async function extractAndStoreDeveloperFeedbackCandidates(
   supabase: DeveloperFeedbackRpcClient,
-  context: DeveloperFeedbackRecordContext & { sanitizedLogs: SanitizedDeveloperFeedbackLog[] }
+  context: DeveloperFeedbackRecordContext & { sanitizedLogs: SanitizedDeveloperFeedbackLog[] },
+  options: AIRequestDeadlineOptions = {},
 ): Promise<DeveloperFeedbackRecordResult> {
   if (context.sanitizedLogs.length === 0) {
     return emptyRecordResult()
   }
 
   const { system, user } = buildDeveloperFeedbackPrompt(context.date, context.sanitizedLogs)
-  const response = await callOpenAIForDeveloperFeedback(system, user)
-  return recordDeveloperFeedbackCandidates(supabase, response.candidates, context)
+  return withAIRequestDeadline(async (signal) => {
+    const response = await callOpenAIForDeveloperFeedback(system, user, { ...options, signal })
+    signal.throwIfAborted()
+    return recordDeveloperFeedbackCandidates(supabase, response.candidates, context, signal)
+  }, options, 5_000)
 }
 
 export async function recordDeveloperFeedbackCandidates(
   supabase: DeveloperFeedbackRpcClient,
   candidates: DeveloperFeedbackCandidateInput[],
-  context: DeveloperFeedbackRecordContext
+  context: DeveloperFeedbackRecordContext,
+  signal?: AbortSignal,
 ): Promise<DeveloperFeedbackRecordResult> {
   const result = emptyRecordResult()
 
   for (const candidate of candidates) {
+    signal?.throwIfAborted()
     const normalized = normalizeCandidateForStorage(candidate)
     if (!normalized || normalized.confidence < MIN_CONFIDENCE) {
       result.skipped += 1

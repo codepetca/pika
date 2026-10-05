@@ -5,6 +5,8 @@ import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getStudentPurgeEnabledStudentIds } from '@/lib/server/student-purge'
 import type { TableRow } from '@/types/database'
+import { authorizeSharedClassroomRosterReadActor, readContextualClassroomRoster } from '@/lib/server/contextual-classroom-roster-read'
+import { contextualClassroomRosterParamsSchema } from '@/lib/validations/contextual-classroom-roster-read'
 
 type RosterListRow = Pick<TableRow<'classroom_roster'>,
   'id' | 'email' | 'student_number' | 'first_name' | 'last_name' | 'counselor_email'
@@ -15,6 +17,13 @@ export const revalidate = 0
 
 // GET /api/teacher/classrooms/[id]/roster - Get classroom roster
 export const GET = withErrorHandler('GetClassroomRoster', async (_request, context) => {
+  const sharedActor = await authorizeSharedClassroomRosterReadActor()
+  if (sharedActor.mode === 'shared') {
+    const { id: classroomId } = contextualClassroomRosterParamsSchema.parse(await context.params)
+    return NextResponse.json(await readContextualClassroomRoster({
+      supabase: getServiceRoleClient(), actorId: sharedActor.user.id, classroomId,
+    }))
+  }
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
 

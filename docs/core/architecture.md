@@ -6,7 +6,7 @@ Defines the system architecture, patterns, and technical details for **Pika**. P
 
 ## System Overview
 
-Pika is a Next.js 14 application deployed on Vercel with a Supabase backend. It uses server components plus API routes, iron-session cookies for auth, and Supabase for persistence.
+Pika is a Next.js App Router application (versions: `package.json` and `pnpm-lock.yaml`) deployed on Vercel with a Supabase backend. It uses server components plus API routes, iron-session cookies for auth, and Supabase for persistence.
 
 ```
 ┌────────────────────────────┐
@@ -185,24 +185,33 @@ export const GET = withErrorHandler('GetClassrooms', async (request) => {
 Use `/migrate-error-handler` slash command to convert existing manual routes.
 
 ### Client-Side Data Fetching (Required Pattern)
-Use `fetchJSONWithCache` from `@/lib/request-cache` for repeated client-side API calls.
-This avoids duplicate in-flight requests and caches responses for 15–20 seconds.
+Use `fetchCachedJSON` from `@/lib/request-cache` for repeated client-side API
+reads. It checks HTTP success, throws on errors and deduplicates/cache successful
+responses for the selected TTL (15 seconds by default).
 
 ```ts
-import { fetchJSONWithCache } from '@/lib/request-cache'
+import { fetchCachedJSON, fetchJSON } from '@/lib/request-cache'
 
-// ✅ CORRECT — deduplicated + cached
-const data = await fetchJSONWithCache(
+// Repeated reads: failed HTTP responses reject and are not cached as data.
+const data = await fetchCachedJSON(
   `gradebook:${classroomId}:${studentId}`,
-  () => fetch(`/api/teacher/gradebook?...`).then(r => r.json()),
-  60_000  // 1 min TTL
+  `/api/teacher/gradebook?classroom_id=${classroomId}&student_id=${studentId}`,
+  { ttlMs: 60_000, errorMessage: 'Failed to load gradebook' }
 )
 
-// ❌ WRONG — raw fetch in components (causes duplicate requests, no caching)
-const data = await fetch(`/api/teacher/gradebook?...`).then(r => r.json())
+// Freshness-critical reads (for example grading polls): bypass the cache.
+const fresh = await fetchJSON('/api/teacher/tests/.../attempts', {
+  init: { cache: 'no-store' },
+  errorMessage: 'Failed to load grading status'
+})
 ```
 
-Use raw `fetch()` only for one-off mutations (POST/PATCH/DELETE) or when freshness is critical.
+For custom fetchers, `fetchJSONWithCache(key, fetcher, ttlMs)` requires the fetcher
+to **throw** on HTTP/domain failure; resolving `response.json()` without checking
+`response.ok` stores error payloads as successful data. Prefer `fetchCachedJSON`
+for ordinary JSON reads. Use a stable identity key, invalidate after mutations,
+and bypass caching for reads that must always be fresh. Raw `fetch()` is also
+appropriate for one-off mutations (POST/PATCH/DELETE).
 
 ### Assessments Pattern
 Pika exposes **tests** as the active assessment surface. Quiz product routes and tabs have been removed.

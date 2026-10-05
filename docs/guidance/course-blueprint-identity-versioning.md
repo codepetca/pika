@@ -342,6 +342,13 @@ the Blueprint or classroom.
 
 ### Updating an existing classroom
 
+The classroom Blueprint tab's Materials section reads the linked Blueprint's
+latest saved Version and labels that source separately from the classroom's
+Content Version. It is a read-only view of reusable materials, not an adoption
+of that Version. Viewing a lesson there does not update classroom provenance,
+release state, or local coursework. Student availability still comes from the
+classroom's posted Classwork Material.
+
 The teacher selects a linked classroom and asks Pika to prepare an update.
 Pika saves or selects the exact current Blueprint Version, projects the
 classroom's reusable structure, and creates a classroom-targeted proposal. The

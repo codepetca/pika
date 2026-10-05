@@ -2696,6 +2696,211 @@ export type Database = {
           },
         ]
       }
+      billing_upgrade_operations: {
+        Row: {
+          attempt_count: number
+          completed_at: string | null
+          confirmed: boolean
+          created_at: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          expires_at: string
+          id: string
+          invoice_id: string | null
+          last_paid_invoice_id: string
+          next_attempt_at: string | null
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id: string | null
+          quote: Json | null
+          quote_digest: string | null
+          quote_revision: number | null
+          reason: string | null
+          revision: number
+          source_binding: Json
+          source_offering_version_id: string
+          stage: string
+          status: string
+          subject_user_id: string
+          subscription_id: string
+          target: Json
+          target_offering_version_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          completed_at?: string | null
+          confirmed?: boolean
+          created_at?: string
+          expected_access_revision: number
+          expected_account_plan_revision: number
+          expected_entitlement_revision: number
+          expires_at: string
+          id: string
+          invoice_id?: string | null
+          last_paid_invoice_id: string
+          next_attempt_at?: string | null
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id?: string | null
+          quote?: Json | null
+          quote_digest?: string | null
+          quote_revision?: number | null
+          reason?: string | null
+          revision?: number
+          source_binding: Json
+          source_offering_version_id: string
+          stage?: string
+          status?: string
+          subject_user_id: string
+          subscription_id: string
+          target: Json
+          target_offering_version_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          completed_at?: string | null
+          confirmed?: boolean
+          created_at?: string
+          expected_access_revision?: number
+          expected_account_plan_revision?: number
+          expected_entitlement_revision?: number
+          expires_at?: string
+          id?: string
+          invoice_id?: string | null
+          last_paid_invoice_id?: string
+          next_attempt_at?: string | null
+          paid_period_start?: string
+          paid_through?: string
+          payment_intent_id?: string | null
+          quote?: Json | null
+          quote_digest?: string | null
+          quote_revision?: number | null
+          reason?: string | null
+          revision?: number
+          source_binding?: Json
+          source_offering_version_id?: string
+          stage?: string
+          status?: string
+          subject_user_id?: string
+          subscription_id?: string
+          target?: Json
+          target_offering_version_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_upgrade_operations_source_offering_version_id_fkey"
+            columns: ["source_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_operations_subject_user_id_fkey"
+            columns: ["subject_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_operations_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_operations_target_offering_version_id_fkey"
+            columns: ["target_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_upgrade_receipts: {
+        Row: {
+          account_plan_revision: number
+          amount_paid: number
+          created_at: string
+          currency: string
+          evidence: Json
+          invoice_id: string
+          operation_id: string
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id: string
+          source_offering_version_id: string
+          stripe_account: string
+          subscription_id: string
+          target_offering_version_id: string
+        }
+        Insert: {
+          account_plan_revision: number
+          amount_paid: number
+          created_at?: string
+          currency: string
+          evidence: Json
+          invoice_id: string
+          operation_id: string
+          paid_period_start: string
+          paid_through: string
+          payment_intent_id: string
+          source_offering_version_id: string
+          stripe_account: string
+          subscription_id: string
+          target_offering_version_id: string
+        }
+        Update: {
+          account_plan_revision?: number
+          amount_paid?: number
+          created_at?: string
+          currency?: string
+          evidence?: Json
+          invoice_id?: string
+          operation_id?: string
+          paid_period_start?: string
+          paid_through?: string
+          payment_intent_id?: string
+          source_offering_version_id?: string
+          stripe_account?: string
+          subscription_id?: string
+          target_offering_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_upgrade_receipts_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: true
+            referencedRelation: "billing_upgrade_operations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_receipts_source_offering_version_id_fkey"
+            columns: ["source_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_receipts_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_subscription_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_upgrade_receipts_target_offering_version_id_fkey"
+            columns: ["target_offering_version_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_billing_offering_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_days: {
         Row: {
           classroom_id: string
@@ -8297,6 +8502,7 @@ export type Database = {
           closed_for_grading_at: string | null
           closed_for_grading_by: string | null
           created_at: string
+          draft_revision: number
           id: string
           is_submitted: boolean
           responses: Json
@@ -8313,6 +8519,7 @@ export type Database = {
           closed_for_grading_at?: string | null
           closed_for_grading_by?: string | null
           created_at?: string
+          draft_revision?: number
           id?: string
           is_submitted?: boolean
           responses?: Json
@@ -8329,6 +8536,7 @@ export type Database = {
           closed_for_grading_at?: string | null
           closed_for_grading_by?: string | null
           created_at?: string
+          draft_revision?: number
           id?: string
           is_submitted?: boolean
           responses?: Json
@@ -8893,6 +9101,7 @@ export type Database = {
           purpose: string
           used_at: string | null
           user_id: string
+          verification_generation: number
         }
         Insert: {
           attempts?: number
@@ -8906,6 +9115,7 @@ export type Database = {
           purpose: string
           used_at?: string | null
           user_id: string
+          verification_generation: number
         }
         Update: {
           attempts?: number
@@ -8919,6 +9129,7 @@ export type Database = {
           purpose?: string
           used_at?: string | null
           user_id?: string
+          verification_generation?: number
         }
         Relationships: [
           {
@@ -9550,6 +9761,10 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_checkpoint_upgrade_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       billing_claim_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_claim_renewal_closeout_v1: {
         Args: { p_request: Json }
@@ -9559,6 +9774,8 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_claim_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_confirm_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
@@ -9570,12 +9787,18 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_finish_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_get_access_status_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_applied_upgrade_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       billing_get_checkout_offering_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
       billing_get_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_checkout_offerings_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -9588,6 +9811,7 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_list_upgrades_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
       billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
       billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
@@ -9596,6 +9820,7 @@ export type Database = {
         Returns: Json
       }
       billing_reserve_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_reserve_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_save_checkout_progress_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -10541,6 +10766,15 @@ export type Database = {
         Args: { p_actor_key_hash: string; p_invitation_key_hash: string }
         Returns: Json
       }
+      consume_latest_password_reset_and_revoke_sessions_v1: {
+        Args: {
+          p_generation: number
+          p_handoff_token_hash: string
+          p_password_hash: string
+          p_user_id: string
+        }
+        Returns: number
+      }
       consume_password_reset_and_revoke_sessions: {
         Args: {
           p_handoff_token_hash: string
@@ -10548,6 +10782,25 @@ export type Database = {
           p_user_id: string
         }
         Returns: number
+      }
+      consume_signup_password_handoff_v1: {
+        Args: {
+          p_expected_credential_version: number
+          p_generation: number
+          p_handoff_token_hash: string
+          p_password_hash: string
+          p_user_id: string
+        }
+        Returns: number
+      }
+      copy_lesson_plan_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_from_date: string
+          p_to_date: string
+        }
+        Returns: Json
       }
       count_pal_event_outbox_ready: { Args: never; Returns: number }
       count_pal_membership_outbox_ready: { Args: never; Returns: number }
@@ -10570,6 +10823,17 @@ export type Database = {
       course_blueprint_purge_membership_sha256: {
         Args: { p_blueprint_id: string }
         Returns: string
+      }
+      create_announcement_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: string
+          p_is_draft: boolean
+          p_scheduled_for: string
+          p_title: string
+        }
+        Returns: Json
       }
       create_archived_classroom_blueprint_atomic: {
         Args: {
@@ -10696,6 +10960,16 @@ export type Database = {
         Returns: Json
       }
       create_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_is_draft: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
+      create_classwork_material_for_owner_v2: {
         Args: {
           p_actor_id: string
           p_classroom_id: string
@@ -11004,6 +11278,14 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_announcement_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_announcement_id: string
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       delete_assignment_artifact_for_member_v1: {
         Args: {
           p_actor_id: string
@@ -11021,6 +11303,14 @@ export type Database = {
           p_assignment_id: string
           p_requirement_id: string
           p_student_id: string
+        }
+        Returns: Json
+      }
+      delete_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_material_id: string
         }
         Returns: Json
       }
@@ -11058,6 +11348,17 @@ export type Database = {
           p_expected_test_updated_at: string
           p_teacher_id: string
           p_test_id: string
+        }
+        Returns: Json
+      }
+      discover_retained_student_cleanup_groups: {
+        Args: {
+          p_after_student_id?: string
+          p_classroom_id: string
+          p_include_unreserved?: boolean
+          p_snapshot_sha256?: string
+          p_student_id?: string
+          p_teacher_id: string
         }
         Returns: Json
       }
@@ -11471,6 +11772,19 @@ export type Database = {
         }
         Returns: Json
       }
+      finalize_auth_verification_attempt_v1: {
+        Args: {
+          p_candidate_generation: number
+          p_candidate_id: string
+          p_code_matched: boolean
+          p_handoff_expires_at: string
+          p_handoff_token_hash: string
+          p_max_attempts: number
+          p_purpose: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       finalize_cold_archived_classroom_purge: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
@@ -11613,6 +11927,10 @@ export type Database = {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: Json
       }
+      get_latest_auth_verification_code_v1: {
+        Args: { p_purpose: string; p_user_id: string }
+        Returns: Json
+      }
       get_managed_deletion_deep_health_snapshot: { Args: never; Returns: Json }
       get_managed_deletion_health_snapshot: {
         Args: { p_stuck_after_seconds?: number }
@@ -11685,6 +12003,10 @@ export type Database = {
           p_source_course_blueprint_id: string
         }
         Returns: boolean
+      }
+      inspect_latest_auth_handoff_v1: {
+        Args: { p_handoff_token_hash: string; p_purpose: string }
+        Returns: Json
       }
       instantiate_course_blueprint_atomic: {
         Args: {
@@ -11765,6 +12087,15 @@ export type Database = {
           p_workos_user_id: string
         }
         Returns: boolean
+      }
+      issue_auth_verification_code_v1: {
+        Args: {
+          p_code_hash: string
+          p_expires_at: string
+          p_purpose: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       join_classroom_by_code_atomic_v1: {
         Args: {
@@ -11911,6 +12242,10 @@ export type Database = {
           storage_path: string
         }[]
       }
+      mark_announcements_read_for_member_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_cutoff: string }
+        Returns: Json
+      }
       mutate_gradebook_item: {
         Args: {
           p_action: string
@@ -11950,6 +12285,10 @@ export type Database = {
         Returns: Json
       }
       normalize_classroom_archive_restore_row_v147: {
+        Args: { p_operation_id: string; p_row: Json; p_table_name: string }
+        Returns: Json
+      }
+      normalize_classroom_archive_restore_row_v243: {
         Args: { p_operation_id: string; p_row: Json; p_table_name: string }
         Returns: Json
       }
@@ -12313,6 +12652,14 @@ export type Database = {
         Args: { p_classroom_id: string; p_roster_ids: string[] }
         Returns: Json
       }
+      remove_classroom_students_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_roster_ids: string[]
+        }
+        Returns: Json
+      }
       remove_classroom_students_preserving_data: {
         Args: {
           p_classroom_id: string
@@ -12645,6 +12992,14 @@ export type Database = {
         }
         Returns: Json
       }
+      return_test_attempts_checked_atomic: {
+        Args: {
+          p_returned_by: string
+          p_student_ids: string[]
+          p_test_id: string
+        }
+        Returns: Json
+      }
       save_assignment_ai_grade_atomic: {
         Args: {
           p_ai_feedback_model: string
@@ -12867,6 +13222,15 @@ export type Database = {
       }
       save_test_attempt_atomic: {
         Args: { p_responses: Json; p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
+      save_test_attempt_revision_atomic: {
+        Args: {
+          p_expected_revision: number
+          p_responses: Json
+          p_student_id: string
+          p_test_id: string
+        }
         Returns: Json
       }
       save_test_draft_atomic: {
@@ -13192,6 +13556,10 @@ export type Database = {
         Args: { p_objects: Json; p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
+      start_test_attempt_revision_atomic: {
+        Args: { p_student_id: string; p_test_id: string }
+        Returns: Json
+      }
       student_purge_conflict: {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: string
@@ -13289,6 +13657,16 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_test_attempt_revision_atomic: {
+        Args: {
+          p_expected_revision: number
+          p_responses: Json
+          p_student_id: string
+          p_submitted_at?: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       supersede_attendance_outbox_epoch_v1: {
         Args: {
           p_actor_ref: string
@@ -13354,6 +13732,15 @@ export type Database = {
         }
         Returns: Json
       }
+      update_announcement_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_announcement_id: string
+          p_classroom_id: string
+          p_patch: Json
+        }
+        Returns: Json
+      }
       update_assignment_for_owner_v1: {
         Args: {
           p_actor_id: string
@@ -13365,6 +13752,29 @@ export type Database = {
       }
       update_assignment_with_submission_requirements_atomic: {
         Args: { p_assignment_id: string; p_requirements: Json; p_updates: Json }
+        Returns: Json
+      }
+      update_classroom_metadata_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string; p_patch: Json }
+        Returns: Json
+      }
+      update_classroom_roster_counselor_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_counselor_email: string
+          p_expected_updated_at: string
+          p_roster_id: string
+        }
+        Returns: Json
+      }
+      update_classwork_material_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_material_id: string
+          p_patch: Json
+        }
         Returns: Json
       }
       update_test_documents_atomic: {
@@ -13451,6 +13861,15 @@ export type Database = {
           p_expected_revision?: number
           p_opens_local: string
           p_teacher_id: string
+        }
+        Returns: Json
+      }
+      upsert_classroom_roster_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_mode: string
+          p_students: Json
         }
         Returns: Json
       }

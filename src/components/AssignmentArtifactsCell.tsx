@@ -110,7 +110,7 @@ function ArtifactsTooltipList({
               onClick={handleArtifactClick}
               aria-label={`Open ${statusLabel ? `${statusLabel.toLowerCase()} ` : ''}artifact ${index + 1}: ${getArtifactTypeLabel(artifact)} . ${getArtifactSummary(artifact)}`}
               className={[
-                'flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5',
+                'flex min-h-control min-w-control items-start gap-2 rounded-md border px-2 py-1.5',
                 borderClass,
                 surfaceClass,
                 'hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface',
@@ -189,11 +189,10 @@ export function AssignmentArtifactsCell({
                 <button
                   type="button"
                   onClick={handleOpenChooser}
-                  className={pillClassName}
+                  className="inline-flex min-h-control min-w-control shrink-0 items-center justify-center rounded-control focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
                   aria-label={`View work items; ${requiredLabel}artifact ${index + 1} is ${getArtifactLabel(artifact)}`}
                 >
-                  <ArtifactTypeIcon artifact={artifact} />
-                  <span>{index + 1}</span>
+                  <span className={pillClassName}><ArtifactTypeIcon artifact={artifact} /><span>{index + 1}</span></span>
                 </button>
               ) : (
                 <a
@@ -201,11 +200,10 @@ export function AssignmentArtifactsCell({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={handleOpenSingle}
-                  className={pillClassName}
+                  className="inline-flex min-h-control min-w-control shrink-0 items-center justify-center rounded-control focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
                   aria-label={`Open ${requiredLabel}artifact ${index + 1}: ${getArtifactLabel(artifact)}`}
                 >
-                  <ArtifactTypeIcon artifact={artifact} />
-                  <span>{index + 1}</span>
+                  <span className={pillClassName}><ArtifactTypeIcon artifact={artifact} /><span>{index + 1}</span></span>
                 </a>
               )
             })()}
@@ -233,7 +231,7 @@ export function AssignmentArtifactsCell({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setIsChooserOpen(false)}
-                className="flex min-w-0 items-center gap-3 rounded-md border border-border bg-surface p-2.5 text-left hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface"
+                className="flex min-h-control min-w-control items-center gap-3 rounded-md border border-border bg-surface p-2.5 text-left hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface"
               >
                 <span className={[
                   'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border',

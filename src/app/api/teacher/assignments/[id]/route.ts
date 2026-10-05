@@ -41,6 +41,8 @@ import {
   resolveContextualAssignmentDetailAccess,
 } from '@/lib/server/classroom-assignment-detail-access'
 import { authorizeContextualAssignmentOwnerMutationRequest } from '@/lib/server/contextual-assignment-owner-mutation-access'
+import { authorizeSharedAssignmentOverviewReadActor, readContextualAssignmentOverview } from '@/lib/server/contextual-assignment-overview-read'
+import { contextualAssignmentOverviewQuerySchema } from '@/lib/validations/contextual-assignment-overview-read'
 import {
   deleteAssignmentForOwner,
   updateAssignmentForOwner,
@@ -178,6 +180,11 @@ function mergeAssignmentArtifacts(
 
 // GET /api/teacher/assignments/[id] - Get assignment details with all student submissions
 export const GET = withErrorHandler('GetTeacherAssignment', async (request, context) => {
+  const sharedActor = await authorizeSharedAssignmentOverviewReadActor()
+  if (sharedActor.mode === 'shared') {
+    const { assignmentId } = contextualAssignmentOverviewQuerySchema.parse({ assignmentId: (await context.params).id })
+    return NextResponse.json(await readContextualAssignmentOverview({ supabase: getServiceRoleClient(), actorId: sharedActor.user.id, assignmentId }))
+  }
   const resolveAssignmentId = async () => (await context.params).id
   const assignmentAccess = await authorizeClassroomAssignmentDetailRequest(resolveAssignmentId, {
     legacyRole: 'teacher',

@@ -102,6 +102,20 @@ export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (re
   )
 
   if (mutationError) {
+    // Domain refusals can name the RPC in Postgres details. Handle them before
+    // the legacy broad missing-function compatibility detector.
+    if (mutationError.code === '40001') {
+      return NextResponse.json({ error: 'Selected students changed; reload and retry' }, { status: 409 })
+    }
+    if (mutationError.code === '42501') {
+      return NextResponse.json({ error: 'Test access update is not allowed' }, { status: 403 })
+    }
+    if (mutationError.code === 'P0002') {
+      return NextResponse.json({ error: 'Test not found' }, { status: 404 })
+    }
+    if (mutationError.code === '22023') {
+      return NextResponse.json({ error: mutationError.message || 'Invalid test access update' }, { status: 400 })
+    }
     if (isMissingStudentAccessRpcError(mutationError)) {
       return NextResponse.json(
         { error: 'Selected-student exam access requires migrations 060-062 to be applied' },
