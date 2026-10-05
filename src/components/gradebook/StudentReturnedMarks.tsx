@@ -19,13 +19,13 @@ export function StudentReturnedMarks({ classroomId, isActive = true }: { classro
   const load = useCallback(async (refresh: boolean) => {
     const requestId = ++requestIdRef.current
     if (refresh) invalidateCachedJSON(cacheKey)
-    // Discard stale returned content while checking whether marks were retracted.
+    // Discard stale content while checking whether marks changed or were cleared.
     setState({ classroomId, kind: 'loading' })
     try {
       const data = await fetchCachedJSON<ReturnedGradebookItemsResponse>(
         cacheKey,
         `/api/student/classrooms/${classroomId}/gradebook-items`,
-        { ttlMs: 20_000, errorMessage: 'Could not load returned marks', init: { cache: 'no-store' } },
+        { ttlMs: 20_000, errorMessage: 'Could not load Gradebook marks', init: { cache: 'no-store' } },
       )
       if (requestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
         setState({ classroomId, kind: 'loaded', data })
@@ -51,15 +51,15 @@ export function StudentReturnedMarks({ classroomId, isActive = true }: { classro
   return (
     <Card tone="panel" padding="none">
       {!currentState || currentState.kind === 'loading' ? (
-        <PageState kind="loading" title="Loading returned marks" headingLevel="h3" compact />
+        <PageState kind="loading" title="Loading Gradebook marks" headingLevel="h3" compact />
       ) : (
         <PageState
           kind="error"
-          title="Returned marks couldn't load"
-          description="Try again to see marks your teacher has returned."
+          title="Gradebook marks couldn't load"
+          description="Try again to see marks your teacher entered in Gradebook."
           headingLevel="h3"
           compact
-          action={<Button onClick={() => void load(true)}>Retry returned marks</Button>}
+          action={<Button onClick={() => void load(true)}>Retry Gradebook marks</Button>}
         />
       )}
     </Card>
@@ -74,9 +74,9 @@ export function StudentReturnedMarksList({ items }: { items: ReturnedGradebookIt
     <section aria-labelledby={headingId}>
       <Card tone="panel" padding="none">
         <div className="border-b border-border px-4 py-3">
-          <h2 id={headingId} className="text-base font-semibold text-text-default">Returned marks</h2>
+          <h2 id={headingId} className="text-base font-semibold text-text-default">Gradebook marks</h2>
         </div>
-        <ul aria-label="Returned marks" className="divide-y divide-border">
+        <ul aria-label="Gradebook marks" className="divide-y divide-border">
           {items.map(item => (
             <li key={item.id} className="flex items-center justify-between gap-4 px-4 py-3">
               <div className="min-w-0">

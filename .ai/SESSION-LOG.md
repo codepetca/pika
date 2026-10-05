@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Supplemental learner permission source preparation
-
-1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
-single eligible CI37188214976 running with Test&Build/browser PASS, database/PRGate
-pending. Reviewed1458source frozen; next branch depends on that exact commit,
-not yet an actual merged parent. Local241/prodlast225 unchanged.
-
-Bounded6.1Sol/high worker relinquished only242SQL/structuraltest/rollbackharness.
-Four complete latest214/213 definitions preserve byteparity after onlylocked
-visibility additions; owner-history exception and member-only42501 precedence
-remain.21new/80related workerchecks PASS; root65related PASS, inspected harness,
-removed onlycosmetic trailing blankline, SQLdigest unchanged
-48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e.
-NewserialCI/floor regression23RED then61GREEN.242UNAPPLIED; all001241SQL and
-isolatedfixture/transport/transitions/restoration/cleanup authority unchanged.
-Harness PREPARED NOTRUN: exactcanonical/c242sc242 collisionguards/BEGINROLLBACK/
-168169ON/settingscronACL unchanged; synthetic Storage metadata only, no physical
-bytes/API/network/cleanup/activation. Outsider/crosssubject checks are notsameactor
-revocation; actualremoval/concurrency remains integrationwork. Solelatest213
-imageREAD lacksClasswork concealment and is explicit separate prerequisite;
-current4function slice doesnotclaim otherwise. Rootowns Git/review/application/
-types/runtime/CI; actualparentmerge/reconcile beforepublication. Sharedadmission/
-home/cutover/account/billing/providerOFF; assessmentphase/epic incomplete.
-
-Superseding parent receipt:1458 reviewed28e8af46 merged61c44aec at08:38:57Z,
-exactCI37188214976/all5PASS (0queue/1426runseconds), including actual unchanged
-save concurrent-authorization and new241rollback steps. Normal squash exacthead,
-reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
-13files plus architecture/UI/design/TypeScript/lint PASS for prepared242 branch.
-Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
-without stashing/popping unrelated entries, then frozen initial review/runtime.
-Production/admission/cutover/provider/account/billing unchanged.
-
 ## 2026-10-04 — Supplemental learner local verification on actual main
 
 1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
@@ -913,3 +880,11 @@ Native/TeacherBlueprintTab/component UiGallery targeted:38/3 passed,12.77 s.
 Focused --base origin/main passed211/14 plusarchitecture/TypeScript/lint.
 Coordinator-owned exact-SHA Linux DB/browser benchmarks remain pending.
 No live DB/VM, workflow/routing, production or repository visibility changes.
+
+## 2026-10-05 — Standalone Gradebook marks visible on save
+
+Owner approved removing Return marks for participation/external exam/Daily items. Student Classwork and Grades now project saved nonblank standalone scores, including existing never-returned marks; edits update immediately and clearing removes them. Pika assignment/test returns and classroom visibility/privacy gates preserved. Removed standalone return UI; renamed student heading Gradebook marks; updated canon/prototype specimens. No migration/backfill needed; legacy DB return metadata/API remain compatible.
+
+Evidence: initial focused514 plus architecture/UI/design/type/lint PASS; final focused check follows rebase to origin/main75977572. API regressions38 and components35 PASS. Real loopback API+DB smoke create/save/zero/edit/details/clear PASS with null return timestamps and verified fixture cleanup (/tmp/pika-direct-mark-smoke.log). Playwright Pattern Lab 8/8 role×viewport×theme PASS; dialog/save focus and student rows inspected in test-results/ui-pattern-lab-*/; empty/error behavior covered by component tests. Audit PASS; composite checklist, keyboard/focus and semantic coverage verified.
+
+Delegation: GPT6.1Sol/high test-only worker delivered two files in ~6min; coordinator verified query predicates, weighted parity and test runs; no rework/conflict. Weekly remaining45%, DeepSeek paused throughDec31; worker/coordinator tokens unknown. Current branch codex/student-daily-mark; owning chat retains integration. Independent fixed-SHA disclosure/compatibility review follows draft publication; production promotion not authorized.

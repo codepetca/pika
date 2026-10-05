@@ -287,6 +287,33 @@ for (const role of ['teacher', 'student'] as const) {
     await expect(
       example.getByTestId('student-grades-view').getByText('Not counted')
     ).toBeVisible()
+    await expect(example.getByRole('heading', { name: 'Gradebook marks', exact: true })).toBeVisible()
+    await expect(example.getByTestId('student-grades-view').getByText('Based on returned work and Gradebook marks')).toBeVisible()
+    const itemTrigger = example.getByRole('button', { name: 'Edit standalone item', exact: true })
+    await itemTrigger.click()
+    const itemDialog = page.getByRole('dialog', { name: 'Edit item', exact: true })
+    await expect(itemDialog.getByText('Marks are visible to students as soon as you save them.')).toBeVisible()
+    await expect(itemDialog.getByRole('button', { name: 'Return marks', exact: true })).toHaveCount(0)
+    await itemDialog.getByRole('textbox', { name: 'Assessment title' }).fill('External exam')
+    await testInfo.attach('standalone-item-editor', {
+      body: await itemDialog.screenshot({ path: testInfo.outputPath('standalone-item-editor.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await itemDialog.getByRole('button', { name: 'Save item', exact: true }).click()
+    await expect(itemDialog).toBeHidden()
+    await expect(itemTrigger).toBeFocused()
+    const markTrigger = example.getByRole('button', { name: 'Enter standalone mark', exact: true })
+    await markTrigger.click()
+    const markDialog = page.getByRole('dialog', { name: 'Edit mark', exact: true })
+    await expect(markDialog.getByText('Marks are visible to students as soon as you save them.')).toBeVisible()
+    await markDialog.getByRole('spinbutton', { name: 'Mark earned', exact: true }).fill('0')
+    await testInfo.attach('standalone-mark-editor', {
+      body: await markDialog.screenshot({ path: testInfo.outputPath('standalone-mark-editor.png'), animations: 'disabled' }),
+      contentType: 'image/png',
+    })
+    await markDialog.getByRole('button', { name: 'Save mark', exact: true }).click()
+    await expect(markDialog).toBeHidden()
+    await expect(markTrigger).toBeFocused()
     const feedbackLinks = example.getByRole('link')
     await expect(feedbackLinks).toHaveCount(3)
     await testInfo.attach('student-grades-visible', {

@@ -25,6 +25,7 @@ export interface StudentGradesResponse {
 export interface StudentGradeCalculationItem extends StudentGradeItem {
   categoryId: string | null
   weight: number
+  // Return time for Pika work; last mark save for standalone Gradebook items.
   returnedAt: string
 }
 
