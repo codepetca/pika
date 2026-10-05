@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Prepared locked learner Classwork write boundary
-
-Actual parent1456 mergedc7e5a487 after exact2c9ee58f CI37181022226/all5PASS;
-canonical main cleanFF.1457 learnerGET remains in corrected exact-head CI,
-not merged here. Local/main001–240; productionlast225 untouched.
-
-Source worker relinquished241/four214 member RPC replacements, structural suite
-and rollback-only harness. Root complete inspection preserves214 bodies after
-only locked visibility additions; SQL SHA256
-6247d7fa0ae5a23a96bddec8079e3b4948fada29c44299246c8129138b305321.
-Root catches fresh-null169 activation prerequisite in the rollback fixture;
-regression1RED/19PASS then20GREEN after immutable guarded/coalesced transaction-only
-setup. No local SQL executed. CIstep/floor241 regression first fails23checks before
-narrow serialstep/count changes; all001240SQL/fixtureDML/platform targets/
-allowed transitions/restoration/cleanup authority remain unchanged.
-241UNAPPLIED; local types/rollback/concurrency/isolated replay and2forced receipts
-remain gates after draft/source review. Sibling history/artifact/inline visibility
-and integrated opening remain work. NoUI/admission/cutover/production/account/
-billing/provider changes; critical roster-owner node_modules and prior branches
-retained. Existing authorization covers routine local application/review/extensions/
-normal mainmerge, not bypass or uncontrolled production activation.
-
 ## 2026-10-04 — Locked learner writes local verification and parent reconciliation
 
 1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
@@ -936,3 +914,15 @@ Owner directed leaving braces in place and remembering it. No general TODO file 
 ## 2026-10-05 — CI preparation approved merge refresh
 
 Owner approved PR #1475 merge into main and explicitly approved one bounded review-budget extension: launch 8, targeted changed-base integration capped at five minutes, followed by required CI. Prior seven launches and two cancellation code fixes remain counted; no new full-review wave. Old reviewed head `55d622b4` passed all five jobs in CI37261728363: 2,678 wall seconds, about 87.5 summed job minutes; classifier/gate 11/3 seconds. Main advanced through #1474/#1477/#1478/#1479 to `c25ebf78`; only conflict was archive bookkeeping. Complete earlier trim body was already archived upstream. Retained upstream archive and all main session receipts, restored only this task's preparation entry, then ran official trim. Runner policy/preflight/local executor and tests remain byte-identical to the reviewed implementation; current all-lane inventory includes upstream migration248. Refreshed focused checks, launch8 and exact-head eligible CI/merge are pending. No production, privacy, runner or local database operation; host choice and private activation remain pending. Weekly remaining at refresh54percent, account-wide and not attributable to this task; worker token telemetry unknown.
+
+## 2026-10-05 — Approved CI documentation correction
+
+Owner “go” authorizes one further correction batch and targeted review launch9
+(max five minutes), required checks and the already-approved PR1475 main merge.
+Launch8 accepted24b1f4d8; exactCI37308955639 failed one unchanged Bara rollout
+contract (12703PASS/8SKIP), locally reproduced. Returned draft/cancel requested.
+Upstream release #1478 shortened CURRENT's migration/control prefixes; restore
+only those two prefixes, retaining verified001–248 history and twelve unchanged
+controls from the production receipt. CI implementation and tests unchanged.
+Affected/focused verification and independent launch9 are pending; no budget
+reset or further review extension. Host/private runner activation remains pending.

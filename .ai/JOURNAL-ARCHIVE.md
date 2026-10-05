@@ -37280,3 +37280,26 @@ Local original four-case suite reproduces1RED; third batch restores exact
 unchanged and preserves the original parser/test/gate. No executable source change
 or new runtime/production/activation operation. Targeted mechanical review and
 new stable-head CI required; original06:31:48clock/counters and absolutecaps remain.
+
+<!-- pika-session-log-archive-batch:795b18430f73532dc1f3a873f6ad8b722300ce48f0548fb9f67b0e172ba93ee6 -->
+## 2026-10-04 — Prepared locked learner Classwork write boundary
+
+Actual parent1456 mergedc7e5a487 after exact2c9ee58f CI37181022226/all5PASS;
+canonical main cleanFF.1457 learnerGET remains in corrected exact-head CI,
+not merged here. Local/main001–240; productionlast225 untouched.
+
+Source worker relinquished241/four214 member RPC replacements, structural suite
+and rollback-only harness. Root complete inspection preserves214 bodies after
+only locked visibility additions; SQL SHA256
+6247d7fa0ae5a23a96bddec8079e3b4948fada29c44299246c8129138b305321.
+Root catches fresh-null169 activation prerequisite in the rollback fixture;
+regression1RED/19PASS then20GREEN after immutable guarded/coalesced transaction-only
+setup. No local SQL executed. CIstep/floor241 regression first fails23checks before
+narrow serialstep/count changes; all001240SQL/fixtureDML/platform targets/
+allowed transitions/restoration/cleanup authority remain unchanged.
+241UNAPPLIED; local types/rollback/concurrency/isolated replay and2forced receipts
+remain gates after draft/source review. Sibling history/artifact/inline visibility
+and integrated opening remain work. NoUI/admission/cutover/production/account/
+billing/provider changes; critical roster-owner node_modules and prior branches
+retained. Existing authorization covers routine local application/review/extensions/
+normal mainmerge, not bypass or uncontrolled production activation.
