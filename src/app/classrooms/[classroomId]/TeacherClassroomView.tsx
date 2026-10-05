@@ -1069,7 +1069,7 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (isUrlSelectionControlled) return
-    if (loading) return
+    // A current snapshot remains authoritative for navigation during warm reads.
     if (!hasCurrentClassroomData) return
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     const value = readCookie(cookieName)
@@ -1099,7 +1099,7 @@ export function TeacherClassroomView({
 
   useEffect(() => {
     if (!isUrlSelectionControlled) return
-    if (loading) return
+    // A current snapshot remains authoritative for navigation during warm reads.
     if (!hasCurrentClassroomData) return
 
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`

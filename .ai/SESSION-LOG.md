@@ -913,11 +913,14 @@ named region; indirect Retry preserves editor focus. No new motion/dependencies,
 API/autosave changes, parent-tab memory or Daily experimental promotion.
 
 Brief records approved reuse before implementation. Teacher-only visual matrix
-4/4 passes across desktop/mobile light/dark; 32 current screenshots plus12
+4/4 passes across desktop/mobile light/dark; 48 current screenshots plus12
 unchanged Pattern Lab references, recordings and source digest receipts retained
-in the task's teacher-classwork-continuity artifact directory. Components62/62
-and focused319/18 plus all static checks/audit PASS on43c24abec base. One existing
+in the task's teacher-classwork-continuity artifact directory. Components68/68
+and focused325/18 plus all static checks/audit PASS on43c24abec base. One existing
 5s material-order timeout passed165ms in isolation; unchanged full gate passed.
 Two baseline CI test corrections match Daily/Student sibling PRs. Native Sol/high
-implementation plus coordinator acceptance corrections; no review findings yet.
-Draft-first independent fixed-SHA review/CI remain required; no merge/deploy.
+implementation plus coordinator acceptance corrections. Independent review found
+one navigation regression: warm loading blocked controlled selection. One batch
+removes two loading-only guards but retains owner gating; six new deferred-list
+cases RED then GREEN, plus browser summary/new-assignment late-response proof.
+Targeted/final fixed-SHA review and CI remain required; no merge/deploy.

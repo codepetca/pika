@@ -3602,6 +3602,8 @@ test('retains teacher Classwork student editor and table through background refr
     created_at: '2026-01-01T12:00:00Z', updated_at: '2026-01-01T12:00:00Z',
     stats: { total_students: 35, submitted: 35, late: 0 },
   }
+  const nextAssignmentId = '30000000-0000-4000-8000-000000000015'
+  const nextAssignment = { ...assignment, id: nextAssignmentId, title: 'Next classwork item' }
   const students = Array.from({ length: 35 }, (_, index) => ({
     student_id: `continuity-student-${index}`, student_email: `student${index}@example.invalid`,
     student_first_name: `Student ${String(index).padStart(2, '0')}`, student_last_name: 'Example',
@@ -3629,23 +3631,24 @@ test('retains teacher Classwork student editor and table through background refr
           return
         }
       }
-      body = { assignments: [{ ...assignment, updated_at: `2026-01-0${Math.min(listReads, 9)}T12:00:00Z` }] }
-    } else if (url.pathname === `/api/teacher/assignments/${assignmentId}`) {
+      body = { assignments: [{ ...assignment, updated_at: `2026-01-0${Math.min(listReads, 9)}T12:00:00Z` }, nextAssignment] }
+    } else if (url.pathname === `/api/teacher/assignments/${assignmentId}` || url.pathname === `/api/teacher/assignments/${nextAssignmentId}`) {
       detailReads += 1
-      if (detailReads > 1) {
+      if (detailReads > 1 && url.pathname.endsWith(assignmentId)) {
         const success = await new Promise<boolean>((resolve) => { releaseDetailRefresh = resolve })
         if (!success) {
           await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Assignment refresh unavailable' }) })
           return
         }
       }
-      body = { assignment, students: detailReads > 1
+      body = { assignment: url.pathname.endsWith(nextAssignmentId) ? nextAssignment : assignment, students: detailReads > 1
         ? students.map((student, index) => index === 20 ? { ...student, status: 'returned', doc: { ...student.doc, returned_at: '2026-01-03T12:00:00Z' } } : student)
         : students, active_ai_grading_run: null }
-    } else if (url.pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`)) {
+    } else if (url.pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`) || url.pathname.startsWith(`/api/teacher/assignments/${nextAssignmentId}/students/`)) {
       studentReads += 1
       const student = students.find((item) => url.pathname.endsWith(item.student_id))!
-      body = { assignment, student: { id: student.student_id, email: student.student_email, name: `${student.student_first_name} Example` }, doc: student.doc, feedback_entries: [] }
+      const selectedAssignment = url.pathname.includes(nextAssignmentId) ? nextAssignment : assignment
+      body = { assignment: selectedAssignment, student: { id: student.student_id, email: student.student_email, name: `${student.student_first_name} Example` }, doc: { ...student.doc, assignment_id: selectedAssignment.id }, feedback_entries: [] }
     } else if (url.pathname === `/api/teacher/assignments/${assignmentId}/grade`) {
       const patch = route.request().postDataJSON()
       body = { doc: { ...students[0].doc, ...patch, teacher_feedback_draft: patch.feedback } }
@@ -3724,5 +3727,33 @@ test('retains teacher Classwork student editor and table through background refr
   await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toHaveCount(0)
   await assertRetained()
   await capture('recovered')
+  // Controlled navigation must not wait for a warm list or an obsolete detail read.
+  await page.evaluate(() => window.dispatchEvent(new Event('pika-fixture-reactivate-classwork')))
+  await expect.poll(() => listReads).toBe(5)
+  await expect.poll(() => detailReads).toBe(originalDetailReads + 3)
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('pika-fixture-select-classwork', { detail: { assignmentId: null } })))
+  await expect(page.getByRole('button', { name: 'Classwork continuity', exact: true })).toBeVisible()
+  expect(await originalEditor!.evaluate((element) => element.isConnected)).toBe(false)
+  await capture('navigation-summary-pending')
+  releaseDetailRefresh!(true)
+  releaseRefresh!(false)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toContainText('Classwork could not be refreshed')
+  await expect(page.getByRole('button', { name: 'Classwork continuity', exact: true })).toBeVisible()
+  await capture('navigation-summary-error')
+  await page.getByRole('button', { name: 'Retry', exact: true }).evaluate((button: HTMLButtonElement) => button.click())
+  await expect.poll(() => listReads).toBe(6)
+  await page.evaluate((id) => window.dispatchEvent(new CustomEvent('pika-fixture-select-classwork', { detail: { assignmentId: id } })), nextAssignmentId)
+  await expect(page.getByRole('button', { name: 'Edit Next classwork item', exact: true })).toBeVisible()
+  await expect(editor).toBeVisible()
+  await expect(editor).toHaveValue('')
+  await expect(scroller.getByRole('checkbox', { name: /^Select Student/ })).toHaveCount(35)
+  expect(await originalEditor!.evaluate((element) => element.isConnected)).toBe(false)
+  const newDetailReads = detailReads
+  await capture('navigation-assignment-pending')
+  releaseRefresh!(true)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Edit Next classwork item', exact: true })).toBeVisible()
+  expect(detailReads).toBe(newDetailReads)
+  await capture('navigation-assignment-recovered')
   await verifyProjectContract(page, testInfo)
 })

@@ -861,6 +861,82 @@ describe('TeacherClassroomView', () => {
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['summary', 'success'], ['summary', 'failure'],
+    ['assignment-2', 'success'], ['assignment-2', 'failure'],
+  ])('honors controlled %s navigation during a pending warm list and its late %s', async (target, outcome) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const baseMock = mockFetchJSONWithCache.getMockImplementation()!
+    let listReads = 0
+    let resolveList: ((value: unknown) => void) | undefined
+    let rejectList: ((reason: Error) => void) | undefined
+    let resolveOldDetail: ((value: unknown) => void) | undefined
+    let firstDetailReads = 0
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}` && ++listReads > 1) {
+        return new Promise((resolve, reject) => { resolveList = resolve; rejectList = reject })
+      }
+      return baseMock(key, fetcher)
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      if (String(input).endsWith('/assignment-2')) return Promise.resolve({ ok: true, json: async () => makeAssignmentDetails('assignment-2', 'Assignment Two', 'student-2') })
+      firstDetailReads += 1
+      if (firstDetailReads === 1) return Promise.resolve({ ok: true, json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1') })
+      return new Promise((resolve) => { resolveOldDetail = resolve })
+    })
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" />)
+    const oldInspector = await screen.findByTestId('teacher-work-panel')
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" isActive={false} />)
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" isActive />)
+    await waitFor(() => expect(firstDetailReads).toBe(2))
+    const selectedId = target === 'summary' ? null : target
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedAssignmentId={selectedId} isActive />)
+    if (selectedId) {
+      await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Select student-2 Student' })).toBeInTheDocument())
+    } else {
+      expect(await screen.findByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    }
+    expect(oldInspector.isConnected).toBe(false)
+    expect(screen.queryByRole('checkbox', { name: 'Select student-1 Student' })).not.toBeInTheDocument()
+    await act(async () => {
+      resolveOldDetail?.({ ok: true, json: async () => makeAssignmentDetails('assignment-1', 'Stale old detail', 'student-old') })
+      if (outcome === 'failure') rejectList?.(new Error('Late list failure'))
+      else resolveList?.({ assignments: [makeAssignmentSummary('assignment-1', 'Assignment One'), makeAssignmentSummary('assignment-2', 'Assignment Two')] })
+    })
+    if (selectedId) expect(screen.getByRole('checkbox', { name: 'Select student-2 Student' })).toBeInTheDocument()
+    else expect(screen.getByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Select student-old Student' })).not.toBeInTheDocument()
+    expect(oldInspector.isConnected).toBe(false)
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([input]) => String(input).endsWith('/assignment-2'))).toHaveLength(selectedId ? 1 : 0)
+  })
+
+  it.each(['summary', 'assignment-2'])('restores cookie %s selection against the current snapshot during warm loading', async (target) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const baseMock = mockFetchJSONWithCache.getMockImplementation()!
+    let reads = 0
+    let rejectList: ((reason: Error) => void) | undefined
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}` && ++reads > 1) return new Promise((_resolve, reject) => { rejectList = reject })
+      return baseMock(key, fetcher)
+    })
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const id = String(input).endsWith('/assignment-2') ? 'assignment-2' : 'assignment-1'
+      return Promise.resolve({ ok: true, json: async () => makeAssignmentDetails(id, id === 'assignment-2' ? 'Assignment Two' : 'Assignment One', id === 'assignment-2' ? 'student-2' : 'student-1') })
+    })
+    const view = render(<TeacherClassroomView classroom={classroom} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Assignment One' }))
+    const oldInspector = await screen.findByTestId('teacher-work-panel')
+    view.rerender(<TeacherClassroomView classroom={classroom} isActive={false} />)
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent(target)}; Path=/; SameSite=Lax`
+    view.rerender(<TeacherClassroomView classroom={classroom} isActive />)
+    await waitFor(() => expect(reads).toBe(2))
+    if (target === 'summary') expect(await screen.findByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    else await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Select student-2 Student' })).toBeInTheDocument())
+    expect(oldInspector.isConnected).toBe(false)
+    await act(async () => rejectList?.(new Error('Late list failure')))
+    expect(oldInspector.isConnected).toBe(false)
+  })
+
   it('shows a classwork error and restores the list after retry', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     let assignmentsShouldFail = true
