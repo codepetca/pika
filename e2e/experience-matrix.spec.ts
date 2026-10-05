@@ -1271,6 +1271,136 @@ test('preserves student Daily layout with long past logs', async ({ page }, test
   await page.screenshot({ path: testInfo.outputPath('student-daily-long-history.png'), animations: 'disabled' })
 })
 
+async function mockStudentClassworkContinuity(page: Page) {
+  await mockTableShellReads(page, 'student')
+  const assignmentId = '30000000-0000-4000-8000-000000000014'
+  const studentId = '30000000-0000-4000-8000-000000000015'
+  let failing = false
+  let reads = 0
+  let docReads = 0
+  let doc = {
+    id: '30000000-0000-4000-8000-000000000016', assignment_id: assignmentId,
+    student_id: studentId, content: { type: 'doc', content: [{ type: 'paragraph' }] },
+    is_submitted: false, submitted_at: null, viewed_at: '2026-08-17T12:00:00Z',
+    created_at: '2026-08-17T12:00:00Z', updated_at: '2026-08-17T12:00:00Z',
+    returned_at: null, graded_at: null, feedback: null, feedback_returned_at: null,
+    score_completion: null, score_thinking: null, score_workflow: null,
+  }
+  const assignment = {
+    id: assignmentId, classroom_id: TABLE_CLASSROOM_ID, title: 'Refresh continuity assignment',
+    description: '', instructions_markdown: 'Explain your approach.', rich_instructions: null,
+    due_at: '2026-08-18T23:00:00Z', position: 0, is_draft: false,
+    released_at: '2026-08-17T12:00:00Z', track_authenticity: false,
+    created_by: '30000000-0000-4000-8000-000000000012',
+    created_at: '2026-08-17T12:00:00Z', updated_at: '2026-08-17T12:00:00Z',
+  }
+  await page.route('**/api/student/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === `/api/student/classrooms/${TABLE_CLASSROOM_ID}/gradebook-items`) {
+      await route.fulfill({ json: { items: [] } })
+      return
+    }
+    if (path === '/api/student/assignments') reads += 1
+    const classworkRead = path === '/api/student/assignments'
+      || path === `/api/student/classrooms/${TABLE_CLASSROOM_ID}/materials`
+      || path === '/api/student/surveys'
+    if (!classworkRead) return route.fallback()
+    await route.fulfill(failing
+      ? { status: 503, json: { error: 'Synthetic classwork refresh failure' } }
+      : { json: path.endsWith('/assignments')
+        ? { assignments: [{ ...assignment, status: 'in_progress', doc }] }
+        : path.endsWith('/materials') ? { materials: [] } : { surveys: [] } })
+  })
+  await page.route(`**/api/assignment-docs/${assignmentId}`, async route => {
+    if (route.request().method() === 'PATCH') {
+      const body = route.request().postDataJSON()
+      doc = { ...doc, content: body.content, updated_at: new Date().toISOString() }
+      await route.fulfill({ json: { doc } })
+      return
+    }
+    docReads += 1
+    await route.fulfill({ json: { assignment, doc, student_id: studentId,
+      feedback_entries: [], submission_requirements: [], submission_artifacts: [] } })
+  })
+  return { fail: () => { failing = true }, recover: () => { failing = false },
+    reads: () => reads, docReads: () => docReads }
+}
+
+async function navigateStudentClassworkTab(page: Page, testInfo: TestInfo, name: 'Daily' | 'Classwork') {
+  if (getExperienceMetadata(testInfo).viewport === 'mobile') {
+    await page.getByRole('button', { name: 'Open classroom navigation' }).click()
+  }
+  await page.getByRole('link', { name }).click()
+}
+
+test('retains student Classwork and editor draft across failed refresh and recovery', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-17T15:00:00Z'))
+  const fixture = await mockStudentClassworkContinuity(page)
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=assignments')
+  const card = page.getByTestId('assignment-card')
+  await expect(card).toContainText('Refresh continuity assignment')
+  const originalCard = await card.elementHandle()
+  fixture.fail()
+  await page.clock.setFixedTime(new Date('2026-08-17T15:00:30Z'))
+  await navigateStudentClassworkTab(page, testInfo, 'Daily')
+  await navigateStudentClassworkTab(page, testInfo, 'Classwork')
+  const region = page.getByRole('region', { name: 'Classwork', exact: true })
+  const staleAlert = region.getByRole('alert')
+  await expect(staleAlert).toContainText('Classwork could not be refreshed. Showing the last loaded classwork.')
+  await expect(card).toBeVisible()
+  expect(await card.evaluate((element, original) => element === original, originalCard)).toBe(true)
+  await expect(region.getByText('No classwork yet')).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.mouse.move(0, 0)
+  await page.keyboard.press('Escape')
+  await page.screenshot({ path: testInfo.outputPath('classwork-stale-list.png'), animations: 'disabled' })
+  await card.click()
+  const editor = page.getByRole('textbox', { name: 'Rich text editor' })
+  await expect(editor).toBeVisible()
+  await editor.fill('My draft survives a classwork refresh.')
+  const originalEditor = await editor.elementHandle()
+  const readsBeforeRetry = fixture.reads()
+  await staleAlert.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect.poll(fixture.reads).toBeGreaterThan(readsBeforeRetry)
+  await expect(staleAlert).toBeVisible()
+  await expect(region).toBeFocused()
+  await expect(editor).toContainText('My draft survives a classwork refresh.')
+  expect(await editor.evaluate((element, original) => element === original, originalEditor)).toBe(true)
+  expect(fixture.docReads()).toBe(1)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('classwork-stale-editor.png'), animations: 'disabled' })
+  fixture.recover()
+  await staleAlert.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(staleAlert).toHaveCount(0)
+  await expect(region).toBeFocused()
+  await expect(editor).toContainText('My draft survives a classwork refresh.')
+  expect(await editor.evaluate((element, original) => element === original, originalEditor)).toBe(true)
+  expect(fixture.docReads()).toBe(1)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('classwork-recovered-editor.png'), animations: 'disabled' })
+})
+
+test('keeps initial student Classwork failures blocking until retry succeeds', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-17T15:00:00Z'))
+  const fixture = await mockStudentClassworkContinuity(page)
+  fixture.fail()
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=assignments')
+  const region = page.getByRole('region', { name: 'Classwork', exact: true })
+  await expect(region.getByText("Classwork couldn't load", { exact: true })).toBeVisible()
+  await expect(page.getByTestId('assignment-card')).toHaveCount(0)
+  await expect(region.getByText('No classwork yet')).toHaveCount(0)
+  await expect(region.getByText('Classwork could not be refreshed. Showing the last loaded classwork.')).toHaveCount(0)
+  await verifyProjectContract(page, testInfo)
+  await page.screenshot({ path: testInfo.outputPath('classwork-initial-error.png'), animations: 'disabled' })
+  fixture.recover()
+  await region.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByTestId('assignment-card')).toBeVisible()
+  await expect(region).toBeFocused()
+  await verifyProjectContract(page, testInfo)
+})
+
 test('shows manual attendance marks optimistically', async ({ page }, testInfo) => {
   await applyProjectTheme(page, testInfo)
   await page.clock.setFixedTime(new Date('2026-08-29T15:00:00.000Z'))
