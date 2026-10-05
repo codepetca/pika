@@ -134,10 +134,15 @@ export function testOwnerDraftGetForcedReceipt(mode: string, error: unknown, com
 export function testOwnerDraftGetSetupDiagnostic(stage: unknown, error: unknown) {
   const stages = ['pending', 'app-guard', 'app-write', 'app-snapshot', 'app-verify', 'sql-prepare', 'sql-setup', 'complete']
   const phase = typeof stage === 'string' && stages.includes(stage) ? stage : 'unknown'
-  const cause = error instanceof AssignmentListLifecycleError ? error.primary?.error : error
+  const lifecycle = error instanceof AssignmentListLifecycleError ? error : undefined
+  const primaryStages = ['canonical-before', 'preflight', 'prepare', 'pre-start', 'start', 'capture', 'status', 'fixture', 'cases', 'revocations', 'after-fixture', 'before-capture']
+  const primary = lifecycle?.primary?.stage
+  const inherited = typeof primary === 'string' && primaryStages.includes(primary) ? primary : 'unknown'
+  const cleanup = lifecycle ? lifecycle.cleanupFailures.length ? 'present' : 'none' : 'unknown'
+  const cause = lifecycle ? lifecycle.primary?.error : error
   const kind = cause instanceof assert.AssertionError ? 'assertion'
     : cause instanceof Error && cause.message === 'Private platform command failed' ? 'platform-command' : 'unknown'
-  return `DIAG test-owner-draft-get setup=${phase} failure=${kind}.\n`
+  return `DIAG test-owner-draft-get setup=${phase} lifecycle=${inherited} cleanup=${cleanup} failure=${kind}.\n`
 }
 export function parseTestOwnerDraftGetLifecycleArgs(args: string[]) {
   const generateTypes = args.length === 5 && args[4] === '--generate-types'

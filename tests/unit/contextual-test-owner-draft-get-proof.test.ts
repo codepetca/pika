@@ -64,8 +64,19 @@ describe('finite owner draft GET offline authority', () => {
   })
   it('reports only closed setup stages and failure kinds, never private diagnostics', () => {
     const error = new AssignmentListLifecycleError({ stage: 'fixture', error: new Error('Private platform command failed') }, [])
-    expect(testOwnerDraftGetSetupDiagnostic('app-write', error)).toBe('DIAG test-owner-draft-get setup=app-write failure=platform-command.\n')
-    expect(testOwnerDraftGetSetupDiagnostic('private-row-identity', new Error('private-key-or-SQL'))).toBe('DIAG test-owner-draft-get setup=unknown failure=unknown.\n')
+    expect(testOwnerDraftGetSetupDiagnostic('app-write', error)).toBe('DIAG test-owner-draft-get setup=app-write lifecycle=fixture cleanup=none failure=platform-command.\n')
+    expect(testOwnerDraftGetSetupDiagnostic('private-row-identity', new Error('private-key-or-SQL'))).toBe('DIAG test-owner-draft-get setup=unknown lifecycle=unknown cleanup=unknown failure=unknown.\n')
+  })
+  it('reports inherited lifecycle and cleanup stages without private errors or identities', () => {
+    const error = new AssignmentListLifecycleError({ stage: 'status', error: new Error('Private platform command failed') },
+      [{ stage: 'capture', error: new Error('private-credential-or-row') }])
+    expect(testOwnerDraftGetSetupDiagnostic('pending', error)).toBe('DIAG test-owner-draft-get setup=pending lifecycle=status cleanup=present failure=platform-command.\n')
+    const unsafe = new AssignmentListLifecycleError({ stage: 'private-identity-or-SQL', error: new Error('private-credential') }, [])
+    expect(testOwnerDraftGetSetupDiagnostic('pending', unsafe)).toBe('DIAG test-owner-draft-get setup=pending lifecycle=unknown cleanup=none failure=unknown.\n')
+  })
+  it.each(['canonical-before', 'preflight', 'pre-start', 'status', 'fixture'])('reports the closed inherited phase %s', stage => {
+    const error = new AssignmentListLifecycleError({ stage, error: new Error('Private platform command failed') }, [])
+    expect(testOwnerDraftGetSetupDiagnostic('pending', error)).toBe(`DIAG test-owner-draft-get setup=pending lifecycle=${stage} cleanup=none failure=platform-command.\n`)
   })
   it('hash binds the complete disjoint app+SQL fixture union and rollback bulk inventory', () => {
     const x = fixture(), union = testOwnerDraftGetUnionManifest(x.original, x.f, '7570a9d60591183f0699001f47a6528045a392ee', process.cwd())

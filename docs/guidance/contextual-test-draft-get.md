@@ -3,8 +3,10 @@
 Status: source preparation on `codex/contextual-test-owner-draft-get`, based on
 verified main `7570a9d60591183f0699001f47a6528045a392ee`. Migration247 is additive
 source only. Shared local schema was last verified001–243 and production001–225;
-neither is changed by this preparation. Independent review, finite runtime proof,
-generated contracts, stable-head CI and normal main merge remain pending.
+neither is changed by this preparation. Initial and targeted source reviews,
+normal runtime proof and after-fixture cleanup have passed. Genuine isolated
+schema contracts are installed. Before-capture cleanup, final integration
+review, stable-head CI and normal main merge remain pending.
 
 ## Boundary
 
@@ -111,7 +113,7 @@ types. Finish focused checks, risk-matched independent review and exact-head CI
 before a normal main merge. This component does not exit the assessment phase or
 authorize production promotion, account/provider/billing changes or rollout.
 
-## Source checkpoint
+## Initial source checkpoint (historical)
 
 The application assignment delivered156 passing tests across6 affected suites,
 scoped lint and diff checks. Root verified literal source parity for the legacy
@@ -225,3 +227,37 @@ five-second offline protocol timeout while lint ran concurrently; the failure
 was retained. The unoverlapped retry passed403 tests/17 files plus architecture,
 UI and design. TypeScript still fails only on the two ungenerated RPC names;
 the overall focused gate remains EXIT1. No timeout/cap increase was used.
+
+## Docker recovery and runtime checkpoint
+
+The corrected80aa source passed its targeted source review. Its first live run
+reached guarded SDK calls but failed while Docker container/volume inventory
+stalled. Cleanup and baseline verification could not then be claimed. After the
+owner authorized Docker Desktop restart, root verified the SAME saved canonical
+baseline, validated the eight exact abandoned proof resources against their
+known identities, labels, creation window, attachments, ports and copied247
+schema/config, and removed only those synthetic resources. Unknown volumes and
+other projects were preserved; copied-source evidence directories were retained.
+
+Normal80aa proof after recovery exited0 with exactly two PASS lines and empty
+stderr:15 actual installed-SDK cases including complete1001-source, exact restored
+42501 privilege probe, rollback SQL contracts,12 two-session schedules, inherited
+Assignment cases/restoration, exact teardown and unchanged canonical baseline.
+After-fixture mode exited1 with only its intentional failure and cleanup PASS;
+the same baseline matched afterward. These successes do not erase earlier failures.
+
+Genuine isolated CLI generation from that normal run produced only the two new
+RPC contracts. Artifact SHA-256:
+`82a6c12f2964ed93998047175698a792722e19cf911b1feb1173ba37e95f94ca`.
+The exact generated output is installed without manual typing edits. Public
+schema generation did not alter either shared-local or production schema.
+
+Before-capture mode remains unaccepted. A platform-command failure before setup
+left an owned stack; an instrumented bounded retry proved its54332 binding then
+blocked a fresh launch. Exact resource recovery and SAMEbaseline checks passed,
+but the next clean retry again failed before setup. There are no synthetic
+containers remaining after that attempt. Do not retry blindly or claim forced
+cleanup from canonical equality alone. Closed diagnostics now retain the inherited
+lifecycle-stage enum and cleanup-present/none/unknown state without raw errors,
+SQL, credentials or row/resource identities. This is diagnostic-only preparation;
+the genuine final before-capture cleanup, final review and CI gates still apply.

@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Shared classroom-detail read preparation
-
-PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
-allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
-normal squash/no bypass and clean canonical main fast-forward. Classday1444
-ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
-initial security/compatibility reviews are clean, pending actual-parent integration.
-This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
-current relationship bound in the full30field payload, real enrollment FK inner
-join, archive-owner reads and owner-self-participation denial, preserved hydration
-and member guide-draft/guidance privacy projection. Original fallback/pair GETs
-and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
-TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
-CI hook prepared; actual execution and independent review still pending.
-Local236 installed by separate preserving-removal work; no schema/types here.
-Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
-attendance protection; coordinator repairs only synthetic teardown before more
-DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
-The owner's all-work/review-extension authorization retains original clocks,
-counters, absolute review caps and normal technical/release gates.
-
-1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
-(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
-ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
-replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
-unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
-and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
-Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
-allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
-entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
-integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
-
 ## 2026-10-03 — Detail1447 pending-parent238 preparation
 
 Prepared reviewed293d35cf locally on pending1448 head88a1bfd6, excludingoldparent
@@ -1129,3 +1097,33 @@ forfixedsnapshotonly;guard/capsunchanged. Commandbinding1RED→full124/2GREEN.
 Batch3focused retainedone5s offlineprotocoltimeout withconcurrentlint; unchanged
 source/unoverlappedretry403/17+architecture/UI/designPASS, EXIT1only2RPCtypes.
 No timeout/capincrease;5TS scopedlint/audit/diffPASS. Nativefailedhead/logsretained.
+
+## 2026-10-04 — Owner draft GET Docker recovery and runtime evidence
+
+1473 remainsdraft; targeted3 Sol5.6/high CLEAN80aa. Pre-restart normalfailed
+guard/inspect/requestcounter10; counter advancesbeforeHTTPdispatch, not tencompleted
+requests. Docker container/volume endpoints stalled while Mac had207GiBfree.
+Human authorized Dockerrestart; original saved canonical baseline matched after
+warmup. Exact9800 synthetic5containers/2volumes/network checked IDs/dual labels/
+creationwindow/foreignattachments/ports/copied247 SQL/config, removed andabsence
+verified; copiedsourceevidence retained, unknownDockerdata preserved.
+Normal80aa rerun EXIT0/twoclosedPASSlines/stderr0:15SDKcases/complete1001source,
+restored42501probe/SQLrollbackcontracts/12races/inheritedcases+restoration/exact
+teardown andSAMEbaselinePASS. Genuine436178byte0600 CLIartifact installed onlytwo
+RPCcontracts, SHA82a6c12f2964ed93998047175698a792722e19cf911b1feb1173ba37e95f94ca.
+Afterfixture fullsetupforcedcase expectedEXIT1/cleanupPASS/SAMEbaselinePASS.
+Beforecapturefirst failedbefore setup/platformcommand andleft32c4418 stack; retry
+diagnostic provedCLIstart failed54332binding dueownedleftover. Exact32c4418 eight
+resources verified/recovered, SAMEbaselinePASS. Thirdattempt againpending/platform
+failure, no syntheticcontainers remain; beforecaptureNOTaccepted, no blindretry.
+Read-only Sol6.1/high proofowner2m43+52s manualdiagnoses, effective/tokensunknown,
+identified no deterministiccustodydefect. Rootdiagnosticbatch4 retains closed
+inheritedphase/cleanup state; oneRED then130/2affectedGREEN withfivephasetests.
+Initialprivate diagnosticCJS transform failure retained; fixed privateimport only.
+Reviewclock00:51:52 and5launch/3targeted/3fix counters retained untilbatch4published;
+humanreview-stopwaiver persists, no correctness/runtime/CI waiver. Account60percent
+weeklyremaining02:02Z, shared/not attributable. Prod225/local243/rolloutOFF unchanged.
+Finalfocused/type/lint/audit, targetedsourceacceptance, beforecapture proof andfinal
+cumulative review/exactheadCI/merge remain; no phase/goal completion claim.
+Batch4 requiredfocused409/17 plusarchitecture/UI/design/TypeScript/lint allPASS;
+no skippedtyping or overallfailedgate claim. Beforecapture remainsseparatelypending.

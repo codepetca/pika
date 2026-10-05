@@ -8,7 +8,7 @@ Local243: SESSION-LOG. Audit disposable receipts confer no apply permission.
 #1461:29 SDK cases, forced cleanup/baseline;
 [proof](../docs/guidance/contextual-assignment-learner-integrated-proof.md).
 #1469 merged `7570a9d60`; exact-head CI37243490974 five gates PASS; rollout OFF.
-Next: dormant owner Test draft GET design (includes create/repair).
+PR1473: draft GET normal PASS; second cleanup proof pending.
 
 Hosted: Prod DB 001–225 (read-only verified 2026-10-04; exact prefix).
 Pending 226–246 require coordinated application/schema and exact-set permission.
