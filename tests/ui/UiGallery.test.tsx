@@ -26,6 +26,43 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('exercises ClassroomsReadRecoveryPattern first-read and retained-list recovery for %s', async (role) => {
+    const user = userEvent.setup()
+    renderGallery(role)
+    const example = within(screen.getByTestId('pattern-section-classrooms-read-recovery'))
+    expect(example.getByText(/Controlled.*fixture of the production error composition/)).toBeVisible()
+    expect(example.getByRole('alert')).toHaveTextContent('Could not load classrooms')
+    expect(example.getByRole('heading', { level: 1, name: 'Could not load classrooms' })).toBeVisible()
+    expect(example.queryByRole('list', { name: 'Controlled retained classroom list' })).not.toBeInTheDocument()
+
+    const retry = example.getByRole('button', { name: 'Try loading classrooms again' })
+    retry.focus()
+    await user.keyboard('{Enter}')
+    expect(retry).toBeDisabled()
+    expect(retry).toHaveAttribute('aria-busy', 'true')
+    await user.click(example.getByRole('button', { name: 'Complete controlled recovery' }))
+    expect(example.queryByRole('alert')).not.toBeInTheDocument()
+    expect(example.getByRole('status')).toHaveTextContent('Classrooms loaded')
+    expect(example.getByRole('region', { name: 'Classroom recovery example' })).toHaveFocus()
+
+    const retainedToggle = example.getByRole('button', { name: 'Show retained-list recovery' })
+    await user.click(retainedToggle)
+    expect(retainedToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(example.getByRole('heading', { level: 2, name: 'Could not load classrooms' })).toBeVisible()
+    expect(example.getByRole('alert')).toHaveClass('min-h-40')
+    const retained = example.getByRole('list', { name: 'Controlled retained classroom list' })
+    expect(retained).toHaveTextContent('Retained classroom — controlled fixture')
+    await user.click(example.getByRole('button', { name: 'Try loading classrooms again' }))
+    expect(example.getByRole('button', { name: 'Try loading classrooms again' })).toBeDisabled()
+    expect(retained).toBeVisible()
+    await user.click(example.getByRole('button', { name: 'Complete controlled recovery' }))
+    expect(example.queryByRole('list', { name: 'Controlled retained classroom list' })).not.toBeInTheDocument()
+    expect(example.queryByRole('alert')).not.toBeInTheDocument()
+    await user.click(example.getByRole('button', { name: 'Show read failure' }))
+    expect(retainedToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(example.queryByRole('list', { name: 'Controlled retained classroom list' })).not.toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('demonstrates normal and exam header navigation for %s', (role) => {
     renderGallery(role)
     if (role === 'student') expect(screen.queryByRole('button', { name: 'Open survey edit prototype' })).not.toBeInTheDocument()

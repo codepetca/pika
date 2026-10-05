@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LoaderCircle } from 'lucide-react'
 import {
@@ -20,15 +20,24 @@ import {
   useStudentAttendanceStatusView,
 } from '@/components/StudentAttendanceStatus'
 import type { Classroom } from '@/types'
+import { ClassroomsReadError } from './ClassroomsReadError'
 
 interface Props {
   initialClassrooms: Classroom[]
   studentId?: string
+  initialReadError?: boolean
 }
 
-export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) {
+export function StudentClassroomsIndex({ initialClassrooms, studentId, initialReadError = false }: Props) {
   const router = useRouter()
-  const [classrooms] = useState<Classroom[]>(initialClassrooms)
+  const [classrooms, setClassrooms] = useState<Classroom[]>(initialClassrooms)
+  const [hasSuccessfulRead, setHasSuccessfulRead] = useState(!initialReadError)
+  const classroomsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (initialReadError) return
+    setClassrooms(initialClassrooms)
+    setHasSuccessfulRead(true)
+  }, [initialClassrooms, initialReadError])
   const [openingClassroomId, setOpeningClassroomId] = useState<string | null>(null)
   const { view: attendanceView, refreshing: attendanceRefreshing, now: attendanceNow } =
     useStudentAttendanceStatusView(studentId)
@@ -42,8 +51,13 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
     router.push(`/classrooms/${classroom.id}?tab=today`)
   }, [router])
 
+  if (!hasSuccessfulRead) {
+    return <PageLayout density="student" width="reading"><div ref={classroomsRef} role="region" aria-label="Classrooms" tabIndex={-1}><PageContent><ClassroomsReadError onRetry={() => classroomsRef.current?.focus()} /></PageContent></div></PageLayout>
+  }
+
   return (
     <PageLayout density="student" width="reading">
+      <div ref={classroomsRef} role="region" aria-label="Classrooms" tabIndex={-1}>
       <PageActionBar
         primary={<PageHeading title="Classrooms" />}
         actions={
@@ -59,6 +73,7 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
       />
 
       <PageContent>
+        {initialReadError ? <ClassroomsReadError compact onRetry={() => classroomsRef.current?.focus()} /> : null}
         {sorted.length === 0 ? (
           <EmptyState
             title="No classrooms yet"
@@ -113,6 +128,7 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId }: Props) 
           </Card>
         )}
       </PageContent>
+      </div>
     </PageLayout>
   )
 }

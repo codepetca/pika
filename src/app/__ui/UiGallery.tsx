@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { AppHeader } from '@/components/AppHeader'
+import { ClassroomsReadRecoveryPattern } from './ClassroomsReadRecoveryPattern'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
@@ -587,6 +588,8 @@ export function UiGallery({ role }: Props) {
           </div>
           </PatternSection>
         </div>
+
+        <ClassroomsReadRecoveryPattern role={role} />
 
         {role === 'teacher' && (
           <PatternSection

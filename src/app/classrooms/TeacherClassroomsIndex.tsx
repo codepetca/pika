@@ -42,6 +42,7 @@ import { ColdClassroomPurgeDialog } from '@/components/ColdClassroomPurgeDialog'
 import { ColdClassroomArchiveRow } from '@/components/ColdClassroomArchiveRow'
 import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { Button, IconButton, ConfirmDialog, PageActionBar, PageContent, PageHeading, PageLayout, PageState } from '@/ui'
+import { ClassroomsReadError } from './ClassroomsReadError'
 import { Spinner } from '@/components/Spinner'
 import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import type { Classroom } from '@/types'
@@ -62,6 +63,7 @@ import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
 
 interface Props {
   initialClassrooms: Classroom[]
+  initialReadError?: boolean
 }
 
 type ViewMode = 'active' | 'archived'
@@ -114,7 +116,7 @@ function isResumableHotArchiveOperation(
     || Date.parse(operation.retention.delete_after) > Date.now()
 }
 
-export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
+export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = false }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const lastPathRef = useRef(pathname)
@@ -127,6 +129,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   >())
   const reuseOperationIdsRef = useRef(new Map<string, string>())
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>(initialClassrooms)
+  const [hasSuccessfulRead, setHasSuccessfulRead] = useState(!initialReadError)
   const [archivedClassrooms, setArchivedClassrooms] = useState<Classroom[]>([])
   const [coldArchives, setColdArchives] = useState<ClassroomColdArchiveSummary[]>([])
   const [coldArchiveRestoreEnabled, setColdArchiveRestoreEnabled] = useState(false)
@@ -279,8 +282,11 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
   }, [])
 
   useEffect(() => {
+    if (initialReadError) return
     setActiveClassrooms(initialClassrooms)
-  }, [initialClassrooms])
+    setHasSuccessfulRead(true)
+  }, [initialClassrooms, initialReadError])
+
 
   useEffect(() => {
     if (pathname === '/classrooms' && lastPathRef.current !== '/classrooms') {
@@ -651,9 +657,13 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
     router.push(`/classrooms/${classroom.id}?${params.toString()}`)
   }, [router])
 
+  if (!hasSuccessfulRead) {
+    return <PageLayout density="teacher" width="reading"><div ref={classroomsRef} role="region" aria-label="Classrooms" tabIndex={-1}><PageContent><ClassroomsReadError onRetry={() => classroomsRef.current?.focus()} /></PageContent></div></PageLayout>
+  }
+
   return (
     <PageLayout density="teacher" width="reading">
-      <div ref={classroomsRef}>
+      <div ref={classroomsRef} role="region" aria-label="Classrooms" tabIndex={-1}>
         <div className="pt-density-compact-content-top" data-testid="classroom-top-controls">
           {isEditingClassrooms || view === 'archived' ? (
             <div className="px-density-compact-gutter">
@@ -692,6 +702,7 @@ export function TeacherClassroomsIndex({ initialClassrooms }: Props) {
           />
         </div>
         <PageContent>
+          {initialReadError ? <ClassroomsReadError compact onRetry={() => classroomsRef.current?.focus()} /> : null}
           {visibleError && !(view === 'archived' && archiveLoadError && !hasArchivedItems) && (
             <div role="alert" className="mb-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
               {visibleError}

@@ -24,7 +24,7 @@ export default async function ClassroomsIndexPage() {
   const supabase = getServiceRoleClient()
 
   if (user.role === 'teacher') {
-    const [{ data: classrooms }, displayInfo] = await Promise.all([
+    const [{ data: classrooms, error }, displayInfo] = await Promise.all([
       listActiveTeacherClassrooms(supabase, user.id),
       getUserDisplayInfo(user, supabase),
     ])
@@ -32,13 +32,14 @@ export default async function ClassroomsIndexPage() {
     return (
       <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
         <TeacherClassroomsIndex
-          initialClassrooms={hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}
+          initialClassrooms={error ? [] : hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}
+          initialReadError={Boolean(error)}
         />
       </AppShell>
     )
   }
 
-  const [{ data: enrollments }, displayInfo] = await Promise.all([
+  const [{ data: enrollments, error: enrollmentError }, displayInfo] = await Promise.all([
     supabase
       .from('classroom_enrollments')
       .select('classroom_id')
@@ -47,6 +48,15 @@ export default async function ClassroomsIndexPage() {
   ])
 
   const palAvailable = Boolean(getPalApiUrl())
+
+  if (enrollmentError) {
+    return (
+      <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+        <StudentClassroomsIndex initialClassrooms={[]} initialReadError studentId={user.id} />
+      </AppShell>
+    )
+  }
+
   const classroomIds = enrollments?.map(e => e.classroom_id) || []
 
   if (classroomIds.length === 0) {
@@ -58,7 +68,7 @@ export default async function ClassroomsIndexPage() {
     )
   }
 
-  const { data: classrooms } = await supabase
+  const { data: classrooms, error: classroomError } = await supabase
     .from('classrooms')
     .select('*')
     .in('id', classroomIds)
@@ -68,7 +78,8 @@ export default async function ClassroomsIndexPage() {
   return (
     <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }}>
       <StudentClassroomsIndex
-        initialClassrooms={hydrateClassroomRecords((classrooms || []).map(classroomStudentRecord))}
+        initialClassrooms={classroomError ? [] : hydrateClassroomRecords((classrooms || []).map(classroomStudentRecord))}
+        initialReadError={Boolean(classroomError)}
         studentId={user.id}
       />
       {palAvailable ? <StudentPalAmbientSurfaces scopeKey="classrooms-index" /> : null}
