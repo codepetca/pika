@@ -5,14 +5,14 @@ Source: main `5708750d`; 27 audit findings accepted; #1469/#1473 dormant.
 
 Production LIVE at pika.codepet.ca since 2026-10-05 06:27UTC; login HTTP200.
 App c6f23b4b READY (#1476); CI37268657918 all gates PASS at b5cf85b9.
-DB001–248 applied-verified (run37267393757); seven exact functions/ACLs,
+Hosted: Prod DB 001–248 applied-verified (run37267393757); seven exact functions/ACLs,
 complete history. Forward248 uses PT409/API409.
 Canary conflict2.47s/grade/Return/disclosure/idempotence PASS; fixtures cleaned;
 real accounts and unrelated285-object digest preserved; WAF restored.
 OwnerOct5: live-verification follow-up waived/closed; braces deferred in
 [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 
-Controls unchanged: admission/home/page/cutover/billing OFF;
+Fresh post-apply controls match pre-apply: admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.

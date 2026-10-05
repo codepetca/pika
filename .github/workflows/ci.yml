@@ -5,6 +5,15 @@ on:
     branches: [main, production]
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   workflow_dispatch:
+    inputs:
+      runner:
+        description: Compute location for a full diagnostic run
+        type: choice
+        options: [auto, hosted, self-hosted]
+        default: auto
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -18,6 +27,7 @@ jobs:
       (github.event.pull_request.draft == false && github.event.action == 'ready_for_review')
     runs-on: ubuntu-latest
     outputs:
+      heavy_runner: ${{ steps.runner.outputs.heavy_runner }}
       mode: ${{ steps.classify.outputs.mode }}
       docs_only: ${{ steps.classify.outputs.docs_only }}
       run_test_build: ${{ steps.classify.outputs.run_test_build }}
@@ -34,6 +44,17 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '24'
+
+      - name: Select heavy CI runner
+        id: runner
+        env:
+          CI_EVENT: ${{ github.event_name }}
+          CI_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+          CI_REPOSITORY: ${{ github.repository }}
+          CI_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          CI_SELF_HOSTED_ENABLED: ${{ vars.PIKA_SELF_HOSTED_CI }}
+          CI_REQUESTED_RUNNER: ${{ inputs.runner }}
+        run: node scripts/ci-runner-policy.mjs
 
       - name: Select risk-matched checks
         id: classify
@@ -67,7 +88,8 @@ jobs:
     name: Architecture Database Contracts
     needs: classify-changes
     if: needs.classify-changes.outputs.run_database == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
+    timeout-minutes: 90
 
     steps:
       - name: Checkout code
@@ -121,7 +143,12 @@ jobs:
       - name: Verify managed-storage migration lineage
         run: pnpm run check:managed-storage-lineage
 
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane database
+
       - name: Start ephemeral Supabase and replay migrations
+        id: supabase-start
         run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
 
       - name: Rehearse the production-shaped Test identity migration
@@ -960,14 +987,15 @@ jobs:
         run: bash scripts/check-stripe-billing-binding-race.sh
 
       - name: Stop ephemeral database
-        if: always()
+        if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
   test-and-build:
     name: Test & Build
     needs: classify-changes
     if: needs.classify-changes.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
+    timeout-minutes: 90
 
     steps:
       - name: Checkout code
@@ -998,6 +1026,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane test-build
 
       - name: Check workflow and documentation contracts
         run: pnpm run check:workflow
@@ -1078,7 +1110,8 @@ jobs:
     name: Browser Experience Matrix
     needs: classify-changes
     if: needs.classify-changes.outputs.run_browser == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
+    timeout-minutes: 90
     env:
       E2E_BASE_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -1124,7 +1157,12 @@ jobs:
         shell: bash
         run: pnpm install --frozen-lockfile
 
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane browser
+
       - name: Start ephemeral Supabase and replay migrations
+        id: supabase-start
         run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector
 
       - name: Export local Supabase environment
@@ -1181,7 +1219,7 @@ jobs:
           retention-days: 7
 
       - name: Stop ephemeral database
-        if: always()
+        if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
   pr-gate:
