@@ -49,7 +49,8 @@ import { AssignmentModal } from '@/components/AssignmentModal'
 import { ClassroomBlueprintDraftDialog } from '@/components/ClassroomBlueprintDraftDialog'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
-import { SurveyCreationModal } from '@/components/surveys/SurveyCreationModal'
+import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import { TeacherSurveyResultsPane } from '@/components/surveys/TeacherSurveyResultsPane'
 import {
@@ -626,7 +627,9 @@ export function TeacherClassroomView({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isBlueprintDraftOpen, setIsBlueprintDraftOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
-  const [isSurveyCreateModalOpen, setIsSurveyCreateModalOpen] = useState(false)
+  const [creatingSurvey, setCreatingSurvey] = useState(false)
+  const surveyCreationPendingRef = useRef(false)
+  const surveyCloseRef = useRef<(() => Promise<void>) | null>(null)
   const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
   const [pendingMaterialDelete, setPendingMaterialDelete] = useState<ClassworkMaterial | null>(null)
   const [isDeletingMaterial, setIsDeletingMaterial] = useState(false)
@@ -875,6 +878,30 @@ export function TeacherClassroomView({
     }, { replace: true })
     void loadAssignments({ preserveContent: true })
   }, [classroom.id, loadAssignments, updateSearchParams])
+
+  const createSurveyDraft = async () => {
+    if (isReadOnly || surveyCreationPendingRef.current) return
+    surveyCreationPendingRef.current = true
+    setCreatingSurvey(true)
+    try {
+      const response = await fetch('/api/teacher/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ classroom_id: classroom.id, title: getFallbackAssessmentTitle(), show_results: true, dynamic_responses: false }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to create survey')
+      if (currentClassroomIdRef.current !== classroom.id) return
+      handleSurveySaved(data.survey, { initialEditMode: 'edit', focusTitle: true })
+    } catch (err) {
+      if (currentClassroomIdRef.current === classroom.id) {
+        showMessage({ text: err instanceof Error ? err.message : 'Failed to create survey', tone: 'warning' })
+      }
+    } finally {
+      surveyCreationPendingRef.current = false
+      setCreatingSurvey(false)
+    }
+  }
 
   const handleSurveyQuestionCountChanged = useCallback((surveyId: string, questionsCount: number) => {
     invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
@@ -2605,8 +2632,8 @@ export function TeacherClassroomView({
       id: 'survey',
       label: 'Survey',
       icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => setIsSurveyCreateModalOpen(true),
-      disabled: isReadOnly,
+      onSelect: () => { void createSurveyDraft() },
+      disabled: isReadOnly || creatingSurvey,
     },
   ]
 
@@ -3004,28 +3031,21 @@ export function TeacherClassroomView({
         onRequestDelete={setPendingMaterialDelete}
       />
 
-      <SurveyCreationModal
-        isOpen={isSurveyCreateModalOpen}
-        classroomId={classroom.id}
-        onClose={() => setIsSurveyCreateModalOpen(false)}
-        onSuccess={(survey) => {
-          setIsSurveyCreateModalOpen(false)
-          handleSurveySaved(survey, { initialEditMode: 'edit' })
-        }}
-      />
-
-      <DialogPanel
+      <CreationModalShell
         isOpen={!!surveyModalId}
-        onClose={() => closeSurveyModal()}
-        ariaLabelledBy="survey-workspace-dialog-title"
-        maxWidth="max-w-6xl"
-        className="h-[85vh] overflow-hidden p-0"
+        onClose={() => { void surveyCloseRef.current?.() }}
+        title="Edit survey"
+        titleId="survey-workspace-dialog-title"
+        closeLabel="Close survey editor"
+        showCloseButton={false}
+        maxWidth="!max-w-6xl"
+        panelClassName="!p-0"
+        contentClassName="!overflow-hidden !p-0"
+        tall
       >
-        <h2 id="survey-workspace-dialog-title" className="sr-only">
-          Survey
-        </h2>
         {surveyModalId ? (
           <TeacherSurveyWorkspace
+            key={surveyModalId}
             classroomId={classroom.id}
             surveyId={surveyModalId}
             isReadOnly={isReadOnly}
@@ -3040,6 +3060,7 @@ export function TeacherClassroomView({
             }
             onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
             onBack={() => closeSurveyModal()}
+            onCloseReady={(close) => { surveyCloseRef.current = close }}
             onSurveyUpdated={(updatedSurvey) => {
               setSurveys((current) =>
                 current.map((survey) =>
@@ -3058,7 +3079,7 @@ export function TeacherClassroomView({
             }}
           />
         ) : null}
-      </DialogPanel>
+      </CreationModalShell>
 
     </>
   )

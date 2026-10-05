@@ -1628,31 +1628,102 @@ describe('TeacherClassroomView', () => {
     await screen.findByRole('button', { name: 'Assignment One' })
     openAddClassworkMenu()
     fireEvent.click(screen.getByRole('menuitem', { name: /Survey/ }))
-    const createDialog = await screen.findByRole('dialog')
-    fireEvent.change(within(createDialog).getByPlaceholderText('Enter survey title'), {
-      target: { value: 'Class feedback' },
-    })
-    fireEvent.click(within(createDialog).getByRole('button', { name: 'Create' }))
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         '/api/teacher/surveys',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({
-            classroom_id: classroom.id,
-            title: 'Class feedback',
-            show_results: true,
-            dynamic_responses: false,
-          }),
+          body: expect.any(String),
         }),
       )
     })
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-new mode edit')
+    const createCall = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(([url]) => url === '/api/teacher/surveys')!
+    expect(JSON.parse(createCall[1].body)).toEqual({ classroom_id: classroom.id, title: expect.stringMatching(/^Untitled /), show_results: true, dynamic_responses: false })
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-new mode edit auto title')
 
     const { params } = applySearchParamsUpdate(updateSearchParams.mock.calls[0])
     expect(params.get('surveyId')).toBeNull()
     expect(params.get('assignmentId')).toBeNull()
+  })
+
+  it('recovers from failed survey creation and opens the editor on retry', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Survey creation unavailable' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ survey: makeSurveySummary('survey-retry', 'Recovered survey') }) })
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await screen.findByRole('button', { name: 'Assignment One' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Survey' }))
+    await waitFor(() => expect(mockShowMessage).toHaveBeenCalledWith({ text: 'Survey creation unavailable', tone: 'warning' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Survey' }))
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-retry mode edit auto title')
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/teacher/surveys')).toHaveLength(2)
+  })
+
+  it('prevents a second survey creation while the first request is pending', async () => {
+    const creation = createDeferred<{ ok: boolean; json: () => Promise<unknown> }>()
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockReturnValue(creation.promise)
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await screen.findByRole('button', { name: 'Assignment One' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Survey' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    openAddClassworkMenu()
+    const pendingSurveyAction = screen.getByRole('menuitem', { name: 'Survey' })
+    expect(pendingSurveyAction).toBeDisabled()
+    fireEvent.click(pendingSurveyAction)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      creation.resolve({ ok: true, json: async () => ({ survey: makeSurveySummary('survey-pending', 'Pending survey') }) })
+      await creation.promise
+    })
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Survey workspace survey-pending mode edit auto title')
+  })
+
+  it('ignores a survey creation response after switching classrooms', async () => {
+    const secondClassroom = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
+    const creation = createDeferred<{ ok: boolean; json: () => Promise<unknown> }>()
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockReturnValue(creation.promise)
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key.startsWith('teacher-assignments:')) {
+        return Promise.resolve({ assignments: [makeAssignmentSummary(
+          key.endsWith(secondClassroom.id) ? 'assignment-current' : 'assignment-1',
+          key.endsWith(secondClassroom.id) ? 'Current classroom assignment' : 'Assignment One',
+          { classroom_id: key.endsWith(secondClassroom.id) ? secondClassroom.id : classroom.id },
+        )] })
+      }
+      if (key.startsWith('teacher-materials:')) return Promise.resolve({ materials: [] })
+      if (key.startsWith('teacher-surveys:')) return Promise.resolve({ surveys: [] })
+      if (key.startsWith('class-days:')) return Promise.resolve({ class_days: [] })
+      return fetcher()
+    })
+    const updateSearchParams = vi.fn()
+    const view = render(<TeacherClassroomView classroom={classroom} updateSearchParams={updateSearchParams} />)
+    await screen.findByRole('button', { name: 'Assignment One' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Survey' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    view.rerender(<TeacherClassroomView classroom={secondClassroom} updateSearchParams={updateSearchParams} />)
+    await screen.findByRole('button', { name: 'Current classroom assignment' })
+    await act(async () => {
+      creation.resolve({ ok: true, json: async () => ({ survey: makeSurveySummary('survey-old-classroom', 'Old classroom survey') }) })
+      await creation.promise
+    })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByText('Old classroom survey')).not.toBeInTheDocument()
+    expect(updateSearchParams).not.toHaveBeenCalled()
+    expect(mockShowMessage).not.toHaveBeenCalled()
   })
 
   it('exits classwork organize mode from the organize toggle', async () => {

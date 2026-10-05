@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Locked learner writes local verification and parent reconciliation
-
-1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
-(0queue/1696runseconds), tree parity and canonical cleanFF verified.1458 initial
-security/compatibility source reviews clean (distinct5.6Sol/high reviewers after
-two6.1 launch failures, both counted).241 applied once locally; exact001–241history
-and genuine generated types/check zero drift. First rollback fixture run failed
-five null due dates, but rollback and separate whole-canonical baseline PASS.
-Proof-only correction regression1RED/20PASS then21GREEN; targeted review clean.
-New241 and unchanged save rollback harnesses PASS, including actual nonempty
-artifact freeze/preflight and nonvacuous legacy/membershipPal; full canonical
-public/private/Storage fingerprints,168metadata/settings/cron/resources unchanged.
-
-Rebasecc206cce onto actual2595main keeps immutable241SQL/rollback/tests/floor
-bytes unchanged; resolves only continuity conflicts, preserves both archive batch
-markers and one identical historical entry. No stash/pop/history repair/reapply.
-104rebase checks PASS. Strict001–241 combined replay PASS9projections/6original
-revocations plus original list controls; nine sealed false-created/view RPCstubs,
-zero actualopenRPC/Storage/provider network. Both forcedmodes exit1/exact2markers,
-exactteardown/fullcanonicalunchanged PASS; private0600 receipts oe8GJq/mZNJ54.
-No realopen/signing/nonemptySDKsupplement/authHTTP/browser proof claimed. Existing
-committed-fixture concurrency is finalCI ephemeral-only because168 retains private
-identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clock,
-5launch/1target/2batch retained; factual receipt batch/finalcumulative/CI next.
-Productionlast225/admission/home/cutover/account/billing/provider unchanged;
-batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
-
 ## 2026-10-04 — Supplemental learner permission source preparation
 
 1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
@@ -878,6 +851,12 @@ telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollo
 - Six independent review launches completed: initial security/compatibility, two targeted cancellation reviews, final cumulative review and targeted changed-base integration. All accepted blockers are fixed. A seventh mechanical review of this continuity cleanup is pending; no additional launch is authorized within the default budget. Review clock began 03:18 UTC. Two fix batches plus one base synchronization; Linux activation remains outside completed preparation.
 - Hosted CI `37260199028` on `0ad72fd7` passed Test & Build but the unchanged database harness stopped before fixtures with `sc242 fixture namespace collision`; the cause was not proven after stack teardown. Returning PR to draft canceled the browser job through normal concurrency. No harness or collision guard was weakened. Rebased onto actual main `6586847c` (#1473); only archive conflict retained upstream history. Removed two auto-merged duplicate entries after verifying their complete bodies already exist in the archive. One fresh eligible PR run remains required on the reviewed current head; merge still requires normal owner authority.
 - Evidence: `/tmp/pika-selfhost-local-live.log`, `/tmp/pika-selfhost-focused-rebased.log`, `/tmp/pika-selfhost-local-plan-rebased.log`, `/tmp/pika-selfhost-db-job.log` and `/tmp/pika-selfhost-rebase-range-diff.log`. Preparation and operational goal remain incomplete until the required CI, merge decision and host/private activation gates pass.
+
+## 2026-10-05 — Survey split authoring
+
+New/Edit Survey now opens the test-style 1/3 details + 2/3 active question editor (stacked mobile); direct generated-title draft creation, MC/open-response/link, multiline prompts, selected-question navigation, autosave flush/retry, Markdown and Preview retained. Reuses CreationModalShell, Test split composition and @/ui controls; no shared-contract or stable-canon change, no experimental pattern/promotion. Survey identity guards retained; creation responses cannot open in another Classroom. Risk: workspace-state. Composite checklist reviewed: semantic pressed states, keyboard controls, modal Escape/focus; student n/a because only teacher authoring changed.
+
+Evidence: authoring/parent80 and student6 component tests PASS; browser4 PASS desktop1440x900/mobile390x844 × light/dark with edit, MC, open response, Markdown, Preview, new draft captures under test-results/survey-authoring-*; compared Test Pattern Lab reference /tmp/pika-survey-test-reference.png. Focused checks and independent review receipts follow in PR. Worktree survey-two-pane/pika; branch codex/survey-two-pane. One GPT-6.1 Sol medium worker mapped seams and wrote tests in two bounded assignments; coordinator verified80 tests. Weekly remaining50% at start; DeepSeek paused; worker/coordinator tokens and active time unknown; no edit conflicts/rework. Initial browser setup corrected theme key and fixture navigation before final4/4. No dependencies/schema/hosted changes.
 
 ## 2026-10-05 — Test conflict retry correction prepared
 

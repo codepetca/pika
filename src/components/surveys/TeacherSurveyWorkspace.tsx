@@ -4,13 +4,14 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
   type TextareaHTMLAttributes,
 } from 'react'
-import { Code, ExternalLink, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react'
-import { Button, Card, ConfirmDialog, FormField, Input, Select } from '@/ui'
+import { Code, ExternalLink, Eye, Plus, RotateCcw, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button, Card, ConfirmDialog, FormField, Input, Select, SaveStatus } from '@/ui'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
 import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
@@ -33,6 +34,7 @@ interface TeacherSurveyWorkspaceProps {
   initialEditMode?: 'edit' | 'markdown'
   autoEditTitle?: boolean
   onInitialEditModeConsumed?: () => void
+  onCloseReady?: (close: (() => Promise<void>) | null) => void
   onBack: () => void
   onSurveyUpdated: (survey: Survey) => void
   onQuestionCountChanged?: (surveyId: string, questionsCount: number) => void
@@ -59,7 +61,7 @@ type SurveyPreviewResponse = {
 
 const QUESTION_TYPE_OPTIONS = [
   { value: 'multiple_choice', label: 'Multiple choice' },
-  { value: 'short_text', label: 'Short text' },
+  { value: 'short_text', label: 'Open response' },
   { value: 'link', label: 'Link' },
 ]
 
@@ -91,24 +93,28 @@ function buildQuestionSavePayload(
   }
 }
 
-function QuestionEditor({
-  question,
-  disabled,
-  onSaved,
-  onDeleted,
-}: {
+type QuestionEditorHandle = { flush: () => Promise<boolean> }
+
+const QuestionEditor = forwardRef<QuestionEditorHandle, {
   question: SurveyQuestion
   disabled: boolean
   onSaved: (question: SurveyQuestion) => void
   onDeleted: (questionId: string) => void
-}) {
+}>(function QuestionEditor({
+  question,
+  disabled,
+  onSaved,
+  onDeleted,
+}, ref) {
   const [questionType, setQuestionType] = useState<SurveyQuestionType>(question.question_type)
   const [questionText, setQuestionText] = useState(question.question_text)
   const [optionsText, setOptionsText] = useState(question.options.join('\n'))
   const [responseMaxChars, setResponseMaxChars] = useState(String(question.response_max_chars))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const lastSavedPayloadRef = useRef('')
+  const pendingSaveRef = useRef<Promise<boolean> | null>(null)
+  const deletingRef = useRef(false)
+  const lastSavedPayloadRef = useRef(JSON.stringify(buildQuestionSavePayload(question.question_type, question.question_text, question.options.join('\n'), String(question.response_max_chars))))
   const lastAttemptedPayloadRef = useRef('')
 
   useEffect(() => {
@@ -145,28 +151,34 @@ function QuestionEditor({
       if (!response.ok) throw new Error(data.error || 'Failed to save question')
       lastSavedPayloadRef.current = payloadKey
       onSaved(data.question)
+      return true
     } catch (err) {
-      lastAttemptedPayloadRef.current = lastSavedPayloadRef.current
       setError(err instanceof Error ? err.message : 'Failed to save question')
+      return false
     } finally {
       setSaving(false)
     }
   }, [onSaved, question.id, question.survey_id])
 
-  const saveCurrentQuestion = useCallback(() => {
-    if (disabled || saving) return
+  const saveCurrentQuestion = useCallback(async () => {
+    if (disabled) return true
+    if (deletingRef.current) return false
+    if (pendingSaveRef.current) return pendingSaveRef.current
 
     const payload = buildQuestionSavePayload(questionType, questionText, optionsText, responseMaxChars)
     const payloadKey = JSON.stringify(payload)
-    if (
-      payloadKey === lastSavedPayloadRef.current ||
-      payloadKey === lastAttemptedPayloadRef.current
-    ) {
-      return
-    }
+    if (payloadKey === lastSavedPayloadRef.current) return true
 
-    void saveQuestion(payload, payloadKey)
-  }, [disabled, optionsText, questionText, questionType, responseMaxChars, saveQuestion, saving])
+    const pending = saveQuestion(payload, payloadKey)
+    pendingSaveRef.current = pending
+    try {
+      return await pending
+    } finally {
+      pendingSaveRef.current = null
+    }
+  }, [disabled, optionsText, questionText, questionType, responseMaxChars, saveQuestion])
+
+  useImperativeHandle(ref, () => ({ flush: saveCurrentQuestion }), [saveCurrentQuestion])
 
   useEffect(() => {
     if (disabled || saving) return
@@ -188,6 +200,8 @@ function QuestionEditor({
   }, [disabled, optionsText, questionText, questionType, responseMaxChars, saveCurrentQuestion, saving])
 
   async function deleteQuestion() {
+    if (deletingRef.current || pendingSaveRef.current) return
+    deletingRef.current = true
     setSaving(true)
     setError('')
     try {
@@ -200,13 +214,20 @@ function QuestionEditor({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete question')
     } finally {
+      deletingRef.current = false
       setSaving(false)
     }
   }
 
+  const currentPayloadKey = JSON.stringify(buildQuestionSavePayload(questionType, questionText, optionsText, responseMaxChars))
+  const saveStatus = error ? 'error' : saving ? 'saving' : currentPayloadKey === lastSavedPayloadRef.current ? 'saved' : 'unsaved'
+
   return (
-    <Card tone="panel" padding="md" className="space-y-3">
-      <div className="grid gap-3 lg:grid-cols-[12rem_minmax(0,1fr)_auto] lg:items-start">
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <SaveStatus status={saveStatus} />
+      </div>
+      <div className="space-y-3">
         <FormField label="Type">
           <Select
             value={questionType}
@@ -221,14 +242,16 @@ function QuestionEditor({
           />
         </FormField>
         <FormField label="Prompt" error={error}>
-          <Input
+          <SurveyTextarea
+            rows={4}
+            className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
             value={questionText}
             onChange={(event) => setQuestionText(event.target.value)}
             onBlur={saveCurrentQuestion}
             disabled={disabled || saving}
           />
         </FormField>
-        <div className="flex items-end lg:pt-6">
+        <div className="flex justify-end">
           <Button
             type="button"
             size="sm"
@@ -244,7 +267,7 @@ function QuestionEditor({
       </div>
 
       {questionType === 'multiple_choice' && (
-        <FormField label="Options">
+        <FormField label="Options" hint="One option per line">
           <SurveyTextarea
             value={optionsText}
             onChange={(event) => setOptionsText(event.target.value)}
@@ -255,9 +278,9 @@ function QuestionEditor({
           />
         </FormField>
       )}
-    </Card>
+    </div>
   )
-}
+})
 
 export function TeacherSurveyResultsView({ payload }: { payload: SurveyResultsPayload | null }) {
   if (!payload) {
@@ -456,10 +479,15 @@ export function TeacherSurveyWorkspace({
   autoEditTitle = false,
   onInitialEditModeConsumed,
   onBack,
+  onCloseReady,
   onSurveyUpdated,
   onQuestionCountChanged,
   onSurveyDeleted,
 }: TeacherSurveyWorkspaceProps) {
+  const questionEditorRef = useRef<QuestionEditorHandle>(null)
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null)
+  const navigationPendingRef = useRef(false)
+  const [navigationPending, setNavigationPending] = useState(false)
   const [detail, setDetail] = useState<SurveyDetailPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -491,6 +519,7 @@ export function TeacherSurveyWorkspace({
   const activeDetail = detail?.survey?.id === surveyId ? detail : null
   const survey = activeDetail?.survey ?? null
   const questions = useMemo(() => activeDetail?.questions ?? [], [activeDetail?.questions])
+  const selectedQuestion = questions.find((question) => question.id === selectedQuestionId) ?? null
   const statusClassName = survey ? getSurveyStatusBadgeClass(survey.status) : ''
   const currentSurveyMarkdown = useMemo(
     () => (survey ? surveyToMarkdown({ survey, questions }) : ''),
@@ -510,6 +539,10 @@ export function TeacherSurveyWorkspace({
       if (loadRequestIdRef.current !== requestId || currentSurveyIdRef.current !== requestedSurveyId) return
       if (!response.ok) throw new Error(data.error || 'Failed to load survey')
       setDetail({ survey: data.survey, questions: data.questions || [] })
+      setSelectedQuestionId(data.questions?.[0]?.id ?? null)
+      setNewQuestionText('')
+      setNewQuestionType('multiple_choice')
+      setNewOptionsText('Option 1\nOption 2')
       onSurveyUpdatedRef.current(data.survey)
     } catch (err) {
       if (loadRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
@@ -627,6 +660,7 @@ export function TeacherSurveyWorkspace({
           ? { ...current, questions: [...current.questions, data.question] }
           : current
       )
+      setSelectedQuestionId(data.question.id)
       onQuestionCountChanged?.(surveyId, questions.length + 1)
       setNewQuestionText('')
       setNewOptionsText('Option 1\nOption 2')
@@ -771,6 +805,36 @@ export function TeacherSurveyWorkspace({
     }
   }
 
+  async function navigate(action: () => void) {
+    if (navigationPendingRef.current || surveyMarkdownSaving || addingQuestion || titleSaving || responseSettingSaving || statusChanging) return
+    navigationPendingRef.current = true
+    setNavigationPending(true)
+    const saved = await (questionEditorRef.current?.flush() ?? Promise.resolve(true))
+    if (saved) action()
+    navigationPendingRef.current = false
+    setNavigationPending(false)
+  }
+
+  async function closeEditor() {
+    if (surveyMarkdownDirty) {
+      setError('Apply or undo Markdown edits before closing.')
+      return
+    }
+    await navigate(onBack)
+  }
+
+  function selectQuestion(questionId: string | null) {
+    void navigate(() => {
+      setSelectedQuestionId(questionId)
+      setSurveyEditMode('edit')
+    })
+  }
+
+  useEffect(() => {
+    onCloseReady?.(closeEditor)
+    return () => onCloseReady?.(null)
+  })
+
   if (loading || (detail !== null && !activeDetail)) {
     return (
       <div className="flex flex-1 items-center justify-center py-12">
@@ -788,90 +852,113 @@ export function TeacherSurveyWorkspace({
   }
 
   return (
-    <div className="h-full min-h-0 overflow-auto p-4">
-      <div className="mx-auto flex max-w-5xl flex-col gap-4">
-        <Card tone="panel" padding="md" className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <EditableAssessmentTitle
-              title={survey.title}
-              inputLabel="Survey title"
-              editLabel="Edit survey title"
-              disabled={isReadOnly || titleSaving}
-              saving={titleSaving}
-              error={titleError}
-              generatedTitleLabel="Untitled Survey"
-              autoEdit={autoEditTitle}
-              onSave={saveTitle}
-              trailing={
-                <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${statusClassName}`}>
-                  {getSurveyStatusLabel(survey.status)}
-                </span>
-              }
-            />
+    <div data-testid="survey-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
+      <div data-testid="survey-editor-details-pane" className="flex flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-base font-semibold text-text-default">Survey</h3>
+          <Button type="button" variant="ghost" size="sm" aria-label="Close survey editor" disabled={navigationPending || surveyMarkdownSaving || addingQuestion || titleSaving || responseSettingSaving || statusChanging} onClick={() => { void closeEditor() }} className="h-11 w-11 p-0">
+            <X className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </div>
+        <EditableAssessmentTitle
+          title={survey.title}
+          inputLabel="Survey title"
+          editLabel="Edit survey title"
+          disabled={isReadOnly || titleSaving}
+          saving={titleSaving}
+          error={titleError}
+          generatedTitleLabel="Untitled Survey"
+          textClassName="text-base"
+          autoEdit={autoEditTitle}
+          onSave={saveTitle}
+          trailing={
+            <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${statusClassName}`}>
+              {getSurveyStatusLabel(survey.status)}
+            </span>
+          }
+        />
 
-            <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-              <AssessmentSetupCheckbox
-                checked={survey.dynamic_responses}
-                disabled={isReadOnly || responseSettingSaving}
-                onChange={(checked) => {
-                  void saveResponseEditing(checked)
-                }}
-              >
-                Allow live changes
-              </AssessmentSetupCheckbox>
-              <Button
-                size="sm"
-                variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'}
-                aria-pressed={surveyEditMode === 'preview'}
-                onClick={() => {
-                  setSurveyEditMode((current) => (current === 'preview' ? 'edit' : 'preview'))
-                  setSurveyMarkdownError('')
-                  setSurveyMarkdownInfo('')
-                }}
-              >
-                <Eye className="mr-1 h-4 w-4" aria-hidden="true" />
-                Preview
-              </Button>
-              <Button
-                size="sm"
-                variant={surveyEditMode === 'markdown' ? 'subtle' : 'secondary'}
-                aria-pressed={surveyEditMode === 'markdown'}
-                onClick={() => {
-                  setSurveyEditMode((current) => (current === 'markdown' ? 'edit' : 'markdown'))
-                  setSurveyMarkdownError('')
-                  setSurveyMarkdownInfo('')
-                }}
-              >
-                <Code className="mr-1 h-4 w-4" aria-hidden="true" />
-                Code
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-danger hover:bg-danger-bg"
-                onClick={() => setDeleteConfirmOpen(true)}
-                disabled={isReadOnly || statusChanging}
-              >
-                <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
-                Delete
-              </Button>
-            </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <AssessmentSetupCheckbox
+            checked={survey.dynamic_responses}
+            disabled={isReadOnly || responseSettingSaving}
+            onChange={(checked) => {
+              void saveResponseEditing(checked)
+            }}
+          >
+            Allow live changes
+          </AssessmentSetupCheckbox>
+          <Button
+            size="sm"
+            variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'}
+            disabled={navigationPending}
+            aria-pressed={surveyEditMode === 'preview'}
+            onClick={() => {
+              void navigate(() => setSurveyEditMode((current) => (current === 'preview' ? 'edit' : 'preview')))
+              setSurveyMarkdownError('')
+              setSurveyMarkdownInfo('')
+            }}
+          >
+            <Eye className="mr-1 h-4 w-4" aria-hidden="true" />
+            Preview
+          </Button>
+          <Button
+            size="sm"
+            variant={surveyEditMode === 'markdown' ? 'subtle' : 'secondary'}
+            disabled={navigationPending}
+            aria-pressed={surveyEditMode === 'markdown'}
+            onClick={() => {
+              void navigate(() => setSurveyEditMode((current) => (current === 'markdown' ? 'edit' : 'markdown')))
+              setSurveyMarkdownError('')
+              setSurveyMarkdownInfo('')
+            }}
+          >
+            <Code className="mr-1 h-4 w-4" aria-hidden="true" />
+            Code
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-danger hover:bg-danger-bg"
+            onClick={() => setDeleteConfirmOpen(true)}
+            disabled={isReadOnly || statusChanging}
+          >
+            <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
+            Delete survey
+          </Button>
+        </div>
+
+        {error && (
+          <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
           </div>
+        )}
+        {surveyMarkdownDirty && surveyEditMode !== 'edit' ? (
+          <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
+            Markdown edits not applied
+          </div>
+        ) : null}
 
-          {error && (
-            <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
-          {surveyMarkdownDirty && surveyEditMode !== 'edit' ? (
-            <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-              Markdown edits not applied
-            </div>
-          ) : null}
-        </Card>
 
+        <nav aria-label="Survey questions" className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-text-default">Questions</h3>
+            <span className="text-xs text-text-muted">{questions.length} total</span>
+          </div>
+          {questions.map((question, index) => (
+            <Button key={question.id} type="button" variant={selectedQuestionId === question.id && surveyEditMode === 'edit' ? 'subtle' : 'ghost'} fullWidth className="justify-start text-left" aria-label={`Edit question ${index + 1}`} aria-pressed={selectedQuestionId === question.id && surveyEditMode === 'edit'} disabled={navigationPending} onClick={() => selectQuestion(question.id)}>
+              <span className="shrink-0 text-text-muted">{index + 1}.</span>
+              <span className="min-w-0 truncate">{question.question_text}</span>
+            </Button>
+          ))}
+          <Button type="button" variant="secondary" fullWidth aria-pressed={!selectedQuestion && surveyEditMode === 'edit'} disabled={isReadOnly || navigationPending} onClick={() => selectQuestion(null)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />New question
+          </Button>
+        </nav>
+      </div>
+      <div data-testid="survey-editor-content-pane" className="flex min-h-96 min-w-0 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-y-auto">
         {surveyEditMode === 'markdown' ? (
-          <Card tone="panel" padding="md" className="flex min-h-[560px] flex-col gap-3">
+          <Card tone="panel" padding="md" className="flex min-h-96 flex-1 flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-semibold text-text-default">Code</h3>
@@ -887,7 +974,7 @@ export function TeacherSurveyWorkspace({
                     title="Undo markdown edits"
                     onClick={handleUndoSurveyMarkdownChanges}
                     disabled={surveyMarkdownSaving}
-                    className="h-8 w-8 p-0"
+                    className="h-11 w-11 p-0"
                   >
                     <RotateCcw className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -928,21 +1015,47 @@ export function TeacherSurveyWorkspace({
                 }
               }}
               readOnly={isReadOnly || surveyMarkdownSaving}
-              className="min-h-[460px] flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
+              className="min-h-80 flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
               spellCheck={false}
             />
           </Card>
         ) : surveyEditMode === 'preview' ? (
           <TeacherSurveyPreview survey={survey} questions={questions} />
-        ) : (
-          <>
-            <Card tone="panel" padding="md" className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-semibold text-text-default">Questions</h3>
-                <span className="text-sm text-text-muted">{questions.length} total</span>
-              </div>
 
-              <div className="grid gap-3 rounded-lg border border-border bg-surface-2 p-3 lg:grid-cols-[12rem_minmax(0,1fr)]">
+        ) : selectedQuestion ? (
+          <>
+            <div role="group" aria-label="Question navigation" className="flex items-center justify-center gap-2">
+              <Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={navigationPending || questions.indexOf(selectedQuestion) === 0} onClick={() => { void navigate(() => setSelectedQuestionId(questions[questions.indexOf(selectedQuestion) - 1].id)) }} className="h-11 w-11 p-0">
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <h3 className="text-sm font-semibold text-text-default">Question {questions.indexOf(selectedQuestion) + 1} of {questions.length}</h3>
+              <Button type="button" variant="ghost" size="sm" aria-label="Next question" disabled={navigationPending || questions.indexOf(selectedQuestion) === questions.length - 1} onClick={() => { void navigate(() => setSelectedQuestionId(questions[questions.indexOf(selectedQuestion) + 1].id)) }} className="h-11 w-11 p-0">
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+            <QuestionEditor
+              key={selectedQuestion.id}
+              ref={questionEditorRef}
+              question={selectedQuestion}
+              disabled={isReadOnly}
+              onSaved={(updatedQuestion) => {
+                setDetail((current) => current?.survey.id === updatedQuestion.survey_id ? {
+                  ...current,
+                  questions: current.questions.map((item) => item.id === updatedQuestion.id ? updatedQuestion : item),
+                } : current)
+              }}
+              onDeleted={(questionId) => {
+                const remaining = questions.filter((question) => question.id !== questionId)
+                setDetail((current) => current ? { ...current, questions: remaining } : current)
+                setSelectedQuestionId(remaining[0]?.id ?? null)
+                onQuestionCountChanged?.(surveyId, remaining.length)
+              }}
+            />
+          </>
+        ) : (
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-text-default">New question</h3>
+              <div className="space-y-3">
                 <FormField label="Type">
                   <Select
                     value={newQuestionType}
@@ -952,7 +1065,9 @@ export function TeacherSurveyWorkspace({
                   />
                 </FormField>
                 <FormField label="New question">
-                  <Input
+                  <SurveyTextarea
+                    rows={4}
+                    className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
                     value={newQuestionText}
                     onChange={(event) => setNewQuestionText(event.target.value)}
                     placeholder="Ask students a question"
@@ -960,8 +1075,8 @@ export function TeacherSurveyWorkspace({
                   />
                 </FormField>
                 {newQuestionType === 'multiple_choice' && (
-                  <div className="lg:col-span-2">
-                    <FormField label="Options">
+                  <div>
+                    <FormField label="Options" hint="One option per line">
                       <SurveyTextarea
                         value={newOptionsText}
                         onChange={(event) => setNewOptionsText(event.target.value)}
@@ -972,7 +1087,7 @@ export function TeacherSurveyWorkspace({
                     </FormField>
                   </div>
                 )}
-                <div className="lg:col-span-2 flex justify-end">
+                <div className="flex justify-end">
                   <Button
                     type="button"
                     size="sm"
@@ -985,53 +1100,9 @@ export function TeacherSurveyWorkspace({
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {questions.length === 0 ? (
-                  <p className="rounded-lg border border-border bg-surface px-3 py-4 text-center text-sm text-text-muted">
-                    Add at least one question before opening the survey.
-                  </p>
-                ) : (
-                  questions.map((question) => (
-                    <QuestionEditor
-                      key={question.id}
-                      question={question}
-                      disabled={isReadOnly}
-                      onSaved={(updatedQuestion) => {
-                        setDetail((current) =>
-                          current
-                            ? {
-                                ...current,
-                                questions: current.questions.map((item) =>
-                                  item.id === updatedQuestion.id ? updatedQuestion : item
-                                ),
-                              }
-                            : current
-                        )
-                      }}
-                      onDeleted={(questionId) => {
-                        setDetail((current) =>
-                          current
-                            ? {
-                                ...current,
-                                questions: current.questions.filter((item) => item.id !== questionId),
-                              }
-                            : current
-                        )
-                        onQuestionCountChanged?.(
-                          surveyId,
-                          questions.filter((item) => item.id !== questionId).length,
-                        )
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-            </Card>
-
-          </>
+          </div>
         )}
       </div>
-
       <ConfirmDialog
         isOpen={deleteConfirmOpen}
         title="Delete survey?"
