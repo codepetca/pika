@@ -162,7 +162,6 @@ export function createDraftGetNativeContracts(input: {
   const start = Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let probed = false
   const sessions = new Set<NativeSession>()
   const diagnostic = createDraftGetNativeDiagnostic()
-  let scheduleIndex = 0, concurrencyStarted = 0
   function recordError(error: unknown) { diagnostic.fail(error instanceof assert.AssertionError ? 'assertion' : 'unknown') }
   function nativeFailure(kind: typeof diagnosticKinds[number] = 'unknown', exitCode?: unknown) { diagnostic.fail(kind, exitCode); return failure() }
   let endpoint: { host: string; identity: number[] } | undefined
@@ -184,7 +183,7 @@ export function createDraftGetNativeContracts(input: {
     return new Promise((resolveResult, reject) => {
       let inputFailed = false
       const child = execFile(file, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes }, (error, stdout) => {
-        if (error || inputFailed || Buffer.byteLength(stdout) > CAPS.outputBytes) reject(nativeFailure(Buffer.byteLength(stdout) > CAPS.outputBytes ? 'output-limit' : error?.killed ? 'control-timeout' : 'control-command', error?.code))
+        if (error || inputFailed || Buffer.byteLength(stdout) > CAPS.outputBytes) reject(nativeFailure(error?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' || Buffer.byteLength(stdout) > CAPS.outputBytes ? 'output-limit' : error?.killed ? 'control-timeout' : 'control-command', error?.code))
         else { exchanged += Buffer.byteLength(stdout); exchanged > CAPS.totalBytes ? reject(nativeFailure('output-limit')) : resolveResult(stdout.trim()) }
       })
       child.stdin?.on('error', () => { inputFailed = true; child.kill('SIGKILL') })
@@ -340,9 +339,13 @@ export function createDraftGetNativeContracts(input: {
   }
   function driver(bound: DraftGetTarget): DraftGetDriver {
     return {
+      observe(event) {
+        if (event.event === 'schedule-start') diagnostic.schedule(manifest.concurrency.schedules[event.index]?.label)
+        else if (event.event === 'schedule-end') diagnostic.schedule('none')
+        else { diagnostic.phase('verify'); diagnostic.fail(event.kind) }
+      },
       async verifyTarget() { await guard(); return bound },
       async openSession(name) {
-        if (concurrencyStarted && name === `${project}_draft_holder`) diagnostic.schedule(manifest.concurrency.schedules[scheduleIndex++]?.label)
         check(); assert(sessions.size < CAPS.sessions && ![...sessions].some(s => s.name === name)); await guard(); check()
         const session = new NativeSession(name); sessions.add(session)
         try { await session.initialize(); return session } catch (error) { recordError(error); await closeAll(); throw nativeFailure() }
@@ -421,7 +424,7 @@ export function createDraftGetNativeContracts(input: {
         const contracts = await runDraftGetContracts(manifest.fixture, contractTarget, input.repository, driver(contractTarget))
         assert.deepEqual(await single(manifest.snapshot), before, 'Rollback contract whole-row equality differs')
         const raceTarget = target(testOwnerDigest(JSON.stringify(manifest.concurrency)))
-        diagnostic.stage('concurrency'); concurrencyStarted = Date.now()
+        diagnostic.stage('concurrency'); diagnostic.schedule('none')
         const races = await runDraftGetConcurrency(manifest.fixture, raceTarget, input.repository, driver(raceTarget))
         assert.deepEqual(await single(manifest.snapshot), before, 'Rollback schedule whole-row equality differs')
         assert.equal(sessions.size, 0)
