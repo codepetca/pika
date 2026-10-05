@@ -69,6 +69,10 @@ postcondition failures fail503. Lost ownership/archive fails403; initial missing
 Test fails404; final deletion/reparenting fails409. Any failed write postcondition
 rolls back the entire RPC. Create/repair must verify actual stored stamps/version
 and natural Class/archive revision effects; inspection must remain write-free.
+Reject a future prior repair stamp before DML in the final transaction; preserve
+future historical stamps for no-write inspection. Only explicit PT403 and the
+two current lifecycle-fence messages mean caller denial. Raw42501 grant outages
+and unrelated55000 object-state faults remain unavailable, not owner denials.
 
 At most two lazy SDK RPCs share a20-second application deadline and cancellation
 signal. Source has at most10000 complete questions,2MiB draft/candidate content,
@@ -134,6 +138,14 @@ fixture. SQL's10001 bulk UUIDs are rollback-only; they are not initial setup row
 The app extension SQL ceiling is512KiB (setup328192 bytes); at most30 RPCs, two per
 case, with zero Storage calls. This finite proof expansion does not increase the
 application20-second deadline or alter any sealed original SQL/transport limit.
+One separate normal-only privilege-drift probe temporarily revokes only the exact
+snapshot entrypoint's service-role EXECUTE grant in the synthetic project. The
+real installed SDK/helper must observe raw42501 and return503 after one RPC;
+there are25 RPCs total, still below the unchanged30 ceiling. Restoration in
+finally must prove the full sorted ACL, owner, function identity/definition and
+app/SQL whole-row equality, even on probe failure. No general SQL or grant control
+is exposed, and unconfirmed restoration fails the proof and requires exact owned
+project disposal. This is prepared source, not a completed live privilege test.
 SQL source prepares two rollback phases and12 real two-session schedules, including
 legacy insert, same/other draft tuple/revision order, save, publish, Start and
 archive/ownership/reparenting/purge fences. Stale-source and UTF-8/count bounds,
@@ -162,7 +174,13 @@ wx0600 artifact, and requires identical fresh resource closure afterward. Root
 must verify the artifact after successful lifecycle completion before installing
 generated source. Default CI does not run that optional generation command.
 
-Independent fixed-source review and root's finite runtime acceptance are pending.
+The initial independent fixed-source review of draft PR1473 at `c90d3981`
+completed with three accepted blockers: future-stamped repair could commit before
+the helper rejected its result; raw privilege failures and unrelated object-state
+errors could be mislabeled as caller denial; and Test-move fixtures violated the
+existing gradebook-category parent constraint. These are a single remediation
+batch, followed by targeted independent review. Root's finite runtime acceptance
+remains pending.
 None of these prepared counts, templates or mocked protocol tests establish actual
 database/SDK/concurrency/cleanup/cancellation evidence or authorize a main merge.
 
@@ -171,3 +189,8 @@ policies PASS; TypeScript then failed solely on the two pending new RPC names.
 The focused command is not green and did not reach its lint step. Separate scoped
 lint receipts and the15-file Pika audit pass. A draft source checkpoint remains
 incomplete; no ready event, heavy CI, main merge or database execution is implied.
+
+Batch1 focused verification:398 tests/17 files plus architecture/UI/design PASS.
+TypeScript still fails solely on the two ungenerated RPC names; the focused
+command remains EXIT1 and did not reach lint. The SQL source regressions are14
+PASS and native-adapter protocol regressions20 PASS, without runtime claims.

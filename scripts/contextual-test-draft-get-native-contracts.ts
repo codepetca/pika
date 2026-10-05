@@ -38,6 +38,44 @@ function freeze<T>(value: T): T {
   }
   return value
 }
+function snapshotPrivilegeSql() {
+  const signature = 'public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)'
+  const catalog = `begin read only;set local lock_timeout='1s';set local statement_timeout='8s';
+select jsonb_build_object('owner',pg_get_userbyid(p.proowner),'definition',pg_get_functiondef(p.oid),
+'acl',(select coalesce(jsonb_agg(jsonb_build_object('grantor',pg_get_userbyid(a.grantor),
+'grantee',case when a.grantee=0 then 'PUBLIC' else pg_get_userbyid(a.grantee) end,
+'privilege_type',a.privilege_type,'is_grantable',a.is_grantable)
+order by a.grantor,a.grantee,a.privilege_type,a.is_grantable),'[]'::jsonb)
+from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a))
+from pg_proc p where p.oid='${signature}'::regprocedure;rollback;`
+  const revoke = `begin;set local lock_timeout='1s';set local statement_timeout='8s';
+do $acl$ declare p record;begin select * into strict p from pg_proc where oid='${signature}'::regprocedure;
+if pg_get_userbyid(p.proowner)<>'postgres'
+or (select count(*) from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))))<>2
+or exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+ where a.grantor<>p.proowner or a.grantee not in (p.proowner,'service_role'::regrole::oid) or a.privilege_type<>'EXECUTE' or a.is_grantable)
+or not has_function_privilege('service_role','${signature}','execute')
+then raise exception 'Snapshot ACL differs';end if;end;$acl$;
+revoke execute on function ${signature} from service_role;commit;`
+  const restore = `begin;set local lock_timeout='1s';set local statement_timeout='8s';
+grant execute on function ${signature} to service_role;commit;`
+  return freeze({ catalog, revoke, restore, expectedOwner: 'postgres', expectedRoles: ['postgres', 'service_role'],
+    expectedEvidence: { status: 503, rpcCalls: 1, rawCode: '42501' }, probes: 1 })
+}
+type SnapshotCatalog = { owner: string; definition: string; acl: { grantor: string; grantee: string; privilege_type: string; is_grantable: boolean }[] }
+function decodeSnapshotCatalog(rows: readonly { result?: unknown }[]): SnapshotCatalog {
+  assert.equal(rows.length, 1)
+  const value = rows[0].result; assert(value && typeof value === 'object' && !Array.isArray(value))
+  const row = value as Record<string, unknown>
+  assert.deepEqual(Object.keys(row).sort(), ['acl', 'definition', 'owner'])
+  assert(typeof row.owner === 'string' && typeof row.definition === 'string' && row.definition.length > 0 && Array.isArray(row.acl))
+  for (const value of row.acl) {
+    assert(value && typeof value === 'object' && !Array.isArray(value))
+    assert.deepEqual(Object.keys(value).sort(), ['grantee', 'grantor', 'is_grantable', 'privilege_type'])
+    assert(typeof value.grantor === 'string' && typeof value.grantee === 'string' && typeof value.privilege_type === 'string' && typeof value.is_grantable === 'boolean')
+  }
+  return row as SnapshotCatalog
+}
 export function buildDraftGetNativeContractsManifest(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
   const fixture = newDraftGetFixture(original.manifest.syntheticTag.slice(-12))
@@ -51,12 +89,12 @@ export function buildDraftGetNativeContractsManifest(original: AssignmentListPro
   const sourceSha256 = testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/247_contextual_test_draft_owner_get.sql'), 'utf8'))
   return freeze({ version: 1, reviewedHead, migrationManifestSha256: draftGetMigrationManifestSha256(repository), sourceSha256,
     fixture, guard, setup, contracts, concurrency, snapshot, bootstrap: boot, termination: draftGetNativeTerminationSql(),
-    close: 'rollback;', capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate })
+    close: 'rollback;', capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate, privilege: snapshotPrivilegeSql() })
 }
 type Manifest = ReturnType<typeof buildDraftGetNativeContractsManifest>
 export function validateDraftGetNativeSql(manifest: Manifest, sql: string) {
   if (typeof sql !== 'string' || Buffer.byteLength(sql) > DRAFT_GET_CAPS.sqlBytes) return false
-  const fixed = [manifest.setup, manifest.snapshot, manifest.bootstrap, manifest.close, manifest.contracts.contracts,
+  const fixed = [manifest.setup, manifest.snapshot, manifest.bootstrap, manifest.close, manifest.privilege.catalog, manifest.privilege.revoke, manifest.contracts.contracts,
     manifest.contracts.boundsAndDrift, manifest.concurrency.begin, manifest.concurrency.rollback,
     ...manifest.concurrency.schedules.flatMap(s => [s.snapshotSql, s.holderSql, ...(s.afterSql ? [s.afterSql] : [])])]
   if (fixed.includes(sql) && sql !== 'contextual') return true
@@ -88,7 +126,7 @@ export function createDraftGetNativeContracts(input: {
   assert(isAbsolute(input.repository) && realpathSync(input.repository) === input.repository)
   const project = manifest.fixture.projectId
   const closure = structuredClone(input.capturedResources)
-  const start = Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false
+  const start = Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let probed = false
   const sessions = new Set<NativeSession>()
   let endpoint: { host: string; identity: number[] } | undefined
   function check() { assert(!failed && Date.now() - start < CAPS.totalMs && controls <= CAPS.controlCalls - 32) }
@@ -259,11 +297,49 @@ export function createDraftGetNativeContracts(input: {
     const d = driver(target(input.acceptedManifestSha256)); const session = await d.openSession(`${project}_${setup ? 'fixture' : 'draft_contracts'}`)
     try { return await session.execute(sql, CAPS.actionMs) } finally { await session.rollbackAndClose(CAPS.closeMs) }
   }
+  async function restorationControl(sql: string) {
+    assert([manifest.privilege.catalog, manifest.privilege.restore, manifest.snapshot].includes(sql))
+    assert(++actions <= CAPS.actions)
+    // Cleanup is allowed after a failed SDK/dispatch; all immutable bindings and
+    // original safety guards still pass before the fixed restoration operation.
+    await guard(true)
+    const output = await command('docker', dockerArgs(`${project}_fixture`), sql, CAPS.closeMs)
+    return output ? [{ result: JSON.parse(output) as unknown }] : []
+  }
   return Object.freeze({ manifest,
     async setup() {
       assert(!setupDone && !ran); check()
       await single(manifest.setup, true); setupDone = true
       return Object.freeze({ fixtureSha256: testOwnerDigest(JSON.stringify(manifest.fixture)), setupSha256: testOwnerDigest(manifest.setup) })
+    },
+    async probeSnapshotPrivilegeDrift(probe: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) {
+      assert(setupDone && !ran && !probed && sessions.size === 0); probed = true; check()
+      const rowsBefore = await single(manifest.snapshot)
+      const catalogBefore = decodeSnapshotCatalog(await single(manifest.privilege.catalog))
+      assert.equal(catalogBefore.owner, manifest.privilege.expectedOwner)
+      assert.equal(catalogBefore.acl.length, 2)
+      assert.deepEqual(catalogBefore.acl.map(row => row.grantee).sort(), [...manifest.privilege.expectedRoles].sort())
+      assert(catalogBefore.acl.every(row => row.grantor === catalogBefore.owner && row.privilege_type === 'EXECUTE' && !row.is_grantable))
+      let restoreRequired = false
+      try {
+        // Set before dispatch so an ambiguous COMMIT response still restores.
+        restoreRequired = true
+        await single(manifest.privilege.revoke, true)
+        await guard(); check()
+        assert.deepEqual(await probe(), manifest.privilege.expectedEvidence)
+        check()
+      } catch { failed = true; throw failure()
+      } finally {
+        if (restoreRequired) {
+          try {
+            await restorationControl(manifest.privilege.restore)
+            assert.deepEqual(decodeSnapshotCatalog(await restorationControl(manifest.privilege.catalog)), catalogBefore)
+            assert.deepEqual(await restorationControl(manifest.snapshot), rowsBefore)
+          } catch { failed = true; throw failure() }
+        }
+      }
+      return Object.freeze({ privilegeRestored: true, fixtureUnchanged: true,
+        snapshotAclSha256: testOwnerDigest(JSON.stringify(catalogBefore)) })
     },
     async run() {
       assert(setupDone && !ran); ran = true; check()

@@ -86,10 +86,30 @@ describe('Test draft GET shared admission boundary', () => {
   })
 
   it('does not fall back after the transaction denies current ownership', async () => {
-    admitted(); rpcFailure('42501')
+    admitted(); rpcFailure('PT403')
     expect((await GET(request(), { params: Promise.resolve({ id: testId }) })).status).toBe(403)
     expect(requireRole).not.toHaveBeenCalled(); expect(ensureAssessmentDraft).not.toHaveBeenCalled()
     expect(getTestEditingPolicy).not.toHaveBeenCalled()
+  })
+
+  it.each(['snapshot', 'final'])('returns unavailable for raw %s privilege failure without fallback or private error output', async phase => {
+    admitted()
+    mocks.rpc.mockImplementation((name: string) => {
+      const rejected = (phase === 'snapshot') === (name === 'snapshot_test_draft_for_owner_v1')
+      const result = rejected ? { data: null, status: 403, statusText: 'Forbidden',
+        error: { code: '42501', message: 'private privilege state', details: 'private table grant', hint: 'private owner' } } : {
+        data: { version: 1, actor_id: actorId, classroom: { id: classroomId, teacher_id: actorId, archived_at: null },
+          test: { id: testId, classroom_id: classroomId, title: 'Persisted', show_results: true, status: 'draft',
+            blueprint_archived_at: null, questions_locked_at: null }, draft, question_count: 0, questions: [], source_sha256: 'a'.repeat(64) }, error: null,
+      }
+      const query = Promise.resolve(result)
+      return Object.assign(query, { abortSignal: vi.fn(() => query) })
+    })
+    const result = await GET(request(), { params: Promise.resolve({ id: testId }) })
+    expect(result.status).toBe(503); expect(await result.json()).toEqual({ error: 'Unable to verify test draft' })
+    expect(mocks.rpc).toHaveBeenCalledTimes(phase === 'snapshot' ? 1 : 2)
+    expect(requireRole).not.toHaveBeenCalled(); expect(ensureAssessmentDraft).not.toHaveBeenCalled()
+    expect(getTestEditingPolicy).not.toHaveBeenCalled(); expect(mocks.from).not.toHaveBeenCalled()
   })
 
   it('returns the existing two-key DTO for admitted inspection with canonical route identity', async () => {

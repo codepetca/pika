@@ -60,7 +60,7 @@ describe('finite owner draft GET offline authority', () => {
   it('hash binds the complete disjoint app+SQL fixture union and rollback bulk inventory', () => {
     const x = fixture(), union = testOwnerDraftGetUnionManifest(x.original, x.f, '7570a9d60591183f0699001f47a6528045a392ee', process.cwd())
     expect(union.inventory).toEqual({ actors: 7, classes: 5, tests: 16, questions: 1009, initialDrafts: 10, enrollments: 5,
-      triggerCategories: 15, archiveRevisionRows: 5, activeGenerations: 5, sdkCases: 15, sdkCreates: 3, sdkRepairs: 1, sqlBaseAllocatedIds: 15, sqlRollbackBulkIds: 10001 })
+      triggerCategories: 15, archiveRevisionRows: 5, activeGenerations: 5, sdkCases: 15, sdkCreates: 3, sdkRepairs: 1, privilegeDriftProbes: 1, sqlBaseAllocatedIds: 15, sqlRollbackBulkIds: 10001 })
     expect(union.sql.fixture.allowedFixtureIds).toHaveLength(10016)
     expect(union.sql.fixture.allowedFixtureIds.every(id => !x.f.allocatedIds.includes(id) && !x.original.allocatedIds.includes(id))).toBe(true)
     expect(union.sql.setup).toContain('commit;'); expect(Object.isFrozen(union.inventory)).toBe(true)
@@ -116,6 +116,17 @@ describe('finite owner draft GET offline authority', () => {
 })
 
 describe('complete finite mocked SDK matrix', () => {
+  it('observes raw PostgREST privilege failure without substituting the response or dispatching a final RPC', async () => {
+    const x = fixture(), rows = sourceRows(x.f), before = structuredClone(rows)
+    const c = x.f.cases.find(c => c.status === 200 && c.operation === 'inspect')!
+    x.fetcher.mockResolvedValue(new Response(JSON.stringify({ code: '42501', message: 'private privilege drift', details: null, hint: null }), { status: 403 }))
+    x.transport.readContext(c.testId, c.actorId, rows)
+    const client = createClient<Database>(x.target.API_URL, x.target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: x.transport.fetch } })
+    await expect(getContextualTestDraft({ supabase: client, actorId: c.actorId, testId: c.testId })).rejects.toMatchObject({ statusCode: 503 })
+    expect(x.transport.evidence.rawPrivilegeFailures).toBe(1)
+    expect(x.transport.counts.rpc).toBe(1); expect(x.guard).toHaveBeenCalledOnce(); expect(x.fetcher).toHaveBeenCalledOnce()
+    expect(rows).toEqual(before)
+  })
   it.each(Array.from({ length: 15 }, (_, i) => i))('runs actual helper through the installed SDK with no native call, case %s', async i => {
     const x = fixture(), rows = sourceRows(x.f), before = structuredClone(rows), c = x.f.cases[i]
     const fetcher = vi.fn<typeof fetch>(async (resource, init) => {
@@ -289,7 +300,8 @@ describe('sealed lifecycle offline composition', () => {
     const sqlSetup = vi.fn(async () => { events.push('sql-fixture'); if (scenario === 'partial-sql-setup') throw new Error('PRIVATE cause')
       return { fixtureSha256: testOwnerDigest(JSON.stringify(sqlManifest.fixture)), setupSha256: testOwnerDigest(sqlManifest.setup) } })
     const sqlRun = vi.fn()
-    vi.spyOn(sqlAdapterModule, 'createDraftGetNativeContracts').mockReturnValue({ manifest: sqlManifest, setup: sqlSetup, run: sqlRun })
+    const sqlPrivilegeProbe = vi.fn()
+    vi.spyOn(sqlAdapterModule, 'createDraftGetNativeContracts').mockReturnValue({ manifest: sqlManifest, setup: sqlSetup, run: sqlRun, probeSnapshotPrivilegeDrift: sqlPrivilegeProbe })
     vi.mocked(execFileSync).mockImplementation((file, args, options) => {
       if (file === 'git') return args?.[0] === 'status' ? '' : args?.[1] === 'HEAD' ? head : process.cwd()
       const sql = (options as { input: string }).input
@@ -312,7 +324,7 @@ describe('sealed lifecycle offline composition', () => {
       const running = testOwnerDraftGetLifecycleMain(['--reviewed-head', head, '--mode', mode])
       if (scenario === 'after-fixture' || scenario === 'before-capture') {
         await running; expect(events).toEqual(['sql', 'sql', 'sql-fixture', 'original-checkpoint'])
-        expect(process.exitCode).toBe(1); expect(sqlRun).not.toHaveBeenCalled(); expect(native.runCase).not.toHaveBeenCalled()
+        expect(process.exitCode).toBe(1); expect(sqlRun).not.toHaveBeenCalled(); expect(sqlPrivilegeProbe).not.toHaveBeenCalled(); expect(native.runCase).not.toHaveBeenCalled()
         expect(out.mock.calls.flat().join('')).toBe('PASS isolated test-owner-draft-get exact teardown and unchanged canonical baseline.\n')
         expect(err.mock.calls.flat().join('')).toBe(`FAIL forced isolated test-owner-draft-get lifecycle: ${mode}.\n`)
       } else {

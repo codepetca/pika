@@ -153,4 +153,38 @@ describe('contextual owner Test draft GET source contract (not runtime proof)', 
     expect(manifest.contracts).toContain('Post-DML deadline leaked draft/Class/revision')
     expect(draftGetFixtureStatements(f)).toContain("'{\"question_identity_version\":1}'::jsonb")
   })
+
+  it('rejects future prior repair stamps before DML and prepares a full rollback preimage contract', () => {
+    const sql = migration()
+    const guard = sql.indexOf("p_operation = 'repair' and v_before.updated_at > pg_catalog.transaction_timestamp()")
+    expect(guard).toBeGreaterThan(-1)
+    expect(guard).toBeLessThan(sql.indexOf('insert into public.assessment_drafts'))
+    expect(guard).toBeLessThan(sql.indexOf('update public.assessment_drafts draft set content'))
+    const contracts = draftGetContractsManifest(newDraftGetFixture('0123456789ab')).contracts
+    expect(contracts).toContain('Future prior stamp not established')
+    expect(contracts).toContain('Future prior repair stamp accepted')
+    expect(contracts).toContain('Future prior stamp leaked draft/Class/revision')
+    expect(contracts).toContain('z_proof_draft_get_future_stamp_0123456789ab')
+  })
+
+  it('maps only the two actual lifecycle object-state messages and preserves unrelated55000', () => {
+    const sql = migration()
+    expect(sql.match(/if sqlerrm in \('classroom_purge_active', 'attendance_decommission_active'\) then/g)).toHaveLength(2)
+    expect(sql.match(/else\s+raise;\s+end if;/g)).toHaveLength(2)
+    const contracts = draftGetContractsManifest(newDraftGetFixture('0123456789ab')).contracts
+    expect(contracts).toContain("errcode='55000',message='synthetic_unrelated_object_state'")
+    expect(contracts).toContain('Unrelated55000 was remapped')
+    expect(contracts).toContain('Unrelated55000 leaked draft/Class/revision')
+    expect(contracts).toContain('Actual42501 missing')
+  })
+
+  it('reparents fixtures legally under the unchanged category guard and restores the original category', () => {
+    const f = newDraftGetFixture('0123456789ab')
+    const bounds = draftGetBoundsAndDriftSql(f)
+    expect(bounds).toContain('select gradebook_category_id into original_category')
+    expect(bounds).toContain(`set classroom_id='${f.otherClassroom}',gradebook_category_id=null`)
+    expect(bounds).toContain(`set classroom_id='${f.classroom}',gradebook_category_id=original_category`)
+    const move = draftGetConcurrencyManifest(f).schedules.find(row => row.label === 'test_move')
+    expect(move?.holderSql).toContain('gradebook_category_id=null')
+  })
 })

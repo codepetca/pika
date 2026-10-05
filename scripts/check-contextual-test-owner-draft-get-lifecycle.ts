@@ -51,7 +51,7 @@ export function createTestOwnerDraftGetProofTransport(f: TestOwnerDraftGetFixtur
   const target = validateAssignmentListProofTarget(rawTarget, projectId); assert.equal(target.API_URL, API)
   const manifest = testOwnerDraftGetRequestManifest(f); const hash = testOwnerDigest(JSON.stringify(manifest))
   const counts = { network: 0, rpc: 0, storage: 0, exchangeBytes: 0 }
-  const evidence = { emptySource: 0, nonemptySource: 0, complete1001Source: 0 }
+  const evidence = { emptySource: 0, nonemptySource: 0, complete1001Source: 0, rawPrivilegeFailures: 0 }
   let context: TestOwnerDraftGetFixture['cases'][number] | undefined; let source: Source | undefined; let deadline: string | undefined
   let before: Rows | undefined; let dispatched = 0; let phase = 'idle'; let operation = 'unknown'
   function readContext(testId: string, actorId: string, rows?: Rows) {
@@ -115,6 +115,11 @@ export function createTestOwnerDraftGetProofTransport(f: TestOwnerDraftGetFixtur
       // Transport observes all successful first-phase sources before final
       // authority. Rejected service responses are left to the real helper.
       if (response.ok && url.pathname === paths[0]) bindSnapshot(JSON.parse(data.toString('utf8')))
+      if (!response.ok) {
+        const rejected: unknown = JSON.parse(data.toString('utf8'))
+        if (rejected && typeof rejected === 'object' && !Array.isArray(rejected)
+          && (rejected as Record<string, unknown>).code === '42501') evidence.rawPrivilegeFailures++
+      }
       phase = 'complete'; return new Response(data, { status: response.status, headers: response.headers })
     } catch { throw new Error('Test owner draft GET proof transport rejected; private details withheld') }
   }
@@ -139,7 +144,7 @@ export function testOwnerDraftGetUnionManifest(original: ReturnType<typeof newAs
   return Object.freeze({ version: 1, reviewedHead, originalSha256: testOwnerDigest(JSON.stringify(original.manifest)),
     application: testOwnerDraftGetRequestManifest(f), sql,
     inventory: Object.freeze({ actors: 7, classes: 5, tests: 16, questions: 1009, initialDrafts: 10, enrollments: 5,
-      triggerCategories: 15, archiveRevisionRows: 5, activeGenerations: 5, sdkCases: 15, sdkCreates: 3, sdkRepairs: 1, sqlBaseAllocatedIds: 15, sqlRollbackBulkIds: 10001 }) })
+      triggerCategories: 15, archiveRevisionRows: 5, activeGenerations: 5, sdkCases: 15, sdkCreates: 3, sdkRepairs: 1, privilegeDriftProbes: 1, sqlBaseAllocatedIds: 15, sqlRollbackBulkIds: 10001 }) })
 }
 export function validateTestOwnerDraftGetSetupSnapshot(f: TestOwnerDraftGetFixture, input: unknown): Rows {
   assert(input && typeof input === 'object' && !Array.isArray(input)); const rows = input as Rows
@@ -269,6 +274,23 @@ export async function testOwnerDraftGetLifecycleMain(args = process.argv.slice(2
     }
     assert.equal(transport.counts.storage, 0); assert.equal(transport.counts.rpc, 24)
     assert(transport.evidence.emptySource > 0 && transport.evidence.nonemptySource > 0); assert.equal(transport.evidence.complete1001Source, 1)
+    assert(sqlContracts)
+    const beforePrivilege = await snapshot()
+    const privilegeCase = f.cases.find(c => c.status === 200 && c.operation === 'inspect'); assert(privilegeCase)
+    const privilegeReceipt = await sqlContracts.probeSnapshotPrivilegeDrift(async () => {
+      const rpcBefore = transport!.counts.rpc, errorsBefore = transport!.evidence.rawPrivilegeFailures
+      transport!.readContext(privilegeCase.testId, privilegeCase.actorId, beforePrivilege)
+      await assert.rejects(() => getContextualTestDraft({ supabase: client!, actorId: privilegeCase.actorId, testId: privilegeCase.testId }),
+        e => e instanceof ApiError && e.statusCode === 503)
+      assert.equal(transport!.counts.rpc - rpcBefore, 1)
+      assert.equal(transport!.evidence.rawPrivilegeFailures - errorsBefore, 1)
+      assert.deepEqual(await snapshot(), beforePrivilege)
+      return { status: 503 as const, rpcCalls: 1 as const, rawCode: '42501' as const }
+    })
+    assert(privilegeReceipt.privilegeRestored && privilegeReceipt.fixtureUnchanged)
+    assert.match(privilegeReceipt.snapshotAclSha256, /^[a-f0-9]{64}$/)
+    assert.deepEqual(await snapshot(), beforePrivilege)
+    assert.equal(transport.counts.rpc, 25); assert.equal(transport.evidence.rawPrivilegeFailures, 1)
     assert(sqlContracts); const beforeContracts = await snapshot(); const receipt = await sqlContracts.run()
     assert(receipt.fixtureUnchanged); assert.equal(receipt.manifestSha256, testOwnerDigest(JSON.stringify(union.sql)))
     assert.deepEqual(await snapshot(), beforeContracts); sqlComplete = true; matrixComplete = true
@@ -287,7 +309,7 @@ export async function testOwnerDraftGetLifecycleMain(args = process.argv.slice(2
         client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport.fetch } }); await setup() } },
       async runCase(request) { const result = await native.runCase(request); if (!matrixComplete) await matrix(); return result } })
     assert(complete && matrixComplete && sqlComplete)
-    process.stdout.write(`PASS isolated test-owner-draft-get fifteen actual installed-SDK helper/RPC cases including complete 1001-question source; rollback SQL contracts and two-session schedules.\n${cleanupMarker}`)
+    process.stdout.write(`PASS isolated test-owner-draft-get fifteen actual installed-SDK helper/RPC cases including complete 1001-question source; exact restored privilege-drift probe; rollback SQL contracts and two-session schedules.\n${cleanupMarker}`)
     return Object.freeze({ types: typesReceipt ?? null })
   } catch (error) {
     const receipt = testOwnerDraftGetForcedReceipt(input.mode, error, complete)

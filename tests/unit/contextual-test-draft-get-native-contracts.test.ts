@@ -63,10 +63,16 @@ describe('native persistent-session transport with offline child mocks', () => {
   const children: Array<EventEmitter & { stdin: Writable; stdout: PassThrough; stderr: PassThrough; kill: ReturnType<typeof vi.fn> }> = []
   const terminations: string[][] = []
   let hangingSetup = false; let failContender = false; let terminationConfirmed = true
+  let serviceExecute = true; let fixtureChanged = false; let catalogChanged = false; let restorationFails = false; let publicGrant = false
+  const catalog = () => ({ owner: 'postgres', definition: catalogChanged ? 'changed function' : 'reviewed function',
+    acl: [{ grantor: 'postgres', grantee: 'postgres', privilege_type: 'EXECUTE', is_grantable: false },
+      ...(serviceExecute ? [{ grantor: 'postgres', grantee: 'service_role', privilege_type: 'EXECUTE', is_grantable: false }] : []),
+      ...(publicGrant ? [{ grantor: 'postgres', grantee: 'PUBLIC', privilege_type: 'EXECUTE', is_grantable: false }] : [])] })
   const factory = () => createDraftGetNativeContracts({ repository, reviewedHead: head, original, capturedResources: resources,
     containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id, acceptedManifestSha256: testOwnerDigest(JSON.stringify(manifest)) })
   beforeEach(() => {
     vi.clearAllMocks(); children.length = 0; terminations.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
+    serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
     mocks.inventory.mockResolvedValue(resources)
     mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: unknown, stdout: string) => void) => {
       const child = new EventEmitter() as EventEmitter & { stdin: Writable; kill: ReturnType<typeof vi.fn> }
@@ -77,6 +83,12 @@ describe('native persistent-session transport with offline child mocks', () => {
           if (file === 'git') callback(null, args[1] === '--show-toplevel' ? repository : args[0] === 'rev-parse' ? head : '')
           else if (args[0] === 'context') callback(null, JSON.stringify({ endpoints: { docker: { Host: 'unix:///private/tmp/pika-test-native-docker.sock', SkipTLSVerify: false } }, tlsMaterial: null }))
           else if (input === manifest.termination) { terminations.push(args); callback(null, JSON.stringify({ present: true, terminated: terminationConfirmed })) }
+          else if (input === manifest.privilege.restore) {
+            if (restorationFails) callback(Error('private grant restore failure'), '')
+            else { serviceExecute = true; callback(null, '') }
+          }
+          else if (input === manifest.privilege.catalog) callback(null, JSON.stringify(catalog()))
+          else if (input === manifest.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
           else callback(null, 'ok')
         }); done()
       } })
@@ -94,7 +106,9 @@ describe('native persistent-session transport with offline child mocks', () => {
         let response = ''
         if (sql === manifest.bootstrap) response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
         else if (sql === manifest.setup && hangingSetup) { done(); return }
-        else if (sql === manifest.snapshot) response = JSON.stringify({ wholeRows: 'unchanged' })
+        else if (sql === manifest.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
+        else if (sql === manifest.privilege.catalog) response = JSON.stringify(catalog())
+        else if (sql === manifest.privilege.revoke) serviceExecute = false
         else if (sql.includes('select public.snapshot_test_draft_for_owner_v1')) {
           const testId = sql.match(/_v1\('[a-f0-9-]+','([a-f0-9-]+)'/)![1]
           response = JSON.stringify({ version: 1, actor_id: manifest.fixture.owner, classroom: { id: manifest.fixture.classroom, teacher_id: manifest.fixture.owner },
@@ -156,5 +170,58 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(() => createDraftGetNativeContracts({ repository, reviewedHead: head, original, capturedResources: resources,
       containerId: resources[0].id, acceptedManifestSha256: '0'.repeat(64) })).toThrow()
     expect(mocks.spawn).not.toHaveBeenCalled(); expect(mocks.execFile).not.toHaveBeenCalled()
+  })
+  it('revokes only the exact snapshot grant for one probe and restores the full catalog and fixture', async () => {
+    const adapter = factory(); await adapter.setup()
+    const callback = vi.fn(async () => { expect(serviceExecute).toBe(false); return { status: 503 as const, rpcCalls: 1 as const, rawCode: '42501' as const } })
+    expect(await adapter.probeSnapshotPrivilegeDrift(callback)).toMatchObject({ privilegeRestored: true, fixtureUnchanged: true })
+    expect(callback).toHaveBeenCalledTimes(1); expect(serviceExecute).toBe(true)
+    await expect(adapter.probeSnapshotPrivilegeDrift(callback)).rejects.toThrow()
+    expect(callback).toHaveBeenCalledTimes(1)
+  })
+  it('restores grants and proves fixture/catalog equality even when the SDK callback throws', async () => {
+    const adapter = factory(); await adapter.setup()
+    await expect(adapter.probeSnapshotPrivilegeDrift(async () => { throw Error('private SDK failure') })).rejects.toThrow('exact project disposal required')
+    expect(serviceExecute).toBe(true)
+    expect(mocks.execFile.mock.calls.some(call => call[0] === 'docker' && call[1].includes('exec'))).toBe(true)
+    await expect(adapter.run()).rejects.toThrow()
+  })
+  it('rejects fixture mutation during the probe after restoring the exact grant', async () => {
+    const adapter = factory(); await adapter.setup()
+    await expect(adapter.probeSnapshotPrivilegeDrift(async () => { fixtureChanged = true; return { status: 503, rpcCalls: 1, rawCode: '42501' } })).rejects.toThrow()
+    expect(serviceExecute).toBe(true)
+  })
+  it('rejects a changed function definition during restoration', async () => {
+    const adapter = factory(); await adapter.setup()
+    await expect(adapter.probeSnapshotPrivilegeDrift(async () => { catalogChanged = true; return { status: 503, rpcCalls: 1, rawCode: '42501' } })).rejects.toThrow()
+    expect(serviceExecute).toBe(true)
+  })
+  it('rejects an unexpected original ACL without revoking or running the SDK callback', async () => {
+    const adapter = factory(); await adapter.setup(); serviceExecute = false
+    const callback = vi.fn(async () => ({ status: 503 as const, rpcCalls: 1 as const, rawCode: '42501' as const }))
+    await expect(adapter.probeSnapshotPrivilegeDrift(callback)).rejects.toThrow()
+    expect(callback).not.toHaveBeenCalled(); expect(serviceExecute).toBe(false)
+  })
+  it('rejects nonmatching SDK evidence and still restores the grant', async () => {
+    const adapter = factory(); await adapter.setup()
+    await expect(adapter.probeSnapshotPrivilegeDrift(async () => ({ status: 403, rpcCalls: 1, rawCode: '42501' }) as never)).rejects.toThrow()
+    expect(serviceExecute).toBe(true)
+  })
+  it('fails closed when grant restoration fails and forbids subsequent normal work', async () => {
+    const adapter = factory(); await adapter.setup(); restorationFails = true
+    await expect(adapter.probeSnapshotPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))).rejects.toThrow('exact project disposal required')
+    expect(serviceExecute).toBe(false)
+    await expect(adapter.run()).rejects.toThrow()
+  })
+  it('rejects a PUBLIC ACL before revoking the expected service grant', async () => {
+    const adapter = factory(); await adapter.setup(); publicGrant = true
+    const callback = vi.fn(async () => ({ status: 503 as const, rpcCalls: 1 as const, rawCode: '42501' as const }))
+    await expect(adapter.probeSnapshotPrivilegeDrift(callback)).rejects.toThrow()
+    expect(callback).not.toHaveBeenCalled(); expect(serviceExecute).toBe(true)
+  })
+  it('forbids a probe before exact fixture setup', async () => {
+    const callback = vi.fn(async () => ({ status: 503 as const, rpcCalls: 1 as const, rawCode: '42501' as const }))
+    await expect(factory().probeSnapshotPrivilegeDrift(callback)).rejects.toThrow()
+    expect(callback).not.toHaveBeenCalled(); expect(mocks.spawn).not.toHaveBeenCalled()
   })
 })

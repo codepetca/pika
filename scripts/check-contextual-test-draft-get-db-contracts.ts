@@ -185,6 +185,81 @@ export function draftGetContractsSql(f: DraftGetFixture) {
   return bounded(`begin;set local lock_timeout='1s';set local statement_timeout='30s';
 ${draftGetGuardSql(f)}
 ${draftGetFixturePresenceSql(f)}
+-- Actual role/capability failures remain raw42501. This grant drift and its
+-- restoration exist only in the surrounding rollback transaction.
+revoke execute on function public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamptz) from service_role;
+revoke execute on function public.finish_test_draft_get_for_owner_v1(uuid,uuid,uuid,text,text,jsonb,timestamptz) from service_role;
+set local role service_role;
+do $privilege$ begin
+ begin
+  perform ${snapshot(f.repairTest)};
+  raise exception 'Actual42501 missing for snapshot grant drift';
+ exception when sqlstate '42501' then null;end;
+ begin
+  perform ${finish(f.repairTest,'repair',q('0'.repeat(64)))};
+  raise exception 'Actual42501 missing for final grant drift';
+ exception when sqlstate '42501' then null;end;
+end;$privilege$;
+reset role;
+grant execute on function public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamptz) to service_role;
+grant execute on function public.finish_test_draft_get_for_owner_v1(uuid,uuid,uuid,text,text,jsonb,timestamptz) to service_role;
+-- 045's automatic stamp trigger would overwrite a direct UPDATE. This sealed
+-- fixture-only later BEFORE trigger establishes a future invalid preimage.
+create function private.proof_draft_get_future_stamp_${f.tag.slice(-12)}() returns trigger language plpgsql set search_path='' as $future$
+begin if new.id=${q(f.repairDraft)}::uuid then new.updated_at:=pg_catalog.transaction_timestamp()+interval '1 day';end if;return new;end;$future$;
+revoke all on function private.proof_draft_get_future_stamp_${f.tag.slice(-12)}() from public,anon,authenticated,service_role;
+create trigger z_proof_draft_get_future_stamp_${f.tag.slice(-12)} before update on public.assessment_drafts
+for each row execute function private.proof_draft_get_future_stamp_${f.tag.slice(-12)}();
+do $future_contract$ declare s jsonb;b jsonb;c jsonb;a jsonb;original_draft jsonb;original_class jsonb;original_archive jsonb;begin
+ select to_jsonb(d) into original_draft from public.assessment_drafts d where id=${q(f.repairDraft)};
+ select to_jsonb(classroom) into original_class from public.classrooms classroom where id=${q(f.classroom)};
+ select to_jsonb(revision) into original_archive from public.classroom_archive_revisions revision where classroom_id=${q(f.classroom)};
+ begin
+  update public.assessment_drafts set updated_at=pg_catalog.transaction_timestamp()+interval '1 day' where id=${q(f.repairDraft)};
+  drop trigger z_proof_draft_get_future_stamp_${f.tag.slice(-12)} on public.assessment_drafts;
+  s:=${snapshot(f.repairTest)};b:=s->'draft';
+  if (b->>'updated_at')::timestamptz<=pg_catalog.transaction_timestamp()
+   or b->'content'<>'{"question_identity_version":1}'::jsonb then raise exception 'Future prior stamp not established';end if;
+  select to_jsonb(classroom) into c from public.classrooms classroom where id=${q(f.classroom)};
+  select to_jsonb(revision) into a from public.classroom_archive_revisions revision where classroom_id=${q(f.classroom)};
+  begin perform ${finish(f.repairTest,'repair')};raise exception 'Future prior repair stamp accepted';exception when sqlstate 'PT503' then null;end;
+  if (select to_jsonb(d) from public.assessment_drafts d where id=${q(f.repairDraft)}) is distinct from b
+  or (select to_jsonb(classroom) from public.classrooms classroom where id=${q(f.classroom)}) is distinct from c
+  or (select to_jsonb(revision) from public.classroom_archive_revisions revision where classroom_id=${q(f.classroom)}) is distinct from a
+  then raise exception 'Future prior stamp leaked draft/Class/revision';end if;
+  -- Roll back only the synthetic future-stamp setup after its assertions pass.
+  raise exception using errcode='PT499',message='synthetic_future_stamp_fixture_rollback';
+ exception when sqlstate 'PT499' then
+  if sqlerrm<>'synthetic_future_stamp_fixture_rollback' then raise;end if;
+ end;
+ if (select to_jsonb(d) from public.assessment_drafts d where id=${q(f.repairDraft)}) is distinct from original_draft
+ or (select to_jsonb(classroom) from public.classrooms classroom where id=${q(f.classroom)}) is distinct from original_class
+ or (select to_jsonb(revision) from public.classroom_archive_revisions revision where classroom_id=${q(f.classroom)}) is distinct from original_archive
+ then raise exception 'Future stamp fixture teardown differs';end if;
+end;$future_contract$;
+drop trigger z_proof_draft_get_future_stamp_${f.tag.slice(-12)} on public.assessment_drafts;
+-- Unrelated object-state faults must be preserved, not reported as owner denial.
+create function private.proof_draft_get_object_state_${f.tag.slice(-12)}() returns trigger language plpgsql set search_path='' as $state$
+begin if new.id=${q(f.repairDraft)}::uuid then raise exception using errcode='55000',message='synthetic_unrelated_object_state';end if;return new;end;$state$;
+revoke all on function private.proof_draft_get_object_state_${f.tag.slice(-12)}() from public,anon,authenticated,service_role;
+create trigger z_proof_draft_get_object_state_${f.tag.slice(-12)} after update on public.assessment_drafts
+for each row execute function private.proof_draft_get_object_state_${f.tag.slice(-12)}();
+do $object_state$ declare s jsonb;b jsonb;c jsonb;a jsonb;begin
+ s:=${snapshot(f.repairTest)};b:=s->'draft';
+ select to_jsonb(classroom) into c from public.classrooms classroom where id=${q(f.classroom)};
+ select to_jsonb(revision) into a from public.classroom_archive_revisions revision where classroom_id=${q(f.classroom)};
+ begin
+  perform ${finish(f.repairTest,'repair')};raise exception 'Unrelated55000 was remapped or suppressed';
+ exception
+  when sqlstate '55000' then if sqlerrm<>'synthetic_unrelated_object_state' then raise;end if;
+  when sqlstate 'PT403' then raise exception 'Unrelated55000 was remapped';
+ end;
+ if (select to_jsonb(d) from public.assessment_drafts d where id=${q(f.repairDraft)}) is distinct from b
+ or (select to_jsonb(classroom) from public.classrooms classroom where id=${q(f.classroom)}) is distinct from c
+ or (select to_jsonb(revision) from public.classroom_archive_revisions revision where classroom_id=${q(f.classroom)}) is distinct from a
+ then raise exception 'Unrelated55000 leaked draft/Class/revision';end if;
+end;$object_state$;
+drop trigger z_proof_draft_get_object_state_${f.tag.slice(-12)} on public.assessment_drafts;
 do $contracts$ declare s jsonb;r jsonb;before_row jsonb;bp bigint;ar bigint;n integer;begin
  -- Privileges bind entrypoints and the sealed common helper independently.
  foreach n in array array[1,2] loop
@@ -348,7 +423,7 @@ end;$${label}$;`).join('\n')
   return bounded(`begin;set local lock_timeout='1s';set local statement_timeout='30s';
 ${draftGetGuardSql(f)}
 ${draftGetFixturePresenceSql(f)}
-do $drift$ declare s jsonb;next_s jsonb;b jsonb;candidate jsonb;padding_bytes integer;begin
+do $drift$ declare s jsonb;next_s jsonb;b jsonb;candidate jsonb;padding_bytes integer;original_category uuid;begin
  s:=${snap(f.repairTest)};
  update public.test_questions set ai_reference_cache_key='synthetic',ai_reference_cache_answers='["synthetic"]'::jsonb,
  ai_reference_cache_model='synthetic',ai_reference_cache_generated_at=clock_timestamp() where id=${q(f.question)};
@@ -373,9 +448,10 @@ do $drift$ declare s jsonb;next_s jsonb;b jsonb;candidate jsonb;padding_bytes in
  begin perform ${finish(f.repairTest,'repair')};raise exception 'Archive after snapshot accepted';exception when sqlstate 'PT403' then null;end;
  update public.classrooms set archived_at=null where id=${q(f.classroom)};
  s:=${snap(f.repairTest)};
- update public.tests set classroom_id=${q(f.otherClassroom)} where id=${q(f.repairTest)};
+ select gradebook_category_id into original_category from public.tests where id=${q(f.repairTest)};
+ update public.tests set classroom_id=${q(f.otherClassroom)},gradebook_category_id=null where id=${q(f.repairTest)};
  begin perform ${finish(f.repairTest,'repair')};raise exception 'Moved Test followed';exception when sqlstate 'PT409' then null;end;
- update public.tests set classroom_id=${q(f.classroom)} where id=${q(f.repairTest)};
+ update public.tests set classroom_id=${q(f.classroom)},gradebook_category_id=original_category where id=${q(f.repairTest)};
  update public.assessment_drafts set version=2147483647 where id=${q(f.repairDraft)};
  s:=${snap(f.repairTest)};
  begin perform ${finish(f.repairTest,'repair')};raise exception 'Integer overflow accepted';exception when sqlstate 'PT503' then null;end;

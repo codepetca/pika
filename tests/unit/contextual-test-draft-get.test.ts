@@ -133,10 +133,67 @@ describe('contextual owner Test draft GET', () => {
   ])('rejects final substitutions, stamp/version drift and policy drift %#', async mutate => {
     finalMutate = mutate; await status(503); expect(rpc).toHaveBeenCalledTimes(2)
   })
-  it.each([['42501', 403], ['PT403', 403], ['PT404', 404], ['PT409', 409], ['23505', 409], ['55P03', 409], ['40P01', 409], ['40001', 409], ['PT503', 503], ['PGRST202', 503], ['42883', 503], ['XX000', 503]])('maps %s without leaking private messages', async (code, expected) => {
+  it.each([['42501', 503], ['PT403', 403], ['PT404', 404], ['PT409', 409], ['23505', 409], ['55P03', 409], ['40P01', 409], ['40001', 409], ['PT503', 503], ['PGRST202', 503], ['42883', 503], ['XX000', 503]])('maps %s without leaking private messages', async (code, expected) => {
     failure = { code, message: 'private source row' }
     await expect(invoke()).rejects.toMatchObject({ statusCode: expected, message: expect.not.stringContaining('private') })
     expect(rpc).toHaveBeenCalledTimes(1)
+  })
+  it.each(['snapshot', 'final'])('maps raw %s privilege failures to unavailable even when PostgREST reports 403', async phase => {
+    const original = rpc.getMockImplementation()!
+    rpc.mockImplementation((name, args) => {
+      if ((phase === 'snapshot') === (name === 'snapshot_test_draft_for_owner_v1')) {
+        return { abortSignal: () => Promise.resolve({ data: null, status: 403, statusText: 'Forbidden',
+          error: { code: '42501', message: 'private privilege state', details: 'private table grant', hint: 'private owner identity' } }) }
+      }
+      return original(name, args)
+    })
+    await expect(invoke()).rejects.toMatchObject({ statusCode: 503, message: 'Unable to verify test draft' })
+    expect(rpc).toHaveBeenCalledTimes(phase === 'snapshot' ? 1 : 2)
+  })
+  it.each(['snapshot', 'final'])('fails closed on contradictory %s error/data without exposing private rows', async phase => {
+    const original = rpc.getMockImplementation()!
+    rpc.mockImplementation((name, args) => {
+      if ((phase === 'snapshot') === (name === 'snapshot_test_draft_for_owner_v1')) {
+        return { abortSignal: () => Promise.resolve({ data: { private: 'source row' }, status: 200,
+          error: { code: 'PT403', message: 'private grant state' } }) }
+      }
+      return original(name, args)
+    })
+    await expect(invoke()).rejects.toMatchObject({ statusCode: 503, message: 'Unable to verify test draft' })
+    expect(rpc).toHaveBeenCalledTimes(phase === 'snapshot' ? 1 : 2)
+  })
+  it.each(['snapshot', 'final'])('fails closed on a %s success body with an error HTTP status', async phase => {
+    const original = rpc.getMockImplementation()!
+    rpc.mockImplementation((name, args) => {
+      const query = original(name, args)
+      if ((phase === 'snapshot') === (name === 'snapshot_test_draft_for_owner_v1')) {
+        return { abortSignal: (signal: AbortSignal) => query.abortSignal(signal).then((envelope: Record<string, unknown>) => ({ ...envelope, status: 403 })) }
+      }
+      return query
+    })
+    await expect(invoke()).rejects.toMatchObject({ statusCode: 503, message: 'Unable to verify test draft' })
+    expect(rpc).toHaveBeenCalledTimes(phase === 'snapshot' ? 1 : 2)
+  })
+  it('rejects an invalid future-stamped draft before the final repair dispatch', async () => {
+    vi.useFakeTimers(); vi.setSystemTime('2026-10-05T01:03:00Z')
+    Object.assign(source.draft, { content: null, updated_at: '2026-10-06T01:03:00Z' })
+    const before = structuredClone(source)
+    await expect(invoke()).rejects.toMatchObject({ statusCode: 503, message: 'Unable to verify test draft' })
+    expect(rpc).toHaveBeenCalledTimes(1); expect(source).toEqual(before)
+  })
+  it('preserves valid future-stamped inspection metadata', async () => {
+    vi.useFakeTimers(); vi.setSystemTime('2026-10-05T01:03:00Z')
+    Object.assign(source.draft, { updated_at: '2026-10-06T01:03:00Z' })
+    const result = await invoke()
+    expect(result.draft.updated_at).toBe('2026-10-06T01:03:00Z')
+    expect(result.draft.version).toBe(7); expect(rpc.mock.calls[1][1].p_operation).toBe('inspect')
+  })
+  it.each(['active', 'closed'])('preserves future stamps on invalid %s draft inspection', async mode => {
+    vi.useFakeTimers(); vi.setSystemTime('2026-10-05T01:03:00Z')
+    source.test.status = mode; Object.assign(source.draft, { content: null, updated_at: '2026-10-06T01:03:00Z' })
+    const result = await invoke()
+    expect(result.draft.updated_at).toBe('2026-10-06T01:03:00Z')
+    expect(result.draft.version).toBe(7); expect(rpc.mock.calls[1][1].p_operation).toBe('inspect')
   })
   it('rejects oversized raw draft before normalization can remove extra data', async () => {
     Object.assign(source.draft.content, { extra: 'é'.repeat(1024 * 1024) })

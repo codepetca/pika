@@ -171,7 +171,11 @@ exception
   when sqlstate '40P01' or sqlstate '55P03' or sqlstate '40001' or sqlstate '23505' then
     raise exception using errcode = 'PT409', message = 'test_draft_busy';
   when sqlstate '55000' then
-    raise exception using errcode = 'PT403', message = 'test_draft_fenced';
+    if sqlerrm in ('classroom_purge_active', 'attendance_decommission_active') then
+      raise exception using errcode = 'PT403', message = 'test_draft_fenced';
+    else
+      raise;
+    end if;
 end;
 $function$;
 revoke all on function public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamptz) from public, anon, authenticated;
@@ -250,6 +254,12 @@ begin
     v_before := pg_catalog.jsonb_populate_record(null::public.assessment_drafts, v_source->'draft');
     v_expected := v_before;
   end if;
+  -- 045 always overwrites updated_at with transaction_timestamp(). Reject a
+  -- future preimage before DML so the app's monotonic stamp check cannot fail
+  -- after a repair has already committed. Inspection retains historical stamps.
+  if p_operation = 'repair' and v_before.updated_at > pg_catalog.transaction_timestamp() then
+    raise exception using errcode = 'PT503', message = 'test_draft_invalid_source';
+  end if;
   if pg_catalog.clock_timestamp() >= v_phase_deadline then
     raise exception using errcode = 'PT503', message = 'test_draft_deadline';
   end if;
@@ -320,7 +330,11 @@ exception
   when sqlstate '40P01' or sqlstate '55P03' or sqlstate '40001' or sqlstate '23505' then
     raise exception using errcode = 'PT409', message = 'test_draft_busy';
   when sqlstate '55000' then
-    raise exception using errcode = 'PT403', message = 'test_draft_fenced';
+    if sqlerrm in ('classroom_purge_active', 'attendance_decommission_active') then
+      raise exception using errcode = 'PT403', message = 'test_draft_fenced';
+    else
+      raise;
+    end if;
 end;
 $function$;
 revoke all on function public.finish_test_draft_get_for_owner_v1(uuid,uuid,uuid,text,text,jsonb,timestamptz) from public, anon, authenticated;

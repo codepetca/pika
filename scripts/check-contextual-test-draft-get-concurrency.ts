@@ -34,7 +34,7 @@ select revision from public.classroom_archive_revisions where classroom_id=${q(f
       holderSql: `set local role service_role;${save}select public.publish_test_from_draft_atomic(${q(f.owner)},${q(f.repairTest)},8);reset role;` },
     { label: 'archive', testId: f.repairTest, operation: 'repair', holderSql: `update public.classrooms set archived_at=clock_timestamp() where id=${q(f.classroom)};` },
     { label: 'owner_transfer', testId: f.repairTest, operation: 'repair', holderSql: `update public.classrooms set teacher_id=${q(f.outsider)} where id=${q(f.classroom)};` },
-    { label: 'test_move', testId: f.repairTest, operation: 'repair', holderSql: `update public.tests set classroom_id=${q(f.otherClassroom)} where id=${q(f.repairTest)};` },
+    { label: 'test_move', testId: f.repairTest, operation: 'repair', holderSql: `update public.tests set classroom_id=${q(f.otherClassroom)},gradebook_category_id=null where id=${q(f.repairTest)};` },
     { label: 'purge_fence', testId: f.repairTest, operation: 'repair',
       holderSql: `do $fence$ begin if not public.classroom_purge_try_lock(${q(f.classroom)}) then raise exception 'Holder fence unavailable';end if;end;$fence$;` },
   ].map(row => Object.freeze(row as Schedule)))

@@ -1096,3 +1096,16 @@ Root initialfocused EXIT1:373PASS17files/architecture/UI/design PASS, exactly2
 pendinggeneratedRPC TypeScript errors; no skipped/fabricated green gate and focused
 lint not reached.15TS audit PASS; individual worker/scopedlint receipts retained.
 Draft fixed-source checkpoint/review planned before any isolated SQL/native/gen.
+PR1473 draft c90d3981 initial independent wave completed: requestedSol5.6/high
+security8m23 andSol6.1/high compatibility6m09 (Terra unavailable fallback), manual
+elapsed/effectiveconfig/tokensunknown. Accepted2P1 future-stamp repair atomicity
+and schema/privilege-error classification plusP2 legal category fixture movement.
+One disjoint SQL/app correction batch; no native acceptance or SQL execution yet.
+Batch1 SQL14/sourcePASS after3RED, manual3m42; app220/5filesPASS after6RED,
+manual8m10 withnativeextension20/offline checks (no nativeTDDclaim). Root200/4
+and251/7 integrationchecksPASS beforelast3native-onlytest additions; finalfocused
+stillrequired. Privilegeprobeexact1SDKraw42501→503/restoredACL+definition/rows;
+25totalRPC<=unchanged30, noforcedprobe. Roottransport1RED→99fullproofGREEN.
+Scopedlint/auditPASS; SAMEcanonicalbaselineverifyPASS, not recaptured. No DBwrite.
+Finalbatch1focused398/17+architecture/UI/designPASS; EXIT1only2newRPCtypeerrors,
+focusedlintnotreached. Genuinegenerator/nativeproof remainpending, PRstaysdraft.

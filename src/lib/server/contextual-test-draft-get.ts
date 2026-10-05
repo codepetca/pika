@@ -48,7 +48,7 @@ export async function getContextualTestDraft(input: { supabase: ReturnType<typeo
     const { data, error } = envelope.data
     if (error) {
       if (data !== null) throw unavailable()
-      if (['42501', 'PT403'].includes(error.code)) throw new ApiError(403, 'Forbidden')
+      if (error.code === 'PT403') throw new ApiError(403, 'Forbidden')
       if (error.code === 'PT404') throw new ApiError(final ? 409 : 404, final ? 'Test draft changed' : 'Test not found')
       if (['PT409', '23505', '55P03', '40P01', '40001'].includes(error.code)) throw new ApiError(409, 'Test draft changed')
       throw unavailable()
@@ -88,6 +88,9 @@ export async function getContextualTestDraft(input: { supabase: ReturnType<typeo
     } else {
       operation = draft ? (test.status === 'draft' ? 'repair' : 'inspect') : 'create'
       if (operation !== 'inspect' && test.blueprint_archived_at !== null) throw new ApiError(403, 'Forbidden')
+      // A future prior repair stamp cannot satisfy the monotonic-stamp
+      // postcondition. SQL independently rejects it before DML under its lock.
+      if (operation === 'repair' && Date.parse(draft!.updated_at) > Date.now()) throw unavailable()
       if (new Set(questions.map(getPortableTestQuestionIdentity)).size !== questions.length) throw ambiguous()
       checkDeadline()
       const rebuilt = buildTestDraftContentFromRows(test, questions)
