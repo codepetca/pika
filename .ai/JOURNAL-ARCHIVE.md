@@ -37433,6 +37433,7 @@ actualmain preserves complete source tree and unrelated stashes; no resequencing
 or applied-SQL edits. Local/main242;243UNAPPLIED. Frozen-source highriskreview next.
 
 <!-- pika-session-log-archive-batch:c8e70793abaafb87bbd72d3f9f07281b67a3185e494f1811e13972b2779a4554 -->
+<!-- pika-session-log-archive-batch:7710200eba6f49614205329a84452c77bc45e23f4be1df8b9fe87896aeb29b37 -->
 ## 2026-10-04 — Inline-image read local verification
 
 1460 draft47724239 distinct5.6Sol/high security+compatibility initial reviews CLEAN.
