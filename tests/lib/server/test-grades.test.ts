@@ -223,6 +223,7 @@ describe('test grade server workflows', () => {
   })
 
   it.each([
+    [{ code: 'PT409', message: 'Test response grade changed; reload and retry' }, 409],
     [{ code: '40001', message: 'Test response grade changed; reload and retry' }, 409],
     [{ code: '42501', message: 'Classroom is archived' }, 403],
     [{ code: 'P0002', message: 'Test response not found' }, 404],

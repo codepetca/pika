@@ -1007,7 +1007,7 @@ STALE_CLEAR_STATE="$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres
    from public.test_responses
    where id = 'a9000000-0000-4000-8000-000000000215';")"
 if [[ "$STALE_CLEAR_STATUS" -eq 0 ]] \
-  || ! grep -q '40001' "$TMP_ONE" \
+  || ! grep -q 'PT409' "$TMP_ONE" \
   || [[ "$STALE_CLEAR_STATE" != "2:2.00:Concurrent newer grade" ]]
 then
   echo "Stale bulk clear erased a newer grade: $(cat "$TMP_ONE") / $STALE_CLEAR_STATE" >&2
@@ -1052,7 +1052,7 @@ CLEAR_PHANTOM_STATUS=$?
 set -e
 wait "$CLEAR_PHANTOM_INSERTER_PID"
 if [[ "$CLEAR_PHANTOM_STATUS" -eq 0 ]] \
-  || ! grep -q '40001' "$TMP_ONE" \
+  || ! grep -q 'PT409' "$TMP_ONE" \
   || [[ "$(docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -Atc \
     "select score || ':' || feedback from public.test_responses where id = 'a9000000-0000-4000-8000-000000000217';")" != "4.00:Concurrent inserted grade" ]]
 then
@@ -1528,7 +1528,7 @@ set -e
 wait "$AI_FIRST_PID"
 
 if [[ "$AI_FIRST_MANUAL_STATUS" -eq 0 ]] \
-  || ! grep -q '40001' "$TMP_ONE" \
+  || ! grep -q 'PT409' "$TMP_ONE" \
   || ! grep -q 'Test response grade changed' "$TMP_ONE"
 then
   echo "AI-first grading order did not reject the stale manual write: $(cat "$TMP_ONE")" >&2
