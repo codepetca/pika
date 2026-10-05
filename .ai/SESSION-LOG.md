@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Locked learner writes local verification and parent reconciliation
-
-1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
-(0queue/1696runseconds), tree parity and canonical cleanFF verified.1458 initial
-security/compatibility source reviews clean (distinct5.6Sol/high reviewers after
-two6.1 launch failures, both counted).241 applied once locally; exact001–241history
-and genuine generated types/check zero drift. First rollback fixture run failed
-five null due dates, but rollback and separate whole-canonical baseline PASS.
-Proof-only correction regression1RED/20PASS then21GREEN; targeted review clean.
-New241 and unchanged save rollback harnesses PASS, including actual nonempty
-artifact freeze/preflight and nonvacuous legacy/membershipPal; full canonical
-public/private/Storage fingerprints,168metadata/settings/cron/resources unchanged.
-
-Rebasecc206cce onto actual2595main keeps immutable241SQL/rollback/tests/floor
-bytes unchanged; resolves only continuity conflicts, preserves both archive batch
-markers and one identical historical entry. No stash/pop/history repair/reapply.
-104rebase checks PASS. Strict001–241 combined replay PASS9projections/6original
-revocations plus original list controls; nine sealed false-created/view RPCstubs,
-zero actualopenRPC/Storage/provider network. Both forcedmodes exit1/exact2markers,
-exactteardown/fullcanonicalunchanged PASS; private0600 receipts oe8GJq/mZNJ54.
-No realopen/signing/nonemptySDKsupplement/authHTTP/browser proof claimed. Existing
-committed-fixture concurrency is finalCI ephemeral-only because168 retains private
-identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clock,
-5launch/1target/2batch retained; factual receipt batch/finalcumulative/CI next.
-Productionlast225/admission/home/cutover/account/billing/provider unchanged;
-batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
-
 ## 2026-10-04 — Supplemental learner permission source preparation
 
 1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
@@ -926,3 +899,17 @@ only those two prefixes, retaining verified001–248 history and twelve unchange
 controls from the production receipt. CI implementation and tests unchanged.
 Affected/focused verification and independent launch9 are pending; no budget
 reset or further review extension. Host/private runner activation remains pending.
+
+## 2026-10-05 — Full native protocol coverage timeout stabilization
+
+Coordinator-reported Linux ARM64 4 CPU/12 GiB baseline at 43c24ab: full coverage
+12,703 passed/1 failed/8 skipped; the finite native draft GET protocol took
+5,842 ms against Vitest's 5,000 ms default. Its 12 offline schedules repeatedly
+hash the complete migration inventory. Give only that test 15,000 ms; assertions,
+fixtures, runtime guards/caps and coverage configuration remain unchanged.
+Locked dependency setup/startup passed. Isolated CI=true V8 coverage:22/22 passed,
+18.96 s; exit1 is the unchanged whole-project threshold failure for one test file.
+Native/TeacherBlueprintTab/component UiGallery targeted:38/3 passed,12.77 s.
+Focused --base origin/main passed211/14 plusarchitecture/TypeScript/lint.
+Coordinator-owned exact-SHA Linux DB/browser benchmarks remain pending.
+No live DB/VM, workflow/routing, production or repository visibility changes.

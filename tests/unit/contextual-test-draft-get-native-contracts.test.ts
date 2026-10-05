@@ -152,6 +152,8 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(children).toHaveLength(spawnedChildren)
     expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
   })
+  // All 12 mocked schedules repeatedly hash the complete migration inventory;
+  // allow bounded coverage overhead for this full-protocol regression.
   it('runs the finite protocol through persistent sessions and binds every exact child command', async () => {
     const adapter = factory(); await adapter.setup(); const result = await adapter.run()
     expect(result.races.schedules).toHaveLength(DRAFT_GET_CAPS.schedules)
@@ -162,7 +164,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     for (const args of mocks.spawn.mock.calls.map(call => call[1] as string[])) {
       expect(args).toContain(resources[0].id); expect(args).toContain('-XqAt'); expect(args).not.toContain('-h')
     }
-  })
+  }, 15000)
   it('terminates the exact remote backend and reaps the child after a timed-out action', async () => {
     vi.useFakeTimers(); hangingSetup = true
     const adapter = factory(); const pending = adapter.setup(); const assertion = expect(pending).rejects.toThrow('exact project disposal required')
