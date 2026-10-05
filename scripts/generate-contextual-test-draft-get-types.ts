@@ -29,7 +29,7 @@ export function testDraftGetTypeGenerationPlan(repository: string, reviewedHead:
   const workdir = assignmentListProofWorkdir(projectId)
   assert.equal(realpathSync(workdir), workdir)
   const migrations = loadAssignmentListReviewedMigrations(repository)
-  assert.equal(migrations.length, 247)
+  assert(migrations.length >= 247, 'Complete schema must include the 001–247 baseline')
   for (const migration of migrations) {
     assert.equal(sha(readFileSync(join(workdir, 'supabase/migrations', migration.name), 'utf8')), migration.sha256)
   }

@@ -9,7 +9,8 @@ Auth/reset and two synthetic signed downloads PASS. Reopened Return caused
 custom 40001 retries; three exact canary backends stopped, work unreturned.
 Main now owns 247; the same conflict fix is resequenced248. Owner task-wide
 approval waives further requests; combined247–248 preview/CI/deployment pending.
-Lifecycle canaries, fixture cleanup and traffic release remain pending.
+Fixed247-count harness guards now hash the complete chain, retaining drift checks.
+Lifecycle, cleanup and release pending.
 
 Fresh post-apply controls match pre-apply: admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.

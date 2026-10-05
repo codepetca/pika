@@ -48,7 +48,7 @@ export type DraftGetTarget = Readonly<{
 export function draftGetMigrationManifestSha256(repository: string) {
   const directory = resolve(repository, 'supabase/migrations')
   const names = readdirSync(directory).filter(name => name.endsWith('.sql')).sort()
-  assert.equal(names.length, 247, 'Exact complete schema 001–247 required')
+  assert(names.length >= 247, 'Complete schema must include the 001–247 baseline')
   names.forEach((name, index) => assert(name.startsWith(`${String(index + 1).padStart(3, '0')}_`), 'Migration history differs'))
   return hash(JSON.stringify(names.map(name => ({ name, sha256: hash(readFileSync(resolve(directory, name), 'utf8')) }))))
 }

@@ -48,6 +48,14 @@ describe('reviewed isolated draft GET type generation, offline only', () => {
     expect(plan.outputPath).toContain(head)
     expect(state.writes).not.toHaveBeenCalled()
   })
+  it('includes later migrations in the reviewed manifest and still rejects changed copies', () => {
+    const baseline = testDraftGetTypeGenerationPlan(repository, head, projectId)
+    state.count = 248
+    const extended = testDraftGetTypeGenerationPlan(repository, head, projectId)
+    expect(extended.migrationManifestSha256).not.toBe(baseline.migrationManifestSha256)
+    state.copiesChanged = true
+    expect(() => testDraftGetTypeGenerationPlan(repository, head, projectId)).toThrow()
+  })
   it('rejects canonical project before any read or command', () => {
     expect(() => testDraftGetTypeGenerationPlan(repository, head, 'pika')).toThrow()
     expect(run).not.toHaveBeenCalled()
