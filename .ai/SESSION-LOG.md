@@ -1181,3 +1181,5 @@ telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollo
 ## 2026-10-05 — Test conflict retry correction prepared
 
 Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 247 and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. New 247 application requires separate exact-target permission.
+
+Owner reviewed ed330c6; CI37257238985 passed build/unit and real browser lifecycle, but the SQL lifecycle harness still caught the old serialization_failure code. Corrected its two catches and the manual-grading stale-batch catch to PT409; SQL/API fix unchanged. Focused297 passed; required database CI and renewed correction review remain pending. Public traffic remains held.

@@ -1,4 +1,4 @@
--- Source-only regression harness for migration 244. DO NOT run without approval
+-- Source-only regression harness for migrations 244/247. DO NOT run without approval
 -- naming the local target and migration. All fixture/data writes roll back.
 -- Sequence allocations do not roll back (normal PostgreSQL sequence behavior).
 \set ON_ERROR_STOP on
@@ -142,7 +142,7 @@ begin
   delete from public.classroom_enrollments where classroom_id='a2440000-0000-4000-8000-000000000010' and student_id=absent;
   perform public.update_test_student_access_atomic(mixed,array[student,absent],'open',teacher);
   raise exception 'Partial selected membership was accepted';
- exception when serialization_failure then null; end;
+ exception when sqlstate 'PT409' then null; end;
  begin
   update public.classrooms set archived_at=now() where id='a2440000-0000-4000-8000-000000000010';
   perform public.update_test_student_access_atomic(mixed,array[student],'open',teacher);
@@ -168,7 +168,7 @@ begin
  perform public.update_test_student_access_atomic(mixed, array[student], 'open', teacher);
  if exists (select 1 from public.test_responses response where test_id=mixed) then raise exception 'Reopen retained materialized closure rows'; end if;
  begin perform public.return_test_attempts_checked_atomic(mixed,array[student],teacher); raise exception 'Reopened attempt returned';
- exception when serialization_failure then null; end;
+ exception when sqlstate 'PT409' then null; end;
  perform public.start_test_attempt_revision_atomic(blank, student);
  perform public.close_test_for_grading_atomic(blank, teacher);
  if not exists (select 1 from public.test_responses where test_id=blank and selected_option is null and score=0) then raise exception 'Global closure omitted blank MC zero'; end if;

@@ -501,7 +501,7 @@ begin
       ),
       '2026-07-14T16:00:00Z'
     );
-  exception when serialization_failure then
+  exception when sqlstate 'PT409' then
     v_rejected := true;
   end;
   if not v_rejected then
