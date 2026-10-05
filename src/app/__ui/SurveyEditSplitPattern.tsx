@@ -169,14 +169,14 @@ export function SurveyEditSplitPattern() {
             <FormField label="Title" required error={titleError} labelAccessory={(
               <div className="flex items-center gap-1">
                 <SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
-                <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" items={[
+                <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" disabled={code} variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" items={[
                   { id: 'results', label: 'Show class results to students', checked: showResults, checkedRole: 'menuitemcheckbox', onSelect: () => { setShowResults(!showResults); change() } },
                   { id: 'dynamic', label: 'Allow students to update responses', checked: dynamicResponses, checkedRole: 'menuitemcheckbox', onSelect: () => { setDynamicResponses(!dynamicResponses); change() } },
                 ]} />
                 <Tooltip content="Close"><Button variant="ghost" size="sm" aria-label="Close survey edit prototype" onClick={() => setOpen(false)} className="h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
               </div>
             )}>
-              <Input value={title} placeholder="Title" maxLength={200} onChange={(event) => { setTitle(event.target.value); change() }} />
+              <Input disabled={code} value={title} placeholder="Title" maxLength={200} onChange={(event) => { setTitle(event.target.value); change() }} />
             </FormField>
             <div className="rounded-md border border-border bg-surface px-3 py-2">
               <div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Questions</p><p className="text-xs text-text-muted">{questions.length} total</p></div>
@@ -195,7 +195,7 @@ export function SurveyEditSplitPattern() {
             {code ? (
               <div className="flex min-h-0 flex-1 flex-col gap-3">
                 <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium">Survey Markdown</p><Button size="sm" onClick={applyMarkdown}>Apply Markdown</Button></div>
-                <p className="text-xs text-text-muted">Edit the complete survey structure, then apply to return to questions.</p>
+                <p className="text-xs text-text-muted">Edit the title, settings, and questions here, then apply to return to questions.</p>
                 {markdownError ? <p role="alert" className="whitespace-pre-wrap text-sm text-danger">{markdownError}</p> : null}
                 <textarea aria-label="Survey markdown editor" value={markdown} spellCheck={false} onChange={(event) => setMarkdown(event.target.value)} className="min-h-96 flex-1 resize-none rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>

@@ -108,6 +108,8 @@ test('prototypes survey editing with accessible split panes and local authoring 
   await expect(actions).toBeFocused()
 
   await details.getByRole('button', { name: 'Markdown', exact: true }).click()
+  await expect(details.getByRole('textbox', { name: 'Title' })).toBeDisabled()
+  await expect(settings).toBeDisabled()
   const markdown = content.getByRole('textbox', { name: 'Survey markdown editor' })
   const originalMarkdown = await markdown.inputValue()
   expect(originalMarkdown).toContain('Show Results: true')

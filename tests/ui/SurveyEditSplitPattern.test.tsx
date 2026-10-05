@@ -23,6 +23,19 @@ describe('SurveyEditSplitPattern', () => {
     expect(screen.getByRole('button', { name: 'Publish', exact: true })).toBeEnabled()
   })
 
+  it('keeps title and settings in one editing surface while Markdown is open', () => {
+    const editor = openPrototype()
+    fireEvent.click(editor.getByRole('button', { name: 'Markdown', exact: true }))
+    expect(editor.getByRole('textbox', { name: 'Title' })).toBeDisabled()
+    expect(editor.getByRole('button', { name: 'Settings', exact: true })).toBeDisabled()
+    const markdown = editor.getByRole('textbox', { name: 'Survey markdown editor' }) as HTMLTextAreaElement
+    fireEvent.change(markdown, { target: { value: markdown.value.replace('Title: Wetland field study feedback', 'Title: Updated title') } })
+    fireEvent.click(editor.getByRole('button', { name: 'Apply Markdown' }))
+    expect(editor.getByRole('textbox', { name: 'Title' })).toBeEnabled()
+    expect(editor.getByRole('textbox', { name: 'Title' })).toHaveValue('Updated title')
+    expect(editor.getByRole('button', { name: 'Settings', exact: true })).toBeEnabled()
+  })
+
   it('rejects a link question without replacing the authored survey', () => {
     const editor = openPrototype()
     fireEvent.click(editor.getByRole('button', { name: 'Markdown', exact: true }))

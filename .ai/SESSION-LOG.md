@@ -885,3 +885,6 @@ against Test at matching desktop viewport, plus stacked mobile/open and preview.
 GPT6.1Sol/medium bounded worker delivered focused browser coverage in one pass,
 roughly3min with no implementation rework; weekly48% remaining at start.
 New prototype remains experimental pending owner feedback; no shared-shell extraction.
+
+Prototype independent GPT6.1Sol/medium review found Markdown metadata snapshot
+overwrite; locked Title/Settings while code owns metadata and added regression.
