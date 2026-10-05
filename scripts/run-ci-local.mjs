@@ -215,20 +215,21 @@ export function importedEnvironment(path) {
   return env
 }
 
-async function executeStep(script, cwd, env, onChild, logPath) {
+export async function executeStep(script, cwd, env, onChild, logPath, { terminationGraceMs = 10_000 } = {}) {
   return await new Promise((resolveStep, reject) => {
     const log = openSync(logPath, 'w', 0o600)
     const child = spawn('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', script], { cwd, env, stdio: ['ignore', log, log], detached: true })
-    onChild(child)
     let closed = false
     let hardKill
-    const timeout = setTimeout(() => {
+    const terminate = () => {
       try { process.kill(-child.pid, 'SIGTERM') } catch {}
-      hardKill = setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL') } catch {} }, 10_000)
-    }, script === 'supabase stop --no-backup' ? 120_000 : 90 * 60_000)
+      hardKill ??= setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL') } catch {} }, terminationGraceMs)
+    }
+    const timeout = setTimeout(terminate, script === 'supabase stop --no-backup' ? 120_000 : 90 * 60_000)
     const finish = () => { clearTimeout(timeout); clearTimeout(hardKill); if (!closed) closeSync(log); closed = true; onChild(null) }
     child.once('error', error => { finish(); reject(error) })
     child.once('exit', (code, signal) => { finish(); resolveStep(code === 0 ? 0 : code ?? (signal ? 128 : 1)) })
+    onChild(child, terminate)
   })
 }
 
@@ -320,11 +321,11 @@ async function main() {
   command('git', ['-c', 'core.hooksPath=/dev/null', 'clone', '--no-hardlinks', '--no-checkout', '--', root, checkout], root, env)
   command('git', ['-c', 'core.hooksPath=/dev/null', 'checkout', '--detach', sha], checkout, env)
   stripEnvironmentFiles(checkout)
-  let child = null
+  let terminateChild = null
   let interrupted = false
   const interrupt = () => {
     interrupted = true
-    if (child) { try { process.kill(-child.pid, 'SIGTERM') } catch {} }
+    terminateChild?.()
   }
   process.on('SIGINT', interrupt)
   process.on('SIGTERM', interrupt)
@@ -332,7 +333,10 @@ async function main() {
   try {
     for (const job of plan) {
       if (failed || interrupted) break
-      failed ||= await runLane(job, checkout, temp, env, { interrupted: () => interrupted, onChild: value => { child = value } })
+      failed ||= await runLane(job, checkout, temp, env, {
+        interrupted: () => interrupted,
+        onChild: (child, terminate) => { terminateChild = child ? terminate : null },
+      })
     }
     if (failed || interrupted) throw new Error(`Local CI ${interrupted ? 'interrupted' : 'failed'}. Receipts retained at ${temp}.`)
     console.log(`\nPASS canonical local CI for ${sha}. Receipts: ${temp}`)

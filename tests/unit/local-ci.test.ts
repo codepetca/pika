@@ -3,11 +3,40 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
+import { executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
 
 describe('local canonical CI', () => {
+  it('interrupts an actual TERM-resistant subprocess with bounded escalation', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'pika-ci-cancel-test-'))
+    const path = join(directory, 'step.log')
+    let terminate: (() => void) | undefined
+    const run = executeStep('trap "" TERM; printf "READY\\n"; while :; do sleep 1; done', directory,
+      localEnvironment(process.env), (_child, cancel) => { if (cancel) terminate = cancel }, path,
+      { terminationGraceMs: 25 })
+    try {
+      const deadline = Date.now() + 2_000
+      while (!readFileSync(path, 'utf8').includes('READY')) {
+        if (Date.now() > deadline) throw new Error('Subprocess did not become ready')
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+      expect(terminate).toBeTypeOf('function')
+      terminate?.()
+      let timeout: ReturnType<typeof setTimeout> | undefined
+      try {
+        const outcome = await Promise.race([run, new Promise((_, reject) => {
+          timeout = setTimeout(() => reject(new Error('Interruption did not terminate the subprocess')), 2_000)
+        })])
+        expect(outcome).not.toBe(0)
+      } finally { clearTimeout(timeout) }
+    } finally {
+      terminate?.()
+      await run
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
   it('retains every executable database and browser contract in canonical order', () => {
     const jobs = extractWorkflow(workflow())
     const database = selectPlan(jobs, 'database')[0]
