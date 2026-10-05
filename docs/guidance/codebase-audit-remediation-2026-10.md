@@ -62,6 +62,21 @@ The coordinated source/schema/application release is complete. The remaining
 advisory retains the owner-approved temporary exception through 2026-11-04 and
 its reassessment triggers below; this release does not establish zero advisories.
 
+### Owner follow-up disposition — 2026-10-05
+
+Stewart Chan directed this task to leave `braces` in place for now and remember
+the follow-up. It is deferred in [the roadmap](../core/roadmap.md#deferred-maintenance);
+retain the current mitigation, visible advisory and existing 2026-11-04 exception
+review date. No dependency remediation or scheduled monitoring is requested now.
+
+The owner also directed that remaining live verification be left and considered
+done. The additional dedicated production probes for AI summary completion,
+timeout/retry under real provider latency and teacher-closed zero scoring are
+**closed by owner waiver**, not newly executed checks. Existing required CI and
+the successful production canary receipts remain unchanged. These probes are no
+longer pending work for this audit. This task's follow-up disposition supersedes
+the original Phase 3 observation requirement for those additional probes.
+
 The original audit base was `3c5d7097e78258f70c368789e14f88ac2419c1d8`.
 Evidence remains in `/Users/stew/.codex/audits/pika/2026-10-04-broad/`:
 `audit-report.md`, `remediation-status.md`, `finding-acceptance.json`,

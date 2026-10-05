@@ -75,6 +75,17 @@ and documentation improvements retain their own task-specific checks.
   and a separately gated eventual deletion policy. This is proposed future work, not
   enabled behavior; see the [classroom lifecycle roadmap](../guidance/classroom-lifecycle-archives.md#future-archived-classroom-retention-proposal-not-enabled).
 
+## Deferred maintenance
+
+- [ ] **DEP-01 — `braces` dependency advisory (GHSA-vfj7-8cjw-p6xm).** Deferred
+  by Stewart Chan on 2026-10-05; leave the current dependency/toolchain in place.
+  Retain the depth mitigation and visible advisory. The existing temporary
+  exception review date remains **2026-11-04 (America/Toronto)**. When revisiting,
+  check for an official fixed release or compatible parent-tool updates, then
+  verify glob/watch/lint and styling compatibility. No automatic task is scheduled.
+  See [dependency security evidence](../guidance/dependency-security-2026-10.md)
+  and [the audit disposition](../guidance/codebase-audit-remediation-2026-10.md#owner-follow-up-disposition--2026-10-05).
+
 ---
 
 ## Deployment

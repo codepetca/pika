@@ -11,58 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Shared owner Assignment student-detail preparation
-
-PR1454 final19f91 cumulativeCLEAN; CI37174745897 exposed only CURRENT prefix
-format regression, locally reproduced. Docs-onlyf93a411e targetedCLEAN;
-47attendance/startup +266focused/1skip/staticPASS. Exact-head37175526420 running.
-No merge/production/rollout receipt yet. Seven launches/fourfix/fourtarget/onefinal
-retain original02:42:02 clock, extended04:42:02 deadline and absolute caps.
-
-Parallel isolated codex/contextual-assignment-student-detail-reads starts at
-reviewed19f91; publication/review waits for actual1454merge/base reconciliation.
-One GPT6.1Sol/high writer owns GET/helper/schema/route+SDKtests/contract; root
-owns immutable-lifecycle observer/CI/continuity/integration. Boundary map verified
-full owner-private DTO, no unavoidable SQL, perstatement exact target membership,
-archived-owner reads and historical owner-selftarget denial. No activation.
-Pure proof/CI guards TDDRED then24PASS, including exact-one-transition/no retry
-on ambiguous commit and no vacuous boundary acceptance. Observer wraps only the
-existing approved revoke request, native list observer restores/fingerprints once;
-no added fixture DML/platform/cleanup authority. Actual runtime not executed.
-DeepSeek remains explicitlyPAUSED; recent weekly19%, ordinary useallowed.
-Writer returned six owned files with107targeted/TypeScript/lint/architecturePASS.
-Root verified literal legacy body unchanged, added a bounded overview lazy-sign
-correction: two installed-SDK regressions failRED with one deferred POST after
-rejection, then passGREEN with no late request. Both readers' assertions observe
-a full event-loop turn. Combined187targeted/24proof-CI guards pass; full focused
-384PASS/8skip plus all static gates pass; explicit proof TypeScript programPASS.
-No real runtime execution or independent review yet; publication remains gated
-on1454actualmerge/base reconciliation. Nonempty supplements/signing remain unproven.
-
-Superseding receipt:1454 merged9591ee1e at04:27:09UTC after all five exactf93
-CI37175526420 gates passed (0queue/1754runseconds). Squash tree equals reviewed
-tree; canonical main cleanFF. Prepared detail branch reconciled onto actual merge;
-only CURRENT conflict resolved, preserving both histories and correct Prod DB
-prefix. Runtime unchanged except closed diagnostic repo-target alias correction.
-Production001–225 and all admission/cutover gates remain OFF. Weekly16% remaining,
-ordinary usage allowed; DeepSeek pause retained. Independent high-risk security
-and compatibility review follows focused verification; no live proof executed yet.
-
-Superseding1455receipt:initial4716a817 security5.6Sol/high and compatibility
-6.1Sol/high CLEAN. Actual coordinator CLI2.109.1 normal isolated proof PASS:
-8detailSDK/6live owner-transfer/member-remove first/later/terminal plus existing
-9listSDK/14listrevocations. Immutable original fixture/platform/transition SQL
-and restoration authority unchanged; exact fresh teardown/full canonical public,
-private/storage row fingerprints plus168metadata/settings/cron/resources match.
-Both forced modes accepted exact exit1/PASS+FAIL markers/no unexpected output;
-private0600receipts /private/tmp/pika-student-detail-cleanup.aRbYlu and
-/private/tmp/pika-student-detail-cleanup.kauZZN.384focused/8skip/all static/explicit
-proofTS/auditPASS. Executable source unchanged; docs-only receipt re-review precedes
-ready/exact-headCI/mainmerge. Original review04:29:28UTC/counters2launch/0fix
-retained; human-authorized extension through06:29:28UTC with absolute caps intact.
-No nonempty supplemental/signing/authHTTP/browser/provider/production proof claim;
-local001–239/prod001–225 and admission/cutover/account/billing/provider settings unchanged.
-
 ## 2026-10-04 — Locked Classwork Assignment-open prerequisite preparation
 
 1455 finalea080944 receipt review CLEAN;76 docs tests PASS, executable tree
@@ -1067,3 +1015,7 @@ GitHub rejected normalmerge1477 under main linear-history/method rules; reposito
 PR1477 squashed toab2e629f; releaseb5cf85b9 preserves production ancestry and exactmain tree. FullCI37268657918 PASS:12672unit/API,157workflow,298browser+3retry-passes/20skips, realTest lifecycle direct-pass, all database contracts andPRGate. Normalproduction merge1476 producedc6f23b4b; Verceldpl_6Q7Er4cNiH1t3ZVefndqj573g5uD READY andbothproduction aliases verified. Schema001–248/sevenfunction bodies/security/ACLs/twelvecontrols rechecked unchanged; no reapply.
 
 Production canaryPASS: reopenedReturn409 in2.47s, closure/CASgrade/Return/disclosure/idempotence. NormalTestDELETE, exactlytwo leased Storage deletions and fenced completions, exactledger disposal, ownedlogout401, newstudentWorkOS deletion, guardedClassroom/twoPikauser cleanup completed. Existingteacher provider/realstudent preserved; unrelated285objects digestunchanged/pending17. PreparedleaseSQL CASEsyntax initiallyrejected withnochanges; parenthesized expression corrected andguarded executionPASS. WAFbaseline restored once; publiclogin200/auth401 at06:27UTC. Private production-public-live-completion-receipt.json records evidence. Owner approval waiver respected; runtime/CI/protection limits retained. Production usable; this docs-only handoff changes no application/schema/flags.
+
+## 2026-10-05 — Audit follow-up owner disposition
+
+Owner directed leaving braces in place and remembering it. No general TODO file exists; added DEP-01 to docs/core/roadmap.md deferred maintenance, linked dependency/audit evidence and retained mitigation plus the existing November4 exception review date. Owner considers remaining live verification done: additional summary provider timeout/retry and teacher-closed zero-scoring probes are closed by waiver, without claiming new executed checks. CURRENT/audit plan and private finding/handoff ledger record this disposition. No dependencies, application, production state or feature-epic status changed; no monitor scheduled.
