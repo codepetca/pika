@@ -24,6 +24,11 @@ until an upstream patched release is available; then upgrade within the supporte
 major, remove this exact patch and rerun the same deep-nesting/ordinary-glob tests.
 The lockfile pins the patch digest so frozen installation detects patch drift.
 
+Owner disposition, 2026-10-05: leave `braces` in place for now. Track the deferred
+follow-up in [the roadmap](../core/roadmap.md#deferred-maintenance); the existing
+temporary exception review date remains 2026-11-04 (America/Toronto). This decision
+does not label the advisory fixed or extend its exception.
+
 `tests/unit/dependency-security.test.ts` exercises the installed transitive
 package, including string and caller-supplied AST entry points and safe globs,
 and probes Tiptap's actual mergeAttributes against an own prototype key. Nine

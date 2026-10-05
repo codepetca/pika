@@ -37129,3 +37129,56 @@ and new exact-head CI remain gates; reviewed runtime source remains unchanged.
 
 - Full ready-SHA CI exposed one documentation assertion frozen to the old compact CURRENT first line (11870passed,1failed,8skipped). Returned PR1462 to draft before corrections.
 - Updated the attendance rollout test to validate the labeled hosted receipt, production migration floor, recorded smoke and explicit absence of a fresh hosted query. Local focused PASS144tests/11files and allothergates. Targeted independent review and new stable-SHA CI required.
+
+<!-- pika-session-log-archive-batch:1b766724272b44186621d9901d810e5a585b647f8446de3ef9486a2b6f37bc89 -->
+## 2026-10-04 — Shared owner Assignment student-detail preparation
+
+PR1454 final19f91 cumulativeCLEAN; CI37174745897 exposed only CURRENT prefix
+format regression, locally reproduced. Docs-onlyf93a411e targetedCLEAN;
+47attendance/startup +266focused/1skip/staticPASS. Exact-head37175526420 running.
+No merge/production/rollout receipt yet. Seven launches/fourfix/fourtarget/onefinal
+retain original02:42:02 clock, extended04:42:02 deadline and absolute caps.
+
+Parallel isolated codex/contextual-assignment-student-detail-reads starts at
+reviewed19f91; publication/review waits for actual1454merge/base reconciliation.
+One GPT6.1Sol/high writer owns GET/helper/schema/route+SDKtests/contract; root
+owns immutable-lifecycle observer/CI/continuity/integration. Boundary map verified
+full owner-private DTO, no unavoidable SQL, perstatement exact target membership,
+archived-owner reads and historical owner-selftarget denial. No activation.
+Pure proof/CI guards TDDRED then24PASS, including exact-one-transition/no retry
+on ambiguous commit and no vacuous boundary acceptance. Observer wraps only the
+existing approved revoke request, native list observer restores/fingerprints once;
+no added fixture DML/platform/cleanup authority. Actual runtime not executed.
+DeepSeek remains explicitlyPAUSED; recent weekly19%, ordinary useallowed.
+Writer returned six owned files with107targeted/TypeScript/lint/architecturePASS.
+Root verified literal legacy body unchanged, added a bounded overview lazy-sign
+correction: two installed-SDK regressions failRED with one deferred POST after
+rejection, then passGREEN with no late request. Both readers' assertions observe
+a full event-loop turn. Combined187targeted/24proof-CI guards pass; full focused
+384PASS/8skip plus all static gates pass; explicit proof TypeScript programPASS.
+No real runtime execution or independent review yet; publication remains gated
+on1454actualmerge/base reconciliation. Nonempty supplements/signing remain unproven.
+
+Superseding receipt:1454 merged9591ee1e at04:27:09UTC after all five exactf93
+CI37175526420 gates passed (0queue/1754runseconds). Squash tree equals reviewed
+tree; canonical main cleanFF. Prepared detail branch reconciled onto actual merge;
+only CURRENT conflict resolved, preserving both histories and correct Prod DB
+prefix. Runtime unchanged except closed diagnostic repo-target alias correction.
+Production001–225 and all admission/cutover gates remain OFF. Weekly16% remaining,
+ordinary usage allowed; DeepSeek pause retained. Independent high-risk security
+and compatibility review follows focused verification; no live proof executed yet.
+
+Superseding1455receipt:initial4716a817 security5.6Sol/high and compatibility
+6.1Sol/high CLEAN. Actual coordinator CLI2.109.1 normal isolated proof PASS:
+8detailSDK/6live owner-transfer/member-remove first/later/terminal plus existing
+9listSDK/14listrevocations. Immutable original fixture/platform/transition SQL
+and restoration authority unchanged; exact fresh teardown/full canonical public,
+private/storage row fingerprints plus168metadata/settings/cron/resources match.
+Both forced modes accepted exact exit1/PASS+FAIL markers/no unexpected output;
+private0600receipts /private/tmp/pika-student-detail-cleanup.aRbYlu and
+/private/tmp/pika-student-detail-cleanup.kauZZN.384focused/8skip/all static/explicit
+proofTS/auditPASS. Executable source unchanged; docs-only receipt re-review precedes
+ready/exact-headCI/mainmerge. Original review04:29:28UTC/counters2launch/0fix
+retained; human-authorized extension through06:29:28UTC with absolute caps intact.
+No nonempty supplemental/signing/authHTTP/browser/provider/production proof claim;
+local001–239/prod001–225 and admission/cutover/account/billing/provider settings unchanged.
