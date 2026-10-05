@@ -20,7 +20,7 @@ describe('StudentReturnedMarks', () => {
     expect(screen.getByText('0 / 10')).toBeInTheDocument()
     expect(screen.getByText('0%')).toBeInTheDocument()
     expect(screen.getByText('Not counted')).toBeInTheDocument()
-    expect(screen.getByRole('list', { name: 'Returned marks' })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Gradebook marks' })).toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.queryByText('Current grade')).not.toBeInTheDocument()
   })
@@ -28,19 +28,19 @@ describe('StudentReturnedMarks', () => {
   it('shows no section after a successful empty result', async () => {
     vi.mocked(fetch).mockResolvedValue(response([]) as Response)
     render(<StudentReturnedMarks classroomId="class-1" />)
-    await waitFor(() => expect(screen.queryByText('Loading returned marks')).not.toBeInTheDocument())
-    expect(screen.queryByRole('region', { name: 'Returned marks' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('Loading Gradebook marks')).not.toBeInTheDocument())
+    expect(screen.queryByRole('region', { name: 'Gradebook marks' })).not.toBeInTheDocument()
   })
 
   it('distinguishes loading and read failure, then retries', async () => {
     let reject!: (reason: Error) => void
     vi.mocked(fetch).mockReturnValueOnce(new Promise((_resolve, fail) => { reject = fail }))
     render(<StudentReturnedMarks classroomId="class-1" />)
-    expect(screen.getByText('Loading returned marks')).toBeInTheDocument()
+    expect(screen.getByText('Loading Gradebook marks')).toBeInTheDocument()
     await act(async () => reject(new Error('Offline')))
-    expect(await screen.findByText("Returned marks couldn't load")).toBeInTheDocument()
+    expect(await screen.findByText("Gradebook marks couldn't load")).toBeInTheDocument()
     vi.mocked(fetch).mockResolvedValueOnce(response() as Response)
-    fireEvent.click(screen.getByRole('button', { name: 'Retry returned marks' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry Gradebook marks' }))
     expect(await screen.findByText(mark.title)).toBeInTheDocument()
   })
 

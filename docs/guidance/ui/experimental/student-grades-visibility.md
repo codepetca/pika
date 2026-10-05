@@ -66,7 +66,7 @@ No new shared primitive is proposed.
 ## Promotion status
 
 The approved composition has been promoted to production owners. The student
-API projects only returned work after classroom-scoped authorization, and the
+API projects returned Pika work and saved standalone marks after classroom-scoped authorization, and the
 persisted classroom visibility setting defaults off. Pattern Lab remains the
 place to compare shown and hidden states without live data.
 
@@ -78,7 +78,7 @@ by the persisted `student_grades` preference.
 
 ## Standalone marks integration
 
-The standalone Gradebook feature adds a bounded returned-marks list within the
+The standalone Gradebook feature adds a bounded Gradebook marks list within the
 existing student Classwork summary and the live aggregate Grades projection.
 Pattern Lab renders the production
 `StudentReturnedMarksList` owner with deterministic counted, zero, and excluded
@@ -88,7 +88,8 @@ the production aggregate surface remains governed by the stable product contract
 The list reuses `Card` and the returned-row score treatment. Its primary signal
 is each item's score and percentage. The feature introduces no links to fake
 work, no navigation, no aggregate, and no composite widget. Verification covers
-student desktop/mobile and light/dark, returned/zero/excluded/loading/error/empty
-states, and tab reactivation. Teacher return controls are covered in the feature
-brief. The endpoint scopes release, enrollment, classroom, archive status, and
-Classwork visibility server-side; the browser receives only returned marks.
+student desktop/mobile and light/dark, saved/zero/excluded/loading/error/empty
+states, and tab reactivation. The feature brief covers teacher item/score dialogs
+and immediate disclosure on save; there is no standalone return action. The
+endpoint scopes enrollment, classroom, archive status, and Classwork visibility
+server-side; the browser receives only the current student’s saved nonblank marks.

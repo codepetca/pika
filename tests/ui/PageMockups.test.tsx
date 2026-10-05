@@ -49,7 +49,7 @@ describe('PageMockups', () => {
     expect(grades.getByTestId('student-grades-mockup')).toBeVisible()
     expect(grades.getByText('Current grade')).toBeVisible()
     expect(grades.getByText('84%')).toBeVisible()
-    expect(grades.getByRole('list', { name: 'Returned grades' })).toBeVisible()
+    expect(grades.getByRole('list', { name: 'Grades' })).toBeVisible()
     expect(grades.getByText('Not counted')).toBeVisible()
 
     const returnedGradeLink = grades.getByRole('link', { name: /Functions and Graphs/ })

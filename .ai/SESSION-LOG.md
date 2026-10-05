@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Broad audit remediation batch 1
-
-Owner authorized planning and orchestration to fix the 27-finding broad audit at main `3c5d7097`. Plan: `docs/guidance/codebase-audit-remediation-2026-10.md`; existing audit handoff tracks per-finding evidence and worker receipts. Feature worktree `codex/audit-remediation`; full startup passed after frozen-lockfile installation, with no dependency changes. Three bounded GPT-6.1 Sol workers (auth high; guidance and patterns medium) delivered non-overlapping source/tests. Auth regressions: 172/20 PASS, including one initial-password winner, login origin/JSON and UTF-8 limits; S1 remains partial pending atomic issuance/handoff generation fencing. Patterns regressions: 69/8 PASS, covering cache/poll retention, survey shapes and directly imported script-test selection. Guidance reconciles source/local/hosted checkpoints and routing, removes direct-main landing instructions, and fails startup for missing required inputs. Startup context ceiling deliberately increased from 16k to 17k characters for readable dated labels and receipt/remaining-gate text. No migration, database, hosted flag or production mutation. Draft publication and cumulative verification receipts remain with coordinator; independent review not yet launched. Codex weekly remaining at start 8%; DeepSeek paused through 2026-12-31; pr-review low-usage human checkpoint applies before reviewer launch. Goal remains active; no finding accepted from implementation delivery alone.
-
 ## 2026-10-04 — Audit PR 1462 main reconciliation 902cbf76
 
 Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
@@ -645,3 +641,11 @@ No live DB/VM, workflow/routing, production or repository visibility changes.
 ## 2026-10-05 — Approved motion final verification and main synchronization
 
 PR1486 reviewed94a7793e final candidate661/36+allstatic,185owners,24motionbrowser,6natural recordings PASS. Corrected cumulative33-source proof644/35+allstatic,56classroom+12PatternLab browser PASS; independent targeted three regressions and different cumulative final review CLEAN. Main advanced75977572b through unrelated native protocol test timeout/history changes; first ready event could not create CI because archive conflicted. Returned draft before synchronization; merged current main retaining both histories, reran required focused gate and bounded native test, product bytes unchanged. Sync head requires targeted independent confirmation and one eligible CI run before completion. No existing sibling head, dependencies, schema, merge or deployment changed.
+
+## 2026-10-05 — Standalone Gradebook marks visible on save
+
+Owner approved removing Return marks for participation/external exam/Daily items. Student Classwork and Grades now project saved nonblank standalone scores, including existing never-returned marks; edits update immediately and clearing removes them. Pika assignment/test returns and classroom visibility/privacy gates preserved. Removed standalone return UI; renamed student heading Gradebook marks; updated canon/prototype specimens. No migration/backfill needed; legacy DB return metadata/API remain compatible.
+
+Evidence: initial focused514 plus architecture/UI/design/type/lint PASS; final focused check follows rebase to origin/main75977572. API regressions38 and components35 PASS. Real loopback API+DB smoke create/save/zero/edit/details/clear PASS with null return timestamps and verified fixture cleanup (/tmp/pika-direct-mark-smoke.log). Playwright Pattern Lab 8/8 role×viewport×theme PASS; dialog/save focus and student rows inspected in test-results/ui-pattern-lab-*/; empty/error behavior covered by component tests. Audit PASS; composite checklist, keyboard/focus and semantic coverage verified.
+
+Delegation: GPT6.1Sol/high test-only worker delivered two files in ~6min; coordinator verified query predicates, weighted parity and test runs; no rework/conflict. Weekly remaining45%, DeepSeek paused throughDec31; worker/coordinator tokens unknown. Current branch codex/student-daily-mark; owning chat retains integration. Independent fixed-SHA disclosure/compatibility review follows draft publication; production promotion not authorized.
