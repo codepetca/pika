@@ -236,6 +236,9 @@ export function testOwnerDraftSaveCaseInput(f:TestOwnerDraftSaveFixture,c:TestOw
  if(c.kind==='structure'){delete payload.content;payload.patch=[{op:'replace',path:'/questions/0/points',value:2}]}
  if(c.kind.startsWith('doc-'))payload.documents=(test.documents as Array<Record<string,unknown>>).map(d=>({...d,title:String(d.title)+' revised',...(c.kind==='doc-url'?{url:'https://example.invalid/revised'}:{}),snapshot_path:'forged-path',snapshot_managed_object_id:f.managedObjects[2].id}))
  if(c.kind==='upload'||c.kind==='foreign-upload'){const m=f.managedObjects[c.kind==='upload'?1:2];payload.documents=[{id:m.id,title:'Synthetic upload',source:'upload',url:`https://example.invalid/storage/v1/object/public/test-documents/${m.storage_path}`,storage_bucket:m.storage_bucket,storage_path:m.storage_path,managed_object_id:m.id,upload_content_type:'application/pdf'}]}
+ // Exercise the active editor's real wire shape before the named decoder,
+ // rather than testing only its already-stripped canonical representation.
+ if(payload.content){const v=payload.content as {questions:Array<Record<string,unknown>>};payload.content={...v,questions:v.questions.map((q,index)=>({...q,test_id:c.testId,position:index,created_at:f.now,updated_at:f.now}))}}
  return contextualTestDraftSaveRequestSchema.parse(payload)
 }
 

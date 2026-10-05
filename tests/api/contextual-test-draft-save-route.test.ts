@@ -55,6 +55,17 @@ describe('Test draft PATCH shared admission boundary', () => {
     expect(requireAuth).toHaveBeenCalledTimes(1); expect(params.then).not.toHaveBeenCalled(); expect(reader).not.toHaveBeenCalled()
     expect(requireRole).not.toHaveBeenCalled(); expect(saveContextualTestDraft).not.toHaveBeenCalled()
   })
+  it('decodes populated editor content to canonical authored fields on the admitted branch', async () => {
+    admitted()
+    const canonicalQuestion = { id: '55555555-5555-4555-8555-555555555555', question_type: 'open_response', question_text: 'Question?',
+      options: [], correct_option: null, answer_key: 'Answer', sample_solution: null, points: 1, response_max_chars: 5000, response_monospace: false }
+    const canonical = { ...content, questions: [canonicalQuestion] }
+    const editor = { ...canonical, questions: [{ ...canonicalQuestion, test_id: testId, position: 0,
+      created_at: '2026-10-05T00:00:00Z', updated_at: '2026-10-05T00:00:00Z' }] }
+    expect((await PATCH(request({ version: 1, content: editor }), { params: Promise.resolve({ id: testId }) })).status).toBe(200)
+    expect(saveContextualTestDraft).toHaveBeenCalledWith(expect.objectContaining({ input: { version: 1, content: canonical } }))
+    expect(mocks.from).not.toHaveBeenCalled(); expect(requireRole).not.toHaveBeenCalled()
+  })
   it('returns authentication failure before configuration disclosure', async () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{}')
     vi.mocked(requireAuth).mockRejectedValue(Object.assign(new Error('Authentication required'), { name: 'AuthenticationError' }))

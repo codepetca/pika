@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import { draftSaveBoundsAndDriftSql, newDraftSaveFixture, DRAFT_SAVE_CAPS } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 
 const sql = () => readFileSync('supabase/migrations/249_contextual_test_draft_owner_save.sql', 'utf8')
 
@@ -47,6 +48,39 @@ describe('contextual owner Test draft PATCH migration source contract', () => {
     expect(source).toContain('pg_catalog.jsonb_array_length(p_documents) > 20')
     expect(source).toContain('snapshot_managed_object_id')
     expect(source).toContain('v_object.classroom_id is distinct from p_classroom_id')
+  })
+
+  it('rejects empty or noncanonical trimmed grading strings before134 while retaining JSON null', () => {
+    const source = sql()
+    const candidate = source.slice(source.indexOf('create function private.validate_test_draft_save_content_v1('), source.indexOf('revoke all on function private.validate_test_draft_save_content_v1('))
+    expect(candidate).toContain("foreach v_key in array array['answer_key','sample_solution'] loop")
+    expect(candidate).toContain("if pg_catalog.jsonb_typeof(v_question->v_key)='string' then")
+    expect(candidate).toContain('v_grading_text:=pg_catalog.btrim(v_question->>v_key,v_trim_chars)')
+    expect(candidate).toContain("if v_grading_text='' or v_grading_text is distinct from v_question->>v_key then")
+    expect(candidate).toContain('\\00A0')
+    expect(candidate).toContain('\\FEFF')
+    expect(candidate).toContain("message = 'test_draft_invalid_content'")
+  })
+
+  it('prepares finite PT400 grading-text rollback checks on draft and active targets without changing caps', () => {
+    const fixture = newDraftSaveFixture('0123456789ab')
+    const batch = draftSaveBoundsAndDriftSql(fixture)
+    for (const field of ['answer_key', 'sample_solution']) {
+      for (const variant of ['empty', 'unicode_whitespace', 'padded_ascii', 'padded_unicode']) {
+        const label = `${field}_${variant}`
+        expect(batch.split(`Noncanonical grading text ${label} accepted`).length - 1).toBe(2)
+        expect(batch.split(`Noncanonical grading text ${label} changed exact graph/revision/reference/queue state`).length - 1).toBe(2)
+      }
+    }
+    expect(batch).toContain("exception when sqlstate 'PT400' then null;end;")
+    expect(batch).toContain('Canonical null grading text rejected or changed')
+    expect(batch).toContain('Canonical null grading rollback changed exact graph/revision/reference/queue state')
+    expect(batch).toContain('sealed_null_grading_fixture_rollback')
+    expect(batch).toContain(fixture.repairTest)
+    expect(batch).toContain(fixture.activeTest)
+    expect(batch.trim()).toMatch(/^begin;[\s\S]*rollback;$/)
+    expect(Buffer.byteLength(batch)).toBeLessThanOrEqual(256 * 1024)
+    expect(DRAFT_SAVE_CAPS).toEqual({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024, requestMs: 12000, totalMs: 180000, sessionCount: 2, schedules: 16 })
   })
 
   it('accepts marked GET-compatible baselines without applying strict candidate validation to raw legacy fields', () => {
@@ -140,6 +174,32 @@ describe('contextual owner Test draft PATCH migration source contract', () => {
     expect(source).toContain("message = 'test_questions_locked: Only question wording and existing choice text can change after a student starts'")
     expect(source).not.toMatch(/when[^;]*42501|set statement_timeout|errcode = '40001'/s)
     expect(source.match(/clock_timestamp\(\) >= v_phase_deadline/g)?.length).toBeGreaterThanOrEqual(4)
+  })
+})
+
+describe('canonical open-response grading text evidence for the SQL gate', () => {
+  const question = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', question_type: 'open_response', question_text: 'Question', options: [], correct_option: null, answer_key: null, sample_solution: null, points: 5, response_max_chars: 5000, response_monospace: false }
+  const content = (field: 'answer_key' | 'sample_solution', value: string | null) => ({ title: 'Test', show_results: false, question_identity_version: 1, questions: [{ ...question, [field]: value }] })
+  const validate = (value: unknown) => validateTestDraftContent(value, { requirePortableQuestionIdentity: true })
+
+  it.each(['answer_key', 'sample_solution'] as const)('rejects explicitly empty and JavaScript Unicode-whitespace-only %s', field => {
+    for (const value of ['', ' \t\n', '\u00a0\u2000\u2028\u3000\ufeff']) expect(validate(content(field, value)).valid).toBe(false)
+  })
+
+  it.each(['answer_key', 'sample_solution'] as const)('normalizes padded %s but preserves null and already canonical text', field => {
+    for (const value of [' Synthetic grading text ', '\u00a0Synthetic grading text\ufeff']) {
+      const result = validate(content(field, value))
+      expect(result.valid).toBe(true)
+      if (!result.valid) throw new Error('Expected canonical normalization')
+      expect(result.value.questions[0][field]).toBe('Synthetic grading text')
+      expect(result.value.questions[0][field]).not.toBe(value)
+    }
+    for (const value of [null, 'Synthetic grading text']) {
+      const result = validate(content(field, value))
+      expect(result.valid).toBe(true)
+      if (!result.valid) throw new Error('Expected valid canonical grading field')
+      expect(result.value.questions[0][field]).toBe(value)
+    }
   })
 })
 

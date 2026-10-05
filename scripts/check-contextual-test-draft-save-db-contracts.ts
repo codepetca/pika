@@ -242,6 +242,35 @@ rollback;`)
 }
 export function draftSaveBoundsAndDriftSql(f: DraftSaveFixture) {
  const {snapshot,finish}=calls(f), graph=draftSaveWholeFingerprintSql(),suffix=f.tag.slice(-12)
+ const gradingTextCases = (['answer_key','sample_solution'] as const).flatMap(field => [
+  { field, label: `${field}_empty`, value: '' },
+  { field, label: `${field}_unicode_whitespace`, value: '\u00a0\u2000\u2028\u3000\ufeff' },
+  { field, label: `${field}_padded_ascii`, value: ' Synthetic grading text ' },
+  { field, label: `${field}_padded_unicode`, value: '\u00a0Synthetic grading text\ufeff' },
+ ])
+ const gradingTextChecks = [f.repairTest,f.activeTest].map(testId => {
+  const version = testId===f.activeTest ? 3 : 7
+  const snapshotCall = `public.snapshot_test_draft_save_for_owner_v1(${q(f.owner)},${q(testId)},clock_timestamp()+interval '8 seconds')`
+  const checks = gradingTextCases.map(({field,label,value}) => {
+   const content = `jsonb_set(${draftSaveJson(draftSaveCandidate(f))},'{questions,0,${field}}',${draftSaveJson(value)})`
+   return `begin perform public.finish_test_draft_save_for_owner_v1(${q(f.owner)},${q(testId)},${q(f.classroom)},s->>'source_sha256',${version},'save',${content},null,false,clock_timestamp()+interval '8 seconds');
+ raise exception 'Noncanonical grading text ${label} accepted';exception when sqlstate 'PT400' then null;end;
+ if ${graph} is distinct from b then raise exception 'Noncanonical grading text ${label} changed exact graph/revision/reference/queue state';end if;`
+  }).join('\n')
+  return `do $gradingtext$ declare s jsonb;b jsonb;begin b:=${graph};s:=${snapshotCall};
+${checks}
+end;$gradingtext$;`
+ }).join('\n')
+ const nullGradingContent = `jsonb_set(${draftSaveJson(draftSaveCandidate(f))},'{questions,0,answer_key}','null'::jsonb)`
+ const nullGradingCheck = `do $nullgrading$ declare s jsonb;b jsonb;r jsonb;begin
+ b:=${graph};s:=${snapshot};
+ begin
+  r:=${finish(nullGradingContent)};
+  if r->'draft'->'content' is distinct from ${nullGradingContent} then raise exception 'Canonical null grading text rejected or changed';end if;
+  raise exception using errcode='PT499',message='sealed_null_grading_fixture_rollback';
+ exception when sqlstate 'PT499' then if sqlerrm<>'sealed_null_grading_fixture_rollback' then raise;end if;end;
+ if ${graph} is distinct from b then raise exception 'Canonical null grading rollback changed exact graph/revision/reference/queue state';end if;
+end;$nullgrading$;`
  const checks = [
   ['draft_suppress','assessment_drafts',`if new.id=${q(f.repairDraft)}::uuid then return null;end if;return new;`,'before'],
   ['draft_alter','assessment_drafts',`if new.id=${q(f.repairDraft)}::uuid then new.content:=jsonb_set(new.content,'{title}','"Altered"');end if;return new;`,'before'],
@@ -267,6 +296,8 @@ create sequence private.proof_save_reached_${suffix} start with 1;
 revoke all on sequence private.proof_save_reached_${suffix} from public,anon,authenticated,service_role;
 do $prime$ begin perform nextval('private.proof_save_reached_${suffix}');end;$prime$;
 ${faults}
+${gradingTextChecks}
+${nullGradingCheck}
 create function private.proof_save_future_${suffix}() returns trigger language plpgsql set search_path='' as $future$ begin if new.id=${q(f.repairDraft)}::uuid then new.updated_at:=clock_timestamp()+interval '1 day';end if;return new;end;$future$;
 revoke all on function private.proof_save_future_${suffix}() from public,anon,authenticated,service_role;
 create trigger zzz_proof_save_future_${suffix} before update on public.assessment_drafts for each row execute function private.proof_save_future_${suffix}();

@@ -50,6 +50,9 @@ declare
   v_question_id uuid;
   v_seen_ids uuid[] := array[]::uuid[];
   v_option jsonb;
+  v_key text;
+  v_grading_text text;
+  v_trim_chars text := U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF';
 begin
   if p_content is null or pg_catalog.jsonb_typeof(p_content) is distinct from 'object'
     or pg_catalog.octet_length(p_content::text) > 2097152 then
@@ -98,6 +101,17 @@ begin
       raise exception using errcode = 'PT400', message = 'test_draft_invalid_content';
     end if;
     v_seen_ids := pg_catalog.array_append(v_seen_ids, v_question_id);
+    -- The canonical decoder rejects explicit empty grading strings and trims
+    -- the complete JavaScript whitespace set. Require its final value here:
+    -- 134 must not materialize NULL/trimmed text while Draft retains raw text.
+    foreach v_key in array array['answer_key','sample_solution'] loop
+      if pg_catalog.jsonb_typeof(v_question->v_key)='string' then
+        v_grading_text:=pg_catalog.btrim(v_question->>v_key,v_trim_chars);
+        if v_grading_text='' or v_grading_text is distinct from v_question->>v_key then
+          raise exception using errcode = 'PT400', message = 'test_draft_invalid_content';
+        end if;
+      end if;
+    end loop;
     if (v_question->>'points')::numeric <= 0 or (v_question->>'points')::numeric > 9999.99
       or (v_question->>'points')::numeric <> pg_catalog.round((v_question->>'points')::numeric, 2)
       or (v_question->>'response_max_chars')::numeric not between 1 and 20000

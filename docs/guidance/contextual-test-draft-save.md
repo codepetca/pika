@@ -22,6 +22,10 @@ contract does not change legacy PATCH's hidden initialization. Patch takes
 precedence when both patch and content are supplied, preserving the editor
 transport. Full content and RFC6902 operations remain bounded, strictly decoded,
 and canonicalized before persistence; client snapshot metadata is never authority.
+The full-content boundary explicitly bounds and strips the active editor's
+question `test_id`, `position`, `created_at` and `updated_at` transport fields.
+They cannot confer parent, ordinal or stamp authority; unrelated unknown fields
+remain invalid, and canonical SQL candidates never contain transport metadata.
 Existing marked stored drafts retain GET's normalization compatibility for
 unknown legacy fields and omitted optional question values. The SQL baseline
 check is separate from strict incoming candidate validation: reloading cannot

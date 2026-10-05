@@ -21,11 +21,24 @@ const question = z.object({
   options: z.array(z.string()).max(MAX_TEST_OPTIONS), correct_option: z.number().int().nullable(), answer_key: z.string().nullable(), sample_solution: z.string().nullable(),
   points: z.number().finite().positive().max(9999.99), response_max_chars: z.number().int().min(1).max(20000), response_monospace: z.boolean(),
 }).strict()
-export const contextualTestDraftSaveContentSchema = boundedJson(TEST_DRAFT_SAVE_CONTENT_BYTES).pipe(z.object({
+const canonicalContent = z.object({
   title: z.string().refine(value => value.trim().length > 0), show_results: z.boolean(),
   question_identity_version: z.literal(1).optional(), questions: z.array(question).max(TEST_DRAFT_SAVE_QUESTION_LIMIT),
   source_format: z.literal('markdown').optional(), source_markdown: z.string().optional(),
-}).strict()).refine(value => new Set(value.questions.map(q => q.id.toLowerCase())).size === value.questions.length, 'Duplicate question id')
+}).strict()
+export const contextualTestDraftSaveContentSchema = boundedJson(TEST_DRAFT_SAVE_CONTENT_BYTES).pipe(canonicalContent)
+  .refine(value => new Set(value.questions.map(q => q.id.toLowerCase())).size === value.questions.length, 'Duplicate question id')
+// TestDetailPanel decorates each canonical question with these four wire-only
+// fields. Decode them explicitly, but never let caller parent/ordinal/stamps
+// reach candidate validation or SQL persistence. Unrelated fields stay invalid.
+const editorQuestion = question.extend({
+  test_id: z.string().uuid().optional(), position: z.number().int().min(0).max(TEST_DRAFT_SAVE_QUESTION_LIMIT - 1).optional(),
+  created_at: z.string().min(1).max(256).optional(), updated_at: z.string().min(1).max(256).optional(),
+}).transform(({ test_id: _testId, position: _position, created_at: _createdAt, updated_at: _updatedAt, ...authored }) => authored)
+const editorContent = boundedJson(TEST_DRAFT_SAVE_CONTENT_BYTES)
+  .pipe(canonicalContent.extend({ questions: z.array(editorQuestion).max(TEST_DRAFT_SAVE_QUESTION_LIMIT) }))
+  .pipe(canonicalContent)
+  .refine(value => new Set(value.questions.map(q => q.id.toLowerCase())).size === value.questions.length, 'Duplicate question id')
 
 const pointer = z.string().max(4096).refine(value => value === '' || (value.startsWith('/') && !/~(?:[^01]|$)/.test(value)
   && value.split('/').length <= 101 && value.split('/').slice(1).every(token => !['__proto__', 'constructor', 'prototype'].includes(token.replace(/~1/g, '/').replace(/~0/g, '~')))), 'Invalid JSON pointer')
@@ -52,7 +65,7 @@ export const contextualTestDraftSaveDocumentsSchema = boundedJson(TEST_DRAFT_SAV
   .refine(value => new Set(value.map(doc => doc.id)).size === value.length, 'Duplicate document id')
   .refine(value => validateTestDocumentsPayload(value).valid, 'Invalid documents')
 export const contextualTestDraftSaveRequestSchema = z.unknown().refine(value => boundedAssignmentListJson(value, TEST_DRAFT_SAVE_BODY_BYTES), 'Draft save body exceeds limits').pipe(z.object({
-  version, content: contextualTestDraftSaveContentSchema.optional(), patch: z.array(patchOperation).max(TEST_DRAFT_SAVE_PATCH_LIMIT).optional(),
+  version, content: editorContent.optional(), patch: z.array(patchOperation).max(TEST_DRAFT_SAVE_PATCH_LIMIT).optional(),
   documents: contextualTestDraftSaveDocumentsSchema.optional(),
 }).strict()).refine(value => value.content !== undefined || value.patch !== undefined, 'content or patch is required')
 export type ContextualTestDraftSaveInput = z.infer<typeof contextualTestDraftSaveRequestSchema>

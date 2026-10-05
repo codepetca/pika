@@ -50,6 +50,23 @@ describe('contextual owner Test draft save', () => {
     const result = await invoke({ version: 7, content: { ...content(), title: 'Ignored' }, patch: [{ op: 'replace', path: '/title', value: 'Patched' }] })
     expect(result.body).toMatchObject({ draft: { content: { title: 'Patched' } } })
   })
+  it('accepts the active editor question wire shape without trusting its parent, ordinal or stamps', async () => {
+    const canonical = { id: portableId, question_type: 'open_response', question_text: 'Question?', options: [], correct_option: null,
+      answer_key: 'Answer', sample_solution: null, points: 1, response_max_chars: 5000, response_monospace: false }
+    const editorQuestion = { ...canonical, test_id: otherId, position: 99, created_at: stamp, updated_at: stamp }
+    const result = await invoke({ version: 7, content: { ...content(), questions: [editorQuestion] } })
+    expect(result.status).toBe(200); expect(rpc).toHaveBeenCalledTimes(2)
+    expect(rpc.mock.calls[1][1].p_content.questions).toEqual([canonical])
+  })
+  it.each([
+    { test_id: 'not-a-uuid' }, { position: -1 }, { position: 10000 }, { position: 1.5 },
+    { created_at: 'x'.repeat(257) }, { updated_at: false }, { unknown_editor_field: true },
+  ])('rejects malformed or unknown editor transport fields before any RPC %#', async metadata => {
+    const editorQuestion = { id: portableId, question_type: 'open_response', question_text: 'Question?', options: [], correct_option: null,
+      answer_key: 'Answer', sample_solution: null, points: 1, response_max_chars: 5000, response_monospace: false, ...metadata }
+    await expect(Promise.resolve().then(() => invoke({ version: 7, content: { ...content(), questions: [editorQuestion] } }))).rejects.toThrow()
+    expect(rpc).not.toHaveBeenCalled()
+  })
   it.each(['absent', 'invalid', 'unmarked'])('inspects %s baseline for reload without any save', async state => {
     if (state === 'absent') Object.assign(source, { draft: null })
     else if (state === 'unmarked') Object.assign(source.draft, { content: { title: 'Draft', show_results: false, questions: [] } })
