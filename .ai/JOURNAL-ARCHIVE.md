@@ -37182,3 +37182,101 @@ ready/exact-headCI/mainmerge. Original review04:29:28UTC/counters2launch/0fix
 retained; human-authorized extension through06:29:28UTC with absolute caps intact.
 No nonempty supplemental/signing/authHTTP/browser/provider/production proof claim;
 local001–239/prod001–225 and admission/cutover/account/billing/provider settings unchanged.
+
+<!-- pika-session-log-archive-batch:b11c807e0a84dec5e5b701fe23cebf07818867dccc307715ae48a68dcc6aaeb6 -->
+## 2026-10-04 — Locked Classwork Assignment-open prerequisite preparation
+
+1455 finalea080944 receipt review CLEAN;76 docs tests PASS, executable tree
+unchanged from initial4716 CLEAN and accepted normal8SDK/6rev/twoforced cleanup.
+Exact-head ready CI37178120557 running; no1455merge receipt yet. One bounded
+GPT6.1Sol/high writer (Terra unavailable) prepares only240RPCopen replacement,
+structural regression and rollback-only harness. Root owns docs/CI/floor/reviews/
+actuallocal operations after actual1455merge and child reconciliation.241+,
+provider/account/billing/production/rollout work excluded;240UNAPPLIED.
+Root inspected214locked body and current normalize visibility: JSONbooleanfalse
+only hides, owner rejection precedes concealment, no preflight/postflight substitute
+for transaction-bound creation/view/Pal sideeffects. Root offline lifecyclefloor
+TDD240fixture fails22tests on239count, then55 list/overview/detail guardtests PASS
+after narrow240floor update.001239SQL/fixtureDML/platformtargets/restoration and
+cleanup authority unchanged. No new actual database operation performed.
+
+Worker returned/relinquished three sourcefiles:41tests/5suites, scopedlint/bash-n/
+diffPASS. Root complete SQL/test/harness inspection, positive legacy+membership
+Pal controls and exactwhole-row doc/history/outbox comparisons retained. CIguard
+TDD1RED→GREEN serialstep;123targeted +150focused/static gates PASS. Schema205
+forbids stored malformedvalues; onlypredicate/normalizer evidence for those, no
+persisted-RPC or crosssessionrace claim.240UNAPPLIED/harnessUNRUN; publication,
+review/application remain gated on1455actualmerge/base reconciliation.
+
+Superseding parent receipt:1455 merged97e16dec at05:21:54UTC after all five
+exactea080944 CI37178120557 gates PASS (0queue/1817runseconds). Squash tree
+equals reviewed; canonical main cleanFF. This child rebasec2b2ce74 is conflict-free
+and executable-byteidentical to prepared99f86f3a. Explicit proofTypeScript and
+stagedaudit5filesPASS.240SHA256adc6d0a2af866d9c4f2cba94f410a5aa7ea27c524070ddf6add3c16b178473c4
+remainsUNAPPLIED. Follow normal draft-first stable-source review BEFORE actual
+local operations; DB proof/types gates block ready. Weekly13% remains, ordinary
+usageallowed/no warning/spendlimit; DeepSeek pause honored, boundedreview/no duplicate
+waves. No production/rollout/account/billing/provider changes.
+
+Superseding local240 receipt: initial Sol security and Sol compatibility fallback
+reviews CLEAN atf0567a3c. Exact local001239 history/only240 preview, one normal
+apply, exact001240 history and actual type generation/check PASS; no generated
+drift. Reviewed rollback-only Classwork/Pal controls, original open atomicity and
+five concurrency scenarios PASS (not a two-session visibility race). Fresh
+isolated001240 replay:8detailSDK/6rev plus existinglistcases/revocations PASS;
+both forcedmodes exit1/exact2markers/0600receipts, exactteardown/fullcanonical
+fingerprints unchanged. Nonempty supplements/signing unproved; receiptreview/CI
+next. Separate child learner-open worktree/source worker prepares shared GET only;
+no live worker operations, source remains dormant. Production/admission/cutoverOFF.
+
+## 2026-10-04 — Shared learner Assignment-open source preparation
+
+1456 mergedc7e5a487 at06:21:11UTC after all five exact2c9ee58f CI37181022226
+checks PASS (0queue/1326runseconds); normal squash tree equals reviewed tree and
+canonical main cleanFF.240 applied once locally, genuine types zero-diff, rollback
+and unchanged atomicity/five concurrency proofs PASS; fresh240 owner-detail normal
+and both forced modes accepted with full canonical baseline unchanged. Production
+last001–225 untouched; shared admission/UI/cutover/billing/provider remain OFF.
+
+Next dormant learner Assignment GET prefix reuses240's locked transaction, binds
+fresh own-document/supplement pages/signing/final evidence to exact current
+nonowner membership and preserves released disclosure. Legacy remainder/all write
+handlers unchanged. Source worker161targeted PASS; root moved the named schema
+to canonical validations and repeated the same161checks PASS. Separate worker
+53proof tests/17new and explicit TS/lint PASS, owns no live operation. Root owns
+Git/review/runtime/CI/docs. New observer maps9read/projection cases/6SAME original
+transfer/removal transitions, seals open RPC to existing fixture doc with
+created/viewfalse; zero actualRPC/Storage/provider network allowed. No fixture,
+SQL/restoration/cleanup or canonical DML expansion. Unsupported ClassB/noAssignment
+archived-hidden cases and nonempty supplements explicitly unproved. Serial CI
+guard RED before new step. Full checks, parent reconciliation, independent frozen
+reviews and actual observer normal/two forced modes remain gates; not runtime
+receipts or a full integration/phase exit. Existing original review clocks/caps
+retained; routine in-scope authority and local-approval override carried forward.
+
+Superseding1457receipt: initialecfcf714 security/compatibility CLEAN; each reviewer
+136offline PASS, root318focused8skip/static/explicitproofTS/audit PASS. Actual normal
+failed aftercontrol2 but exactteardown/fullcanonicalbaseline PASS. Closed-shape
+source-unchanged diagnosis: preflightparsedtrue; sealedstub omittedcontent and real
+reader correctlyfailsbound. One proof-only batch adds exactfixtureemptyJSONB;
+regressionREDtoGREEN53proof PASS,318focused8skip/static/explicitTS/audit PASS.
+Targeted ec274c75 proof-interface CLEAN/105tests. Actual ec274c75 normal PASS:
+9read/projection/6SAMEoriginaltransfers-removals/nine false-created-viewstubs,
+zero actualRPC/Storage/provider network and originallistcases/revocations; both
+forcedmodes exactexit1/twoexpectedmarkers/fullcanonicalunchanged/teardown PASS.
+0600receipts /private/tmp/pika-learner-open-cleanup.FXeytu and
+/private/tmp/pika-learner-open-cleanup.kV9zZS. No realRPC/create/view/Pal/signing/
+nonempty/authHTTP/browser claim. Original06:31:48clock/3launch/1target/1fix retained;
+finalcumulative/CI/mainmerge next. Separate source-only worker prepares241 save/
+submit/unsubmit/preflightClassworkguards fromactualc7main; rootownsGit/runtime/review,
+no workerliveoperations. Local240/prodlast225/admission/cutover/account/billing/provider
+unchanged;241UNAPPLIED. Branches and critical roster-owner node_modules retained.
+
+Superseding CI receipt: finalcumulative97a8950e CLEAN/136tests; exactreadyrun
+37184696910 Test&Build passes11781tests but one Bara documentation parser fails
+on CURRENT's compressed `Prod last` prefix. PR returned to draft before correction.
+Local original four-case suite reproduces1RED; third batch restores exact
+`Prod DB 001–225` prefix with last-verified annotation, keeps production evidence
+unchanged and preserves the original parser/test/gate. No executable source change
+or new runtime/production/activation operation. Targeted mechanical review and
+new stable-head CI required; original06:31:48clock/counters and absolutecaps remain.
