@@ -1115,3 +1115,17 @@ Rootbatch2 outerappfinally afteradapterrestoration;2REDmissinghelper→full121/2
 GREEN, no nativeexecution. Originalreviewclock00:51:52 retained, no reset.
 Batch2focused400/17+architecture/UI/designPASS; EXIT1only2ungeneratedRPCtypes;
 scoped2filelint/audit/diffPASS. No claims of native/SDK/cleanup or overallgreen.
+Sol5.6/high targeted2 CLEANsource atd6dfb537,38smanual,4launch/2targeted/2fix.
+Rootfiniteacceptedfirstnormal --generate-types; EXIT1beforeSDK(0requests), no
+genartifactaccepted. No syntheticcontainer remains; SAMEcanonicalbaselinePASS.
+Sol6.1/high originalproofowner boundedread-only~5m identified fixtureA counts:
+112lock-onlyTestupdate archive+1/blueprint+0, so2058/1026 not2059/1027. Root
+verified currenttrigger/sourcehistory. Batch3 changesexpectation only +closed
+setupdiagnostics, never DBcounters/guards.2REDnumeric/missingdiag→123/2GREEN.
+ActualnativeacceptanceFAILED/pending correctedsource review; produnchanged.
+Rootalsofound guardedSQLsnapshot restoration used_fixture butguardallowsonly
+_draft_contracts/holder/contender. Nativecontrol selects existing_contracts name
+forfixedsnapshotonly;guard/capsunchanged. Commandbinding1RED→full124/2GREEN.
+Batch3focused retainedone5s offlineprotocoltimeout withconcurrentlint; unchanged
+source/unoverlappedretry403/17+architecture/UI/designPASS, EXIT1only2RPCtypes.
+No timeout/capincrease;5TS scopedlint/audit/diffPASS. Nativefailedhead/logsretained.

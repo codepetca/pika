@@ -202,3 +202,26 @@ compares its full preimage after every probe outcome. Offline failure/drift
 regressions cover this boundary; live proof and re-review remain pending.
 Batch2 focused verification:400 tests/17 files and architecture/UI/design PASS;
 EXIT1 still solely the two pending generated RPC types. Scoped lint/audit PASS.
+
+First normal live attempt at reviewed `d6dfb537` failed before any SDK request.
+No type artifact was accepted. No synthetic project containers remained and the
+same saved canonical public/private/Storage/metadata/settings/cron/resource
+baseline matched afterward; it was not recaptured. Source diagnosis identified
+an incorrect fixture-only revision expectation: migration112 does not blueprint
+touch a questions_locked_at-only Test update, while the archive trigger adds one.
+Class A must expect archive2058/blueprint1026, not2059/1027. The correction changes
+only expected counters, never persisted counters or trigger/guard behavior.
+Closed setup stage/kind diagnostics now separate app write/snapshot/verification
+and SQL preparation/setup without printing errors, SQL, identities or credentials.
+Live acceptance remains failed/pending until the corrected source is reviewed
+and a new bounded proof actually passes. Offline regression proof is not a retry.
+Root also found the restoration SQL snapshot used the fixture session name,
+which its unchanged contract guard rejects. Only that fixed snapshot control now
+uses the already-approved draft-contracts name; catalog/grant controls retain the
+fixture name. A failing command-binding regression verifies the correction;
+the guard and native capability ceilings are not widened.
+Batch3 affected checks:124 PASS/2 files. A full focused run hit the unchanged
+five-second offline protocol timeout while lint ran concurrently; the failure
+was retained. The unoverlapped retry passed403 tests/17 files plus architecture,
+UI and design. TypeScript still fails only on the two ungenerated RPC names;
+the overall focused gate remains EXIT1. No timeout/cap increase was used.

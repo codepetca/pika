@@ -303,7 +303,8 @@ export function createDraftGetNativeContracts(input: {
     // Cleanup is allowed after a failed SDK/dispatch; all immutable bindings and
     // original safety guards still pass before the fixed restoration operation.
     await guard(true)
-    const output = await command('docker', dockerArgs(`${project}_fixture`), sql, CAPS.closeMs)
+    const name = `${project}_${sql === manifest.snapshot ? 'draft_contracts' : 'fixture'}`
+    const output = await command('docker', dockerArgs(name), sql, CAPS.closeMs)
     return output ? [{ result: JSON.parse(output) as unknown }] : []
   }
   return Object.freeze({ manifest,

@@ -131,6 +131,14 @@ export function testOwnerDraftGetForcedReceipt(mode: string, error: unknown, com
     return { stdout: cleanupMarker, stderr: `FAIL forced isolated test-owner-draft-get lifecycle: ${mode}.\n`, exitCode: 1 }
   return null
 }
+export function testOwnerDraftGetSetupDiagnostic(stage: unknown, error: unknown) {
+  const stages = ['pending', 'app-guard', 'app-write', 'app-snapshot', 'app-verify', 'sql-prepare', 'sql-setup', 'complete']
+  const phase = typeof stage === 'string' && stages.includes(stage) ? stage : 'unknown'
+  const cause = error instanceof AssignmentListLifecycleError ? error.primary?.error : error
+  const kind = cause instanceof assert.AssertionError ? 'assertion'
+    : cause instanceof Error && cause.message === 'Private platform command failed' ? 'platform-command' : 'unknown'
+  return `DIAG test-owner-draft-get setup=${phase} failure=${kind}.\n`
+}
 export function parseTestOwnerDraftGetLifecycleArgs(args: string[]) {
   const generateTypes = args.length === 5 && args[4] === '--generate-types'
   const input = parseAssignmentListLifecycleArgs(generateTypes ? args.slice(0, 4) : args)
@@ -253,6 +261,7 @@ export async function testOwnerDraftGetLifecycleMain(args = process.argv.slice(2
   let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined
   let transport: ReturnType<typeof createTestOwnerDraftGetProofTransport> | undefined; let client: ReturnType<typeof createClient<Database>> | undefined
   let sqlContracts: ReturnType<typeof createDraftGetNativeContracts> | undefined; let sqlComplete = false
+  let setupStage = 'pending'
   let typesReceipt: Awaited<ReturnType<typeof generateTestDraftGetTypes>> | undefined
   const originalPal = process.env.PAL_ENABLED; process.env.PAL_ENABLED = 'false'
   function privateSql(sql: string) {
@@ -269,13 +278,16 @@ export async function testOwnerDraftGetLifecycleMain(args = process.argv.slice(2
     assert(Buffer.byteLength(captured) <= TEST_OWNER_DRAFT_GET_CAPS.responseBytes); return JSON.parse(captured)
   }
   async function setup() {
-    assert.equal(testOwnerDigest(setupSql), setupHash); await guard(); assert(session); await native.executeSql({ ...session, sql: setupSql })
-    validateTestOwnerDraftGetSetupSnapshot(f, await snapshot()); assert(closure)
+    setupStage = 'app-guard'; assert.equal(testOwnerDigest(setupSql), setupHash); await guard(); assert(session)
+    setupStage = 'app-write'; await native.executeSql({ ...session, sql: setupSql })
+    setupStage = 'app-snapshot'; const setupRows = await snapshot()
+    setupStage = 'app-verify'; validateTestOwnerDraftGetSetupSnapshot(f, setupRows); assert(closure)
     assert.equal(testOwnerDigest(JSON.stringify(union)), unionHash)
+    setupStage = 'sql-prepare'
     sqlContracts = createDraftGetNativeContracts({ repository, reviewedHead: input.head, original, capturedResources: closure, containerId: session.containerId,
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(union.sql)) })
-    const receipt = await sqlContracts.setup(); assert.equal(receipt.fixtureSha256, testOwnerDigest(JSON.stringify(union.sql.fixture)))
-    assert.equal(receipt.setupSha256, testOwnerDigest(union.sql.setup)); complete = true
+    setupStage = 'sql-setup'; const receipt = await sqlContracts.setup(); assert.equal(receipt.fixtureSha256, testOwnerDigest(JSON.stringify(union.sql.fixture)))
+    assert.equal(receipt.setupSha256, testOwnerDigest(union.sql.setup)); complete = true; setupStage = 'complete'
   }
   async function matrix() {
     assert(complete && !matrixComplete && client && transport)
@@ -327,6 +339,7 @@ export async function testOwnerDraftGetLifecycleMain(args = process.argv.slice(2
   } catch (error) {
     const receipt = testOwnerDraftGetForcedReceipt(input.mode, error, complete)
     if (receipt) { process.stdout.write(receipt.stdout); process.stderr.write(receipt.stderr); process.exitCode = receipt.exitCode; return }
+    process.stderr.write(testOwnerDraftGetSetupDiagnostic(setupStage, error))
     if (transport) process.stderr.write(transport.diagnostic()); throw new Error('Test owner draft GET lifecycle failed; private details withheld')
   } finally { if (originalPal === undefined) delete process.env.PAL_ENABLED; else process.env.PAL_ENABLED = originalPal }
 }

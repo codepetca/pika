@@ -62,6 +62,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     labels: { 'com.supabase.cli.project': project, 'com.docker.compose.project': project }, attachedIds: [], ports: r.name.startsWith('supabase_db_') && r.kind === 'container' ? [54332] : [] }))
   const children: Array<EventEmitter & { stdin: Writable; stdout: PassThrough; stderr: PassThrough; kill: ReturnType<typeof vi.fn> }> = []
   const terminations: string[][] = []
+  const sqlControls: Array<{ args: string[]; sql: string }> = []
   let hangingSetup = false; let failContender = false; let terminationConfirmed = true
   let serviceExecute = true; let fixtureChanged = false; let catalogChanged = false; let restorationFails = false; let publicGrant = false
   const catalog = () => ({ owner: 'postgres', definition: catalogChanged ? 'changed function' : 'reviewed function',
@@ -71,7 +72,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   const factory = () => createDraftGetNativeContracts({ repository, reviewedHead: head, original, capturedResources: resources,
     containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id, acceptedManifestSha256: testOwnerDigest(JSON.stringify(manifest)) })
   beforeEach(() => {
-    vi.clearAllMocks(); children.length = 0; terminations.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
+    vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
     mocks.inventory.mockResolvedValue(resources)
     mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: unknown, stdout: string) => void) => {
@@ -79,6 +80,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       let input = ''
       child.kill = vi.fn(() => true)
       child.stdin = new Writable({ write(chunk, _encoding, done) { input += String(chunk); done() }, final(done) {
+        sqlControls.push({ args: [...args], sql: input })
         queueMicrotask(() => {
           if (file === 'git') callback(null, args[1] === '--show-toplevel' ? repository : args[0] === 'rev-parse' ? head : '')
           else if (args[0] === 'context') callback(null, JSON.stringify({ endpoints: { docker: { Host: 'unix:///private/tmp/pika-test-native-docker.sock', SkipTLSVerify: false } }, tlsMaterial: null }))
@@ -178,6 +180,15 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(callback).toHaveBeenCalledTimes(1); expect(serviceExecute).toBe(true)
     await expect(adapter.probeSnapshotPrivilegeDrift(callback)).rejects.toThrow()
     expect(callback).toHaveBeenCalledTimes(1)
+  })
+  it('uses the approved contract-session name for the restoration whole-row snapshot without weakening its guard', async () => {
+    const adapter = factory(); await adapter.setup()
+    await adapter.probeSnapshotPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    const snapshots = sqlControls.filter(command => command.sql === manifest.snapshot)
+    expect(snapshots).toHaveLength(1)
+    expect(snapshots[0].args).toContain(`PGAPPNAME=${project}_draft_contracts`)
+    expect(manifest.snapshot).toContain(`'${project}_draft_contracts'`)
+    expect(manifest.snapshot).not.toContain(`'${project}_fixture'`)
   })
   it('restores grants and proves fixture/catalog equality even when the SDK callback throws', async () => {
     const adapter = factory(); await adapter.setup()

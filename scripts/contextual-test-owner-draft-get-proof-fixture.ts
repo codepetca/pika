@@ -53,10 +53,11 @@ export function newTestOwnerDraftGetFixture(original: AssignmentListProofFixture
   const originalIds = new Set(original.allocatedIds)
   assert.equal(new Set(allocatedIds).size, allocatedIds.length); assert(allocatedIds.every(value => !originalIds.has(value)))
   // Natural 082/095/112/147 effects: Class A starts at1, categories+3,
-  // enrollments+3, Tests+10/questions+1008/drafts+7 and1026 Class updates
-  // including the exact first-start lock update. B archives once; C has one
+  // enrollments+3, Tests+10/questions+1008/drafts+7 and1025 Class updates.
+  // The lock-only Test update adds one archive revision, no blueprint touch:
+  // migration112's UPDATE OF list excludes questions_locked_at. B archives once; C has one
   // enrollment and one Test. No counter is overwritten by setup.
-  const sideEffects = classes.map((c, i) => ({ classroomId: c.id, archiveRevision: [2059, 7, 7][i], blueprintSourceRevision: [1027, 2, 2][i] }))
+  const sideEffects = classes.map((c, i) => ({ classroomId: c.id, archiveRevision: [2058, 7, 7][i], blueprintSourceRevision: [1026, 2, 2][i] }))
   return freeze({ version: 1 as const, tag, now: original.manifest.now, inventory: TEST_OWNER_DRAFT_GET_INVENTORY, actors, classes, tests, questions, drafts, enrollments, cases, allocatedIds, sideEffects })
 }
 export type TestOwnerDraftGetFixture = ReturnType<typeof newTestOwnerDraftGetFixture>

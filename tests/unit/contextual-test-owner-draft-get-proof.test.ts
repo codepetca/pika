@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createClient } from '@supabase/supabase-js'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerDraftGetFixture, testOwnerDraftGetSetupSql, testOwnerDraftGetSnapshotSql, TEST_OWNER_DRAFT_GET_CAPS } from '../../scripts/contextual-test-owner-draft-get-proof-fixture'
-import { createTestOwnerDraftGetProofTransport, testOwnerDraftGetForcedReceipt, testOwnerDraftGetRequestManifest, validateTestOwnerDraftGetSetupSnapshot, verifyTestOwnerDraftGetEffects, parseTestOwnerDraftGetLifecycleArgs, testOwnerDraftGetUnionManifest, testOwnerDraftGetLifecycleMain, verifyTestOwnerDraftGetPrivilegeRestoration } from '../../scripts/check-contextual-test-owner-draft-get-lifecycle'
+import { createTestOwnerDraftGetProofTransport, testOwnerDraftGetForcedReceipt, testOwnerDraftGetRequestManifest, validateTestOwnerDraftGetSetupSnapshot, verifyTestOwnerDraftGetEffects, parseTestOwnerDraftGetLifecycleArgs, testOwnerDraftGetUnionManifest, testOwnerDraftGetLifecycleMain, verifyTestOwnerDraftGetPrivilegeRestoration, testOwnerDraftGetSetupDiagnostic } from '../../scripts/check-contextual-test-owner-draft-get-lifecycle'
 import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { getContextualTestDraft } from '../../src/lib/server/contextual-test-draft-get'
 import { testOwnerDigest, testOwnerGuardSql } from '../../scripts/contextual-test-owner-draft-get-proof-fixture'
@@ -57,6 +57,16 @@ function sourceResponse(f: ReturnType<typeof newTestOwnerDraftGetFixture>, rows:
 }
 
 describe('finite owner draft GET offline authority', () => {
+  it('derives setup revisions without counting a lock-only Test update as blueprint content', () => {
+    const { f } = fixture(), contentWrites = 10 + f.questions.length + f.drafts.length
+    expect(f.sideEffects[0]).toEqual({ classroomId: f.classes[0].id,
+      blueprintSourceRevision: 1 + contentWrites, archiveRevision: 1 + 3 + 3 + 2 * contentWrites + 1 })
+  })
+  it('reports only closed setup stages and failure kinds, never private diagnostics', () => {
+    const error = new AssignmentListLifecycleError({ stage: 'fixture', error: new Error('Private platform command failed') }, [])
+    expect(testOwnerDraftGetSetupDiagnostic('app-write', error)).toBe('DIAG test-owner-draft-get setup=app-write failure=platform-command.\n')
+    expect(testOwnerDraftGetSetupDiagnostic('private-row-identity', new Error('private-key-or-SQL'))).toBe('DIAG test-owner-draft-get setup=unknown failure=unknown.\n')
+  })
   it('hash binds the complete disjoint app+SQL fixture union and rollback bulk inventory', () => {
     const x = fixture(), union = testOwnerDraftGetUnionManifest(x.original, x.f, '7570a9d60591183f0699001f47a6528045a392ee', process.cwd())
     expect(union.inventory).toEqual({ actors: 7, classes: 5, tests: 16, questions: 1009, initialDrafts: 10, enrollments: 5,
