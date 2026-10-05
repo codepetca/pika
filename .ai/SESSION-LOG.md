@@ -11,37 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Supplemental learner local verification on actual main
-
-1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
-source tree; root168focused/static/47Bara/startup/audit PASS. Distinct5.6Sol/high
-initial reviews: securityCLEAN, compatibilityP1validpurged168 NULLscope disappears
-under NOT IN after fixture creation. Both baseline snapshots use correlated
-NOT EXISTS; meaningful1RED/21PASS→22GREEN. Source-only targeted reviewCLEAN.
-242 applied once locally, exact001–242history, genuine typesgenerate/check zero
-drift; SQLdigest48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e
-immutable/no reapplication. Actual PostgreSQL caught unparenthesized CASE in the
-new regression then original compatibility assertions. Root audited allCASE sites,
-two additional proof-only batches/regressions/targeted reviewsCLEAN; each failed
-transaction rolled back and wholecanonicalbaselinePASS. No SQL/application/control
-change, gate weakening or cleanup workaround. Original08:43clock/counters retained.
-
-Runtime d5dea393 new242/allsevenwrapper concealed+visible/ownerhistory/revision/
-restore/submission/nonemptyartifact/inlineeffects PASS; unchanged188189history and
-190artifact rollback contracts PASS. Fullcanonical public/private/Storage counts+
-digests/168metadata/settings/cron/resources unchanged. Full213inline script includes
-committed race fixture: finalCI ephemeral-only, never run on canonical retained
-identities. Strict001242 isolated replay9learnerprojections/6originalrevocations
-plus original listcontrols PASS; nine sealedRPCstubs falsecreated/view, zero actual
-openRPC/Storage/provider network. Bothforcedmodes exit1/exact2markers/teardown/full
-canonicalPASS, private0600 receipts UhgV7p/o2i0fH. Originalobserver authority unchanged;
-no realopen/nonemptySDKsupplements/liveSigning/authHTTP/browser/concurrentvisibility
-proof. Factualreceipt batch/finalcumulative/CI/mainmerge next. Latest213imageREAD
-concealment remains nextbounded prerequisite; assessments/goal incomplete. Local242/
-main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
-worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
-and localmigration override retained; no bypass or production permission inferred.
-
 ## 2026-10-04 — Locked inline-image read source preparation
 
 1459 final cumulative security review CLEAN on9f15e6e2; one ready-event exact CI
@@ -888,3 +857,25 @@ New prototype remains experimental pending owner feedback; no shared-shell extra
 
 Prototype independent GPT6.1Sol/medium review found Markdown metadata snapshot
 overwrite; locked Title/Settings while code owns metadata and added regression.
+
+## 2026-10-05 — Survey prototype applied to real authoring
+
+Owner requested applying the selected prototype to real Pika. Teacher Survey now
+uses the Test-style details pane, rich prompt editor, centered question navigation,
+question action menu, individual lettered options, settings and Preview/Publish.
+Feature-owned SurveyQuestionOptions is reused by real authoring and Pattern Lab;
+no broader shared shell, API/schema/dependency or student UI change. Save flushes,
+retry, stale-selection guards and Markdown metadata ownership retained. Browser
+verification exposed and fixed creation title-focus intent consumption; failed
+save number navigation also restores the actual selected number.
+Real authoring PASS4/4 desktop/mobile light/dark; MC/open/settings/Markdown/preview/
+new-draft screenshots inspected. Prototype variants pass after extraction; dark
+desktop needed an isolated retry after a development hot-reload dialog reset.
+GPT6.1Sol/medium bounded test worker delivered persistence/options/browser and
+title-focus regression coverage; parent corrected browser accessible-name and
+selection expectations. Weekly47% remaining at start; per-worker usage unavailable.
+Focused selection371/372 passed; unchanged focused-runner fixture timed out,
+isolated retryPASS in2.45s. Architecture/UI/design/TypeScript/lint and auditPASS;
+prototype unit4/4 and production-workflow fixture4/4 isolatedPASS. Final desktop
+browser retryPASS after faithful draft-status fixture correction. Independent
+standard-risk review precedes ready CI on PR1483; no production promotion.

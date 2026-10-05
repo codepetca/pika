@@ -37365,3 +37365,35 @@ reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
 Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
 without stashing/popping unrelated entries, then frozen initial review/runtime.
 Production/admission/cutover/provider/account/billing unchanged.
+
+<!-- pika-session-log-archive-batch:d7c330bf30a1997b9a60075e26e7ce81d1e10e7da036e7e57668afbfe447a668 -->
+## 2026-10-04 — Supplemental learner local verification on actual main
+
+1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
+source tree; root168focused/static/47Bara/startup/audit PASS. Distinct5.6Sol/high
+initial reviews: securityCLEAN, compatibilityP1validpurged168 NULLscope disappears
+under NOT IN after fixture creation. Both baseline snapshots use correlated
+NOT EXISTS; meaningful1RED/21PASS→22GREEN. Source-only targeted reviewCLEAN.
+242 applied once locally, exact001–242history, genuine typesgenerate/check zero
+drift; SQLdigest48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e
+immutable/no reapplication. Actual PostgreSQL caught unparenthesized CASE in the
+new regression then original compatibility assertions. Root audited allCASE sites,
+two additional proof-only batches/regressions/targeted reviewsCLEAN; each failed
+transaction rolled back and wholecanonicalbaselinePASS. No SQL/application/control
+change, gate weakening or cleanup workaround. Original08:43clock/counters retained.
+
+Runtime d5dea393 new242/allsevenwrapper concealed+visible/ownerhistory/revision/
+restore/submission/nonemptyartifact/inlineeffects PASS; unchanged188189history and
+190artifact rollback contracts PASS. Fullcanonical public/private/Storage counts+
+digests/168metadata/settings/cron/resources unchanged. Full213inline script includes
+committed race fixture: finalCI ephemeral-only, never run on canonical retained
+identities. Strict001242 isolated replay9learnerprojections/6originalrevocations
+plus original listcontrols PASS; nine sealedRPCstubs falsecreated/view, zero actual
+openRPC/Storage/provider network. Bothforcedmodes exit1/exact2markers/teardown/full
+canonicalPASS, private0600 receipts UhgV7p/o2i0fH. Originalobserver authority unchanged;
+no realopen/nonemptySDKsupplements/liveSigning/authHTTP/browser/concurrentvisibility
+proof. Factualreceipt batch/finalcumulative/CI/mainmerge next. Latest213imageREAD
+concealment remains nextbounded prerequisite; assessments/goal incomplete. Local242/
+main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
+worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
+and localmigration override retained; no bypass or production permission inferred.

@@ -1,8 +1,9 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Code2, Copy, Eye, GripVertical, ListPlus, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Code2, Copy, Eye, ListPlus, Plus, Settings, Trash2, X } from 'lucide-react'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { SurveyQuestionOptions } from '@/components/surveys/SurveyQuestionOptions'
 import { MarkdownContentEditor } from '@/components/editor'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
@@ -35,9 +36,7 @@ export function SurveyEditSplitPattern() {
   const [markdown, setMarkdown] = useState('')
   const [markdownError, setMarkdownError] = useState('')
   const [preview, setPreview] = useState(false)
-  const [dragging, setDragging] = useState<number | null>(null)
   const nextId = useRef(4)
-  const handles = useRef<Array<HTMLButtonElement | null>>([])
   const previewButton = useRef<HTMLButtonElement | null>(null)
   const current = questions[selected]
   const isMc = current.question_type === 'multiple_choice'
@@ -61,7 +60,6 @@ export function SurveyEditSplitPattern() {
     setCode(false)
     setMarkdownError('')
     setPreview(false)
-    setDragging(null)
     nextId.current = 4
     setOpen(true)
   }
@@ -105,20 +103,6 @@ export function SurveyEditSplitPattern() {
     setSelected(next)
     setNumberDraft(String(next + 1))
     change()
-  }
-
-  function updateOption(index: number, value: string) {
-    const options = current.options.map((option, i) => i === index ? value : option)
-    if (index === options.length - 1 && value.trim() && options.length < MAX_SURVEY_OPTIONS) options.push('')
-    updateQuestion({ options })
-  }
-
-  function moveOption(from: number, to: number) {
-    if (from === to || !current.options[from]?.trim() || !current.options[to]?.trim()) return
-    const options = [...current.options]
-    const [option] = options.splice(from, 1)
-    options.splice(to, 0, option)
-    updateQuestion({ options })
   }
 
   function toggleCode() {
@@ -220,27 +204,7 @@ export function SurveyEditSplitPattern() {
                 </div>
                 <MarkdownContentEditor key={current.id} markdown={current.question_text} onMarkdownChange={(question_text) => updateQuestion({ question_text })} aria-label={`Question ${selected + 1} prompt`} placeholder={`Question ${selected + 1}`} toolbarPreset="compact" className="shrink-0 overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-32" />
                 {isMc ? (
-                  <div className="min-h-0 flex-1 space-y-2 overflow-y-auto rounded-md bg-surface-2 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer options</p>
-                    {current.options.map((option, index) => {
-                      const letter = index < 26 ? String.fromCharCode(65 + index) : String(index + 1)
-                      const blank = !option.trim()
-                      return (
-                        <div key={index} draggable={!blank} onDragStart={() => setDragging(index)} onDragEnd={() => setDragging(null)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (dragging !== null) moveOption(dragging, index); setDragging(null) }} className="flex items-center gap-2">
-                          <Tooltip content="Reorder option"><Button ref={(element) => { handles.current[index] = element }} variant="ghost" size="sm" aria-label={`Reorder option ${letter}; use Up and Down arrow keys`} aria-keyshortcuts="ArrowUp ArrowDown" disabled={blank} onKeyDown={(event) => {
-                            const next = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : index
-                            if (next === index || !current.options[next]?.trim()) return
-                            event.preventDefault()
-                            moveOption(index, next)
-                            window.requestAnimationFrame(() => handles.current[next]?.focus())
-                          }} className="h-11 w-11 shrink-0 cursor-grab p-0 text-text-muted"><GripVertical className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
-                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-sm text-text-muted" aria-hidden="true">{letter}</span>
-                          <Input value={option} aria-label={`Question ${selected + 1} option ${letter}`} placeholder={`Option ${letter}`} onChange={(event) => updateOption(index, event.target.value)} />
-                          {blank ? <span className="h-11 w-11 shrink-0" aria-hidden="true" /> : <Tooltip content="Delete option"><Button variant="ghost" size="sm" aria-label={`Delete option ${letter}`} disabled={current.options.filter((item) => item.trim()).length <= 2} onClick={() => updateQuestion({ options: current.options.filter((_, i) => i !== index) })} className="h-11 w-11 shrink-0 p-0 text-text-muted"><Trash2 className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>}
-                        </div>
-                      )
-                    })}
-                  </div>
+                  <SurveyQuestionOptions options={current.options} labelPrefix={`Question ${selected + 1} `} onChange={(options) => updateQuestion({ options })} />
                 ) : (
                   <div className="min-h-0 flex-1 rounded-md bg-surface-2 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Open response</p>

@@ -12,6 +12,18 @@ function openPrototype() {
 }
 
 describe('SurveyEditSplitPattern', () => {
+  it('carries keyboard option reordering from the shared editor into Markdown', () => {
+    const editor = openPrototype()
+    const first = (editor.getByRole('textbox', { name: 'Question 1 option A' }) as HTMLInputElement).value
+    const second = (editor.getByRole('textbox', { name: 'Question 1 option B' }) as HTMLInputElement).value
+    fireEvent.keyDown(editor.getByRole('button', { name: /Reorder option A;/ }), { key: 'ArrowDown' })
+    expect(editor.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue(second)
+    expect(editor.getByRole('textbox', { name: 'Question 1 option B' })).toHaveValue(first)
+    fireEvent.click(editor.getByRole('button', { name: 'Markdown', exact: true }))
+    const markdown = (editor.getByRole('textbox', { name: 'Survey markdown editor' }) as HTMLTextAreaElement).value
+    expect(markdown.indexOf(second)).toBeLessThan(markdown.indexOf(first))
+  })
+
   it('blocks simulated publishing without a title and resets the fixture on reopen', () => {
     const editor = openPrototype()
     fireEvent.change(editor.getByRole('textbox', { name: 'Title' }), { target: { value: '' } })

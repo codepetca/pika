@@ -2,9 +2,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import type { Survey, SurveyQuestion } from '@/types'
+
+vi.mock('@/ui', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/ui')>(),
+  Tooltip: ({ children }: { children: ReactNode }) => children,
+}))
+
+vi.mock('@/components/editor', () => ({
+  MarkdownContentEditor: ({ markdown, onMarkdownChange, readOnly, disabled, ...props }: {
+    markdown: string; onMarkdownChange: (value: string) => void; readOnly?: boolean; disabled?: boolean; 'aria-label'?: string
+  }) => <textarea aria-label={props['aria-label']} value={markdown} disabled={readOnly || disabled} onChange={(event) => onMarkdownChange(event.target.value)} />,
+}))
+
+function selectQuestion(number: number) {
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Question number' }), { target: { value: String(number) } })
+  fireEvent.blur(screen.getByRole('spinbutton', { name: 'Question number' }))
+}
+
+function questionAction(name: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Question actions', exact: true }))
+  fireEvent.click(screen.getByRole('menuitem', { name, exact: true }))
+}
 
 function makeSurvey(overrides: Partial<Survey> = {}): Survey {
   return {
@@ -154,7 +175,7 @@ describe('TeacherSurveyWorkspace', () => {
       await currentDetail.promise
     })
 
-    expect(await screen.findByRole('button', { name: 'Edit survey title' })).toHaveTextContent('Current Survey')
+    expect(await screen.findByLabelText('Survey title')).toHaveValue('Current Survey')
     expect(screen.getByDisplayValue('Current survey question')).toBeInTheDocument()
 
     await act(async () => {
@@ -175,7 +196,7 @@ describe('TeacherSurveyWorkspace', () => {
       await staleDetail.promise
     })
 
-    expect(screen.getByRole('button', { name: 'Edit survey title' })).toHaveTextContent('Current Survey')
+    expect(screen.getByLabelText('Survey title')).toHaveValue('Current Survey')
     expect(screen.getByDisplayValue('Current survey question')).toBeInTheDocument()
     expect(screen.queryByDisplayValue('Stale survey question')).not.toBeInTheDocument()
   })
@@ -328,7 +349,7 @@ describe('TeacherSurveyWorkspace', () => {
       />
     )
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit survey title' }))
+    await screen.findByLabelText('Survey title')
 
     const titleInput = screen.getByLabelText('Survey title') as HTMLInputElement
     expect(titleInput.value).toBe('Untitled Survey')
@@ -345,7 +366,7 @@ describe('TeacherSurveyWorkspace', () => {
         }),
       )
     })
-    expect(await screen.findByRole('button', { name: 'Edit survey title' })).toHaveTextContent('Planning Poll')
+    expect(await screen.findByLabelText('Survey title')).toHaveValue('Planning Poll')
   })
 
   it('auto-selects the generated survey title when requested', async () => {
@@ -375,7 +396,44 @@ describe('TeacherSurveyWorkspace', () => {
     expect(titleInput.selectionEnd).toBe('Untitled Survey'.length)
   })
 
-  it('hides response length editing for text survey questions', async () => {
+  it('focuses the generated title after the parent consumes the initial editor intent', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({
+      survey: makeSurvey({ title: 'Untitled 2026-05-14 10:15:30' }),
+      questions: [],
+    }))
+    const onIntentConsumed = vi.fn()
+    function CreationParent() {
+      const [pendingIntent, setPendingIntent] = useState(true)
+      return (
+        <TeacherSurveyWorkspace
+          classroomId="classroom-1"
+          surveyId="survey-1"
+          initialEditMode={pendingIntent ? 'edit' : undefined}
+          autoEditTitle={pendingIntent}
+          onInitialEditModeConsumed={() => {
+            onIntentConsumed()
+            setPendingIntent(false)
+          }}
+          onBack={vi.fn()}
+          onSurveyUpdated={vi.fn()}
+          onSurveyDeleted={vi.fn()}
+        />
+      )
+    }
+    render(<CreationParent />)
+
+    const title = await screen.findByLabelText('Survey title') as HTMLInputElement
+    await waitFor(() => {
+      expect(onIntentConsumed).toHaveBeenCalledTimes(1)
+      expect(title).toHaveValue('Untitled Survey')
+      expect(title).toHaveFocus()
+      expect(title.selectionStart).toBe(0)
+      expect(title.selectionEnd).toBe('Untitled Survey'.length)
+    })
+    expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'PATCH')).toHaveLength(0)
+  })
+
+  it('preserves response length when editing a text survey question', async () => {
     fetchMock.mockImplementation(async (url: string | URL, init?: RequestInit) => {
       const href = String(url)
       if (href.endsWith('/results')) {
@@ -440,7 +498,7 @@ describe('TeacherSurveyWorkspace', () => {
     )
 
     expect(await screen.findByDisplayValue('Share one note')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Max characters')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Response character limit')).toHaveValue(1200)
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByDisplayValue('Share one note'), {
@@ -475,11 +533,11 @@ describe('TeacherSurveyWorkspace', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Edit survey title' })).toBeInTheDocument()
+      expect(screen.getByLabelText('Survey title')).toBeInTheDocument()
     })
     expect(screen.queryByLabelText('Poll visibility')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Results visibility')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Allow live changes')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Settings', exact: true })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Results' })).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/surveys/survey-1/results')
   })
@@ -547,221 +605,230 @@ describe('TeacherSurveyWorkspace', () => {
     )
   })
 
-  it('shows only the selected survey question in the split authoring workspace', async () => {
-    const secondQuestion = makeQuestion({ id: 'question-2', question_type: 'short_text', question_text: 'Explain your choice', options: [], position: 1 })
-    fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion(), secondQuestion] }))
-
+  it('shows one question at a time with number navigation and compact details', async () => {
+    const second = makeQuestion({ id: 'question-2', question_type: 'short_text', question_text: 'Explain your choice', options: [], position: 1 })
+    fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion(), second] }))
     render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
-
-    const navigation = await screen.findByRole('navigation', { name: 'Survey questions' })
-    expect(within(navigation).getByRole('button', { name: 'Edit question 1' })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(navigation).getByRole('button', { name: 'Edit question 2' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByDisplayValue('Choose a project')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('Choose a project')).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
+    expect(screen.queryByRole('navigation', { name: 'Survey questions' })).not.toBeInTheDocument()
     expect(screen.queryByDisplayValue('Explain your choice')).not.toBeInTheDocument()
-
-    fireEvent.click(within(navigation).getByRole('button', { name: 'Edit question 2' }))
+    selectQuestion(2)
     expect(await screen.findByDisplayValue('Explain your choice')).toBeInTheDocument()
     expect(screen.queryByDisplayValue('Choose a project')).not.toBeInTheDocument()
-    expect(within(navigation).getByRole('button', { name: 'Edit question 2' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it.each(['Edit question 2', 'New question', 'Code', 'Preview', 'Close survey editor'])(
+  it.each(['Next question', 'Add open-response question', 'Markdown', 'Preview', 'Close survey editor', 'Publish', 'Duplicate question'])(
     'waits for the pending question save before %s', async (destination) => {
       const save = createDeferred<Response>()
-      const firstQuestion = makeQuestion()
-      const secondQuestion = makeQuestion({ id: 'question-2', question_type: 'short_text', question_text: 'Explain your choice', options: [], position: 1 })
+      const first = makeQuestion()
+      const second = makeQuestion({ id: 'question-2', question_type: 'short_text', question_text: 'Explain your choice', options: [], position: 1 })
       const onBack = vi.fn()
-      fetchMock.mockImplementation((_url: string | URL, init?: RequestInit) => init?.method === 'PATCH'
-        ? save.promise
-        : Promise.resolve(jsonResponse({ survey: makeSurvey(), questions: [firstQuestion, secondQuestion] })))
-
-      render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
-
-      fireEvent.change(await screen.findByDisplayValue('Choose a project'), { target: { value: 'Choose your next project' } })
-      fireEvent.click(screen.getByRole('button', { name: destination }))
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
-        '/api/teacher/surveys/survey-1/questions/question-1',
-        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ question_type: 'multiple_choice', question_text: 'Choose your next project', options: ['Game', 'Website'], response_max_chars: 500 }) }),
-      ))
-      expect(screen.getByDisplayValue('Choose your next project')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Edit question 1' })).toHaveAttribute('aria-pressed', 'true')
-      expect(onBack).not.toHaveBeenCalled()
-
-      await act(async () => {
-        save.resolve(jsonResponse({ question: { ...firstQuestion, question_text: 'Choose your next project' } }))
-        await save.promise
+      fetchMock.mockImplementation((_url: string | URL, init?: RequestInit) => {
+        if (init?.method === 'PATCH' && String(_url).includes('/questions/')) return save.promise
+        if (init?.method === 'PATCH') return Promise.resolve(jsonResponse({ survey: makeSurvey({ status: 'active' }) }))
+        if (init?.method === 'POST') return Promise.resolve(jsonResponse({ question: makeQuestion({ id: 'question-copy', position: 2, question_text: 'Choose your next project' }) }))
+        return Promise.resolve(jsonResponse({ survey: makeSurvey(), questions: [first, second] }))
       })
-
-      if (destination === 'Edit question 2') {
-        expect(await screen.findByDisplayValue('Explain your choice')).toBeInTheDocument()
-      } else if (destination === 'New question') {
-        await waitFor(() => expect(screen.getByRole('button', { name: 'New question' })).toHaveAttribute('aria-pressed', 'true'))
-        expect(screen.getByLabelText('New question')).toBeInTheDocument()
-      } else if (destination === 'Code') {
-        expect(await screen.findByLabelText('Survey markdown editor')).toBeInTheDocument()
-      } else if (destination === 'Preview') {
-        expect(await screen.findByText('Student preview')).toBeInTheDocument()
-      } else {
-        await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
-      }
-      expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'PATCH')).toHaveLength(1)
+      render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+      fireEvent.change(await screen.findByDisplayValue('Choose a project'), { target: { value: 'Choose your next project' } })
+      if (destination === 'Add open-response question' || destination === 'Duplicate question') questionAction(destination)
+      else fireEvent.click(screen.getByRole('button', { name: destination, exact: true }))
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1/questions/question-1', expect.objectContaining({
+        method: 'PATCH', body: JSON.stringify({ question_type: 'multiple_choice', question_text: 'Choose your next project', options: ['Game', 'Website'], response_max_chars: 500 }),
+      })))
+      expect(screen.getByDisplayValue('Choose your next project')).toBeInTheDocument()
+      expect(onBack).not.toHaveBeenCalled()
+      expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(0)
+      await act(async () => { save.resolve(jsonResponse({ question: { ...first, question_text: 'Choose your next project' } })); await save.promise })
+      if (destination === 'Next question') expect(await screen.findByDisplayValue('Explain your choice')).toBeInTheDocument()
+      else if (destination === 'Add open-response question') expect(await screen.findByLabelText('New question')).toBeInTheDocument()
+      else if (destination === 'Markdown') expect(await screen.findByLabelText('Survey markdown editor')).toBeInTheDocument()
+      else if (destination === 'Preview') expect(await screen.findByText('Student preview')).toBeInTheDocument()
+      else if (destination === 'Close survey editor') await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+      else if (destination === 'Publish') await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'active' }) })))
+      else await waitFor(() => expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(1))
+      expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'PATCH' && String(call[0]).includes('/questions/'))).toHaveLength(1)
     },
   )
 
-  it('keeps the selected question after a failed save and retries when navigation is requested again', async () => {
-    const firstSave = createDeferred<Response>()
-    const firstQuestion = makeQuestion()
-    const secondQuestion = makeQuestion({ id: 'question-2', question_type: 'short_text', question_text: 'Explain your choice', options: [], position: 1 })
-    let saveAttempts = 0
+  it('blocks navigation after a failed save and retries on the next explicit navigation', async () => {
+    const failedSave = createDeferred<Response>()
+    const first = makeQuestion()
+    const second = makeQuestion({ id: 'question-2', question_type: 'short_text', question_text: 'Explain your choice', options: [], position: 1 })
+    let attempts = 0
     fetchMock.mockImplementation((_url: string | URL, init?: RequestInit) => {
-      if (init?.method === 'PATCH') {
-        saveAttempts += 1
-        return saveAttempts === 1 ? firstSave.promise : Promise.resolve(jsonResponse({ question: { ...firstQuestion, question_text: 'Choose your next project' } }))
-      }
-      return Promise.resolve(jsonResponse({ survey: makeSurvey(), questions: [firstQuestion, secondQuestion] }))
+      if (init?.method === 'PATCH') return ++attempts === 1 ? failedSave.promise : Promise.resolve(jsonResponse({ question: { ...first, question_text: 'Updated project question' } }))
+      return Promise.resolve(jsonResponse({ survey: makeSurvey(), questions: [first, second] }))
     })
-
     render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
-    fireEvent.change(await screen.findByDisplayValue('Choose a project'), { target: { value: 'Choose your next project' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Edit question 2' }))
-    await waitFor(() => expect(saveAttempts).toBe(1))
-    await act(async () => {
-      firstSave.resolve({ ok: false, json: async () => ({ error: 'Question save failed' }) } as Response)
-      await firstSave.promise
-    })
-
+    fireEvent.change(await screen.findByDisplayValue('Choose a project'), { target: { value: 'Updated project question' } })
+    selectQuestion(2)
+    await waitFor(() => expect(attempts).toBe(1))
+    await act(async () => { failedSave.resolve({ ok: false, json: async () => ({ error: 'Question save failed' }) } as Response); await failedSave.promise })
     expect(await screen.findByText('Question save failed')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Choose your next project')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit question 1' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByDisplayValue('Explain your choice')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit question 2' }))
+    expect(screen.getByDisplayValue('Updated project question')).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
     expect(await screen.findByDisplayValue('Explain your choice')).toBeInTheDocument()
-    expect(saveAttempts).toBe(2)
+    expect(attempts).toBe(2)
   })
 
   it.each([
-    { type: 'multiple_choice', prompt: 'Choose a project', options: ['Game', 'Website'] },
-    { type: 'short_text', prompt: 'Explain your choice', options: [] },
-  ] as const)('adds and selects a $type question without changing its API type', async ({ type, prompt, options }) => {
-    const createdQuestion = makeQuestion({ question_type: type, question_text: prompt, options: [...options] })
+    { type: 'multiple_choice', action: 'Add multiple-choice question', prompt: 'Choose a project', options: ['Game', 'Website'] },
+    { type: 'short_text', action: 'Add open-response question', prompt: 'Explain your choice', options: [] },
+  ] as const)('adds a $type question using the existing API', async ({ type, action, prompt, options }) => {
     const onQuestionCountChanged = vi.fn()
     fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => jsonResponse(init?.method === 'POST'
-      ? { question: createdQuestion }
+      ? { question: makeQuestion({ question_type: type, question_text: prompt, options: [...options] }) }
       : { survey: makeSurvey(), questions: [] }))
-
     render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} onQuestionCountChanged={onQuestionCountChanged} />)
-    const promptInput = await screen.findByLabelText('New question')
-    expect(screen.getByRole('button', { name: 'New question' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('option', { name: 'Open response' })).toHaveValue('short_text')
-    fireEvent.change(screen.getByLabelText('Type'), { target: { value: type } })
-    fireEvent.change(promptInput, { target: { value: prompt } })
-    if (type === 'multiple_choice') fireEvent.change(screen.getByLabelText('Options'), { target: { value: options.join('\n') } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add question' }))
-
+    await screen.findByLabelText('New question')
+    questionAction(action)
+    fireEvent.change(await screen.findByLabelText('New question'), { target: { value: prompt } })
+    if (type === 'multiple_choice') {
+      fireEvent.change(screen.getByLabelText('Option A'), { target: { value: options[0] } })
+      fireEvent.change(screen.getByLabelText('Option B'), { target: { value: options[1] } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Add question', exact: true }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1/questions', expect.objectContaining({
       method: 'POST', body: JSON.stringify({ question_type: type, question_text: prompt, options: [...options], response_max_chars: 500 }),
     })))
-    expect(await screen.findByRole('button', { name: 'Edit question 1' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByDisplayValue(prompt)).toBeInTheDocument()
+    expect(await screen.findByLabelText('Prompt')).toHaveValue(prompt)
     expect(screen.queryByLabelText('New question')).not.toBeInTheDocument()
     expect(onQuestionCountChanged).toHaveBeenCalledWith('survey-1', 1)
   })
 
-  it('selects the first remaining question after deleting the selected question', async () => {
-    const firstQuestion = makeQuestion()
-    const secondQuestion = makeQuestion({ id: 'question-2', question_type: 'short_text', question_text: 'Explain your choice', options: [], position: 1 })
+  it('keeps incomplete multiple-choice questions local until prompt and two options are valid', async () => {
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.change(await screen.findByLabelText('New question'), { target: { value: 'Choose one' } })
+    fireEvent.change(screen.getByLabelText('Option A'), { target: { value: 'First choice' } })
+    expect(screen.getByRole('button', { name: 'Add question', exact: true })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Add question', exact: true }))
+    expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('Option B'), { target: { value: 'Second choice' } })
+    expect(screen.getByRole('button', { name: 'Add question', exact: true })).not.toBeDisabled()
+  })
+
+  it('deletes the selected question and shows a new form after deleting the last question', async () => {
     const onQuestionCountChanged = vi.fn()
-    fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => jsonResponse(init?.method === 'DELETE'
-      ? { success: true }
-      : { survey: makeSurvey(), questions: [firstQuestion, secondQuestion] }))
+    const second = makeQuestion({ id: 'question-2', question_type: 'short_text', question_text: 'Explain your choice', options: [], position: 1 })
+    fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => jsonResponse(init?.method === 'DELETE' ? { success: true } : { survey: makeSurvey(), questions: [makeQuestion(), second] }))
     render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} onQuestionCountChanged={onQuestionCountChanged} />)
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit question 2' }))
+    await screen.findByLabelText('Prompt')
+    selectQuestion(2)
     await screen.findByDisplayValue('Explain your choice')
-    fireEvent.click(within(screen.getByTestId('survey-editor-content-pane')).getByRole('button', { name: 'Delete', exact: true }))
+    questionAction('Delete question')
     expect(await screen.findByDisplayValue('Choose a project')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit question 1' })).toHaveAttribute('aria-pressed', 'true')
     expect(onQuestionCountChanged).toHaveBeenLastCalledWith('survey-1', 1)
-
-    fireEvent.click(within(screen.getByTestId('survey-editor-content-pane')).getByRole('button', { name: 'Delete', exact: true }))
+    questionAction('Delete question')
     expect(await screen.findByLabelText('New question')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'New question' })).toHaveAttribute('aria-pressed', 'true')
     expect(onQuestionCountChanged).toHaveBeenLastCalledWith('survey-1', 0)
   })
 
-  it('disables question mutations in a read-only workspace', async () => {
+  it('disables all question mutations in a read-only workspace', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion()] }))
     render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" isReadOnly onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
-
-    expect(await screen.findByDisplayValue('Choose a project')).toBeDisabled()
-    expect(screen.getByLabelText('Options')).toBeDisabled()
-    expect(within(screen.getByTestId('survey-editor-content-pane')).getByRole('button', { name: 'Delete', exact: true })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'New question' })).toBeDisabled()
+    expect(await screen.findByLabelText('Prompt')).toBeDisabled()
+    expect(screen.getByLabelText('Option A')).toBeDisabled()
+    expect(screen.getByLabelText('Survey title')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Settings', exact: true })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Question actions', exact: true })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('saves editable response changes from the authoring workspace', async () => {
-    let surveyState = makeSurvey({ dynamic_responses: true })
+  it('ignores a question save completing after the selected survey changes', async () => {
+    const pendingSave = createDeferred<Response>()
+    const currentQuestion = makeQuestion({ id: 'question-current', survey_id: 'survey-current', question_text: 'Current survey prompt' })
+    fetchMock.mockImplementation((_url: string | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') return pendingSave.promise
+      return Promise.resolve(jsonResponse(String(_url).endsWith('/survey-current')
+        ? { survey: makeSurvey({ id: 'survey-current', title: 'Current survey' }), questions: [currentQuestion] }
+        : { survey: makeSurvey(), questions: [makeQuestion()] }))
+    })
+    const onBack = vi.fn()
     const onSurveyUpdated = vi.fn()
-    fetchMock.mockImplementation(async (url: string | URL, init?: RequestInit) => {
-      const href = String(url)
-      if (href.endsWith('/results')) {
-        return {
-          ok: true,
-          json: async () => ({
-            results: [],
-            stats: { total_students: 0, responded: 0 },
-          }),
-        }
-      }
+    const view = render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack} onSurveyUpdated={onSurveyUpdated} onSurveyDeleted={vi.fn()} />)
+    fireEvent.change(await screen.findByLabelText('Prompt'), { target: { value: 'Older pending edit' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey editor' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1/questions/question-1', expect.objectContaining({ method: 'PATCH' })))
+    view.rerender(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-current" onBack={onBack} onSurveyUpdated={onSurveyUpdated} onSurveyDeleted={vi.fn()} />)
+    expect(await screen.findByLabelText('Prompt')).toHaveValue('Current survey prompt')
+    await act(async () => { pendingSave.resolve(jsonResponse({ question: makeQuestion({ question_text: 'Older pending edit' }) })); await pendingSave.promise })
+    expect(screen.getByLabelText('Prompt')).toHaveValue('Current survey prompt')
+    expect(screen.getByLabelText('Survey title')).toHaveValue('Current survey')
+    expect(onBack).not.toHaveBeenCalled()
+  })
 
-      if (init?.method === 'PATCH') {
-        surveyState = {
-          ...surveyState,
-          ...JSON.parse(String(init.body || '{}')),
-        }
-        return {
-          ok: true,
-          json: async () => ({ survey: surveyState }),
-        }
-      }
+  it('persists edited and keyboard-reordered MC choices without changing their text', async () => {
+    const original = makeQuestion({ options: ['Game', 'Website', 'Animation'] })
+    fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => jsonResponse(init?.method === 'PATCH'
+      ? { question: { ...original, ...JSON.parse(String(init.body)) } }
+      : { survey: makeSurvey(), questions: [original] }))
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.change(await screen.findByLabelText('Option A'), { target: { value: 'Collaborative game' } })
+    fireEvent.keyDown(screen.getByRole('button', { name: /Reorder option A;/ }), { key: 'ArrowDown' })
+    expect(screen.getByLabelText('Option A')).toHaveValue('Website')
+    expect(screen.getByLabelText('Option B')).toHaveValue('Collaborative game')
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey editor' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1/questions/question-1', expect.objectContaining({
+      method: 'PATCH', body: JSON.stringify({ question_type: 'multiple_choice', question_text: 'Choose a project', options: ['Website', 'Collaborative game', 'Animation'], response_max_chars: 500 }),
+    })))
+  })
 
-      return {
-        ok: true,
-        json: async () => ({
-          survey: surveyState,
-          questions: [],
-        }),
-      }
+  it('duplicates the saved question with its type, choices and response limit', async () => {
+    const original = makeQuestion({ response_max_chars: 1200 })
+    const countChanged = vi.fn()
+    fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => jsonResponse(init?.method === 'POST'
+      ? { question: { ...original, ...JSON.parse(String(init.body)), id: 'question-copy', position: 1 } }
+      : { survey: makeSurvey(), questions: [original] }))
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} onQuestionCountChanged={countChanged} />)
+    await screen.findByLabelText('Prompt')
+    questionAction('Duplicate question')
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1/questions', expect.objectContaining({
+      method: 'POST', body: expect.any(String),
+    })))
+    const createCall = fetchMock.mock.calls.find((call) => call[1]?.method === 'POST')!
+    expect(JSON.parse(String(createCall[1].body))).toMatchObject({ question_type: 'multiple_choice', question_text: 'Choose a project', options: ['Game', 'Website'], response_max_chars: 1200 })
+    expect(countChanged).toHaveBeenLastCalledWith('survey-1', 2)
+  })
+
+  it('locks competing metadata changes while Markdown edits are pending and restores them on undo', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion()] }))
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Markdown', exact: true }))
+    const markdown = await screen.findByLabelText('Survey markdown editor') as HTMLTextAreaElement
+    const initial = markdown.value
+    fireEvent.change(markdown, { target: { value: initial.replace('Title: Game Jam Links', 'Title: Pending title') } })
+    expect(screen.getByLabelText('Survey title')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Settings', exact: true })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo markdown edits' }))
+    expect(markdown).toHaveValue(initial)
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    await waitFor(() => expect(screen.getByLabelText('Survey title')).not.toBeDisabled())
+    expect(screen.getByRole('button', { name: 'Settings', exact: true })).not.toBeDisabled()
+  })
+
+  it('persists survey settings without loading response results', async () => {
+    let survey = makeSurvey()
+    const onSurveyUpdated = vi.fn()
+    fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') { survey = { ...survey, ...JSON.parse(String(init.body)) }; return jsonResponse({ survey }) }
+      return jsonResponse({ survey, questions: [] })
     })
-
-    render(
-      <TeacherSurveyWorkspace
-        classroomId="classroom-1"
-        surveyId="survey-1"
-        onBack={vi.fn()}
-        onSurveyUpdated={onSurveyUpdated}
-        onSurveyDeleted={vi.fn()}
-      />
-    )
-
-    const checkbox = await screen.findByLabelText('Allow live changes') as HTMLInputElement
-    expect(checkbox.checked).toBe(true)
-
-    fireEvent.click(checkbox)
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/teacher/surveys/survey-1',
-        expect.objectContaining({
-          method: 'PATCH',
-          body: JSON.stringify({ dynamic_responses: false }),
-        }),
-      )
-    })
-    expect(onSurveyUpdated).toHaveBeenLastCalledWith(
-      expect.objectContaining({ dynamic_responses: false }),
-    )
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={onSurveyUpdated} onSurveyDeleted={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings', exact: true }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Show class results to students' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Allow students to update responses' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ dynamic_responses: false }) })))
+    expect(onSurveyUpdated).toHaveBeenLastCalledWith(expect.objectContaining({ dynamic_responses: false }))
+    fireEvent.click(screen.getByRole('button', { name: 'Settings', exact: true }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show class results to students' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ show_results: false }) })))
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/surveys/survey-1/results')
   })
 })
