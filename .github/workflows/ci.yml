@@ -390,6 +390,23 @@ jobs:
             grep -Fx 'PASS isolated test-owner-list exact teardown and unchanged canonical baseline.' "$test_owner_list_log"
           done
 
+      - name: Verify isolated contextual Test owner-draft GET transactions
+        shell: bash
+        run: |
+          test_owner_draft_get_head=$(git rev-parse HEAD)
+          test_owner_draft_get_log=$(mktemp)
+          chmod 600 "$test_owner_draft_get_log"
+          trap 'rm -f -- "$test_owner_draft_get_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-draft-get-lifecycle.ts --reviewed-head "$test_owner_draft_get_head" --mode normal
+          for test_owner_draft_get_mode in after-fixture before-capture; do
+            test_owner_draft_get_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-draft-get-lifecycle.ts --reviewed-head "$test_owner_draft_get_head" --mode "$test_owner_draft_get_mode" > "$test_owner_draft_get_log" 2>&1 || test_owner_draft_get_status=$?
+            [[ "$test_owner_draft_get_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_draft_get_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-draft-get lifecycle: ${test_owner_draft_get_mode}." "$test_owner_draft_get_log"
+            grep -Fx 'PASS isolated test-owner-draft-get exact teardown and unchanged canonical baseline.' "$test_owner_draft_get_log"
+          done
+
       - name: Verify contextual Daily Log save atomicity and privileges
         run: bash scripts/check-contextual-daily-log-save-database.sh
 
