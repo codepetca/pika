@@ -120,6 +120,25 @@ describe('TeacherClassroomsIndex', () => {
     expect(screen.getByRole('region', { name: 'Classrooms' })).toHaveFocus()
   })
 
+  it('suppresses the empty invitation during repeated failed reads while retaining an open dialog', () => {
+    const view = (initialReadError: boolean) => <TooltipProvider><TeacherClassroomsIndex initialClassrooms={[]} initialReadError={initialReadError} /></TooltipProvider>
+    const { rerender } = render(view(false))
+    expect(screen.getByText('Create your first classroom')).toBeInTheDocument()
+    selectClassroomAction('New Classroom')
+    const dialog = screen.getByRole('dialog')
+    for (let attempt = 0; attempt < 2; attempt++) {
+      rerender(view(true))
+      expect(screen.getByRole('alert')).toHaveTextContent('Could not load classrooms')
+      expect(screen.queryByText('Create your first classroom')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Create classroom' })).not.toBeInTheDocument()
+      expect(screen.getByRole('dialog')).toBe(dialog)
+    }
+    rerender(view(false))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Create your first classroom')).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBe(dialog)
+  })
+
   it('retains warm classrooms and an open create dialog through read failure', () => {
     const initialClassrooms = [createMockClassroom({ title: 'Retained' })]
     const { rerender } = render(<TooltipProvider><TeacherClassroomsIndex initialClassrooms={initialClassrooms} /></TooltipProvider>)

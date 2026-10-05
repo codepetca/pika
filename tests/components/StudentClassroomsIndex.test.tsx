@@ -35,6 +35,22 @@ describe('StudentClassroomsIndex', () => {
     expect(screen.getByRole('region', { name: 'Classrooms' })).toHaveFocus()
   })
 
+  it('suppresses the empty invitation during repeated failed reads after a successful empty result', () => {
+    const view = (initialReadError: boolean) => <TooltipProvider><StudentClassroomsIndex initialClassrooms={[]} initialReadError={initialReadError} /></TooltipProvider>
+    const { rerender } = render(view(false))
+    expect(screen.getByText('No classrooms yet')).toBeInTheDocument()
+    for (let attempt = 0; attempt < 2; attempt++) {
+      rerender(view(true))
+      expect(screen.getByRole('alert')).toHaveTextContent('Could not load classrooms')
+      expect(screen.queryByText('No classrooms yet')).not.toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: 'Join classroom' })).toHaveLength(1)
+    }
+    rerender(view(false))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('No classrooms yet')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Join classroom' })).toHaveLength(2)
+  })
+
   it('retains warm data and local opening state on failure, accepts a successful empty recovery', () => {
     const initialClassrooms = [createMockClassroom({ title: 'Retained' })]
     const { rerender } = render(<TooltipProvider><StudentClassroomsIndex initialClassrooms={initialClassrooms} /></TooltipProvider>)

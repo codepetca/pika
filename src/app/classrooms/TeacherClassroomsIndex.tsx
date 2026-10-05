@@ -724,7 +724,8 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
               description={archiveLoadError}
               action={<IconButton icon={RotateCw} label="Try loading archived classrooms again" variant="secondary" onClick={() => void loadArchived()} />}
             />
-          ) : (view === 'active' ? visibleClassrooms.length === 0 : !hasArchivedItems) ? (
+          ) : view === 'active' && initialReadError && visibleClassrooms.length === 0 ? null
+          : (view === 'active' ? visibleClassrooms.length === 0 : !hasArchivedItems) ? (
             view === 'active' ? (
               /* Empty active: center the CTA on screen */
               <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100dvh - 12rem)' }}>

@@ -74,7 +74,7 @@ export function StudentClassroomsIndex({ initialClassrooms, studentId, initialRe
 
       <PageContent>
         {initialReadError ? <ClassroomsReadError compact onRetry={() => classroomsRef.current?.focus()} /> : null}
-        {sorted.length === 0 ? (
+        {initialReadError && sorted.length === 0 ? null : sorted.length === 0 ? (
           <EmptyState
             title="No classrooms yet"
             description="Join a classroom to get your lessons, assignments, and daily work in one place."
