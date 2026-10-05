@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Supplemental learner permission source preparation
-
-1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
-single eligible CI37188214976 running with Test&Build/browser PASS, database/PRGate
-pending. Reviewed1458source frozen; next branch depends on that exact commit,
-not yet an actual merged parent. Local241/prodlast225 unchanged.
-
-Bounded6.1Sol/high worker relinquished only242SQL/structuraltest/rollbackharness.
-Four complete latest214/213 definitions preserve byteparity after onlylocked
-visibility additions; owner-history exception and member-only42501 precedence
-remain.21new/80related workerchecks PASS; root65related PASS, inspected harness,
-removed onlycosmetic trailing blankline, SQLdigest unchanged
-48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e.
-NewserialCI/floor regression23RED then61GREEN.242UNAPPLIED; all001241SQL and
-isolatedfixture/transport/transitions/restoration/cleanup authority unchanged.
-Harness PREPARED NOTRUN: exactcanonical/c242sc242 collisionguards/BEGINROLLBACK/
-168169ON/settingscronACL unchanged; synthetic Storage metadata only, no physical
-bytes/API/network/cleanup/activation. Outsider/crosssubject checks are notsameactor
-revocation; actualremoval/concurrency remains integrationwork. Solelatest213
-imageREAD lacksClasswork concealment and is explicit separate prerequisite;
-current4function slice doesnotclaim otherwise. Rootowns Git/review/application/
-types/runtime/CI; actualparentmerge/reconcile beforepublication. Sharedadmission/
-home/cutover/account/billing/providerOFF; assessmentphase/epic incomplete.
-
-Superseding parent receipt:1458 reviewed28e8af46 merged61c44aec at08:38:57Z,
-exactCI37188214976/all5PASS (0queue/1426runseconds), including actual unchanged
-save concurrent-authorization and new241rollback steps. Normal squash exacthead,
-reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
-13files plus architecture/UI/design/TypeScript/lint PASS for prepared242 branch.
-Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
-without stashing/popping unrelated entries, then frozen initial review/runtime.
-Production/admission/cutover/provider/account/billing unchanged.
-
 ## 2026-10-04 — Supplemental learner local verification on actual main
 
 1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
@@ -905,3 +872,16 @@ reset or further review extension. Host/private runner activation remains pendin
 Set active goal and audited continuity using one bounded GPT-6.1 Sol/medium worker; DeepSeek remains owner-paused. New fluid-classroom-plan records experience contract, governed reuse/extend choices and later teacher/student slices. Daily now keeps one table/split owner, retains valid same-date selection, clears changed scope/removed students, and discloses details with existing tokens and inert hidden controls. Escape now ignores the mounted hidden user menu while deferring to an open menu. Pattern Lab real-owner candidate remains experimental; owner acceptance requested before promotion/broader adoption. No dependency or database changes.
 
 20 Daily matrix +8 existing teacher/student reference +4 new inspector browser cases PASS; six normal/reduced light/dark desktop/mobile capture variants preserve scroll/DOM/focus and direct drag resize. Visual review caught and fixed the Lab demo's mobile height constraint. Evidence is the chat visualization fluid-pilot directory; local first-observed-selection 42–63ms is fixture-only frame sampling, not production INP. Final serial focused gate, draft publication and fixed-SHA review results tracked on the PR; concurrent gallery timeouts are addressed through serial checks without weakened limits. Goal remains active; no merge/deployment authority added.
+
+## 2026-10-05 — Daily fluid UI pilot CI remediation
+
+PR #1481 returned to draft after ready CI Test & Build failed on two unchanged
+base-branch tests; remaining database/browser jobs were cancelled by draft flow.
+Read-only Sol/high diagnosis confirmed CURRENT receipt-format drift and an
+intermittent calendar test completion outside React act. One bounded test-only
+batch accepts compact verified DB/controls wording without weakening the >=160
+floor, settles initial calendar sources and awaits retry completion in act while
+retaining workspace-focus assertions. No production or migration change. Required
+focused gate, targeted review and final integration review precede ready CI.
+Student Classwork continuity is being prepared separately with existing stable
+page states; Daily's experimental motion promotion still awaits owner feedback.
