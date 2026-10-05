@@ -222,6 +222,23 @@ export function verifyTestOwnerDraftGetEffects(f: TestOwnerDraftGetFixture, proo
   }
 }
 
+/** The SQL adapter restores its grant/catalog/fixture in its own finally. The
+ * application fixture has a different scope, so its comparison must run even
+ * when the SDK callback or adapter restoration rejects. No writes or SQL here. */
+export async function verifyTestOwnerDraftGetPrivilegeRestoration(
+  before: Rows, snapshot: () => Promise<Rows>,
+  probe: () => Promise<{ privilegeRestored: boolean; fixtureUnchanged: boolean; snapshotAclSha256: string }>,
+) {
+  try {
+    const receipt = await probe()
+    assert(receipt.privilegeRestored && receipt.fixtureUnchanged)
+    assert.match(receipt.snapshotAclSha256, /^[a-f0-9]{64}$/)
+    return receipt
+  } finally {
+    assert.deepEqual(await snapshot(), before, 'Application privilege-probe rows changed')
+  }
+}
+
 export async function testOwnerDraftGetLifecycleMain(args = process.argv.slice(2)) {
   const input = parseTestOwnerDraftGetLifecycleArgs(args)
   const git = (values: string[]) => execFileSync('git', values, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 }).trim()
@@ -277,19 +294,15 @@ export async function testOwnerDraftGetLifecycleMain(args = process.argv.slice(2
     assert(sqlContracts)
     const beforePrivilege = await snapshot()
     const privilegeCase = f.cases.find(c => c.status === 200 && c.operation === 'inspect'); assert(privilegeCase)
-    const privilegeReceipt = await sqlContracts.probeSnapshotPrivilegeDrift(async () => {
+    await verifyTestOwnerDraftGetPrivilegeRestoration(beforePrivilege, snapshot, () => sqlContracts!.probeSnapshotPrivilegeDrift(async () => {
       const rpcBefore = transport!.counts.rpc, errorsBefore = transport!.evidence.rawPrivilegeFailures
       transport!.readContext(privilegeCase.testId, privilegeCase.actorId, beforePrivilege)
       await assert.rejects(() => getContextualTestDraft({ supabase: client!, actorId: privilegeCase.actorId, testId: privilegeCase.testId }),
         e => e instanceof ApiError && e.statusCode === 503)
       assert.equal(transport!.counts.rpc - rpcBefore, 1)
       assert.equal(transport!.evidence.rawPrivilegeFailures - errorsBefore, 1)
-      assert.deepEqual(await snapshot(), beforePrivilege)
       return { status: 503 as const, rpcCalls: 1 as const, rawCode: '42501' as const }
-    })
-    assert(privilegeReceipt.privilegeRestored && privilegeReceipt.fixtureUnchanged)
-    assert.match(privilegeReceipt.snapshotAclSha256, /^[a-f0-9]{64}$/)
-    assert.deepEqual(await snapshot(), beforePrivilege)
+    }))
     assert.equal(transport.counts.rpc, 25); assert.equal(transport.evidence.rawPrivilegeFailures, 1)
     assert(sqlContracts); const beforeContracts = await snapshot(); const receipt = await sqlContracts.run()
     assert(receipt.fixtureUnchanged); assert.equal(receipt.manifestSha256, testOwnerDigest(JSON.stringify(union.sql)))

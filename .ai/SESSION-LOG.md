@@ -1109,3 +1109,9 @@ stillrequired. Privilegeprobeexact1SDKraw42501→503/restoredACL+definition/rows
 Scopedlint/auditPASS; SAMEcanonicalbaselineverifyPASS, not recaptured. No DBwrite.
 Finalbatch1focused398/17+architecture/UI/designPASS; EXIT1only2newRPCtypeerrors,
 focusedlintnotreached. Genuinegenerator/nativeproof remainpending, PRstaysdraft.
+Publishedbatch1 `6787f0f5`, stilldraft. Sol5.6/high targeted1 manual2m23 accepted
+initialfixes, foundP2 proofgap: SDKcallbackfailure skippedappwhole-rowcomparison.
+Rootbatch2 outerappfinally afteradapterrestoration;2REDmissinghelper→full121/2
+GREEN, no nativeexecution. Originalreviewclock00:51:52 retained, no reset.
+Batch2focused400/17+architecture/UI/designPASS; EXIT1only2ungeneratedRPCtypes;
+scoped2filelint/audit/diffPASS. No claims of native/SDK/cleanup or overallgreen.

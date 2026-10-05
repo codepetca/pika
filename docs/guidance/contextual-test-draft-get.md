@@ -194,3 +194,11 @@ Batch1 focused verification:398 tests/17 files plus architecture/UI/design PASS.
 TypeScript still fails solely on the two ungenerated RPC names; the focused
 command remains EXIT1 and did not reach lint. The SQL source regressions are14
 PASS and native-adapter protocol regressions20 PASS, without runtime claims.
+
+Targeted review1 accepted the initial transaction/error/category fixes but blocked
+native acceptance on application-row verification after a failed SDK probe. The
+SQL adapter's restoration remains separate; an outer application finally now
+compares its full preimage after every probe outcome. Offline failure/drift
+regressions cover this boundary; live proof and re-review remain pending.
+Batch2 focused verification:400 tests/17 files and architecture/UI/design PASS;
+EXIT1 still solely the two pending generated RPC types. Scoped lint/audit PASS.

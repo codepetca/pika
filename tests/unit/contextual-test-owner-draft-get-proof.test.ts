@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createClient } from '@supabase/supabase-js'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerDraftGetFixture, testOwnerDraftGetSetupSql, testOwnerDraftGetSnapshotSql, TEST_OWNER_DRAFT_GET_CAPS } from '../../scripts/contextual-test-owner-draft-get-proof-fixture'
-import { createTestOwnerDraftGetProofTransport, testOwnerDraftGetForcedReceipt, testOwnerDraftGetRequestManifest, validateTestOwnerDraftGetSetupSnapshot, verifyTestOwnerDraftGetEffects, parseTestOwnerDraftGetLifecycleArgs, testOwnerDraftGetUnionManifest, testOwnerDraftGetLifecycleMain } from '../../scripts/check-contextual-test-owner-draft-get-lifecycle'
+import { createTestOwnerDraftGetProofTransport, testOwnerDraftGetForcedReceipt, testOwnerDraftGetRequestManifest, validateTestOwnerDraftGetSetupSnapshot, verifyTestOwnerDraftGetEffects, parseTestOwnerDraftGetLifecycleArgs, testOwnerDraftGetUnionManifest, testOwnerDraftGetLifecycleMain, verifyTestOwnerDraftGetPrivilegeRestoration } from '../../scripts/check-contextual-test-owner-draft-get-lifecycle'
 import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { getContextualTestDraft } from '../../src/lib/server/contextual-test-draft-get'
 import { testOwnerDigest, testOwnerGuardSql } from '../../scripts/contextual-test-owner-draft-get-proof-fixture'
@@ -284,6 +284,24 @@ describe('complete finite mocked SDK matrix', () => {
 })
 
 describe('sealed lifecycle offline composition', () => {
+  it.each([false, true])('compares application rows after failed SDK callback and grant restoration, including drift=%s', async drift => {
+    const x = fixture(), before = sourceRows(x.f), after = structuredClone(before), events: string[] = []
+    const sdkError = new Error('synthetic SDK failure')
+    const probe = async () => {
+      events.push('revoke')
+      try {
+        events.push('SDK-failure')
+        if (drift) after['public.tests'][0].title = 'synthetic drift'
+        throw sdkError
+      } finally { events.push('grant-restored'); events.push('SQL-fixture-verified') }
+    }
+    const snapshot = vi.fn(async () => { events.push('app-snapshot'); return after })
+    const running = verifyTestOwnerDraftGetPrivilegeRestoration(before, snapshot, probe)
+    if (drift) await expect(running).rejects.toThrow('Application privilege-probe rows changed')
+    else await expect(running).rejects.toBe(sdkError)
+    expect(snapshot).toHaveBeenCalledOnce()
+    expect(events).toEqual(['revoke', 'SDK-failure', 'grant-restored', 'SQL-fixture-verified', 'app-snapshot'])
+  })
   it.each(['after-fixture', 'before-capture', 'partial-sql-setup', 'bad-resource', 'bad-private-guard', 'bad-snapshot'] as const)('finishes both exact fixture setups before original forced checkpoint: %s', async scenario => {
     const x = fixture(), head = 'a'.repeat(40), mode = scenario === 'before-capture' ? 'before-capture' : 'after-fixture'
     const resources: AssignmentListResource[] = assignmentListExpectedResources(x.projectId).map((r, i) => ({ ...r, id: String(i + 1).padStart(64, '0'), createdAt: 'synthetic',
