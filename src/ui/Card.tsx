@@ -24,7 +24,7 @@ const cardVariants = cva(
         lg: 'p-card-cozy',
       },
       interactive: {
-        true: 'transition-colors hover:border-border-strong hover:bg-surface-hover',
+        true: 'transition-colors duration-fast ease-standard motion-reduce:transition-none hover:border-border-strong hover:bg-surface-hover',
         false: '',
       },
     },

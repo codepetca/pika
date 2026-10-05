@@ -180,7 +180,7 @@ export function SortableHeaderCell({
         densityPadding(density),
         'flex min-h-control w-full items-center gap-1 focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
         alignClass,
-        'hover:bg-surface-hover transition-colors',
+        'hover:bg-surface-hover transition-colors duration-fast ease-standard motion-reduce:transition-none',
         resize ? 'relative' : '',
         buttonClassName,
       ].join(' ')}

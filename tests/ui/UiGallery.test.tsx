@@ -274,6 +274,19 @@ describe('UiGallery accessibility contracts', () => {
     expect(document.getElementById('pattern-details-panel')).toBeInTheDocument()
   })
 
+  it.each(['teacher', 'student'] as const)('keeps the example draft mounted while switching %s panels', (role) => {
+    renderGallery(role)
+    const draft = screen.getByRole('textbox', { name: 'Example draft' })
+    fireEvent.change(draft, { target: { value: 'Unsaved example' } })
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Draft' }), { key: 'ArrowRight' })
+    expect(screen.queryByRole('textbox', { name: 'Example draft' })).not.toBeInTheDocument()
+    expect(document.getElementById('fluid-draft-panel')?.parentElement).toHaveAttribute('inert')
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Activity' }), { key: 'ArrowLeft' })
+    expect(screen.getByRole('textbox', { name: 'Example draft' })).toBe(draft)
+    expect(draft).toHaveValue('Unsaved example')
+    expect(document.getElementById('fluid-draft-panel')?.parentElement).not.toHaveAttribute('inert')
+  })
+
   it('opens and dismisses the canonical alert dialog', () => {
     renderGallery()
 

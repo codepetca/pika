@@ -144,6 +144,53 @@ test('prototypes survey editing with accessible split panes and local authoring 
   expect(writes).toEqual([])
   expect(pageErrors).toEqual([])
 })
+for (const role of ['teacher', 'student'] as const) {
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`${role} shared interaction continuity with ${motion} motion`, async ({ page }, testInfo) => {
+      await page.emulateMedia({ reducedMotion: motion })
+      await openPatternLab(page, testInfo, role)
+      const saving = page.getByRole('button', { name: 'Saving', exact: true })
+      await expect(saving).toHaveAttribute('aria-busy', 'true')
+      await expect(saving).toBeDisabled()
+      expect(await saving.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe(
+        motion === 'reduce' ? '0s' : '0.15s',
+      )
+      expect(await saving.locator('svg').evaluate((element) => getComputedStyle(element).animationName)).toBe(
+        motion === 'reduce' ? 'none' : 'spin',
+      )
+      const draft = page.getByRole('textbox', { name: 'Example draft' })
+      await draft.fill('Unsaved example')
+      const node = await draft.elementHandle()
+      await page.getByRole('tab', { name: 'Activity', exact: true }).click()
+      await expect(page.locator('#fluid-draft-panel').locator('..')).toHaveAttribute('inert', '')
+      await expect(draft).toBeHidden()
+      await page.getByRole('tab', { name: 'Draft', exact: true }).click()
+      expect(await draft.evaluate((element, original) => element === original, node)).toBe(true)
+      await expect(draft).toHaveValue('Unsaved example')
+      const animation = await page.locator('#fluid-draft-panel').locator('..').evaluate((element) => ({
+        name: getComputedStyle(element).animationName,
+        duration: getComputedStyle(element).animationDuration,
+      }))
+      expect(animation.name).toBe('workspace-entry')
+      expect(animation.duration).toBe(motion === 'reduce' ? '0s' : '0.2s')
+
+      const trigger = page.getByRole('button', { name: 'User menu', exact: true }).first()
+      await trigger.focus()
+      await page.keyboard.press('ArrowDown')
+      const menu = page.getByRole('menu')
+      await expect(menu).toBeVisible()
+      expect(await menu.getByRole('menuitem').evaluateAll((elements) => elements.map((element) => (element as HTMLElement).tabIndex))).toEqual([0, -1, -1])
+      await page.keyboard.press('End')
+      await expect(page.getByRole('menuitem', { name: 'Logout', exact: true })).toBeFocused()
+      await page.getByRole('menuitem', { name: 'Send Feedback', exact: true }).click()
+      await expect(page.getByRole('dialog')).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(trigger).toBeFocused()
+      await expect(page.locator(`[id="${await trigger.getAttribute('aria-controls')}"]`)).toHaveAttribute('inert', '')
+      await expect(page.getByRole('menu')).toHaveCount(0)
+    })
+  }
+}
 
 test('teacher continuous inspector keeps controls and details usable in the bounded reference', async ({ page }, testInfo) => {
   await openPatternLab(page, testInfo, 'teacher')

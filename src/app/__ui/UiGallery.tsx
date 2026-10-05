@@ -20,6 +20,7 @@ import {
   SegmentedControl,
   Select,
   TabPanel,
+  TabContentTransition,
   Tabs,
   Tooltip,
   cn,
@@ -101,6 +102,30 @@ const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
 ].join('\n')
 
 type Role = 'teacher' | 'student'
+
+function TabEntryPreview() {
+  const [active, setActive] = useState<'draft' | 'activity'>('draft')
+  return (
+    <Card tone="panel" padding="md" className="max-w-reading">
+      <div data-testid="tab-entry-extension">
+        <Tabs ariaLabel="Tab continuity preview" value={active} onValueChange={setActive}
+          getTabId={(value) => `fluid-${value}-tab`}
+          getPanelId={(value) => `fluid-${value}-panel`}
+          items={[{ value: 'draft', label: 'Draft' }, { value: 'activity', label: 'Activity' }]} />
+        {(['draft', 'activity'] as const).map((value) => (
+          <TabContentTransition key={value} isActive={active === value}>
+            <TabPanel id={`fluid-${value}-panel`} labelledBy={`fluid-${value}-tab`}
+              className="min-h-20 bg-surface px-4 py-3 text-sm text-text-muted">
+              {value === 'draft'
+                ? <FormField label="Example draft"><Input defaultValue="Keep this draft while switching tabs." /></FormField>
+                : 'Example activity. The draft stays mounted while this panel is active.'}
+            </TabPanel>
+          </TabContentTransition>
+        ))}
+      </div>
+    </Card>
+  )
+}
 
 function QrSizingExample() {
   const [open, setOpen] = useState(false)
@@ -587,6 +612,15 @@ export function UiGallery({ role }: Props) {
           </div>
           </PatternSection>
         </div>
+
+        <PatternSection
+          id="tab-entry-extension"
+          eyebrow="Experimental · shared interaction"
+          title="Quiet tab entry"
+          description="Immediate selection and retained drafts with quiet opacity entry. This extension is awaiting human acceptance."
+        >
+          <TabEntryPreview />
+        </PatternSection>
 
         {role === 'teacher' && (
           <PatternSection
