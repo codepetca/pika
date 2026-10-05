@@ -2214,7 +2214,7 @@ describe('TeacherTestsTab', () => {
     expect(statusHeader).toHaveAttribute('aria-sort', 'ascending')
   })
 
-  it('clears the selected grading row with Escape', async () => {
+  it('keeps selection while a menu is open and clears it with Escape after the menu is hidden', async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
@@ -2238,6 +2238,10 @@ describe('TeacherTestsTab', () => {
       'true',
     )
 
+    const menu = render(<div role="menu" aria-hidden="false">User menu fixture</div>)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByTestId('mock-test-grading-panel')).toBeInTheDocument()
+    menu.rerender(<div role="menu" aria-hidden="true">User menu fixture</div>)
     fireEvent.keyDown(window, { key: 'Escape' })
 
     await waitFor(() => {

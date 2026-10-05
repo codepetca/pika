@@ -34,7 +34,11 @@ interface TeacherWorkspaceSplitProps {
   minInspectorPercent?: number
   maxInspectorPercent?: number
   splitVariant?: 'joined' | 'gapped'
-  /** Opt-in pilot: preserve pane identity and animate disclosure, never drag resizing. */
+  /** Gapped splits: hide the primary slot without moving or remounting the inspector owner. */
+  primaryCollapsed?: boolean
+  /** Gapped splits: preserve pane identity and animate disclosure, never drag resizing.
+   * Owners may clear inspector content immediately; the empty pane still closes smoothly.
+   */
   animateInspector?: boolean
 }
 
@@ -96,6 +100,7 @@ export function TeacherWorkspaceSplit({
   minInspectorPercent = 0,
   maxInspectorPercent = 100,
   splitVariant = 'joined',
+  primaryCollapsed = false,
   animateInspector = false,
 }: TeacherWorkspaceSplitProps) {
   const splitRef = useRef<HTMLDivElement | null>(null)
@@ -262,10 +267,12 @@ export function TeacherWorkspaceSplit({
   )
 
   if (splitVariant === 'gapped') {
-    const keepInspectorMounted = animateInspector && !!inspector
+    const keepInspectorMounted = animateInspector
     const inspectorPaneStyle = {
       '--teacher-workspace-inspector-width': inspectorVisible
-        ? `calc(${constrainedInspectorWidth}% - ${GAPPED_SPLIT_HANDLE_WIDTH_PX / 2}px)`
+        ? primaryCollapsed
+          ? '100%'
+          : `calc(${constrainedInspectorWidth}% - ${GAPPED_SPLIT_HANDLE_WIDTH_PX / 2}px)`
         : '0%',
     } as CSSProperties
     const motionClass = animateInspector && !isResizing
@@ -277,7 +284,7 @@ export function TeacherWorkspaceSplit({
         ref={splitRef}
         className={cn(
           'flex min-h-0 flex-1 flex-col bg-page lg:h-full lg:overflow-hidden lg:flex-row lg:gap-0',
-          keepInspectorMounted && !inspectorVisible ? 'gap-0' : 'gap-3',
+          primaryCollapsed || (keepInspectorMounted && !inspectorVisible) ? 'gap-0' : 'gap-3',
           animateInspector && !isResizing && 'transition-[gap] duration-standard ease-standard motion-reduce:transition-none',
           className,
         )}
@@ -293,17 +300,21 @@ export function TeacherWorkspaceSplit({
           </div>
         ) : null}
 
-        <div className={cn('min-h-0 min-w-0 flex-1 overflow-hidden', primaryClassName)}>
+        <div
+          aria-hidden={primaryCollapsed || undefined}
+          ref={(element) => { element?.toggleAttribute('inert', primaryCollapsed) }}
+          className={cn('min-h-0 min-w-0 flex-1 overflow-hidden', primaryCollapsed && 'hidden', primaryClassName)}
+        >
           {primary}
         </div>
 
         {inspectorVisible || keepInspectorMounted ? (
           <div className={cn(
             'hidden shrink-0 self-stretch overflow-hidden lg:flex',
-            inspectorVisible ? 'w-3' : 'w-0',
+            inspectorVisible && !primaryCollapsed ? 'w-3' : 'w-0',
             animateInspector && !isResizing && 'transition-[width] duration-standard ease-standard motion-reduce:transition-none',
           )}>
-            {inspectorVisible ? (
+            {inspectorVisible && !primaryCollapsed ? (
               <div
                 role="separator"
                 aria-label={dividerLabel}

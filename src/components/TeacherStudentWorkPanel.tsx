@@ -32,6 +32,8 @@ interface TeacherStudentWorkPanelProps {
   refreshKey?: number
   mode?: AssignmentWorkspaceMode | 'workspace'
   classPane?: ReactNode
+  /** Classwork owns the stable table split; this panel supplies its selected inspector. */
+  workspaceInspectorOnly?: boolean
   splitPaneView?: AssignmentSplitPaneView
   studentHeader?: ReactNode
   inspectorCollapsed?: boolean
@@ -241,6 +243,7 @@ export function TeacherStudentWorkPanel({
   refreshKey = 0,
   mode = 'details',
   classPane,
+  workspaceInspectorOnly = false,
   splitPaneView = 'students-grading',
   studentHeader,
   inspectorCollapsed = false,
@@ -515,6 +518,13 @@ export function TeacherStudentWorkPanel({
       : inspector
     const primaryHeader = splitPaneView === 'content-grading' ? studentHeader : undefined
     const inspectorHeader = splitPaneView === 'students-content' ? studentHeader : undefined
+    if (workspaceInspectorOnly) {
+      return (
+        <AssignmentWorkspacePaneFrame header={inspectorHeader}>
+          {inspectorPane}
+        </AssignmentWorkspacePaneFrame>
+      )
+    }
     const primaryMinPx = splitPaneView === 'content-grading'
       ? ASSIGNMENT_GRADING_LAYOUT.detailsPrimaryMinPx
       : ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx
@@ -527,8 +537,9 @@ export function TeacherStudentWorkPanel({
 
     return (
       <TeacherWorkspaceSplit
-        className="flex-1"
+        className="h-full flex-1"
         splitVariant="gapped"
+        animateInspector
         primaryClassName="min-h-0 rounded-lg bg-surface"
         inspectorClassName="min-h-0 rounded-lg bg-surface"
         inspectorCollapsed={layout.inspectorCollapsed}

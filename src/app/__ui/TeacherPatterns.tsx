@@ -127,9 +127,9 @@ export function TeacherPatterns() {
       </Card>
 
       <Card tone="panel" padding="md">
-        <h3 className="font-semibold">Continuous inspector (experimental)</h3>
+        <h3 className="font-semibold">Continuous inspector</h3>
         <p className="mt-1 text-sm text-text-muted">
-          Daily pilot: preserve the primary pane while details open and close. Switching students
+          Approved Daily reference: preserve the primary pane while details open and close. Switching students
           updates content without replaying the opening. Resizing is immediate; reduced motion is respected.
         </p>
         <div className="mt-4 h-80" data-testid="continuous-inspector-example">

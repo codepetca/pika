@@ -37365,3 +37365,64 @@ reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
 Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
 without stashing/popping unrelated entries, then frozen initial review/runtime.
 Production/admission/cutover/provider/account/billing unchanged.
+
+<!-- pika-session-log-archive-batch:a80b95ae94ff611959bb7b6c4b81d07a5c797c1e24d68174c1e068554aa18b98 -->
+## 2026-10-04 — Supplemental learner local verification on actual main
+
+1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
+source tree; root168focused/static/47Bara/startup/audit PASS. Distinct5.6Sol/high
+initial reviews: securityCLEAN, compatibilityP1validpurged168 NULLscope disappears
+under NOT IN after fixture creation. Both baseline snapshots use correlated
+NOT EXISTS; meaningful1RED/21PASS→22GREEN. Source-only targeted reviewCLEAN.
+242 applied once locally, exact001–242history, genuine typesgenerate/check zero
+drift; SQLdigest48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e
+immutable/no reapplication. Actual PostgreSQL caught unparenthesized CASE in the
+new regression then original compatibility assertions. Root audited allCASE sites,
+two additional proof-only batches/regressions/targeted reviewsCLEAN; each failed
+transaction rolled back and wholecanonicalbaselinePASS. No SQL/application/control
+change, gate weakening or cleanup workaround. Original08:43clock/counters retained.
+
+Runtime d5dea393 new242/allsevenwrapper concealed+visible/ownerhistory/revision/
+restore/submission/nonemptyartifact/inlineeffects PASS; unchanged188189history and
+190artifact rollback contracts PASS. Fullcanonical public/private/Storage counts+
+digests/168metadata/settings/cron/resources unchanged. Full213inline script includes
+committed race fixture: finalCI ephemeral-only, never run on canonical retained
+identities. Strict001242 isolated replay9learnerprojections/6originalrevocations
+plus original listcontrols PASS; nine sealedRPCstubs falsecreated/view, zero actual
+openRPC/Storage/provider network. Bothforcedmodes exit1/exact2markers/teardown/full
+canonicalPASS, private0600 receipts UhgV7p/o2i0fH. Originalobserver authority unchanged;
+no realopen/nonemptySDKsupplements/liveSigning/authHTTP/browser/concurrentvisibility
+proof. Factualreceipt batch/finalcumulative/CI/mainmerge next. Latest213imageREAD
+concealment remains nextbounded prerequisite; assessments/goal incomplete. Local242/
+main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
+worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
+and localmigration override retained; no bypass or production permission inferred.
+
+<!-- pika-session-log-archive-batch:4cc776efa8a5b9b33f19a47964ee4545f7aed3f5bd3216720add81eb73ab9248 -->
+## 2026-10-04 — Locked inline-image read source preparation
+
+1459 final cumulative security review CLEAN on9f15e6e2; one ready-event exact CI
+37191597295 is running. Source frozen, original review clock/counters retained;
+explicit human-authorized extension to10:43Z for CI/normal merge only. No duplicate
+watcher, production operation or activation. Local242/main241 still.
+
+Disjoint243 source worker6.1Sol/high completed/relinquished only SQL/test/harness;
+root sole writer verified complete213 body preservation after minimal locked
+nonowner Classwork predicate. Owner inspection, original locks/error/DTO/status/
+ACL contracts unchanged.9new/90related worker checks PASS; root71new/CI/floor checks,
+bash-n/diff PASS. New exactcanonical c243/sc243 rollback metadata fixture prepared
+NOTRUN: verified/ready controls, both role labels, hidden404/owner inspection and
+invalid bindings with whole-row/settings/cron/resources/guards equality. Existing
+117 begin/schema accepts synthetic metadata; no physical Storage bytes/API/network.
+NULL-scope retained evidence and CASE grammar regressions retained from242.
+Strict replay floor only advances to243; fixture/transitions/restoration/cleanup
+authority unchanged. Candidate243 UNAPPLIED; actual1459merge/tree parity/reconcile,
+independent reviews and genuine local types/runtime/replay precede ready/CI/merge.
+No realopen/signing/nonemptySDK/HTTP/browser/concurrency proof inferred. Assessment
+phase/goal incomplete; productionlast225/admission/home/cutover/billing/providerOFF.
+
+Superseding parent receipt:1459 exactreviewed9f15e6e2 all5CI37191597295PASS
+(0queue/1698runseconds), normal squash01aedcec8 merged09:46:04Z; actualmerged state,
+tree parity and canonical cleanFF verified.243 clean prepared branch rebase--onto
+actualmain preserves complete source tree and unrelated stashes; no resequencing
+or applied-SQL edits. Local/main242;243UNAPPLIED. Frozen-source highriskreview next.

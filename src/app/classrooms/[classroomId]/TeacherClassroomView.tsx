@@ -69,6 +69,7 @@ import {
   type TeacherWorkSurfaceActionItem,
 } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { TeacherWorkSurfaceShell } from '@/components/teacher-work-surface/TeacherWorkSurfaceShell'
+import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import {
@@ -2792,14 +2793,13 @@ export function TeacherClassroomView({
     </TeacherWorkItemList>
   )
 
-  const workspaceContent = selectedSurvey ? (
-    <TeacherSurveyResultsPane survey={selectedSurvey} />
-  ) : selectedAssignmentId == null ? null : activeSelectedStudentId ? (
+  const selectedStudentWork = selectedAssignmentId && activeSelectedStudentId ? (
     <TeacherStudentWorkPanel
       classroomId={classroom.id}
       assignmentId={selectedAssignmentId}
       studentId={activeSelectedStudentId}
       mode="workspace"
+      workspaceInspectorOnly={splitPaneView !== 'content-grading'}
       classPane={classPane}
       splitPaneView={splitPaneView}
       studentHeader={selectedStudentControls}
@@ -2816,7 +2816,8 @@ export function TeacherClassroomView({
       mutationsDisabled={isReturning || isGradeSelectedSaving}
       onGradePersistenceStateChange={handleGradePersistenceStateChange}
     />
-  ) : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
+  ) : null
+  const assignmentPrimary = activeSelectedStudentId ? classPane : selectedAssignmentLoading || (!activeSelectedAssignmentData && !selectedAssignmentError) ? (
     <div className="flex flex-1 items-center justify-center py-12">
       <Spinner />
     </div>
@@ -2826,6 +2827,31 @@ export function TeacherClassroomView({
     </div>
   ) : (
     classPane
+  )
+  const workspaceContent = selectedSurvey ? (
+    <TeacherSurveyResultsPane survey={selectedSurvey} />
+  ) : selectedAssignmentId == null ? null : (
+    <TeacherWorkspaceSplit
+      splitVariant="gapped"
+      animateInspector
+      primaryCollapsed={!!activeSelectedStudentId && splitPaneView === 'content-grading'}
+      primary={assignmentPrimary}
+      inspector={selectedStudentWork}
+      inspectorCollapsed={false}
+      inspectorWidth={activeWorkspaceLayout.inspectorWidth}
+      onInspectorWidthChange={(inspectorWidth) => updateModeLayout(activeWorkspaceMode, {
+        ...activeWorkspaceLayout,
+        inspectorWidth,
+        inspectorCollapsed: false,
+      })}
+      minPrimaryPx={ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx}
+      minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
+      primaryClassName="min-h-0 rounded-lg bg-surface"
+      inspectorClassName="min-h-0 rounded-lg bg-surface"
+      dividerLabel={splitPaneView === 'students-content'
+        ? 'Resize students and content panes'
+        : 'Resize students and grading panes'}
+    />
   )
 
   return (

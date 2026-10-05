@@ -1,4 +1,4 @@
-import { forwardRef, useEffect } from 'react'
+import { forwardRef, useEffect, useState } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClassroomView'
@@ -266,6 +266,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
     studentId,
     mode,
     classPane,
+    workspaceInspectorOnly = false,
     splitPaneView = 'students-grading',
     studentHeader,
     inspectorWidth,
@@ -276,6 +277,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
     onGradePersistenceStateChange,
     highlightedInspectorSections = [],
   }: any) => {
+    const [controllerDraft, setControllerDraft] = useState('Initial comment')
     useEffect(() => {
       onDetailsMetaChange?.(
         mode === 'details' || (mode === 'workspace' && splitPaneView !== 'students-grading')
@@ -311,6 +313,8 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
           data-refresh-key={refreshKey}
         >
           <div data-testid="assignment-split-pane-view">{splitPaneView}</div>
+          <button type="button" onClick={() => setControllerDraft('Unsaved comment')}>Stage controller draft</button>
+          <output aria-label="Controller draft">{controllerDraft}</output>
           <div data-testid="assignment-workspace-inspector-width">{inspectorWidth}</div>
           <button
             type="button"
@@ -326,7 +330,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
                 <div>{`work:${assignmentId}:${studentId}`}</div>
               </>
             ) : (
-              classPane
+              workspaceInspectorOnly ? null : classPane
             )}
           </div>
           <div data-testid="assignment-right-pane">
@@ -2627,9 +2631,15 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
     })
 
+    fireEvent.click(screen.getByRole('button', { name: 'Stage controller draft' }))
+    const originalPanel = screen.getByTestId('teacher-work-panel')
+    const originalTable = screen.getByTestId('assignment-student-scroll-pane')
     clickAssignmentLayoutToggle()
 
     await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toBe(originalPanel)
+      expect(screen.getByLabelText('Controller draft')).toHaveTextContent('Unsaved comment')
+      expect(screen.getByTestId('assignment-student-scroll-pane')).toBe(originalTable)
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
       expectAssignmentSplitPaneIndicator({
         panes: 'content-grading',
@@ -2642,12 +2652,15 @@ describe('TeacherClassroomView', () => {
     clickAssignmentLayoutToggle()
 
     await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toBe(originalPanel)
+      expect(screen.getByLabelText('Controller draft')).toHaveTextContent('Unsaved comment')
+      expect(screen.getByTestId('assignment-student-scroll-pane')).toBe(originalTable)
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-content')
       expectAssignmentSplitPaneIndicator({
         panes: 'students-content',
         iconClasses: ['lucide-menu', 'lucide-square-menu'],
       })
-      expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('student-1')
+      expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveTextContent('student-1')
       expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('work:assignment-1:student-1')
       expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
     })
@@ -2655,12 +2668,15 @@ describe('TeacherClassroomView', () => {
     clickAssignmentLayoutToggle()
 
     await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toBe(originalPanel)
+      expect(screen.getByLabelText('Controller draft')).toHaveTextContent('Unsaved comment')
+      expect(screen.getByTestId('assignment-student-scroll-pane')).toBe(originalTable)
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
       expectAssignmentSplitPaneIndicator({
         panes: 'students-grading',
         iconClasses: ['lucide-menu', 'lucide-percent'],
       })
-      expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('student-1')
+      expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveTextContent('student-1')
       expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('grading:assignment-1:student-1')
       expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('work:assignment-1:student-1')
     })
@@ -2704,7 +2720,7 @@ describe('TeacherClassroomView', () => {
         panes: 'students-content',
         iconClasses: ['lucide-menu', 'lucide-square-menu'],
       })
-      expect(screen.getByTestId('assignment-left-pane')).toHaveTextContent('student-1')
+      expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveTextContent('student-1')
       expect(screen.getByTestId('assignment-right-pane')).toHaveTextContent('work:assignment-1:student-1')
       expect(screen.getByTestId('assignment-right-pane')).not.toHaveTextContent('grading:assignment-1:student-1')
     })
@@ -2826,6 +2842,7 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(screen.getByTestId('assignment-student-scroll-pane')).toHaveProperty('scrollTop', 520)
     })
+    expect(screen.getByTestId('assignment-student-scroll-pane')).toBe(scrollPane)
   })
 
   it('keeps the active student selected when Escape is pressed in class mode', async () => {

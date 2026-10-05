@@ -435,6 +435,21 @@ The motion duration variables resolve to `0ms` under
 `prefers-reduced-motion: reduce`. A feature-owned animation that does not use
 them must provide an equivalent path.
 
+The approved classroom `.workspace-entry` utility in `src/app/globals.scss`
+uses the standard duration and easing for opacity-only entry. Apply it to the
+existing selected-workspace frame, not a newly keyed editor wrapper. Controls,
+content and focus remain immediate; metadata, typing, refresh, student changes
+within the workspace and resize must not replay entry. Teacher
+`TeacherWorkSurfaceShell` and the existing Student Classwork content frame are
+the scoped adopters. The gapped `TeacherWorkspaceSplit` separately owns opt-in
+inspector disclosure through `animateInspector`; pointer resize remains
+immediate and closed content is inert/hidden. See the
+[accepted rollout brief](../../docs/guidance/ui/changes/approved-classroom-motion-rollout.md).
+The gapped split's `primaryCollapsed` presentation preserves a selected
+inspector owner while hiding/inerting the primary slot and removing its divider;
+the inspector occupies the full width. Feature code still owns layout-mode and
+draft state. Classwork uses this to preserve its controller across pane layouts.
+
 Run `pnpm run check:design-policy` after changing visual values. It covers
 Tailwind arbitrary syntax, literal inline styles, and CSS/SCSS declarations;
 canonical definitions in `src/styles/tokens.css` are intentionally reviewed by

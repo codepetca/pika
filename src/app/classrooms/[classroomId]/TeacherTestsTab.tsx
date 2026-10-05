@@ -1113,7 +1113,7 @@ export function TeacherTestsTab({
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
-      if (document.querySelector('[role="dialog"], [role="menu"]')) return
+      if (document.querySelector('[role="dialog"]:not([aria-hidden="true"]), [role="menu"]:not([aria-hidden="true"])')) return
 
       const target = event.target
       if (target instanceof HTMLElement) {
@@ -2937,6 +2937,7 @@ export function TeacherTestsTab({
     <TeacherWorkspaceSplit
       className="flex-1"
       splitVariant="gapped"
+      animateInspector
       primary={
         <TestWorkspacePaneFrame>
           {gradingTable}

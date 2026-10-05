@@ -63,6 +63,7 @@ describe('Pattern Lab teacher-family examples', () => {
   it('discloses the continuous inspector with keyboard controls and returns focus on close', async () => {
     const user = userEvent.setup()
     renderPatterns()
+    expect(screen.getByRole('heading', { name: 'Continuous inspector', exact: true })).toBeInTheDocument()
     const example = screen.getByTestId('continuous-inspector-example')
     const alex = within(example).getByRole('button', { name: 'Alex Chen' })
     const sam = within(example).getByRole('button', { name: 'Sam Patel' })

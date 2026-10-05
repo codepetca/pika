@@ -181,6 +181,24 @@ describe('StudentAssignmentsTab', () => {
     expect(screen.getByTestId('returned-marks')).toHaveAttribute('data-active', 'false')
   })
 
+  it('preserves the selected editor and content frame across shell metadata updates', async () => {
+    mockFetchClasswork([makeAssignment({ instructions_markdown: null, description: null })])
+    const view = render(<StudentAssignmentsTab classroom={classroom} />)
+    await screen.findByTestId('assignment-card')
+    view.rerender(<StudentAssignmentsTab classroom={classroom} selectedAssignmentId="asgn-1" />)
+    const editor = await screen.findByTestId('student-editor')
+    const frame = editor.parentElement
+    editor.setAttribute('tabindex', '0')
+    editor.focus()
+    view.rerender(<StudentAssignmentsTab classroom={{ ...classroom, title: 'Updated title' }} selectedAssignmentId="asgn-1" />)
+    expect(screen.getByTestId('student-editor')).toBe(editor)
+    expect(editor.parentElement).toBe(frame)
+    expect(editor).toHaveFocus()
+    view.rerender(<StudentAssignmentsTab classroom={classroom} />)
+    expect(screen.queryByTestId('student-editor')).not.toBeInTheDocument()
+    expect(screen.getByTestId('assignment-card')).toBeInTheDocument()
+  })
+
   it('shows a classwork error and restores the list after retry', async () => {
     const retryClassroom = { ...classroom, id: 'cls-classwork-retry' }
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})

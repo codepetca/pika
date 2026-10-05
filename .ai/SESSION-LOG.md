@@ -11,65 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Supplemental learner local verification on actual main
-
-1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
-source tree; root168focused/static/47Bara/startup/audit PASS. Distinct5.6Sol/high
-initial reviews: securityCLEAN, compatibilityP1validpurged168 NULLscope disappears
-under NOT IN after fixture creation. Both baseline snapshots use correlated
-NOT EXISTS; meaningful1RED/21PASS→22GREEN. Source-only targeted reviewCLEAN.
-242 applied once locally, exact001–242history, genuine typesgenerate/check zero
-drift; SQLdigest48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e
-immutable/no reapplication. Actual PostgreSQL caught unparenthesized CASE in the
-new regression then original compatibility assertions. Root audited allCASE sites,
-two additional proof-only batches/regressions/targeted reviewsCLEAN; each failed
-transaction rolled back and wholecanonicalbaselinePASS. No SQL/application/control
-change, gate weakening or cleanup workaround. Original08:43clock/counters retained.
-
-Runtime d5dea393 new242/allsevenwrapper concealed+visible/ownerhistory/revision/
-restore/submission/nonemptyartifact/inlineeffects PASS; unchanged188189history and
-190artifact rollback contracts PASS. Fullcanonical public/private/Storage counts+
-digests/168metadata/settings/cron/resources unchanged. Full213inline script includes
-committed race fixture: finalCI ephemeral-only, never run on canonical retained
-identities. Strict001242 isolated replay9learnerprojections/6originalrevocations
-plus original listcontrols PASS; nine sealedRPCstubs falsecreated/view, zero actual
-openRPC/Storage/provider network. Bothforcedmodes exit1/exact2markers/teardown/full
-canonicalPASS, private0600 receipts UhgV7p/o2i0fH. Originalobserver authority unchanged;
-no realopen/nonemptySDKsupplements/liveSigning/authHTTP/browser/concurrentvisibility
-proof. Factualreceipt batch/finalcumulative/CI/mainmerge next. Latest213imageREAD
-concealment remains nextbounded prerequisite; assessments/goal incomplete. Local242/
-main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
-worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
-and localmigration override retained; no bypass or production permission inferred.
-
-## 2026-10-04 — Locked inline-image read source preparation
-
-1459 final cumulative security review CLEAN on9f15e6e2; one ready-event exact CI
-37191597295 is running. Source frozen, original review clock/counters retained;
-explicit human-authorized extension to10:43Z for CI/normal merge only. No duplicate
-watcher, production operation or activation. Local242/main241 still.
-
-Disjoint243 source worker6.1Sol/high completed/relinquished only SQL/test/harness;
-root sole writer verified complete213 body preservation after minimal locked
-nonowner Classwork predicate. Owner inspection, original locks/error/DTO/status/
-ACL contracts unchanged.9new/90related worker checks PASS; root71new/CI/floor checks,
-bash-n/diff PASS. New exactcanonical c243/sc243 rollback metadata fixture prepared
-NOTRUN: verified/ready controls, both role labels, hidden404/owner inspection and
-invalid bindings with whole-row/settings/cron/resources/guards equality. Existing
-117 begin/schema accepts synthetic metadata; no physical Storage bytes/API/network.
-NULL-scope retained evidence and CASE grammar regressions retained from242.
-Strict replay floor only advances to243; fixture/transitions/restoration/cleanup
-authority unchanged. Candidate243 UNAPPLIED; actual1459merge/tree parity/reconcile,
-independent reviews and genuine local types/runtime/replay precede ready/CI/merge.
-No realopen/signing/nonemptySDK/HTTP/browser/concurrency proof inferred. Assessment
-phase/goal incomplete; productionlast225/admission/home/cutover/billing/providerOFF.
-
-Superseding parent receipt:1459 exactreviewed9f15e6e2 all5CI37191597295PASS
-(0queue/1698runseconds), normal squash01aedcec8 merged09:46:04Z; actualmerged state,
-tree parity and canonical cleanFF verified.243 clean prepared branch rebase--onto
-actualmain preserves complete source tree and unrelated stashes; no resequencing
-or applied-SQL edits. Local/main242;243UNAPPLIED. Frozen-source highriskreview next.
-
 ## 2026-10-04 — Inline-image read local verification
 
 1460 draft47724239 distinct5.6Sol/high security+compatibility initial reviews CLEAN.
@@ -819,6 +760,10 @@ telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollo
 - Hosted CI `37260199028` on `0ad72fd7` passed Test & Build but the unchanged database harness stopped before fixtures with `sc242 fixture namespace collision`; the cause was not proven after stack teardown. Returning PR to draft canceled the browser job through normal concurrency. No harness or collision guard was weakened. Rebased onto actual main `6586847c` (#1473); only archive conflict retained upstream history. Removed two auto-merged duplicate entries after verifying their complete bodies already exist in the archive. One fresh eligible PR run remains required on the reviewed current head; merge still requires normal owner authority.
 - Evidence: `/tmp/pika-selfhost-local-live.log`, `/tmp/pika-selfhost-focused-rebased.log`, `/tmp/pika-selfhost-local-plan-rebased.log`, `/tmp/pika-selfhost-db-job.log` and `/tmp/pika-selfhost-rebase-range-diff.log`. Preparation and operational goal remain incomplete until the required CI, merge decision and host/private activation gates pass.
 
+## 2026-10-05 — Approved classroom motion rollout
+
+Owner accepted Daily restrained200ms direction for wider adoption in the owning chat. Scoped stable/family canon, audit and Pattern Lab promotion recorded; no dependency/merge/deploy authorization. Follow-up codex/fluid-motion-rollout includes reviewedDailyb94 and targetsmain for canonical CI; prior1481/1482/1484 heads unchanged. Classwork stable table/inspector, Tests disclosure/hidden-menu Escape guard, cross-role opacity entry, reducedmotion and immediate pointerresize. Coordinator corrected primary-refresh priority and layout-controller remount before acceptance; RED mode-state regression nowGREEN,145owner cases pass. Final motion browser24/24(2.0min) across bothroles/viewport/themes/normal-reduced verifies DOM/drafts/focus/scroll, all3Classwork modes, actual200ms/0ms, pointergeometry, inert close and nooverflow. Forced-midpoint contract samples are labeled; natural recordings and fullrequiredgate/cumulative siblingproof/independent stable-SHA PR lifecycle follow. DeepSeekpaused; Sol/high worker partial delivery corrected/integrated bycoordinator; attributableactive/tokensunknown.
+
 ## 2026-10-05 — Test conflict retry correction prepared
 
 Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
@@ -885,3 +830,7 @@ retaining workspace-focus assertions. No production or migration change. Require
 focused gate, targeted review and final integration review precede ready CI.
 Student Classwork continuity is being prepared separately with existing stable
 page states; Daily's experimental motion promotion still awaits owner feedback.
+
+## 2026-10-05 — Approved motion mobile reachability
+
+Coordinator verified six natural recordings (desktop/mobile, Teacher Classwork/Tests and Student Classwork). Added actual viewport/focus check for Classwork comments in Content + grading after it exposed an unconstrained nested split; h-full now constrains that existing split. Unsaved comment survives all three modes. Pattern Lab keyboard test asserts promoted reference heading. Initial focused gate passed 659 tests/36 files plus all static lanes; final source gate and 24-case matrix pending. Audit's sole remaining finding is the unchanged HEAD TeacherTestsTab line1001 no-store results read (confirmed byte-identical), retained deliberately to avoid changing authoritative grade refresh semantics; new code has no audit violation. Independent review and cumulative proof pending.

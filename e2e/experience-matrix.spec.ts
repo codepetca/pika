@@ -8,6 +8,7 @@ import {
 import { PLANNED_COURSE_FIXTURE } from '../scripts/seed-planned-course-fixtures'
 import type { TeacherAttendanceView } from '../src/lib/teacher-attendance'
 import { LONG_ROSTER_SIZE, TABLE_CLASSROOM_ID, mockLongTeacherTable, mockTableShellReads } from './helpers/teacher-student-tables'
+import { verifyWorkspaceMotion } from './helpers/workspace-motion'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -48,6 +49,18 @@ const rolloverBlueprint = {
 }
 
 test.setTimeout(90_000)
+test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('approved classroom workspace motion', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const surface of ['assignment', 'test', 'student'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`${surface} preserves workspace identity with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await verifyWorkspaceMotion(page, testInfo, surface, reducedMotion)
+      })
+    }
+  }
+})
 
 type ExperienceMetadata = {
   theme: 'light' | 'dark'

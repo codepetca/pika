@@ -1,7 +1,9 @@
 # Fluid classroom experience — 2026-10-05
 
 Owner: chat `01a10bfa-17e1-76d2-9483-af955a51a9fd`, branch `codex/fluid-classroom-ui`.
-Source baseline: `c25ebf78`. Goal remains active; this document tracks its phases.
+Source baseline: `c25ebf78`. This document tracks the goal's phases.
+Approved rollout branch: `codex/fluid-motion-rollout`, based on reviewed Daily
+`b94b27670`; existing reviewed response PRs remain separate.
 
 ## Experience contract
 
@@ -74,9 +76,14 @@ pilot remains paused by the dated owner preference.
 
 ## Evidence and release status
 
-Daily pilot implemented; human acceptance/promotion remains pending. The goal
-continues through the later teacher/student phases. Local preview:
-http://localhost:3213/pattern-lab?role=teacher#teacher-patterns.
+Daily pilot implemented and accepted by the human on 2026-10-05, in response to
+the explicit request to approve its restrained motion direction for wider
+adoption. Scoped promotion is recorded in `stable.md`, the teacher family canon
+and audit, and the Pattern Lab catalog; unrelated experimental patterns remain
+unchanged. The goal continues through approved motion adoption and cumulative
+verification. The [rollout brief](./changes/approved-classroom-motion-rollout.md)
+records decisions and the implementation assignment. Approved rollout preview:
+http://localhost:3217/pattern-lab?role=teacher#teacher-patterns.
 
 Verification evidence:
 
@@ -104,6 +111,7 @@ Verification evidence:
   serial execution avoids competing browser/worker load without changing limits.
 
 Composite checklist reviewed: yes; keyboard and semantic state covered: yes.
-Manual follow-up: owner acceptance of the experimental pattern. No merge or
+Human design acceptance: received. Technical rollout/verification remains to be
+completed; the reviewed PR and task artifact own those receipts. No merge or
 production deployment authorized by setting this goal. Independent review and
 release status belong to the PR, avoiding stale commit-status copies here.

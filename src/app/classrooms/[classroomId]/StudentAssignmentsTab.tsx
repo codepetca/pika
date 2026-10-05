@@ -325,7 +325,7 @@ export function StudentAssignmentsTab({
         />
       ) : null}
       <PageContent className="flex-1 min-h-0">
-        <div className="min-w-0 h-full flex flex-col">
+        <div className={`min-w-0 h-full flex flex-col${view !== 'summary' ? ' workspace-entry' : ''}`}>
           {refreshing && (
             <RefreshingIndicator className="mb-2 px-0 py-0" />
           )}
