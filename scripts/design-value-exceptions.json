@@ -151,8 +151,8 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "4085886e79150fbc",
+          "count": 1,
+          "fingerprint": "67d78a17e7f955a5",
           "reason": "layout-geometry"
         },
         {
@@ -651,18 +651,6 @@
           "kind": "arbitrary-spacing",
           "count": 1,
           "fingerprint": "3d2942c28e776924",
-          "reason": "layout-geometry"
-        }
-      ]
-    },
-    {
-      "file": "src/components/surveys/TeacherSurveyWorkspace.tsx",
-      "reviewBy": "phase-3-surveys",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 2,
-          "fingerprint": "ba36c18da944fc90",
           "reason": "layout-geometry"
         }
       ]

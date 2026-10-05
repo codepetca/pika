@@ -4,24 +4,26 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
   type TextareaHTMLAttributes,
 } from 'react'
-import { Code, ExternalLink, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react'
-import { Button, Card, ConfirmDialog, FormField, Input, Select } from '@/ui'
-import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
-import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
+import { Code2, Copy, ExternalLink, Eye, ListPlus, Plus, RotateCcw, Settings, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button, Card, ConfirmDialog, FormField, Input, SaveStatus, Tooltip, type SaveStatusState } from '@/ui'
+import { MarkdownContentEditor } from '@/components/editor'
+import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { SurveyQuestionOptions } from '@/components/surveys/SurveyQuestionOptions'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { Spinner } from '@/components/Spinner'
 import { SurveyOptionResultBar } from '@/components/surveys/SurveyOptionResultBar'
-import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
+import { getDisplayAssessmentTitle, isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import {
   DEFAULT_SURVEY_LINK_MAX_CHARS,
   DEFAULT_SURVEY_TEXT_MAX_CHARS,
-  getSurveyStatusBadgeClass,
   getSurveyStatusLabel,
+  normalizeSurveyQuestionInput,
 } from '@/lib/surveys'
 import { markdownToSurvey, surveyToMarkdown } from '@/lib/survey-markdown'
 import type { Survey, SurveyQuestion, SurveyQuestionResult, SurveyQuestionType } from '@/types'
@@ -33,6 +35,7 @@ interface TeacherSurveyWorkspaceProps {
   initialEditMode?: 'edit' | 'markdown'
   autoEditTitle?: boolean
   onInitialEditModeConsumed?: () => void
+  onCloseReady?: (close: (() => Promise<void>) | null) => void
   onBack: () => void
   onSurveyUpdated: (survey: Survey) => void
   onQuestionCountChanged?: (surveyId: string, questionsCount: number) => void
@@ -57,12 +60,6 @@ type SurveyPreviewResponse = {
   responseText?: string
 }
 
-const QUESTION_TYPE_OPTIONS = [
-  { value: 'multiple_choice', label: 'Multiple choice' },
-  { value: 'short_text', label: 'Short text' },
-  { value: 'link', label: 'Link' },
-]
-
 type SurveyTextareaProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
   hasError?: boolean
 }
@@ -86,29 +83,72 @@ function buildQuestionSavePayload(
   return {
     question_type: questionType,
     question_text: questionText,
-    options: questionType === 'multiple_choice' ? optionsText.split('\n') : [],
+    options: questionType === 'multiple_choice' ? optionsText.split('\n').map((option) => option.trim()).filter(Boolean) : [],
     response_max_chars: Number(responseMaxChars) || defaultMaxChars(questionType),
   }
 }
 
-function QuestionEditor({
-  question,
-  disabled,
-  onSaved,
-  onDeleted,
-}: {
+type QuestionEditorHandle = {
+  flush: () => Promise<boolean>
+  delete: () => Promise<void>
+  setType: (type: SurveyQuestionType) => void
+  getDraft: () => ReturnType<typeof buildQuestionSavePayload>
+}
+
+function SurveyQuestionFields({ questionType, questionText, optionsText, responseMaxChars, disabled, promptLabel, onTextChange, onOptionsChange, onLimitChange, onBlur }: {
+  questionType: SurveyQuestionType
+  questionText: string
+  optionsText: string
+  responseMaxChars: string
+  disabled: boolean
+  promptLabel: string
+  onTextChange: (value: string) => void
+  onOptionsChange: (value: string) => void
+  onLimitChange: (value: string) => void
+  onBlur?: () => void
+}) {
+  return (
+    <>
+      <MarkdownContentEditor markdown={questionText} onMarkdownChange={onTextChange} aria-label={promptLabel} placeholder="Ask students a question" toolbarPreset="compact" disabled={disabled} onBlur={onBlur} className="shrink-0 overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-32" />
+      {questionType === 'multiple_choice' ? (
+        <SurveyQuestionOptions options={optionsText.split('\n')} disabled={disabled} onChange={(options) => onOptionsChange(options.join('\n'))} onBlur={onBlur} />
+      ) : (
+        <div className="min-h-0 flex-1 rounded-md bg-surface-2 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">{questionType === 'link' ? 'Link response' : 'Open response'}</p>
+          <p className="mt-2 text-sm text-text-muted">{questionType === 'link' ? 'Students share a URL.' : 'Students answer in their own words.'}</p>
+          <FormField label="Response character limit" className="mt-3"><Input type="number" min="1" max="5000" value={responseMaxChars} disabled={disabled} onChange={(event) => onLimitChange(event.target.value)} onBlur={onBlur} /></FormField>
+        </div>
+      )}
+    </>
+  )
+}
+
+const QuestionEditor = forwardRef<QuestionEditorHandle, {
   question: SurveyQuestion
   disabled: boolean
+  interactionDisabled?: boolean
   onSaved: (question: SurveyQuestion) => void
   onDeleted: (questionId: string) => void
-}) {
+  onStatusChange: (status: SaveStatusState) => void
+  onTypeChange: (type: SurveyQuestionType) => void
+}>(function QuestionEditor({
+  question,
+  disabled,
+  interactionDisabled = false,
+  onSaved,
+  onDeleted,
+  onStatusChange,
+  onTypeChange,
+}, ref) {
   const [questionType, setQuestionType] = useState<SurveyQuestionType>(question.question_type)
   const [questionText, setQuestionText] = useState(question.question_text)
   const [optionsText, setOptionsText] = useState(question.options.join('\n'))
   const [responseMaxChars, setResponseMaxChars] = useState(String(question.response_max_chars))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const lastSavedPayloadRef = useRef('')
+  const pendingSaveRef = useRef<Promise<boolean> | null>(null)
+  const deletingRef = useRef(false)
+  const lastSavedPayloadRef = useRef(JSON.stringify(buildQuestionSavePayload(question.question_type, question.question_text, question.options.join('\n'), String(question.response_max_chars))))
   const lastAttemptedPayloadRef = useRef('')
 
   useEffect(() => {
@@ -145,28 +185,39 @@ function QuestionEditor({
       if (!response.ok) throw new Error(data.error || 'Failed to save question')
       lastSavedPayloadRef.current = payloadKey
       onSaved(data.question)
+      return true
     } catch (err) {
-      lastAttemptedPayloadRef.current = lastSavedPayloadRef.current
       setError(err instanceof Error ? err.message : 'Failed to save question')
+      return false
     } finally {
       setSaving(false)
     }
   }, [onSaved, question.id, question.survey_id])
 
-  const saveCurrentQuestion = useCallback(() => {
-    if (disabled || saving) return
+  const saveCurrentQuestion = useCallback(async () => {
+    if (disabled) return true
+    if (deletingRef.current) return false
+    if (pendingSaveRef.current) return pendingSaveRef.current
 
     const payload = buildQuestionSavePayload(questionType, questionText, optionsText, responseMaxChars)
     const payloadKey = JSON.stringify(payload)
-    if (
-      payloadKey === lastSavedPayloadRef.current ||
-      payloadKey === lastAttemptedPayloadRef.current
-    ) {
-      return
-    }
+    if (payloadKey === lastSavedPayloadRef.current) return true
 
-    void saveQuestion(payload, payloadKey)
-  }, [disabled, optionsText, questionText, questionType, responseMaxChars, saveQuestion, saving])
+    const pending = saveQuestion(payload, payloadKey)
+    pendingSaveRef.current = pending
+    try {
+      return await pending
+    } finally {
+      pendingSaveRef.current = null
+    }
+  }, [disabled, optionsText, questionText, questionType, responseMaxChars, saveQuestion])
+
+  useImperativeHandle(ref, () => ({
+    flush: saveCurrentQuestion,
+    delete: deleteQuestion,
+    setType: (type) => { setQuestionType(type); setResponseMaxChars(String(defaultMaxChars(type))) },
+    getDraft: () => buildQuestionSavePayload(questionType, questionText, optionsText, responseMaxChars),
+  }))
 
   useEffect(() => {
     if (disabled || saving) return
@@ -188,6 +239,8 @@ function QuestionEditor({
   }, [disabled, optionsText, questionText, questionType, responseMaxChars, saveCurrentQuestion, saving])
 
   async function deleteQuestion() {
+    if (deletingRef.current || pendingSaveRef.current) return
+    deletingRef.current = true
     setSaving(true)
     setError('')
     try {
@@ -200,64 +253,24 @@ function QuestionEditor({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete question')
     } finally {
+      deletingRef.current = false
       setSaving(false)
     }
   }
 
-  return (
-    <Card tone="panel" padding="md" className="space-y-3">
-      <div className="grid gap-3 lg:grid-cols-[12rem_minmax(0,1fr)_auto] lg:items-start">
-        <FormField label="Type">
-          <Select
-            value={questionType}
-            onChange={(event) => {
-              const nextType = event.target.value as SurveyQuestionType
-              setQuestionType(nextType)
-              setResponseMaxChars(String(defaultMaxChars(nextType)))
-            }}
-            options={QUESTION_TYPE_OPTIONS}
-            disabled={disabled || saving}
-            onBlur={saveCurrentQuestion}
-          />
-        </FormField>
-        <FormField label="Prompt" error={error}>
-          <Input
-            value={questionText}
-            onChange={(event) => setQuestionText(event.target.value)}
-            onBlur={saveCurrentQuestion}
-            disabled={disabled || saving}
-          />
-        </FormField>
-        <div className="flex items-end lg:pt-6">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="text-danger hover:bg-danger-bg"
-            onClick={deleteQuestion}
-            disabled={disabled || saving}
-          >
-            <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
-            Delete
-          </Button>
-        </div>
-      </div>
+  const currentPayloadKey = JSON.stringify(buildQuestionSavePayload(questionType, questionText, optionsText, responseMaxChars))
+  const saveStatus = error ? 'error' : saving ? 'saving' : currentPayloadKey === lastSavedPayloadRef.current ? 'saved' : 'unsaved'
 
-      {questionType === 'multiple_choice' && (
-        <FormField label="Options">
-          <SurveyTextarea
-            value={optionsText}
-            onChange={(event) => setOptionsText(event.target.value)}
-            onBlur={saveCurrentQuestion}
-            disabled={disabled || saving}
-            rows={4}
-            className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
-          />
-        </FormField>
-      )}
-    </Card>
+  useEffect(() => { onStatusChange(saveStatus) }, [onStatusChange, saveStatus])
+  useEffect(() => { onTypeChange(questionType) }, [onTypeChange, questionType])
+
+  return (
+    <>
+      {error ? <p className="text-sm text-danger" role="alert">{error}</p> : null}
+      <SurveyQuestionFields questionType={questionType} questionText={questionText} optionsText={optionsText} responseMaxChars={responseMaxChars} disabled={disabled || interactionDisabled || saving} promptLabel="Prompt" onTextChange={setQuestionText} onOptionsChange={setOptionsText} onLimitChange={setResponseMaxChars} />
+    </>
   )
-}
+})
 
 export function TeacherSurveyResultsView({ payload }: { payload: SurveyResultsPayload | null }) {
   if (!payload) {
@@ -456,16 +469,33 @@ export function TeacherSurveyWorkspace({
   autoEditTitle = false,
   onInitialEditModeConsumed,
   onBack,
+  onCloseReady,
   onSurveyUpdated,
   onQuestionCountChanged,
   onSurveyDeleted,
 }: TeacherSurveyWorkspaceProps) {
+  const questionEditorRef = useRef<QuestionEditorHandle>(null)
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null)
+  const [editingQuestionType, setEditingQuestionType] = useState<SurveyQuestionType | null>(null)
+  const navigationPendingRef = useRef(false)
+  const [navigationPending, setNavigationPending] = useState(false)
   const [detail, setDetail] = useState<SurveyDetailPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [newQuestionType, setNewQuestionType] = useState<SurveyQuestionType>('multiple_choice')
   const [newQuestionText, setNewQuestionText] = useState('')
-  const [newOptionsText, setNewOptionsText] = useState('Option 1\nOption 2')
+  const [newOptionsText, setNewOptionsText] = useState('\n')
+  const [newResponseMaxChars, setNewResponseMaxChars] = useState(String(DEFAULT_SURVEY_TEXT_MAX_CHARS))
+  const [numberDraft, setNumberDraft] = useState('1')
+  const [questionStatus, setQuestionStatus] = useState<SaveStatusState>('saved')
+  const [titleDraft, setTitleDraft] = useState('')
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const titlePendingRef = useRef<Promise<boolean> | null>(null)
+  const focusedTitleRef = useRef<string | null>(null)
+  const titleFocusRequestedRef = useRef(autoEditTitle)
+  if (autoEditTitle) titleFocusRequestedRef.current = true
+  const createPendingRef = useRef<Promise<boolean> | null>(null)
+  const questionBeforeNewRef = useRef<string | null>(null)
   const [addingQuestion, setAddingQuestion] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [statusChanging, setStatusChanging] = useState(false)
@@ -491,11 +521,25 @@ export function TeacherSurveyWorkspace({
   const activeDetail = detail?.survey?.id === surveyId ? detail : null
   const survey = activeDetail?.survey ?? null
   const questions = useMemo(() => activeDetail?.questions ?? [], [activeDetail?.questions])
-  const statusClassName = survey ? getSurveyStatusBadgeClass(survey.status) : ''
+  const selectedQuestion = questions.find((question) => question.id === selectedQuestionId) ?? null
   const currentSurveyMarkdown = useMemo(
     () => (survey ? surveyToMarkdown({ survey, questions }) : ''),
     [questions, survey],
   )
+
+  useEffect(() => {
+    if (survey) setTitleDraft(getDisplayAssessmentTitle(survey.title, 'Untitled Survey'))
+  }, [survey])
+
+  useEffect(() => {
+    if (!survey || isReadOnly || !titleFocusRequestedRef.current || focusedTitleRef.current === survey.id || titleDraft !== getDisplayAssessmentTitle(survey.title, 'Untitled Survey')) return
+    focusedTitleRef.current = survey.id
+    titleInputRef.current?.focus()
+    titleInputRef.current?.select()
+    titleFocusRequestedRef.current = false
+  }, [autoEditTitle, isReadOnly, survey, titleDraft])
+
+  useEffect(() => { setNumberDraft(String(Math.max(0, questions.findIndex((question) => question.id === selectedQuestionId)) + 1)) }, [questions, selectedQuestionId])
 
   const loadSurvey = useCallback(async () => {
     const requestId = loadRequestIdRef.current + 1
@@ -510,6 +554,11 @@ export function TeacherSurveyWorkspace({
       if (loadRequestIdRef.current !== requestId || currentSurveyIdRef.current !== requestedSurveyId) return
       if (!response.ok) throw new Error(data.error || 'Failed to load survey')
       setDetail({ survey: data.survey, questions: data.questions || [] })
+      setSelectedQuestionId(data.questions?.[0]?.id ?? null)
+      setEditingQuestionType(null)
+      setNewQuestionText('')
+      setNewQuestionType('multiple_choice')
+      setNewOptionsText('\n')
       onSurveyUpdatedRef.current(data.survey)
     } catch (err) {
       if (loadRequestIdRef.current === requestId && currentSurveyIdRef.current === requestedSurveyId) {
@@ -525,6 +574,7 @@ export function TeacherSurveyWorkspace({
 
   useEffect(() => {
     void loadSurvey()
+    return () => { loadRequestIdRef.current += 1 }
   }, [loadSurvey])
 
   useEffect(() => {
@@ -548,7 +598,7 @@ export function TeacherSurveyWorkspace({
   }, [initialEditMode, onInitialEditModeConsumed, survey])
 
   async function saveTitle(title: string) {
-    if (!survey) return
+    if (!survey || isReadOnly) return false
 
     const cleanTitle = title.trim()
     if (
@@ -556,13 +606,14 @@ export function TeacherSurveyWorkspace({
       ((cleanTitle === 'Untitled' || cleanTitle === 'Untitled Survey') &&
         isGeneratedAssessmentTitle(survey.title))
     ) {
+      setTitleDraft(getDisplayAssessmentTitle(survey.title, 'Untitled Survey'))
       setTitleError('')
-      return
+      return true
     }
 
     if (cleanTitle === survey.title) {
       setTitleError('')
-      return
+      return true
     }
 
     setTitleSaving(true)
@@ -575,17 +626,29 @@ export function TeacherSurveyWorkspace({
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to update survey title')
+      if (currentSurveyIdRef.current !== surveyId) return false
       setDetail((current) => current ? { ...current, survey: data.survey } : current)
       onSurveyUpdated(data.survey)
+      return true
     } catch (err) {
       setTitleError(err instanceof Error ? err.message : 'Failed to update survey title')
+      return false
     } finally {
       setTitleSaving(false)
     }
   }
 
-  async function saveResponseEditing(nextDynamicResponses: boolean) {
-    if (!survey || nextDynamicResponses === survey.dynamic_responses) return
+  async function flushTitle() {
+    if (isReadOnly) return true
+    if (titlePendingRef.current) return titlePendingRef.current
+    const pending = saveTitle(titleDraft)
+    titlePendingRef.current = pending
+    try { return await pending } finally { titlePendingRef.current = null }
+  }
+
+  async function saveSetting(field: 'dynamic_responses' | 'show_results', value: boolean) {
+    if (!survey || isReadOnly || value === survey[field]) return
+    if (!await flushTitle()) return
 
     setResponseSettingSaving(true)
     setError('')
@@ -593,10 +656,11 @@ export function TeacherSurveyWorkspace({
       const response = await fetch(`/api/teacher/surveys/${surveyId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dynamic_responses: nextDynamicResponses }),
+        body: JSON.stringify({ [field]: value }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to update survey')
+      if (currentSurveyIdRef.current !== surveyId) return
       setDetail((current) => current ? { ...current, survey: data.survey } : current)
       onSurveyUpdated(data.survey)
     } catch (err) {
@@ -606,35 +670,37 @@ export function TeacherSurveyWorkspace({
     }
   }
 
-  async function addQuestion() {
+  async function createQuestion(payload: ReturnType<typeof buildQuestionSavePayload>) {
     setAddingQuestion(true)
     setError('')
     try {
+      const normalized = normalizeSurveyQuestionInput(payload)
+      if (!normalized.valid) throw new Error(normalized.error)
       const response = await fetch(`/api/teacher/surveys/${surveyId}/questions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question_type: newQuestionType,
-          question_text: newQuestionText,
-          options: newQuestionType === 'multiple_choice' ? newOptionsText.split('\n') : [],
-          response_max_chars: defaultMaxChars(newQuestionType),
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(normalized.question),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to add question')
-      setDetail((current) =>
-        current
-          ? { ...current, questions: [...current.questions, data.question] }
-          : current
-      )
+      if (currentSurveyIdRef.current !== surveyId) return false
+      setDetail((current) => current?.survey.id === surveyId ? { ...current, questions: [...current.questions, data.question] } : current)
+      setSelectedQuestionId(data.question.id)
+      setEditingQuestionType(null)
       onQuestionCountChanged?.(surveyId, questions.length + 1)
       setNewQuestionText('')
-      setNewOptionsText('Option 1\nOption 2')
+      setNewOptionsText('\n')
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add question')
-    } finally {
-      setAddingQuestion(false)
-    }
+      return false
+    } finally { setAddingQuestion(false) }
+  }
+
+  async function addQuestion() {
+    if (isReadOnly) return false
+    if (createPendingRef.current) return createPendingRef.current
+    const pending = createQuestion(buildQuestionSavePayload(newQuestionType, newQuestionText, newOptionsText, newResponseMaxChars))
+    createPendingRef.current = pending
+    try { return await pending } finally { createPendingRef.current = null }
   }
 
   function handleSurveyMarkdownChange(content: string) {
@@ -747,6 +813,8 @@ export function TeacherSurveyWorkspace({
       setSurveyMarkdown(nextMarkdown)
       setSurveyMarkdownDirty(false)
       setSurveyMarkdownInfo('Markdown applied')
+      setSelectedQuestionId(nextQuestions[0]?.id ?? null)
+      setSurveyEditMode('edit')
     } catch (err) {
       setSurveyMarkdownError(err instanceof Error ? err.message : 'Failed to apply markdown')
     } finally {
@@ -771,110 +839,164 @@ export function TeacherSurveyWorkspace({
     }
   }
 
-  if (loading || (detail !== null && !activeDetail)) {
+  async function navigate(action: () => void | Promise<void>) {
+    if (navigationPendingRef.current || surveyMarkdownSaving || responseSettingSaving || statusChanging) return
+    const requestedSurveyId = surveyId
+    navigationPendingRef.current = true
+    setNavigationPending(true)
+    try {
+      if (!await flushTitle()) return
+      if (surveyMarkdownDirty && surveyEditMode === 'markdown') {
+        setError('Apply or undo Markdown edits before continuing.')
+        return
+      }
+      const saved = createPendingRef.current ? await createPendingRef.current : !selectedQuestion && (newQuestionText.trim() || newOptionsText.trim()) && surveyEditMode === 'edit' ? await addQuestion() : await (questionEditorRef.current?.flush() ?? Promise.resolve(true))
+      if (saved && currentSurveyIdRef.current === requestedSurveyId) await action()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save survey')
+    } finally {
+      navigationPendingRef.current = false
+      setNavigationPending(false)
+    }
+  }
+
+  function startQuestion(type: SurveyQuestionType) {
+    void navigate(() => {
+      questionBeforeNewRef.current = selectedQuestionId
+      setSelectedQuestionId(null)
+      setEditingQuestionType(null)
+      setSurveyEditMode('edit')
+      setNewQuestionType(type)
+      setNewQuestionText('')
+      setNewOptionsText('\n')
+      setNewResponseMaxChars(String(defaultMaxChars(type)))
+      setQuestionStatus('saved')
+    })
+  }
+
+  function cancelNewQuestion() {
+    setSelectedQuestionId(questions.find((question) => question.id === questionBeforeNewRef.current)?.id ?? questions.at(-1)?.id ?? null)
+    setEditingQuestionType(null)
+    setNewQuestionText('')
+    setNewOptionsText('\n')
+    setError('')
+    setQuestionStatus('saved')
+  }
+
+  function duplicateQuestion() {
+    void navigate(async () => {
+      const draft = questionEditorRef.current?.getDraft()
+      if (draft) await createQuestion(draft)
+    })
+  }
+
+  async function publishSurvey() {
+    if (isReadOnly || !survey || survey.status !== 'draft') return
+    await navigate(async () => {
+      setStatusChanging(true)
+      try {
+        const response = await fetch(`/api/teacher/surveys/${surveyId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'active' }) })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to publish survey')
+        if (currentSurveyIdRef.current !== surveyId) return
+        setDetail((current) => current ? { ...current, survey: data.survey } : current)
+        onSurveyUpdated(data.survey)
+      } finally { setStatusChanging(false) }
+    })
+  }
+
+  async function closeEditor() {
+    if (!survey) {
+      onBack()
+      return
+    }
+    if (surveyMarkdownDirty) {
+      setError('Apply or undo Markdown edits before closing.')
+      return
+    }
+    await navigate(onBack)
+  }
+
+  function selectQuestion(questionId: string | null) {
+    setNumberDraft(String(questions.findIndex((question) => question.id === selectedQuestionId) + 1))
+    void navigate(() => {
+      setSelectedQuestionId(questionId)
+      setEditingQuestionType(null)
+      setQuestionStatus('saved')
+      setSurveyEditMode('edit')
+    })
+  }
+
+  useEffect(() => {
+    onCloseReady?.(closeEditor)
+    return () => onCloseReady?.(null)
+  })
+
+  if (loading || (detail !== null && !activeDetail) || !survey) {
     return (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <Spinner />
+      <div className="relative flex flex-1 items-center justify-center p-6">
+        <Tooltip content="Close"><Button type="button" variant="ghost" size="sm" aria-label="Close survey editor" onClick={() => { void closeEditor() }} className="absolute right-3 top-3 h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
+        {loading || (detail !== null && !activeDetail) ? <Spinner /> : <p className="text-sm text-danger" role="alert">{error || 'Survey unavailable'}</p>}
       </div>
     )
   }
 
-  if (!survey) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-6 text-sm text-danger">
-        {error || 'Survey unavailable'}
-      </div>
-    )
-  }
+  const selectedIndex = selectedQuestion ? questions.indexOf(selectedQuestion) : -1
+  const currentType = selectedQuestion ? editingQuestionType ?? selectedQuestion.question_type : newQuestionType
+  const busy = navigationPending || surveyMarkdownSaving || addingQuestion || responseSettingSaving || statusChanging
+  const metadataDisabled = isReadOnly || surveyEditMode === 'markdown' || busy
+  const titleDirty = titleDraft !== getDisplayAssessmentTitle(survey.title, 'Untitled Survey')
+  const newQuestionDirty = !selectedQuestion && Boolean(newQuestionText.trim() || newOptionsText.trim())
+  const newQuestionValid = normalizeSurveyQuestionInput(buildQuestionSavePayload(newQuestionType, newQuestionText, newOptionsText, newResponseMaxChars)).valid
+  const actionItems = [
+    { id: 'add-mc', label: 'Add multiple-choice question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly, onSelect: () => startQuestion('multiple_choice') },
+    { id: 'add-open', label: 'Add open-response question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly, onSelect: () => startQuestion('short_text') },
+    { id: 'add-link', label: 'Add link question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly, onSelect: () => startQuestion('link') },
+    ...(['multiple_choice', 'short_text', 'link'] as const).map((type, index) => ({
+      id: `type-${type}`, label: `Change to ${type === 'multiple_choice' ? 'multiple choice' : type === 'short_text' ? 'open response' : 'link'}`,
+      dividerBefore: index === 0, checked: currentType === type, checkedRole: 'menuitemradio' as const, disabled: isReadOnly,
+      onSelect: () => {
+        if (selectedQuestion) questionEditorRef.current?.setType(type)
+        else { setNewQuestionType(type); setNewResponseMaxChars(String(defaultMaxChars(type))) }
+      },
+    })),
+    { id: 'duplicate', label: 'Duplicate question', icon: <Copy className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, disabled: isReadOnly || !selectedQuestion, onSelect: duplicateQuestion },
+    { id: 'delete', label: 'Delete question', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, disabled: isReadOnly || !selectedQuestion, onSelect: () => { void questionEditorRef.current?.delete() } },
+  ]
 
   return (
-    <div className="h-full min-h-0 overflow-auto p-4">
-      <div className="mx-auto flex max-w-5xl flex-col gap-4">
-        <Card tone="panel" padding="md" className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <EditableAssessmentTitle
-              title={survey.title}
-              inputLabel="Survey title"
-              editLabel="Edit survey title"
-              disabled={isReadOnly || titleSaving}
-              saving={titleSaving}
-              error={titleError}
-              generatedTitleLabel="Untitled Survey"
-              autoEdit={autoEditTitle}
-              onSave={saveTitle}
-              trailing={
-                <span className={`rounded-badge px-2.5 py-1 text-xs font-semibold ${statusClassName}`}>
-                  {getSurveyStatusLabel(survey.status)}
-                </span>
-              }
-            />
-
-            <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-              <AssessmentSetupCheckbox
-                checked={survey.dynamic_responses}
-                disabled={isReadOnly || responseSettingSaving}
-                onChange={(checked) => {
-                  void saveResponseEditing(checked)
-                }}
-              >
-                Allow live changes
-              </AssessmentSetupCheckbox>
-              <Button
-                size="sm"
-                variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'}
-                aria-pressed={surveyEditMode === 'preview'}
-                onClick={() => {
-                  setSurveyEditMode((current) => (current === 'preview' ? 'edit' : 'preview'))
-                  setSurveyMarkdownError('')
-                  setSurveyMarkdownInfo('')
-                }}
-              >
-                <Eye className="mr-1 h-4 w-4" aria-hidden="true" />
-                Preview
-              </Button>
-              <Button
-                size="sm"
-                variant={surveyEditMode === 'markdown' ? 'subtle' : 'secondary'}
-                aria-pressed={surveyEditMode === 'markdown'}
-                onClick={() => {
-                  setSurveyEditMode((current) => (current === 'markdown' ? 'edit' : 'markdown'))
-                  setSurveyMarkdownError('')
-                  setSurveyMarkdownInfo('')
-                }}
-              >
-                <Code className="mr-1 h-4 w-4" aria-hidden="true" />
-                Code
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-danger hover:bg-danger-bg"
-                onClick={() => setDeleteConfirmOpen(true)}
-                disabled={isReadOnly || statusChanging}
-              >
-                <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
-                Delete
-              </Button>
-            </div>
+    <div data-testid="survey-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
+      <div data-testid="survey-editor-details-pane" className="flex min-h-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
+        <FormField label="Title" required error={titleError} labelAccessory={(
+          <div className="flex items-center gap-1">
+            <SaveStatus status={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty ? 'unsaved' : questionStatus} className={!titleSaving && !busy && !titleDirty && !newQuestionDirty && questionStatus === 'saved' ? 'text-text-muted' : undefined} />
+            <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" disabled={metadataDisabled} items={[
+              { id: 'results', label: 'Show class results to students', checked: survey.show_results, checkedRole: 'menuitemcheckbox', onSelect: () => { void saveSetting('show_results', !survey.show_results) } },
+              { id: 'dynamic', label: 'Allow students to update responses', checked: survey.dynamic_responses, checkedRole: 'menuitemcheckbox', onSelect: () => { void saveSetting('dynamic_responses', !survey.dynamic_responses) } },
+              { id: 'delete', label: 'Delete survey', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, destructive: true, onSelect: () => setDeleteConfirmOpen(true) },
+            ]} />
+            <Tooltip content="Close"><Button type="button" variant="ghost" size="sm" aria-label="Close survey editor" disabled={busy} onClick={() => { void closeEditor() }} className="h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
           </div>
-
-          {error && (
-            <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
-          {surveyMarkdownDirty && surveyEditMode !== 'edit' ? (
-            <div className="rounded-md border border-warning bg-warning-bg px-3 py-2 text-sm text-warning">
-              Markdown edits not applied
-            </div>
-          ) : null}
-        </Card>
-
+        )}>
+          <Input ref={titleInputRef} aria-label="Survey title" value={titleDraft} placeholder="Title" disabled={metadataDisabled || titleSaving} onChange={(event) => { setTitleDraft(event.target.value); setTitleError('') }} onBlur={() => { if (!metadataDisabled) void flushTitle() }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void flushTitle() } }} />
+        </FormField>
+        <div className="rounded-md border border-border bg-surface px-3 py-2"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Questions</p><p className="text-xs text-text-muted">{questions.length} total</p></div></div>
+        <Button type="button" variant={surveyEditMode === 'markdown' ? 'subtle' : 'surface'} size="sm" fullWidth aria-pressed={surveyEditMode === 'markdown'} disabled={busy} onClick={() => { void navigate(() => { setSurveyEditMode((current) => current === 'markdown' ? 'edit' : 'markdown'); setSurveyMarkdownError(''); setSurveyMarkdownInfo('') }) }} className="justify-start"><Code2 className="h-4 w-4" aria-hidden="true" />Markdown</Button>
+        {error ? <p className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">{error}</p> : null}
+        {surveyMarkdownDirty ? <p className="text-xs text-warning">Markdown edits not applied</p> : null}
+        <div className="mt-1 shrink-0 lg:mt-auto">
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'} size="sm" fullWidth disabled={busy || surveyEditMode === 'markdown'} aria-pressed={surveyEditMode === 'preview'} onClick={() => { void navigate(() => setSurveyEditMode((current) => current === 'preview' ? 'edit' : 'preview')) }}><Eye className="h-4 w-4" aria-hidden="true" />{surveyEditMode === 'preview' ? 'Back to editor' : 'Preview'}</Button>
+            <Button type="button" size="sm" fullWidth disabled={metadataDisabled || survey.status !== 'draft' || questions.length === 0} onClick={() => { void publishSurvey() }}>{survey.status === 'draft' ? 'Publish' : getSurveyStatusLabel(survey.status)}</Button>
+          </div>
+        </div>
+      </div>
+      <div data-testid="survey-editor-content-pane" className="flex min-h-96 min-w-0 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-y-auto">
         {surveyEditMode === 'markdown' ? (
-          <Card tone="panel" padding="md" className="flex min-h-[560px] flex-col gap-3">
+          <Card tone="panel" padding="md" className="flex min-h-96 flex-1 flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold text-text-default">Code</h3>
+                <h3 className="text-base font-semibold text-text-default">Survey Markdown</h3>
                 <p className="text-sm text-text-muted">{questions.length} question{questions.length === 1 ? '' : 's'}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -887,7 +1009,7 @@ export function TeacherSurveyWorkspace({
                     title="Undo markdown edits"
                     onClick={handleUndoSurveyMarkdownChanges}
                     disabled={surveyMarkdownSaving}
-                    className="h-8 w-8 p-0"
+                    className="h-11 w-11 p-0"
                   >
                     <RotateCcw className="h-4 w-4" aria-hidden="true" />
                   </Button>
@@ -928,124 +1050,51 @@ export function TeacherSurveyWorkspace({
                 }
               }}
               readOnly={isReadOnly || surveyMarkdownSaving}
-              className="min-h-[460px] flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
+              className="min-h-80 flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
               spellCheck={false}
             />
           </Card>
         ) : surveyEditMode === 'preview' ? (
           <TeacherSurveyPreview survey={survey} questions={questions} />
+
         ) : (
           <>
-            <Card tone="panel" padding="md" className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-base font-semibold text-text-default">Questions</h3>
-                <span className="text-sm text-text-muted">{questions.length} total</span>
+            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+              <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">{currentType === 'multiple_choice' ? 'Multiple choice' : currentType === 'short_text' ? 'Open response' : 'Link response'}</p>
+              <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
+                <Tooltip content="Previous question"><Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={busy || selectedIndex <= 0} onClick={() => selectQuestion(questions[selectedIndex - 1].id)} className="h-11 w-11 p-0 text-text-muted"><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
+                {selectedQuestion ? <Input type="number" min="1" max={questions.length} value={numberDraft} aria-label="Question number" disabled={busy} onChange={(event) => setNumberDraft(event.target.value)} onBlur={() => {
+                  const requested = Number.parseInt(numberDraft, 10)
+                  const index = Math.max(0, Math.min(questions.length - 1, Number.isFinite(requested) ? requested - 1 : selectedIndex))
+                  if (index !== selectedIndex) selectQuestion(questions[index].id)
+                  else setNumberDraft(String(selectedIndex + 1))
+                }} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} className="w-14 px-2 text-center" /> : <span className="px-2 text-sm font-medium">New question</span>}
+                <span className="whitespace-nowrap text-xs text-text-muted">/ {questions.length}</span>
+                <Tooltip content="Next question"><Button type="button" variant="ghost" size="sm" aria-label="Next question" disabled={busy || selectedIndex < 0 || selectedIndex === questions.length - 1} onClick={() => selectQuestion(questions[selectedIndex + 1].id)} className="h-11 w-11 p-0 text-text-muted"><ChevronRight className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
               </div>
-
-              <div className="grid gap-3 rounded-lg border border-border bg-surface-2 p-3 lg:grid-cols-[12rem_minmax(0,1fr)]">
-                <FormField label="Type">
-                  <Select
-                    value={newQuestionType}
-                    onChange={(event) => setNewQuestionType(event.target.value as SurveyQuestionType)}
-                    options={QUESTION_TYPE_OPTIONS}
-                    disabled={isReadOnly || addingQuestion}
-                  />
-                </FormField>
-                <FormField label="New question">
-                  <Input
-                    value={newQuestionText}
-                    onChange={(event) => setNewQuestionText(event.target.value)}
-                    placeholder="Ask students a question"
-                    disabled={isReadOnly || addingQuestion}
-                  />
-                </FormField>
-                {newQuestionType === 'multiple_choice' && (
-                  <div className="lg:col-span-2">
-                    <FormField label="Options">
-                      <SurveyTextarea
-                        value={newOptionsText}
-                        onChange={(event) => setNewOptionsText(event.target.value)}
-                        rows={3}
-                        disabled={isReadOnly || addingQuestion}
-                        className="w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
-                      />
-                    </FormField>
-                  </div>
-                )}
-                <div className="lg:col-span-2 flex justify-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={addQuestion}
-                    disabled={isReadOnly || addingQuestion || !newQuestionText.trim()}
-                  >
-                    <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
-                    {addingQuestion ? 'Adding...' : 'Add question'}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {questions.length === 0 ? (
-                  <p className="rounded-lg border border-border bg-surface px-3 py-4 text-center text-sm text-text-muted">
-                    Add at least one question before opening the survey.
-                  </p>
-                ) : (
-                  questions.map((question) => (
-                    <QuestionEditor
-                      key={question.id}
-                      question={question}
-                      disabled={isReadOnly}
-                      onSaved={(updatedQuestion) => {
-                        setDetail((current) =>
-                          current
-                            ? {
-                                ...current,
-                                questions: current.questions.map((item) =>
-                                  item.id === updatedQuestion.id ? updatedQuestion : item
-                                ),
-                              }
-                            : current
-                        )
-                      }}
-                      onDeleted={(questionId) => {
-                        setDetail((current) =>
-                          current
-                            ? {
-                                ...current,
-                                questions: current.questions.filter((item) => item.id !== questionId),
-                              }
-                            : current
-                        )
-                        onQuestionCountChanged?.(
-                          surveyId,
-                          questions.filter((item) => item.id !== questionId).length,
-                        )
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-            </Card>
-
+              <div className="col-start-2 row-start-2 justify-self-end lg:col-start-3 lg:row-start-1"><TeacherWorkSurfaceIconMenuButton icon={<ListPlus className="h-5 w-5" aria-hidden="true" />} ariaLabel="Question actions" tooltip="Question actions" menuAriaLabel="Question actions" variant="primary" menuPlacement="down" menuAlign="end" disabled={isReadOnly || busy || questionStatus === 'saving'} className="h-11 w-14 shadow-sm" items={actionItems} /></div>
+            </div>
+            {selectedQuestion ? (
+              <QuestionEditor key={selectedQuestion.id} ref={questionEditorRef} question={selectedQuestion} disabled={isReadOnly} interactionDisabled={navigationPending} onStatusChange={setQuestionStatus} onTypeChange={setEditingQuestionType} onSaved={(updatedQuestion) => {
+                setDetail((current) => current?.survey.id === updatedQuestion.survey_id ? { ...current, questions: current.questions.map((item) => item.id === updatedQuestion.id ? updatedQuestion : item) } : current)
+              }} onDeleted={(questionId) => {
+                const remaining = questions.filter((question) => question.id !== questionId)
+                setDetail((current) => current ? { ...current, questions: remaining } : current)
+                setSelectedQuestionId(remaining[Math.min(selectedIndex, remaining.length - 1)]?.id ?? null)
+                setQuestionStatus('saved')
+                setEditingQuestionType(null)
+                onQuestionCountChanged?.(surveyId, remaining.length)
+              }} />
+            ) : (
+              <>
+                <SurveyQuestionFields questionType={newQuestionType} questionText={newQuestionText} optionsText={newOptionsText} responseMaxChars={newResponseMaxChars} disabled={isReadOnly || busy} promptLabel="New question" onTextChange={setNewQuestionText} onOptionsChange={setNewOptionsText} onLimitChange={setNewResponseMaxChars} />
+                <div className="flex justify-end gap-2">{questions.length > 0 || newQuestionDirty ? <Button type="button" variant="secondary" size="sm" aria-label="Cancel new question" disabled={busy} onClick={cancelNewQuestion}>Cancel</Button> : null}<Button type="button" size="sm" onClick={() => { void addQuestion() }} disabled={isReadOnly || busy || !newQuestionValid}><Plus className="h-4 w-4" aria-hidden="true" />{addingQuestion ? 'Adding...' : 'Add question'}</Button></div>
+              </>
+            )}
           </>
         )}
       </div>
-
-      <ConfirmDialog
-        isOpen={deleteConfirmOpen}
-        title="Delete survey?"
-        description={`${survey.title}\n\nThis cannot be undone.`}
-        confirmLabel={statusChanging ? 'Deleting...' : 'Delete'}
-        cancelLabel="Cancel"
-        confirmVariant="danger"
-        isConfirmDisabled={statusChanging}
-        isCancelDisabled={statusChanging}
-        onCancel={() => (statusChanging ? null : setDeleteConfirmOpen(false))}
-        onConfirm={() => {
-          void deleteSurvey()
-        }}
-      />
+      <ConfirmDialog isOpen={deleteConfirmOpen} title="Delete survey?" description={`${survey.title}\n\nThis cannot be undone.`} confirmLabel={statusChanging ? 'Deleting...' : 'Delete'} cancelLabel="Cancel" confirmVariant="danger" isConfirmDisabled={statusChanging} isCancelDisabled={statusChanging} onCancel={() => (statusChanging ? null : setDeleteConfirmOpen(false))} onConfirm={() => { void deleteSurvey() }} />
     </div>
   )
 }
