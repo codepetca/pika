@@ -22,6 +22,8 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
 import type { TestDraftContent, TestStudentAvailabilityState } from '@/types'
 import { chunkValues, loadChunkedRows } from '@/lib/server/query-chunks'
+import { authorizeSharedTestListReadActor, readContextualTestList } from '@/lib/server/contextual-test-list-read'
+import { contextualTestListQuerySchema } from '@/lib/validations/contextual-test-list-read'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -104,6 +106,11 @@ async function loadTestAvailabilityRows(
 
 // GET /api/teacher/tests?classroom_id=xxx - List tests for a classroom
 export const GET = withErrorHandler('GetTeacherTests', async (request) => {
+  const actor = await authorizeSharedTestListReadActor()
+  if (actor.mode === 'shared') {
+    const input = contextualTestListQuerySchema.parse({ classroomId: new URL(request.url).searchParams.get('classroom_id') })
+    return NextResponse.json(await readContextualTestList({ supabase: getServiceRoleClient(), actorId: actor.user.id, classroomId: input.classroomId }))
+  }
   const user = await requireRole('teacher')
   const { searchParams } = new URL(request.url)
   const classroomId = searchParams.get('classroom_id')

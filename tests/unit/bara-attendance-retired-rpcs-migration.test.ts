@@ -109,8 +109,8 @@ describe('retired unscoped Bara attendance RPC migration', () => {
     expect(productionHistory).not.toBeNull()
     expect(Number(productionHistory?.[1])).toBeGreaterThanOrEqual(160)
     expect(currentContext).toContain('Recorded releases: attendance')
-    expect(currentContext).toContain('last verified')
-    expect(currentContext).toContain('no fresh hosted query here')
+    // Current receipts may advance from historical controls to fresh post-apply verification.
+    expect(currentContext).toMatch(/Fresh post-apply controls match pre-apply|Settings last verified in prior receipts; no fresh hosted query here for controls/)
     expect(currentContext).toContain('`teacher_entitlements` smoke 4/4 on 2026-08-28')
     expect(operationalRecovery).toContain('records Pika migrations through 132')
     expect(operationalRecovery).toContain(

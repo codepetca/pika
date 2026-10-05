@@ -93,7 +93,7 @@ describe('required Test lifecycle verification', () => {
     const removal = harness.lastIndexOf("await authorityRace('membership removal before reopen'")
     expect(removal).toBeGreaterThan(harness.lastIndexOf("await authorityRace('owner drift before reopen'"))
     expect(removal).toBeGreaterThan(harness.lastIndexOf("await authorityRace('archive before reopen'"))
-    expect(harness).toContain("null, '40001')")
+    expect(harness).toContain("null, 'PT409')")
     expect(harness).toContain('id=${enrollment} and classroom_id=${literal(\'classroom\')} and student_id=${student}')
     expect(harness).toContain("verifyGeneration(removed.generation, 'removed')")
     expect(harness.indexOf("verifyGeneration(removed.generation, 'removed')")).toBeLessThan(harness.indexOf("expectedMembershipState = 'removed'"))

@@ -44,7 +44,7 @@ export class TestAiGradingLeaseLostError extends Error {
 
 function throwGradeRpcError(error: RpcError, fallback: string): never {
   if (error.code === '42501') throw new ApiError(403, error.message)
-  if (error.code === '40001') throw apiErrors.conflict(error.message)
+  if (error.code === 'PT409' || error.code === '40001') throw apiErrors.conflict(error.message)
   if (error.code === 'P0002') throw apiErrors.notFound(error.message)
   if (error.code === '22023' || error.code === '22P02') {
     throw apiErrors.badRequest(error.message)

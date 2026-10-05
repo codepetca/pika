@@ -11858,6 +11858,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      finish_test_draft_get_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_deadline: string
+          p_expected_source_sha256: string
+          p_operation: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       get_assignment_ai_grading_usage_contract_v2: {
         Args: never
         Returns: Json
@@ -13456,6 +13468,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      snapshot_test_draft_for_owner_v1: {
+        Args: { p_actor_id: string; p_deadline: string; p_test_id: string }
+        Returns: Json
       }
       stage_attendance_roster_snapshot_v1: {
         Args: {

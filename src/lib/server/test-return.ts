@@ -28,7 +28,7 @@ export async function returnStudentTestAttempts(input: {
     if (error.code === '42501') return { ok: false, status: 403, error: error.message }
     if (error.code === 'P0002' || error.code === '22P02') return { ok: false, status: 404, error: 'Test not found' }
     if (error.code === '22023') return { ok: false, status: 400, error: error.message }
-    if (error.code === '40001') return { ok: false, status: 409, error: error.message }
+    if (error.code === 'PT409' || error.code === '40001') return { ok: false, status: 409, error: error.message }
     if (error.code === 'PGRST202' || error.code === '42883') {
       return { ok: false, status: 503, error: 'Test lifecycle migration 244 is required' }
     }

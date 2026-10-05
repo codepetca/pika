@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SOURCE ONLY. Explicit approval is required before local execution.
-// Standalone on a fresh schema through244. Commits only its isolated shared
+// Standalone on a fresh schema through247. Commits only its isolated shared
 // fixture and authority drift (required for cross-session visibility). Archive/
 // owner drift is restored; terminal membership removal retains immutable private
 // migration168 evidence. Disposable databases only: cleanup restores the checked
@@ -259,7 +259,7 @@ try {
   await race('reopen before Return', reopen, returnAfterRollback)
   await race('grade clear before Return', clear, returnAfterRollback)
   await race('Return before grade clear', `select ${returnCall};`, `${clear} do $assert$ declare result jsonb; begin result := ${returnCall}; if result->>'skipped_count' <> '1' then raise exception 'Cleared grade was returned: %',result; end if; if (select returned_at from public.test_attempts where test_id=${test} and student_id=${student}) is not null then raise exception 'Stale disclosure marker survived'; end if; end; $assert$;`)
-  await race('Return before reopen', `select ${returnCall};`, `${reopen} do $assert$ begin begin perform ${returnCall}; raise exception 'Reopened attempt returned'; exception when serialization_failure then null; end; end; $assert$;`)
+  await race('Return before reopen', `select ${returnCall};`, `${reopen} do $assert$ begin begin perform ${returnCall}; raise exception 'Reopened attempt returned'; exception when sqlstate 'PT409' then null; end; end; $assert$;`)
   // Build the destructive-reopen branch: started, unsubmitted, teacher-closed,
   // returned, and still holding a scored response. All fields are fingerprinted.
   await sql(`begin;
@@ -283,7 +283,7 @@ try {
   // LAST: migration168 permanently closes this per-run generation on removal.
   await authorityRace('membership removal before reopen',
     `delete from public.classroom_enrollments where id=${enrollment} and classroom_id=${literal('classroom')} and student_id=${student};`,
-    null, '40001')
+    null, 'PT409')
 } finally {
   const unfinished = [...active]
   for (const child of unfinished) child.kill('SIGTERM')

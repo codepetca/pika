@@ -214,6 +214,8 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
     })
   })
   it.each([
+    { code: 'PT409', state: 'open', status: 409, message: 'Selected students changed; reload and retry' },
+    { code: 'PT409', state: 'closed', status: 409, message: 'Selected students changed; reload and retry' },
     { code: '40001', state: 'open', status: 409, message: 'Selected students changed; reload and retry' },
     { code: '40001', state: 'closed', status: 409, message: 'Selected students changed; reload and retry' },
     { code: '42501', state: 'open', status: 403, message: 'Test access update is not allowed' },
