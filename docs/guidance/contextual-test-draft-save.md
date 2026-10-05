@@ -147,4 +147,19 @@ never assertion rows, paths, SQL or credentials; execution limits remain intact.
 
 Reconciled with main `43c24abec` (#1475): CI routing/local-runner guidance and
 historical receipts preserved; no migration collision or application change.
-Source acceptance and the real failure diagnosis precede another normal run.
+Narrow changed-base/diagnostic review is clean at `4cb911a`; incoming CI/local
+runner policy remains unchanged. A normal attempt then failed at disposable
+Storage startup health before fixtures; exact cleanup and the SAME canonical
+baseline passed. One reviewed unchanged retry reached all 42 SDK requests and
+identified the actual earlier assertion: concurrency's 180-second total budget
+at `check-contextual-test-draft-save-concurrency.ts:80`. Exact cleanup and another
+separate SAME-baseline check passed; no normal or generated-types receipt exists.
+
+A bounded additive-native-adapter correction parallelizes four independent
+read-only prechecks with all-settled failure handling, retaining every fresh source, complete-resource,
+endpoint/private-control and pre-dispatch check. Existing deadlines, action/
+control/dispatch caps, sixteen schedules and exact backend cleanup are immutable.
+Offline verification and independent source/plan acceptance precede any further
+native execution; do not increase budgets or skip health checks to obtain a pass.
+Offline overlap, failure settlement, dispatch barriers and source/socket/resource
+drift tests passed 89/89; actual completion inside 180 seconds remains unproven.

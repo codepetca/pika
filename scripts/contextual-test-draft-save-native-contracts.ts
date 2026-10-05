@@ -166,12 +166,17 @@ export function createDraftSaveNativeContracts(input: {
   }
   async function inventory(cleanup = false) {
     if (!cleanup) check()
-    assert.equal(await command('git', ['rev-parse', 'HEAD']), input.reviewedHead)
-    assert.equal(await command('git', ['rev-parse', '--show-toplevel']), input.repository)
-    assert.equal(await command('git', ['status', '--porcelain']), '')
+    // These fresh read-only children are independent. Settle all of them even
+    // on rejection before resource discovery, SQL, or session work can begin.
+    const checks = await Promise.allSettled([
+      (async () => { assert.equal(await command('git', ['rev-parse', 'HEAD']), input.reviewedHead) })(),
+      (async () => { assert.equal(await command('git', ['rev-parse', '--show-toplevel']), input.repository) })(),
+      (async () => { assert.equal(await command('git', ['status', '--porcelain']), '') })(),
+      verifyEndpoint(),
+    ])
+    for (const result of checks) if (result.status === 'rejected') throw result.reason
     assert.equal(draftSaveMigrationManifestSha256(input.repository), manifest.migrationManifestSha256)
     assert.equal(testOwnerDigest(readFileSync(resolve(input.repository, 'supabase/migrations/249_contextual_test_draft_owner_save.sql'), 'utf8')), manifest.sourceSha256)
-    await verifyEndpoint()
     const all = await testOwnerListDockerInventory()
     validateIntegratedGuardResources(all, project, input.containerId, closure as AssignmentListResource[])
     await verifyEndpoint()

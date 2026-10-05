@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { readdirSync } from 'node:fs'
 import { PassThrough, Writable } from 'node:stream'
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn(), inventory: vi.fn(),
-  snapshotSqlReads: false, sourceDrift: false, sqlFileCache: new Map<string, string>() }))
+  snapshotSqlReads: false, sourceDrift: false, driftMigration: '249_contextual_test_draft_owner_save.sql', socketInode: 2, sqlFileCache: new Map<string, string>() }))
 vi.mock('node:child_process', () => ({ spawn: mocks.spawn, execFile: mocks.execFile, execFileSync: vi.fn() }))
 vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs')>()
@@ -14,12 +14,12 @@ vi.mock('node:fs', async importOriginal => {
         && /\/supabase\/migrations\/\d{3}_[a-z0-9_]+\.sql$/.test(path)) {
         let source = mocks.sqlFileCache.get(path)
         if (source === undefined) { source = actual.readFileSync(path, 'utf8'); mocks.sqlFileCache.set(path, source) }
-        return mocks.sourceDrift && path.endsWith('/249_contextual_test_draft_owner_save.sql')
+        return mocks.sourceDrift && path.endsWith(`/${mocks.driftMigration}`)
           ? `${source}\n-- offline source drift` : source
       }
       return actual.readFileSync(path, options)
     }) as typeof actual.readFileSync,
-    statSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? { isSocket: () => true, dev: 1, ino: 2, mode: 3, rdev: 4 } : actual.statSync(path) }
+    statSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? { isSocket: () => true, dev: 1, ino: mocks.socketInode, mode: 3, rdev: 4 } : actual.statSync(path) }
 })
 vi.mock('../../scripts/contextual-test-owner-list-proof-inventory', () => ({ testOwnerListDockerInventory: mocks.inventory }))
 import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, validateDraftSaveNativeSql, draftSaveNativeTerminationSql } from '../../scripts/contextual-test-draft-save-native-contracts'
@@ -141,15 +141,114 @@ describe('native persistent-session transport with offline child mocks', () => {
       children.push(child); return child
     })
   })
-  afterEach(() => { vi.useRealTimers(); mocks.snapshotSqlReads = false; mocks.sourceDrift = false; mocks.sqlFileCache.clear() })
-  it('snapshots the complete offline SQL fixture and still rejects changed source before work', async () => {
+  afterEach(() => { vi.useRealTimers(); mocks.snapshotSqlReads = false; mocks.sourceDrift = false;
+    mocks.driftMigration = '249_contextual_test_draft_owner_save.sql'; mocks.socketInode = 2; mocks.sqlFileCache.clear() })
+  function holdInitialGuard() {
+    const implementation = mocks.execFile.getMockImplementation()!
+    let holding = true
+    const jobs: { args: string[]; settle: (error?: Error, output?: string) => void }[] = []
+    mocks.execFile.mockImplementation((file: string, args: string[], options: unknown, callback: (error: unknown, stdout: string) => void) =>
+      implementation(file, args, options, (error: unknown, stdout: string) => {
+        if (holding && (file === 'git' || args[0] === 'context')) {
+          let settled = false
+          jobs.push({ args, settle: (replacementError, output) => {
+            if (!settled) { settled = true; callback(replacementError ?? error, output ?? stdout) }
+          } })
+        }
+        else callback(error, stdout)
+      }))
+    return { jobs, release() { holding = false; for (const job of jobs) job.settle() } }
+  }
+  async function flushGuardReads() { for (let i = 0; i < 12; i++) await Promise.resolve() }
+  it('overlaps the four fresh read checks and waits for all before inventory, SQL or sessions', async () => {
+    const held = holdInitialGuard()
+    const pending = factory().setup()
+    const outcome = pending.catch(error => error)
+    try {
+      await flushGuardReads()
+      expect(held.jobs.map(job => job.args.slice(0, 2))).toEqual([
+        ['rev-parse', 'HEAD'], ['rev-parse', '--show-toplevel'], ['status', '--porcelain'], ['context', 'inspect'],
+      ])
+      held.jobs[0].settle(); held.jobs[1].settle(); held.jobs[2].settle()
+      await flushGuardReads()
+      expect(mocks.inventory).not.toHaveBeenCalled()
+      expect(sqlControls.every(control => !control.args.includes('exec'))).toBe(true)
+      expect(mocks.spawn).not.toHaveBeenCalled()
+    } finally { held.release(); await outcome }
+    await expect(pending).resolves.toHaveProperty('setupSha256')
+  })
+  it.each([
+    ['failed HEAD child', 0, Error('offline read failed'), undefined],
+    ['changed HEAD', 0, undefined, 'f'.repeat(40)],
+    ['changed root', 1, undefined, '/private/tmp/other-repository'],
+    ['dirty source', 2, undefined, ' M scripts/contextual-test-draft-save-native-contracts.ts'],
+    ['remote endpoint', 3, undefined, JSON.stringify({ endpoints: { docker: { Host: 'tcp://127.0.0.1:2375' } }, tlsMaterial: null })],
+  ] as const)('settles every independent read after %s before rejecting without dispatch', async (_label, index, error, output) => {
+    const held = holdInitialGuard()
+    let finished = false
+    const pending = factory().setup()
+    const outcome = pending.then(() => { finished = true }, () => { finished = true })
+    try {
+      await flushGuardReads()
+      expect(held.jobs).toHaveLength(4)
+      held.jobs[index].settle(error, output)
+      await flushGuardReads()
+      expect(finished).toBe(false)
+      expect(mocks.inventory).not.toHaveBeenCalled()
+      expect(mocks.spawn).not.toHaveBeenCalled()
+      expect(sqlControls.every(control => !control.args.includes('exec'))).toBe(true)
+    } finally { held.release(); await outcome }
+    await expect(pending).rejects.toThrow()
+    expect(mocks.inventory).not.toHaveBeenCalled()
+    expect(mocks.spawn).not.toHaveBeenCalled()
+  })
+  it('waits for complete inventory and rejects socket replacement before SQL or session dispatch', async () => {
+    let releaseInventory!: (value: typeof resources) => void
+    mocks.inventory.mockImplementationOnce(() => new Promise(resolve => { releaseInventory = resolve }))
+    const pending = factory().setup()
+    const outcome = pending.catch(error => error)
+    await flushGuardReads()
+    expect(mocks.inventory).toHaveBeenCalledTimes(1)
+    expect(mocks.spawn).not.toHaveBeenCalled()
+    expect(sqlControls.every(control => !control.args.includes('exec'))).toBe(true)
+    mocks.socketInode = 99
+    releaseInventory(resources)
+    await outcome
+    await expect(pending).rejects.toThrow()
+    expect(mocks.spawn).not.toHaveBeenCalled()
+    expect(sqlControls.every(control => !control.args.includes('exec'))).toBe(true)
+  })
+  it('waits for the post-inventory endpoint read before SQL or session dispatch', async () => {
+    const implementation = mocks.execFile.getMockImplementation()!
+    let releaseEndpoint: (() => void) | undefined
+    let held = false
+    mocks.execFile.mockImplementation((file: string, args: string[], options: unknown, callback: (error: unknown, stdout: string) => void) =>
+      implementation(file, args, options, (error: unknown, stdout: string) => {
+        if (!held && args[0] === 'context' && mocks.inventory.mock.calls.length) {
+          held = true; releaseEndpoint = () => callback(error, stdout)
+        } else callback(error, stdout)
+      }))
+    const pending = factory().setup()
+    const outcome = pending.catch(error => error)
+    try {
+      await flushGuardReads()
+      expect(releaseEndpoint).toBeTypeOf('function')
+      expect(mocks.inventory).toHaveBeenCalledTimes(1)
+      expect(mocks.spawn).not.toHaveBeenCalled()
+      expect(sqlControls.every(control => !control.args.includes('exec'))).toBe(true)
+    } finally { releaseEndpoint?.(); await outcome }
+    await expect(pending).resolves.toHaveProperty('setupSha256')
+  })
+  it.each(['249_contextual_test_draft_owner_save.sql', '001_create_users.sql'])('snapshots the complete offline SQL fixture and rejects changed %s before work', async migration => {
     const adapter = factory(); await adapter.setup()
     expect(mocks.sqlFileCache.size).toBe(readdirSync('supabase/migrations').filter(name => name.endsWith('.sql')).length)
     const dispatchedSql = sqlControls.length
     const spawnedChildren = children.length
-    mocks.sourceDrift = true
+    const inventories = mocks.inventory.mock.calls.length
+    mocks.driftMigration = migration; mocks.sourceDrift = true
     await expect(adapter.run()).rejects.toThrow('Expected values to be strictly equal')
-    expect(sqlControls.slice(dispatchedSql).every(control => control.args[0] === 'rev-parse' || control.args[0] === 'status')).toBe(true)
+    expect(sqlControls.slice(dispatchedSql).every(control => ['rev-parse', 'status', 'context'].includes(control.args[0]))).toBe(true)
+    expect(mocks.inventory).toHaveBeenCalledTimes(inventories)
     expect(children).toHaveLength(spawnedChildren)
     expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
   })
