@@ -20,6 +20,9 @@ import {
 } from '@/lib/test-question-identity'
 import { withErrorHandler } from '@/lib/api-handler'
 import type { TestDraftContent } from '@/types'
+import { authorizeSharedTestDetailReadActor } from '@/lib/server/contextual-test-detail-read'
+import { getContextualTestDraft } from '@/lib/server/contextual-test-draft-get'
+import { contextualTestDraftGetQuerySchema } from '@/lib/validations/contextual-test-draft-get'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -43,6 +46,12 @@ const TEST_DRAFT_CONFIG = {
 }
 
 export const GET = withErrorHandler('GetTestDraft', async (request, context) => {
+  const actor = await authorizeSharedTestDetailReadActor()
+  if (actor.mode === 'shared') {
+    const { id } = await context.params
+    const { testId } = contextualTestDraftGetQuerySchema.parse({ testId: id })
+    return NextResponse.json(await getContextualTestDraft({ supabase: getServiceRoleClient(), actorId: actor.user.id, testId }))
+  }
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
 

@@ -1230,6 +1230,22 @@ passing runs. Final cumulative review, stable-head CI and normal main merge stil
 precede completion. No phase exit, home or cohort activation follows from this
 slice, and no shared-local or production migration was applied.
 
+Superseding1469 receipt: reviewed `e8906c29` passed all five ready-event checks in
+CI37243490974, including PR Gate, and normally squash-merged `7570a9d6` at
+2026-10-04T23:59:49Z. Exact reviewed/squash tree parity, linear parent and clean
+canonical main fast-forward passed; all36 unrelated stashes and env link remain.
+The earlier failed attempts and native receipts remain recorded. This completes
+only owner Test list GET, not a phase exit or activation.
+
+Next is [contextual owner Test draft GET](contextual-test-draft-get.md), including
+its hidden create/repair behavior. Source preparation on main7570 uses a two-phase
+service-only snapshot/CAS transaction, unchanged legacy dispatch and public DTO,
+current owner/fixed-parent checks and explicit retired-Test inspection/write rules.
+Additive247 is source only. Independent review and accepted finite native/SQL
+proof, genuinely generated contracts, exact-head CI and normal merge are pending.
+No shared-local or production migration, cohort, home, provider or billing action
+is implied; other Test authoring and learner operations remain future slices.
+
 Further batch-2 groups, in integration order: Tests owner operations then learner
 participation/disclosure; complete
 Surveys owner/member transactions; Gradebook/returned Grades; existing grading
