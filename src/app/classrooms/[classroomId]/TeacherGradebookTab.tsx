@@ -601,7 +601,7 @@ export function TeacherGradebookTab({
     }
   }
 
-  async function mutateItem(action: 'create' | 'update' | 'delete' | 'return_marks', details?: GradebookItemDetails) {
+  async function mutateItem(action: 'create' | 'update' | 'delete', details?: GradebookItemDetails) {
     if (isReadOnly || !itemsAvailable || dialogSaving) return
     const itemId = action === 'create' ? newItemId : selectedAssessment?.assessment_id
     if (!itemId) return
@@ -622,7 +622,7 @@ export function TeacherGradebookTab({
       invalidateCachedJSONMatching(`gradebook:${classroomId}:`)
       await loadGradebook({ preserveSnapshot: true })
       if (dialogSaveSequenceRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
-      showMessage({ text: action === 'return_marks' ? 'Marks returned' : action === 'delete' ? 'Item deleted' : action === 'create' ? 'Item added' : 'Item saved', tone: 'success' })
+      showMessage({ text: action === 'delete' ? 'Item deleted' : action === 'create' ? 'Item added' : 'Item saved', tone: 'success' })
     } catch (error: unknown) {
       if (dialogSaveSequenceRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setDialogError(error instanceof Error ? error.message : 'Could not save Gradebook item')
@@ -1013,7 +1013,6 @@ export function TeacherGradebookTab({
         onClose={() => { if (!dialogSaving) { setNewItemId(null); setSelectedAssessment(null); setDialogError('') } }}
         onSave={(details) => mutateItem(newItemId ? 'create' : 'update', details)}
         onDelete={() => mutateItem('delete')}
-        onReturnMarks={() => mutateItem('return_marks')}
       />
       <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null} maximumChangesDisabled={!maximumEditsEnabled}
         target={maximumTarget ? { kind: 'maximum', title: maximumTarget.title,

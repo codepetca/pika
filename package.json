@@ -16,7 +16,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:coverage:ci": "vitest run --coverage --exclude tests/components/StudentPalExperience.test.tsx --exclude tests/components/StudentAchievementsTab.test.tsx",
-    "check:workflow": "vitest run tests/unit/ci-change-classifier.test.ts tests/unit/ci-performance.test.ts tests/unit/ci-workflow.test.ts tests/unit/focused-checks.test.ts tests/unit/production-promotion-workflow.test.ts tests/unit/seed-planned-course-fixtures.test.ts tests/unit/ai-pr-lifecycle.test.ts tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/vercel-deployment-config.test.ts",
+    "check:workflow": "vitest run tests/unit/ci-change-classifier.test.ts tests/unit/ci-performance.test.ts tests/unit/ci-workflow.test.ts tests/unit/focused-checks.test.ts tests/unit/production-promotion-workflow.test.ts tests/unit/seed-planned-course-fixtures.test.ts tests/unit/ai-pr-lifecycle.test.ts tests/unit/ai-startup-docs.test.ts tests/unit/ui-guidance-docs.test.ts tests/unit/vercel-deployment-config.test.ts tests/unit/ci-runner-policy.test.ts tests/unit/ci-runner-preflight.test.ts tests/unit/local-ci.test.ts",
     "check:focused": "node scripts/run-focused-checks.mjs",
     "measure:ci": "node scripts/measure-ci-performance.mjs",
     "record:ai-pr-lifecycle": "node scripts/record-ai-pr-lifecycle.mjs",
@@ -74,7 +74,8 @@
     "smoke:gradex:assignment": "tsx scripts/gradex-assignment-smoke.ts",
     "generate:secret": "node scripts/generate-env.js",
     "pika": "tsx scripts/pika.ts",
-    "smoke:pika-cli": "tsx scripts/pika-cli-smoke.ts"
+    "smoke:pika-cli": "tsx scripts/pika-cli-smoke.ts",
+    "ci:local": "node scripts/run-ci-local.mjs"
   },
   "dependencies": {
     "@codepet/pal-widget": "0.1.0-alpha.6",

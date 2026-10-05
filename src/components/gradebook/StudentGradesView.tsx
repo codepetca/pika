@@ -25,7 +25,7 @@ export function StudentGradesView({
         <div className="flex items-end justify-between gap-4 px-4 py-4">
           <div>
             <p className="text-sm font-medium text-text-default">Current grade</p>
-            <p className="mt-0.5 text-xs text-text-muted">Based on returned work</p>
+            <p className="mt-0.5 text-xs text-text-muted">Based on returned work and Gradebook marks</p>
           </div>
           <p className="text-3xl font-semibold tabular-nums text-text-default">
             {grades.currentPercent == null ? '—' : `${formatNumber(grades.currentPercent)}%`}
@@ -33,11 +33,11 @@ export function StudentGradesView({
         </div>
         {grades.items.length === 0 ? (
           <div className="border-t border-border px-4 py-8 text-center">
-            <p className="text-sm font-medium text-text-default">No returned grades yet</p>
-            <p className="mt-1 text-xs text-text-muted">Returned Classwork and Tests will appear here.</p>
+            <p className="text-sm font-medium text-text-default">No grades yet</p>
+            <p className="mt-1 text-xs text-text-muted">Returned Classwork, Tests, and Gradebook marks will appear here.</p>
           </div>
         ) : (
-          <ul aria-label="Returned grades" className="divide-y divide-border border-t border-border">
+          <ul aria-label="Grades" className="divide-y divide-border border-t border-border">
             {grades.items.map((grade) => {
               const content = (
                 <>

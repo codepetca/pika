@@ -181,19 +181,19 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
   const standaloneResult = visibility.classwork
     ? await loadPagedRows<any>(() => supabase
       .from('gradebook_item_scores')
-      .select('item_id, earned, returned_at, gradebook_items!inner(id, classroom_id, title, points_possible, include_in_final, gradebook_weight, gradebook_category_id)')
+      .select('item_id, earned, updated_at, gradebook_items!inner(id, classroom_id, title, points_possible, include_in_final, gradebook_weight, gradebook_category_id)')
       .eq('classroom_id', classroomId)
       .eq('student_id', studentId)
       .eq('gradebook_items.classroom_id', classroomId)
-      .not('returned_at', 'is', null)
       .not('earned', 'is', null)
-      .order('returned_at', { ascending: false }), PAGE_SIZE)
+      .order('updated_at', { ascending: false })
+      .order('item_id', { ascending: true }), PAGE_SIZE)
     : { rows: [] as any[], error: null }
   if (standaloneResult.error) throw new ApiError(500, 'Could not load returned grades')
 
   for (const row of standaloneResult.rows) {
     const item = row.gradebook_items
-    if (!item || row.earned == null || !row.returned_at) continue
+    if (!item || row.earned == null) continue
     const possible = Number(item.points_possible)
     if (!(possible > 0)) continue
     const earned = Number(row.earned)
@@ -210,7 +210,8 @@ export async function getStudentGrades(studentId: string, classroomId: string): 
       href: null,
       categoryId: category?.id ?? null,
       weight: Number(item.gradebook_weight),
-      returnedAt: row.returned_at,
+      // Standalone marks are disclosed on save; this timestamp only sorts the list.
+      returnedAt: row.updated_at,
     })
   }
 

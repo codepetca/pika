@@ -43,7 +43,7 @@ describe('StudentGradesTab', () => {
   it('distinguishes an empty returned set from a failed request', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ currentPercent: null, items: [] }) })
     const { unmount } = render(<StudentGradesTab classroom={classroom} />)
-    expect(await screen.findByText('No returned grades yet')).toBeVisible()
+    expect(await screen.findByText('No grades yet')).toBeVisible()
     expect(screen.getByText('—')).toBeVisible()
     unmount()
 
