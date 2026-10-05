@@ -689,3 +689,17 @@ Final full focused retry passed581/30 and all static gates; audit passed. No wea
 checks. Evidence /tmp/pika-summary-db-remediation-stable-focused.log. Prior browser4/4 correction
 and model/privacy reviews remain valid. Owner main-merge authority retained; final
 reviewed-SHA CI gate is required. Production promotion remains outside scope.
+## 2026-10-05 — Privacy-safe native Test draft CI diagnostics
+
+Base75977572b; runtime-platform; GPT-6.1 Sol/high sole writer, no recursive
+delegation; weekly remaining45% at startup. Full startup/locked install passed.
+Native adapter now retains finite stage/schedule/phase/failure kind, bounded
+elapsed/exit metadata and separate cleanup state; lifecycle emits it only for
+real failures. Opaque errors, manifests, SQL, caps, guards and exact teardown
+are preserved; forced-failure two-line receipts unchanged. Offline failure
+injection/non-leakage coverage:137 tests/2 files pass; focused workflow/affected
+tests plus architecture/UI/design/TypeScript/lint checked, final receipt in
+/tmp/pika-native-diag-focused-final.log. No production/migration/workflow change,
+live SQL, VM/Docker, browser benchmark, provider/GitHub operation or replay.
+Prior executable failure remains undiagnosed; root owns review and exact-source
+replay authorization. Session-log trim alone archives one oldest retained entry.

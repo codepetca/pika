@@ -22,7 +22,7 @@ vi.mock('node:fs', async importOriginal => {
     statSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? { isSocket: () => true, dev: 1, ino: 2, mode: 3, rdev: 4 } : actual.statSync(path) }
 })
 vi.mock('../../scripts/contextual-test-owner-list-proof-inventory', () => ({ testOwnerListDockerInventory: mocks.inventory }))
-import { buildDraftGetNativeContractsManifest, createDraftGetNativeContracts, validateDraftGetNativeSql, draftGetNativeTerminationSql } from '../../scripts/contextual-test-draft-get-native-contracts'
+import { buildDraftGetNativeContractsManifest, createDraftGetNativeContracts, validateDraftGetNativeSql, draftGetNativeTerminationSql, createDraftGetNativeDiagnostic } from '../../scripts/contextual-test-draft-get-native-contracts'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { DRAFT_GET_CAPS } from '../../scripts/check-contextual-test-draft-get-db-contracts'
 import { assignmentListExpectedResources } from '../../scripts/contextual-assignment-list-proof-lifecycle'
@@ -76,7 +76,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   const children: Array<EventEmitter & { stdin: Writable; stdout: PassThrough; stderr: PassThrough; kill: ReturnType<typeof vi.fn> }> = []
   const terminations: string[][] = []
   const sqlControls: Array<{ args: string[]; sql: string }> = []
-  let hangingSetup = false; let failContender = false; let terminationConfirmed = true
+  let hangingSetup = false; let failContender = false; let terminationConfirmed = true; let privateFrame = false; let failBounds = false
   let serviceExecute = true; let fixtureChanged = false; let catalogChanged = false; let restorationFails = false; let publicGrant = false
   const catalog = () => ({ owner: 'postgres', definition: catalogChanged ? 'changed function' : 'reviewed function',
     acl: [{ grantor: 'postgres', grantee: 'postgres', privilege_type: 'EXECUTE', is_grantable: false },
@@ -86,7 +86,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id, acceptedManifestSha256: testOwnerDigest(JSON.stringify(manifest)) })
   beforeEach(() => {
     mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
-    vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
+    vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true; privateFrame = false; failBounds = false
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
     mocks.inventory.mockResolvedValue(resources)
     mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: unknown, stdout: string) => void) => {
@@ -121,6 +121,8 @@ describe('native persistent-session transport with offline child mocks', () => {
         const sql = text.slice(0, text.indexOf('\n\\echo'))
         let response = ''
         if (sql === manifest.bootstrap) response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
+        else if (sql === manifest.setup && privateFrame) response = 'PRIVATE SQL password=do-not-export'
+        else if (sql === manifest.contracts.boundsAndDrift && failBounds) { queueMicrotask(() => child.emit('close', 7)); done(); return }
         else if (sql === manifest.setup && hangingSetup) { done(); return }
         else if (sql === manifest.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
         else if (sql === manifest.privilege.catalog) response = JSON.stringify(catalog())
@@ -172,12 +174,16 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(terminations).toHaveLength(1)
     expect(terminations[0]).toContain('owned_pid=1000'); expect(terminations[0]).toContain('owned_started=2026-10-05T00:00:00+00:00')
     expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
+    expect(adapter.diagnostic()).toContain('\"kind\":\"action-timeout\"')
+    expect(adapter.diagnostic()).toContain('\"stage\":\"setup\"')
   })
   it('closes both exact sessions when a contender exits unexpectedly', async () => {
     const adapter = factory(); await adapter.setup(); failContender = true
     await expect(adapter.run()).rejects.toThrow()
     expect(children.slice(-2).every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
     expect(terminations.length).toBe(children.length)
+    expect(adapter.diagnostic()).toContain('\"schedule\":\"contextual_create\"')
+    expect(adapter.diagnostic()).toContain('\"kind\":\"child-exit\"')
   })
   it('fails cleanup when remote termination cannot be confirmed, even after local children close', async () => {
     terminationConfirmed = false
@@ -257,9 +263,72 @@ describe('native persistent-session transport with offline child mocks', () => {
     await expect(adapter.probeSnapshotPrivilegeDrift(callback)).rejects.toThrow()
     expect(callback).not.toHaveBeenCalled(); expect(serviceExecute).toBe(true)
   })
+
+  it('retains the privilege callback failure separately from failed restoration, without private text', async () => {
+    const adapter = factory(); await adapter.setup(); restorationFails = true
+    await expect(adapter.probeSnapshotPrivilegeDrift(async () => { throw new Error('PRIVATE SQL key=secret') })).rejects.toThrow('exact project disposal required')
+    const receipt = adapter.diagnostic()
+    expect(receipt).toContain('"stage":"privilege-probe"')
+    expect(receipt).toContain('"kind":"unknown"')
+    expect(receipt).toContain('"cleanup":"failed"')
+    expect(receipt).toContain('"cleanupKind":"restoration"')
+    expect(receipt).not.toMatch(/PRIVATE|SQL|key|secret|private grant|pika_assignment_list|postgres/)
+  })
+  it('labels heavy bounds child exit and preserves its numeric exit through cleanup', async () => {
+    const adapter = factory(); await adapter.setup(); failBounds = true
+    await expect(adapter.run()).rejects.toThrow('exact project disposal required')
+    expect(adapter.diagnostic()).toContain('"stage":"bounds-drift"')
+    expect(adapter.diagnostic()).toContain('"kind":"child-exit"')
+    expect(adapter.diagnostic()).toContain('"exitCode":7')
+    expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
+  })
+  it('never emits malformed private child frame content', async () => {
+    privateFrame = true
+    const adapter = factory()
+    await expect(adapter.setup()).rejects.toThrow('exact project disposal required')
+    expect(adapter.diagnostic()).toContain('"kind":"frame-decode"')
+    expect(adapter.diagnostic()).not.toMatch(/PRIVATE|SQL|password|do-not-export|__draft_get_end_/)
+  })
+
+  it('reports a bounded control timeout without retaining the private child error', async () => {
+    const originalCommand = mocks.execFile.getMockImplementation()!
+    mocks.execFile.mockImplementation((file: string, args: string[], options: unknown, callback: (error: unknown, stdout: string) => void) =>
+      originalCommand(file, args, options, (_error: unknown, stdout: string) => callback(Object.assign(new Error('PRIVATE command SQL token=secret'), { killed: true, code: 99 }), stdout)))
+    const adapter = factory()
+    await expect(adapter.setup()).rejects.toThrow('exact project disposal required')
+    expect(adapter.diagnostic()).toContain('"kind":"control-timeout"')
+    expect(adapter.diagnostic()).toContain('"exitCode":99')
+    expect(adapter.diagnostic()).not.toMatch(/PRIVATE|SQL|token|secret/)
+    expect(mocks.spawn).not.toHaveBeenCalled()
+  })
   it('forbids a probe before exact fixture setup', async () => {
     const callback = vi.fn(async () => ({ status: 503 as const, rpcCalls: 1 as const, rawCode: '42501' as const }))
     await expect(factory().probeSnapshotPrivilegeDrift(callback)).rejects.toThrow()
     expect(callback).not.toHaveBeenCalled(); expect(mocks.spawn).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('finite native failure diagnostic receipt', () => {
+  it('bounds metadata, rejects arbitrary enums and preserves the first failure through cleanup', () => {
+    let now = 0
+    const diagnostic = createDraftGetNativeDiagnostic(() => now)
+    diagnostic.stage('bounds-drift'); diagnostic.phase('sql'); diagnostic.schedule('PRIVATE UUID password=secret')
+    now = Number.MAX_SAFE_INTEGER
+    diagnostic.fail('child-exit', Number.MAX_SAFE_INTEGER)
+    diagnostic.stage('privilege-restoration'); diagnostic.phase('PRIVATE stderr'); diagnostic.fail('PRIVATE error message')
+    diagnostic.cleanupStart(); diagnostic.cleanupEnd('PRIVATE SQL'); diagnostic.cleanupEnd()
+    expect(diagnostic.receipt()).toEqual({ stage: 'bounds-drift', phase: 'sql', schedule: 'none', elapsedMs: 945000,
+      kind: 'child-exit', exitCode: -1, cleanup: 'failed', cleanupKind: 'unknown' })
+    expect(diagnostic.format()).not.toMatch(/PRIVATE|UUID|password|secret|stderr|SQL|message/)
+    expect(Object.isFrozen(diagnostic.receipt())).toBe(true)
+  })
+  it('handles invalid/backward clocks without nonfinite or negative exported numbers', () => {
+    let now = 100
+    const diagnostic = createDraftGetNativeDiagnostic(() => now)
+    now = -100; expect(diagnostic.receipt().elapsedMs).toBe(0)
+    now = NaN; diagnostic.fail('unknown', NaN)
+    expect(diagnostic.receipt().elapsedMs).toBe(0); expect(diagnostic.receipt().exitCode).toBe(-1)
+    expect(diagnostic.format()).not.toMatch(/NaN|Infinity/)
   })
 })

@@ -340,7 +340,8 @@ describe('sealed lifecycle offline composition', () => {
       return { fixtureSha256: testOwnerDigest(JSON.stringify(sqlManifest.fixture)), setupSha256: testOwnerDigest(sqlManifest.setup) } })
     const sqlRun = vi.fn()
     const sqlPrivilegeProbe = vi.fn()
-    vi.spyOn(sqlAdapterModule, 'createDraftGetNativeContracts').mockReturnValue({ manifest: sqlManifest, setup: sqlSetup, run: sqlRun, probeSnapshotPrivilegeDrift: sqlPrivilegeProbe })
+    const sqlDiagnostic = vi.fn(() => 'DIAG test-owner-draft-get native offline.\n')
+    vi.spyOn(sqlAdapterModule, 'createDraftGetNativeContracts').mockReturnValue({ manifest: sqlManifest, setup: sqlSetup, run: sqlRun, probeSnapshotPrivilegeDrift: sqlPrivilegeProbe, diagnostic: sqlDiagnostic })
     vi.mocked(execFileSync).mockImplementation((file, args, options) => {
       if (file === 'git') return args?.[0] === 'status' ? '' : args?.[1] === 'HEAD' ? head : process.cwd()
       const sql = (options as { input: string }).input
@@ -363,12 +364,13 @@ describe('sealed lifecycle offline composition', () => {
       const running = testOwnerDraftGetLifecycleMain(['--reviewed-head', head, '--mode', mode])
       if (scenario === 'after-fixture' || scenario === 'before-capture') {
         await running; expect(events).toEqual(['sql', 'sql', 'sql-fixture', 'original-checkpoint'])
-        expect(process.exitCode).toBe(1); expect(sqlRun).not.toHaveBeenCalled(); expect(sqlPrivilegeProbe).not.toHaveBeenCalled(); expect(native.runCase).not.toHaveBeenCalled()
+        expect(process.exitCode).toBe(1); expect(sqlRun).not.toHaveBeenCalled(); expect(sqlPrivilegeProbe).not.toHaveBeenCalled(); expect(sqlDiagnostic).not.toHaveBeenCalled(); expect(native.runCase).not.toHaveBeenCalled()
         expect(out.mock.calls.flat().join('')).toBe('PASS isolated test-owner-draft-get exact teardown and unchanged canonical baseline.\n')
         expect(err.mock.calls.flat().join('')).toBe(`FAIL forced isolated test-owner-draft-get lifecycle: ${mode}.\n`)
       } else {
         await expect(running).rejects.toThrow('private details withheld'); expect(out).not.toHaveBeenCalled(); expect(events).not.toContain('original-checkpoint')
         expect(err.mock.calls.flat().join('')).not.toContain('PRIVATE')
+        if (scenario === 'partial-sql-setup') expect(sqlDiagnostic).toHaveBeenCalledOnce()
       }
     } finally { vi.restoreAllMocks(); process.exitCode = exit; if (pal === undefined) delete process.env.PAL_ENABLED; else process.env.PAL_ENABLED = pal }
   })
