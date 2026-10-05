@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Audit PR 1462 main reconciliation 902cbf76
-
-Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
-bodies from both branches and the incoming contextual owner Test detail read
-and CI checks. Previously reviewed audit implementation bytes remain unchanged;
-shared continuity and CI composition receive bounded independent review.
-Final focused checks and exact reviewed-head CI are readiness gates.
-No migration reapplication, shared/hosted database operation, merge or deployment.
-
-## 2026-10-04 — Broad audit authorized landing reconciliation
-
-Owner instructed this task to orchestrate the all27-finding plan. Guidance1462
-merged at24cb8847; canonical hub fast-forwarded and exact source-tree parity PASS.
-Five remaining ready PRs conflict only in journal archival placement. Coordinator
-prepares one common history union preserving all complete prior body multiplicities;
-reviewed application/migration bytes remain pinned and pending source-parity checks.
-New-base focused checks, independent integration review and exact-head CI precede
-remaining merges. Production244–246 need matching application and exact-target/full-
-set permission; no database application, fixtures, feature activation or deployment.
-Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
-account-wide; DeepSeek paused. Task low-usage/review-budget override retained.
-
 ## 2026-10-04 — Broad audit combined landing candidate
 
 After guidance1462 merge24cb8847, consolidated the five remaining reviewed source
@@ -649,3 +627,11 @@ Owner approved removing Return marks for participation/external exam/Daily items
 Evidence: initial focused514 plus architecture/UI/design/type/lint PASS; final focused check follows rebase to origin/main75977572. API regressions38 and components35 PASS. Real loopback API+DB smoke create/save/zero/edit/details/clear PASS with null return timestamps and verified fixture cleanup (/tmp/pika-direct-mark-smoke.log). Playwright Pattern Lab 8/8 role×viewport×theme PASS; dialog/save focus and student rows inspected in test-results/ui-pattern-lab-*/; empty/error behavior covered by component tests. Audit PASS; composite checklist, keyboard/focus and semantic coverage verified.
 
 Delegation: GPT6.1Sol/high test-only worker delivered two files in ~6min; coordinator verified query predicates, weighted parity and test runs; no rework/conflict. Weekly remaining45%, DeepSeek paused throughDec31; worker/coordinator tokens unknown. Current branch codex/student-daily-mark; owning chat retains integration. Independent fixed-SHA disclosure/compatibility review follows draft publication; production promotion not authorized.
+
+## 2026-10-05 — Approved fluid classroom merge preparation
+
+Owner explicitly authorized merge then goal advancement. GitHub hostedrunner incident prevented PRGate in two attempts, while four CIverification lanes passed668f3d35. Currentmain5b2423d Gradebook changes retained; history reconciled with bothparents preserved. Integrate reviewed Student1482 andTeacher1484 continuity into owning1486 alongside Daily1481 alreadyincluded.32of33 finalcombinedproof sources byteidentical; sole PatternLabtest difference is exact acceptedmainGradebook additions. Reuse independent feature/cumulative reviews and prior24motion/68combined browser/natural recordings; currentmain focusedgate/browser verification required before stable ready/merge. Package/lock/schema unchanged. No production promotion authorized.
+
+## 2026-10-05 — Integrated fluid classroom local gate complete
+
+Owning1486 integrates reviewed Daily1481/Student1482/Teacher1484 on currentmain5b2423d. All product/classroombrowser/component sources match independently reviewedcombinedproof; documented approval/reference/roadmap differences only. Bothparentdatedhistorybody preservation checked.644tests/35files+allstatic PASS;56uniqueclassroom+20PatternLab cases PASS. Initial16Dailycases lackedignoredfixturestate; addedemptylocalfixturestates andreranonly16unchangedcases GREEN. Currentbatch7fileauditPASS/compositesemanticscovered; rootbothrolevisualinspection acceptable. Prior sixnaturalrecordings applicable throughsourceparity. Reviewcounts4launches retained, thirdsyncbatch/no newrevieworclockreset. Ownermergemainauthorized; stableSHA CI/PRGate andactualmerge pending GitHubhostedrunner outage. No production promotion.

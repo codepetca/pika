@@ -38033,3 +38033,27 @@ originalclock/deadline/hardlimits retained; targetedreviewandfreshCIpending.
 ## 2026-10-04 — Broad audit remediation batch 1
 
 Owner authorized planning and orchestration to fix the 27-finding broad audit at main `3c5d7097`. Plan: `docs/guidance/codebase-audit-remediation-2026-10.md`; existing audit handoff tracks per-finding evidence and worker receipts. Feature worktree `codex/audit-remediation`; full startup passed after frozen-lockfile installation, with no dependency changes. Three bounded GPT-6.1 Sol workers (auth high; guidance and patterns medium) delivered non-overlapping source/tests. Auth regressions: 172/20 PASS, including one initial-password winner, login origin/JSON and UTF-8 limits; S1 remains partial pending atomic issuance/handoff generation fencing. Patterns regressions: 69/8 PASS, covering cache/poll retention, survey shapes and directly imported script-test selection. Guidance reconciles source/local/hosted checkpoints and routing, removes direct-main landing instructions, and fails startup for missing required inputs. Startup context ceiling deliberately increased from 16k to 17k characters for readable dated labels and receipt/remaining-gate text. No migration, database, hosted flag or production mutation. Draft publication and cumulative verification receipts remain with coordinator; independent review not yet launched. Codex weekly remaining at start 8%; DeepSeek paused through 2026-12-31; pr-review low-usage human checkpoint applies before reviewer launch. Goal remains active; no finding accepted from implementation delivery alone.
+
+<!-- pika-session-log-archive-batch:e3d74e751fac34c6efd991cae059584e41349faea70f4d0bdb06c18aced9d371 -->
+## 2026-10-04 — Audit PR 1462 main reconciliation 902cbf76
+
+Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
+bodies from both branches and the incoming contextual owner Test detail read
+and CI checks. Previously reviewed audit implementation bytes remain unchanged;
+shared continuity and CI composition receive bounded independent review.
+Final focused checks and exact reviewed-head CI are readiness gates.
+No migration reapplication, shared/hosted database operation, merge or deployment.
+
+<!-- pika-session-log-archive-batch:3cbbfeef456d6a21a17ccd7672d30d43d17ae19b2cb8d387c0ecd7a8d69da1a7 -->
+## 2026-10-04 — Broad audit authorized landing reconciliation
+
+Owner instructed this task to orchestrate the all27-finding plan. Guidance1462
+merged at24cb8847; canonical hub fast-forwarded and exact source-tree parity PASS.
+Five remaining ready PRs conflict only in journal archival placement. Coordinator
+prepares one common history union preserving all complete prior body multiplicities;
+reviewed application/migration bytes remain pinned and pending source-parity checks.
+New-base focused checks, independent integration review and exact-head CI precede
+remaining merges. Production244–246 need matching application and exact-target/full-
+set permission; no database application, fixtures, feature activation or deployment.
+Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
+account-wide; DeepSeek paused. Task low-usage/review-budget override retained.

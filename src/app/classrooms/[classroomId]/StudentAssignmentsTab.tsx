@@ -53,6 +53,7 @@ export function StudentAssignmentsTab({
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [hasLoaded, setHasLoaded] = useState(false)
+  const [hasClassworkSnapshot, setHasClassworkSnapshot] = useState(false)
   const [classworkLoadError, setClassworkLoadError] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
@@ -63,11 +64,13 @@ export function StudentAssignmentsTab({
     submitting: false,
   })
   const editorRef = useRef<StudentAssignmentEditorHandle>(null)
+  const classworkRegionRef = useRef<HTMLDivElement>(null)
   const wasActiveRef = useRef(isActive)
   const loadRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroom.id)
   currentClassroomIdRef.current = classroom.id
   const hasCurrentClassroomData = loadedClassroomId === classroom.id
+  const hasCurrentClassroomSnapshot = hasClassworkSnapshot && hasCurrentClassroomData
   const currentAssignments = useMemo(
     () => (hasCurrentClassroomData ? assignments : []),
     [assignments, hasCurrentClassroomData],
@@ -115,12 +118,15 @@ export function StudentAssignmentsTab({
         setSurveys(surveysData.surveys || [])
         setLoadedClassroomId(classroom.id)
         setHasLoaded(true)
+        setHasClassworkSnapshot(true)
         setClassworkLoadError(false)
       } catch (err) {
         if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
-        setAssignments([])
-        setMaterials([])
-        setSurveys([])
+        if (!hasCurrentClassroomSnapshot) {
+          setAssignments([])
+          setMaterials([])
+          setSurveys([])
+        }
         setLoadedClassroomId(classroom.id)
         setHasLoaded(true)
         setClassworkLoadError(true)
@@ -132,7 +138,7 @@ export function StudentAssignmentsTab({
         }
       }
     },
-    [classroom.id]
+    [classroom.id, hasCurrentClassroomSnapshot]
   )
 
   useEffect(() => {
@@ -142,6 +148,7 @@ export function StudentAssignmentsTab({
     setSurveys([])
     setLoadedClassroomId(null)
     setHasLoaded(false)
+    setHasClassworkSnapshot(false)
     setClassworkLoadError(false)
     setRefreshing(false)
   }, [classroom.id])
@@ -153,17 +160,18 @@ export function StudentAssignmentsTab({
       return
     }
     if (isActive && !wasActiveRef.current && hasLoaded) {
-      loadAssignments({ preserveContent: !classworkLoadError })
+      loadAssignments({ preserveContent: hasCurrentClassroomSnapshot })
     }
     wasActiveRef.current = isActive
-  }, [classworkLoadError, hasLoaded, isActive, loadAssignments])
+  }, [hasCurrentClassroomSnapshot, hasLoaded, isActive, loadAssignments])
 
   const retryLoadAssignments = useCallback(() => {
+    classworkRegionRef.current?.focus({ preventScroll: true })
     invalidateCachedJSON(`student-assignments:${classroom.id}`)
     invalidateCachedJSON(`student-materials:${classroom.id}`)
     invalidateCachedJSON(`student-surveys:${classroom.id}`)
-    void loadAssignments()
-  }, [classroom.id, loadAssignments])
+    void loadAssignments({ preserveContent: hasCurrentClassroomSnapshot })
+  }, [classroom.id, hasCurrentClassroomSnapshot, loadAssignments])
 
   const selectedAssignment = useMemo(() => {
     if (!selectedAssignmentId) return null
@@ -325,13 +333,30 @@ export function StudentAssignmentsTab({
         />
       ) : null}
       <PageContent className="flex-1 min-h-0">
-        <div className={`min-w-0 h-full flex flex-col${view !== 'summary' ? ' workspace-entry' : ''}`}>
+        <div
+          ref={classworkRegionRef}
+          role="region"
+          aria-label="Classwork"
+          tabIndex={-1}
+          className={`min-w-0 h-full flex flex-col outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface${view !== 'summary' ? ' workspace-entry' : ''}`}
+        >
           {refreshing && (
             <RefreshingIndicator className="mb-2 px-0 py-0" />
           )}
+          {classworkLoadError && hasCurrentClassroomSnapshot ? (
+            <div
+              role="alert"
+              className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger"
+            >
+              <span>Classwork could not be refreshed. Showing the last loaded classwork.</span>
+              <Button type="button" variant="secondary" size="sm" onClick={retryLoadAssignments}>
+                Retry
+              </Button>
+            </div>
+          ) : null}
           {!hasLoaded || loading || !hasCurrentClassroomData ? (
             <PageState kind="loading" title="Loading classwork" />
-          ) : classworkLoadError ? (
+          ) : classworkLoadError && !hasCurrentClassroomSnapshot ? (
             <PageState
               kind="error"
               title="Classwork couldn't load"

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClassroomView'
+import { TeacherAssignmentGradingFixture } from './TeacherAssignmentGradingFixture'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import { DEFAULT_ACTUAL_COURSE_SITE_CONFIG } from '@/lib/course-site-publishing'
 import type { Classroom } from '@/types'
@@ -42,10 +42,7 @@ export default function TeacherAssignmentGradingFixturePage() {
     <main className="flex h-screen min-h-0 flex-col px-3 pb-3">
       <PageDensityProvider density="teacher">
         <AppMessageProvider>
-          <TeacherClassroomView
-            classroom={classroom}
-            selectedAssignmentId="30000000-0000-4000-8000-000000000014"
-          />
+          <TeacherAssignmentGradingFixture classroom={classroom} />
         </AppMessageProvider>
       </PageDensityProvider>
     </main>

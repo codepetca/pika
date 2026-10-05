@@ -3,7 +3,8 @@
 Owner: chat `01a10bfa-17e1-76d2-9483-af955a51a9fd`, branch `codex/fluid-classroom-ui`.
 Source baseline: `c25ebf78`. This document tracks the goal's phases.
 Approved rollout branch: `codex/fluid-motion-rollout`, based on reviewed Daily
-`b94b27670`; existing reviewed response PRs remain separate.
+`b94b27670`; the reviewed Teacher and Student Classwork response changes are integrated
+into the same merge candidate.
 
 ## Experience contract
 
@@ -80,8 +81,9 @@ Daily pilot implemented and accepted by the human on 2026-10-05, in response to
 the explicit request to approve its restrained motion direction for wider
 adoption. Scoped promotion is recorded in `stable.md`, the teacher family canon
 and audit, and the Pattern Lab catalog; unrelated experimental patterns remain
-unchanged. The goal continues through approved motion adoption and cumulative
-verification. The [rollout brief](./changes/approved-classroom-motion-rollout.md)
+unchanged. Approved motion adoption and cumulative local verification are complete.
+The owner subsequently authorized merge and goal advancement; the integrated
+PR awaits its required final CI gate. The [rollout brief](./changes/approved-classroom-motion-rollout.md)
 records decisions and the implementation assignment. Approved rollout preview:
 http://localhost:3217/pattern-lab?role=teacher#teacher-patterns.
 
@@ -111,7 +113,8 @@ Verification evidence:
   serial execution avoids competing browser/worker load without changing limits.
 
 Composite checklist reviewed: yes; keyboard and semantic state covered: yes.
-Human design acceptance: received. Technical rollout/verification remains to be
-completed; the reviewed PR and task artifact own those receipts. No merge or
-production deployment authorized by setting this goal. Independent review and
+Human design acceptance: received. The scoped rollout and cumulative local
+verification are complete; reviewed PR #1486 and the task artifact own the
+receipts. The owner explicitly authorized merge in a subsequent instruction.
+Production deployment remains a separate decision. Independent review and
 release status belong to the PR, avoiding stale commit-status copies here.
