@@ -3589,3 +3589,140 @@ for (const surface of ['manual', 'integrated', 'live'] as const) {
     await page.screenshot({ path: testInfo.outputPath(`attendance-${surface}-failed-save.png`), animations: 'disabled' })
   })
 }
+
+test('retains teacher Classwork student editor and table through background refresh and Retry', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  const classroomId = TEST_GRADING_FIXTURE_CLASSROOM_ID
+  const assignmentId = '30000000-0000-4000-8000-000000000014'
+  const assignment = {
+    id: assignmentId, classroom_id: classroomId, title: 'Classwork continuity',
+    description: '', instructions_markdown: 'Explain your approach.', rich_instructions: null,
+    due_at: null, position: 0, is_draft: false, released_at: '2026-01-01T12:00:00Z',
+    created_by: '30000000-0000-4000-8000-000000000012',
+    created_at: '2026-01-01T12:00:00Z', updated_at: '2026-01-01T12:00:00Z',
+    stats: { total_students: 35, submitted: 35, late: 0 },
+  }
+  const students = Array.from({ length: 35 }, (_, index) => ({
+    student_id: `continuity-student-${index}`, student_email: `student${index}@example.invalid`,
+    student_first_name: `Student ${String(index).padStart(2, '0')}`, student_last_name: 'Example',
+    status: 'submitted_on_time', student_updated_at: '2026-01-02T12:00:00Z', artifacts: [],
+    doc: { id: `continuity-doc-${index}`, assignment_id: assignmentId, student_id: `continuity-student-${index}`,
+      content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Student response.' }] }] },
+      is_submitted: true, submitted_at: '2026-01-02T12:00:00Z', updated_at: '2026-01-02T12:00:00Z',
+      score_completion: null, score_thinking: null, score_workflow: null,
+      graded_at: null, returned_at: null, feedback_returned_at: null, teacher_feedback_draft: '' },
+  }))
+  let listReads = 0
+  let detailReads = 0
+  let studentReads = 0
+  let releaseRefresh: ((success: boolean) => void) | undefined
+  let releaseDetailRefresh: ((success: boolean) => void) | undefined
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    let body: unknown = {}
+    if (url.pathname === '/api/teacher/assignments') {
+      listReads += 1
+      if (listReads > 1) {
+        const success = await new Promise<boolean>((resolve) => { releaseRefresh = resolve })
+        if (!success) {
+          await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Refresh unavailable' }) })
+          return
+        }
+      }
+      body = { assignments: [{ ...assignment, updated_at: `2026-01-0${Math.min(listReads, 9)}T12:00:00Z` }] }
+    } else if (url.pathname === `/api/teacher/assignments/${assignmentId}`) {
+      detailReads += 1
+      if (detailReads > 1) {
+        const success = await new Promise<boolean>((resolve) => { releaseDetailRefresh = resolve })
+        if (!success) {
+          await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Assignment refresh unavailable' }) })
+          return
+        }
+      }
+      body = { assignment, students: detailReads > 1
+        ? students.map((student, index) => index === 20 ? { ...student, status: 'returned', doc: { ...student.doc, returned_at: '2026-01-03T12:00:00Z' } } : student)
+        : students, active_ai_grading_run: null }
+    } else if (url.pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`)) {
+      studentReads += 1
+      const student = students.find((item) => url.pathname.endsWith(item.student_id))!
+      body = { assignment, student: { id: student.student_id, email: student.student_email, name: `${student.student_first_name} Example` }, doc: student.doc, feedback_entries: [] }
+    } else if (url.pathname === `/api/teacher/assignments/${assignmentId}/grade`) {
+      const patch = route.request().postDataJSON()
+      body = { doc: { ...students[0].doc, ...patch, teacher_feedback_draft: patch.feedback } }
+    } else if (url.pathname.endsWith('/history')) body = { history: [] }
+    else if (url.pathname.endsWith('/class-days')) body = { class_days: [] }
+    else if (url.pathname.endsWith('/materials')) body = { materials: [] }
+    else if (url.pathname === '/api/teacher/surveys') body = { surveys: [] }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/e2e-fixtures/teacher-assignment-grading', { waitUntil: 'domcontentloaded' })
+  const scroller = page.getByTestId('assignment-student-scroll-pane')
+  await expect(scroller.getByRole('checkbox', { name: /^Select Student/ })).toHaveCount(35)
+  const editor = page.getByPlaceholder('Teacher comment draft')
+  if (await editor.count() === 0) await page.getByRole('button', { name: 'Student 00 Example', exact: true }).click()
+  await expect(editor).toBeVisible()
+  await editor.fill('Keep this teacher comment draft during refresh.')
+  await scroller.evaluate((element) => { element.scrollTop = 160 })
+  const scrollTop = await scroller.evaluate((element) => element.scrollTop)
+  expect(scrollTop).toBeGreaterThan(0)
+  await editor.focus()
+  const originalEditor = await editor.elementHandle()
+  const originalScroller = await scroller.elementHandle()
+  const originalDetailReads = detailReads
+  const originalStudentReads = studentReads
+  let expectedDetailReads = originalDetailReads
+  const assertRetained = async () => {
+    expect(await originalEditor!.evaluate((element) => element.isConnected)).toBe(true)
+    expect(await originalScroller!.evaluate((element) => element.isConnected)).toBe(true)
+    await expect(editor).toHaveValue('Keep this teacher comment draft during refresh.')
+    await expect(editor).toBeFocused()
+    expect(await scroller.evaluate((element) => element.scrollTop)).toBe(scrollTop)
+    expect(detailReads).toBe(expectedDetailReads)
+    expect(studentReads).toBe(originalStudentReads)
+  }
+  const capture = async (state: string) => {
+    const { viewport, theme } = getExperienceMetadata(testInfo)
+    await page.screenshot({ path: testInfo.outputPath(`teacher-classwork-${viewport}-${theme}-${state}.png`), animations: 'disabled' })
+  }
+  await capture('loaded')
+  await page.evaluate(() => window.dispatchEvent(new Event('pika-fixture-reactivate-classwork')))
+  await expect.poll(() => listReads).toBe(2)
+  await expect.poll(() => detailReads).toBe(originalDetailReads + 1)
+  expectedDetailReads = originalDetailReads + 1
+  await assertRetained()
+  await capture('pending')
+  releaseRefresh!(false)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toContainText('Classwork could not be refreshed')
+  await assertRetained()
+  await capture('error')
+  releaseDetailRefresh!(false)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert').filter({ hasText: 'Assignment could not be refreshed' })).toBeVisible()
+  await assertRetained()
+  await capture('detail-error')
+  await page.getByRole('button', { name: 'Retry assignment', exact: true }).evaluate((button: HTMLButtonElement) => button.click())
+  await expect.poll(() => detailReads).toBe(originalDetailReads + 2)
+  expectedDetailReads = originalDetailReads + 2
+  await assertRetained()
+  await capture('detail-retry-pending')
+  releaseDetailRefresh!(true)
+  await expect(scroller.getByRole('img', { name: 'Returned', exact: true })).toHaveCount(1)
+  await assertRetained()
+  await capture('fresh-rows')
+  await page.getByRole('button', { name: 'Retry' }).evaluate((button: HTMLButtonElement) => button.click())
+  await expect.poll(() => listReads).toBe(3)
+  await assertRetained()
+  releaseRefresh!(false)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toContainText('Classwork could not be refreshed')
+  await assertRetained()
+  await page.getByRole('button', { name: 'Retry', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true })).toBeFocused()
+  await capture('retry-region-focus')
+  await editor.focus()
+  await expect.poll(() => listReads).toBe(4)
+  releaseRefresh!(true)
+  await expect(page.getByRole('region', { name: 'Classwork', exact: true }).getByRole('alert')).toHaveCount(0)
+  await assertRetained()
+  await capture('recovered')
+  await verifyProjectContract(page, testInfo)
+})

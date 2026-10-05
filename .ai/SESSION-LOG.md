@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Locked learner writes local verification and parent reconciliation
-
-1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
-(0queue/1696runseconds), tree parity and canonical cleanFF verified.1458 initial
-security/compatibility source reviews clean (distinct5.6Sol/high reviewers after
-two6.1 launch failures, both counted).241 applied once locally; exact001–241history
-and genuine generated types/check zero drift. First rollback fixture run failed
-five null due dates, but rollback and separate whole-canonical baseline PASS.
-Proof-only correction regression1RED/20PASS then21GREEN; targeted review clean.
-New241 and unchanged save rollback harnesses PASS, including actual nonempty
-artifact freeze/preflight and nonvacuous legacy/membershipPal; full canonical
-public/private/Storage fingerprints,168metadata/settings/cron/resources unchanged.
-
-Rebasecc206cce onto actual2595main keeps immutable241SQL/rollback/tests/floor
-bytes unchanged; resolves only continuity conflicts, preserves both archive batch
-markers and one identical historical entry. No stash/pop/history repair/reapply.
-104rebase checks PASS. Strict001–241 combined replay PASS9projections/6original
-revocations plus original list controls; nine sealed false-created/view RPCstubs,
-zero actualopenRPC/Storage/provider network. Both forcedmodes exit1/exact2markers,
-exactteardown/fullcanonicalunchanged PASS; private0600 receipts oe8GJq/mZNJ54.
-No realopen/signing/nonemptySDKsupplement/authHTTP/browser proof claimed. Existing
-committed-fixture concurrency is finalCI ephemeral-only because168 retains private
-identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clock,
-5launch/1target/2batch retained; factual receipt batch/finalcumulative/CI next.
-Productionlast225/admission/home/cutover/account/billing/provider unchanged;
-batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
-
 ## 2026-10-04 — Supplemental learner permission source preparation
 
 1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
@@ -926,3 +899,25 @@ only those two prefixes, retaining verified001–248 history and twelve unchange
 controls from the production receipt. CI implementation and tests unchanged.
 Affected/focused verification and independent launch9 are pending; no budget
 reset or further review extension. Host/private runner activation remains pending.
+
+## 2026-10-05 — Teacher Classwork refresh continuity
+
+Same-classroom successful Classwork snapshots (including empty) survive warm
+list failures/Retry; selected table and inspector retain drafts, focus and scroll.
+Scalar assignment identity avoids incidental detail reads from list metadata;
+actual tab reactivation refreshes current-owned detail once. Warm detail retains
+rows/AI run through failure, with existing indicator/inline Retry. New owners and
+successful removals remain authoritative; Return/AI explicit refresh preserved.
+Keyboard Retry uses event-target identity and preventScroll focus to the stable
+named region; indirect Retry preserves editor focus. No new motion/dependencies,
+API/autosave changes, parent-tab memory or Daily experimental promotion.
+
+Brief records approved reuse before implementation. Teacher-only visual matrix
+4/4 passes across desktop/mobile light/dark; 32 current screenshots plus12
+unchanged Pattern Lab references, recordings and source digest receipts retained
+in the task's teacher-classwork-continuity artifact directory. Components62/62
+and focused319/18 plus all static checks/audit PASS on43c24abec base. One existing
+5s material-order timeout passed165ms in isolation; unchanged full gate passed.
+Two baseline CI test corrections match Daily/Student sibling PRs. Native Sol/high
+implementation plus coordinator acceptance corrections; no review findings yet.
+Draft-first independent fixed-SHA review/CI remain required; no merge/deploy.

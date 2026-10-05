@@ -64,6 +64,7 @@ vi.mock('@/ui', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/ui')>()
   return {
     ...actual,
+    RefreshingIndicator: ({ label }: { label: string }) => <div role="status">{label}</div>,
     Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
     ConfirmDialog: ({ isOpen, title, description, confirmLabel = 'Confirm', cancelLabel = 'Cancel', onConfirm, onCancel, isConfirmDisabled, isCancelDisabled }: any) => (
       isOpen ? (
@@ -330,6 +331,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
             )}
           </div>
           <div data-testid="assignment-right-pane">
+            <textarea aria-label="Teacher comment draft" defaultValue="" />
             {splitPaneView === 'students-content' ? (
               <>
                 {studentHeader}
@@ -711,6 +713,152 @@ describe('TeacherClassroomView', () => {
     window.sessionStorage.clear()
     clearSelectionCookie()
     clearAssignmentWorkspaceStudentCookie()
+  })
+
+  it.each([false, true])('retains a successful classwork snapshot (empty=%s) through pending, failed Retry, and recovery', async (empty) => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let settle: ((value: unknown) => void) | undefined
+    let reject: ((reason: Error) => void) | undefined
+    let attempts = 0
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) {
+        attempts += 1
+        if (attempts === 1) return Promise.resolve({ assignments: empty ? [] : [makeAssignmentSummary('assignment-1', 'Assignment One')] })
+        return new Promise((resolve, fail) => { settle = resolve; reject = fail })
+      }
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      if (key === `teacher-surveys:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      return fetcher()
+    })
+    const props = { classroom, selectedAssignmentId: null }
+    const view = render(<TeacherClassroomView {...props} />)
+    const snapshot = empty
+      ? await screen.findByRole('heading', { name: 'No classwork yet' })
+      : await screen.findByRole('button', { name: 'Assignment One' })
+    view.rerender(<TeacherClassroomView {...props} isActive={false} />)
+    view.rerender(<TeacherClassroomView {...props} isActive />)
+    expect(await screen.findByText('Refreshing classwork')).toBeInTheDocument()
+    expect(snapshot.isConnected).toBe(true)
+    await act(async () => reject?.(new Error('Refresh unavailable')))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Classwork could not be refreshed')
+    expect(snapshot.isConnected).toBe(true)
+    const focusRegion = vi.spyOn(screen.getByRole('region', { name: 'Classwork' }), 'focus')
+    screen.getByRole('button', { name: 'Retry' }).focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(screen.getByRole('region', { name: 'Classwork' })).toHaveFocus()
+    expect(focusRegion).toHaveBeenCalledWith({ preventScroll: true })
+    expect(await screen.findByText('Refreshing classwork')).toBeInTheDocument()
+    expect(snapshot.isConnected).toBe(true)
+    await act(async () => reject?.(new Error('Still unavailable')))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Classwork could not be refreshed')
+    expect(snapshot.isConnected).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await act(async () => settle?.({ assignments: empty ? [] : [makeAssignmentSummary('assignment-1', 'Assignment One')] }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    expect(snapshot.isConnected).toBe(true)
+  })
+
+  it('retains the selected student inspector and refreshes detail once per activation without redundant detail reads from list Retry', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let fail = false
+    let removed = false
+    const baseMock = mockFetchJSONWithCache.getMockImplementation()!
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}` && fail) return Promise.reject(new Error('Refresh unavailable'))
+      if (key === `teacher-assignments:${classroom.id}` && removed) return Promise.resolve({ assignments: [] })
+      return baseMock(key, fetcher)
+    })
+    mockFetchJSONWithCache.mockClear()
+    const detail = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true, json: async () => detail })
+    const props = { classroom, selectedAssignmentId: 'assignment-1', selectedAssignmentStudentId: 'student-1' }
+    const view = render(<TeacherClassroomView {...props} />)
+    const inspector = await screen.findByTestId('teacher-work-panel')
+    const draft = screen.getByRole('textbox', { name: 'Teacher comment draft' })
+    fireEvent.change(draft, { target: { value: 'Keep my local draft' } })
+    draft.textContent = 'Retry'
+    draft.focus()
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1))
+    view.rerender(<TeacherClassroomView {...props} isActive={false} />)
+    view.rerender(<TeacherClassroomView {...props} isActive />)
+    await waitFor(() => expect(mockFetchJSONWithCache.mock.calls.filter(([key]) => key === `teacher-assignments:${classroom.id}`)).toHaveLength(2))
+    expect(inspector.isConnected).toBe(true)
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    fail = true
+    view.rerender(<TeacherClassroomView {...props} isActive={false} />)
+    view.rerender(<TeacherClassroomView {...props} isActive />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Classwork could not be refreshed')
+    expect(inspector.isConnected).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Classwork could not be refreshed')
+    expect(inspector.isConnected).toBe(true)
+    expect(global.fetch).toHaveBeenCalledTimes(3)
+    expect(draft).toHaveFocus()
+    expect(draft).toHaveValue('Keep my local draft')
+    fail = false
+    removed = true
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByRole('heading', { name: 'No classwork yet' })).toBeInTheDocument()
+    expect(inspector.isConnected).toBe(false)
+  })
+
+  it('refreshes selected rows on activation while preserving the table and local inspector draft through detail failure and Retry', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const initial = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    let complete: ((response: unknown) => void) | undefined
+    let detailReads = 0
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      detailReads += 1
+      if (detailReads === 1) return Promise.resolve({ ok: true, json: async () => initial })
+      return new Promise((resolve) => { complete = resolve })
+    })
+    const props = { classroom, selectedAssignmentId: 'assignment-1', selectedAssignmentStudentId: 'student-1' }
+    const view = render(<TeacherClassroomView {...props} />)
+    const inspector = await screen.findByTestId('teacher-work-panel')
+    const draft = screen.getByRole('textbox', { name: 'Teacher comment draft' })
+    fireEvent.change(draft, { target: { value: 'Keep my local teacher draft' } })
+    draft.textContent = 'Retry'
+    draft.focus()
+    const row = screen.getByRole('checkbox', { name: 'Select student-1 Student' })
+    const scroller = screen.getByTestId('assignment-student-scroll-pane')
+    scroller.scrollTop = 85
+    fireEvent.scroll(scroller)
+    view.rerender(<TeacherClassroomView {...props} isActive={false} />)
+    view.rerender(<TeacherClassroomView {...props} isActive />)
+    await waitFor(() => expect(detailReads).toBe(2))
+    expect(row.isConnected).toBe(true)
+    expect(draft).toHaveValue('Keep my local teacher draft')
+    expect(draft).toHaveFocus()
+    expect(scroller.scrollTop).toBe(85)
+    await act(async () => complete?.({ ok: false, json: async () => ({ error: 'Detail refresh unavailable' }) }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Assignment could not be refreshed')
+    expect(inspector.isConnected).toBe(true)
+    expect(row.isConnected).toBe(true)
+    expect(draft).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry assignment' }))
+    await waitFor(() => expect(detailReads).toBe(3))
+    expect(row.isConnected).toBe(true)
+    const updated = { ...initial, students: [{ ...initial.students[0], student_first_name: 'Updated student' }] }
+    await act(async () => complete?.({ ok: true, json: async () => updated }))
+    expect(await screen.findByRole('checkbox', { name: 'Select Updated student Student' })).toBe(row)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(draft).toHaveValue('Keep my local teacher draft')
+    expect(draft).toHaveFocus()
+    expect(scroller.scrollTop).toBe(85)
+  })
+
+  it('hides the previous assignment snapshot when a new selected assignment fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      if (String(input).endsWith('/assignment-1')) return Promise.resolve({ ok: true, json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1') })
+      return Promise.resolve({ ok: false, json: async () => ({ error: 'New assignment unavailable' }) })
+    })
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" />)
+    await screen.findByRole('checkbox', { name: 'Select student-1 Student' })
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-2" />)
+    expect(await screen.findByText('New assignment unavailable')).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Select student-1 Student' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
   })
 
   it('shows a classwork error and restores the list after retry', async () => {
@@ -3818,5 +3966,6 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('assignment-count-assignment-1')).toHaveTextContent('0/31')
     })
     expect(assignmentSummaryLoadCount).toBeGreaterThan(1)
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([input]) => String(input) === '/api/teacher/assignments/assignment-1')).toHaveLength(2)
   })
 })
