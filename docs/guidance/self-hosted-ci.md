@@ -46,6 +46,9 @@ Preflight refuses existing Docker resources, occupied test ports or checkout
 environment files before stack startup, without deleting them. Jobs stop their
 own stack without backup. If interruption leaves resources, inspect and repair
 or recreate the dedicated VM; do not prune a development daemon.
+Local cancellation waits for the whole command process group, including children
+that outlive the shell. If termination cannot be confirmed, it fails without
+starting database cleanup; inspect the VM before retrying.
 
 ## Register and enable
 

@@ -3,17 +3,21 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
+import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
 
 describe('local canonical CI', () => {
-  it('interrupts an actual TERM-resistant subprocess with bounded escalation', async () => {
+  it.each([
+    ['TERM-resistant shell', 'trap "" TERM; printf "READY\\n"; while :; do sleep 1; done'],
+    ['descendant outliving shell', `node -e 'process.on("SIGTERM",()=>{}); console.log("READY"); setInterval(()=>{},1000)' & wait`],
+  ])('interrupts the whole actual process group: %s', async (_, script) => {
     const directory = mkdtempSync(join(tmpdir(), 'pika-ci-cancel-test-'))
     const path = join(directory, 'step.log')
     let terminate: (() => void) | undefined
-    const run = executeStep('trap "" TERM; printf "READY\\n"; while :; do sleep 1; done', directory,
-      localEnvironment(process.env), (_child, cancel) => { if (cancel) terminate = cancel }, path,
+    let pid: number | undefined
+    const run = executeStep(script, directory,
+      localEnvironment(process.env), (child, cancel) => { if (child) pid = child.pid; if (cancel) terminate = cancel }, path,
       { terminationGraceMs: 25 })
     try {
       const deadline = Date.now() + 2_000
@@ -29,10 +33,11 @@ describe('local canonical CI', () => {
           timeout = setTimeout(() => reject(new Error('Interruption did not terminate the subprocess')), 2_000)
         })])
         expect(outcome).not.toBe(0)
+        expect(() => process.kill(-pid!, 0)).toThrow()
       } finally { clearTimeout(timeout) }
     } finally {
-      terminate?.()
-      await run
+      if (pid) { try { process.kill(-pid, 'SIGKILL') } catch {} }
+      await run.catch(() => {})
       rmSync(directory, { recursive: true, force: true })
     }
   })
@@ -124,7 +129,7 @@ describe('local canonical CI', () => {
     } finally { rmSync(directory, { recursive: true, force: true }) }
   })
 
-  it.each(['refusal', 'partial-start', 'exception', 'interrupted', 'cleanup-failure'])(
+  it.each(['refusal', 'partial-start', 'exception', 'interrupted', 'cleanup-failure', 'unconfirmed-group'])(
     'contains database cleanup during %s without executing Docker', async mode => {
       const directory = mkdtempSync(join(tmpdir(), 'pika-ci-run-test-'))
       const calls: string[] = []
@@ -142,6 +147,7 @@ describe('local canonical CI', () => {
         writeFileSync(path, 'fake executor receipt\n', { mode: 0o600 })
         if (mode === 'refusal' && script.startsWith('node ')) return 1
         if (mode === 'exception' && script.startsWith('supabase start ')) throw new Error('fake startup exception')
+        if (mode === 'unconfirmed-group' && script === 'do-not-execute-real-contract') throw new CiProcessGroupError()
         if (mode === 'partial-start' && script.startsWith('supabase start ')) return 1
         if (mode === 'interrupted' && script.startsWith('supabase start ')) interrupted = true
         if (mode === 'cleanup-failure' && script.startsWith('supabase stop ')) return 1
@@ -150,8 +156,10 @@ describe('local canonical CI', () => {
       try {
         const run = runLane(job, directory, directory, {}, { execute, interrupted: () => interrupted })
         if (mode === 'exception') await expect(run).rejects.toThrow('fake startup exception')
+        else if (mode === 'unconfirmed-group') await expect(run).rejects.toThrow('CI process group did not stop')
         else expect(await run).toBe(['refusal', 'partial-start', 'cleanup-failure'].includes(mode))
         if (mode === 'refusal') expect(calls).toEqual(['node scripts/ci-runner-preflight.mjs --lane database'])
+        else if (mode === 'unconfirmed-group') expect(calls).not.toContain('supabase stop --no-backup')
         else expect(calls.at(-1)).toBe('supabase stop --no-backup')
         if (['refusal', 'partial-start', 'exception', 'interrupted'].includes(mode)) expect(calls).not.toContain('do-not-execute-real-contract')
       } finally {

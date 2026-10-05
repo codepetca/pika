@@ -215,20 +215,61 @@ export function importedEnvironment(path) {
   return env
 }
 
+export class CiProcessGroupError extends Error {
+  constructor() {
+    super('CI process group did not stop; inspect the dedicated VM before retrying')
+  }
+}
+
+async function terminateGroup(pid, graceMs) {
+  const alive = () => {
+    try { process.kill(-pid, 0); return true }
+    catch (error) { return error.code !== 'ESRCH' }
+  }
+  const signal = value => { try { process.kill(-pid, value) } catch {} }
+  signal('SIGTERM')
+  const escalateAt = Date.now() + graceMs
+  let escalated = false
+  while (alive()) {
+    if (!escalated && Date.now() >= escalateAt) { signal('SIGKILL'); escalated = true }
+    if (Date.now() > escalateAt + 2_000) throw new CiProcessGroupError()
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+}
+
 export async function executeStep(script, cwd, env, onChild, logPath, { terminationGraceMs = 10_000 } = {}) {
   return await new Promise((resolveStep, reject) => {
     const log = openSync(logPath, 'w', 0o600)
     const child = spawn('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', script], { cwd, env, stdio: ['ignore', log, log], detached: true })
     let closed = false
-    let hardKill
+    let termination
+    let outcome = 128
+    const finish = () => {
+      if (closed) return
+      closed = true
+      clearTimeout(timeout)
+      closeSync(log)
+      onChild(null)
+    }
     const terminate = () => {
-      try { process.kill(-child.pid, 'SIGTERM') } catch {}
-      hardKill ??= setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL') } catch {} }, terminationGraceMs)
+      if (closed || termination) return
+      // Await the whole group, including descendants that outlive Bash. Never
+      // clear escalation merely because the process-group leader exits.
+      termination = terminateGroup(child.pid, terminationGraceMs).then(() => {
+        finish()
+        resolveStep(outcome === 0 ? 128 : outcome)
+      }, error => {
+        child.unref()
+        finish()
+        reject(error)
+      })
     }
     const timeout = setTimeout(terminate, script === 'supabase stop --no-backup' ? 120_000 : 90 * 60_000)
-    const finish = () => { clearTimeout(timeout); clearTimeout(hardKill); if (!closed) closeSync(log); closed = true; onChild(null) }
     child.once('error', error => { finish(); reject(error) })
-    child.once('exit', (code, signal) => { finish(); resolveStep(code === 0 ? 0 : code ?? (signal ? 128 : 1)) })
+    child.once('exit', (code, signal) => {
+      outcome = code === 0 ? 0 : code ?? (signal ? 128 : 1)
+      if (!termination) { finish(); resolveStep(outcome) }
+    })
     onChild(child, terminate)
   })
 }
@@ -240,6 +281,7 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
   let startedDatabase = false
   let stopSucceeded = false
   let laneFailed = false
+  let cleanupSafe = true
   const outcomes = {}
   let laneEnv = { ...env, ...job.env, GITHUB_WORKSPACE: checkout, RUNNER_TEMP: temp }
   try {
@@ -280,8 +322,14 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
         laneEnv = { ...laneEnv, ...importedEnvironment(envFile) }
       }
     }
+  } catch (error) {
+    if (error instanceof CiProcessGroupError) cleanupSafe = false
+    throw error
   } finally {
-    if (startedDatabase && !stopSucceeded) {
+    if (startedDatabase && !stopSucceeded && !cleanupSafe) {
+      console.error('A CI process group may still be running; no database cleanup was attempted. Inspect the dedicated VM.')
+    }
+    if (startedDatabase && !stopSucceeded && cleanupSafe) {
       console.log('Cleaning up the disposable Supabase stack started by this lane.')
       const status = await execute('supabase stop --no-backup', checkout, laneEnv, onChild, join(temp, `${job.lane}-cleanup.log`))
       if (status !== 0) { laneFailed = true; console.error('Disposable Supabase cleanup failed; inspect the retained receipts and dedicated daemon.') }
