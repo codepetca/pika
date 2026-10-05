@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/ui'
+import { GradebookItemEditor } from '@/components/gradebook/GradebookItemEditor'
+import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 import { TeacherGradebookVisibilityControl } from '@/components/gradebook/TeacherGradebookVisibilityControl'
 import { StudentGradesView } from '@/components/gradebook/StudentGradesView'
 import { StudentReturnedMarksList } from '@/components/gradebook/StudentReturnedMarks'
@@ -65,6 +68,8 @@ export const VISIBLE_GRADES: StudentGradesResponse = {
 
 export function StudentGradesPattern() {
   const [gradesVisible, setGradesVisible] = useState(false)
+  const [itemOpen, setItemOpen] = useState(false)
+  const [markOpen, setMarkOpen] = useState(false)
 
   return (
     <section
@@ -79,7 +84,7 @@ export function StudentGradesPattern() {
           Student Grades visibility
         </h3>
         <p className="mt-1 text-sm leading-6 text-text-muted">
-          One teacher control reveals one returned-only student view. The examples are fixed and make no API calls.
+          One teacher control reveals returned work and saved Gradebook marks. The examples are fixed and make no API calls.
         </p>
       </div>
 
@@ -89,8 +94,12 @@ export function StudentGradesPattern() {
             <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Teacher</p>
             <h4 className="mt-1 font-semibold text-text-default">Gradebook visibility</h4>
           </div>
-          <div className="pt-3">
+          <div className="space-y-3 pt-3">
             <TeacherGradebookVisibilityControl gradesVisible={gradesVisible} onChange={setGradesVisible} />
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => setItemOpen(true)}>Edit standalone item</Button>
+              <Button variant="secondary" onClick={() => setMarkOpen(true)}>Enter standalone mark</Button>
+            </div>
           </div>
         </div>
 
@@ -108,7 +117,7 @@ export function StudentGradesPattern() {
         <div>
           <h4 className="font-semibold text-text-default">Standalone marks in Classwork</h4>
           <p className="mt-1 text-sm text-text-muted">
-            Returned standalone marks appear in both Classwork and the live aggregate Grades view above.
+            Saved standalone marks appear in Classwork immediately and in Grades when enabled.
           </p>
         </div>
         <StudentReturnedMarksList items={[
@@ -117,6 +126,17 @@ export function StudentGradesPattern() {
           { id: 'standalone-practice', title: 'Practice conference', earned: 8, possible: 10, percent: 80, categoryName: null, included: false },
         ]} />
       </div>
+      <GradebookItemEditor
+        isOpen={itemOpen}
+        item={{ assessment_id: 'participation', assessment_type: 'item', code: 'I1', title: 'Participation', possible: 10, weight: 10, include_in_final: true, category_id: null, scored_count: 1, returned_count: 0 }}
+        categories={[]}
+        onClose={() => setItemOpen(false)} onSave={() => setItemOpen(false)} onDelete={() => setItemOpen(false)}
+      />
+      <GradebookScoreDialog
+        isOpen={markOpen} student={null}
+        target={{ kind: 'item', title: 'Participation', value: 8, possible: 10 }}
+        isSaving={false} onClose={() => setMarkOpen(false)} onSave={() => setMarkOpen(false)} onClear={() => setMarkOpen(false)}
+      />
     </section>
   )
 }

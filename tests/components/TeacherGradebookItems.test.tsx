@@ -49,13 +49,17 @@ describe('Gradebook standalone item interactions', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/teacher/gradebook/items/scores', expect.objectContaining({ body: JSON.stringify({ classroom_id: classroom.id, student_id: 'student-1', item_id: 'item-1', earned: null }) }))
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('manual-scores'))).toBe(false)
   })
-  it('opens item details from mobile and confirms returning marks', async () => {
+  it('opens item details from mobile without requiring a return action', async () => {
     renderTab()
     fireEvent.click(await screen.findByRole('button', { name: `Edit item: ${item.title}` }))
-    fireEvent.click(screen.getByRole('button', { name: 'Return marks' }))
-    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Return marks?' })).getByRole('button', { name: 'Return marks' }))
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/gradebook/items', expect.objectContaining({ body: JSON.stringify({ action: 'return_marks', classroom_id: classroom.id, item_id: 'item-1' }) })))
+    expect(screen.getByText('Marks are visible to students as soon as you save them.')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Return marks' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Assessment title' }), { target: { value: 'Participation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save item' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit item' })).not.toBeInTheDocument())
+    const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')
+    expect(writes).toHaveLength(1)
+    expect(JSON.parse(writes[0][1].body)).toMatchObject({ action: 'update', title: 'Participation' })
   })
   it('disables item actions for archived classrooms and missing schema', async () => {
     const view = renderTab(true)

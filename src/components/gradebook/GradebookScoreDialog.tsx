@@ -136,6 +136,7 @@ export function GradebookScoreDialog({
             { value: 'preserve_percentages', label: 'Preserve percentages' },
           ]} onChange={(event) => setMaximumMode(event.target.value as MaximumChangeMode)} />
         </FormField> : null}
+        {target?.kind === 'item' ? <p className="text-xs text-text-muted">Marks are visible to students as soon as you save them.</p> : null}
         {changesPaused ? <p className="text-sm text-text-muted">Maximum changes are paused. You can restore the original maximum.</p> : null}
         {error ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{error}</div> : null}
         <div className="flex flex-wrap justify-end gap-2">

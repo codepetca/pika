@@ -15,7 +15,7 @@ export interface GradebookItemDetails {
 }
 
 export function GradebookItemEditor({
-  isOpen, item, categories, onClose, onSave, onDelete, onReturnMarks,
+  isOpen, item, categories, onClose, onSave, onDelete,
   isSaving = false, error,
 }: {
   isOpen: boolean
@@ -24,7 +24,6 @@ export function GradebookItemEditor({
   onClose: () => void
   onSave: (details: GradebookItemDetails) => void | Promise<void>
   onDelete?: () => void | Promise<void>
-  onReturnMarks?: () => void | Promise<void>
   isSaving?: boolean
   error?: string
 }) {
@@ -33,7 +32,7 @@ export function GradebookItemEditor({
   const [categoryId, setCategoryId] = useState('')
   const [weight, setWeight] = useState('10')
   const [included, setIncluded] = useState(true)
-  const [confirmation, setConfirmation] = useState<'delete' | 'return' | null>(null)
+  const [confirmation, setConfirmation] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -43,7 +42,7 @@ export function GradebookItemEditor({
     setCategoryId(item ? item.category_id ?? '' : defaultCategory?.id ?? '')
     setWeight(String(item?.weight ?? defaultCategory?.default_assessment_weight ?? 10))
     setIncluded(item?.include_in_final ?? true)
-    setConfirmation(null)
+    setConfirmation(false)
   }, [isOpen, item, categories])
 
   const points = Number(possible)
@@ -51,13 +50,6 @@ export function GradebookItemEditor({
     && Math.abs(points * 10 - Math.round(points * 10)) < 0.000001
   const weightValid = weight.trim() !== '' && isValidGradebookWeight(Number(weight))
   const valid = title.trim().length > 0 && title.trim().length <= 200 && pointsValid && weightValid
-  const dirty = item && (
-    title.trim() !== item.title || points !== item.possible
-    || categoryId !== (item.category_id ?? '') || Number(weight) !== item.weight
-    || included !== item.include_in_final
-  )
-  const scored = item?.scored_count ?? 0
-  const returned = item?.returned_count ?? 0
 
   return <>
     <ContentDialog
@@ -123,25 +115,12 @@ export function GradebookItemEditor({
             />
           </FormField>
           <p className="text-xs text-text-muted">
-            Marks stay private until you return them. Changing marks or item details requires returning the affected marks again.
+            Marks are visible to students as soon as you save them.
           </p>
-          {item ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-              <span className="text-xs text-text-muted">{returned} of {scored} entered marks returned</span>
-              <Button
-                type="button" variant="secondary"
-                disabled={Boolean(dirty) || scored === 0 || returned >= scored || !onReturnMarks}
-                onClick={() => setConfirmation('return')}
-              >
-                Return marks
-              </Button>
-              {dirty ? <p className="w-full text-xs text-text-muted">Save item details before returning marks.</p> : null}
-            </div>
-          ) : null}
           {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
           <div className="flex flex-wrap justify-end gap-2 pt-1">
             {item ? (
-              <Button type="button" variant="danger" className="mr-auto" onClick={() => setConfirmation('delete')}>
+              <Button type="button" variant="danger" className="mr-auto" onClick={() => setConfirmation(true)}>
                 Delete item
               </Button>
             ) : null}
@@ -154,20 +133,18 @@ export function GradebookItemEditor({
       </form>
     </ContentDialog>
     <ConfirmDialog
-      isOpen={isOpen && confirmation !== null}
-      title={confirmation === 'delete' ? 'Delete item?' : 'Return marks?'}
-      description={confirmation === 'delete'
-        ? `“${item?.title}” and all its student marks will be permanently deleted. This cannot be undone.`
-        : `Return the currently entered marks for “${item?.title}” to students? Each student will see their own returned mark in Classwork.`}
-      confirmLabel={confirmation === 'delete' ? 'Delete item' : 'Return marks'}
-      confirmVariant={confirmation === 'delete' ? 'danger' : 'default'}
+      isOpen={isOpen && confirmation}
+      title="Delete item?"
+      description={`“${item?.title}” and all its student marks will be permanently deleted. This cannot be undone.`}
+      confirmLabel="Delete item"
+      confirmVariant="danger"
       errorMessage={error}
       isCancelDisabled={isSaving}
       isConfirmDisabled={isSaving}
-      onCancel={() => { if (!isSaving) setConfirmation(null) }}
+      onCancel={() => { if (!isSaving) setConfirmation(false) }}
       onConfirm={() => {
         if (isSaving) return
-        return confirmation === 'delete' ? onDelete?.() : onReturnMarks?.()
+        return onDelete?.()
       }}
     />
   </>

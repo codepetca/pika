@@ -25,27 +25,19 @@ describe('GradebookItemEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add other assessment' }))
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ gradebook_weight: 0 }))
   })
-  it('proposes the selected category weight and requires saved details before returning marks', () => {
+  it('proposes the selected category weight and validates details without a return action', () => {
     const categories = [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 25, is_default: false, position: 0 }]
-    render(<GradebookItemEditor isOpen item={item} categories={categories} onClose={vi.fn()} onSave={vi.fn()} onReturnMarks={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Return marks' })).toBeEnabled()
+    render(<GradebookItemEditor isOpen item={item} categories={categories} onClose={vi.fn()} onSave={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Return marks' })).not.toBeInTheDocument()
+    expect(screen.getByText('Marks are visible to students as soon as you save them.')).toBeInTheDocument()
     fireEvent.change(screen.getByRole('combobox', { name: 'Category' }), { target: { value: 'term' } })
     expect(screen.getByRole('spinbutton', { name: 'Category weight' })).toHaveValue(25)
-    expect(screen.getByRole('button', { name: 'Return marks' })).toBeDisabled()
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Points possible' }), { target: { value: '0' } })
     expect(screen.getByRole('button', { name: 'Save item' })).toBeDisabled()
   })
-  it('requires deliberate confirmation to release or delete entered marks', () => {
+  it('requires deliberate confirmation to delete entered marks', () => {
     const remove = vi.fn()
-    const returnMarks = vi.fn()
-    render(<GradebookItemEditor isOpen item={item} categories={[]} onClose={vi.fn()} onSave={vi.fn()} onDelete={remove} onReturnMarks={returnMarks} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Return marks' }))
-    expect(returnMarks).not.toHaveBeenCalled()
-    const confirm = screen.getByRole('dialog', { name: 'Return marks?' })
-    expect(confirm).toHaveTextContent('currently entered marks')
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Return marks' }))
-    expect(returnMarks).toHaveBeenCalledOnce()
-    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }))
+    render(<GradebookItemEditor isOpen item={item} categories={[]} onClose={vi.fn()} onSave={vi.fn()} onDelete={remove} />)
     fireEvent.click(screen.getByRole('button', { name: 'Delete item' }))
     const deleteDialog = screen.getByRole('dialog', { name: 'Delete item?' })
     expect(deleteDialog).toHaveTextContent('Attendance – Term 1')

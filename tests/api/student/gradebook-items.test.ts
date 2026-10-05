@@ -17,7 +17,8 @@ const item = {
   gradebook_categories: { name: 'Term Work', percentage: 100 },
 }
 const returnedScore = {
-  student_id: studentId, classroom_id: classroomId, earned: 0,
+  item_id: item.id, student_id: studentId, classroom_id: classroomId, earned: 0,
+  updated_at: '2026-09-10T12:00:00Z',
   returned_at: '2026-09-10T12:00:00Z', gradebook_items: item,
 }
 
@@ -51,7 +52,7 @@ beforeEach(() => {
   mocks.access.mockResolvedValue({ ok: true, classroom: { feature_visibility: DEFAULT_CLASSROOM_FEATURE_VISIBILITY } })
 })
 
-describe('student returned standalone marks', () => {
+describe('student saved standalone marks', () => {
   it.each([['unauthenticated', mockAuthenticationError(), 401], ['teacher', mockAuthorizationError(), 403]])('rejects %s callers before reading marks', async (_label, error, status) => {
     mocks.requireRole.mockRejectedValueOnce(error)
     expect((await request()).status).toBe(status)
@@ -76,12 +77,12 @@ describe('student returned standalone marks', () => {
     expect(mocks.from).not.toHaveBeenCalled()
   })
 
-  it('projects only this enrolled student’s returned marks in this classroom, including deliberate zero and exclusions', async () => {
+  it('projects only this enrolled student’s saved marks in this classroom, including unreturned scores, zero and exclusions', async () => {
     const query = queryRows([
       returnedScore,
       { ...returnedScore, earned: 8, gradebook_items: { ...item, id: 'item-2', include_in_final: false } },
       { ...returnedScore, earned: 5, gradebook_items: { ...item, id: 'item-3', gradebook_weight: 0 } },
-      { ...returnedScore, earned: 7, returned_at: null },
+      { ...returnedScore, item_id: 'item-4', earned: 7, returned_at: null, gradebook_items: { ...item, id: 'item-4' } },
       { ...returnedScore, earned: null },
       { ...returnedScore, student_id: 'another-student' },
       { ...returnedScore, classroom_id: 'another-classroom' },
@@ -93,9 +94,17 @@ describe('student returned standalone marks', () => {
       { id: 'item-1', title: item.title, earned: 0, possible: 10, percent: 0, categoryName: 'Term Work', included: true },
       { id: 'item-2', title: item.title, earned: 8, possible: 10, percent: 80, categoryName: 'Term Work', included: false },
       { id: 'item-3', title: item.title, earned: 5, possible: 10, percent: 50, categoryName: 'Term Work', included: false },
+      { id: 'item-4', title: item.title, earned: 7, possible: 10, percent: 70, categoryName: 'Term Work', included: true },
     ] })
     expect(query.select.mock.calls[0][0]).not.toContain('*')
     expect(query.select.mock.calls[0][0]).toContain('gradebook_weight')
+    expect(query.eq).toHaveBeenCalledWith('student_id', studentId)
+    expect(query.eq).toHaveBeenCalledWith('classroom_id', classroomId)
+    expect(query.eq).toHaveBeenCalledWith('gradebook_items.classroom_id', classroomId)
+    expect(query.not.mock.calls).toEqual([['earned', 'is', null]])
+    expect(query.order.mock.calls).toEqual([
+      ['updated_at', { ascending: false }], ['item_id', { ascending: true }],
+    ])
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')
   })
 
@@ -103,21 +112,40 @@ describe('student returned standalone marks', () => {
     { maximum: 5, score_scale: 1, earned: 8, possible: 5, percent: 160 },
     { maximum: 5, score_scale: 0.5, earned: 4, possible: 5, percent: 80 },
     { maximum: null, score_scale: 1, earned: 8, possible: 10, percent: 80 },
-  ])('aligns returned Classwork with maximum $maximum, scale $score_scale', async ({ maximum, score_scale, earned, possible, percent }) => {
+  ])('aligns saved Classwork with maximum $maximum, scale $score_scale', async ({ maximum, score_scale, earned, possible, percent }) => {
     mocks.rpc.mockResolvedValue({ data: [{ assessment_type: 'item', assessment_id: 'item-1', maximum, score_scale }], error: null })
-    queryRows([{ ...returnedScore, earned: 8 }, { ...returnedScore, earned: 9, returned_at: null }])
+    queryRows([{ ...returnedScore, earned: 8, returned_at: null }, { ...returnedScore, earned: null }])
     const data = await (await request()).json()
     expect(data.items).toHaveLength(1)
     expect(data.items[0]).toMatchObject({ earned, possible, percent })
   })
 
-  it('keeps returned marks available when the teacher Gradebook tool is hidden', async () => {
+  it('keeps saved marks available when the teacher Gradebook tool and aggregate Grades are hidden', async () => {
     mocks.access.mockResolvedValueOnce({ ok: true, classroom: { feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, gradebook: false } } })
-    queryRows([returnedScore])
+    queryRows([{ ...returnedScore, returned_at: null }])
     expect((await request()).status).toBe(200)
   })
 
-  it('reports failed reads separately from an empty returned set', async () => {
+  it('keeps an explicit zero and later score/item edits visible with a cleared legacy return timestamp', async () => {
+    queryRows([{ ...returnedScore, returned_at: null }])
+    const initial = await (await request()).json()
+    expect(initial.items).toEqual([
+      expect.objectContaining({ id: item.id, earned: 0, percent: 0, included: true }),
+    ])
+
+    queryRows([{
+      ...returnedScore, earned: 12, returned_at: null, updated_at: '2026-09-11T12:00:00Z',
+      gradebook_items: { ...item, title: 'Participation revised', points_possible: 20, include_in_final: false },
+    }])
+    const edited = await (await request()).json()
+    expect(edited.items).toEqual([
+      expect.objectContaining({ id: item.id, title: 'Participation revised', earned: 12, possible: 20, percent: 60, included: false }),
+    ])
+    expect(JSON.stringify(edited)).not.toContain('returned_at')
+    expect(JSON.stringify(edited)).not.toContain('updated_at')
+  })
+
+  it('reports failed reads separately from an empty saved set', async () => {
     queryRows([], { message: 'database unavailable' })
     expect((await request()).status).toBe(500)
   })
@@ -142,7 +170,12 @@ describe('student returned standalone marks', () => {
     expect(query.range).toHaveBeenCalledWith(1000, 1999)
   })
 
-  it('returns an empty list when no marks were returned', async () => {
+  it('returns an empty list when only blank scores exist', async () => {
+    queryRows([{ ...returnedScore, earned: null }, { ...returnedScore, earned: null, returned_at: null }])
+    expect(await (await request()).json()).toEqual({ items: [] })
+  })
+
+  it('returns an empty list when no marks were saved', async () => {
     queryRows([])
     expect(await (await request()).json()).toEqual({ items: [] })
   })
