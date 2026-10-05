@@ -52,7 +52,7 @@ Classwork framing. Preserve Attendance table density and current pane geometry.
 | Teacher inspector disclosure | TeacherWorkspaceSplit gapped opt-in motion | reuse | Approved Daily behavior with immediate drag and reduced-motion tokens |
 | Classwork table continuity | TeacherClassroomView and TeacherStudentWorkPanel existing pane owners | extend | Keep the primary table outside selected-student panel loading; expose only its existing inspector presentation while preserving controller and three-pane modes |
 | Layout-mode controller continuity | TeacherWorkspaceSplit gapped primary slot | extend | `primaryCollapsed` hides/inerts the primary and removes its divider while giving the existing inspector slot full width; the selected controller stays in the same React position across all three modes |
-| Teacher workspace entry | TeacherWorkSurfaceShell selected frame | extend | Quiet entry while keeping its existing DOM and state ownership |
+| Teacher workspace entry | Existing workspaceFrameClassName opt-in on Classwork/Tests owners | reuse | Apply quiet entry through the existing frame hook; generic shells and Roster/Gradebook/Survey entry stay unchanged |
 | Student workspace entry | StudentAssignmentsTab existing selected-content frame | extend | Apply the same presentation without changing editor keys or routing |
 | Shared entry presentation | Existing semantic motion tokens and shared UI boundary | extend | A narrow presentation-only contract for the two real entry adopters; no feature state |
 | Reference and promotion | Pattern Lab real split demo/catalog and stable UI canon | extend | Record explicit owner acceptance and keep executable provenance |
@@ -87,3 +87,9 @@ with `cache: no-store`, byte-identical to the reviewed baseline. This rollout
 preserves that authoritative grading read rather than introducing request-cache
 behavior. Its new changes satisfy the composite-widget coverage check; the
 legacy uncached-read report remains explicitly recorded for review.
+
+Independent review batch: preserve the real grading inspector under the same
+inner split/frame across Students + grading and Content + grading; hide its
+unused primary slot without moving the subtree. Real-control regressions cover
+textarea/scroller identity, selection, focus and scroll. Workspace entry is
+explicitly applied through the existing scoped owners' frame-class hook.

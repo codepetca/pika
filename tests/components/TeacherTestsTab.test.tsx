@@ -2238,6 +2238,9 @@ describe('TeacherTestsTab', () => {
       'true',
     )
 
+    const workspaceFrame = selectedRow.closest('.workspace-entry')
+    expect(workspaceFrame).not.toBeNull()
+
     const menu = render(<div role="menu" aria-hidden="false">User menu fixture</div>)
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.getByTestId('mock-test-grading-panel')).toBeInTheDocument()
@@ -2246,6 +2249,7 @@ describe('TeacherTestsTab', () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId('mock-test-grading-panel')).not.toBeInTheDocument()
+      expect(selectedRow.closest('.workspace-entry')).toBe(workspaceFrame)
     })
   })
 

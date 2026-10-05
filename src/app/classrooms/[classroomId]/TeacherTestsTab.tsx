@@ -2990,7 +2990,7 @@ export function TeacherTestsTab({
           actionBarClassName={workspaceState === 'selected' ? 'relative z-local-menu pb-0' : undefined}
           contentClassName={workspaceState === 'selected' ? 'pt-1' : undefined}
           workspaceFrame="standalone"
-          workspaceFrameClassName="min-h-[360px] border-0 bg-page"
+          workspaceFrameClassName="workspace-entry min-h-[360px] border-0 bg-page"
         />
       </div>
 

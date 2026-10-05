@@ -83,7 +83,7 @@ export function TeacherWorkSurfaceShell({
         ) : (
           <div
             className={cn(
-              'workspace-entry flex min-h-0 flex-1 overflow-hidden bg-surface',
+              'flex min-h-0 flex-1 overflow-hidden bg-surface',
               usesAttachedTabsFrame ? 'rounded-b-lg' : 'rounded-lg',
               workspaceFrameClassName,
             )}

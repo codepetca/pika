@@ -2865,7 +2865,7 @@ export function TeacherClassroomView({
         summary={summaryContent}
         workspace={workspaceContent}
         workspaceFrame="standalone"
-        workspaceFrameClassName={selectedSurvey || activeSelectedStudentId ? 'border-0 bg-page' : undefined}
+        workspaceFrameClassName={`${selectedSurvey ? '' : 'workspace-entry'}${selectedSurvey || activeSelectedStudentId ? ' border-0 bg-page' : ''}`}
         workspaceRef={workspaceContainerRef}
       />
 

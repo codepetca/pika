@@ -492,3 +492,7 @@ ESLint and CI enforce that app code imports from `@/ui`:
 # Use this instead:
 @/ui
 ```
+
+Approved classroom entry is opt-in via Classwork/Tests
+`workspaceFrameClassName`; the shared shell does not animate every consumer.
+Student Classwork opts in on its existing selected-content frame.

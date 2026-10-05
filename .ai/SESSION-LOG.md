@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Inline-image read local verification
-
-1460 draft47724239 distinct5.6Sol/high security+compatibility initial reviews CLEAN.
-Root157focused/static/47Bara/startup/audit PASS on actualmain01aedcec8. Explicit
-local preview only243; appliedonce, exact001–243 history, genuine typesgenerate/
-check zero drift. SQLhash7de3fd531a1c4144dbb6b0fc2ede3c1ba4a6503d4305af1df3cf0a3fbb21779d
-immutable/no reapplication. First actual fixture run rejected baseline history on
-already-submitted docs under untouched179 guard; full transaction rolledback and
-independent wholecanonical baselinePASS. Two-file proof-only40ce325b correction
-uses exact submit snapshots;1RED/9PASS→10GREEN,158focused/static and targeted
-compatibility review CLEAN. No migration/guard/control/application change.
-
-Actual243 complete visible/hidden/default shapes, genuine verified/ready metadata,
-both rolelabels/owner hiddenarchive/draft inspection, enrollment/subject/object/
-lifecycle/status/error/fullDTO/noeffects and unchanged242 rollback PASS. Original
-strict001243 isolated normal9projections/6SAMEoriginalrevocations plus oldlist
-controls PASS; nine sealedRPCstubs falsecreated/view, zero actualRPC/Storage/provider.
-Both forcedmodes expectedexit1/exact2markers/ownedcleanup/fullcanonicalPASS;private
-0600 receipts67HS1D/25vnVp. Independent preapplication full public/private/Storage
-rowdigests+168metadata/settings/cron/resources equality afterallPASS. No liveSigning/
-actualopen/nonemptySDK/authHTTP/browser/visibilityrace claim. Fullold213 committed
-race only inephemeralCI, never canonical retained168identities. Receiptbatch/final
-cumulative review/exactCI/normalmainmerge next. Original09:48:11clock/counters kept.
-Local243/main242/prodlast225; admission/home/cutover/billing/providerOFF. Read-only
-next integration proposal separate from immutable observer authority; no phaseexit.
-
 ## 2026-10-04 — Assignment integrated SDK source preparation
 
 1460 final cumulative5.6Sol/high review CLEAN e98b78ef,158focused/static/47Bara/
@@ -834,3 +808,7 @@ page states; Daily's experimental motion promotion still awaits owner feedback.
 ## 2026-10-05 — Approved motion mobile reachability
 
 Coordinator verified six natural recordings (desktop/mobile, Teacher Classwork/Tests and Student Classwork). Added actual viewport/focus check for Classwork comments in Content + grading after it exposed an unconstrained nested split; h-full now constrains that existing split. Unsaved comment survives all three modes. Pattern Lab keyboard test asserts promoted reference heading. Initial focused gate passed 659 tests/36 files plus all static lanes; final source gate and 24-case matrix pending. Audit's sole remaining finding is the unchanged HEAD TeacherTestsTab line1001 no-store results read (confirmed byte-identical), retained deliberately to avoid changing authoritative grade refresh semantics; new code has no audit violation. Independent review and cumulative proof pending.
+
+## 2026-10-05 — Approved motion independent review batch
+
+Draft1486 frozen90dc: independent Sol/high full-diff review found two P2 blockers, inner grading subtree remount between two grading layouts and generic-shell entry reaching unscoped Roster/Gradebook. Coordinator validated both with meaningful RED tests and batches correction: keep inner split/frame position, hide unused primary slot; opt in via existing Classwork/Tests frame-class hook. Real textarea/scroller identity, selection/focus/scroll assertions plus generic-shell default coverage added; browser matrix strengthened. Initial combined677tests/static passed with sibling1482/1484 source reconciled in proof only; final frozen compatibility/browser and targeted/different-final review pending. Review budget launches1, fixbatches1, cap7/4/60min; no dependency/API/autosave/merge/deploy changes.

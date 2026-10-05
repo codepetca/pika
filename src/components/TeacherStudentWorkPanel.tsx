@@ -518,13 +518,6 @@ export function TeacherStudentWorkPanel({
       : inspector
     const primaryHeader = splitPaneView === 'content-grading' ? studentHeader : undefined
     const inspectorHeader = splitPaneView === 'students-content' ? studentHeader : undefined
-    if (workspaceInspectorOnly) {
-      return (
-        <AssignmentWorkspacePaneFrame header={inspectorHeader}>
-          {inspectorPane}
-        </AssignmentWorkspacePaneFrame>
-      )
-    }
     const primaryMinPx = splitPaneView === 'content-grading'
       ? ASSIGNMENT_GRADING_LAYOUT.detailsPrimaryMinPx
       : ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx
@@ -540,6 +533,7 @@ export function TeacherStudentWorkPanel({
         className="h-full flex-1"
         splitVariant="gapped"
         animateInspector
+        primaryCollapsed={workspaceInspectorOnly}
         primaryClassName="min-h-0 rounded-lg bg-surface"
         inspectorClassName="min-h-0 rounded-lg bg-surface"
         inspectorCollapsed={layout.inspectorCollapsed}
@@ -560,11 +554,11 @@ export function TeacherStudentWorkPanel({
           }))
         }}
         dividerLabel={dividerLabel}
-        primary={
+        primary={workspaceInspectorOnly ? null : (
           <AssignmentWorkspacePaneFrame header={primaryHeader}>
             {primaryPane}
           </AssignmentWorkspacePaneFrame>
-        }
+        )}
         inspector={
           <AssignmentWorkspacePaneFrame header={inspectorHeader}>
             {inspectorPane}

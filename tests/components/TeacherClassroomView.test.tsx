@@ -2634,10 +2634,13 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Stage controller draft' }))
     const originalPanel = screen.getByTestId('teacher-work-panel')
     const originalTable = screen.getByTestId('assignment-student-scroll-pane')
+    const workspaceFrame = originalPanel.closest('.workspace-entry')
+    expect(workspaceFrame).not.toBeNull()
     clickAssignmentLayoutToggle()
 
     await waitFor(() => {
       expect(screen.getByTestId('teacher-work-panel')).toBe(originalPanel)
+      expect(originalPanel.closest('.workspace-entry')).toBe(workspaceFrame)
       expect(screen.getByLabelText('Controller draft')).toHaveTextContent('Unsaved comment')
       expect(screen.getByTestId('assignment-student-scroll-pane')).toBe(originalTable)
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('content-grading')
@@ -2653,6 +2656,7 @@ describe('TeacherClassroomView', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('teacher-work-panel')).toBe(originalPanel)
+      expect(originalPanel.closest('.workspace-entry')).toBe(workspaceFrame)
       expect(screen.getByLabelText('Controller draft')).toHaveTextContent('Unsaved comment')
       expect(screen.getByTestId('assignment-student-scroll-pane')).toBe(originalTable)
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-content')
@@ -2669,6 +2673,7 @@ describe('TeacherClassroomView', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('teacher-work-panel')).toBe(originalPanel)
+      expect(originalPanel.closest('.workspace-entry')).toBe(workspaceFrame)
       expect(screen.getByLabelText('Controller draft')).toHaveTextContent('Unsaved comment')
       expect(screen.getByTestId('assignment-student-scroll-pane')).toBe(originalTable)
       expect(screen.getByTestId('assignment-split-pane-view')).toHaveTextContent('students-grading')
