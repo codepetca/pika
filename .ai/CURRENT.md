@@ -1,6 +1,6 @@
 # Checkpoint — 2026-10-05 UTC
 
-Source: main `c25ebf78f`; 27 audit findings accepted; #1469/#1473 merged, dormant.
+Source: main `43c24abec`; 27 audit findings accepted; #1469/#1473 merged, dormant.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Production LIVE at pika.codepet.ca since 2026-10-05 06:27UTC; login HTTP200.

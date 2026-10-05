@@ -8,6 +8,8 @@ import { createTestOwnerDraftSaveProofTransport } from '../../scripts/check-cont
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../../src/types/database'
 import { saveContextualTestDraft } from '../../src/lib/server/contextual-test-draft-save'
+import assert from 'node:assert/strict'
+import { testOwnerDraftSaveSetupDiagnostic } from '../../scripts/check-contextual-test-owner-draft-save-lifecycle'
 
 describe('additive finite PATCH proof source',()=>{
  const original=newAssignmentListProofFixture(new Date('2026-10-05T00:00:00Z')),f=newTestOwnerDraftSaveFixture(original)
@@ -54,6 +56,23 @@ describe('additive finite PATCH proof source',()=>{
  })
  it('checks application rows even when privilege probe fails',async()=>{
   const snapshot=vi.fn(async()=>({rows:[]}));await expect(verifyTestOwnerDraftSavePrivilegeRestoration({rows:[]},snapshot,async()=>{throw Error('probe failed')})).rejects.toThrow('probe failed');expect(snapshot).toHaveBeenCalledOnce()
+ })
+ it('locates a native assertion without leaking its message, actual or expected rows',()=>{
+  const cause=new assert.AssertionError({message:'PRIVATE diagnostic rows',actual:'PRIVATE actual',expected:'PRIVATE expected',operator:'deepStrictEqual'})
+  cause.stack='AssertionError: PRIVATE diagnostic rows\n    at run (/private/example/scripts/check-contextual-test-draft-save-concurrency.ts:74:5)\n    at privateOther (/PRIVATE/secret.ts:1:1)'
+  const error=new AssignmentListLifecycleError({stage:'cases',error:cause},[])
+  const diagnostic=testOwnerDraftSaveSetupDiagnostic('complete',error)
+  expect(diagnostic).toContain('location=check-contextual-test-draft-save-concurrency.ts:74')
+  expect(diagnostic).not.toContain('PRIVATE');expect(diagnostic).not.toContain('/private/example')
+ })
+ it('reports only an allowlisted concurrency budget reason, not arbitrary messages or locations',()=>{
+  const cause=new assert.AssertionError({message:'Finite total harness budget exhausted',actual:false,expected:true,operator:'=='})
+  cause.stack='AssertionError\n    at privateOther (/PRIVATE/secret.ts:1:1)'
+  const error=new AssignmentListLifecycleError({stage:'cases',error:cause},[])
+  expect(testOwnerDraftSaveSetupDiagnostic('complete',error)).toContain('location=unknown budget=concurrency-total')
+  cause.message='PRIVATE arbitrary error'
+  expect(testOwnerDraftSaveSetupDiagnostic('complete',error)).toContain('budget=unknown')
+  expect(testOwnerDraftSaveSetupDiagnostic('complete',error)).not.toContain('PRIVATE')
  })
  it.each(f.cases.map(c=>[c.label,c]))('runs installed SDK/helper through finite offline transport %s',async(_label,c)=>{
   const copy=structuredClone(rows),input=testOwnerDraftSaveCaseInput(f,c,copy),t=copy['public.tests'].find(t=>t.id===c.testId)!,cl=f.classes.find(cl=>cl.id===c.classroomId)!

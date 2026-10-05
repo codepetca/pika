@@ -127,3 +127,24 @@ reviews/extensions and normal main PR merges. Task-stop waiver retains cumulativ
 review counters; correctness/runtime/provider pauses and production/external
 authority remain intact. DeepSeek is paused through 2026-12-31 Toronto.
 Weekly account reading at start: 54% remaining; attributable usage unknown.
+
+### 2026-10-05 verification progress
+
+PR #1480 is draft. Independent review found editor transport compatibility and
+SQL optional-grading normalization issues; the corrected source and receipt
+reviews are clean. Full coverage passed 12,919 tests with unchanged thresholds
+and two workers after a default-concurrency timeout run and inherited continuity
+receipt repair. Review clock/counters and unsuccessful attempts remain retained.
+
+Docker startup initially failed and complete inventory stalled. After the owner
+restarted Docker, exact owned-resource recovery and the SAME saved canonical
+baseline passed, with unrelated resources unchanged. Both full-setup forced
+cleanup modes passed at `e6f333f5b`. Normal execution stopped on an assertion
+after 42 SDK requests; cleanup and a separate canonical baseline check passed.
+No normal receipt or genuine generated type artifact is accepted yet. A narrow
+closed diagnostic exposes only allowlisted source coordinates/budget labels,
+never assertion rows, paths, SQL or credentials; execution limits remain intact.
+
+Reconciled with main `43c24abec` (#1475): CI routing/local-runner guidance and
+historical receipts preserved; no migration collision or application change.
+Source acceptance and the real failure diagnosis precede another normal run.

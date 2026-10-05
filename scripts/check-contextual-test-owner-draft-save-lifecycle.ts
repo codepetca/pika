@@ -155,7 +155,18 @@ export function testOwnerDraftSaveSetupDiagnostic(stage: unknown, error: unknown
   const cause = lifecycle ? lifecycle.primary?.error : error
   const kind = cause instanceof assert.AssertionError ? 'assertion'
     : cause instanceof Error && cause.message === 'Private platform command failed' ? 'platform-command' : 'unknown'
-  return `DIAG test-owner-draft-save setup=${phase} lifecycle=${inherited} cleanup=${cleanup} failure=${kind}.\n`
+  // Only fixed source coordinates and exact known budget labels may leave the
+  // private failure. Never serialize assertion messages, actual/expected rows,
+  // paths, SQL, credentials or arbitrary stack text.
+  const locations = ['check-contextual-test-draft-save-concurrency.ts', 'check-contextual-test-draft-save-db-contracts.ts',
+    'contextual-test-draft-save-native-contracts.ts', 'check-contextual-test-owner-draft-save-lifecycle.ts']
+  const stack = cause instanceof assert.AssertionError ? cause.stack ?? '' : ''
+  const frame = stack.split('\n').find(line => /^\s+at /.test(line) && locations.some(file => line.includes(`/scripts/${file}:`)))
+  const coordinate = frame?.match(/\/scripts\/([a-z-]+\.ts):([1-9]\d{0,4}):[1-9]\d{0,4}\)?$/)
+  const location = coordinate && locations.includes(coordinate[1]) ? `${coordinate[1]}:${coordinate[2]}` : 'unknown'
+  const budget = cause instanceof assert.AssertionError && cause.message === 'Finite total harness budget exhausted' ? 'concurrency-total'
+    : cause instanceof assert.AssertionError && cause.message === 'Finite dispatch cap exhausted' ? 'concurrency-dispatch' : 'unknown'
+  return `DIAG test-owner-draft-save setup=${phase} lifecycle=${inherited} cleanup=${cleanup} failure=${kind} location=${location} budget=${budget}.\n`
 }
 export function parseTestOwnerDraftSaveLifecycleArgs(args: string[]) {
   const generateTypes = args.length === 5 && args[4] === '--generate-types'

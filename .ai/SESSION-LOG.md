@@ -11,140 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Shared learner Assignment-open source preparation
-
-1456 mergedc7e5a487 at06:21:11UTC after all five exact2c9ee58f CI37181022226
-checks PASS (0queue/1326runseconds); normal squash tree equals reviewed tree and
-canonical main cleanFF.240 applied once locally, genuine types zero-diff, rollback
-and unchanged atomicity/five concurrency proofs PASS; fresh240 owner-detail normal
-and both forced modes accepted with full canonical baseline unchanged. Production
-last001–225 untouched; shared admission/UI/cutover/billing/provider remain OFF.
-
-Next dormant learner Assignment GET prefix reuses240's locked transaction, binds
-fresh own-document/supplement pages/signing/final evidence to exact current
-nonowner membership and preserves released disclosure. Legacy remainder/all write
-handlers unchanged. Source worker161targeted PASS; root moved the named schema
-to canonical validations and repeated the same161checks PASS. Separate worker
-53proof tests/17new and explicit TS/lint PASS, owns no live operation. Root owns
-Git/review/runtime/CI/docs. New observer maps9read/projection cases/6SAME original
-transfer/removal transitions, seals open RPC to existing fixture doc with
-created/viewfalse; zero actualRPC/Storage/provider network allowed. No fixture,
-SQL/restoration/cleanup or canonical DML expansion. Unsupported ClassB/noAssignment
-archived-hidden cases and nonempty supplements explicitly unproved. Serial CI
-guard RED before new step. Full checks, parent reconciliation, independent frozen
-reviews and actual observer normal/two forced modes remain gates; not runtime
-receipts or a full integration/phase exit. Existing original review clocks/caps
-retained; routine in-scope authority and local-approval override carried forward.
-
-Superseding1457receipt: initialecfcf714 security/compatibility CLEAN; each reviewer
-136offline PASS, root318focused8skip/static/explicitproofTS/audit PASS. Actual normal
-failed aftercontrol2 but exactteardown/fullcanonicalbaseline PASS. Closed-shape
-source-unchanged diagnosis: preflightparsedtrue; sealedstub omittedcontent and real
-reader correctlyfailsbound. One proof-only batch adds exactfixtureemptyJSONB;
-regressionREDtoGREEN53proof PASS,318focused8skip/static/explicitTS/audit PASS.
-Targeted ec274c75 proof-interface CLEAN/105tests. Actual ec274c75 normal PASS:
-9read/projection/6SAMEoriginaltransfers-removals/nine false-created-viewstubs,
-zero actualRPC/Storage/provider network and originallistcases/revocations; both
-forcedmodes exactexit1/twoexpectedmarkers/fullcanonicalunchanged/teardown PASS.
-0600receipts /private/tmp/pika-learner-open-cleanup.FXeytu and
-/private/tmp/pika-learner-open-cleanup.kV9zZS. No realRPC/create/view/Pal/signing/
-nonempty/authHTTP/browser claim. Original06:31:48clock/3launch/1target/1fix retained;
-finalcumulative/CI/mainmerge next. Separate source-only worker prepares241 save/
-submit/unsubmit/preflightClassworkguards fromactualc7main; rootownsGit/runtime/review,
-no workerliveoperations. Local240/prodlast225/admission/cutover/account/billing/provider
-unchanged;241UNAPPLIED. Branches and critical roster-owner node_modules retained.
-
-Superseding CI receipt: finalcumulative97a8950e CLEAN/136tests; exactreadyrun
-37184696910 Test&Build passes11781tests but one Bara documentation parser fails
-on CURRENT's compressed `Prod last` prefix. PR returned to draft before correction.
-Local original four-case suite reproduces1RED; third batch restores exact
-`Prod DB 001–225` prefix with last-verified annotation, keeps production evidence
-unchanged and preserves the original parser/test/gate. No executable source change
-or new runtime/production/activation operation. Targeted mechanical review and
-new stable-head CI required; original06:31:48clock/counters and absolutecaps remain.
-
-## 2026-10-04 — Prepared locked learner Classwork write boundary
-
-Actual parent1456 mergedc7e5a487 after exact2c9ee58f CI37181022226/all5PASS;
-canonical main cleanFF.1457 learnerGET remains in corrected exact-head CI,
-not merged here. Local/main001–240; productionlast225 untouched.
-
-Source worker relinquished241/four214 member RPC replacements, structural suite
-and rollback-only harness. Root complete inspection preserves214 bodies after
-only locked visibility additions; SQL SHA256
-6247d7fa0ae5a23a96bddec8079e3b4948fada29c44299246c8129138b305321.
-Root catches fresh-null169 activation prerequisite in the rollback fixture;
-regression1RED/19PASS then20GREEN after immutable guarded/coalesced transaction-only
-setup. No local SQL executed. CIstep/floor241 regression first fails23checks before
-narrow serialstep/count changes; all001240SQL/fixtureDML/platform targets/
-allowed transitions/restoration/cleanup authority remain unchanged.
-241UNAPPLIED; local types/rollback/concurrency/isolated replay and2forced receipts
-remain gates after draft/source review. Sibling history/artifact/inline visibility
-and integrated opening remain work. NoUI/admission/cutover/production/account/
-billing/provider changes; critical roster-owner node_modules and prior branches
-retained. Existing authorization covers routine local application/review/extensions/
-normal mainmerge, not bypass or uncontrolled production activation.
-
-## 2026-10-04 — Locked learner writes local verification and parent reconciliation
-
-1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
-(0queue/1696runseconds), tree parity and canonical cleanFF verified.1458 initial
-security/compatibility source reviews clean (distinct5.6Sol/high reviewers after
-two6.1 launch failures, both counted).241 applied once locally; exact001–241history
-and genuine generated types/check zero drift. First rollback fixture run failed
-five null due dates, but rollback and separate whole-canonical baseline PASS.
-Proof-only correction regression1RED/20PASS then21GREEN; targeted review clean.
-New241 and unchanged save rollback harnesses PASS, including actual nonempty
-artifact freeze/preflight and nonvacuous legacy/membershipPal; full canonical
-public/private/Storage fingerprints,168metadata/settings/cron/resources unchanged.
-
-Rebasecc206cce onto actual2595main keeps immutable241SQL/rollback/tests/floor
-bytes unchanged; resolves only continuity conflicts, preserves both archive batch
-markers and one identical historical entry. No stash/pop/history repair/reapply.
-104rebase checks PASS. Strict001–241 combined replay PASS9projections/6original
-revocations plus original list controls; nine sealed false-created/view RPCstubs,
-zero actualopenRPC/Storage/provider network. Both forcedmodes exit1/exact2markers,
-exactteardown/fullcanonicalunchanged PASS; private0600 receipts oe8GJq/mZNJ54.
-No realopen/signing/nonemptySDKsupplement/authHTTP/browser proof claimed. Existing
-committed-fixture concurrency is finalCI ephemeral-only because168 retains private
-identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clock,
-5launch/1target/2batch retained; factual receipt batch/finalcumulative/CI next.
-Productionlast225/admission/home/cutover/account/billing/provider unchanged;
-batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
-
-## 2026-10-04 — Supplemental learner permission source preparation
-
-1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
-single eligible CI37188214976 running with Test&Build/browser PASS, database/PRGate
-pending. Reviewed1458source frozen; next branch depends on that exact commit,
-not yet an actual merged parent. Local241/prodlast225 unchanged.
-
-Bounded6.1Sol/high worker relinquished only242SQL/structuraltest/rollbackharness.
-Four complete latest214/213 definitions preserve byteparity after onlylocked
-visibility additions; owner-history exception and member-only42501 precedence
-remain.21new/80related workerchecks PASS; root65related PASS, inspected harness,
-removed onlycosmetic trailing blankline, SQLdigest unchanged
-48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e.
-NewserialCI/floor regression23RED then61GREEN.242UNAPPLIED; all001241SQL and
-isolatedfixture/transport/transitions/restoration/cleanup authority unchanged.
-Harness PREPARED NOTRUN: exactcanonical/c242sc242 collisionguards/BEGINROLLBACK/
-168169ON/settingscronACL unchanged; synthetic Storage metadata only, no physical
-bytes/API/network/cleanup/activation. Outsider/crosssubject checks are notsameactor
-revocation; actualremoval/concurrency remains integrationwork. Solelatest213
-imageREAD lacksClasswork concealment and is explicit separate prerequisite;
-current4function slice doesnotclaim otherwise. Rootowns Git/review/application/
-types/runtime/CI; actualparentmerge/reconcile beforepublication. Sharedadmission/
-home/cutover/account/billing/providerOFF; assessmentphase/epic incomplete.
-
-Superseding parent receipt:1458 reviewed28e8af46 merged61c44aec at08:38:57Z,
-exactCI37188214976/all5PASS (0queue/1426runseconds), including actual unchanged
-save concurrent-authorization and new241rollback steps. Normal squash exacthead,
-reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
-13files plus architecture/UI/design/TypeScript/lint PASS for prepared242 branch.
-Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
-without stashing/popping unrelated entries, then frozen initial review/runtime.
-Production/admission/cutover/provider/account/billing unchanged.
-
 ## 2026-10-04 — Supplemental learner local verification on actual main
 
 1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
@@ -1162,3 +1028,15 @@ CI cleanup contract TDD REDthenPASS; workflow25/3 and startup77/2 checks overlap
 not an aggregate. Source/native/runtime/review/merge acceptance still pending.
 Prior task-stop/review-extension/local-migration/main-merge authority retained;
 no production/schema/cohort/provider mutation or goal/phase completion claimed.
+
+## 2026-10-05 — Draft-save review, Docker recovery and bounded diagnosis
+
+PR1480 remains draft. Initial editor-metadata and SQL-grading normalization
+findings fixed; targeted source/receipt reviews clean. Full coverage12919PASS,
+unchanged gates/two workers. Docker restart recovered only owned disposable
+stack; SAME canonical baseline and unrelated resources unchanged. Both actual
+forced-cleanup modes PASS. Normal stopped on assertion after42 SDK requests;
+exact cleanup/separate baseline PASS, no normal/types receipt. Closed source-only
+diagnostic TDD2RED→80PASS; no assertion data/SQL/keys logged or caps relaxed.
+Rebased onto43c24 preserving incoming CI policy, archive/history and immutable249;
+pending source acceptance/runtime diagnosis/final review/CI/merge. All rollout OFF.
