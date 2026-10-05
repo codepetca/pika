@@ -145,6 +145,35 @@ test('prototypes survey editing with accessible split panes and local authoring 
   expect(pageErrors).toEqual([])
 })
 
+test('teacher continuous inspector keeps controls and details usable in the bounded reference', async ({ page }, testInfo) => {
+  await openPatternLab(page, testInfo, 'teacher')
+  const example = page.getByTestId('continuous-inspector-example')
+  await example.scrollIntoViewIfNeeded()
+  const alex = example.getByRole('button', { name: 'Alex Chen', exact: true })
+  const sam = example.getByRole('button', { name: 'Sam Patel', exact: true })
+  const inspector = example.locator('[data-workspace-inspector]')
+  await expect(inspector).toHaveAttribute('inert', '')
+  await alex.focus()
+  await page.keyboard.press('Enter')
+  await expect(alex).toHaveAttribute('aria-pressed', 'true')
+  await expect(inspector.getByText('Alex Chen', { exact: true })).toBeVisible()
+  await sam.click()
+  await expect(inspector.getByText('Sam Patel', { exact: true })).toBeVisible()
+  const bounds = (await example.boundingBox())!
+  const details = (await inspector.boundingBox())!
+  expect(details.height).toBeGreaterThan(100)
+  expect(details.y).toBeGreaterThanOrEqual(bounds.y)
+  expect(details.y + details.height).toBeLessThanOrEqual(bounds.y + bounds.height + 1)
+  await testInfo.attach('continuous-inspector', {
+    body: await example.screenshot({ path: testInfo.outputPath('continuous-inspector.png'), animations: 'disabled' }),
+    contentType: 'image/png',
+  })
+  await inspector.getByRole('button', { name: 'Close details' }).click()
+  await expect(inspector).toHaveAttribute('inert', '')
+  await expect(sam).toBeFocused()
+  await expect(sam).toHaveAttribute('aria-pressed', 'false')
+})
+
 test('teacher WorkSurfaceMockup keeps the selected table and inspector usable', async ({ page }, testInfo) => {
   await openPatternLab(page, testInfo, 'teacher')
   await page.getByRole('tab', { name: 'Workspaces', exact: true }).click()

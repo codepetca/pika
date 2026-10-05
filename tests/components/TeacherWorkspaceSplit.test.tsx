@@ -164,6 +164,30 @@ describe('TeacherWorkspaceSplit', () => {
     expect(primary.compareDocumentPosition(desktopInspector!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
   })
 
+  it('keeps an animated inspector mounted but inert when collapsed, preserving its draft', () => {
+    const props = {
+      splitVariant: 'gapped' as const,
+      animateInspector: true,
+      primary: <div>Stable table</div>,
+      inspector: <input aria-label="Inspector draft" defaultValue="Unsent note" />,
+      inspectorWidth: 50,
+      onInspectorWidthChange: vi.fn(),
+    }
+    const view = render(<TeacherWorkspaceSplit {...props} inspectorCollapsed={false} />)
+    const primary = screen.getByText('Stable table')
+    const draft = screen.getByRole('textbox', { name: 'Inspector draft' })
+    fireEvent.change(draft, { target: { value: 'Edited note' } })
+    view.rerender(<TeacherWorkspaceSplit {...props} inspectorCollapsed />)
+    expect(screen.getByText('Stable table')).toBe(primary)
+    expect(draft).toHaveValue('Edited note')
+    expect(draft.parentElement).toHaveAttribute('inert')
+    expect(draft.parentElement).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument()
+    view.rerender(<TeacherWorkspaceSplit {...props} inspectorCollapsed={false} />)
+    expect(screen.getByRole('textbox', { name: 'Inspector draft' })).toBe(draft)
+    expect(draft.parentElement).not.toHaveAttribute('inert')
+  })
+
   it('supports keyboard resizing for the shared resize handle', () => {
     const onInspectorWidthChange = vi.fn()
 
@@ -186,4 +210,64 @@ describe('TeacherWorkspaceSplit', () => {
     expect(onInspectorWidthChange).toHaveBeenNthCalledWith(1, 55)
     expect(onInspectorWidthChange).toHaveBeenNthCalledWith(2, 50)
   })
+
+  it('keeps the pane shell and primary identity while its owner immediately clears selected content', () => {
+    const props = {
+      splitVariant: 'gapped' as const,
+      animateInspector: true,
+      primary: <input aria-label="Primary draft" defaultValue="Table state" />,
+      inspectorWidth: 50,
+      inspectorCollapsed: false,
+      onInspectorWidthChange: vi.fn(),
+    }
+    const view = render(<TeacherWorkspaceSplit {...props} inspector={<button>Student A response</button>} />)
+    const primary = screen.getByRole('textbox', { name: 'Primary draft' })
+    const pane = screen.getByRole('button', { name: 'Student A response' }).parentElement
+    fireEvent.change(primary, { target: { value: 'Retained state' } })
+    primary.focus()
+    view.rerender(<TeacherWorkspaceSplit {...props} inspector={undefined} />)
+    expect(view.container.querySelector('[data-workspace-inspector]')).toBe(pane)
+    expect(pane).toBeEmptyDOMElement()
+    expect(pane).toHaveAttribute('inert')
+    expect(pane).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.queryByRole('button', { name: 'Student A response' })).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Primary draft' })).toBe(primary)
+    expect(primary).toHaveValue('Retained state')
+    expect(primary).toHaveFocus()
+    view.rerender(<TeacherWorkspaceSplit {...props} inspector={<button>Student B response</button>} />)
+    expect(view.container.querySelector('[data-workspace-inspector]')).toBe(pane)
+    expect(pane).not.toHaveAttribute('inert')
+    expect(screen.getByRole('button', { name: 'Student B response' })).toBeInTheDocument()
+  })
+  it('preserves inspector drafts while the primary presentation is hidden and restored', () => {
+    const props = {
+      splitVariant: 'gapped' as const,
+      animateInspector: true,
+      primary: <input aria-label="Primary state" defaultValue="Table state" />,
+      inspector: <input aria-label="Inspector state" defaultValue="Initial comment" />,
+      inspectorWidth: 50,
+      inspectorCollapsed: false,
+      onInspectorWidthChange: vi.fn(),
+    }
+    const view = render(<TeacherWorkspaceSplit {...props} />)
+    const primary = screen.getByRole('textbox', { name: 'Primary state' })
+    const inspector = screen.getByRole('textbox', { name: 'Inspector state' })
+    fireEvent.change(inspector, { target: { value: 'Unsaved comment' } })
+    inspector.focus()
+    view.rerender(<TeacherWorkspaceSplit {...props} primaryCollapsed />)
+    expect(screen.queryByRole('textbox', { name: 'Primary state' })).not.toBeInTheDocument()
+    expect(primary.parentElement).toHaveAttribute('inert')
+    expect(primary.parentElement).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.queryByRole('separator')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Inspector state' })).toBe(inspector)
+    expect(inspector).toHaveValue('Unsaved comment')
+    expect(inspector).toHaveFocus()
+    view.rerender(<TeacherWorkspaceSplit {...props} />)
+    expect(screen.getByRole('textbox', { name: 'Primary state' })).toBe(primary)
+    expect(primary.parentElement).not.toHaveAttribute('inert')
+    expect(screen.getByRole('textbox', { name: 'Inspector state' })).toBe(inspector)
+    expect(inspector).toHaveValue('Unsaved comment')
+    expect(screen.getByRole('separator')).toBeInTheDocument()
+  })
+
 })

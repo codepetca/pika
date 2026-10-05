@@ -285,6 +285,34 @@ Default shape:
 Use `TeacherWorkspaceSplit` without `splitVariant="gapped"` only when preserving
 an older joined split is explicitly desired.
 
+### Approved continuous inspector motion
+
+Human promotion: 2026-10-05, owner acceptance in chat
+`01a10bfa-17e1-76d2-9483-af955a51a9fd`; scope recorded in
+[`approved-classroom-motion-rollout.md`](./changes/approved-classroom-motion-rollout.md).
+The Daily real-owner Pattern Lab example is the approved motion reference.
+
+Use `animateInspector` with the gapped split for purposeful inspector disclosure
+in Daily, Classwork and selected Test grading. Keep the primary pane and its
+scroll owner stable. Opening/closing uses the semantic standard duration/easing;
+pointer resizing remains immediate and reduced motion removes the transition.
+Switching students within an open inspector does not replay disclosure.
+Closed content is inert and `aria-hidden` immediately. Feature owners clear
+obsolete content when selection or classroom ownership changes; retaining the
+presentation shell must not preserve an old student's data.
+
+For Classwork's content-plus-grading mode, the gapped split's `primaryCollapsed`
+presentation keeps the selected controller in its existing inspector position,
+hides/inerts the primary slot, removes the outer divider and gives the inspector
+full width. The feature's existing inner content/grading split remains its owner.
+Changing a pane layout must not remount the controller or reset pending drafts.
+
+The selected `TeacherWorkSurfaceShell` frame may enter with the approved quiet
+opacity treatment. Keep commands and focus immediate; do not remount it or
+replay entry on metadata, refresh, typing, student selection or resizing. This
+does not change the interaction ladder: parent-tab activation still returns to
+summary, and summary does not reserve passive inspector space.
+
 ### Main-content width
 
 - Summary states use the available main-content width.

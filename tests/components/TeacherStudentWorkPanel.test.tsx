@@ -347,6 +347,29 @@ describe('TeacherStudentWorkPanel', () => {
     clearInspectorSectionsCookies()
   })
 
+  it('keeps the actual grading control, selection, focus and scroller across grading layouts', async () => {
+    mockFetchByStudent({ 'student-1': { graded: true, teacherFeedbackDraft: 'Keep this comment draft' } })
+    const props = { classroomId: 'classroom-1', assignmentId: 'assignment-1', studentId: 'student-1',
+      mode: 'workspace' as const, inspectorWidth: 40, totalWidth: 1200 }
+    const { rerender } = render(<TeacherStudentWorkPanel {...props} workspaceInspectorOnly splitPaneView="students-grading" />)
+    const comment = await screen.findByPlaceholderText('Teacher comment draft') as HTMLTextAreaElement
+    const scroller = screen.getByTestId('grading-inspector-pane').firstElementChild as HTMLDivElement
+    comment.focus()
+    comment.setSelectionRange(2, 8)
+    scroller.scrollTop = 120
+    rerender(<TeacherStudentWorkPanel {...props} workspaceInspectorOnly={false} splitPaneView="content-grading" />)
+    expect(screen.getByPlaceholderText('Teacher comment draft')).toBe(comment)
+    expect(screen.getByTestId('grading-inspector-pane').firstElementChild).toBe(scroller)
+    expect(comment).toHaveFocus()
+    expect([comment.selectionStart, comment.selectionEnd]).toEqual([2, 8])
+    expect(scroller.scrollTop).toBe(120)
+    rerender(<TeacherStudentWorkPanel {...props} workspaceInspectorOnly splitPaneView="students-grading" />)
+    expect(screen.getByPlaceholderText('Teacher comment draft')).toBe(comment)
+    expect(comment).toHaveFocus()
+    expect([comment.selectionStart, comment.selectionEnd]).toEqual([2, 8])
+    expect(scroller.scrollTop).toBe(120)
+  })
+
   it('renders the new inspector sections in order with grade mode actions', async () => {
     mockFetchByStudent({
       'student-1': { graded: false, authenticityScore: 64 },

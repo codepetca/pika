@@ -245,6 +245,35 @@ Source grounding:
 - [`docs/core/architecture.md`](/docs/core/architecture.md)
 - Current attendance and assignment surfaces already rely on Toronto-aware helpers.
 
+### 7. Classroom motion preserves the active workspace
+
+Owner acceptance: 2026-10-05, chat `01a10bfa-17e1-76d2-9483-af955a51a9fd`.
+The human approved the Daily inspector direction for the previously agreed
+Teacher Classwork/Tests and Student Classwork rollout. The
+[change brief](./changes/approved-classroom-motion-rollout.md) records the scope
+and reference; this acceptance does not promote unrelated experimental layouts.
+
+- Disclose an adjacent teacher inspector through the existing gapped
+  `TeacherWorkspaceSplit` opt-in contract; preserve the primary table and its
+  scroll owner. Do not scale text or animate pointer-driven resizing.
+- A newly opened workspace may use quiet opacity entry with the existing
+  standard duration and easing tokens. Content, commands, navigation and focus
+  take effect immediately; do not delay them for an exit animation.
+- Do not replay entry on typing, refresh, metadata updates, selected-student
+  changes inside the workspace or resize. Presentation must not remount an
+  editor or redefine feature selection, draft or request ownership.
+- Reduced motion is immediate. Closed inspector controls are inert and hidden
+  from accessibility APIs as soon as selection closes; an animated shell is not
+  permission to retain stale work from a prior item or classroom.
+- Preserve current role density, pane geometry, keyboard behavior and focus
+  return. Evidence must include both roles, desktop/mobile, light/dark and
+  normal/reduced motion, with drafts, focus, scroll and DOM identity checked.
+
+Source grounding: `.workspace-entry` in `src/app/globals.scss`,
+`TeacherWorkspaceSplit`, `TeacherWorkSurfaceShell`, `StudentAssignmentsTab`,
+and the real-owner Continuous inspector Pattern Lab example. Exact timing is
+defined in `src/styles/tokens.css`.
+
 ## Stable Guidance Limits
 
 - This file is intentionally narrow. It does not try to canonize the entire app.
