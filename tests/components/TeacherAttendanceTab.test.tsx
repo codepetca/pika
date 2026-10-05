@@ -1791,7 +1791,7 @@ describe('TeacherAttendanceTab', () => {
 
     const contextBar = screen.getByRole('region', { name: 'Daily controls' })
     const scrollPane = screen.getByTestId('daily-student-scroll-pane')
-    const workspaceFrame = scrollPane.parentElement?.parentElement?.parentElement
+    const workspaceFrame = scrollPane.closest('.rounded-none')
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
     expect(scrollPane).toHaveClass('rounded-lg')
     expect(workspaceFrame).toHaveClass('rounded-none', 'border-0', 'bg-page')
@@ -2012,7 +2012,7 @@ describe('TeacherAttendanceTab', () => {
     expect(within(screen.getByRole('cell', { name: 'Student1', exact: true })).getByText('Student1')).toHaveClass('truncate')
     expect(screen.getByRole('separator', { name: 'Resize Daily panes' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Log' })).toHaveAttribute('aria-sort', 'none')
-    expect(screen.queryByTestId('class-log-summary')).not.toBeInTheDocument()
+    expect(screen.getByTestId('class-log-summary').closest('section')).toHaveAttribute('aria-hidden', 'true')
 
     fireEvent.click(screen.getByRole('cell', { name: 'Student1', exact: true }))
 
@@ -2053,17 +2053,25 @@ describe('TeacherAttendanceTab', () => {
     expect(selectedScrollPane.scrollTop).toBe(520)
   })
 
-  it('deselects the selected student when Escape is pressed', async () => {
+  it('deselects with Escape when the mounted user menu is hidden, but lets an open menu handle Escape', async () => {
     mockLogsFetch()
 
-    render(<TeacherAttendanceTab classroom={classroom} />)
+    render(<>
+      <div role="menu" aria-label="User menu" aria-hidden="true" />
+      <TeacherAttendanceTab classroom={classroom} />
+    </>)
 
     fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
 
     expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
     expect(screen.getByRole('separator', { name: 'Resize Daily panes' })).toBeInTheDocument()
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    const userMenu = screen.getByRole('menu', { hidden: true })
+    userMenu.setAttribute('aria-hidden', 'false')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-1')
+    userMenu.setAttribute('aria-hidden', 'true')
+    fireEvent.keyDown(window, { key: 'Escape' })
 
     await waitFor(() => {
       expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
@@ -2110,27 +2118,53 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
   })
 
-  it('uses entry animations when switching between the full table and selected workspace', async () => {
+  it('keeps the same table, focused row and summary mounted across inspection changes', async () => {
     mockLogsFetch()
-
-    const { container } = render(<TeacherAttendanceTab classroom={classroom} />)
-
-    await screen.findByRole('columnheader', { name: /^Log/ })
-    expect(container.querySelector('.daily-table-enter')).toBeInTheDocument()
-
-    fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
-
+    render(<TeacherAttendanceTab classroom={classroom} />)
+    const cell = await screen.findByRole('cell', { name: 'Student1', exact: true })
+    const row = cell.closest('tr')!
+    const scrollPane = screen.getByTestId('daily-student-scroll-pane')
+    const summary = screen.getByTestId('class-log-summary')
+    row.focus()
+    fireEvent.click(cell)
     expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
-    expect(container.querySelector('.daily-workspace-enter')).toBeInTheDocument()
-    expect(container.querySelector('.daily-inspector-enter')).toBeInTheDocument()
-
+    expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
+    expect(screen.getByRole('row', { name: /Student1 Test/ })).toBe(row)
+    expect(row).toHaveFocus()
+    expect(summary.closest('section')).toHaveAttribute('aria-hidden', 'true')
+    expect(summary.closest('section')).toHaveAttribute('inert')
+    fireEvent.click(screen.getByRole('cell', { name: 'Student2', exact: true }))
+    expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
+    expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-2')
     fireEvent.pointerDown(document.body)
+    expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
+    expect(screen.getByTestId('class-log-summary')).toBe(summary)
+    expect(summary.closest('section')).not.toHaveAttribute('inert')
+  })
 
-    await waitFor(() => {
-      expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
-    })
-    expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
-    expect(container.querySelector('.daily-table-enter')).toBeInTheDocument()
+  it('preserves the selected student when the same date refreshes on reactivation', async () => {
+    const fetchMock = mockLogsFetch()
+    const view = render(<TeacherAttendanceTab classroom={classroom} isActive />)
+    fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
+    expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-1')
+    view.rerender(<TeacherAttendanceTab classroom={classroom} isActive={false} />)
+    view.rerender(<TeacherAttendanceTab classroom={classroom} isActive />)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.queryByTestId('refreshing-indicator')).not.toBeInTheDocument())
+    expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-1')
+    expect(screen.getByRole('row', { name: /Student1 Test/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('clears selection if the selected student is absent from a refreshed roster', async () => {
+    const fetchMock = mockLogsFetch()
+    const view = render(<TeacherAttendanceTab classroom={classroom} isActive />)
+    fireEvent.click(await screen.findByRole('cell', { name: 'Student1', exact: true }))
+    expect(await screen.findByTestId('student-log-history')).toBeInTheDocument()
+    fetchMock.mockImplementation(() => mockJson({ logs: [] }))
+    view.rerender(<TeacherAttendanceTab classroom={classroom} isActive={false} />)
+    view.rerender(<TeacherAttendanceTab classroom={classroom} isActive />)
+    await waitFor(() => expect(screen.queryByTestId('student-log-history')).not.toBeInTheDocument())
+    expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
   })
 
   it('ignores an older classroom log request after switching classrooms', async () => {

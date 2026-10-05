@@ -143,6 +143,10 @@ Responsibilities:
 - width clamping
 - collapsed and expanded inspector state
 - desktop split vs mobile stacked behavior
+- human-approved opt-in continuous inspector disclosure (2026-10-05): standard
+  semantic motion, immediate pointer resize, reduced-motion path, stable primary
+  DOM, and immediately inert/hidden closed content; feature data ownership stays
+  outside the split
 
 Required API shape:
 

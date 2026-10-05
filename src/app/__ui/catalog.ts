@@ -12,6 +12,15 @@ export interface PatternCatalogEntry {
 
 export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
   {
+    id: 'continuous-inspector',
+    name: 'Continuous inspector',
+    owner: 'src/components/teacher-work-surface/TeacherWorkspaceSplit.tsx',
+    maturity: 'family',
+    useWhen: 'Daily, Classwork and Test grading: disclose an active inspector while preserving the primary table and immediate resize behavior.',
+    avoidWhen: 'Passive empty inspection space, stale content from another owner, or animating dense table text with transforms.',
+    reference: 'docs/guidance/ui/teacher-work-surfaces.md#approved-continuous-inspector-motion',
+  },
+  {
     id: 'preview-action',
     name: 'Preview',
     owner: 'src/ui/IconButton.tsx + Lucide Eye',

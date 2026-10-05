@@ -34,6 +34,12 @@ interface TeacherWorkspaceSplitProps {
   minInspectorPercent?: number
   maxInspectorPercent?: number
   splitVariant?: 'joined' | 'gapped'
+  /** Gapped splits: hide the primary slot without moving or remounting the inspector owner. */
+  primaryCollapsed?: boolean
+  /** Gapped splits: preserve pane identity and animate disclosure, never drag resizing.
+   * Owners may clear inspector content immediately; the empty pane still closes smoothly.
+   */
+  animateInspector?: boolean
 }
 
 function roundPercent(value: number): number {
@@ -94,9 +100,14 @@ export function TeacherWorkspaceSplit({
   minInspectorPercent = 0,
   maxInspectorPercent = 100,
   splitVariant = 'joined',
+  primaryCollapsed = false,
+  animateInspector = false,
 }: TeacherWorkspaceSplitProps) {
   const splitRef = useRef<HTMLDivElement | null>(null)
   const [splitWidth, setSplitWidth] = useState(0)
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeCleanupRef = useRef<(() => void) | null>(null)
+  useEffect(() => () => resizeCleanupRef.current?.(), [])
   const { width: viewportWidth } = useWindowSize()
   const isDesktop = viewportWidth >= DESKTOP_BREAKPOINT
   const inspectorVisible = !!inspector && !inspectorCollapsed
@@ -136,10 +147,12 @@ export function TeacherWorkspaceSplit({
       if (!splitRef.current) return
 
       event.preventDefault()
+      resizeCleanupRef.current?.()
       onInspectorCollapsedChange?.(false)
 
       const { right, width } = splitRef.current.getBoundingClientRect()
       if (width <= 0) return
+      setIsResizing(true)
 
       const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
         onInspectorWidthChange(
@@ -157,12 +170,15 @@ export function TeacherWorkspaceSplit({
       }
 
       const handleResizeEnd = () => {
+        setIsResizing(false)
+        resizeCleanupRef.current = null
         window.removeEventListener('pointermove', handlePointerMove)
         window.removeEventListener('pointerup', handleResizeEnd)
         window.removeEventListener('pointercancel', handleResizeEnd)
         window.removeEventListener('blur', handleResizeEnd)
       }
 
+      resizeCleanupRef.current = handleResizeEnd
       window.addEventListener('pointermove', handlePointerMove)
       window.addEventListener('pointerup', handleResizeEnd)
       window.addEventListener('pointercancel', handleResizeEnd)
@@ -251,16 +267,27 @@ export function TeacherWorkspaceSplit({
   )
 
   if (splitVariant === 'gapped') {
-    const inspectorPaneStyle = inspectorVisible
-      ? {
-          '--teacher-workspace-inspector-width': `calc(${constrainedInspectorWidth}% - ${GAPPED_SPLIT_HANDLE_WIDTH_PX / 2}px)`,
-        } as CSSProperties
+    const keepInspectorMounted = animateInspector
+    const inspectorPaneStyle = {
+      '--teacher-workspace-inspector-width': inspectorVisible
+        ? primaryCollapsed
+          ? '100%'
+          : `calc(${constrainedInspectorWidth}% - ${GAPPED_SPLIT_HANDLE_WIDTH_PX / 2}px)`
+        : '0%',
+    } as CSSProperties
+    const motionClass = animateInspector && !isResizing
+      ? 'transition-[flex-basis,flex-grow,opacity] duration-standard ease-standard motion-reduce:transition-none'
       : undefined
 
     return (
       <div
         ref={splitRef}
-        className={cn('flex min-h-0 flex-1 flex-col gap-3 bg-page lg:h-full lg:overflow-hidden lg:flex-row lg:gap-0', className)}
+        className={cn(
+          'flex min-h-0 flex-1 flex-col bg-page lg:h-full lg:overflow-hidden lg:flex-row lg:gap-0',
+          primaryCollapsed || (keepInspectorMounted && !inspectorVisible) ? 'gap-0' : 'gap-3',
+          animateInspector && !isResizing && 'transition-[gap] duration-standard ease-standard motion-reduce:transition-none',
+          className,
+        )}
       >
         {inspectorVisible && mobileInspector ? (
           <div
@@ -273,33 +300,49 @@ export function TeacherWorkspaceSplit({
           </div>
         ) : null}
 
-        <div className={cn('min-h-0 min-w-0 flex-1 overflow-hidden', primaryClassName)}>
+        <div
+          aria-hidden={primaryCollapsed || undefined}
+          ref={(element) => { element?.toggleAttribute('inert', primaryCollapsed) }}
+          className={cn('min-h-0 min-w-0 flex-1 overflow-hidden', primaryCollapsed && 'hidden', primaryClassName)}
+        >
           {primary}
         </div>
 
-        {inspectorVisible ? (
-          <div className="hidden w-3 shrink-0 self-stretch lg:flex">
-            <div
-              role="separator"
-              aria-label={dividerLabel}
-              aria-orientation="vertical"
-              aria-valuemin={minInspectorPercent}
-              aria-valuemax={maxInspectorPercent}
-              aria-valuenow={constrainedInspectorWidth}
-              tabIndex={0}
-              className="min-h-full flex-1 cursor-col-resize rounded-full outline-none hover:bg-surface-hover focus:bg-info-bg"
-              onPointerDown={handleResizeStart}
-              onDoubleClick={handleResizeReset}
-              onKeyDown={handleResizeKeyDown}
-            />
+        {inspectorVisible || keepInspectorMounted ? (
+          <div className={cn(
+            'hidden shrink-0 self-stretch overflow-hidden lg:flex',
+            inspectorVisible && !primaryCollapsed ? 'w-3' : 'w-0',
+            animateInspector && !isResizing && 'transition-[width] duration-standard ease-standard motion-reduce:transition-none',
+          )}>
+            {inspectorVisible && !primaryCollapsed ? (
+              <div
+                role="separator"
+                aria-label={dividerLabel}
+                aria-orientation="vertical"
+                aria-valuemin={minInspectorPercent}
+                aria-valuemax={maxInspectorPercent}
+                aria-valuenow={constrainedInspectorWidth}
+                tabIndex={0}
+                className="min-h-full flex-1 cursor-col-resize rounded-full outline-none hover:bg-surface-hover focus:bg-info-bg"
+                onPointerDown={handleResizeStart}
+                onDoubleClick={handleResizeReset}
+                onKeyDown={handleResizeKeyDown}
+              />
+            ) : null}
           </div>
         ) : null}
 
-        {inspectorVisible ? (
+        {inspectorVisible || keepInspectorMounted ? (
           <div
+            aria-hidden={!inspectorVisible || undefined}
+            ref={(element) => { element?.toggleAttribute('inert', !inspectorVisible) }}
+            data-workspace-inspector={inspectorVisible ? 'open' : 'closed'}
             className={cn(
-              'min-h-0 w-full basis-0 grow overflow-hidden lg:shrink-0 lg:grow-0 lg:basis-[var(--teacher-workspace-inspector-width)]',
+              'min-h-0 min-w-0 w-full basis-0 overflow-hidden lg:shrink-0 lg:grow-0 lg:basis-[var(--teacher-workspace-inspector-width)]',
+              inspectorVisible ? 'grow' : 'grow-0',
               mobileInspector && 'hidden lg:block',
+              animateInspector && (inspectorVisible ? 'opacity-100' : 'pointer-events-none opacity-0'),
+              motionClass,
               inspectorClassName,
             )}
             style={inspectorPaneStyle}
