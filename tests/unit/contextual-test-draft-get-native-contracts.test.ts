@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventEmitter } from 'node:events'
+import { readdirSync } from 'node:fs'
 import { PassThrough, Writable } from 'node:stream'
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn(), inventory: vi.fn(),
   snapshotSqlReads: false, sourceDrift: false, sqlFileCache: new Map<string, string>() }))
@@ -142,7 +143,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   afterEach(() => { vi.useRealTimers(); mocks.snapshotSqlReads = false; mocks.sourceDrift = false; mocks.sqlFileCache.clear() })
   it('snapshots the complete offline SQL fixture and still rejects changed source before work', async () => {
     const adapter = factory(); await adapter.setup()
-    expect(mocks.sqlFileCache.size).toBe(247)
+    expect(mocks.sqlFileCache.size).toBe(readdirSync('supabase/migrations').filter(name => name.endsWith('.sql')).length)
     const dispatchedSql = sqlControls.length
     const spawnedChildren = children.length
     mocks.sourceDrift = true

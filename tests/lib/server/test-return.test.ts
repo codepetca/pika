@@ -14,6 +14,7 @@ describe('transactional Test Return', () => {
     })
   })
   it.each([
+    ['PT409', 409, 'Close selected students before returning their test work.'],
     ['40001', 409, 'Close selected students before returning their test work.'],
     ['42501', 403, 'Test return is not allowed'],
     ['22023', 400, 'One or more selected students are not enrolled in this classroom'],
@@ -21,6 +22,7 @@ describe('transactional Test Return', () => {
   ])('fails closed on transactional guard %s', async (code, status, error) => {
     rpc.mockResolvedValueOnce({ data: null, error: { code, message: error } })
     expect(await returnStudentTestAttempts(input)).toEqual({ ok: false, status, error })
+    expect(rpc).toHaveBeenCalledOnce()
   })
   it('does not report a caller-provided count when the committed result is malformed', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})

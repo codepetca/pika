@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Detail1447 actual removal238-main reconciliation
-
-Rebased prepared7b421097 onto verified actual1448 squash73a85f26 using reviewed
-pendingparent88a1bfd6 as the exclusion boundary. Root verified all five exact-head
-CI37143487206 checks SUCCESS (18:15:08–18:43:24Z) and normal merge18:43:41Z;
-canonicalmain clean fast-forwarded73. Actual73 and reviewed88 have identical
-tree0200f897e44b029b0ce12b55b107fdfa5b79e584. Rebase had no conflicts or tree
-changes. All10original293 detail runtime/schema/helper/test/proof/guide files,
-44incoming parent files, whole prepared CI/test unions, entire roadmap and
-immutable235–238/genuine generated40d/curated3cf contracts remain unchanged.
-The pending-parent roadmap/session receipt is retained as historical preparation
-evidence; CURRENT and this receipt supersede its pending-main status. History
-is actual73+prepared7b−old88+this one new receipt; no surplus copies removed here.
-Official trim retains40recent entries, preserving all historical full bodies.
-Local/main001–238 and canonical Prod DB 001–225 recorded without activation.
-No DB/status/proof replay/type generation/migration application/provider/network/
-publication/readyCI/review/merge/stash/cleanup actions. Original detail ledger
-15:54Z/extended19:54Z and all launch/wave/fix counts remain unchanged/root-owned.
-Changed-actual-base independent review, publication and detail exact-head CI
-remain required; sharedadmission/fullcutover/billing/production promotionOFF.
-Actualorigin/main73 focused258tests/17files and architecture/UI/design/TypeScript/
-lint PASS; startup/CI/Bara56tests/3files PASS, startup15975/16000. Actual-main-aware
-audit10files, diff, trim and full preservation verifier PASS. Evidence:
-/private/tmp/pika-1447-actual-removal-reconcile.BKLnlz; fullfocused pika-focused-4MMNPL.
-No migration renumbering or task stash;36unrelated shared stashes untouched.
-
 ## 2026-10-03 — Assignment list merged; owner overview continuation
 
 1453 final reviewed91a64eca passed all five exact-head CI37168905602 checks.
@@ -1120,3 +1094,15 @@ Supersedingbatch5 checks:102/3affectedPASS, focused410/17+TypeScript/lint/polici
 PASS, audit/diffPASS; fullcoverage12667PASS/8SKIP andallthresholdsPASS. Failedruns
 retained. Account58percentweeklyremaining02:53Z, sharednotattributable; token/active
 telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollout.
+
+## 2026-10-05 — Test conflict retry correction prepared
+
+Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
+
+Owner reviewed ed330c6; CI37257238985 passed build/unit and real browser lifecycle, but the SQL lifecycle harness still caught the old serialization_failure code. Corrected its two catches and the manual-grading stale-batch catch to PT409; SQL/API fix unchanged. Focused297 passed; required database CI and renewed correction review remain pending. Public traffic remains held.
+
+CI37260146916 PASS on8db4cfbad:12427 unit/API,297 browser passes (4 retried,20 skipped), all database contracts/PR Gate. During CI, main#1473 merged6586847c with owner draft GET migration247. Rebased and renamed identical conflict SQL to248; preserved main history and incoming dormant behavior. Fresh combined-tree checks/CI and complete production247–248 preview are required; public traffic stays held.
+
+CombinedCI37263237568:12641PASS/8FAIL/8SKIP; incoming owner-draft harness required exactly247 migrations and rejected248. Returned1474 to draft; cancelled unqualifiable remaining jobs. Harnesses now accept >=247 while validating/hashing every sequential migration and frozen source/copies; native offline cache count uses full actual SQL inventory. New regression proves later migration changes manifest and copied-source drift still rejects. Affected158/4PASS; runtimeSQL/API and migration248 unchanged; focused/review/stableCI pending, no new production mutation.
+
+Correction validation: focused455/29PASS plusarchitecture/UI/design/TypeScript/lintPASS. Startupdocbudgetinitially17032>17000; compactedCURRENTreceipt (gateunchanged), rerunPASS. Coordinator verified baseline/order/full-chain hashes and drift/target/resourceguards preserved; priorruntime reviewer limit persists, directowner task-wide instruction waives further review requests. Stable correctedhead/newCI pending; failedruns retained.

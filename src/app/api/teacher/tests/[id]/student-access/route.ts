@@ -104,7 +104,7 @@ export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (re
   if (mutationError) {
     // Domain refusals can name the RPC in Postgres details. Handle them before
     // the legacy broad missing-function compatibility detector.
-    if (mutationError.code === '40001') {
+    if (mutationError.code === 'PT409' || mutationError.code === '40001') {
       return NextResponse.json({ error: 'Selected students changed; reload and retry' }, { status: 409 })
     }
     if (mutationError.code === '42501') {

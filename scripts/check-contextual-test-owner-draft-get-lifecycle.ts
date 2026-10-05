@@ -256,7 +256,7 @@ export async function testOwnerDraftGetLifecycleMain(args = process.argv.slice(2
   const input = parseTestOwnerDraftGetLifecycleArgs(args)
   const git = (values: string[]) => execFileSync('git', values, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 10000 }).trim()
   assert.equal(git(['rev-parse', 'HEAD']), input.head); assert.equal(git(['status', '--porcelain']), ''); const repository = git(['rev-parse', '--show-toplevel']); assert.equal(repository, process.cwd())
-  const migrations = loadAssignmentListReviewedMigrations(repository); assert.equal(migrations.length, 247)
+  const migrations = loadAssignmentListReviewedMigrations(repository); assert(migrations.length >= 247, 'Complete schema must include the 001–247 baseline')
   const original = newAssignmentListProofFixture(); const f = newTestOwnerDraftGetFixture(original); const projectId = `pika_assignment_list_${original.manifest.syntheticTag.slice(-12)}`
   const native = createAssignmentListNativeAdapters(original); const originalSetup = assignmentListFixtureSetupSql(original, projectId)
   const setupSql = testOwnerDraftGetSetupSql(f, projectId); const snapshotSql = testOwnerDraftGetSnapshotSql(f)

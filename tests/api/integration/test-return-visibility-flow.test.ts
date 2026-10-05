@@ -149,7 +149,7 @@ function setupSupabaseMock() {
       const studentIds: string[] = params?.p_student_ids || []
       const test = state.tests.find((row) => row.id === testId)
       if (studentIds.some((studentId) => (state.testStudentAvailability.find((access) => access.test_id === testId && access.student_id === studentId)?.state ?? (test?.status === 'active' ? 'open' : 'closed')) === 'open')) {
-        return { data: null, error: { code: '40001', message: 'Close selected students before returning their test work.' } }
+        return { data: null, error: { code: 'PT409', message: 'Close selected students before returning their test work.' } }
       }
       let returned = 0
       let already = 0

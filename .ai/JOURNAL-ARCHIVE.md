@@ -37045,3 +37045,30 @@ at16001chars; CURRENT-only shortening gives15986chars and GREEN56startup/CI/Bara
 tests. Actual-main-aware audit20files, diff/trim and full preservation verifier
 PASS. Evidence /private/tmp/pika-1447-pending-parent-reconcile.oDB0ec; full focused
 pika-focused-psfLyl. No migrations created/renamed,36unrelated stashes untouched.
+
+<!-- pika-session-log-archive-batch:170dbac5a6cb4eb2f88e4527e68d16f3bace4f405e11b295bb058b9e8c6cfb9f -->
+## 2026-10-03 — Detail1447 actual removal238-main reconciliation
+
+Rebased prepared7b421097 onto verified actual1448 squash73a85f26 using reviewed
+pendingparent88a1bfd6 as the exclusion boundary. Root verified all five exact-head
+CI37143487206 checks SUCCESS (18:15:08–18:43:24Z) and normal merge18:43:41Z;
+canonicalmain clean fast-forwarded73. Actual73 and reviewed88 have identical
+tree0200f897e44b029b0ce12b55b107fdfa5b79e584. Rebase had no conflicts or tree
+changes. All10original293 detail runtime/schema/helper/test/proof/guide files,
+44incoming parent files, whole prepared CI/test unions, entire roadmap and
+immutable235–238/genuine generated40d/curated3cf contracts remain unchanged.
+The pending-parent roadmap/session receipt is retained as historical preparation
+evidence; CURRENT and this receipt supersede its pending-main status. History
+is actual73+prepared7b−old88+this one new receipt; no surplus copies removed here.
+Official trim retains40recent entries, preserving all historical full bodies.
+Local/main001–238 and canonical Prod DB 001–225 recorded without activation.
+No DB/status/proof replay/type generation/migration application/provider/network/
+publication/readyCI/review/merge/stash/cleanup actions. Original detail ledger
+15:54Z/extended19:54Z and all launch/wave/fix counts remain unchanged/root-owned.
+Changed-actual-base independent review, publication and detail exact-head CI
+remain required; sharedadmission/fullcutover/billing/production promotionOFF.
+Actualorigin/main73 focused258tests/17files and architecture/UI/design/TypeScript/
+lint PASS; startup/CI/Bara56tests/3files PASS, startup15975/16000. Actual-main-aware
+audit10files, diff, trim and full preservation verifier PASS. Evidence:
+/private/tmp/pika-1447-actual-removal-reconcile.BKLnlz; fullfocused pika-focused-4MMNPL.
+No migration renumbering or task stash;36unrelated shared stashes untouched.

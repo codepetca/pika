@@ -138,6 +138,15 @@ test('real desktop lifecycle: closure zero, reopen, submit, grade clear and idem
     expect(await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/return`, selected)).toMatchObject({ returned_count: 0, skipped_count: 1 })
     await json(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`, undefined, 403)
     await json(teacherContext.request, 'POST', `/api/teacher/tests/${exam.id}/student-access`, { ...selected, state: 'open' })
+    // This must traverse real PostgREST: a mocked 40001 conflict cannot expose
+    // hosted transaction retry loops. Bound the request so a loop fails here.
+    const blockedReturn = await teacherContext.request.post(`/api/teacher/tests/${exam.id}/return`, {
+      data: selected, timeout: 15_000,
+    })
+    expect(blockedReturn.status()).toBe(409)
+    expect(await blockedReturn.json()).toEqual({ error: 'Close selected students before returning their test work.' })
+    expect((await teacherResults(teacherContext.request, exam.id, owned.studentId)).returned_at).toBeNull()
+    await json(studentContext.request, 'GET', `/api/student/tests/${exam.id}/results`, undefined, 403)
     await start(student, owned.classroomId, exam.title)
     await expect(student.getByRole('textbox', { name: /Response for question/ })).toHaveValue('Draft survives teacher closure.')
     await student.getByRole('radio', { name: 'Beta', exact: true }).check()
