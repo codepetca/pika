@@ -11,90 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-03 — Shared classroom-detail read preparation
-
-PR1443 verified merged7e5c64223ca6ceb7ccd02af497112bb4e7799a31 at15:28:30Z,
-allfive exacthead77995c95 CI37131666194 gates pass (0queue/1642runseconds),
-normal squash/no bypass and clean canonical main fast-forward. Classday1444
-ready7d341d23 runs exact CI37133784223. Roster1445/calendar1446 draft full
-initial security/compatibility reviews are clean, pending actual-parent integration.
-This next bounded batch1 slice prepares owner/member classroom-detail GETs only:
-current relationship bound in the full30field payload, real enrollment FK inner
-join, archive-owner reads and owner-self-participation denial, preserved hydration
-and member guide-draft/guidance privacy projection. Original fallback/pair GETs
-and all PATCH remain literal unchanged. New TDD111 plus64 existing regressions,
-TypeScript/lint/architecture PASS. Source SDK normal/two forced cleanup proofs and
-CI hook prepared; actual execution and independent review still pending.
-Local236 installed by separate preserving-removal work; no schema/types here.
-Removal SDK behavior/concurrency passed but exact local fixture cleanup hit127's
-attendance protection; coordinator repairs only synthetic teardown before more
-DB proofs. Production001–225/sharedadmissionOFF; no full-phase/cutover claim.
-The owner's all-work/review-extension authorization retains original clocks,
-counters, absolute review caps and normal technical/release gates.
-
-1444 verifiedMERGED a8c4e9b16:04:51Z/allfiveexact7d341d23 CI37133784223
-(0queue/1697runseconds), canonicalcleanFF. Both1447initialfullreviewsCLEAN3cfc8b38.
-ActualSDK revealedproof-only parsedclone mutations neverreached wirebody; batch1
-replacesactualbody[0], regressionRED1/GREEN7 includingCI. Producthelper/schema
-unchanged. NormalactualSDK passes30fields/hydration/FK/malformedwire/bothlabels
-and real revocationraces; twoforcedmodes exactexit1/expectedFAIL/cleanupPASS.
-Whole-rowglobalbaseline/zeroresidue/guardO restored. Actualmaina8 rebase preserves
-allfeaturecode/proof/tests; everymain+childCIstep retained. History retainsoriginal
-entries, removingonly copiedMinimalJavaalreadyarchivedreceipt. Targeted cumulative
-integration/focused/exactheadCI remain; local236/prod225/admissionOFF unchanged.
-
-## 2026-10-03 — Detail1447 pending-parent238 preparation
-
-Prepared reviewed293d35cf locally on pending1448 head88a1bfd6, excludingoldparent
-a8c4e9b. Parent final cumulative review CLEAN and one readyCI37143487206 running
-per root handoff; parent is NOT merged, actual main remains2095/calendar1446.
-All10detail runtime/schema/helper/proof/test/guide files remain byte-identical.
-Whole incoming roster/calendar/removal/237238 SQL, scripts/tests, genuine generated
-and curated types remain unchanged. CI preserves whole parent plus original
-detail proof step; CI tests preserve whole parent roster/calendar/removal/remainder
-plus unchanged detail block. Main roadmap and original child paragraphs/receipts
-remain intact, with one explicit preparation receipt only. History multiset is
-88+293−a8+this one entry; removed ten proven surplus session copies whose complete
-original bodies remain in the archive. Official trim retains40recent entries.
-Canonical Prod DB 001–225 spacing and local001–238 context restored. No database,
-status, proof execution, type generation, stashes, network/publication/CI writes.
-Original review clocks/counters/extensions remain root-owned and unchanged.
-Actual-parent reconciliation, changed-base independent review, publication and
-detail exact-head CI remain required; sharedadmission/fullcutover/billingOFF.
-This is implementation preparation, not an independent review or phase completion.
-Focused against actualorigin/main2095 passes352tests/23files and architecture,
-UI/design policy, TypeScript and lint. Startup budget regression reproduced RED
-at16001chars; CURRENT-only shortening gives15986chars and GREEN56startup/CI/Bara
-tests. Actual-main-aware audit20files, diff/trim and full preservation verifier
-PASS. Evidence /private/tmp/pika-1447-pending-parent-reconcile.oDB0ec; full focused
-pika-focused-psfLyl. No migrations created/renamed,36unrelated stashes untouched.
-
-## 2026-10-03 — Detail1447 actual removal238-main reconciliation
-
-Rebased prepared7b421097 onto verified actual1448 squash73a85f26 using reviewed
-pendingparent88a1bfd6 as the exclusion boundary. Root verified all five exact-head
-CI37143487206 checks SUCCESS (18:15:08–18:43:24Z) and normal merge18:43:41Z;
-canonicalmain clean fast-forwarded73. Actual73 and reviewed88 have identical
-tree0200f897e44b029b0ce12b55b107fdfa5b79e584. Rebase had no conflicts or tree
-changes. All10original293 detail runtime/schema/helper/test/proof/guide files,
-44incoming parent files, whole prepared CI/test unions, entire roadmap and
-immutable235–238/genuine generated40d/curated3cf contracts remain unchanged.
-The pending-parent roadmap/session receipt is retained as historical preparation
-evidence; CURRENT and this receipt supersede its pending-main status. History
-is actual73+prepared7b−old88+this one new receipt; no surplus copies removed here.
-Official trim retains40recent entries, preserving all historical full bodies.
-Local/main001–238 and canonical Prod DB 001–225 recorded without activation.
-No DB/status/proof replay/type generation/migration application/provider/network/
-publication/readyCI/review/merge/stash/cleanup actions. Original detail ledger
-15:54Z/extended19:54Z and all launch/wave/fix counts remain unchanged/root-owned.
-Changed-actual-base independent review, publication and detail exact-head CI
-remain required; sharedadmission/fullcutover/billing/production promotionOFF.
-Actualorigin/main73 focused258tests/17files and architecture/UI/design/TypeScript/
-lint PASS; startup/CI/Bara56tests/3files PASS, startup15975/16000. Actual-main-aware
-audit10files, diff, trim and full preservation verifier PASS. Evidence:
-/private/tmp/pika-1447-actual-removal-reconcile.BKLnlz; fullfocused pika-focused-4MMNPL.
-No migration renumbering or task stash;36unrelated shared stashes untouched.
-
 ## 2026-10-03 — Assignment list merged; owner overview continuation
 
 1453 final reviewed91a64eca passed all five exact-head CI37168905602 checks.
@@ -1178,8 +1094,11 @@ Supersedingbatch5 checks:102/3affectedPASS, focused410/17+TypeScript/lint/polici
 PASS, audit/diffPASS; fullcoverage12667PASS/8SKIP andallthresholdsPASS. Failedruns
 retained. Account58percentweeklyremaining02:53Z, sharednotattributable; token/active
 telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollout.
+
 ## 2026-10-05 — Test conflict retry correction prepared
 
-Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 247 and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. New 247 application requires separate exact-target permission.
+Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
 
 Owner reviewed ed330c6; CI37257238985 passed build/unit and real browser lifecycle, but the SQL lifecycle harness still caught the old serialization_failure code. Corrected its two catches and the manual-grading stale-batch catch to PT409; SQL/API fix unchanged. Focused297 passed; required database CI and renewed correction review remain pending. Public traffic remains held.
+
+CI37260146916 PASS on8db4cfbad:12427 unit/API,297 browser passes (4 retried,20 skipped), all database contracts/PR Gate. During CI, main#1473 merged6586847c with owner draft GET migration247. Rebased and renamed identical conflict SQL to248; preserved main history and incoming dormant behavior. Fresh combined-tree checks/CI and complete production247–248 preview are required; public traffic stays held.

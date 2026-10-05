@@ -31,8 +31,9 @@ through run 37252303894 and production 83b683c deployed. Public traffic is still
 held by the temporary operator-only WAF. Authentication/reset and two exact
 synthetic signed downloads passed. Reopened Return exposed custom 40001 retries
 in hosted PostgREST; the three identified canary backends were stopped. Forward
-247 and dual-code 409 handling are prepared, with independent review and exact
-new application permission still required. Lifecycle completion and fixture
+248 and dual-code 409 handling are prepared. Owner task-wide approval waives
+further approval requests; fresh combined247–248 CI/preview remains required.
+Lifecycle completion and fixture
 cleanup remain pending. The original migration permission is consumed.
 
 Production promotion [#1470](https://github.com/codepetca/pika/pull/1470) remains
@@ -294,12 +295,12 @@ and secret-handling constraints throughout.
 
 ### Canary-discovered forward correction
 
-`247_test_conflict_http_status.sql` replaces the four migration 244 Test
+`248_test_conflict_http_status.sql` replaces the four migration 244 Test
 functions that raise business conflicts with SQLSTATE 40001. It changes those
 five raises to PT409, retaining their signatures, ownership checks, locks,
 security attributes and ACLs. API consumers accept both codes during rollout.
 Supabase [documents the hosted PostgREST 14 retry loop](https://supabase.com/docs/guides/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions-77326b).
 The real HTTP lifecycle regression now requires reopened Return to finish with
 409 within 15 seconds and preserve withheld student results. Historical migration
-244 is unchanged. Do not apply 247 or resume public traffic until its required
+244 is unchanged. Do not apply 248 or resume public traffic until its required
 review/checks, exact permission, matching deployment, canaries and cleanup pass.

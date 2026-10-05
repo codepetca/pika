@@ -1,4 +1,4 @@
--- Source-only regression harness for migrations 244/247. DO NOT run without approval
+-- Source-only regression harness for migrations 244/248. DO NOT run without approval
 -- naming the local target and migration. All fixture/data writes roll back.
 -- Sequence allocations do not roll back (normal PostgreSQL sequence behavior).
 \set ON_ERROR_STOP on

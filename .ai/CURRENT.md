@@ -1,14 +1,14 @@
 # Checkpoint — 2026-10-05 UTC
 
-Source: main `7570a9d6`; 27 audit source findings accepted, #1462/#1463 merged.
-#1469 dormant reads merged on main; excluded from production; rollout OFF.
+Source: main `6586847c`; #1469/#1473 merged, dormant; 27 audit findings accepted.
 [Audit plan and receipts](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Hosted: Prod DB 001–246 applied and verified in run 37252303894;
 matching application 83b683c READY. Public traffic held by operator-only WAF.
 Auth/reset and two synthetic signed downloads PASS. Reopened Return caused
 custom 40001 retries; three exact canary backends stopped, work unreturned.
-Forward 247 is prepared, unreviewed/unapplied; exact new permission required.
+Main now owns 247; the same conflict fix is resequenced248. Owner task-wide
+approval waives further requests; combined247–248 preview/CI/deployment pending.
 Lifecycle canaries, fixture cleanup and traffic release remain pending.
 
 Fresh post-apply controls match pre-apply: admission/home/page/cutover/billing OFF;
