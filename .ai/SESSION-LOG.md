@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner Test list environment checkpoint
-
-IndependentSol5.6/high e024 review CLEAN; one accepted normal91629 failed first
-owner/roster:22requests20001ms/19543ms guards/503. Exactteardown/SAMEsavedbaseline
-PASS; no freshforced/CI/merge.86proof/297focused-static PASS; rolloutOFF. Stop
-patch/retryloop. Readonly618volumes/587unattached;0 ownedprooflabelmatches,
-583non-Supabase+4other-Supabase names. Ownership/disposability unproved; no deletion.
-Need clean test environment or exact verified disposable cleanup scope. No guard/
-deadline loosening, sharedschema/production/account/provider/admission change.
-
 ## 2026-10-04 — Owner Test list verified cleanup and bulk transport proposal
 
 HumanYes authorizedonlyverifieddisposabletestdata cleanup. Readonly577anonymous
@@ -675,3 +665,16 @@ only CREATE RPC declaration added. Fresh main unchanged25457e. Focused655/26,
 architecture/UI/design/fullTSC/lint PASS. Draft PR/final integration/CI remain;
 249/250 canonical/prod unapplied and all
 admission/home/page/cutover/billing controls unchanged/OFF.
+
+## 2026-10-06 — Test creation CI remediation
+
+Exact5db integration review CLEAN; PR1500 ready run37417327589 failed coverage:
+CURRENT lost required historical attendance/control wording, and one monolithic
+native SQL-admission test exceeded its unchanged5s limit. Returned PR to draft;
+canceled run and verified ephemeral DB cleanup PASS. Restored precise recorded
+wording without a fresh hosted claim or startup-budget increase. Reused real
+immutable manifests and split all original positive/negative SQL assertions into
+fixed-SQL/schedule/cross-profile cases; no production source or cap change.
+Targeted142/3 PASS. Full coverage and independent targeted review pending;
+original review clocks,8 launches/4 batches and failures retained before batch5.
+No canonical249/250 application, production promotion or activation.

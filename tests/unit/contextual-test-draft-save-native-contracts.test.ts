@@ -74,27 +74,39 @@ describe('closed migration250 native profile', () => {
   const f = newTestOwnerCreateFixture(original)
   const repository = process.cwd()
   const head = '7570a9d60591183f0699001f47a6528045a392ee'
+  // Build each real immutable manifest once; test cases do not weaken SQL admission.
+  const manifest = buildTestOwnerCreateNativeContractsManifest(original, f, head, repository)
+  const legacyManifest = buildDraftSaveNativeContractsManifest(original, head, repository)
   it('prepares no second durable fixture and selects only the reviewed250 capability', () => {
-    const manifest = buildTestOwnerCreateNativeContractsManifest(original, f, head, repository)
     expect(manifest.fixture).toEqual(f)
     expect(manifest.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
     expect(manifest.setup).toContain('Migration250 fixture presence differs')
     expect(manifest.privilege.revoke).toContain('create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)')
     expect(manifest.privilege.revoke).not.toContain('snapshot_test_draft_save_for_owner_v1')
-    expect(manifest.capabilities).toEqual(buildDraftSaveNativeContractsManifest(original, head, repository).capabilities)
+    expect(manifest.capabilities).toEqual(legacyManifest.capabilities)
     expect(manifest.concurrency.schedules).toHaveLength(9)
     expect(Object.isFrozen(manifest.fixture)).toBe(true)
   })
-  it('accepts only literal fixed250 SQL with no opaque substitution or caller profile', () => {
-    const manifest = buildTestOwnerCreateNativeContractsManifest(original, f, head, repository)
-    for (const sql of [manifest.setup, manifest.snapshot, manifest.contracts.contracts, manifest.contracts.catalogAndPlan,
-      ...manifest.concurrency.schedules.flatMap(s => [s.holderSql, ...(s.holderWitnessSql ?? []), s.rejectSql, s.observeSql])]) {
-      expect(validateTestOwnerCreateNativeSql(manifest, sql)).toBe(true)
-      expect(validateTestOwnerCreateNativeSql(manifest, `${sql} select 1;`)).toBe(false)
-    }
+  it.each([
+    ['setup', manifest.setup],
+    ['snapshot', manifest.snapshot],
+    ['contracts', manifest.contracts.contracts],
+    ['catalog and plan', manifest.contracts.catalogAndPlan],
+  ])('accepts only literal fixed250 %s SQL', (_name, sql) => {
+    expect(validateTestOwnerCreateNativeSql(manifest, sql)).toBe(true)
+    expect(validateTestOwnerCreateNativeSql(manifest, `${sql} select 1;`)).toBe(false)
+  })
+  it.each(manifest.concurrency.schedules.map((schedule, index) => [index + 1, schedule] as const))(
+    'accepts only literal fixed250 SQL for concurrency schedule %i', (_index, schedule) => {
+      for (const sql of [schedule.holderSql, ...(schedule.holderWitnessSql ?? []), schedule.rejectSql, schedule.observeSql]) {
+        expect(validateTestOwnerCreateNativeSql(manifest, sql)).toBe(true)
+        expect(validateTestOwnerCreateNativeSql(manifest, `${sql} select 1;`)).toBe(false)
+      }
+    })
+  it('rejects arbitrary SQL, opaque substitution and a caller-selected profile', () => {
     expect(validateTestOwnerCreateNativeSql(manifest, 'delete from public.users;')).toBe(false)
     expect(validateTestOwnerCreateNativeSql(manifest, manifest.privilege.restore)).toBe(false)
-    expect(validateTestOwnerCreateNativeSql(manifest, buildDraftSaveNativeContractsManifest(original, head, repository).setup)).toBe(false)
+    expect(validateTestOwnerCreateNativeSql(manifest, legacyManifest.setup)).toBe(false)
     expect(() => buildTestOwnerCreateNativeContractsManifest(original, { ...f, tests: [] }, head, repository)).toThrow()
     expect(typeof createTestOwnerCreateNativeContracts).toBe('function')
   })
