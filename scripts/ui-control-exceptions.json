@@ -177,22 +177,6 @@
       ]
     },
     {
-      "file": "src/app/join/page.tsx",
-      "reviewBy": "phase-6-auth-verification",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
-          "reason": "legacy-form-control"
-        },
-        {
-          "kind": "input:text",
-          "count": 1,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
       "file": "src/app/login/LoginClient.tsx",
       "reviewBy": "phase-6-auth-verification",
       "controls": [
