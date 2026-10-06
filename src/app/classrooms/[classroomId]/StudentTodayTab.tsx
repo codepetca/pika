@@ -343,6 +343,40 @@ export function StudentTodayTab({
             if (hasLocalEditSinceLoadRef.current || isOlderSavedSnapshot) {
               // The mounted editor owns this draft, even when durable storage
               // failed. Only cold initialization restores content from storage.
+              const saveKey = `${studentId}:${requestedClassroomId}:${todayDate}`
+              const hasOutstandingSave = saveInFlightDatesRef.current.has(saveKey) ||
+                queuedContentByDateRef.current.has(saveKey)
+              const savedContent = todayEntry ? resolveEntryContent(todayEntry) : null
+              if (!isOlderSavedSnapshot && todayEntry && !hasOutstandingSave &&
+                JSON.stringify(savedContent) === JSON.stringify(currentContentRef.current)) {
+                // A successful read can confirm a save whose response was lost.
+                // Acknowledge it without restoring storage into the live editor.
+                if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+                if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
+                saveTimeoutRef.current = null
+                throttledSaveTimeoutRef.current = null
+                lastSavedContentRef.current = JSON.stringify(savedContent)
+                entryIdRef.current = todayEntry.id
+                entryVersionRef.current = todayEntry.version ?? 1
+                initialSaveRequestedRef.current = !isEmpty(currentContentRef.current)
+                pendingContentRef.current = null
+                restoredDraftAutosaveRef.current = null
+                hasLocalEditSinceLoadRef.current = false
+                if (rolloverDraftRef.current?.studentId === studentId &&
+                  rolloverDraftRef.current.classroomId === requestedClassroomId &&
+                  rolloverDraftRef.current.date === todayDate) {
+                  rolloverDraftRef.current = null
+                }
+                safeSessionRemove(getDailyLogDraftKey(requestedClassroomId, todayDate))
+                removeDailyLogDraft(studentId, requestedClassroomId, todayDate)
+                setSaveStatus('saved')
+                setSaveError('')
+                setDraftStorageUnavailable(false)
+                setConflictEntry(null)
+                setHistoryEntries(relevantEntries)
+                safeSessionSetJson(historyCacheKey, relevantEntries)
+                return
+              }
               if (!isOlderSavedSnapshot && todayEntry && (
                 todayEntry.id !== entryIdRef.current ||
                 (todayEntry.version ?? 1) !== entryVersionRef.current
@@ -811,7 +845,9 @@ export function StudentTodayTab({
 
     const saveKey = `${studentId}:${classroom.id}:${todayRef.current}`
     const hasOutstandingSave = saveInFlightDatesRef.current.has(saveKey) || queuedContentByDateRef.current.has(saveKey)
-    if ((newContentStr === lastSavedContentRef.current && !hasOutstandingSave) || (!entryIdRef.current && isEmpty(newContent) && !hasOutstandingSave)) {
+    if (!conflictEntry && !hasOutstandingSave && (
+      newContentStr === lastSavedContentRef.current || (!entryIdRef.current && isEmpty(newContent))
+    )) {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
         saveTimeoutRef.current = null
@@ -1111,9 +1147,11 @@ export function StudentTodayTab({
               className="[&_.tiptap.ProseMirror]:!min-h-[100px] [&_.tiptap.ProseMirror]:!p-0 lg:[&_.tiptap.ProseMirror]:!min-h-[200px]"
             />
 
-            {saveError && (
+            {(saveError || conflictEntry) && (
               <div className="space-y-2">
-                <p role="alert" className="text-sm text-danger">{saveError}</p>
+                <p role="alert" className="text-sm text-danger">
+                  {saveError || 'This log changed elsewhere. Review before replacing the newer version.'}
+                </p>
                 {conflictEntry && (
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" size="sm" variant="secondary" onClick={resolveConflict}>

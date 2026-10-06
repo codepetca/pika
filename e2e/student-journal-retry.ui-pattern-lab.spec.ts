@@ -12,6 +12,121 @@ function deferred() {
   const promise = new Promise<void>(done => { resolve = done })
   return { promise, resolve }
 }
+
+for (const blockedStorage of [false, true]) for (const recovery of ['confirmed-draft', 'different-server-log'] as const) {
+  test(`${recovery} recovery retains truthful journal state (blocked storage=${blockedStorage})`, async ({ page }, info) => {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()).map(part => [part.type, part.value]))
+    const today = `${parts.year}-${parts.month}-${parts.day}`
+    const entry = { id: '50000000-0000-4000-8000-000000000099', classroom_id: classroomId, student_id: studentId, date: today, text: 'Saved baseline', rich_content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Saved baseline' }] }] }, version: 1, on_time: true, minutes_reported: null, mood: null, feedback: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+    const cacheKey = getStudentEntryHistoryCacheKey({ classroomId, limit: 11 })
+    await page.addInitScript(({ entry, cacheKey, blockedStorage }) => {
+      sessionStorage.setItem(cacheKey, JSON.stringify([entry]))
+      if (blockedStorage) {
+        const original = Storage.prototype.setItem
+        Storage.prototype.setItem = function (key: string, value: string) {
+          if (this === localStorage && key.startsWith('daily-log-draft:v2:')) throw new DOMException('Controlled draft storage denial', 'QuotaExceededError')
+          return original.call(this, key, value)
+        }
+      }
+    }, { entry, cacheKey, blockedStorage })
+    let retry = false
+    let savedContent: typeof entry.rich_content | null = null
+    const saveBodies: Record<string, unknown>[] = [], errors: string[] = [], consoleErrors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()) })
+    await page.route('**/api/**', async route => {
+      const request = route.request(), path = new URL(request.url()).pathname
+      if (request.method() !== 'GET') {
+        expect(path).toBe('/api/student/entries')
+        expect(request.method()).toBe('PATCH')
+        const body = request.postDataJSON()
+        saveBodies.push(body)
+        expect(body.rich_content).toBeTruthy()
+        if (saveBodies.length === 1) savedContent = body.rich_content
+        return route.fulfill({ status: 503, json: { error: 'Controlled lost save response' } })
+      }
+      if (path === '/api/student/entries') {
+        if (!retry) return route.fulfill({ status: 503, json: { error: 'Controlled read failure' } })
+        expect(savedContent).toBeTruthy()
+        const serverContent = recovery === 'confirmed-draft' ? savedContent : { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Different saved log' }] }] }
+        return route.fulfill({ json: { entries: [{ ...entry, version: 2, rich_content: serverContent, text: recovery === 'confirmed-draft' ? 'Saved baseline Draft' : 'Different saved log' }] } })
+      }
+      let body: object = {}
+      if (path === '/api/auth/me') body = { user: { id: studentId, role: 'student', email: 'student@example.invalid', first_name: 'Fixture', last_name: 'Student' } }
+      else if (path.endsWith('/class-days')) body = { class_days: [{ id: entry.id, classroom_id: classroomId, date: today, prompt_text: 'What is your plan today?', is_class_day: true }] }
+      else for (const suffix of ['assignments', 'announcements', 'lesson-plans', 'materials', 'notifications']) if (path.endsWith(`/${suffix}`)) body = { [suffix.replace('-', '_')]: [] }
+      return route.fulfill({ json: body })
+    })
+    expect((await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=today', { waitUntil: 'networkidle' }))?.status()).toBe(200)
+    await page.evaluate(() => document.fonts.ready)
+    const editor = page.getByRole('textbox', { name: 'Daily Log', exact: true })
+    await expect(editor).toHaveText('Saved baseline')
+    await expect(page.getByText('The latest daily log could not be loaded.', { exact: true })).toBeVisible()
+    const original = await editor.elementHandle()
+    await editor.click()
+    await page.keyboard.press('ControlOrMeta+a')
+    await page.keyboard.press('ArrowRight')
+    await page.keyboard.insertText(' Draft')
+    await page.getByRole('heading', { name: 'Daily Log', exact: true }).click()
+    await expect(page.getByText('Controlled lost save response', { exact: true })).toBeVisible()
+    expect(saveBodies).toHaveLength(1)
+    await capture(page, info, 'lost-save-response')
+    retry = true
+    await page.getByRole('button', { name: 'Try again', exact: true }).click()
+    await expect(page.getByText('The latest daily log could not be loaded.', { exact: true })).toHaveCount(0)
+    expect(await original!.evaluate(node => node.isConnected)).toBe(true)
+    expect(await editor.evaluate((node, previous) => node === previous, original)).toBe(true)
+    await expect(editor).toHaveText('Saved baseline Draft')
+    if (recovery === 'confirmed-draft') {
+      await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Reload latest', exact: true })).toHaveCount(0)
+      await expect(page.getByText('Controlled lost save response', { exact: true })).toHaveCount(0)
+      expect(await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('daily-log-draft:v2:')))).toEqual([])
+      await capture(page, info, 'read-confirmed-draft')
+      await editor.click()
+      await page.keyboard.press('ControlOrMeta+a')
+      await page.keyboard.press('ArrowRight')
+      await page.keyboard.insertText(' Continued')
+      await page.getByRole('heading', { name: 'Daily Log', exact: true }).click()
+      await expect.poll(() => saveBodies.length).toBe(2)
+      expect(saveBodies[1].version).toBe(2)
+      await expect(page.getByText('Controlled lost save response', { exact: true })).toBeVisible()
+      await expect(editor).toHaveText('Saved baseline Draft Continued')
+      await expect(page.getByText('Saved', { exact: true })).toHaveCount(0)
+    } else {
+      const message = page.getByText('This log changed elsewhere. Review before replacing the newer version.', { exact: true })
+      await expect(message).toBeVisible()
+      await capture(page, info, 'read-conflict')
+      await editor.click()
+      await page.keyboard.press('ControlOrMeta+z')
+      await expect(editor).toHaveText('Saved baseline')
+      await expect(page.getByText('Saved', { exact: true })).toHaveCount(0)
+      await expect(message).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Reload latest', exact: true })).toBeVisible()
+      await page.keyboard.press('ControlOrMeta+a')
+      await page.keyboard.press('ArrowRight')
+      await page.keyboard.insertText(' Continued after conflict')
+      await expect(editor).toHaveText('Saved baseline Continued after conflict')
+      await expect(message).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Retry save', exact: true })).toBeVisible()
+      await capture(page, info, 'conflict-after-revert-and-edit')
+      await page.getByRole('button', { name: 'Reload latest', exact: true }).click()
+      await expect(editor).toHaveText('Different saved log')
+      await expect(page.getByText('Saved', { exact: true })).toBeVisible()
+      expect(saveBodies).toHaveLength(1)
+    }
+    await capture(page, info, 'recovery-final')
+    expect(await original!.evaluate(node => node.isConnected)).toBe(true)
+    expect(errors).toEqual([])
+    const expectedConsoleErrors = consoleErrors.filter(message => message.startsWith('Failed to load resource: the server responded with a status of 503') || message.startsWith('Error loading today tab: Error: Controlled read failure') || message.startsWith('Error saving: Error: Controlled lost save response'))
+    expect(consoleErrors.filter(message => !expectedConsoleErrors.includes(message))).toEqual([])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const path = info.outputPath('journal-recovery-receipt.json')
+    await writeFile(path, JSON.stringify({ recovery, blockedStorage, viewport: page.viewportSize(), theme: info.project.metadata.theme, motion: 'no-preference', today, saveBodies, errors, consoleErrors, persistedBackendWrites: 0, editorRetained: true, limits: 'Guarded actual student owner, controlled server contracts; simulated committed-but-unacknowledged save, no real backend persistence. Existing16case continuity matrix covers reduced motion; these16supplemental recovery cases cover normal-motion display/storage combinations.' }, null, 2))
+    await info.attach('journal-recovery-receipt', { path, contentType: 'application/json' })
+    await original?.dispose()
+  })
+}
 async function capture(page: Page, info: TestInfo, state: string) {
   const path = info.outputPath(`${state}.png`)
   await page.screenshot({ path, animations: 'allow', caret: 'initial' })

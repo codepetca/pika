@@ -1160,6 +1160,153 @@ describe('StudentTodayTab history section', () => {
     expect(saveBodies[1].version).toBe(1)
   })
 
+  describe('authoritative retry reconciliation', () => {
+    function prepareRetry(blockedStorage: boolean) {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      if (blockedStorage) {
+        const storageSet = Storage.prototype.setItem
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+          if (this === window.localStorage && key.startsWith('daily-log-draft:v2:')) throw new Error('Storage blocked')
+          return storageSet.call(this, key, value)
+        })
+      }
+      window.sessionStorage.setItem(getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 11 }), JSON.stringify(entries))
+    }
+
+    function committedEntry(text: string): Entry {
+      return {
+        ...entries[0], text, version: 2,
+        rich_content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] },
+      }
+    }
+
+    it.each([false, true])('acknowledges identical retry content after a lost save response (blocked storage=%s)', async (blockedStorage) => {
+      prepareRetry(blockedStorage)
+      const retryRead = deferred<any>()
+      const lostSave = deferred<any>()
+      const nextSave = deferred<any>()
+      const saveBodies: any[] = []
+      let readCount = 0
+      vi.stubGlobal('fetch', vi.fn((input: RequestInfo, init?: RequestInit) => {
+        const url = String(input)
+        if (url.startsWith('/api/student/entries?')) return ++readCount === 1 ? mockJson({ error: 'Read offline' }, false) : retryRead.promise
+        if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+        if (url === '/api/student/entries' && init?.method === 'PATCH') {
+          saveBodies.push(JSON.parse(String(init.body)))
+          return saveBodies.length === 1 ? lostSave.promise : nextSave.promise
+        }
+        throw new Error(`Unhandled fetch: ${url}`)
+      }))
+      render(<StudentTodayTab classroom={classroom} />)
+      await screen.findByText('The latest daily log could not be loaded.')
+      const editor = screen.getByRole('textbox', { name: 'Daily Log' })
+      fireEvent.change(editor, { target: { value: 'Committed draft with lost response.' } })
+      fireEvent.blur(editor)
+      await waitFor(() => expect(saveBodies).toHaveLength(1))
+      await act(async () => lostSave.reject(new Error('Save response lost')))
+      expect(screen.getByText('Unsaved')).toBeInTheDocument()
+      expect(screen.getByText('Save response lost')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      await waitFor(() => expect(readCount).toBe(2))
+      await act(async () => retryRead.resolve(await mockJson({ entries: [committedEntry('Committed draft with lost response.'), entries[1]] })))
+      expect(screen.getByRole('textbox', { name: 'Daily Log' })).toBe(editor)
+      expect(editor).toHaveValue('Committed draft with lost response.')
+      expect(screen.getByText('Saved')).toBeInTheDocument()
+      expect(screen.queryByText('Save response lost')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Reload latest' })).not.toBeInTheDocument()
+      expect(screen.queryByText(/This draft could not be kept/)).not.toBeInTheDocument()
+      expect(window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-12-16')).toBeNull()
+      expect(window.sessionStorage.getItem(getDailyLogDraftKey(classroom.id, '2025-12-16'))).toBeNull()
+      fireEvent.change(editor, { target: { value: 'Next revision after confirmed read.' } })
+      fireEvent.blur(editor)
+      await waitFor(() => expect(saveBodies).toHaveLength(2))
+      expect(saveBodies[1]).toMatchObject({ entry_id: entries[0].id, version: 2 })
+    })
+
+    it.each([false, true])('retains explicit conflict recovery after reverting the old base and continuing typing (blocked storage=%s)', async (blockedStorage) => {
+      prepareRetry(blockedStorage)
+      const retryRead = deferred<any>()
+      const explicitSave = deferred<any>()
+      const saveBodies: any[] = []
+      let readCount = 0
+      vi.stubGlobal('fetch', vi.fn((input: RequestInfo, init?: RequestInit) => {
+        const url = String(input)
+        if (url.startsWith('/api/student/entries?')) return ++readCount === 1 ? mockJson({ error: 'Read offline' }, false) : retryRead.promise
+        if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+        if (url === '/api/student/entries' && init?.method === 'PATCH') {
+          saveBodies.push(JSON.parse(String(init.body)))
+          return explicitSave.promise
+        }
+        throw new Error(`Unhandled fetch: ${url}`)
+      }))
+      render(<StudentTodayTab classroom={classroom} />)
+      await screen.findByText('The latest daily log could not be loaded.')
+      const editor = screen.getByRole('textbox', { name: 'Daily Log' })
+      fireEvent.change(editor, { target: { value: 'Local revision before conflict.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      await waitFor(() => expect(readCount).toBe(2))
+      await act(async () => retryRead.resolve(await mockJson({ entries: [committedEntry('Different content changed elsewhere.'), entries[1]] })))
+      expect(editor).toHaveValue('Local revision before conflict.')
+      expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Retry save' })).toBeInTheDocument()
+      fireEvent.change(editor, { target: { value: entries[0].text } })
+      expect(screen.getByText('Unsaved')).toBeInTheDocument()
+      expect(screen.queryByText('Saved')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Retry save' })).toBeInTheDocument()
+      expect(screen.getByText('This log changed elsewhere. Review before replacing the newer version.')).toBeInTheDocument()
+      fireEvent.change(editor, { target: { value: 'Continued local revision after reverting.' } })
+      fireEvent.blur(editor)
+      expect(screen.getByRole('textbox', { name: 'Daily Log' })).toBe(editor)
+      expect(editor).toHaveValue('Continued local revision after reverting.')
+      expect(screen.getByText('Unsaved')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
+      expect(saveBodies).toHaveLength(0)
+      fireEvent.click(screen.getByRole('button', { name: 'Retry save' }))
+      await waitFor(() => expect(saveBodies).toHaveLength(1))
+      expect(saveBodies[0]).toMatchObject({ entry_id: entries[0].id, version: 2 })
+      expect(JSON.stringify(saveBodies[0].rich_content)).toContain('Continued local revision after reverting.')
+    })
+
+    it.each([
+      [false, false], [true, false], [false, true], [true, true],
+    ] as const)('does not acknowledge an outstanding save or newer local draft from a retry (blocked storage=%s, newer draft=%s)', async (blockedStorage, newerDraft) => {
+      prepareRetry(blockedStorage)
+      const retryRead = deferred<any>()
+      const outstandingSave = deferred<any>()
+      let saveCount = 0
+      let readCount = 0
+      vi.stubGlobal('fetch', vi.fn((input: RequestInfo, init?: RequestInit) => {
+        const url = String(input)
+        if (url.startsWith('/api/student/entries?')) return ++readCount === 1 ? mockJson({ error: 'Read offline' }, false) : retryRead.promise
+        if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+        if (url === '/api/student/entries' && init?.method === 'PATCH') {
+          saveCount += 1
+          return outstandingSave.promise
+        }
+        throw new Error(`Unhandled fetch: ${url}`)
+      }))
+      render(<StudentTodayTab classroom={classroom} />)
+      await screen.findByText('The latest daily log could not be loaded.')
+      const editor = screen.getByRole('textbox', { name: 'Daily Log' })
+      fireEvent.change(editor, { target: { value: 'Content in the outstanding save.' } })
+      fireEvent.blur(editor)
+      await waitFor(() => expect(saveCount).toBe(1))
+      if (newerDraft) fireEvent.change(editor, { target: { value: 'Newer local draft still unsent.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      await waitFor(() => expect(readCount).toBe(2))
+      await act(async () => retryRead.resolve(await mockJson({ entries: [committedEntry('Content in the outstanding save.'), entries[1]] })))
+      expect(screen.getByRole('textbox', { name: 'Daily Log' })).toBe(editor)
+      expect(editor).toHaveValue(newerDraft ? 'Newer local draft still unsent.' : 'Content in the outstanding save.')
+      expect(screen.queryByText('Saved')).not.toBeInTheDocument()
+      expect(saveCount).toBe(1)
+      if (newerDraft) expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
+      await act(async () => outstandingSave.resolve(await mockJson({ entry: committedEntry('Content in the outstanding save.') })))
+      expect(screen.getByText(newerDraft ? 'Unsaved' : 'Saved')).toBeInTheDocument()
+      expect(editor).toHaveValue(newerDraft ? 'Newer local draft still unsent.' : 'Content in the outstanding save.')
+    })
+  })
+
   it('does not overwrite local edits when the background refresh completes', async () => {
     const cacheKey = getStudentEntryHistoryCacheKey({ classroomId: classroom.id, limit: 11 })
     const cachedEntries = [
