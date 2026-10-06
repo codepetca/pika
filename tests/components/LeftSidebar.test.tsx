@@ -33,6 +33,9 @@ describe('LeftSidebar mobile drawer', () => {
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Close navigation' })).toHaveFocus())
     expect(container).toHaveAttribute('aria-hidden', 'true')
 
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close navigation' }))
+    expect(close).toHaveBeenCalledOnce()
+    close.mockClear()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(close).toHaveBeenCalledOnce()
 

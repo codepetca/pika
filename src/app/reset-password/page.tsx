@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, FormEvent, Suspense } from 'react'
+import { useState, useRef, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AppMessageFallback, Input, Button, FormField, AlertDialog } from '@/ui'
-import { useAlertDialog } from '@/hooks/useAlertDialog'
+import { AppMessageFallback, Input, Button, FormField } from '@/ui'
+import { useAuthCodeResend } from '@/hooks/useAuthCodeResend'
 
 function ResetPasswordForm() {
   const router = useRouter()
@@ -19,10 +19,22 @@ function ResetPasswordForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const { alertState, showSuccess, showError, closeAlert } = useAlertDialog()
+  const verifyingRef = useRef(false)
+  const resend = useAuthCodeResend({
+    kind: 'reset',
+    email,
+    isBlocked: () => verifyingRef.current,
+    onStart: () => {
+      setError('')
+      setHandoffToken('')
+    },
+  })
 
   async function handleVerifyCode(e: FormEvent) {
     e.preventDefault()
+    if (verifyingRef.current || resend.isPending()) return
+    verifyingRef.current = true
+    resend.clearFeedback()
     setError('')
     setLoading(true)
 
@@ -41,9 +53,11 @@ function ResetPasswordForm() {
 
       setHandoffToken(data.handoffToken)
       setStep('reset')
+      verifyingRef.current = false
       setLoading(false)
     } catch (err: any) {
       setError(err.message || 'An error occurred')
+      verifyingRef.current = false
       setLoading(false)
     }
   }
@@ -74,20 +88,6 @@ function ResetPasswordForm() {
     }
   }
 
-  async function handleResendCode() {
-    try {
-      setHandoffToken('')
-      await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      showSuccess('Code Sent', 'New reset code sent!')
-    } catch (err) {
-      showError('Error', 'Failed to resend code')
-    }
-  }
-
   if (step === 'verify') {
     return (
       <>
@@ -108,18 +108,18 @@ function ResetPasswordForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  disabled={loading}
+                  disabled={loading || resend.pending}
                 />
               </FormField>
 
-              <FormField label="Reset Code" error={error} required>
+              <FormField label="Reset Code" error={error || resend.error} required>
                 <Input
                   type="text"
                   placeholder="A7Q2F"
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   required
-                  disabled={loading}
+                  disabled={loading || resend.pending}
                   maxLength={5}
                 />
               </FormField>
@@ -127,19 +127,24 @@ function ResetPasswordForm() {
               <Button
                 type="submit"
                 className="w-full mt-6"
-                disabled={loading || !email || code.length !== 5}
+                disabled={loading || resend.pending || !email || code.length !== 5}
               >
                 {loading ? 'Verifying...' : 'Verify Code'}
               </Button>
             </form>
 
             <div className="mt-4 text-center space-y-2">
-              <button
-                onClick={handleResendCode}
-                className="text-sm text-primary hover:underline block w-full"
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                fullWidth
+                onClick={resend.resend}
+                disabled={loading || resend.pending || !email}
+                aria-busy={resend.pending || undefined}
               >
-                Resend reset code
-              </button>
+                {resend.pending ? 'Sending…' : 'Resend reset code'}
+              </Button>
               <button
                 onClick={() => router.push('/login')}
                 className="text-sm text-text-muted hover:underline block w-full"
@@ -150,7 +155,6 @@ function ResetPasswordForm() {
           </div>
         </div>
 
-        <AlertDialog {...alertState} onClose={closeAlert} />
       </>
     )
   }
@@ -207,7 +211,6 @@ function ResetPasswordForm() {
         </div>
       </div>
 
-      <AlertDialog {...alertState} onClose={closeAlert} />
     </>
   )
 }

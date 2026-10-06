@@ -15,7 +15,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/components/AppHeader', () => ({
-  AppHeader: () => <header>Application header</header>,
+  AppHeader: ({ initialNow }: { initialNow: number }) => <header data-initial-now={initialNow}>Application header</header>,
 }))
 
 vi.mock('@/components/AuthSessionWatcher', () => ({
@@ -35,9 +35,13 @@ describe('StudentLayout', () => {
   })
 
   it('uses the canonical app shell and preserves the existing student utility destinations', async () => {
+    const serverNow = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(serverNow)
     render(await StudentLayout({ children: <p>Student content</p> }))
 
     expect(screen.getByRole('banner')).toHaveTextContent('Application header')
+    expect(screen.getByRole('banner')).toHaveAttribute('data-initial-now', String(serverNow))
+    vi.restoreAllMocks()
     expect(screen.getByTestId('session-role')).toHaveTextContent('student')
     expect(screen.getByRole('navigation', { name: 'Student tools' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Classrooms' })).toHaveAttribute('href', '/classrooms')

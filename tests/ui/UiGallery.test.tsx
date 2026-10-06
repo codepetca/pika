@@ -26,8 +26,70 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('keeps survey summaries accessible alongside retained interaction previews for %s', (role) => {
+    renderGallery(role)
+    const survey = within(screen.getByTestId('pattern-section-survey-results'))
+    expect(survey.getByRole('group', { name: 'Group discussion: 7 responses, 35%', exact: true })).toBeInTheDocument()
+    expect(survey.getByRole('group', { name: 'Other: 0 responses, 0%', exact: true })).toBeInTheDocument()
+    const dialogPreview = screen.getByTestId('dialog-entry-pattern')
+    expect(within(dialogPreview).getByRole('button', { name: 'Open quiet dialog entry' })).toBeInTheDocument()
+    expect(screen.getByTestId('pattern-lab-contracts')).not.toContainElement(dialogPreview)
+    expect(screen.getByTestId('mobile-drawer-controls')).toBeInTheDocument()
+    const retainedTabs = within(screen.getByTestId('tab-entry-extension'))
+    expect(retainedTabs.getByRole('tab', { name: 'Draft', selected: true })).toBeInTheDocument()
+    expect(retainedTabs.getByRole('tabpanel')).toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('exercises ClassroomsReadRecoveryPattern first-read and retained-list recovery for %s', async (role) => {
+    const user = userEvent.setup()
+    renderGallery(role)
+    const example = within(screen.getByTestId('pattern-section-classrooms-read-recovery'))
+    expect(example.getByText(/Controlled.*fixture of the production error composition/)).toBeVisible()
+    expect(example.getByRole('alert')).toHaveTextContent('Could not load classrooms')
+    expect(example.getByRole('heading', { level: 1, name: 'Could not load classrooms' })).toBeVisible()
+    expect(example.queryByRole('list', { name: 'Controlled retained classroom list' })).not.toBeInTheDocument()
+
+    const retry = example.getByRole('button', { name: 'Try loading classrooms again' })
+    retry.focus()
+    await user.keyboard('{Enter}')
+    expect(retry).toBeDisabled()
+    expect(retry).toHaveAttribute('aria-busy', 'true')
+    await user.click(example.getByRole('button', { name: 'Complete controlled recovery' }))
+    expect(example.queryByRole('alert')).not.toBeInTheDocument()
+    expect(example.getByRole('status')).toHaveTextContent('Classrooms loaded')
+    expect(example.getByRole('region', { name: 'Classroom recovery example' })).toHaveFocus()
+
+    const retainedToggle = example.getByRole('button', { name: 'Show retained-list recovery' })
+    await user.click(retainedToggle)
+    expect(retainedToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(example.getByRole('heading', { level: 2, name: 'Could not load classrooms' })).toBeVisible()
+    expect(example.getByRole('alert')).toHaveClass('min-h-40')
+    const retained = example.getByRole('list', { name: 'Controlled retained classroom list' })
+    expect(retained).toHaveTextContent('Retained classroom — controlled fixture')
+    await user.click(example.getByRole('button', { name: 'Try loading classrooms again' }))
+    expect(example.getByRole('button', { name: 'Try loading classrooms again' })).toBeDisabled()
+    expect(retained).toBeVisible()
+    await user.click(example.getByRole('button', { name: 'Complete controlled recovery' }))
+    expect(example.queryByRole('list', { name: 'Controlled retained classroom list' })).not.toBeInTheDocument()
+    expect(example.queryByRole('alert')).not.toBeInTheDocument()
+    await user.click(example.getByRole('button', { name: 'Show read failure' }))
+    expect(retainedToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(example.queryByRole('list', { name: 'Controlled retained classroom list' })).not.toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('keeps the experimental dialog comparison outside the canonical capture for %s', (role) => {
+    renderGallery(role)
+    const fixture = screen.getByTestId('dialog-entry-pattern')
+    expect(screen.getByTestId('pattern-lab-contracts')).not.toContainElement(fixture)
+    expect(within(fixture).getByRole('button', { name: 'Open immediate dialog entry' })).toBeInTheDocument()
+    expect(within(fixture).getByRole('button', { name: 'Open quiet dialog entry' })).toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('demonstrates normal and exam header navigation for %s', (role) => {
     renderGallery(role)
+    const drawers = within(screen.getByTestId('mobile-drawer-controls'))
+    expect(drawers.getByRole('heading', { name: 'Shared mobile drawer controls' })).toBeInTheDocument()
+    expect(drawers.getByRole('textbox', { name: 'Drawer example draft' })).toHaveValue('Retained drawer example draft')
     if (role === 'student') expect(screen.queryByRole('button', { name: 'Open survey edit prototype' })).not.toBeInTheDocument()
     const references = within(screen.getByRole('region', { name: 'Application header references' }))
     const headers = references.getAllByRole('banner')
@@ -153,8 +215,8 @@ describe('UiGallery accessibility contracts', () => {
       value: scrollIntoView,
     })
     renderGallery('teacher')
-    const navigator = screen.getByRole('combobox', { name: 'Find a pattern' })
     const sectionNavigation = screen.getByRole('navigation', { name: 'Pattern Lab sections' })
+    const navigator = within(sectionNavigation).getByRole('combobox', { name: 'Find a pattern' })
 
     await user.selectOptions(
       navigator,
@@ -185,13 +247,15 @@ describe('UiGallery accessibility contracts', () => {
     )
     expect(window.location.hash).toBe('#mockup-settings-panel')
     expect(within(screen.getByTestId('page-mockups')).getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeVisible()
+    expect(within(screen.getByTestId('page-mockups')).getByRole('tabpanel', { name: 'Settings' })).toBeVisible()
     expect(scrollIntoView).toHaveBeenCalledTimes(3)
     requestAnimationFrame.mockRestore()
 
     fireEvent.change(navigator, { target: { value: 'survey-edit-split' } })
     expect(window.location.hash).toBe('#survey-edit-split')
-    expect(screen.getByRole('button', { name: 'Open survey edit prototype' })).toBeVisible()
+    const surveyPattern = document.getElementById('survey-edit-split')!
+    expect(surveyPattern).toBeInTheDocument()
+    expect(within(surveyPattern).getByRole('button', { name: 'Open survey edit prototype' })).toBeVisible()
     expect(within(sectionNavigation).getByRole('link', { name: 'Survey edit' })).toHaveAttribute('href', '#survey-edit-split')
   })
 
@@ -272,6 +336,19 @@ describe('UiGallery accessibility contracts', () => {
     )
     expect(within(screen.getByTestId('pattern-section-controls')).getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
     expect(document.getElementById('pattern-details-panel')).toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('keeps the example draft mounted while switching %s panels', (role) => {
+    renderGallery(role)
+    const draft = screen.getByRole('textbox', { name: 'Example draft' })
+    fireEvent.change(draft, { target: { value: 'Unsaved example' } })
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Draft' }), { key: 'ArrowRight' })
+    expect(screen.queryByRole('textbox', { name: 'Example draft' })).not.toBeInTheDocument()
+    expect(document.getElementById('fluid-draft-panel')?.parentElement).toHaveAttribute('inert')
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Activity' }), { key: 'ArrowLeft' })
+    expect(screen.getByRole('textbox', { name: 'Example draft' })).toBe(draft)
+    expect(draft).toHaveValue('Unsaved example')
+    expect(document.getElementById('fluid-draft-panel')?.parentElement).not.toHaveAttribute('inert')
   })
 
   it('opens and dismisses the canonical alert dialog', () => {

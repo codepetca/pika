@@ -9,6 +9,7 @@ import { PLANNED_COURSE_FIXTURE } from '../scripts/seed-planned-course-fixtures'
 import type { TeacherAttendanceView } from '../src/lib/teacher-attendance'
 import { LONG_ROSTER_SIZE, TABLE_CLASSROOM_ID, mockLongTeacherTable, mockTableShellReads } from './helpers/teacher-student-tables'
 import { verifyWorkspaceMotion } from './helpers/workspace-motion'
+import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -50,6 +51,17 @@ const rolloverBlueprint = {
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Blueprint required-read recovery', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const failure of ['list', 'detail'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`${failure} retry preserves focus with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await verifyBlueprintRecovery(page, testInfo, failure, reducedMotion)
+      })
+    }
+  }
+})
 
 test.describe('approved classroom workspace motion', () => {
   test.use({ storageState: { cookies: [], origins: [] } })

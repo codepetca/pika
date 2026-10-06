@@ -4,6 +4,8 @@ import { AuthSessionWatcher } from './AuthSessionWatcher'
 import type { ClassroomThemeColor } from '@/lib/classroom-theme'
 
 interface AppShellProps {
+  /** Initial header clock snapshot from the server render owner. */
+  initialNow: number
   children: ReactNode
   navigation?: ReactNode
   showHeader?: boolean
@@ -41,6 +43,7 @@ interface AppShellProps {
  * Provides compact header (48px) and consistent page container.
  */
 export function AppShell({
+  initialNow,
   children,
   navigation,
   showHeader = true,
@@ -66,6 +69,7 @@ export function AppShell({
       {user && <AuthSessionWatcher expectedUserId={user.id} expectedRole={user.role} />}
       {showHeader && (
         <AppHeader
+          initialNow={initialNow}
           user={user}
           classrooms={classrooms}
           currentClassroomId={currentClassroomId}

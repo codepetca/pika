@@ -222,7 +222,9 @@ base controls and shell styling follow the `@/ui` contracts.
 
 - Use `Tabs` plus `TabPanel` for panel-switching navigation. The tab list owns roving focus,
   automatic activation, arrow keys, `Home`/`End`, disabled-item skipping, narrow-width scrolling,
-  and 44px targets. Panels with interactive descendants are not additional tab stops.
+  and 44px targets. Initial/retained selection and layout changes reveal the selected tab within
+  its own scroller, without stealing focus or moving ancestor scroll. Manual tab browsing survives
+  unrelated renders. Panels with interactive descendants are not additional tab stops.
 - Use `SegmentedControl` for a small selected group that does not own tabpanels. It exposes pressed
   state and the same roving arrow/first/last keyboard behavior. Options may provide semantic
   `className`, `activeClassName`, and `inactiveClassName` overrides when the feature's established
@@ -434,6 +436,18 @@ responsibility belongs to feature composition.
 The motion duration variables resolve to `0ms` under
 `prefers-reduced-motion: reduce`. A feature-owned animation that does not use
 them must provide an equivalent path.
+
+Shared color-response owners use the fast duration and standard easing, with
+immediate reduced-motion response. Button and PageState loading indicators remain
+static under reduced motion while their labels and busy semantics remain present.
+
+`TabContentTransition` retains its children while inactive and hides/inerts the
+wrapper immediately. Its proposed active-only opacity entry reuses the existing
+workspace-entry utility; the broader tab adoption is an experimental extension
+demonstrated in Pattern Lab Quiet tab entry. It does not delay activation,
+rekey editors, or add a close timer. See the
+[change brief](../../docs/guidance/ui/changes/shared-interaction-fluidity.md) for
+the review and acceptance scope; it is not yet promoted into stable guidance.
 
 The approved classroom `.workspace-entry` utility in `src/app/globals.scss`
 uses the standard duration and easing for opacity-only entry. Apply it to the

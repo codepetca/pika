@@ -9,7 +9,7 @@ import {
 
 export default function ClassroomNotFound() {
   return (
-    <AppShell showHeader={false}>
+    <AppShell initialNow={0} showHeader={false}>
       <div data-testid="classroom-not-found">
         <PageLayout width="reading">
           <PageContent>

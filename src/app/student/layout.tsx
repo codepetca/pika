@@ -25,7 +25,7 @@ export default async function StudentLayout({
   }
 
   return (
-    <AppShell
+    <AppShell initialNow={Date.now()}
       user={{ id: user.id, email: user.email, role: user.role }}
       mainClassName="max-w-4xl mx-auto px-4 py-8"
       navigation={

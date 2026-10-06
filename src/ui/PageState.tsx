@@ -15,7 +15,7 @@ export interface PageStateProps {
 }
 
 const stateStyles: Record<PageStateKind, { icon: ElementType; iconClassName: string }> = {
-  loading: { icon: LoaderCircle, iconClassName: 'animate-spin text-primary' },
+  loading: { icon: LoaderCircle, iconClassName: 'animate-spin motion-reduce:animate-none text-primary' },
   error: { icon: CircleAlert, iconClassName: 'text-danger' },
   empty: { icon: Inbox, iconClassName: 'text-text-muted' },
   forbidden: { icon: LockKeyhole, iconClassName: 'text-warning' },

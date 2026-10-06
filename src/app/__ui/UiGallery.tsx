@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { AppHeader } from '@/components/AppHeader'
+import { ClassroomsReadRecoveryPattern } from './ClassroomsReadRecoveryPattern'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
@@ -20,6 +21,7 @@ import {
   SegmentedControl,
   Select,
   TabPanel,
+  TabContentTransition,
   Tabs,
   Tooltip,
   cn,
@@ -79,7 +81,12 @@ import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 import { UiConsistencyPattern } from './UiConsistencyPattern'
+import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { DialogEntryPattern } from './DialogEntryPattern'
+import { MobileDrawerControlsPattern } from './MobileDrawerControlsPattern'
+
+const HEADER_REFERENCE_INITIAL_NOW = Date.parse('2026-10-05T16:00:00Z')
 
 const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
   '### Task',
@@ -102,6 +109,30 @@ const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
 ].join('\n')
 
 type Role = 'teacher' | 'student'
+
+function TabEntryPreview() {
+  const [active, setActive] = useState<'draft' | 'activity'>('draft')
+  return (
+    <Card tone="panel" padding="md" className="max-w-reading">
+      <div data-testid="tab-entry-extension">
+        <Tabs ariaLabel="Tab continuity preview" value={active} onValueChange={setActive}
+          getTabId={(value) => `fluid-${value}-tab`}
+          getPanelId={(value) => `fluid-${value}-panel`}
+          items={[{ value: 'draft', label: 'Draft' }, { value: 'activity', label: 'Activity' }]} />
+        {(['draft', 'activity'] as const).map((value) => (
+          <TabContentTransition key={value} isActive={active === value}>
+            <TabPanel id={`fluid-${value}-panel`} labelledBy={`fluid-${value}-tab`}
+              className="min-h-20 bg-surface px-4 py-3 text-sm text-text-muted">
+              {value === 'draft'
+                ? <FormField label="Example draft"><Input defaultValue="Keep this draft while switching tabs." /></FormField>
+                : 'Example activity. The draft stays mounted while this panel is active.'}
+            </TabPanel>
+          </TabContentTransition>
+        ))}
+      </div>
+    </Card>
+  )
+}
 
 function QrSizingExample() {
   const [open, setOpen] = useState(false)
@@ -178,8 +209,9 @@ export function UiGallery({ role }: Props) {
   return (
     <main className="min-h-screen bg-page text-text-default">
       <section aria-label="Application header references">
-        <AppHeader user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
+        <AppHeader initialNow={HEADER_REFERENCE_INITIAL_NOW} user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
         <AppHeader
+          initialNow={HEADER_REFERENCE_INITIAL_NOW}
           user={{ email: `${role}@example.invalid`, role }}
           examModeHeader={{ testTitle: 'Exam header reference', exitsCount: 0, awayTotalSeconds: 0 }}
         />
@@ -588,6 +620,29 @@ export function UiGallery({ role }: Props) {
           </div>
           </PatternSection>
         </div>
+
+        <ClassroomsReadRecoveryPattern role={role} />
+        <PatternSection
+          id="dialog-entry-preview"
+          eyebrow="Experimental · dialog entry"
+          title="Dialog entry comparison"
+          description="Actual ContentDialog owners with a retained local draft, nested confirmation, and fixture destination callback. This comparison awaits human review."
+        >
+          <DialogEntryPattern role={role} />
+        </PatternSection>
+
+        <PatternSection
+          id="tab-entry-extension"
+          eyebrow="Experimental · shared interaction"
+          title="Quiet tab entry"
+          description="Immediate selection and retained drafts with quiet opacity entry. This extension is awaiting human acceptance."
+        >
+          <TabEntryPreview />
+        </PatternSection>
+
+        <TabSelectionVisibilityPattern />
+
+        <MobileDrawerControlsPattern role={role} />
 
         {role === 'teacher' && (
           <PatternSection
