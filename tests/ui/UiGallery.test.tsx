@@ -215,8 +215,8 @@ describe('UiGallery accessibility contracts', () => {
       value: scrollIntoView,
     })
     renderGallery('teacher')
-    const navigator = screen.getByRole('combobox', { name: 'Find a pattern' })
     const sectionNavigation = screen.getByRole('navigation', { name: 'Pattern Lab sections' })
+    const navigator = within(sectionNavigation).getByRole('combobox', { name: 'Find a pattern' })
 
     await user.selectOptions(
       navigator,
@@ -253,7 +253,9 @@ describe('UiGallery accessibility contracts', () => {
 
     fireEvent.change(navigator, { target: { value: 'survey-edit-split' } })
     expect(window.location.hash).toBe('#survey-edit-split')
-    expect(screen.getByRole('button', { name: 'Open survey edit prototype' })).toBeVisible()
+    const surveyPattern = document.getElementById('survey-edit-split')!
+    expect(surveyPattern).toBeInTheDocument()
+    expect(within(surveyPattern).getByRole('button', { name: 'Open survey edit prototype' })).toBeVisible()
     expect(within(sectionNavigation).getByRole('link', { name: 'Survey edit' })).toHaveAttribute('href', '#survey-edit-split')
   })
 

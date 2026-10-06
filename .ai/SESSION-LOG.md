@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Blueprint review remediation
-
-- Draft PR #1493 at initial reviewed candidate 6216b24c received one independently proven P2: failed-save/export operation feedback from the previous Blueprint persisted after selection changed. Complete initial 11-file review found no other actionable issues; supplemental cases failed candidate and passed exact c88 base.
-- Original Sol/medium implementation worker added durable RED→GREEN save/export selection regressions and cleared operation feedback only at actual selection changes. Existing warm list-retry case now preserves failed Export feedback through pending/rejection/success; read retries do not clear unrelated feedback. All 56 affected Blueprint/client/cache/editor tests, TS and scoped lint pass.
-- Root owns cumulative required gate, publication, one targeted re-review and a different final integration reviewer. Budget remains original 00:40:12 UTC: one initial wave, one planned correction batch, no reset. Full visual state matrix remains valid for unchanged styling/composition; targeted actual-client selection/error evidence is next.
-- Broad product goal active. No new merge or production authority; PR #1491 final CI passed and PR #1490 final browser CI remains under its one watcher.
-
 ## 2026-10-06 — Blueprint approved integration reconciliation
 
 Reconciled PR1493 onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
@@ -439,3 +432,7 @@ bytes unchanged. Required focused checks and exact synchronization CI pending.
 ## 2026-10-06 — Fluidity current-main survey reconciliation
 
 Owner explicitly overrode task approval stops; cumulative8batches/10reviewer launches retained before ninth reconciliation. Reviewedf03 CI37530998188 allrequiredgatesPASS; main1511 advanced duringCI. Preserve exactmain archive prefix, feature append, both rolling bodies and existing fluidity previews alongside exact upstream survey fixtures. Temporary main-merge hold sent to three coding chats; release after landing/checkpoint. Focused, both-role visual, targeted independent review and fresh exact-head CI pending; no production/provider/schema permission changed. Broad fluidity goal remains incomplete; softer modal exits follow verified landing.
+
+## 2026-10-06 — Scope Pattern Lab test queries after CI timing failures
+
+65a exact-head CI37539601613 TestBuild13946PASS/2FAIL/8SKIP; two unchanged whole-gallery interactions exceeded5000ms. Both cases pass isolated with coverage; cause of Linux slowdown unproven. Source batch10 narrows QR lookup to real Core controls and navigator lookups to real navigation/target Survey section, retaining all interactions/assertions/5000ms limits and every production blob. Same two-case local coverage observation3.17s→1.11s; partial coverage threshold errors expected, not full-gate evidence. Old ownCI cancelled/draft before correction; accepted32browser/8visual proofs reusable by exact UI identity. Focused, targeted independent review and new exact-head CI pending. Owner task override persists; cumulative counters retained; main mergeholds retained until landing/checkpoint. No production/provider/schema changes.
