@@ -101,6 +101,17 @@ changed. New regression RED reproduced the same-Class mistake. Targeted source
 review and fresh full native acceptance are still required; no genuine types,
 PR/CI, merge, canonical migration application or rollout is claimed.
 
+Review15 accepted the detector correction at93933a22. Normalattempt9 passed
+that probe and later managed-storage/deadline probes, then failed raw-42501P2547.
+Exact owned teardown and a separate whole-B4/all183/all5 check passed, and both
+named testing chats were released. The generic fault probe expected SQLPT503
+for every injected fault. Migration252 deliberately preserves raw42501, while
+the server boundary maps it to HTTP503; an unknown55000 is normalized to PT503
+inside SQL. Correct only the raw-42501 probe's expected SQLSTATE. Reached fault
+markers, denial, complete graph rollback and the four SDK503/raw42501 probes
+remain unchanged. Regression RED reproduced the conflated SQL/HTTP expectation;
+fresh targeted review and full native/type acceptance remain required.
+
 Full-coverage attempts and their failures are retained in the coordinator receipt.
 Local runtime PATH needed the pinned pnpm10.25 shim; startup guidance stays within
 its unchanged17000-character budget with all required historical/environment

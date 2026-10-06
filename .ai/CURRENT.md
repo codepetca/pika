@@ -19,8 +19,8 @@ Publication243a26: source420/14 PASS; both source reviews CLEAN. LegacyPATCH/UI
 unchanged. Genuine252 types/native proof/CI/merge pending;249–252 unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.
 
-Native252: replay/probes passed; contracts failed; cleanup/whole B2 PASS.
-B1 retained; approved B2 covers all183 tables and all5 fields.
+Native252: replay/probes passed; latest contracts failedP2547; cleanup/whole B4 PASS.
+B1/B2/B3 retained; approved B4 covers all183 tables and all5 fields.
 
 Worktrees: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators: .env.example.

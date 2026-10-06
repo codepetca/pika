@@ -156,6 +156,24 @@ describe('contextual Test publication rollback database contracts', () => {
     expect(manifest.contracts).toContain(`'${unrelated!.classroom_id}'::uuid`)
   })
 
+  it('keeps raw SQL42501 distinct from HTTP503 and normalized unknown55000', () => {
+    const blocks = [...manifest.contracts.matchAll(/do \$probe\$([\s\S]*?)end;\$probe\$;/g)].map(match => match[1])
+    const raw = blocks.find(block => block.includes("message='raw-42501'"))!
+    const unknown = blocks.find(block => block.includes("message='unknown-55000'"))!
+    expect(raw).toContain("errcode='42501',message='publication raw privilege probe'")
+    expect(raw).toContain("code is distinct from '42501'")
+    expect(raw).not.toContain("code is distinct from 'PT503'")
+    expect(unknown).toContain("errcode='55000',message='publication unknown probe'")
+    expect(unknown).toContain("code is distinct from 'PT503'")
+    for (const probe of [raw, unknown]) {
+      expect(probe).toMatch(/pg_catalog\.currval\('[^']+_hit'::regclass\)<1/)
+      expect(probe).toContain('after_graph is distinct from before_graph')
+      expect(probe).toContain('succeeded or code is distinct from')
+    }
+    expect(f.privilegeProbes).toHaveLength(4)
+    expect(f.privilegeProbes.every(probe => probe.expectedHTTP === 503 && probe.expectedCode === '42501')).toBe(true)
+  })
+
   it('runs only the accepted bundle and always closes its exact session', async () => {
     const acceptedManifestSha256=createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
     const target=Object.freeze({projectId:project,apiUrl:'http://127.0.0.1:54331',databaseHost:'127.0.0.1',databasePort:54332,
