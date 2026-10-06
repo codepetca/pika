@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner Test list verified cleanup and bulk transport proposal
-
-HumanYes authorizedonlyverifieddisposabletestdata cleanup. Readonly577anonymous
-localvolumes:576populated1empty0unreadable;10namedunknownexcluded. RemovedONLYone
-freshmetadata-boundunattachedemptyvolume, non-force; no datafiles/populateddata
-deleted. Available221950488KiB before/afterequal; no measuredspacegain. SAMEsaved
-wholecanonicalbaselinePASS (38356),617volumesremain. No broadprune/DBreset.
-Sol6.1/high boundedreadonlyprobe:all617 Name/rawCreatedAt/Labels exactlyequal
-bulkGET/CLIinspect;193971bytes9ms,CLIlist216ms+five serialinspect459ms. Rootverified
-officialCLI VolumeList implementation and accepts scopedproposal, notactualproof.
-Delegatehelper/offlinetests ONLY toSol6.1/high; fixedlocalsocket-boundunfiltered
-GETv1.45/volumes retainscompletefreshglobalclosure/logical128batchreplay/parser/
-one-shotconsumption/caps/allactive-settlement/privateSQL/app20s. Physicaltransport
-andJSONserialization differ; no literalstdout/physicalcommandparityclaim. No native
-run/CI/merge/sourceapp/schema/prod/account/provider/admission/rollout change yet.
-Originalclock/counters/humanstopwaiverretained; no newgoal/task/automation. Worker
-usage/effectiveconfig unknown; implementationreview/runtimeacceptance stillpending.
-Deliveredhelper/testONLY, approx10min manualworkerelapsed. TDD22newbaselinefailures;
-heldsocketfailure REDqueuednetworkwork thenGREEN immediatepoolfailuremark/drain.
-Rootnonblocking-configopen findingfixed/tested. Worker163proof/tsc/scopedlintPASS;
-root374focused15/allstatic/audit2TS/historymissing0extra0/trim40/diffPASS. Sourceapp/
-runner/fixture/sealednative/SQL/schema/CI/deps byteparity376 verified. Review14th
-launch/11thtargeted/11thfixbatch planned, originalclock/humanwaiver retained; no
-freshnative rehearsal untilfixedsourceCLEAN/coordinatorfiniteacceptance.
-
 ## 2026-10-04 — Owner Test list bulk transport actual runtime closure
 
 IndependentSol5.6/high fixedca59 transport/security/compatibilityreview CLEAN;
@@ -689,3 +664,30 @@ not a sampled comparison or timeout increase. Native proof source changes, so
 fresh independently reviewed normal/forced proof is required; prior59a4 receipts
 are historical. Dependent251 app/source inventory preserved separately and held;
 no251 migration, canonical application, PR or activation.
+
+## 2026-10-06 — Student initial assignment detail recovery
+
+Independent Classwork owner delivery on main25457e2d; journalPR1501 and its
+review checkpoint unchanged. Initial network/5xx detail GET can retry in place;
+protected/unavailable responses keep generic copy and a safe exit. Canonical
+PageState/Button and persistent Assignment work region retain keyboard focus,
+selected URL and recovery storage; request/assignment identity fence ignores
+late initial reads. Save/submit/history and teacher owners unchanged. Loading
+adoption honors reduced motion through scoped existing-token CSS.
+Sol6.1/high worker ten RED plus54 existingPASS then64GREEN; root source/test
+inspection and focused334/18 plus architecture/UI/design/tsc/lintPASS. Native
+control registry4→2 matches canonical exit Button adoption. Actual student
+Classwork desktop/mobile light/dark normal/reduced server/local-recovery matrix
+16PASS, zero retry/overflow/unexpected errors/writes, three manual-detail GETs.
+First browser attempt interrupted after missing adjacent gradebook-items fixture
+proved from trace; original artifacts retained, only fixture corrected. Natural
+recordings and80screens retained for visual inspection. Standalone compatibility
+only tested locally; no production adopter found. Approved Pattern Lab reference
+inspected before implementation. Independent stable-SHA review/CI pending;
+merge/deployment unauthorized; all17-family product goal remains active.
+
+Initial independent review CLEAN at eb360e6b. Main advanced to5bf3dbac during
+review; only archive conflict resolved by proving the original moved entry was
+already present verbatim in main, retaining main history and officially trimming
+the merged log. Application/test/E2E/control-registry blobs unchanged; final
+current-base checks and integration review pending, original review budget kept.

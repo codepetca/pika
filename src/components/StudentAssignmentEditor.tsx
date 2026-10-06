@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, SaveStatus, Tooltip } from '@/ui'
-import { Card, ConfirmDialog, EmptyState } from '@/ui'
+import { Card, ConfirmDialog, PageState } from '@/ui'
 import { History } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { RichTextEditor, RichTextViewer } from '@/components/editor'
@@ -25,6 +25,7 @@ import {
 import { isValidTiptapContent } from '@/lib/tiptap-content'
 import { areJsonDocumentsEqual } from '@/lib/json-patch'
 import { fetchJSONWithCache } from '@/lib/request-cache'
+import { ApiError } from '@/lib/api-error'
 import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
 import { formatRelativeDateTimeInToronto } from '@/lib/timezone'
 import {
@@ -226,6 +227,12 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   const [preservedRecoveryContent, setPreservedRecoveryContent] = useState<TiptapContent | null>(null)
   const preservedRecoveryContentRef = useRef<TiptapContent | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialReadFailure, setInitialReadFailure] = useState<'retryable' | 'unavailable' | null>(null)
+  const assignmentWorkRef = useRef<HTMLElement | null>(null)
+  const initialReadRequestRef = useRef(0)
+  const initialReadPendingRef = useRef(false)
+  const initialReadOwnerRef = useRef(assignmentId)
+  initialReadOwnerRef.current = assignmentId
   const [error, setError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [historyEntries, setHistoryEntries] = useState<AssignmentDocHistoryEntry[]>([])
@@ -380,7 +387,13 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   }, [getDraftStorageKey])
 
   const loadAssignment = useCallback(async () => {
+    const request = ++initialReadRequestRef.current
+    initialReadPendingRef.current = true
+    const ownsRequest = () => request === initialReadRequestRef.current
+      && initialReadOwnerRef.current === assignmentId
     setLoading(true)
+    setInitialReadFailure(null)
+    setAssignment(null)
     setError('')
     setSaveError('')
     try {
@@ -388,17 +401,17 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
         `assignment-doc:${assignmentId}`,
         async () => {
           const response = await fetch(`/api/assignment-docs/${assignmentId}`)
-          const data = await response.json()
-
           if (!response.ok) {
-            throw new Error(data.error || 'Failed to load assignment')
+            // Preserve status even when an error response has no valid JSON body.
+            throw new ApiError(response.status, 'Failed to load assignment')
           }
 
-          return data
+          return response.json()
         },
         0,
       )
 
+      if (!ownsRequest()) return
       setAssignment(data.assignment)
       notifyImmediatePalDelivery(data.pal_delivery, classroomId)
       setDoc(data.doc)
@@ -454,13 +467,37 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
       if (data.wasFirstView) {
         notifications?.decrementUnviewedCount()
       }
-    } catch (err: any) {
-      console.error('Error loading assignment:', err)
-      setError(err.message || 'Failed to load assignment')
+    } catch (err: unknown) {
+      if (!ownsRequest()) return
+      const retryable = err instanceof TypeError
+        || (err instanceof ApiError && err.statusCode >= 500)
+      if (!(err instanceof ApiError) && !(err instanceof TypeError)) {
+        console.error('Error loading assignment:', err)
+      }
+      setInitialReadFailure(retryable ? 'retryable' : 'unavailable')
+      setError('Failed to load assignment')
     } finally {
-      setLoading(false)
+      if (ownsRequest()) {
+        initialReadPendingRef.current = false
+        setLoading(false)
+      }
     }
-  }, [assignmentId, clearLocalDraft, notifications, readRecoveryDraft, updatePreservedRecoveryContent])
+  }, [assignmentId, classroomId, clearLocalDraft, notifications, readRecoveryDraft, updatePreservedRecoveryContent])
+
+  const retryInitialRead = () => {
+    if (assignment || initialReadFailure !== 'retryable' || initialReadPendingRef.current) return
+    assignmentWorkRef.current?.focus({ preventScroll: true })
+    void loadAssignment()
+  }
+
+  const assignmentWorkProps = {
+    ref: assignmentWorkRef,
+    role: 'region',
+    'aria-label': 'Assignment work',
+    'aria-busy': loading || undefined,
+    tabIndex: -1,
+    className: 'min-w-0 h-full flex flex-col outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface',
+  } as const
 
   const applyUnsubmittedDoc = useCallback((nextDoc: AssignmentDoc) => {
     const serverContent = nextDoc.content || { type: 'doc', content: [] }
@@ -664,6 +701,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
     loadAssignment()
     loadHistory()
     return () => {
+      initialReadRequestRef.current += 1
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
@@ -1445,48 +1483,40 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   }, [isSubmitted, canSubmit, canUnsubmit, submitting, onStateChange])
 
   if (loading) {
-    if (isEmbedded) {
-      return (
-        <Card tone="panel" padding="lg">
-          <div className="flex justify-center">
-            <Spinner size="lg" />
-          </div>
-        </Card>
-      )
-    }
     return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
+      <section {...assignmentWorkProps}>
+        <PageState
+          kind="loading"
+          title="Loading assignment"
+          compact={isEmbedded}
+          className="motion-reduce:[&_svg]:animate-none"
+        />
+      </section>
     )
   }
 
-  if (error && !assignment) {
-    const exit = onExit ?? (() => router.push(`/classrooms/${classroomId}?tab=assignments`))
-    if (isEmbedded) {
-      return (
-        <EmptyState
-          title="Assignment unavailable"
-          description={<span className="text-danger">{error}</span>}
-          action={
-            <button onClick={exit} className="text-primary hover:text-primary-hover">
-              Back to assignments
-            </button>
-          }
-          tone="muted"
-        />
-      )
-    }
+  if (initialReadFailure && !assignment) {
+    const retryable = initialReadFailure === 'retryable'
+    const exit = isEmbedded
+      ? onExit ?? (() => router.push(`/classrooms/${classroomId}?tab=assignments`))
+      : () => router.back()
     return (
-      <EmptyState
-        title="Assignment unavailable"
-        description={<span className="text-danger">{error}</span>}
-        action={
-          <button onClick={() => router.back()} className="text-primary hover:text-primary-hover">
-            Go back
-          </button>
-        }
-      />
+      <section {...assignmentWorkProps}>
+        <PageState
+          kind={retryable ? 'error' : 'forbidden'}
+          title={retryable ? "Assignment couldn't load" : 'Assignment unavailable'}
+          description={retryable ? 'Try again to load this assignment.' : 'This assignment is unavailable.'}
+          compact={isEmbedded}
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              {retryable && <Button onClick={retryInitialRead}>Try again</Button>}
+              <Button variant="secondary" onClick={exit}>
+                {isEmbedded ? 'Back to assignments' : 'Go back'}
+              </Button>
+            </div>
+          }
+        />
+      </section>
     )
   }
 
@@ -1867,48 +1897,50 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   )
 
   if (isEmbedded) {
-    return editorContent
+    return <section {...assignmentWorkProps}>{editorContent}</section>
   }
 
   return (
-    <PageLayout className="h-full flex flex-col">
-      <PageActionBar
-        primary={
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <button
-                type="button"
-                className={ACTIONBAR_BUTTON_CLASSNAME}
-                onClick={() => router.push(`/classrooms/${classroomId}`)}
-              >
-                Back to classroom
-              </button>
-              <div className="mt-2 text-sm font-medium text-text-default truncate">
-                {assignment.title}
+    <section {...assignmentWorkProps}>
+      <PageLayout className="h-full flex flex-col">
+        <PageActionBar
+          primary={
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <button
+                  type="button"
+                  className={ACTIONBAR_BUTTON_CLASSNAME}
+                  onClick={() => router.push(`/classrooms/${classroomId}`)}
+                >
+                  Back to classroom
+                </button>
+                <div className="mt-2 text-sm font-medium text-text-default truncate">
+                  {assignment.title}
+                </div>
+                <div className="text-xs text-text-muted truncate">
+                  Due: {formatDueDate(assignment.due_at)} • {formatAssignmentTiming(assignment.due_at, doc)}
+                </div>
               </div>
-              <div className="text-xs text-text-muted truncate">
-                Due: {formatDueDate(assignment.due_at)} • {formatAssignmentTiming(assignment.due_at, doc)}
+              <div className="flex items-center gap-3">
+                <span className={getAssignmentStatusBadgeClass(status)}>
+                  {getAssignmentStatusLabel(status)}
+                </span>
+                {canUnsubmit ? (
+                  <Button size="sm" onClick={handleUnsubmit} variant="secondary" disabled={submitting || !!previewEntry}>
+                    {submitting ? 'Unsubmitting...' : 'Unsubmit'}
+                  </Button>
+                ) : !isSubmitted ? (
+                  <Button size="sm" onClick={handleSubmit} disabled={submitting || !canSubmit}>
+                    {submitting ? 'Submitting...' : 'Submit'}
+                  </Button>
+                ) : null}
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className={getAssignmentStatusBadgeClass(status)}>
-                {getAssignmentStatusLabel(status)}
-              </span>
-              {canUnsubmit ? (
-                <Button size="sm" onClick={handleUnsubmit} variant="secondary" disabled={submitting || !!previewEntry}>
-                  {submitting ? 'Unsubmitting...' : 'Unsubmit'}
-                </Button>
-              ) : !isSubmitted ? (
-                <Button size="sm" onClick={handleSubmit} disabled={submitting || !canSubmit}>
-                  {submitting ? 'Submitting...' : 'Submit'}
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        }
-      />
+          }
+        />
 
-      <PageContent className="flex-1 min-h-0">{editorContent}</PageContent>
-    </PageLayout>
+        <PageContent className="flex-1 min-h-0">{editorContent}</PageContent>
+      </PageLayout>
+    </section>
   )
 })

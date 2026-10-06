@@ -38515,3 +38515,39 @@ patch/retryloop. Readonly618volumes/587unattached;0 ownedprooflabelmatches,
 583non-Supabase+4other-Supabase names. Ownership/disposability unproved; no deletion.
 Need clean test environment or exact verified disposable cleanup scope. No guard/
 deadline loosening, sharedschema/production/account/provider/admission change.
+
+<!-- pika-session-log-archive-batch:f58bfcaebb4ade17d2abcc0eda7cee9f3f161fbb2ccff54121e6606c7b296ce8 -->
+## 2026-10-04 — Owner Test list environment checkpoint
+
+IndependentSol5.6/high e024 review CLEAN; one accepted normal91629 failed first
+owner/roster:22requests20001ms/19543ms guards/503. Exactteardown/SAMEsavedbaseline
+PASS; no freshforced/CI/merge.86proof/297focused-static PASS; rolloutOFF. Stop
+patch/retryloop. Readonly618volumes/587unattached;0 ownedprooflabelmatches,
+583non-Supabase+4other-Supabase names. Ownership/disposability unproved; no deletion.
+Need clean test environment or exact verified disposable cleanup scope. No guard/
+deadline loosening, sharedschema/production/account/provider/admission change.
+
+## 2026-10-04 — Owner Test list verified cleanup and bulk transport proposal
+
+HumanYes authorizedonlyverifieddisposabletestdata cleanup. Readonly577anonymous
+localvolumes:576populated1empty0unreadable;10namedunknownexcluded. RemovedONLYone
+freshmetadata-boundunattachedemptyvolume, non-force; no datafiles/populateddata
+deleted. Available221950488KiB before/afterequal; no measuredspacegain. SAMEsaved
+wholecanonicalbaselinePASS (38356),617volumesremain. No broadprune/DBreset.
+Sol6.1/high boundedreadonlyprobe:all617 Name/rawCreatedAt/Labels exactlyequal
+bulkGET/CLIinspect;193971bytes9ms,CLIlist216ms+five serialinspect459ms. Rootverified
+officialCLI VolumeList implementation and accepts scopedproposal, notactualproof.
+Delegatehelper/offlinetests ONLY toSol6.1/high; fixedlocalsocket-boundunfiltered
+GETv1.45/volumes retainscompletefreshglobalclosure/logical128batchreplay/parser/
+one-shotconsumption/caps/allactive-settlement/privateSQL/app20s. Physicaltransport
+andJSONserialization differ; no literalstdout/physicalcommandparityclaim. No native
+run/CI/merge/sourceapp/schema/prod/account/provider/admission/rollout change yet.
+Originalclock/counters/humanstopwaiverretained; no newgoal/task/automation. Worker
+usage/effectiveconfig unknown; implementationreview/runtimeacceptance stillpending.
+Deliveredhelper/testONLY, approx10min manualworkerelapsed. TDD22newbaselinefailures;
+heldsocketfailure REDqueuednetworkwork thenGREEN immediatepoolfailuremark/drain.
+Rootnonblocking-configopen findingfixed/tested. Worker163proof/tsc/scopedlintPASS;
+root374focused15/allstatic/audit2TS/historymissing0extra0/trim40/diffPASS. Sourceapp/
+runner/fixture/sealednative/SQL/schema/CI/deps byteparity376 verified. Review14th
+launch/11thtargeted/11thfixbatch planned, originalclock/humanwaiver retained; no
+freshnative rehearsal untilfixedsourceCLEAN/coordinatorfiniteacceptance.
