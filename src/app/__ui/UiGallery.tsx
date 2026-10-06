@@ -78,6 +78,7 @@ import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 import { UiConsistencyPattern } from './UiConsistencyPattern'
+import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 
 const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
@@ -587,6 +588,8 @@ export function UiGallery({ role }: Props) {
           </div>
           </PatternSection>
         </div>
+
+        <TabSelectionVisibilityPattern />
 
         {role === 'teacher' && (
           <PatternSection

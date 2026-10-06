@@ -222,7 +222,9 @@ base controls and shell styling follow the `@/ui` contracts.
 
 - Use `Tabs` plus `TabPanel` for panel-switching navigation. The tab list owns roving focus,
   automatic activation, arrow keys, `Home`/`End`, disabled-item skipping, narrow-width scrolling,
-  and 44px targets. Panels with interactive descendants are not additional tab stops.
+  and 44px targets. Initial/retained selection and layout changes reveal the selected tab within
+  its own scroller, without stealing focus or moving ancestor scroll. Manual tab browsing survives
+  unrelated renders. Panels with interactive descendants are not additional tab stops.
 - Use `SegmentedControl` for a small selected group that does not own tabpanels. It exposes pressed
   state and the same roving arrow/first/last keyboard behavior. Options may provide semantic
   `className`, `activeClassName`, and `inactiveClassName` overrides when the feature's established

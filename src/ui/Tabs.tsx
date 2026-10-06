@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, type KeyboardEvent, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { cn } from './utils'
 
 export interface TabItem<TValue extends string> {
@@ -31,6 +31,51 @@ export function Tabs<TValue extends string>({
   getPanelId,
 }: TabsProps<TValue>) {
   const generatedId = useId()
+  const listRef = useRef<HTMLDivElement>(null)
+  const lastLayoutRef = useRef<{ tab: HTMLElement; geometry: number[] } | null>(null)
+
+  // Reconnect to the current tab nodes after each render, but only reveal a new
+  // selection or changed layout. Scroll position is deliberately not a trigger:
+  // people can browse other tabs without a rerender snapping them back.
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (!list) return
+
+    const revealSelection = () => {
+      const tab = list.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')
+      if (!tab) {
+        lastLayoutRef.current = null
+        return
+      }
+      const geometry = [list.clientWidth, list.scrollWidth, tab.offsetLeft, tab.offsetWidth]
+      const previous = lastLayoutRef.current
+      if (previous?.tab === tab && geometry.every((size, index) => size === previous.geometry[index])) return
+      lastLayoutRef.current = { tab, geometry }
+      if (list.clientWidth === 0 || tab.offsetWidth === 0) return
+
+      const viewportLeft = list.getBoundingClientRect().left + list.clientLeft
+      const viewportRight = viewportLeft + list.clientWidth
+      const rect = tab.getBoundingClientRect()
+      const leftDelta = rect.left - viewportLeft
+      const rightDelta = rect.right - viewportRight
+      // An oversized label cannot fit: keep it still if it already covers the
+      // viewport, otherwise reveal the nearest edge without alternating sides.
+      if (leftDelta <= 0 && rightDelta >= 0) return
+      const delta = rect.width > list.clientWidth
+        ? leftDelta > 0 ? leftDelta : rightDelta
+        : leftDelta < 0 ? leftDelta : rightDelta > 0 ? rightDelta : 0
+      if (delta !== 0) list.scrollLeft += delta
+    }
+
+    revealSelection()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(revealSelection)
+    observer.observe(list)
+    // Earlier labels can push the selected tab out of view without changing
+    // the list's width or the selected label's own size.
+    list.querySelectorAll<HTMLElement>('[role="tab"]').forEach((tab) => observer.observe(tab))
+    return () => observer.disconnect()
+  })
   const enabledItems = items.filter((item) => !item.disabled)
   const activeItem = items.find((item) => item.value === value && !item.disabled)
   const tabbableValue = activeItem?.value ?? enabledItems[0]?.value
@@ -78,6 +123,7 @@ export function Tabs<TValue extends string>({
 
   return (
     <div
+      ref={listRef}
       role="tablist"
       aria-label={ariaLabel}
       aria-orientation="horizontal"

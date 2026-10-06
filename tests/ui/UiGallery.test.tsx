@@ -185,7 +185,7 @@ describe('UiGallery accessibility contracts', () => {
     )
     expect(window.location.hash).toBe('#mockup-settings-panel')
     expect(within(screen.getByTestId('page-mockups')).getByRole('tab', { name: 'Settings' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeVisible()
+    expect(within(screen.getByTestId('page-mockups')).getByRole('tabpanel', { name: 'Settings' })).toBeVisible()
     expect(scrollIntoView).toHaveBeenCalledTimes(3)
     requestAnimationFrame.mockRestore()
 
