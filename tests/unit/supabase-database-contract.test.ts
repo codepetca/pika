@@ -10,6 +10,16 @@ function readRepoFile(path: string): string {
 }
 
 describe('generated Supabase database contract', () => {
+  it('refines only the generated draft-save expected version nullability', () => {
+    type RawArgs = GeneratedDatabase['public']['Functions']['finish_test_draft_save_for_owner_v1']['Args']
+    type Args = Database['public']['Functions']['finish_test_draft_save_for_owner_v1']['Args']
+    expectTypeOf<Args['p_expected_version']>().toEqualTypeOf<number | null>()
+    expectTypeOf<Omit<Args, 'p_expected_version'>>().toEqualTypeOf<Omit<RawArgs, 'p_expected_version'>>()
+    expect(readRepoFile('src/types/database.ts')).toContain(
+      "Replace<GeneratedFunctions['finish_test_draft_save_for_owner_v1']['Args']"
+    )
+  })
+
   it('refines only the installed counselor RPC nullable input without inventing its signature', () => {
     type RawArgs = GeneratedDatabase['public']['Functions']['update_classroom_roster_counselor_for_owner_v1']['Args']
     type Args = Database['public']['Functions']['update_classroom_roster_counselor_for_owner_v1']['Args']

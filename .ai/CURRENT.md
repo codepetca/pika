@@ -1,6 +1,6 @@
-# Checkpoint — 2026-10-05 UTC
+# Checkpoint — 2026-10-06 UTC
 
-Source: main `43c24abec`; 27 audit findings accepted; #1469/#1473 merged, dormant.
+Source: main `c88abe16b`; 27 audit findings accepted; #1469/#1473 merged, dormant.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Production LIVE at pika.codepet.ca since 2026-10-05 06:27UTC; login HTTP200.
@@ -15,7 +15,8 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Settings last verified in prior receipts; no fresh hosted query here for controls.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-Next: owner draft PATCH/249, source-only; `docs/guidance/contextual-test-draft-save.md`.
+Next: #1480 PATCH/249 proofs/types PASS; review/CI pending;249 unapplied.
+`docs/guidance/contextual-test-draft-save.md`.
 
 Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
 individual-student purge ON, other purge/Pal OFF. Historical receipts.

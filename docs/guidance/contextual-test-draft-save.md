@@ -265,3 +265,24 @@ private-field stripping and exact closure. Conservative aggregate reservations
 include controlled raw/text/concat/decode/projection/join allowances; this is not
 a measured whole-V8-heap cap and can reject large metadata earlier. Actual Engine
 event ordering and race180s fit still require the bounded native proof.
+
+### Final isolated runtime acceptance
+
+Exact reviewed `0f1316513` normal10 passed on2026-10-06UTC:24installed-SDK cases,
+42RPC requests/zero Storage, rollback contracts, unchanged whole fixture and all16
+two-session schedules. Races used134dispatches/164620ms under the unchanged180s
+limit; native totals2803controls/186actions/zero remaining sessions stayed bounded.
+Exact teardown and the engine canonical comparison passed; a separate WHOLE same
+pinned checkpoint comparison passed after normal and each serial forced mode.
+Both forced modes returned expectedexit1 with exact cleanupPASS + their specific
+forcedFAIL markers, not startup failures. B0/B1/receipt/provenance remain unchanged;
+there was no capture, table exemption, canonical249 application or production act.
+
+The normal receipt includes genuine isolated CLI-generated public contracts:
+436753bytes/SHA256 `09f1c224ac8a2f798047ab432929c76a89b671a0d0e6c3d9986ecf0980262250`.
+Installation is byte-identical to that private artifact and adds only the two
+RPC declarations. A composed contract refines only nullable `p_expected_version`,
+preserving all generated keys/other arguments; regression RED then19checks/2files
+GREEN and whole-project tscPASS. Runtime/app/249/helper/native source is unchanged
+by this mechanical type integration. Final cumulative review and exact-head CI
+still precede main merge; this component is not a phase exit or rollout activation.

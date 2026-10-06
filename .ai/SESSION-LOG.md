@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner Test list actual runtime closure
-
-Sol5.6/high diagnostic review CLEAN at exactd82aa4e; root accepted unchanged finite
-fixture/inventory/native/source246 manifest before normal77355. Actual normal
-EXIT0/eight SDK cases/exact2PASSmarkers/no stderr; after-fixture32135 and
-before-capture42314 fullsetup forced modes each expectedEXIT1/exactcleanupPASS+
-forcedFAIL/no unexpectedoutput. All0600 receipts verified; same independent
-once-captured wholecanonical public/private/Storage/168/settings/cron/resources
-baseline PASS after everyrun, exactownedteardownPASS. Earlier failures preserved;
-no recapture or sharedlocal/prod/schema/account/provider/admission/activation.
-Facts-only final candidate is next: cumulative independent Sol5.6/high review,
-stable reviewedSHA exactCI and normal mainmerge remain gates. Component/phase/goal
-not complete. Counters9launch/7target/0final/7fix and original clock/taskstop waiver
-retained; weekly69remaining observed, attributable active/tokens unknown.
-
 ## 2026-10-04 — Owner Test list aggregate fixture CI correction
 
 Final cumulative Sol5.6/high728f review CLEAN; exact readyCI37234460529 failed one
@@ -623,3 +608,27 @@ Native180fit/typesstillpending; no Docker/native executionbyworker.
 Rootfocused515/23PASS plusarchitecture/UI/design; tscONLYtwo pendinggenuineRPC
 declarations. Originalstagedaudit2TS/lint/diffPASS; incomingSurvey126/5,
 startup+proof133/2PASS. No fabricatedtypes, readyCI or native acceptance.
+
+## 2026-10-06 — Owner draft final isolated proofs and genuine contracts
+
+IndependentSol5.6/high targeted0f131 source/finiteplanCLEAN;176/3PASS4.22s,
+lintdiffPASS; about7minwall/effectiveunknown. RootFULLread; metadataonlycorrected
+requestedexplicitmodel vs inheritedclaim, source/verdict unchanged. Original
+12:51:50Z reviewclock17launch15target9batch0final; lifecycle21events9syncpushes.
+
+Normal10 exactcleanreviewed0f13101:16:54–01:27:34Z exit0,24SDK/42RPC/0Storage;
+rollbackcontracts,1001-question source andALL16racesPASS134dispatches164620ms
+under180s; native2803controls186actions0remainingsessions. Caps unchanged.
+Exactenginecleanup/canonicalbaselinePASS; separateWHOLEsamepinnedB1PASSafter
+normal andserialforcedafterfixture/beforecapture. Bothforced expectedexit1 with
+specificFAIL+exactcleanupPASS; B0/B1/receipt/provenancehashes unchanged,no exemptions.
+Scopedcaffeinate/lidopen only, no permanentsettings/canonical249/prod/cohort changes.
+
+Genuineisolatedtypes0600 436753bytes/SHA09f1c224ac8a2f798047ab432929c76a89b671a0d0e6c3d9986ecf0980262250
+installedbyteidentical; onlytwoRPCs added. Composedexpected-versionNULL refinement
+preservesgeneratedkeys/otherargs. RED1/6 thenGREEN19/2 andprojecttscPASS. App/249/
+helper/native/runtime bytesunchanged. Finalsourcechecks/cumulativeindependentreview/
+exactCI/mainmerge pending; componentnotphaseexit/fullgoalcomplete.
+Finalfocused521/24PASS plusarchitecture/UI/design/tsc/lint; stagedaudit3TS PASS.
+Startupreceipt initially17205 then17010 overunchanged17k budget; compactCURRENT,
+76startupchecksPASS, fullfocusedPASS. Samec88main afterfetch; no native reruns.
