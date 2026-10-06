@@ -806,3 +806,7 @@ caps/expectedcatalog unchanged; affected133/2PASS and ESLint2/diffPASS. Required
 audit/targetreview/native remain; no raw startup diagnostic or record output.
 Reviewclock13:07:17/9launches/7targets retained; humanstopoverride active. No types,
 PR/CI/merge or canonical/prod249–252 application/activation acceptance.
+
+## 2026-10-06 — Publication physical trigger catalogue correction
+
+Reviewed69ae380 normalattempt5 passed isolated001–252 startup and all four raw42501 probes, then failed catalogueP2501. Exact owned teardown and separate whole-B3/all183/all5 preservation passed; both named chats released. Read-only catalogue metadata found the expected66-byte question trigger name differs from PostgreSQL's physical63-byte name. Correct only that expected tuple; regression RED first. API/SQL252/caps unchanged; fresh targeted review/native proof remain gates. No types, migration application or rollout acceptance.

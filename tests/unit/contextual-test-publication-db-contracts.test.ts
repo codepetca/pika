@@ -101,6 +101,16 @@ describe('contextual Test publication rollback database contracts', () => {
     expect(catalog).not.toMatch(/join pg_catalog\.pg_proc p\b/)
   })
 
+  it('attests the physical PostgreSQL name of the long question trigger', () => {
+    const declared = 'touch_classroom_blueprint_source_from_test_questions_insert_delete'
+    const physical = 'touch_classroom_blueprint_source_from_test_questions_insert_del'
+    expect(Buffer.byteLength(declared)).toBe(66)
+    expect(Buffer.byteLength(physical)).toBe(63)
+    const catalog = manifest.contracts.split('do $catalog$')[1].split('$catalog$;')[0]
+    expect(catalog).toContain(`('${physical}','public','touch_classroom_blueprint_source_from_test_question',13)`)
+    expect(catalog).not.toContain(`'${declared}'`)
+  })
+
   it('runs only the accepted bundle and always closes its exact session', async () => {
     const acceptedManifestSha256=createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
     const target=Object.freeze({projectId:project,apiUrl:'http://127.0.0.1:54331',databaseHost:'127.0.0.1',databasePort:54332,

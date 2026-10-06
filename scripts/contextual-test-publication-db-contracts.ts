@@ -71,7 +71,7 @@ const questionTriggers = [
   ['classroom_purge_fence_test_questions','public','reject_classroom_resource_change_during_purge',31],
   ['lock_test_question_parent','public','lock_test_parent_for_child_mutation',31],
   ['test_questions_blueprint_purge_lineage_fence','public','guard_course_blueprint_version_lineage_write',31],
-  ['touch_classroom_blueprint_source_from_test_questions_insert_delete','public','touch_classroom_blueprint_source_from_test_question',13],
+  ['touch_classroom_blueprint_source_from_test_questions_insert_del','public','touch_classroom_blueprint_source_from_test_question',13],
   ['touch_classroom_blueprint_source_from_test_questions_update','public','touch_classroom_blueprint_source_from_test_question',17],
   ['update_test_questions_updated_at','public','update_test_questions_updated_at',19],
 ] as const

@@ -47,8 +47,17 @@ A read-only anonymous PostgreSQL reproduction confirmed a verification-query
 alias collision: the catalogue record and trigger-query table alias both used
 `p`. Giving the table alias a distinct name resolves that ambiguity without
 changing any catalogue predicates, expected definitions, API/SQL252 or limits.
-This correction still requires independent review and a fresh native invocation;
-no native success, genuine types, PR/CI, merge or rollout is claimed.
+Independent review10 accepted the alias-only correction and exact-head wrappers
+at69ae380. Normalattempt5 passed startup and all four capability probes, then
+still failed catalogueP2501; owned cleanup and a separate whole-B3 check passed.
+Read-only catalogue metadata identified a second verification mismatch: the
+question trigger's66-byte declared name is physically truncated to63 bytes by
+PostgreSQL. The expected catalogue tuple now names that exact physical trigger,
+without changing its schema, function, event bits or any catalogue predicate.
+Canonical metadata diagnosis does not attest migration252 (unapplied), its
+catalogue or the complete native proof. This correction requires independent
+review and fresh native verification; no native success, genuine types, PR/CI,
+merge or rollout is claimed.
 
 Full-coverage attempts and their failures are retained in the coordinator receipt.
 Local runtime PATH needed the pinned pnpm10.25 shim; startup guidance stays within
