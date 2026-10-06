@@ -11,109 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Test conflict retry correction prepared
-
-Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
-
-Owner reviewed ed330c6; CI37257238985 passed build/unit and real browser lifecycle, but the SQL lifecycle harness still caught the old serialization_failure code. Corrected its two catches and the manual-grading stale-batch catch to PT409; SQL/API fix unchanged. Focused297 passed; required database CI and renewed correction review remain pending. Public traffic remains held.
-
-CI37260146916 PASS on8db4cfbad:12427 unit/API,297 browser passes (4 retried,20 skipped), all database contracts/PR Gate. During CI, main#1473 merged6586847c with owner draft GET migration247. Rebased and renamed identical conflict SQL to248; preserved main history and incoming dormant behavior. Fresh combined-tree checks/CI and complete production247–248 preview are required; public traffic stays held.
-
-CombinedCI37263237568:12641PASS/8FAIL/8SKIP; incoming owner-draft harness required exactly247 migrations and rejected248. Returned1474 to draft; cancelled unqualifiable remaining jobs. Harnesses now accept >=247 while validating/hashing every sequential migration and frozen source/copies; native offline cache count uses full actual SQL inventory. New regression proves later migration changes manifest and copied-source drift still rejects. Affected158/4PASS; runtimeSQL/API and migration248 unchanged; focused/review/stableCI pending, no new production mutation.
-
-Correction validation: focused455/29PASS plusarchitecture/UI/design/TypeScript/lintPASS. Startupdocbudgetinitially17032>17000; compactedCURRENTreceipt (gateunchanged), rerunPASS. Coordinator verified baseline/order/full-chain hashes and drift/target/resourceguards preserved; priorruntime reviewer limit persists, directowner task-wide instruction waives further review requests. Stable correctedhead/newCI pending; failedruns retained.
-
-## 2026-10-05 — Production schema verified; release history reconciliation
-
-PR1474 merged5708750d after CI37264085316 all gates PASS (12672 unit/API,300 browser passes/1 retried/20 skipped, all database contracts). Complete247–248 preview37267273069 matched source/hashes/digest; one approved apply37267393757 is applied-verified,001–248 complete. Seven installed function bodies/security/owners/ACLs and12 unchanged controls PASS. Teacher/student own sessions freshly authorized; no more email sends. Public WAF operator-only; old application83b683c stays active until matching replacement/canaries/exactcleanup.
-
-Promotion1476 exposed strict up-to-date protection: main lacked production83b683c history. Returned promotion draft/cancelled its unqualifiable CI. Main enforces linear history and squash/rebase-only PR merges; production permits merge commits. This main docsPR records receipts with every application/SQL byte unchanged from5708750d. Squash it normally, then merge production83 history into the existing release branch, verify exact resulting main tree and83 ancestry, require its fullCI/PRGate and matching deployment. Current canonical CI shortcut requires exactmainSHA, so this metadata merge takes the full path. No protection/CI bypass, no new schema/flag activation or reapply. Direct owner task-wide approval waiver applies; native independent reviewer runtime remains unavailable. Lifecycle, two exact Storage files/new provider cleanup and WAF release still pending.
-
-History sync validation: initial docs-only focused157/10PASS; every src/supabase/workflow/script/test/E2E byte equals validated5708750d. Startupbudgetinitial17026 exceeded17000; compactCURRENT and rerunPASS, gate unchanged. Shared env/startup verified; no application/schema changes or new apply. Coordinator verified three continuity paths; direct owner task-wide approval waiver covers release reconciliation.
-
-GitHub rejected normalmerge1477 under main linear-history/method rules; repository-wide merge commits are enabled, production rule permits them. No settings/protection modified. Corrected receipt/plan to normal mainsquash plus release-branch production-history merge and all required fullCI. Direct owner waiver continues; app/SQL bytes unchanged and migrationapply remains consumed.
-
-## 2026-10-05 — Production public release verified
-
-PR1477 squashed toab2e629f; releaseb5cf85b9 preserves production ancestry and exactmain tree. FullCI37268657918 PASS:12672unit/API,157workflow,298browser+3retry-passes/20skips, realTest lifecycle direct-pass, all database contracts andPRGate. Normalproduction merge1476 producedc6f23b4b; Verceldpl_6Q7Er4cNiH1t3ZVefndqj573g5uD READY andbothproduction aliases verified. Schema001–248/sevenfunction bodies/security/ACLs/twelvecontrols rechecked unchanged; no reapply.
-
-Production canaryPASS: reopenedReturn409 in2.47s, closure/CASgrade/Return/disclosure/idempotence. NormalTestDELETE, exactlytwo leased Storage deletions and fenced completions, exactledger disposal, ownedlogout401, newstudentWorkOS deletion, guardedClassroom/twoPikauser cleanup completed. Existingteacher provider/realstudent preserved; unrelated285objects digestunchanged/pending17. PreparedleaseSQL CASEsyntax initiallyrejected withnochanges; parenthesized expression corrected andguarded executionPASS. WAFbaseline restored once; publiclogin200/auth401 at06:27UTC. Private production-public-live-completion-receipt.json records evidence. Owner approval waiver respected; runtime/CI/protection limits retained. Production usable; this docs-only handoff changes no application/schema/flags.
-
-## 2026-10-05 — Audit follow-up owner disposition
-
-Owner directed leaving braces in place and remembering it. No general TODO file exists; added DEP-01 to docs/core/roadmap.md deferred maintenance, linked dependency/audit evidence and retained mitigation plus the existing November4 exception review date. Owner considers remaining live verification done: additional summary provider timeout/retry and teacher-closed zero-scoring probes are closed by waiver, without claiming new executed checks. CURRENT/audit plan and private finding/handoff ledger record this disposition. No dependencies, application, production state or feature-epic status changed; no monitor scheduled.
-
-## 2026-10-05 — CI preparation approved merge refresh
-
-Owner approved PR #1475 merge into main and explicitly approved one bounded review-budget extension: launch 8, targeted changed-base integration capped at five minutes, followed by required CI. Prior seven launches and two cancellation code fixes remain counted; no new full-review wave. Old reviewed head `55d622b4` passed all five jobs in CI37261728363: 2,678 wall seconds, about 87.5 summed job minutes; classifier/gate 11/3 seconds. Main advanced through #1474/#1477/#1478/#1479 to `c25ebf78`; only conflict was archive bookkeeping. Complete earlier trim body was already archived upstream. Retained upstream archive and all main session receipts, restored only this task's preparation entry, then ran official trim. Runner policy/preflight/local executor and tests remain byte-identical to the reviewed implementation; current all-lane inventory includes upstream migration248. Refreshed focused checks, launch8 and exact-head eligible CI/merge are pending. No production, privacy, runner or local database operation; host choice and private activation remain pending. Weekly remaining at refresh54percent, account-wide and not attributable to this task; worker token telemetry unknown.
-
-## 2026-10-05 — Approved CI documentation correction
-
-Owner “go” authorizes one further correction batch and targeted review launch9
-(max five minutes), required checks and the already-approved PR1475 main merge.
-Launch8 accepted24b1f4d8; exactCI37308955639 failed one unchanged Bara rollout
-contract (12703PASS/8SKIP), locally reproduced. Returned draft/cancel requested.
-Upstream release #1478 shortened CURRENT's migration/control prefixes; restore
-only those two prefixes, retaining verified001–248 history and twelve unchanged
-controls from the production receipt. CI implementation and tests unchanged.
-Affected/focused verification and independent launch9 are pending; no budget
-reset or further review extension. Host/private runner activation remains pending.
-
-## 2026-10-05 — Survey Pattern Lab prototype
-
-Owner requested Survey prototype informed by the Test modal. Added experimental
-SurveyEditSplitPattern and teacher gallery discovery. Reuses CreationModalShell,
-MarkdownContentEditor, canonical action menus and UI controls. Fixed fixtures;
-local MC/open-response authoring, keyboard option reorder, settings, full Markdown,
-student preview and simulated publish. No API writes or production student changes.
-Playwright authoring flow PASS4/4 desktop/mobile light/dark; screenshots inspected
-against Test at matching desktop viewport, plus stacked mobile/open and preview.
-GPT6.1Sol/medium bounded worker delivered focused browser coverage in one pass,
-roughly3min with no implementation rework; weekly48% remaining at start.
-New prototype remains experimental pending owner feedback; no shared-shell extraction.
-
-Prototype independent GPT6.1Sol/medium review found Markdown metadata snapshot
-overwrite; locked Title/Settings while code owns metadata and added regression.
-
-## 2026-10-05 — Survey prototype applied to real authoring
-
-Owner requested applying the selected prototype to real Pika. Teacher Survey now
-uses the Test-style details pane, rich prompt editor, centered question navigation,
-question action menu, individual lettered options, settings and Preview/Publish.
-Feature-owned SurveyQuestionOptions is reused by real authoring and Pattern Lab;
-no broader shared shell, API/schema/dependency or student UI change. Save flushes,
-retry, stale-selection guards and Markdown metadata ownership retained. Browser
-verification exposed and fixed creation title-focus intent consumption; failed
-save number navigation also restores the actual selected number.
-Real authoring PASS4/4 desktop/mobile light/dark; MC/open/settings/Markdown/preview/
-new-draft screenshots inspected. Prototype variants pass after extraction; dark
-desktop needed an isolated retry after a development hot-reload dialog reset.
-GPT6.1Sol/medium bounded test worker delivered persistence/options/browser and
-title-focus regression coverage; parent corrected browser accessible-name and
-selection expectations. Weekly47% remaining at start; per-worker usage unavailable.
-Focused selection371/372 passed; unchanged focused-runner fixture timed out,
-isolated retryPASS in2.45s. Architecture/UI/design/TypeScript/lint and auditPASS;
-prototype unit4/4 and production-workflow fixture4/4 isolatedPASS. Final desktop
-browser retryPASS after faithful draft-status fixture correction. Independent
-standard-risk review precedes ready CI on PR1483; no production promotion.
-Full integration review GPT6.1Sol/high found twoP2 recovery blockers: closing
-loading/unavailable detail and returning from an unwanted staged question.
-One batch adds visible/shell close, stale unmount response invalidation and
-Cancel restoring prior selection with no POST. Component40/40 and real browser
-4/4 PASS; recovery and staged-form screenshots inspected. Required focused rerun
-and targeted review pending; phase ledger1launch/1fix, roughly4min review.
-Targeted recovery review clean. Cumulative reviewer identified first-question
-variant; second small batch exposes Cancel for dirty first drafts too. Gallery
-navigator test caches stable semantic query results, retaining all assertions
-after repeated5s DOM-query timeouts. Workspace/gallery48/48 and isolated startup
-76/76 PASS; prior aggregate retry368/377 had nine timeouts in startup/gallery.
-Final narrow review and static/browser evidence recorded in PR, preserving exact
-head; no changes to timeouts, gates, dependencies or production.
-Final first-question discard browserPASS16.7s after a30s overall deadline during
-concurrent static checks; all intended assertions passed when run alone. Final
-architecture/UI/design/TypeScript/lint and auditPASS; required aggregate rerun
-uses unchanged gate. Phase ledger3reviews/2fixes before final targeted acceptance.
-
 ## 2026-10-05 — Fluid classroom Daily pilot
 
 Set active goal and audited continuity using one bounded GPT-6.1 Sol/medium worker; DeepSeek remains owner-paused. New fluid-classroom-plan records experience contract, governed reuse/extend choices and later teacher/student slices. Daily now keeps one table/split owner, retains valid same-date selection, clears changed scope/removed students, and discloses details with existing tokens and inert hidden controls. Escape now ignores the mounted hidden user menu while deferring to an open menu. Pattern Lab real-owner candidate remains experimental; owner acceptance requested before promotion/broader adoption. No dependency or database changes.
@@ -737,6 +634,7 @@ Final full focused retry passed581/30 and all static gates; audit passed. No wea
 checks. Evidence /tmp/pika-summary-db-remediation-stable-focused.log. Prior browser4/4 correction
 and model/privacy reviews remain valid. Owner main-merge authority retained; final
 reviewed-SHA CI gate is required. Production promotion remains outside scope.
+
 ## 2026-10-06 — Clear sent grading comments
 
 Classwork no longer reloads returned feedback into the draft composer. Tests opens returned work with an empty composer and shows sent feedback separately; score-only saves retain feedback, failed saves and concurrent typing retain drafts. Both placeholders: `Leave a comment...`; empty Test inputs stay one row.
@@ -750,3 +648,7 @@ Second styling follow-up: History, Grade and Comments cards are border-free in t
 Classwork toggle follow-up: implemented the authorized two-mode left pane (student table/individual work), Lucide Users/User through a feature-owned Button/Tooltip composition also used by Pattern Lab. Marking pane/controller stays mounted; table checkbox selection clears on return, individual selection and AI Grade/Return targets derive from the displayed student; copy actions remain table-only. Extended TeacherStudentWorkPanel/feature selection ownership; no shared primitive change, dependencies or migrations. Stable teacher-work canon updated; teacher desktop/mobile light/dark, table/individual/menu/next/loading/reset matrix, student n/a. Composite checklist reviewed: keyboard/semantic state/Escape focus covered, no manual follow-up. Risk workspace-state; owner classroom+assignment+student.
 
 Toggle evidence: targeted126 PASS; focused25files/504tests plus architecture/UI/design/TypeScript/lint PASS. One concurrent run had two Gallery timeout failures; unchanged rerun after capture completed passed. Playwright20 captures and receipt `output/playwright/clear-sent-comments/classwork-toggle-receipt.json`; all API reads/mutations synthetic, exact AI/Return payload after Next verified. Initial independent GPT6.1Sol/high review found individual actions enabled before new student's work loaded; accepted one batch adding assignment/student template ownership and loading guards plus deferred navigation regressions. Targeted re-review and cumulative acceptance tracked on PR1508. New bounded follow-up review session (prior comment/style session completed): one initial launch, one remediation batch; reviewer time/tokens unknown, weekly remaining17%, DeepSeek explicitly paused throughDec31. Coordinated quiet window respected until release; no actual DB writes during visual checks.
+
+## 2026-10-06 — Grading comments PR conflict sync
+
+Owner requested fixing PR1508 conflicts with main. Rebased codex/clear-sent-comments onto 2d89088cd; only conflict was duplicate archive bookkeeping, whose incoming body already exists verbatim upstream. Preserved full upstream history and feature receipts. All 15 feature source/test/guidance files are byte-identical to reviewed a9ca5092; shared experience-matrix changes retain main's Daily summary coverage and this branch's comment placeholder assertion. Existing synthetic UI screenshots therefore remain applicable. Fresh focused checks and one bounded independent sync review follow before stable-SHA ready CI; no database/login/browser operations or production changes. Weekly remaining16percent; DeepSeek remains paused.
