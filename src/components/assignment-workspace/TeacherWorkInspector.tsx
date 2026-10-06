@@ -159,12 +159,12 @@ function InspectorSection({
       data-testid={`inspector-section-${id}`}
       data-highlighted={isHighlighted ? 'true' : undefined}
       className={[
-        'overflow-hidden rounded-lg border transition-[border-color,background-color,box-shadow]',
+        'overflow-hidden rounded-lg transition-colors',
         isHighlighted
-          ? 'border-primary bg-info-bg shadow-sm ring-1 ring-primary/30'
+          ? 'bg-info-bg'
           : visible
-            ? 'border-border bg-surface'
-            : 'border-dashed border-border bg-surface-2',
+            ? 'bg-surface'
+            : 'bg-surface-2',
       ].join(' ')}
     >
       <div
