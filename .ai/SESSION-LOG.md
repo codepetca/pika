@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Approved CI documentation correction
-
-Owner “go” authorizes one further correction batch and targeted review launch9
-(max five minutes), required checks and the already-approved PR1475 main merge.
-Launch8 accepted24b1f4d8; exactCI37308955639 failed one unchanged Bara rollout
-contract (12703PASS/8SKIP), locally reproduced. Returned draft/cancel requested.
-Upstream release #1478 shortened CURRENT's migration/control prefixes; restore
-only those two prefixes, retaining verified001–248 history and twelve unchanged
-controls from the production receipt. CI implementation and tests unchanged.
-Affected/focused verification and independent launch9 are pending; no budget
-reset or further review extension. Host/private runner activation remains pending.
-
 ## 2026-10-05 — Survey Pattern Lab prototype
 
 Owner requested Survey prototype informed by the Test modal. Added experimental
@@ -682,3 +670,22 @@ Same GPT6.1Sol/high reviewer checked this bounded test-only remediation, clear; 
 verified source and results. Browser testing is quiet for the separately authorized local
 database checkpoint; no canonical writes/login activity resumes without its release.
 Merge remains conditional on reviewed final SHA PR Gate. No production promotion authorized.
+
+## 2026-10-06 — Daily current-cache database contract proof
+
+CI37482125837 at a970538ce passed test/build and browser matrix; the database lane
+failed only the cached-summary harness's obsolete high-priority-v1 ready fixture.
+Returned PR1506 to draft. Test-harness-only correction uses the current policy constant
+and bounded detail, proves factual question detail/name projection, rejects v1/v2 caches,
+and exercises current-policy missing-overview/unresolved-name boundaries. Ownership,
+freshness, isolation and exact fixture cleanup checks are preserved. GPT6.1Sol/high
+bounded independent review clear; no product, migration, provider or authorization edits.
+After coordinated local-testing release, exact local harness passed all four stages,
+including guarded synthetic fixture/live-state/audit cleanup; no reset or real-user change.
+Evidence /tmp/pika-summary-db-remediation-contract.log. Two full focused retries saw
+5-second timeouts in unchanged focused-checks and UiGallery files under concurrent host
+work. Those files passed separately24/24 and14/14 with original timeouts unchanged.
+Final full focused retry passed581/30 and all static gates; audit passed. No weakened
+checks. Evidence /tmp/pika-summary-db-remediation-stable-focused.log. Prior browser4/4 correction
+and model/privacy reviews remain valid. Owner main-merge authority retained; final
+reviewed-SHA CI gate is required. Production promotion remains outside scope.

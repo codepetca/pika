@@ -38770,3 +38770,16 @@ Owner directed leaving braces in place and remembering it. No general TODO file 
 ## 2026-10-05 — CI preparation approved merge refresh
 
 Owner approved PR #1475 merge into main and explicitly approved one bounded review-budget extension: launch 8, targeted changed-base integration capped at five minutes, followed by required CI. Prior seven launches and two cancellation code fixes remain counted; no new full-review wave. Old reviewed head `55d622b4` passed all five jobs in CI37261728363: 2,678 wall seconds, about 87.5 summed job minutes; classifier/gate 11/3 seconds. Main advanced through #1474/#1477/#1478/#1479 to `c25ebf78`; only conflict was archive bookkeeping. Complete earlier trim body was already archived upstream. Retained upstream archive and all main session receipts, restored only this task's preparation entry, then ran official trim. Runner policy/preflight/local executor and tests remain byte-identical to the reviewed implementation; current all-lane inventory includes upstream migration248. Refreshed focused checks, launch8 and exact-head eligible CI/merge are pending. No production, privacy, runner or local database operation; host choice and private activation remain pending. Weekly remaining at refresh54percent, account-wide and not attributable to this task; worker token telemetry unknown.
+
+<!-- pika-session-log-archive-batch:1e85b21f963eb45e65e1b7cf968adc4aecd49948e14fab4f7bcb9f417e0127ac -->
+## 2026-10-05 — Approved CI documentation correction
+
+Owner “go” authorizes one further correction batch and targeted review launch9
+(max five minutes), required checks and the already-approved PR1475 main merge.
+Launch8 accepted24b1f4d8; exactCI37308955639 failed one unchanged Bara rollout
+contract (12703PASS/8SKIP), locally reproduced. Returned draft/cancel requested.
+Upstream release #1478 shortened CURRENT's migration/control prefixes; restore
+only those two prefixes, retaining verified001–248 history and twelve unchanged
+controls from the production receipt. CI implementation and tests unchanged.
+Affected/focused verification and independent launch9 are pending; no budget
+reset or further review extension. Host/private runner activation remains pending.
