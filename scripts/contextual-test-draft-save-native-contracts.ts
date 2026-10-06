@@ -27,7 +27,7 @@ import { testOwnerPristineDiscardDbContractsSql, testOwnerPristineDiscardDbPlanO
   TEST_OWNER_PRISTINE_DISCARD_DB_LIMITATIONS, TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS } from './contextual-test-pristine-discard-db-contracts'
 import { testOwnerPristineDiscardConcurrencyManifest, validateTestOwnerPristineDiscardConcurrencySql, runTestOwnerPristineDiscardConcurrency } from './check-contextual-test-discard-concurrency'
 import { newTestOwnerPublicationFixture, testOwnerPublicationSnapshotSql, type TestOwnerPublicationFixture } from './contextual-test-publication-proof-fixture'
-import { testOwnerPublicationDbContractsManifest, runTestOwnerPublicationDbContracts } from './contextual-test-publication-db-contracts'
+import { TEST_OWNER_PUBLICATION_DB_CHECK_LABELS, testOwnerPublicationDbContractsManifest, runTestOwnerPublicationDbContracts } from './contextual-test-publication-db-contracts'
 import { testOwnerPublicationConcurrencyManifest, validateTestOwnerPublicationConcurrencySql, runTestOwnerPublicationConcurrency,
   testOwnerPublicationCommittedManifest, validateTestOwnerPublicationCommittedSql, runTestOwnerPublicationCommittedTransitions } from './check-contextual-test-publication-concurrency'
 
@@ -36,7 +36,8 @@ const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, cont
 const failure = () => new Error('Private native Test draft contracts failed; exact project disposal required')
 const contextTemplate = '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}'
 const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503', '42501', '55P03', '40P01', '40001', '57014',
-  'P0001', '23502', '23503', '23505', '23514', '22P02', '25P02', '57P01', '57P02', '57P03', ...Object.keys(TEST_OWNER_CREATE_FAILURE_LABELS), ...Object.keys(TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS)])
+  'P0001', '23502', '23503', '23505', '23514', '22P02', '25P02', '57P01', '57P02', '57P03', ...Object.keys(TEST_OWNER_CREATE_FAILURE_LABELS), ...Object.keys(TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS),
+  ...TEST_OWNER_PUBLICATION_DB_CHECK_LABELS.slice(0, -1).map((_, index) => `P25${String(index + 1).padStart(2, '0')}`)])
 type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'transitions' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'

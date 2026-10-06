@@ -755,3 +755,23 @@ Wholecoverage attempt3 at3f30c482 PASS14139/8SKIP,1085files,481.91s; coverage
 85.24statements/77.42branches/91.47functions/87.22lines. This precedes the docs-only
 batch2 correction; targeted docs checks and review remain required. WholeB1 owner
 decision still pending; no native/types/PR/CI/merge or activation acceptance.
+
+## 2026-10-06 — Authorized publication checkpoint and native failure
+
+Owner yes approved retaining B1 and a NEW complete read-only checkpoint. Stable
+double capture covers183tables/all5fields; other4 fields/catalog unchanged. Exact
+seven changed tables recorded privately: auth3 plus Class/archive/Assignment docs
+and Daily entries20->21; observed writes13:25–13:27 predate capture, attribution
+unknown. Four closed diagnostic/capture attempts wrote no artifact; fifth captured
+exclusive600B2 0f48c051 and reconciliationdd9a3f3a. No exemptions or canonicalwrites.
+Independent Sol/high review5 CLEAN at96cfa10 for exactB2/source/normal+forced wrappers.
+Actual normalattempt2 replayed001–252 in owned7fcf42057a98. Four withdrawn capability
+probes restored/raw42501; SQL contracts thenfailed (native41actions/656controls),
+privatecodeunknown. Owned teardown clean; independent wholeB2/all5 verification
+and oldB1 hash PASS; no generatedtypes/receipt acceptance. Canonical/prod249–252
+remainunapplied; no production/admission/cutover/account/provider mutation.
+Batch3 adds only the finite48 publication-contract SQLSTATEs to existing privacy
+diagnostics. TDD knownfirst/last codes RED2 then GREEN; out-of-range staysunknown,
+rawsecret/rows suppressed. Affected85/2PASS/lintPASS; audit/review/newexactnative
+attempt stillrequired. Original13:07:17reviewclock/5launches/3targets/2batches kept;
+human stopoverride persists; actual correctness/permission holds remain.

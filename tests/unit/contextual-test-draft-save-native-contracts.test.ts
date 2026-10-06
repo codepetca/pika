@@ -418,6 +418,12 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
     expect(adapter.diagnostic()).not.toContain('PRIVATE')
   })
+  it.each([['P2501', 'P2501'], ['P2548', 'P2548'], ['P2549', 'unknown']])('keeps finite252 contract diagnostics without rendering source rows %s', async (code, expected) => {
+    const adapter = publicationFactory(); setupExit = true; stderrChunks = [`PRIVATE secret row\nERROR: ${code}\n`]
+    await expect(adapter.setup()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
+    expect(adapter.diagnostic()).not.toMatch(/PRIVATE|secret|row/)
+  })
   it('rejects changed250 bytes before SDK guard or native work dispatch', async () => {
     const adapter = createFactory(); await adapter.setup()
     const childrenBefore = children.length, sqlBefore = sqlControls.length
