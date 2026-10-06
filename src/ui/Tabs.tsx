@@ -53,6 +53,10 @@ export function Tabs<TValue extends string>({
       lastLayoutRef.current = { tab, geometry }
       if (list.clientWidth === 0 || tab.offsetWidth === 0) return
 
+      // Hydration or a resize can happen between pointer down and click. Keep
+      // the pressed tab in place; its activation will reveal the new selection.
+      if (list.querySelector('[role="tab"]:active')) return
+
       const viewportLeft = list.getBoundingClientRect().left + list.clientLeft
       const viewportRight = viewportLeft + list.clientWidth
       const rect = tab.getBoundingClientRect()

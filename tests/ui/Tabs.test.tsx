@@ -75,6 +75,24 @@ describe('Tabs', () => {
     fireEvent.keyDown(text, { key: 'Home' })
     expect(onValueChange).toHaveBeenLastCalledWith('link')
   })
+
+  it('activates and focuses the intended tab on click, without activating on pointer down', () => {
+    const onValueChange = vi.fn()
+    const items = [{ value: 'overview', label: 'Overview' }, { value: 'settings', label: 'Settings' }]
+    const { rerender } = render(<Tabs ariaLabel="Pointer panels" items={items} value="settings" onValueChange={onValueChange} />)
+    const overview = screen.getByRole('tab', { name: 'Overview' })
+    fireEvent.pointerDown(overview)
+    expect(onValueChange).not.toHaveBeenCalled()
+    fireEvent.pointerUp(overview)
+    fireEvent.click(overview)
+    expect(onValueChange).toHaveBeenCalledTimes(1)
+    expect(onValueChange).toHaveBeenLastCalledWith('overview')
+    expect(overview).toHaveFocus()
+    rerender(<Tabs ariaLabel="Pointer panels" items={items} value="overview" onValueChange={onValueChange} />)
+    expect(overview).toHaveAttribute('aria-selected', 'true')
+    expect(overview).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('tab', { name: 'Settings' })).toHaveAttribute('tabindex', '-1')
+  })
 })
 
 

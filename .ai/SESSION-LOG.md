@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Draft-save native failure retained after guard improvement
-
-Parallel guard b1f targeted security/finite-plan review CLEAN,89independentPASS;
-original clock retained,7launches/5targeted/4batches/0final. Approved one normal
-rehearsal reached42SDKrequests then native generic failure, not earlier closed
-concurrency-total label. Exact cleanup/separateSAMEcanonicalbaselinePASS; no
-normal/types receipt, forced reruns, canonical migration or production action.
-Do not infer all races/budgets passed. Same GPT6.1Sol/high worker prepares only
-closed native phase/counter/known-error diagnostics with offlineTDD; no runtime,
-caps/guards/app/SQL changes. Source/plan acceptance before another invocation.
-PR1480 stays draft; all activation OFF, goal/phase incomplete.
-
-Closed diagnostic worker delivered/relinquished: first-fault fixed native phase,
-role, known SQLSTATE/counters only; psql reporting sqlstate, no raw text emitted.
-7trueRED then98PASS/3files8.27s, lint/diffPASS; root inspected complete3filediff.
-Observed15:51:27–16:01:01UTC partialwall, attributableusageunknown. Cleanup checks,
-original caps/SQL/app/guards unchanged. Fifthbatch pending focused/stagedaudit,
-stable commit and targeted source/one-normal-plan review; actual cause unknown.
-
 ## 2026-10-05 — Draft-save historical reconciliation and sleep interruption
 
 Resume preserved immutable249/app/native guards through main1485 timeout-only
@@ -526,3 +507,7 @@ no feature head, protected branch, hosted service, pattern authority or rollout 
 ## 2026-10-06 — Pattern Lab hydration correction for consolidated landing
 
 Owner approved one additional correction batch/final review with a 60-minute cap. Rejected the Suspense probe because it replaced server identities. Added a layout-neutral server parent around the existing guarded Gallery; eight unchanged drawer checks passed, and repeated actual-response/client ID, ARIA, menu and strict-error checks were added for both roles. Production gates, dependencies and original assertions remain intact. Focused checks, final stable-SHA matrix/review and exact-head CI remain required before authorized #1490 merge; softer modal exits follow landing. External continuation evidence: product-fluidity/review-ledger.json and hydration-ui-brief.md in this task's artifact directory.
+
+## 2026-10-06 — Preserve native tab presses through hydration
+
+Owner approved one additional correction batch and one final review for #1490. Reproduced first-interaction hydration moving the selected tab strip during a native press; canonical Tabs now remembers the layout without moving a pressed tab. A deterministic real-client-chunk hold failed on the prior source and passed the first 16 teacher/student, desktop/mobile, light/dark, normal/reduced combinations after correction. Added semantic click/selection coverage and strict final browser checks; existing assertions and timeouts remain intact. The concurrent Gallery unit probe hit three unchanged timeouts; sequential focused verification and the final frozen-head matrix/review remain gates. Original #1490 CI artifacts are retained; the database lane cancelled on the required draft transition. No dependency, API, production promotion or modal implementation change. External receipt: product-fluidity/tab-pointer-ui-brief.md and review-ledger.json in this task's artifact directory.
