@@ -1,6 +1,18 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { verifyTabSelectionVisibility } from './helpers/tab-selection-visibility'
 
 test.setTimeout(90_000)
+test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('selected tab visibility', () => {
+  for (const role of ['teacher', 'student'] as const) {
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      test(`${role} keeps selection visible with ${reducedMotion} motion`, async ({ page }, testInfo) => {
+        await verifyTabSelectionVisibility(page, testInfo, role, reducedMotion)
+      })
+    }
+  }
+})
 
 test('prototypes survey editing with accessible split panes and local authoring actions', async ({ page }, testInfo) => {
   const writes: string[] = []
@@ -1319,10 +1331,11 @@ test.describe('teacher Pattern Lab', () => {
     await expect(date).not.toHaveAttribute('aria-describedby')
     expect((await date.boundingBox())!.height).toBe(dateHeightWithSubtitle)
 
-    await page.getByRole('tab', { name: 'Overview', exact: true }).focus()
+    const workspace = examples.getByTestId('attached-shell-example')
+    await workspace.getByRole('tab', { name: 'Overview', exact: true }).focus()
     await page.keyboard.press('ArrowRight')
-    await expect(page.getByRole('tab', { name: 'Work details' })).toBeFocused()
-    await expect(page.getByRole('tabpanel', { name: 'Work details' })).toBeVisible()
+    await expect(workspace.getByRole('tab', { name: 'Work details' })).toBeFocused()
+    await expect(workspace.getByRole('tabpanel', { name: 'Work details' })).toBeVisible()
     await testInfo.attach('teacher-family-future-and-selected', {
       body: await examples.screenshot({ path: testInfo.outputPath('teacher-family-future-and-selected.png'), animations: 'disabled' }), contentType: 'image/png',
     })

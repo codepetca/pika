@@ -80,6 +80,7 @@ import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 import { UiConsistencyPattern } from './UiConsistencyPattern'
+import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { DialogEntryPattern } from './DialogEntryPattern'
 
@@ -636,6 +637,8 @@ export function UiGallery({ role }: Props) {
         >
           <TabEntryPreview />
         </PatternSection>
+
+        <TabSelectionVisibilityPattern />
 
         {role === 'teacher' && (
           <PatternSection
