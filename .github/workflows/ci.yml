@@ -468,6 +468,23 @@ jobs:
             grep -Fx 'PASS isolated test-owner-create exact teardown and unchanged canonical baseline.' "$test_owner_create_log"
           done
 
+      - name: Verify isolated contextual pristine Test draft discard transactions
+        shell: bash
+        run: |
+          test_owner_pristine_discard_head=$(git rev-parse HEAD)
+          test_owner_pristine_discard_log=$(mktemp)
+          chmod 600 "$test_owner_pristine_discard_log"
+          trap 'rm -f -- "$test_owner_pristine_discard_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-pristine-discard-lifecycle.ts --reviewed-head "$test_owner_pristine_discard_head" --mode normal
+          for test_owner_pristine_discard_mode in after-fixture before-capture; do
+            test_owner_pristine_discard_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-pristine-discard-lifecycle.ts --reviewed-head "$test_owner_pristine_discard_head" --mode "$test_owner_pristine_discard_mode" > "$test_owner_pristine_discard_log" 2>&1 || test_owner_pristine_discard_status=$?
+            [[ "$test_owner_pristine_discard_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_pristine_discard_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-pristine-discard lifecycle: ${test_owner_pristine_discard_mode}." "$test_owner_pristine_discard_log"
+            grep -Fx 'PASS isolated test-owner-pristine-discard exact teardown and unchanged canonical baseline.' "$test_owner_pristine_discard_log"
+          done
+
       - name: Verify contextual Daily Log save atomicity and privileges
         run: bash scripts/check-contextual-daily-log-save-database.sh
 

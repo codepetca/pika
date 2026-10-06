@@ -1262,11 +1262,23 @@ genuine types and SAME whole-canonical equality passed. No canonical249 migratio
 application, production promotion or activation occurred. The next bounded slice
 is [ordinary owner Test creation](contextual-test-create.md), not a phase exit.
 
-Successor creation250 isolated acceptance on2026-10-06: exact59a4 normal3 and
+Historical successor creation250 isolated acceptance on2026-10-06: exact59a4 normal3 and
 both serial forced cleanup modes passed, with SAME whole immutable canonical B1
 and byte-identical genuine CLI types. Earlier source-inventory failures remain
 recorded; exact17-trigger closure corrected, not weakened. Final PR review/CI
-remain pending. No canonical249/250 application, production act or activation.
+remain pending in that earlier receipt. No canonical249/250 application, production act or activation.
+
+Superseding2026-10-06: creation PR#1500 merged5bf3dbacc after all five exact-head
+CI37422413824 checks passed on reviewed dba18a9e. Squash-tree parity and clean
+canonical main fast-forward passed, preserving36 ordered unrelated stashes.
+Next is [pristine Test draft discard](contextual-test-pristine-discard.md), not
+general deletion. Clean reviewed5f5f097673c5 isolated normal proof and genuine
+CLI types passed:18 SDK cases/20 RPC/0 Storage/6 pair removals,2 physically restored
+privilege probes,56 rollback checks and14 contention schedules. Both serial
+forced cleanup modes and SAME whole canonical equality passed. Final local
+checks, independent integration review and reviewed-head PR Gate remain pending.
+Canonical249–251 and all experience/billing activation remain held; real lifecycle
+state profiles and other owner/learner operations still prevent phase closure.
 
 Historical source preparation below predates that actual merge receipt:
 [contextual owner Test draft GET](contextual-test-draft-get.md), including
