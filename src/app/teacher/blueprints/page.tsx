@@ -443,6 +443,7 @@ export default function TeacherBlueprintsPage() {
   }
 
   const beginBlueprintSelection = useCallback((blueprintId: string | null) => {
+    if (selectedBlueprintIdRef.current !== blueprintId) setError('')
     detailRequestIdRef.current += 1
     detailRetryRequestRef.current = null
     setDetailReadError('')

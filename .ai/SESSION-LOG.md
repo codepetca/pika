@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Survey split authoring
-
-New/Edit Survey now opens the test-style 1/3 details + 2/3 active question editor (stacked mobile); direct generated-title draft creation, MC/open-response/link, multiline prompts, selected-question navigation, autosave flush/retry, Markdown and Preview retained. Reuses CreationModalShell, Test split composition and @/ui controls; no shared-contract or stable-canon change, no experimental pattern/promotion. Survey identity guards retained; creation responses cannot open in another Classroom. Risk: workspace-state. Composite checklist reviewed: semantic pressed states, keyboard controls, modal Escape/focus; student n/a because only teacher authoring changed.
-
-Evidence: authoring/parent80 and student6 component tests PASS; browser4 PASS desktop1440x900/mobile390x844 × light/dark with edit, MC, open response, Markdown, Preview, new draft captures under test-results/survey-authoring-*; compared Test Pattern Lab reference /tmp/pika-survey-test-reference.png. Focused checks and independent review receipts follow in PR. Worktree survey-two-pane/pika; branch codex/survey-two-pane. One GPT-6.1 Sol medium worker mapped seams and wrote tests in two bounded assignments; coordinator verified80 tests. Weekly remaining50% at start; DeepSeek paused; worker/coordinator tokens and active time unknown; no edit conflicts/rework. Initial browser setup corrected theme key and fixture navigation before final4/4. No dependencies/schema/hosted changes.
-
-## 2026-10-05 — Approved classroom motion rollout
-
-Owner accepted Daily restrained200ms direction for wider adoption in the owning chat. Scoped stable/family canon, audit and Pattern Lab promotion recorded; no dependency/merge/deploy authorization. Follow-up codex/fluid-motion-rollout includes reviewedDailyb94 and targetsmain for canonical CI; prior1481/1482/1484 heads unchanged. Classwork stable table/inspector, Tests disclosure/hidden-menu Escape guard, cross-role opacity entry, reducedmotion and immediate pointerresize. Coordinator corrected primary-refresh priority and layout-controller remount before acceptance; RED mode-state regression nowGREEN,145owner cases pass. Final motion browser24/24(2.0min) across bothroles/viewport/themes/normal-reduced verifies DOM/drafts/focus/scroll, all3Classwork modes, actual200ms/0ms, pointergeometry, inert close and nooverflow. Forced-midpoint contract samples are labeled; natural recordings and fullrequiredgate/cumulative siblingproof/independent stable-SHA PR lifecycle follow. DeepSeekpaused; Sol/high worker partial delivery corrected/integrated bycoordinator; attributableactive/tokensunknown.
-
-## 2026-10-05 — Test conflict retry correction prepared
-
-Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
-
-Owner reviewed ed330c6; CI37257238985 passed build/unit and real browser lifecycle, but the SQL lifecycle harness still caught the old serialization_failure code. Corrected its two catches and the manual-grading stale-batch catch to PT409; SQL/API fix unchanged. Focused297 passed; required database CI and renewed correction review remain pending. Public traffic remains held.
-
-CI37260146916 PASS on8db4cfbad:12427 unit/API,297 browser passes (4 retried,20 skipped), all database contracts/PR Gate. During CI, main#1473 merged6586847c with owner draft GET migration247. Rebased and renamed identical conflict SQL to248; preserved main history and incoming dormant behavior. Fresh combined-tree checks/CI and complete production247–248 preview are required; public traffic stays held.
-
-CombinedCI37263237568:12641PASS/8FAIL/8SKIP; incoming owner-draft harness required exactly247 migrations and rejected248. Returned1474 to draft; cancelled unqualifiable remaining jobs. Harnesses now accept >=247 while validating/hashing every sequential migration and frozen source/copies; native offline cache count uses full actual SQL inventory. New regression proves later migration changes manifest and copied-source drift still rejects. Affected158/4PASS; runtimeSQL/API and migration248 unchanged; focused/review/stableCI pending, no new production mutation.
-
-Correction validation: focused455/29PASS plusarchitecture/UI/design/TypeScript/lintPASS. Startupdocbudgetinitially17032>17000; compactedCURRENTreceipt (gateunchanged), rerunPASS. Coordinator verified baseline/order/full-chain hashes and drift/target/resourceguards preserved; priorruntime reviewer limit persists, directowner task-wide instruction waives further review requests. Stable correctedhead/newCI pending; failedruns retained.
-
-## 2026-10-05 — Production schema verified; release history reconciliation
-
-PR1474 merged5708750d after CI37264085316 all gates PASS (12672 unit/API,300 browser passes/1 retried/20 skipped, all database contracts). Complete247–248 preview37267273069 matched source/hashes/digest; one approved apply37267393757 is applied-verified,001–248 complete. Seven installed function bodies/security/owners/ACLs and12 unchanged controls PASS. Teacher/student own sessions freshly authorized; no more email sends. Public WAF operator-only; old application83b683c stays active until matching replacement/canaries/exactcleanup.
-
-Promotion1476 exposed strict up-to-date protection: main lacked production83b683c history. Returned promotion draft/cancelled its unqualifiable CI. Main enforces linear history and squash/rebase-only PR merges; production permits merge commits. This main docsPR records receipts with every application/SQL byte unchanged from5708750d. Squash it normally, then merge production83 history into the existing release branch, verify exact resulting main tree and83 ancestry, require its fullCI/PRGate and matching deployment. Current canonical CI shortcut requires exactmainSHA, so this metadata merge takes the full path. No protection/CI bypass, no new schema/flag activation or reapply. Direct owner task-wide approval waiver applies; native independent reviewer runtime remains unavailable. Lifecycle, two exact Storage files/new provider cleanup and WAF release still pending.
-
-History sync validation: initial docs-only focused157/10PASS; every src/supabase/workflow/script/test/E2E byte equals validated5708750d. Startupbudgetinitial17026 exceeded17000; compactCURRENT and rerunPASS, gate unchanged. Shared env/startup verified; no application/schema changes or new apply. Coordinator verified three continuity paths; direct owner task-wide approval waiver covers release reconciliation.
-
-GitHub rejected normalmerge1477 under main linear-history/method rules; repository-wide merge commits are enabled, production rule permits them. No settings/protection modified. Corrected receipt/plan to normal mainsquash plus release-branch production-history merge and all required fullCI. Direct owner waiver continues; app/SQL bytes unchanged and migrationapply remains consumed.
-
 ## 2026-10-05 — Production public release verified
 
 PR1477 squashed toab2e629f; releaseb5cf85b9 preserves production ancestry and exactmain tree. FullCI37268657918 PASS:12672unit/API,157workflow,298browser+3retry-passes/20skips, realTest lifecycle direct-pass, all database contracts andPRGate. Normalproduction merge1476 producedc6f23b4b; Verceldpl_6Q7Er4cNiH1t3ZVefndqj573g5uD READY andbothproduction aliases verified. Schema001–248/sevenfunction bodies/security/ACLs/twelvecontrols rechecked unchanged; no reapply.
@@ -598,3 +566,44 @@ Affected23PASS; fullcorrectedcoverage13,783PASS/8SKIP/144.45s, allsamefloorsPASS
 Original06:47:09clock/sixlaunches/fourfixbatches retainedhumanwaiver. Targeted
 correction and cumulative integration carryforward/exact-head freshCI stillrequired.
 No canonicalmigration/prod/account/cohort/UI/cutover/billing orphaseexit.
+
+## 2026-10-06 — Product fluidity: Blueprint read recovery preparation
+
+Broad UI/UX goal remains active. Shared interaction PR1490 is independently
+reviewed at863d6305 and runs exact-head CI37393014065 after one scoped E2E selector
+correction: actual workspace24/shared16 cases pass without retry, focused2069/189
+and all static gates pass. Classroom recovery PR1491 reviewed4ec0d680 runs
+CI37392151855; focused277/20, sixteen original plus fresh representative visual
+variants pass. Neither future merge nor production promotion is authorized yet;
+owner tab-direction acceptance remains pending. Both rebases preserve Survey1483
+and continuity history; receipts retain original review clocks and source parity.
+
+Bounded Sol/medium Blueprint audit confirmed failed-list empty copy and failed
+selected-detail selection copy/no retry; root checked actual owners. New isolated
+codex/blueprints-read-recovery worktree atmainc88abe16 passes frozen install/startup.
+Brief names approved PageState/teacher utility reference and reuse/extend decisions.
+A gated development-only fixture mounts the actual Blueprint page for controlled
+read captures, without changing production authorization. Dirty editor replacement
+is excluded from automatic warm-detail retry. Audit source only; implementation,
+actual runtime evidence and independent review still pending. Usage/active tokens
+unknown; no savings claim, DeepSeek owner pause remains honored.
+
+## 2026-10-06 — Blueprint read recovery implementation and visual acceptance
+
+- Teacher Blueprint required list/detail failures now use generic scoped PageState errors and named bounded retry. Stable region focus, cache invalidation, duplicate guards and request-generation/selected-ID guards preserve independent reads and warm data. No warm-detail refresh was added that could overwrite dirty sections.
+- Native Sol/medium worker delivered the page and regression tests; root verified source and owned gated fixture, gate tests, committed browser coverage and integration. Six baseline cases failed before the fix; 54 focused behavior tests and three fixture publication tests pass.
+- Actual client development fixture: 16 browser cases passed across desktop/mobile, light/dark and normal/reduced motion; eight supplemental warm-read variants retained rows, title DOM/caret, tab and dirty title/Outline, plus genuine-empty captures. Root inspected 80 screenshot states; synthetic reads blocked all mutations, and this does not claim authenticated teacher-shell/server-outage or production performance coverage.
+- PR #1491 final reviewed SHA 4ec0d680ecad50423aa5008adba034850bdd857d has successful final CI including PR Gate. PR #1490 remains ready at reviewed SHA 863d6305fcdde8695d7643ebf79802e1716d8c5f with final browser CI running. Owner tab-pattern acceptance and new merge authority remain pending; broader product goal active.
+- Blueprint cumulative checks, draft publication and independent review next. No dependency, schema, auth or production change. Artifacts retained externally under the current goal's blueprints-read-recovery directory.
+- Mandatory staged audit exposed an early grep/pipefail false rejection of the growing page regression file. Exact matching rules are unchanged; consuming the full input removes SIGPIPE. Added RED→GREEN large-suite exact-import and prefix-collision checks; all 78 audit/startup tests and the final required focused gate (231 tests/15 files plus static checks) pass. Staged audit covers seven TypeScript files.
+
+## 2026-10-06 — Blueprint review remediation
+
+- Draft PR #1493 at initial reviewed candidate 6216b24c received one independently proven P2: failed-save/export operation feedback from the previous Blueprint persisted after selection changed. Complete initial 11-file review found no other actionable issues; supplemental cases failed candidate and passed exact c88 base.
+- Original Sol/medium implementation worker added durable RED→GREEN save/export selection regressions and cleared operation feedback only at actual selection changes. Existing warm list-retry case now preserves failed Export feedback through pending/rejection/success; read retries do not clear unrelated feedback. All 56 affected Blueprint/client/cache/editor tests, TS and scoped lint pass.
+- Root owns cumulative required gate, publication, one targeted re-review and a different final integration reviewer. Budget remains original 00:40:12 UTC: one initial wave, one planned correction batch, no reset. Full visual state matrix remains valid for unchanged styling/composition; targeted actual-client selection/error evidence is next.
+- Broad product goal active. No new merge or production authority; PR #1491 final CI passed and PR #1490 final browser CI remains under its one watcher.
+
+## 2026-10-06 — Blueprint approved integration reconciliation
+
+Reconciled PR1493 onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.

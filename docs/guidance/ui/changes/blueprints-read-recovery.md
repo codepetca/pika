@@ -57,3 +57,10 @@ The fixture is blocked in production even when its opt-in flag is enabled;
 publication guard tests cover production, disabled development and opt-in
 rendering. No golden baselines or timeouts were weakened. Cumulative checks,
 independent review and exact-head CI remain required before merge consideration.
+
+Initial independent review found previous-Blueprint save/export feedback surviving
+selection changes. The selection boundary now clears that feedback only when the
+selected ID changes; same-owner list/detail retries retain it. Two durable
+save/export selection regressions ran RED before remediation, and warm list
+pending/rejection/success now explicitly retains failed Export feedback. All 56
+Blueprint/client/cache/editor tests pass after this bounded correction.
