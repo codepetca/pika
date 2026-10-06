@@ -637,7 +637,7 @@ export function UiGallery({ role }: Props) {
             {role === 'teacher' && <TestEditSplitPattern />}
             {role === 'teacher' && <SurveyEditSplitPattern />}
             <PatternSection id="survey-results" eyebrow="Feature-owned evidence"
-              title="Survey result bars" description="The shared teacher and student result bar with labels inside the track and percentages without visible response tallies.">
+              title="Survey result bars" description="The shared teacher and student result bar with labels inside the track and percentages for selected options, without visible response tallies.">
               <div className="space-y-1.5">
                 <SurveyOptionResultBar option="Group discussion" count={12} totalResponses={20} />
                 <SurveyOptionResultBar option="Practice problems" count={7} totalResponses={20} />

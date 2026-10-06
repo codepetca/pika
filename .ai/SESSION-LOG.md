@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Survey prototype applied to real authoring
-
-Owner requested applying the selected prototype to real Pika. Teacher Survey now
-uses the Test-style details pane, rich prompt editor, centered question navigation,
-question action menu, individual lettered options, settings and Preview/Publish.
-Feature-owned SurveyQuestionOptions is reused by real authoring and Pattern Lab;
-no broader shared shell, API/schema/dependency or student UI change. Save flushes,
-retry, stale-selection guards and Markdown metadata ownership retained. Browser
-verification exposed and fixed creation title-focus intent consumption; failed
-save number navigation also restores the actual selected number.
-Real authoring PASS4/4 desktop/mobile light/dark; MC/open/settings/Markdown/preview/
-new-draft screenshots inspected. Prototype variants pass after extraction; dark
-desktop needed an isolated retry after a development hot-reload dialog reset.
-GPT6.1Sol/medium bounded test worker delivered persistence/options/browser and
-title-focus regression coverage; parent corrected browser accessible-name and
-selection expectations. Weekly47% remaining at start; per-worker usage unavailable.
-Focused selection371/372 passed; unchanged focused-runner fixture timed out,
-isolated retryPASS in2.45s. Architecture/UI/design/TypeScript/lint and auditPASS;
-prototype unit4/4 and production-workflow fixture4/4 isolatedPASS. Final desktop
-browser retryPASS after faithful draft-status fixture correction. Independent
-standard-risk review precedes ready CI on PR1483; no production promotion.
-Full integration review GPT6.1Sol/high found twoP2 recovery blockers: closing
-loading/unavailable detail and returning from an unwanted staged question.
-One batch adds visible/shell close, stale unmount response invalidation and
-Cancel restoring prior selection with no POST. Component40/40 and real browser
-4/4 PASS; recovery and staged-form screenshots inspected. Required focused rerun
-and targeted review pending; phase ledger1launch/1fix, roughly4min review.
-Targeted recovery review clean. Cumulative reviewer identified first-question
-variant; second small batch exposes Cancel for dirty first drafts too. Gallery
-navigator test caches stable semantic query results, retaining all assertions
-after repeated5s DOM-query timeouts. Workspace/gallery48/48 and isolated startup
-76/76 PASS; prior aggregate retry368/377 had nine timeouts in startup/gallery.
-Final narrow review and static/browser evidence recorded in PR, preserving exact
-head; no changes to timeouts, gates, dependencies or production.
-Final first-question discard browserPASS16.7s after a30s overall deadline during
-concurrent static checks; all intended assertions passed when run alone. Final
-architecture/UI/design/TypeScript/lint and auditPASS; required aggregate rerun
-uses unchanged gate. Phase ledger3reviews/2fixes before final targeted acceptance.
-
 ## 2026-10-05 — Fluid classroom Daily pilot
 
 Set active goal and audited continuity using one bounded GPT-6.1 Sol/medium worker; DeepSeek remains owner-paused. New fluid-classroom-plan records experience contract, governed reuse/extend choices and later teacher/student slices. Daily now keeps one table/split owner, retains valid same-date selection, clears changed scope/removed students, and discloses details with existing tokens and inert hidden controls. Escape now ignores the mounted hidden user menu while deferring to an open menu. Pattern Lab real-owner candidate remains experimental; owner acceptance requested before promotion/broader adoption. No dependency or database changes.
@@ -694,3 +655,13 @@ wrapper did not expose its label. Added a named group role and a semantic
 assertion; one batched remediation, no conflicts. Reviewer delivery verified;
 usage and active-time attribution unknown. Targeted and cumulative review
 follow in PR metadata before CI.
+
+## 2026-10-06 — Hide unselected survey percentages
+
+PR1511 follow-up: omit visible percentages when option count is zero, using the
+existing shared teacher/student result bar. Keep the accessible summary and
+nonzero-option percentages, including a selected fraction that rounds to0%.
+Reuse/extend decisions and reference unchanged. Risk none; existing eight-view
+visual matrix refreshed with an explicit no-visible-0% check. Added zero-vote,
+zero-total and tiny-nonzero semantic cases to the existing component test.
+PR returned to draft before publishing; targeted review/final checks in PR notes.

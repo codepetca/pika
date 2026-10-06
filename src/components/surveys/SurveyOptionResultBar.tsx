@@ -27,7 +27,9 @@ export function SurveyOptionResultBar({
       />
       <div className="relative flex min-h-9 items-center justify-between gap-3 px-3 py-2">
         <span className="min-w-0 break-words text-sm text-text-default">{option}</span>
-        <span className="shrink-0 text-xs font-semibold text-text-default">{roundedPercent}%</span>
+        {count > 0 ? (
+          <span className="shrink-0 text-xs font-semibold text-text-default">{roundedPercent}%</span>
+        ) : null}
       </div>
     </div>
   )
