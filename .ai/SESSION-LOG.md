@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Approved motion mobile reachability
-
-Coordinator verified six natural recordings (desktop/mobile, Teacher Classwork/Tests and Student Classwork). Added actual viewport/focus check for Classwork comments in Content + grading after it exposed an unconstrained nested split; h-full now constrains that existing split. Unsaved comment survives all three modes. Pattern Lab keyboard test asserts promoted reference heading. Initial focused gate passed 659 tests/36 files plus all static lanes; final source gate and 24-case matrix pending. Audit's sole remaining finding is the unchanged HEAD TeacherTestsTab line1001 no-store results read (confirmed byte-identical), retained deliberately to avoid changing authoritative grade refresh semantics; new code has no audit violation. Independent review and cumulative proof pending.
-
 ## 2026-10-05 — Approved motion independent review batch
 
 Draft1486 frozen90dc: independent Sol/high full-diff review found two P2 blockers, inner grading subtree remount between two grading layouts and generic-shell entry reaching unscoped Roster/Gradebook. Coordinator validated both with meaningful RED tests and batches correction: keep inner split/frame position, hide unused primary slot; opt in via existing Classwork/Tests frame-class hook. Real textarea/scroller identity, selection/focus/scroll assertions plus generic-shell default coverage added; browser matrix strengthened. Initial combined677tests/static passed with sibling1482/1484 source reconciled in proof only; final frozen compatibility/browser and targeted/different-final review pending. Review budget launches1, fixbatches1, cap7/4/60min; no dependency/API/autosave/merge/deploy changes.
@@ -665,3 +661,12 @@ row, placing Q1/Q2/etc beside the question in teacher/student results. Keep full
 question text wrapping and original order. Risk none; same eight-view matrix
 refreshed with inline-number geometry checks, plus required focused checks.
 Bounded GPT-6.1 Sol/medium targeted review continues in PR metadata.
+
+## 2026-10-06 — Percentages inside survey bar backings
+
+PR1511 follow-up: extend the existing shared result row so selected percentages
+sit inside the backing's right edge, with consistent padding. Labels overlay
+the fill; zero-vote percentages stay blank; inline question numbers and original
+question/option order retained. Pattern Lab description follows the final row.
+Risk none. Both roles × desktop/mobile × light/dark screenshots refreshed with
+inside-right-edge geometry checks. Required checks/review recorded in PR notes.

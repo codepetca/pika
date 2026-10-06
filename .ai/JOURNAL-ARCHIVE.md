@@ -38861,3 +38861,8 @@ retaining workspace-focus assertions. No production or migration change. Require
 focused gate, targeted review and final integration review precede ready CI.
 Student Classwork continuity is being prepared separately with existing stable
 page states; Daily's experimental motion promotion still awaits owner feedback.
+
+<!-- pika-session-log-archive-batch:05c19f75d48aa97e34a2bf975bc7a55176840d0397359d720e5a4f8713295ff9 -->
+## 2026-10-05 — Approved motion mobile reachability
+
+Coordinator verified six natural recordings (desktop/mobile, Teacher Classwork/Tests and Student Classwork). Added actual viewport/focus check for Classwork comments in Content + grading after it exposed an unconstrained nested split; h-full now constrains that existing split. Unsaved comment survives all three modes. Pattern Lab keyboard test asserts promoted reference heading. Initial focused gate passed 659 tests/36 files plus all static lanes; final source gate and 24-case matrix pending. Audit's sole remaining finding is the unchanged HEAD TeacherTestsTab line1001 no-store results read (confirmed byte-identical), retained deliberately to avoid changing authoritative grade refresh semantics; new code has no audit violation. Independent review and cumulative proof pending.
