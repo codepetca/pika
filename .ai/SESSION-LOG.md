@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Daily fluid UI pilot CI remediation
-
-PR #1481 returned to draft after ready CI Test & Build failed on two unchanged
-base-branch tests; remaining database/browser jobs were cancelled by draft flow.
-Read-only Sol/high diagnosis confirmed CURRENT receipt-format drift and an
-intermittent calendar test completion outside React act. One bounded test-only
-batch accepts compact verified DB/controls wording without weakening the >=160
-floor, settles initial calendar sources and awaits retry completion in act while
-retaining workspace-focus assertions. No production or migration change. Required
-focused gate, targeted review and final integration review precede ready CI.
-Student Classwork continuity is being prepared separately with existing stable
-page states; Daily's experimental motion promotion still awaits owner feedback.
-
 ## 2026-10-05 — Approved motion mobile reachability
 
 Coordinator verified six natural recordings (desktop/mobile, Teacher Classwork/Tests and Student Classwork). Added actual viewport/focus check for Classwork comments in Content + grading after it exposed an unconstrained nested split; h-full now constrains that existing split. Unsaved comment survives all three modes. Pattern Lab keyboard test asserts promoted reference heading. Initial focused gate passed 659 tests/36 files plus all static lanes; final source gate and 24-case matrix pending. Audit's sole remaining finding is the unchanged HEAD TeacherTestsTab line1001 no-store results read (confirmed byte-identical), retained deliberately to avoid changing authoritative grade refresh semantics; new code has no audit violation. Independent review and cumulative proof pending.
@@ -670,3 +657,11 @@ Pattern Lab and visual fixture now put the highest-vote option second to verify
 that responses do not reorder the survey. Existing both-role/viewport/theme
 matrix refreshed, including percentage right alignment and order assertions.
 Risk none; no business-logic/API changes. Checks and bounded review in PR notes.
+
+## 2026-10-06 — Inline survey question numbers
+
+PR1511 follow-up: reuse question Markdown and muted labels in a baseline-aligned
+row, placing Q1/Q2/etc beside the question in teacher/student results. Keep full
+question text wrapping and original order. Risk none; same eight-view matrix
+refreshed with inline-number geometry checks, plus required focused checks.
+Bounded GPT-6.1 Sol/medium targeted review continues in PR metadata.

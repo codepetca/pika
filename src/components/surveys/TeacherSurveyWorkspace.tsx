@@ -289,9 +289,9 @@ export function TeacherSurveyResultsView({ payload }: { payload: SurveyResultsPa
     <div className="space-y-6">
       {payload.results.map((result, index) => (
         <div key={result.question_id} className="space-y-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Q{index + 1}</p>
-            <QuestionMarkdown content={result.question_text} className="text-lg [&_p]:text-lg [&_ul]:text-lg [&_ol]:text-lg" />
+          <div className="flex items-baseline gap-2">
+            <p className="shrink-0 text-xs font-semibold uppercase tracking-wide text-text-muted">Q{index + 1}</p>
+            <QuestionMarkdown content={result.question_text} className="min-w-0 flex-1 text-lg [&_p]:text-lg [&_ul]:text-lg [&_ol]:text-lg" />
           </div>
 
           {result.question_type === 'multiple_choice' ? (
