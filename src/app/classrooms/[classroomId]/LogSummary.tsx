@@ -4,10 +4,12 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
 import { Button, cn } from '@/ui'
 import type { LogSummaryActionItem } from '@/types'
+import { formatLogSummaryItems } from '@/lib/log-summary-presentation'
 
 interface LogSummaryProps {
   classroomId: string
   date: string
+  firstNames?: Record<string, string>
   onStudentClick?: (studentName: string) => void
   onAvailabilityChange?: (available: boolean) => void
 }
@@ -23,6 +25,7 @@ type SummaryStatus = 'ready' | 'pending' | 'no_entries' | 'unavailable'
 export function LogSummary({
   classroomId,
   date,
+  firstNames,
   onStudentClick,
   onAvailabilityChange,
 }: LogSummaryProps) {
@@ -129,64 +132,90 @@ export function LogSummary({
     )
   }
 
-  return <LogSummaryContent actionItems={summary.action_items} onStudentClick={onStudentClick} />
+  return <LogSummaryContent actionItems={summary.action_items} firstNames={firstNames} onStudentClick={onStudentClick} />
 }
 
 /** Feature-owned presentation also rendered with deterministic Pattern Lab fixtures. */
 export function LogSummaryContent({
-  actionItems: items,
+  actionItems,
+  firstNames,
   onStudentClick,
 }: {
   actionItems: LogSummaryActionItem[]
+  firstNames?: Record<string, string>
   onStudentClick?: (studentName: string) => void
 }) {
   const contentId = useId()
+  const textRef = useRef<HTMLSpanElement>(null)
   const [expanded, setExpanded] = useState(false)
-  const conciseSummary = items.length > 0 ? items.map((item) => item.text).join(' ') : 'Nothing urgent'
+  const [overflows, setOverflows] = useState(false)
+  const items = formatLogSummaryItems(actionItems, firstNames)
+  const conciseSummary = items.length > 0
+    ? items.map((item) => `${item.firstName} ${item.detail}`).join(' ')
+    : 'Nothing urgent'
+
+  useEffect(() => {
+    if (expanded) return
+    const text = textRef.current
+    if (!text) return
+    const measure = () => setOverflows(text.scrollHeight > text.clientHeight + 1)
+    measure()
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    observer?.observe(text)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [conciseSummary, expanded, overflows])
+
+  const summaryText = (
+    <span ref={textRef} data-summary-text className={cn('block min-w-0 break-words leading-5 [overflow-wrap:anywhere]', !expanded && 'line-clamp-2')}>
+      <span className="mr-1 font-semibold text-primary">Summary</span>{' '}
+      {expanded && items.length > 0 ? <span className="sr-only">Collapse summary</span> : conciseSummary}
+    </span>
+  )
 
   return (
-    <div className="max-h-[48vh] overflow-y-auto" onClick={() => setExpanded((value) => !value)}>
-      <Button
-        variant="ghost"
-        aria-expanded={expanded}
-        aria-controls={contentId}
-        className="w-full justify-start rounded-lg border-0 px-3 py-2 text-left text-sm font-normal text-text-default"
-        onClick={(event) => {
-          event.stopPropagation()
-          setExpanded((value) => !value)
-        }}
-      >
-        <span data-summary-text className={cn('min-w-0 break-words leading-5 [overflow-wrap:anywhere]', !expanded && 'line-clamp-3')}>
-          <span className="mr-2 rounded-sm bg-info-bg px-1.5 font-semibold text-primary">Summary</span>{' '}
-          {expanded && items.length > 0 ? <span className="sr-only">Collapse summary</span> : conciseSummary}
-        </span>
-      </Button>
+    <div className="max-h-[48vh] overflow-y-auto" onClick={() => {
+      if (overflows || expanded) setExpanded((value) => !value)
+    }}>
+      {overflows || expanded ? (
+        <Button
+          variant="ghost"
+          aria-expanded={expanded}
+          aria-controls={contentId}
+          className="w-full justify-start rounded-lg border-0 px-3 py-2 text-left text-sm font-normal text-text-default"
+          onClick={(event) => {
+            event.stopPropagation()
+            setExpanded((value) => !value)
+          }}
+        >
+          {summaryText}
+        </Button>
+      ) : <div className="px-3 py-2 text-sm text-text-default">{summaryText}</div>}
       <div id={contentId} hidden={!expanded}>
         {items.length > 0 && (
           <ul aria-label="Class log follow-ups" className="px-3 pb-2 text-sm leading-5 text-text-default">
-            {items.map((item, index) => {
-              const startsWithName = item.text.startsWith(item.studentName)
-              const detail = item.detail ?? (startsWithName ? item.text.slice(item.studentName.length).trim() : item.text)
-              return (
-                <li key={index} className="break-words [overflow-wrap:anywhere]">
-                  {onStudentClick ? (
-                    <>
-                      <Button
-                        variant="ghost"
-                        className="-ml-2 border-0 px-2 py-1 font-medium text-primary hover:underline"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          onStudentClick(item.studentName)
-                        }}
-                      >
-                        {item.studentName}
-                      </Button>
-                      {' '}{detail}
-                    </>
-                  ) : <><span className="font-medium">{item.studentName}</span>{' '}{detail}</>}
-                </li>
-              )
-            })}
+            {items.map((item, index) => (
+              <li key={index} className="break-words [overflow-wrap:anywhere]">
+                {onStudentClick ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      className="-ml-2 border-0 px-2 py-1 font-medium text-primary hover:underline"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onStudentClick(item.studentName)
+                      }}
+                    >
+                      {item.firstName}
+                    </Button>
+                    {' '}{item.detail}
+                  </>
+                ) : <><span className="font-medium">{item.firstName}</span>{' '}{item.detail}</>}
+              </li>
+            ))}
           </ul>
         )}
       </div>

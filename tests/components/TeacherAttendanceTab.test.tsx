@@ -86,7 +86,8 @@ vi.mock('@/components/StudentLogHistory', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/LogSummary', () => ({
-  LogSummary: ({ date, onAvailabilityChange }: {
+  LogSummary: ({ date, firstNames, onAvailabilityChange }: {
+    firstNames?: Record<string, string>
     date: string
     onAvailabilityChange?: (available: boolean) => void
   }) => {
@@ -95,7 +96,7 @@ vi.mock('@/app/classrooms/[classroomId]/LogSummary', () => ({
       onAvailabilityChange?.(logSummaryMock.available)
     }, [date, onAvailabilityChange])
 
-    return <div data-testid="class-log-summary">Cached class summary</div>
+    return <div data-testid="class-log-summary" data-first-names={JSON.stringify(firstNames)}>Cached class summary</div>
   },
 }))
 
@@ -1936,6 +1937,7 @@ describe('TeacherAttendanceTab', () => {
     expect(panel.style.minHeight).toBe('')
     expect(panel).not.toHaveClass('min-h-[140px]', 'h-10', 'min-h-10')
     expect(panel.parentElement?.parentElement?.parentElement).toHaveClass('min-w-0')
+    expect(summary).toHaveAttribute('data-first-names', JSON.stringify({ 'Student1 Test': 'Student1', 'Student2 Test': 'Student2' }))
     expect(summary).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Class Log Summary' })).not.toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize class log summary' })).not.toBeInTheDocument()

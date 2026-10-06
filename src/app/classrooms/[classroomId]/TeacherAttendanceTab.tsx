@@ -678,6 +678,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     : ''
   const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
   const relativeDateLabel = selectedDate ? getPastRelativeDateLabel(selectedDate, today) : null
+  const summaryFirstNames = useMemo(() => Object.fromEntries(logs.map((row) => [
+    [row.student_first_name, row.student_last_name].filter(Boolean).join(' '),
+    row.student_first_name ?? '',
+  ])), [logs])
   const summaryScopeKey = `${classroom.id}:${selectedDate}`
   const summaryPanelVisible = Boolean(selectedDate && summaryReadyScopeKey === summaryScopeKey)
 
@@ -1240,6 +1244,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   key={summaryScopeKey}
                   classroomId={classroom.id}
                   date={selectedDate}
+                  firstNames={summaryFirstNames}
                   onStudentClick={selectStudentByName}
                   onAvailabilityChange={handleSummaryAvailabilityChange}
                 />

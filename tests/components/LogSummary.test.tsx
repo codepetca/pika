@@ -22,6 +22,7 @@ describe('LogSummary', () => {
     cleanup()
     vi.useRealTimers()
     vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('ignores an older classroom summary response after switching classrooms', async () => {
@@ -82,39 +83,69 @@ describe('LogSummary', () => {
       summary_status: 'ready',
     })))
     render(<LogSummary classroomId="classroom-1" date="2026-05-05" />)
-    const toggle = await screen.findByRole('button', { name: /Summary Nothing urgent/ })
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByText('Summary')).toHaveClass('bg-info-bg', 'text-primary')
+    await screen.findByText(/Nothing urgent/)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByText('Summary')).toHaveClass('text-primary')
+    expect(screen.getByText('Summary')).not.toHaveClass('bg-info-bg')
     expect(screen.getByText('Summary')).not.toHaveTextContent(':')
     expect(screen.queryByText(/No high-priority|Today/)).not.toBeInTheDocument()
   })
 
   it('surfaces questions inline and expands/collapses while keeping student log actions separate', async () => {
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(80)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
     const onStudentClick = vi.fn()
     vi.stubGlobal('fetch', vi.fn(() => mockJson({
       summary: { overview: 'Follow-ups identified.', action_items: [
-        { studentName: 'Student One', text: 'Student One has a question.', detail: 'asks whether the lab report needs a graph.' },
-        { studentName: 'Student Two', text: 'Student Two reported an urgent wellbeing concern.', detail: 'reports an injury that prevents taking part in the lab.' },
+        { studentName: 'Avery Morgan', text: 'Avery Morgan has a question.', detail: 'asks whether the lab report needs a graph.' },
+        { studentName: 'Jordan Lee', text: 'Jordan Lee reported an urgent wellbeing concern.', detail: 'reports an injury that prevents taking part in the lab.' },
       ], generated_at: '2026-05-05T14:36:00.000Z' },
       summary_status: 'ready',
     })))
     const { rerender } = render(<LogSummary classroomId="classroom-1" date="2026-05-05" onStudentClick={onStudentClick} />)
-    const toggle = await screen.findByRole('button', { name: /Summary Student One has a question/ })
+    const toggle = await screen.findByRole('button', { name: /Summary Avery asks whether the lab report needs a graph/ })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(toggle.querySelector('[data-summary-text]')).toHaveClass('line-clamp-3')
+    expect(toggle.querySelector('[data-summary-text]')).toHaveClass('line-clamp-2')
     fireEvent.click(toggle)
     const expandedToggle = screen.getByRole('button', { name: 'Summary Collapse summary' })
     expect(expandedToggle).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByText(/asks whether the lab report needs a graph/)).toBeVisible()
-    expect(screen.getByText(/reports an injury that prevents taking part/)).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Student One' }))
-    expect(onStudentClick).toHaveBeenCalledWith('Student One')
+    expect(screen.getByRole('list')).toHaveTextContent('Avery asks whether the lab report needs a graph.')
+    expect(screen.getByRole('list')).toHaveTextContent('Jordan reports an injury that prevents taking part in the lab.')
+    fireEvent.click(screen.getByRole('button', { name: 'Avery' }))
+    expect(onStudentClick).toHaveBeenCalledWith('Avery Morgan')
     expect(expandedToggle).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.click(screen.getByText(/reports an injury that prevents taking part/))
-    expect(screen.getByRole('button', { name: /Summary Student One has a question/ })).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(screen.getByRole('button', { name: /Summary Student One has a question/ }))
+    fireEvent.click(screen.getByRole('list').querySelector('li:last-child')!)
+    expect(screen.getByRole('button', { name: /Summary Avery asks whether the lab report needs a graph/ })).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(screen.getByRole('button', { name: /Summary Avery asks whether the lab report needs a graph/ }))
     rerender(<LogSummary classroomId="classroom-1" date="2026-05-06" onStudentClick={onStudentClick} />)
-    expect(await screen.findByRole('button', { name: /Summary Student One has a question/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(await screen.findByRole('button', { name: /Summary Avery asks whether the lab report needs a graph/ })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('shows a fitting summary without disclosure and preserves multiword first names', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => mockJson({ summary_status: 'ready', summary: {
+      action_items: [{ studentName: 'Mary Jane Smith', text: 'Mary Jane Smith has a question.', detail: 'Asks when the project is due.' }],
+    } })))
+    render(<LogSummary classroomId="classroom-1" date="2026-05-05" firstNames={{ 'Mary Jane Smith': 'Mary Jane' }} />)
+    expect(await screen.findByText(/Mary Jane asks when the project is due/)).toBeVisible()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Smith/)).not.toBeInTheDocument()
+  })
+
+  it('adds and removes disclosure as the summary overflows after resizing', async () => {
+    let height = 60
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(() => height)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
+    vi.stubGlobal('fetch', vi.fn(() => mockJson({ summary_status: 'ready', summary: {
+      action_items: [{ studentName: 'Avery Morgan', text: 'Avery Morgan has a question.', detail: 'Asks when the project is due.' }],
+    } })))
+    render(<LogSummary classroomId="classroom-1" date="2026-05-05" />)
+    expect(await screen.findByRole('button', { name: /Summary Avery asks/ })).toHaveAttribute('aria-expanded', 'false')
+    height = 20
+    fireEvent(window, new Event('resize'))
+    await waitFor(() => expect(screen.queryByRole('button')).not.toBeInTheDocument())
+    height = 60
+    fireEvent(window, new Event('resize'))
+    expect(await screen.findByRole('button', { name: /Summary Avery asks/ })).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('explains when a summary is unavailable', async () => {
