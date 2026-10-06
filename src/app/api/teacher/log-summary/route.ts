@@ -10,7 +10,7 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { authorizeTeacherDailyReadActor } from '@/lib/server/contextual-teacher-daily-read'
 import { readContextualTeacherLogSummary } from '@/lib/server/contextual-teacher-daily-summary'
-import { teacherLogSummaryQuerySchema } from '@/lib/validations/teacher-log-summary'
+import { teacherLogSummaryCurrentItemsSchema, teacherLogSummaryQuerySchema } from '@/lib/validations/teacher-log-summary'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -120,7 +120,11 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
     return NextResponse.json({ summary: null, summary_status: 'unavailable' })
   }
 
-  const isNewFormat = hasCurrentPolicy && 'overview' in rawItems
+  const currentItems = teacherLogSummaryCurrentItemsSchema.safeParse(rawItems)
+  if (hasCurrentPolicy && !currentItems.success && 'overview' in rawItems) {
+    return NextResponse.json({ summary: null, summary_status: 'unavailable' })
+  }
+  const isNewFormat = hasCurrentPolicy && currentItems.success
   const isCacheContentFresh =
     cached &&
     isNewFormat &&
@@ -128,16 +132,8 @@ export const GET = withErrorHandler('GetLogSummary', async (request: NextRequest
     (!maxUpdatedAt || !cached.entries_updated_at || cached.entries_updated_at >= maxUpdatedAt)
   const isCacheFresh = isCacheContentFresh
 
-  if (isCacheFresh) {
-    const rawSummary: RawSummaryResponse = {
-      overview: String(rawItems.overview || ''),
-      action_items: Array.isArray(rawItems.action_items)
-        ? rawItems.action_items.map((item: any) => ({
-            text: String(item.text || ''),
-            initials: String(item.initials || ''),
-          }))
-        : [],
-    }
+  if (isCacheFresh && currentItems.success) {
+    const rawSummary: RawSummaryResponse = currentItems.data
     const restored = restoreNames(
       rawSummary,
       cached.initials_map as Record<string, string>

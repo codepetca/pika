@@ -11,144 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Draft-save historical reconciliation and sleep interruption
-
-Resume preserved immutable249/app/native guards through main1485 timeout-only
-rebase;477focused/22files and startup76PASS, only2pending genuineRPC type gaps.
-Owner-authorized stale-runtime cleanup stopped16audit containers and2orphaned
-browser sessions; all durable volumes/unrelated active stacks preserved.
-Historical B0 auth drift plusPAL+2 reconciled with independently recorded two
-local Gradebook smoke fixture runs; no individual historical ID attribution.
-Original B0 retained; exclusive private B1 captured once, whole-object comparisons
-include auth/PAL without exceptions. Bounded independent source/binding reviews
-accepted exactcab; original12:51:50 reviewclock retained. DeepSeek paused;
-weekly45percent accountwide remaining, attributable worker usage unknown.
-
-Normal7 reached42SDK requests, then second native contract bundle timed out
-during20:39:52–20:59:15UTC clamshell sleep. Exact disposable cleanup and separate
-wholeB1 verification PASS; no normal receipt/genuine types or canonical249 apply.
-One awake attempt proposed with temporary utility-scoped idle-sleep assertion,
-unchanged caps/guards, explicit human keep-open window pending. Normal then both
-forced modes, genuine types, final cumulative review/exactCI/mainmerge remain.
-Current main1487 Gradebook mark visibility changes preserved by rebase; only
-archive-marker conflict, both markers retained/shared entry once. No migration
-renumbering/stash pop, all36 unrelated stashes untouched. Draft1480 remains off;
-no production/promotion/account/cohort/provider/billing change or phase exit.
-
-After1487rebase,477focused/22files plus architecture/UI/design PASS; TypeScript
-still only2missing genuineRPC declarations. Incoming Gradebook server/API and
-startup114/3files PASS. All draft-save application/249/CI/native proof bytes
-equal previously reviewedcab; no generated-type fabrication or runtime retry.
-Historical B1/receipt remain immutable; verify-only exact-rebase binding requires
-bounded independent acceptance before an awake rehearsal. Original counters
-retained; current correction is continuity-only, not another app/schema fix.
-
-## 2026-10-05 — Awake draft-save rehearsal retained; inventory bottleneck isolated
-
-Normal8 onreviewed90f under utilityscopedcaffeinate/lidopen reached42SDKrequests
-and completed rollbackSQLcontracts plus wholefixture comparison before races.
-Race suite exhausted unchanged180s total atconcurrency.ts:80; native2444controls/
-162actions/0sessions, not all16schedulePASS. Exactephemeralcleanup and separate
-WHOLEpinnedB1 comparison PASS; no normalreceipt/genuineartifact/canonical249apply.
-Original B0/B1/receipt/provenance retained; no auth/PAL exemption or recapture.
-
-Bounded6.1Sol/high read-only investigation measured completeinventory463–798ms
-versus warmGit/source~45ms, three samplesonly/noSQL. Variance doesnotprove speedup.
-Rootaccepted proposalonly: PATCH-native seam chunks largecontainer inspections
-while preserving original collector/parser/nativeendpoint/config/socket checks.
-TwoCLIworkers reserve thirdslot for oneexistingbulkvolumeHTTP; samefreshgraph,
-20s/64MiB/failure settlement/dispatch barriers, originalguards/caps unchanged.
-Worker owns onlynewhelper/newoffline tests/nativecallsite; rootdocs/Git/review/
-runtime. Source TDD/independent acceptance before anynew rehearsal; no blindretry.
-
-Rebased onto84a657ebe/main1486, preserving approvedUI motion; archive conflict
-union keeps completeupstream histories and allbranchmarkers without adding
-already-present identical receipt bodies. Application/249/native/sharedcollector
-byteequal90f; no migrationrenumbering/newstash/pop,36unrelatedstashes preserved.
-Reviewclock12:51:50Z/cumulative15launch13target7batch0final retained under human
-workflowwaiver. Weekly43percentremainingaccountwide/attributableunknown; DeepSeek
-paused. Draft1480 notready; finalsource review/normal+bothforced/genuinecontracts/
-exactCI/mainmerge remain. No production/account/cohort/billing/provider operation.
-
-## 2026-10-05 — PATCH inventory chunk correction prepared
-
-Bounded Sol6.1/high worker delivered four source/test paths in approximately12min;
-root inspected full output and independently verified154/154 tests in8.36s. Offline
-realsharedcollector/parser graph129containers/617volumes/23networks preserves
-completeinventory, bulkHTTP/socketchecks, ordered32-IDchunks, twoCLIworker bound,
-queueinclusive20s/output64MiB/failure settlement. Actual180s race fit remains
-unproved. No native/SQL/Docker/typegeneration/CI/prod operation by implementation
-worker; effectiveconfig/attributableusage unknown. Root owns sourcefreeze,
-requiredchecks, originalaudit, targetedindependent review/newverifyonlyB1binding
-and onefinite normalplan before execution. Originalcheckpoints/counters preserved.
-
-## 2026-10-05 — Product-wide fluid UI goal and shared interaction slice
-
-Owner clarified all Pika UI/UX, including transitions, and requested a new goal plus orchestration. Prior classroom delivery #1486 is complete; product-wide work remains active. Existing fluid-classroom-plan now tracks full route/state inventory, phases and two verified read-only worker receipts. Shared controls use semantic timing/reduced motion; Button/PageState loading remains labeled and static when reduced. Account menu uses one keyboard tabstop, closed inertness and visible feedback opener focus. Quiet tab-entry extension retains children and immediate activation; separate experimental Pattern Lab draft preview awaits acceptance. Initial 2023/185 focused/static gate passed; final-source checks and independent stable-SHA PR lifecycle are underway. Both-role desktop/mobile light/dark normal/reduced captures and source-backed recovery/mobile candidates retained in chat product-fluidity artifacts. No dependencies, migrations, merge or deployment.
-
-## 2026-10-05 Classroom index first-read recovery
-
-Implemented required teacher/student read-failure status, canonical generic
-error/retry, guarded successful-prop list updates, and retained warm local state.
-Controlled Pattern Lab composition is explicitly separate from server retry
-evidence. Focused behavior tests (55), UI/design policies, and affected lint pass;
-root coordinator owns final screenshots, focused gate, review and draft PR.
-
-## 2026-10-06 — Consolidated product-fluidity landing
-
-Owner approved consolidating nine independently reviewed UI/UX changes into PR #1490. Preserve latest main and the complete history prefix, scope the tab draft browser locator to its owner, and verify the complete combined candidate before merge. Quiet tab/dialog entry remain experimental. Softer modal exit transitions are the next bounded phase after this landing; no production deployment or held recovery PR is included.
-
-## 2026-10-06 — Owner draft HTTP inventory source preparation
-
-Normal9 exactreviewed4406 failedunchangedrace180s after42SDK/rollbackcontracts;
-1296controls85actions0sessions. Exactenginecleanup/WHOLEpinnedB1PASS; no receipt,
-types/canonical249/prod/cohort/account change. OwnerDoit authorizesdifferentfix.
-BoundedSol6.1/high read-only5attempts/3actualcomposites retain101/617/23byteparity;
-warmHTTP262–331ms/chunk352–363ms, coldHTTP545ms; not180fit orstablegain. Initialtwo
-fractionaltimeout mistakes dispatchzerochildren/requests, retainednotPASS.
-
-Cleanrebaseff8b0ea4 ontoincomingc88/#1483SurveyUI preservesapp/249/native/shared
-collector bytes. Onelastcommit archiveconflict union preservesallupstream/branch
-bodiesandmarkers; twoincomingbodies differfromupstream, neitherdiscarded.
-36stashes/ordereddigest unchanged; no migrationsrenumbered orcanonical apply.
-WorkerownsONLYPATCHhelper+tests source-onlyTDD fullHTTPinspect replacement;
-rootdocs/Git/integration/review/bindings/finiteplan.2CLIorHTTP+reservedvolume1,
-rawmetadata privacy/deadline/bounds/closure/fullparser guards required.
-Original12:51:50Z reviewclock16launch14target8batch0final retained; batch9pending.
-Weekly41percentremainingaccountwide/attributableunknown; DeepSeekpaused.
-Workerrelinquished01:03:42Z (~14min) ONLYtwofiles;176checks/3files, lint/diffPASS.
-RootFULLreadhelper/test/handoff; realparser129/617/23graph, max2own+1volume,
-rawEnvstrip/late request-response-socket closure covered. Allocationledger not
-wholeV8heap; originalvolume JSON/semanticfailure remainsoriginalclosure boundary.
-Native180fit/typesstillpending; no Docker/native executionbyworker.
-Rootfocused515/23PASS plusarchitecture/UI/design; tscONLYtwo pendinggenuineRPC
-declarations. Originalstagedaudit2TS/lint/diffPASS; incomingSurvey126/5,
-startup+proof133/2PASS. No fabricatedtypes, readyCI or native acceptance.
-
-## 2026-10-06 — Owner draft final isolated proofs and genuine contracts
-
-IndependentSol5.6/high targeted0f131 source/finiteplanCLEAN;176/3PASS4.22s,
-lintdiffPASS; about7minwall/effectiveunknown. RootFULLread; metadataonlycorrected
-requestedexplicitmodel vs inheritedclaim, source/verdict unchanged. Original
-12:51:50Z reviewclock17launch15target9batch0final; lifecycle21events9syncpushes.
-
-Normal10 exactcleanreviewed0f13101:16:54–01:27:34Z exit0,24SDK/42RPC/0Storage;
-rollbackcontracts,1001-question source andALL16racesPASS134dispatches164620ms
-under180s; native2803controls186actions0remainingsessions. Caps unchanged.
-Exactenginecleanup/canonicalbaselinePASS; separateWHOLEsamepinnedB1PASSafter
-normal andserialforcedafterfixture/beforecapture. Bothforced expectedexit1 with
-specificFAIL+exactcleanupPASS; B0/B1/receipt/provenancehashes unchanged,no exemptions.
-Scopedcaffeinate/lidopen only, no permanentsettings/canonical249/prod/cohort changes.
-
-Genuineisolatedtypes0600 436753bytes/SHA09f1c224ac8a2f798047ab432929c76a89b671a0d0e6c3d9986ecf0980262250
-installedbyteidentical; onlytwoRPCs added. Composedexpected-versionNULL refinement
-preservesgeneratedkeys/otherargs. RED1/6 thenGREEN19/2 andprojecttscPASS. App/249/
-helper/native/runtime bytesunchanged. Finalsourcechecks/cumulativeindependentreview/
-exactCI/mainmerge pending; componentnotphaseexit/fullgoalcomplete.
-Finalfocused521/24PASS plusarchitecture/UI/design/tsc/lint; stagedaudit3TS PASS.
-Startupreceipt initially17205 then17010 overunchanged17k budget; compactCURRENT,
-76startupchecksPASS, fullfocusedPASS. Samec88main afterfetch; no native reruns.
-
 ## 2026-10-06 — Owner draft exact-head CI lint correction
 
 Finalcumulativefb6reviewCLEAN323/10, ready normalCI37401089941. Database warning
@@ -497,6 +359,63 @@ All original logical continuity bodies and exact main archive prefix retained.
 Combined focused check and coordinator-owned visual verification remain required;
 no feature head, protected branch, hosted service, pattern authority or rollout changed.
 
+## 2026-10-06 — Compact Daily summary pane
+
+Owner requested a concise Summary line, no automated high-priority boilerplate/timestamp,
+explicit student questions, and click expansion with at most three collapsed lines.
+Removed fixed180/min140px parent pane and obsolete resizing; retained availability/date
+scope and mounted hidden/inert inspector behavior. Extended constrained model categories
+with student_question, using server-owned "has a question" copy and follow-ups-v2 cache
+policy. No migration, authority or provider change. Reference: Daily + /pattern-lab Daily;
+reuse shared Button, extend feature-owned LogSummaryContent and existing Daily shell.
+Teacher desktop1440x900/mobile390x844, light/dark, collapsed/expanded/empty/pointer/keyboard
+verified by Playwright; student n/a (teacher-only pane). Artifacts and reproducible capture:
+/tmp/pika-compact-summary-visual, /tmp/pika-summary-visual.cjs. Rendered865d837b7 plus
+task diff; source unchanged across captures. Compact empty44px; long mobile3x20px lines.
+Focused gate547tests/typecheck/lint/architecture/UI/design PASS before final test additions;
+Final union548tests: two existing gallery5s timeouts under parallel contention; both
+passed23/23 with one worker. Final focused gate with --max-workers1 and independent
+draft-first review pending. Composite accessibility checklist reviewed; keyboard and
+semantic expansion state covered, no manual follow-up. Risk profile none.
+Delegation: GPT6.1Sol/high parent pane + tests delivered, verified56/56, no rework/conflict.
+Worker elapsed ~2min from dispatch to delivery; coordinator review estimate2min; worker
+tokens unknown. Weekly usage at startup73% used/27% remaining; DeepSeek paused through
+2026-12-31. Coordinator owns codex/compact-daily-summary and PR; no merge/deploy authority
+inferred. Review ledger: planned1 initial reviewer,0 launches/0 fix batches;60min cap.
+
+## 2026-10-06 — Daily summary label and actual question details
+
+Owner refinement: highlighted Summary without colon; expanded rows paraphrase the actual
+question or issue. Extended model/source contract with required nonblank <=240-character
+detail, sanitized separately from locally restored student attribution. follow-ups-v3
+retires prior caches and regenerates obsolete/malformed matching-digest nightly checkpoints.
+Both teacher API paths return bounded details; canonical collapsed notices remain concise,
+with urgent concerns ahead of questions. No migration or dependency change.
+Reference reuse: shared Button + Daily Pattern Lab renderer; extend feature detail payload.
+Fixed Daily split min-width so mobile expanded topics wrap within the viewport. Teacher-only
+pane, desktop/mobile light/dark collapsed/expanded/empty and Enter/Space/pane click checked.
+Artifacts /tmp/pika-summary-detail-visual; mock responses in real locally authenticated shell,
+not live model evidence. Backend worker GPT6.1Sol/high delivered 157 passing tests and
+TypeScript; source verified by coordinator, no conflicts, one UI wrapping correction.
+Worker time ~10min, coordination/review ~4min; tokens unknown. Weekly75% used/25% remaining.
+One synthetic live provider check failed with sanitized error; no retry, live topic accuracy
+unverified. Audit passes; full focused gate and independent detail/privacy review pending.
+PR1506 returned to draft and superseded CI37464659748 canceled before refinement push.
+No merge/deployment authorization inferred. Review ledger prior1 launch/0 fix batches;
+planned targeted GPT5.6Sol/high privacy + GPT6.1Sol/high integration (Terra unavailable).
+
+## 2026-10-06 — Daily detail review remediation
+
+Independent cumulative integration review8c563690b clear; privacy review found P2:
+canonically equivalent decomposed accented initials escaped detail masking. Normalized
+prose/initial keys to NFC and supported remaining combining marks in fallback. Added
+mock-provider and cache-restoration regressions: both fail before correction, both pass
+afterwards (43 unit tests). No UI changes; prior four-combination visual evidence applies.
+Full first gate567/30 + static passed, parent56 independently rerun. Audit passed.
+Live evaluation artifact retained only provider_or_validation_failure; no status/subtype,
+no retry. Reviewledger4 launches (includes Sol capacity failure), one privacy fixbatch;
+correction review + full focused gate pending. DraftPR1506, no merge/deploy.
+
 ## 2026-10-06 — Gradebook Final column background
 
 - Request: match Final to adjacent table surfaces. Reused GradebookTable's opaque header/detail/body/footer tokens and shared row hover/selection surface; no calculations or interactions changed. Risk profile: none.
@@ -511,3 +430,92 @@ Owner approved one additional correction batch/final review with a 60-minute cap
 ## 2026-10-06 — Preserve native tab presses through hydration
 
 Owner approved one additional correction batch and one final review for #1490. Reproduced first-interaction hydration moving the selected tab strip during a native press; canonical Tabs now remembers the layout without moving a pressed tab. A deterministic real-client-chunk hold failed on the prior source and passed the first 16 teacher/student, desktop/mobile, light/dark, normal/reduced combinations after correction. Added semantic click/selection coverage and strict final browser checks; existing assertions and timeouts remain intact. The concurrent Gallery unit probe hit three unchanged timeouts; sequential focused verification and the final frozen-head matrix/review remain gates. Original #1490 CI artifacts are retained; the database lane cancelled on the required draft transition. No dependency, API, production promotion or modal implementation change. External receipt: product-fluidity/tab-pointer-ui-brief.md and review-ledger.json in this task's artifact directory.
+
+## 2026-10-06 — First-name two-line Daily summary refinement
+
+Owner requested color-only Summary label, actual questions/issues in compact text,
+first names, max2lines/ellipsis and disclosure only when overflowing. Reused shared
+Button and Daily Pattern Lab production renderer; extended feature presentation with
+measured overflow/resize observation. Helper keeps full attribution for log navigation,
+uses actual roster first-name field (including multiword first names), lowercases the
+paraphrase lead. No model/cache/API contract change; prior privacy review remains valid.
+Teacher-only desktop1440x900/mobile390x844 light/dark empty/collapsed/expanded, actual
+question text,2x20px ceiling, viewportbounds, Enter/Space and pane clicks visually pass.
+Evidence /tmp/pika-summary-two-line-visual, script /tmp/pika-summary-two-line-visual.cjs;
+mocked summaries in real locally authenticated shell. First capture hit5s empty-state
+load timeout under contention; recapture with30s timeout passed all4. No test weakening.
+Focused gate570tests/30files + policies/TypeScript/lint pass; post-gate6 interaction cases
+include new resize regression, parent56/56 rerun, auditpass. Composite checklist applies;
+semantic overflow disclosure and keyboard verified. Prior reviewed candidatePR1506 now
+DRAFT; supersededCI37469990462 canceled. Subsequent owner-requested UI revision gets one
+bounded independent delta review (GPT6.1Sol/high; Terra unavailable), no full-wave repeat.
+Weekly77% used/23% remaining; DeepSeekpause honored. Small coherent edits handled by
+coordinator; previous worker unchanged. No merge/deployment authority inferred.
+
+## 2026-10-06 — Inline Daily summary row jumps
+
+Owner authorized direct first-name actions to scroll/highlight their matching student rows.
+Reuse Daily table focus/selection tokens + shared Button; extend feature inline summary
+composition and independent jump highlight, no new shared component. Inline content actions
+retain text-sized targets in the owner-requested compact2x20px prose; table controls retain
+existing geometry. Summary text/body toggles disclosure; name actions stop propagation.
+Expanded summary retains same action DOM. A clipped keyboard-focused name reveals full
+prose and scrolls into view; browserfocus can internally scroll CSS-clamped text, detected
+and regression-covered. Full-name attribution routes names, including duplicate first names.
+Jump focuses/centers row with immediateauto scroll, saves new scrollmemory and keeps summary
+available without opening inspector. Existing imperative/row inspection preserved. Escape,
+outside/deselect/date/class/removed row clear independent highlight; keyboard progresses.
+Reference Daily + Pattern Lab now demonstrates real Maya/Noah/Theo row targets. Teacher-only
+matrix1440x900/390x844 light/dark PASS with32 synthetic rows in real authenticated shell:
+compact2x20px, pointer/Enter/Space, scroll526/582->0, row focus/highlight, no inspector,
+clipped-name reveal, Escape, no horizontal overflow; /tmp/pika-summary-links-visual and
+/tmp/pika-summary-links-visual.cjs. Sourceae26f2977 + task diff; not live-provider evidence.
+Initial UI test fixture lacked required prototype callback; corrected fixture34/34 pass.
+Focused580/30 +allpolicies/TypeScript/lint PASS; final keyboard8/8 inclnative clamp-scroll
+regression; parent64/64, auditPASS. Visual iteration corrected browserfocus/clamp behavior;
+no weakened checks. Composite checklist reviewed. No model/cache/API/dependency migration.
+Worker GPT6.1Sol/high parent+tests delivered in~6min, one unsupported test assertion reworked,
+verified by coordinator; integration~3min, tokensunknown. Weekly77%used/23%remaining,
+DeepSeekpause honored. DraftPR1506, supersededCI37471864262 canceled. This subsequent
+owner-requested revision gets one bounded delta review GPT6.1Sol/high (Terra unavailable);
+prior model/cache privacy reviews unchanged. No merge/deploy authority inferred.
+
+## 2026-10-06 — Daily summary browser contract remediation before merge
+
+Owner explicitly requested merging PR1506 into main. Reviewed4d614916 passed CI test/build,
+but browser run37475083366 failed all4 Daily matrix cases on obsolete overview/timestamp
+expectations (333 other cases passed,12 retried flakes,20 skipped). Returned PR to draft
+and canceled remaining superseded run. Updated only the existing E2E fixture/assertions:
+actual question detail/category, roster first name, removed overview/time absent, scoped
+name jump with row focus/highlight, summary retained/no inspector, Escape cleanup.
+Compact summary lets18 desktop rows fit; increased fixture to32 so sticky table scrolling
+and offscreen jump remain meaningful, verified positive scroll before jump. No product edits.
+Focused581/30 and all static gates passed; revised existing browser scenario4/4 passed
+desktop/mobile light/dark in1.1min (/tmp/pika-summary-ci-remediation-browser-final.log).
+Same GPT6.1Sol/high reviewer checked this bounded test-only remediation, clear; coordinator
+verified source and results. Browser testing is quiet for the separately authorized local
+database checkpoint; no canonical writes/login activity resumes without its release.
+Merge remains conditional on reviewed final SHA PR Gate. No production promotion authorized.
+
+## 2026-10-06 — Daily current-cache database contract proof
+
+CI37482125837 at a970538ce passed test/build and browser matrix; the database lane
+failed only the cached-summary harness's obsolete high-priority-v1 ready fixture.
+Returned PR1506 to draft. Test-harness-only correction uses the current policy constant
+and bounded detail, proves factual question detail/name projection, rejects v1/v2 caches,
+and exercises current-policy missing-overview/unresolved-name boundaries. Ownership,
+freshness, isolation and exact fixture cleanup checks are preserved. GPT6.1Sol/high
+bounded independent review clear; no product, migration, provider or authorization edits.
+After coordinated local-testing release, exact local harness passed all four stages,
+including guarded synthetic fixture/live-state/audit cleanup; no reset or real-user change.
+Evidence /tmp/pika-summary-db-remediation-contract.log. Two full focused retries saw
+5-second timeouts in unchanged focused-checks and UiGallery files under concurrent host
+work. Those files passed separately24/24 and14/14 with original timeouts unchanged.
+Final full focused retry passed581/30 and all static gates; audit passed. No weakened
+checks. Evidence /tmp/pika-summary-db-remediation-stable-focused.log. Prior browser4/4 correction
+and model/privacy reviews remain valid. Owner main-merge authority retained; final
+reviewed-SHA CI gate is required. Production promotion remains outside scope.
+
+## 2026-10-06 — Preserve Daily-summary main updates during fluidity landing
+
+Merged main PR #1506 into the reviewed fluidity candidate as one bounded reconciliation. Preserve current-main Daily summaries and student questions, all nine reviewed feature heads, the exact main archive prefix, and every prior rolling-history body. Three test/policy/history files auto-merge; production code has no textual conflict. Previous candidate 27dd240e passed local focused/static, 172 distinct browser cases, independent source review and CI/PR Gate (one unchanged test/build retry). New-head focused/browser/visual, final independent integration review and exact-head CI are required before authorized main merge and superseded-PR closure. No new feature or design change; softer modal exits follow landing.
