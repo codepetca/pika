@@ -38887,3 +38887,15 @@ Owner explicitly authorized merge then goal advancement. GitHub hostedrunner inc
 ## 2026-10-05 — Integrated fluid classroom local gate complete
 
 Owning1486 integrates reviewed Daily1481/Student1482/Teacher1484 on currentmain5b2423d. All product/classroombrowser/component sources match independently reviewedcombinedproof; documented approval/reference/roadmap differences only. Bothparentdatedhistorybody preservation checked.644tests/35files+allstatic PASS;56uniqueclassroom+20PatternLab cases PASS. Initial16Dailycases lackedignoredfixturestate; addedemptylocalfixturestates andreranonly16unchangedcases GREEN. Currentbatch7fileauditPASS/compositesemanticscovered; rootbothrolevisualinspection acceptable. Prior sixnaturalrecordings applicable throughsourceparity. Reviewcounts4launches retained, thirdsyncbatch/no newrevieworclockreset. Ownermergemainauthorized; stableSHA CI/PRGate andactualmerge pending GitHubhostedrunner outage. No production promotion.
+
+<!-- pika-session-log-archive-batch:0defb4a67d63bcb4835a75432c88086fbe8266c7f4a6ff51a16035ac3ad7f8e2 -->
+## 2026-10-05 — Survey final motion-main integration
+
+PR 1483 candidate 33f2aef3 passed all five required CI jobs including PR Gate
+(run 37374119531). Main then advanced to 84a657eb (#1486). Resolve archived
+session history mechanically while preserving all complete bodies; retain both
+independent top-level Pattern Lab browser scenarios with their own test closures.
+Application files merged automatically. Survey owners are unchanged from reviewed
+665c1fa7; TeacherClassroomView retains the complete existing Survey patch over main.
+Owner renewed merge instruction. New-base focused checks and exact-head CI precede
+squash merge; no new application behavior, schema change or production promotion.

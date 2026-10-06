@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Survey final motion-main integration
-
-PR 1483 candidate 33f2aef3 passed all five required CI jobs including PR Gate
-(run 37374119531). Main then advanced to 84a657eb (#1486). Resolve archived
-session history mechanically while preserving all complete bodies; retain both
-independent top-level Pattern Lab browser scenarios with their own test closures.
-Application files merged automatically. Survey owners are unchanged from reviewed
-665c1fa7; TeacherClassroomView retains the complete existing Survey patch over main.
-Owner renewed merge instruction. New-base focused checks and exact-head CI precede
-squash merge; no new application behavior, schema change or production promotion.
-
 ## 2026-10-05 — Resume classroom access goal; owner Test draft saves
 
 Coordinator resumed on actual mainc25ebf78f in dedicated draft-save worktree.
@@ -556,3 +545,13 @@ ThemeProvider's initial light effect briefly overwrote the root initializer's da
 ## 2026-10-06 — Theme hydration current-main continuation
 
 Rebased PR #1499 onto main 865d837b in one reconciliation batch. Preserved the exact main journal prefix and all unique feature/main session entry bodies; theme feature paths remain byte-identical to 1d25f0a0. Focused verification and final independent review remain the continuation gates; no dependency, migration or product change introduced.
+
+## 2026-10-06 Nine reviewed fluidity heads local composition
+
+Unpublished detached proof assembled exact reviewed heads #1490/#1491/#1493–1499
+on main `865d837b7`, preserving the #1496/#1491 timestamp dependency. Local merge
+history retains all nine heads; Gallery imports/examples/assertions, shared Tabs
+motion/visibility, and reviewed native-control registry deltas compose by union.
+All original logical continuity bodies and exact main archive prefix retained.
+Combined focused check and coordinator-owned visual verification remain required;
+no feature head, protected branch, hosted service, pattern authority or rollout changed.
