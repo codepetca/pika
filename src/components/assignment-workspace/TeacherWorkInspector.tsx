@@ -602,7 +602,7 @@ export function TeacherWorkInspector({
               <div className="text-xs font-medium uppercase tracking-wide text-text-muted">
                 Comments Sent
               </div>
-              <div className="rounded border border-border bg-surface p-3">
+              <div className="rounded bg-surface p-3">
                 <div className="space-y-3">
                   {feedbackEntries.map((entry) => (
                     <div key={entry.id}>
