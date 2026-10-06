@@ -83,6 +83,7 @@ import { UiConsistencyPattern } from './UiConsistencyPattern'
 import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { DialogEntryPattern } from './DialogEntryPattern'
+import { MobileDrawerControlsPattern } from './MobileDrawerControlsPattern'
 
 const HEADER_REFERENCE_INITIAL_NOW = Date.parse('2026-10-05T16:00:00Z')
 
@@ -639,6 +640,8 @@ export function UiGallery({ role }: Props) {
         </PatternSection>
 
         <TabSelectionVisibilityPattern />
+
+        <MobileDrawerControlsPattern role={role} />
 
         {role === 'teacher' && (
           <PatternSection

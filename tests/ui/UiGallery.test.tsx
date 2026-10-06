@@ -73,6 +73,9 @@ describe('UiGallery accessibility contracts', () => {
 
   it.each(['teacher', 'student'] as const)('demonstrates normal and exam header navigation for %s', (role) => {
     renderGallery(role)
+    const drawers = within(screen.getByTestId('mobile-drawer-controls'))
+    expect(drawers.getByRole('heading', { name: 'Shared mobile drawer controls' })).toBeInTheDocument()
+    expect(drawers.getByRole('textbox', { name: 'Drawer example draft' })).toHaveValue('Retained drawer example draft')
     if (role === 'student') expect(screen.queryByRole('button', { name: 'Open survey edit prototype' })).not.toBeInTheDocument()
     const references = within(screen.getByRole('region', { name: 'Application header references' }))
     const headers = references.getAllByRole('banner')
