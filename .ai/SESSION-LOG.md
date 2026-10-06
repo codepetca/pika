@@ -689,5 +689,8 @@ fixture script: `output/playwright/`; source changes match PR implementation.
 50 focused survey tests pass. Required check:focused with --max-workers 1:
 414 tests pass, architecture/UI/design policy pass; initial default-worker
 attempt hit an existing gallery QR timeout. Risk profile none; weekly remaining
-15%; automatic DeepSeek paused through Dec31. One independent native reviewer
-planned, GPT-6 Luna/medium; usage and active-time attribution unknown.
+15%; automatic DeepSeek paused through Dec31. Initial GPT-6 Luna/medium independent review found one P2: the generic bar
+wrapper did not expose its label. Added a named group role and a semantic
+assertion; one batched remediation, no conflicts. Reviewer delivery verified;
+usage and active-time attribution unknown. Targeted and cumulative review
+follow in PR metadata before CI.

@@ -16,6 +16,7 @@ export function SurveyOptionResultBar({
 
   return (
     <div
+      role="group"
       className="relative overflow-hidden rounded-lg bg-surface-2"
       aria-label={`${option}: ${count} responses, ${roundedPercent}%`}
     >

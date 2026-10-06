@@ -8,7 +8,7 @@ describe('SurveyOptionResultBar', () => {
     (count, totalResponses, percentage) => {
       render(<SurveyOptionResultBar option="Group discussion" count={count as number} totalResponses={totalResponses as number} />)
 
-      const bar = screen.getByLabelText(`Group discussion: ${count} responses, ${percentage}`)
+      const bar = screen.getByRole('group', { name: `Group discussion: ${count} responses, ${percentage}` })
       expect(bar).toContainElement(screen.getByText('Group discussion'))
       expect(bar).toContainElement(screen.getByText(percentage))
       expect(screen.queryByText(String(count))).not.toBeInTheDocument()
