@@ -592,17 +592,9 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByText('Student1').closest('td')).toHaveClass('px-3', 'py-1')
     expect(screen.queryByLabelText('Complete')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Incomplete')).not.toBeInTheDocument()
-    const summaryTitle = screen.getByText('Class Log Summary')
-    expect(summaryTitle).toBeInTheDocument()
-    expect(summaryTitle.parentElement).not.toHaveClass('border-b', 'border-border')
-    expect(summaryTitle.parentElement).toHaveClass('pt-3')
-    expect(summaryTitle.parentElement).not.toHaveClass('min-h-10')
-    expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Hide class log summary' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Show class log summary' })).not.toBeInTheDocument()
-    const summaryResizeHandle = screen.getByRole('separator', { name: 'Resize class log summary' })
-    expect(summaryResizeHandle).toBeInTheDocument()
-    expect(summaryResizeHandle).not.toHaveClass('border-b', 'border-border')
+    expect(screen.getByTestId('class-log-summary')).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('separator', { name: 'Resize class log summary' })).not.toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
 
     const firstColumnResize = screen.getByRole('separator', { name: 'Resize First column' })
@@ -1931,73 +1923,36 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
   })
 
-  it('collapses and restores the class log summary from a double click', async () => {
+  it('sizes the class log summary to its content without a duplicate heading or resize control', async () => {
     mockLogsFetch()
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
     const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
-    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(panel).toHaveStyle({ height: '180px' })
-    expect(panel).toHaveAttribute('data-state', 'expanded')
+    const summary = screen.getByTestId('class-log-summary')
 
-    fireEvent.doubleClick(panel)
-
-    expect(screen.getByTestId('class-log-summary')).not.toBeVisible()
-    expect(panel).toHaveStyle({ height: '40px' })
-    expect(panel).toHaveAttribute('data-state', 'collapsed')
-    expect(screen.getByText('Log Summary')).toBeInTheDocument()
-
-    fireEvent.doubleClick(panel)
-
-    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(panel).toHaveStyle({ height: '180px' })
-    expect(panel).toHaveAttribute('data-state', 'expanded')
+    expect(panel).toHaveClass('min-h-0', 'shrink-0', 'rounded-lg', 'bg-surface')
+    expect(panel.style.height).toBe('')
+    expect(panel.style.minHeight).toBe('')
+    expect(panel).not.toHaveClass('min-h-[140px]', 'h-10', 'min-h-10')
+    expect(summary).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('separator', { name: 'Resize class log summary' })).not.toBeInTheDocument()
   })
 
-  it('resizes the class log summary card from the handle with keyboard controls', async () => {
+  it('leaves summary disclosure to the child when the parent pane is double clicked', async () => {
     mockLogsFetch()
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
     const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
-    const separator = screen.getByRole('separator', { name: 'Resize class log summary' })
-
-    expect(panel).toHaveStyle({ height: '180px' })
-    expect(separator).toHaveClass('cursor-ns-resize')
-
-    fireEvent.keyDown(separator, { key: 'ArrowUp' })
-    expect(panel).toHaveStyle({ height: '212px' })
-
-    fireEvent.keyDown(separator, { key: 'ArrowDown' })
-    expect(panel).toHaveStyle({ height: '180px' })
-
-    fireEvent.keyDown(separator, { key: 'ArrowUp' })
-    fireEvent.keyDown(separator, { key: 'Enter' })
-    expect(panel).toHaveStyle({ height: '180px' })
-  })
-
-  it('reopens the collapsed class log summary by dragging the handle upward', async () => {
-    mockLogsFetch()
-
-    render(<TeacherAttendanceTab classroom={classroom} />)
-
-    const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
+    const summary = screen.getByTestId('class-log-summary')
 
     fireEvent.doubleClick(panel)
-    expect(panel).toHaveStyle({ height: '40px' })
-    expect(panel).toHaveAttribute('data-state', 'collapsed')
 
-    fireEvent(
-      screen.getByRole('separator', { name: 'Resize class log summary' }),
-      new MouseEvent('pointerdown', { clientY: 300, bubbles: true })
-    )
-    window.dispatchEvent(new MouseEvent('pointermove', { clientY: 90, bubbles: true }))
-    window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))
-
-    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(panel).toHaveStyle({ height: '250px' })
-    expect(panel).toHaveAttribute('data-state', 'expanded')
+    expect(screen.getByTestId('class-log-summary')).toBe(summary)
+    expect(summary).toBeVisible()
+    expect(panel.style.height).toBe('')
   })
 
   it('returns to the full-width log table after deselecting a selected student', async () => {
@@ -2133,6 +2088,7 @@ describe('TeacherAttendanceTab', () => {
     expect(row).toHaveFocus()
     expect(summary.closest('section')).toHaveAttribute('aria-hidden', 'true')
     expect(summary.closest('section')).toHaveAttribute('inert')
+    expect(summary).not.toBeVisible()
     fireEvent.click(screen.getByRole('cell', { name: 'Student2', exact: true }))
     expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
     expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-2')
@@ -2140,6 +2096,7 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
     expect(screen.getByTestId('class-log-summary')).toBe(summary)
     expect(summary.closest('section')).not.toHaveAttribute('inert')
+    expect(summary).toBeVisible()
   })
 
   it('preserves the selected student when the same date refreshes on reactivation', async () => {

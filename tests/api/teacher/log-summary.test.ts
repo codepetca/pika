@@ -18,7 +18,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/log-summary', () => ({
-  LOG_SUMMARY_POLICY_VERSION: 'high-priority-v1',
+  LOG_SUMMARY_POLICY_VERSION: 'follow-ups-v2',
   restoreNames: vi.fn((summary: any) => ({
     overview: summary.overview,
     action_items: [{ text: 'Check in with Alice Brown' }],
@@ -173,7 +173,7 @@ describe('GET /api/teacher/log-summary', () => {
           single: vi.fn().mockResolvedValue({
             data: {
               summary_items: {
-                policy_version: 'high-priority-v1',
+                policy_version: 'follow-ups-v2',
                 overview: 'Strong progress',
                 action_items: [{ text: 'Check in with AB', initials: 'AB' }],
               },
@@ -293,6 +293,7 @@ describe('GET /api/teacher/log-summary', () => {
 
   it.each([
     ['a stale legacy object', { overview: 'Older summary', action_items: [] }],
+    ['the previous question-excluding policy', { policy_version: 'high-priority-v1', overview: 'Older summary', action_items: [] }],
     ['a legacy array', [{ text: 'Older summary' }]],
     ['a malformed object', { unexpected: true }],
     ['an explicitly old policy', {
@@ -526,7 +527,7 @@ describe('GET /api/teacher/log-summary', () => {
           single: vi.fn().mockResolvedValue({
             data: {
               summary_items: {
-                policy_version: 'high-priority-v1',
+                policy_version: 'follow-ups-v2',
                 overview: 'Older summary',
                 action_items: [],
               },

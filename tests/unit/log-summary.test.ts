@@ -170,14 +170,14 @@ describe('buildSummaryPrompt', () => {
     expect(system).toContain('high-priority')
   })
 
-  it('requires a minimal factual summary and only explicit high-priority action items', () => {
+  it('requires a minimal factual summary and explicit high-priority items or student questions', () => {
     const { system } = buildSummaryPrompt('2025-01-15', [])
 
     expect(system).toContain('Do not infer emotions, motivation, intent, diagnoses, or causes')
     expect(system).toContain('Include an action item only when the log explicitly reports')
     expect(system).toContain('Classify peer bullying, repeated peer threats')
     expect(system).toContain('When uncertain, leave it out')
-    expect(system).toContain('Do not flag routine difficulty, mild frustration, ordinary questions')
+    expect(system).toContain('Do not flag routine difficulty, mild frustration')
     expect(system).not.toContain('overall sentiment and themes')
     expect(system).not.toContain('students struggling, unanswered questions')
   })
@@ -217,7 +217,7 @@ describe('restoreNames', () => {
       action_items: [],
     }
     const result = restoreNames(raw, initialsMap)
-    expect(result.overview).toBe('No high-priority items were identified by this automated summary.')
+    expect(result.overview).toBe('Nothing urgent')
   })
 
   it('replaces initials in action item text', () => {
@@ -241,7 +241,7 @@ describe('restoreNames', () => {
     }
     const result = restoreNames(raw, initialsMap)
     expect(result.action_items).toEqual([])
-    expect(result.overview).toBe('No high-priority items were identified by this automated summary.')
+    expect(result.overview).toBe('Nothing urgent')
   })
 
   it('handles collision initials without corruption (J.S.1 vs J.S.)', () => {
@@ -256,7 +256,7 @@ describe('restoreNames', () => {
       ],
     }
     const result = restoreNames(raw, collisionMap)
-    expect(result.overview).toBe('High-priority items were identified by this automated summary.')
+    expect(result.overview).toBe('Follow-ups identified.')
     expect(result.action_items[0].text).toBe('John Smith needs more practice.')
     expect(result.action_items[0].studentName).toBe('John Smith')
   })
@@ -281,6 +281,20 @@ describe('callOpenAIForSummary', () => {
   afterEach(() => {
     process.env = originalEnv
     vi.restoreAllMocks()
+  })
+
+  it('surfaces an explicit student question with server-owned copy and attribution', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: 'completed', output_text: JSON.stringify({ action_items: [
+        { source_ref: 'log_1', category: 'student_question' },
+      ] }) }),
+    } as Response)
+    const result = await callOpenAIForSummary('system', 'user', { log_1: 'J.S.' })
+    expect(restoreNames(result, { 'J.S.': 'John Smith' }).action_items).toEqual([
+      { text: 'John Smith has a question.', studentName: 'John Smith' },
+    ])
+    expect(buildSummaryPrompt('2026-10-06', []).system).toContain('student_question')
   })
 
   it('throws when OPENAI_API_KEY is missing', async () => {
@@ -311,7 +325,7 @@ describe('callOpenAIForSummary', () => {
       'user prompt',
       { log_1: 'J.S.' }
     )
-    expect(result.overview).toBe('High-priority items were identified by this automated summary.')
+    expect(result.overview).toBe('Follow-ups identified.')
     expect(result.provider_model).toBe('gpt-5-nano-2025-08-07')
     expect(result.action_items).toEqual([
       {
@@ -327,7 +341,7 @@ describe('callOpenAIForSummary', () => {
     expect(body.store).toBe(false)
     expect(body.text.format).toMatchObject({
       type: 'json_schema',
-      name: 'daily_log_high_priority_summary',
+      name: 'daily_log_follow_up_summary',
       strict: true,
     })
     expect(body.text.format.schema.additionalProperties).toBe(false)

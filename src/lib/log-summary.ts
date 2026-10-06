@@ -8,7 +8,7 @@ import {
 } from '@/lib/ai-sanitization'
 
 const DEFAULT_MODEL = 'gpt-5-nano'
-export const LOG_SUMMARY_POLICY_VERSION = 'high-priority-v1'
+export const LOG_SUMMARY_POLICY_VERSION = 'follow-ups-v2'
 const MAX_ACTION_ITEMS = 50
 const SUMMARY_ACTION_CATEGORIES = [
   'safety_or_abuse',
@@ -16,6 +16,7 @@ const SUMMARY_ACTION_CATEGORIES = [
   'bullying_or_harassment',
   'serious_incident',
   'severe_participation_blocker',
+  'student_question',
 ] as const
 export type SummaryActionCategory = typeof SUMMARY_ACTION_CATEGORIES[number]
 
@@ -53,12 +54,13 @@ const ACTION_ITEM_COPY: Record<SummaryActionCategory, string> = {
   bullying_or_harassment: 'reported bullying or harassment.',
   serious_incident: 'reported a serious incident.',
   severe_participation_blocker: 'reported an urgent barrier to participating.',
+  student_question: 'has a question.',
 }
 
 function canonicalOverview(actionItemCount: number): string {
   return actionItemCount > 0
-    ? 'High-priority items were identified by this automated summary.'
-    : 'No high-priority items were identified by this automated summary.'
+    ? 'Follow-ups identified.'
+    : 'Nothing urgent'
 }
 
 export { buildInitialsMap, redactDirectIdentifiers }
@@ -94,13 +96,14 @@ Each object has a server-issued "source_ref" and a "text" field. The source_ref 
 Do not reveal or reproduce names, emails, phone numbers, student numbers, URLs, addresses, or other direct identifiers. Do not quote log text verbatim.
 Report only facts explicitly stated in the logs. Do not infer emotions, motivation, intent, diagnoses, or causes. Do not interpret tone, embellish, or turn separate remarks into a broader pattern.
 
-Return only high-priority "action_items". Include at most one item per source_ref. Each item has exactly:
+Return only high-priority concerns or explicit student questions in "action_items". Include at most one item per source_ref. Each item has exactly:
    - "source_ref": copied from the matching input object
-   - "category": one of "safety_or_abuse", "urgent_wellbeing", "bullying_or_harassment", "serious_incident", or "severe_participation_blocker"
+   - "category": one of "safety_or_abuse", "urgent_wellbeing", "bullying_or_harassment", "serious_incident", "severe_participation_blocker", or "student_question"
 
-Include an action item only when the log explicitly reports an immediate safety or wellbeing concern, bullying, harassment, abuse, a serious incident, or a severe blocker preventing participation that requires prompt teacher intervention.
+Include an action item only when the log explicitly reports a high-priority concern or asks a question. High-priority concerns are immediate safety or wellbeing concerns, bullying, harassment, abuse, serious incidents, or severe blockers preventing participation that require prompt teacher intervention.
 Classify peer bullying, repeated peer threats, intimidation, or harassment as "bullying_or_harassment", including when the bullying involves hitting. Classify caregiver or adult abuse and other immediate safety reports not covered by a more specific category as "safety_or_abuse". Classify an acute serious event such as a fight or injury as "serious_incident" when it is not a bullying or abuse report.
-Do not flag routine difficulty, mild frustration, ordinary questions, incomplete work, neutral updates, achievements, vague wording, or concerns inferred from tone. Do not provide advice or speculate. When uncertain, leave it out. Use an empty array if nothing meets this threshold.
+Also include "student_question" when the student explicitly asks the teacher a question or requests an answer or clarification, including ordinary academic or logistical questions. Do not classify rhetorical questions, questions already answered in the log, or quoted questions asked by someone else as "student_question". If a log includes both a high-priority concern and a question, choose the high-priority category.
+Do not flag routine difficulty, mild frustration, incomplete work, neutral updates, achievements, vague wording, or concerns inferred from tone. Do not provide advice or speculate. When uncertain, leave it out. Use an empty array if nothing meets this threshold.
 
 Respond with ONLY valid JSON. No markdown, no code blocks.`
 
@@ -169,7 +172,7 @@ export async function callOpenAIForSummary(
         text: {
           format: {
             type: 'json_schema',
-            name: 'daily_log_high_priority_summary',
+            name: 'daily_log_follow_up_summary',
             strict: true,
             schema: modelSummaryResponseJsonSchema,
           },

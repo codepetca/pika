@@ -638,7 +638,7 @@ describe('cron nightly-log-summaries route', () => {
     expect(summaryUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         summary_items: expect.objectContaining({
-          policy_version: 'high-priority-v1',
+          policy_version: 'follow-ups-v2',
         }),
       }),
       { onConflict: 'classroom_id,date' }

@@ -1,6 +1,6 @@
 import React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { LogSummary } from '@/app/classrooms/[classroomId]/LogSummary'
 
 function mockJson(data: unknown, ok = true) {
@@ -76,57 +76,46 @@ describe('LogSummary', () => {
     expect(onAvailabilityChange).toHaveBeenLastCalledWith(false)
   })
 
-  it('aligns summary copy with its title and omits internal horizontal rules', async () => {
-    const onAvailabilityChange = vi.fn()
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-05-05T15:00:00.000Z'))
+  it('shows only a compact Nothing urgent summary without boilerplate or timestamp', async () => {
     vi.stubGlobal('fetch', vi.fn(() => mockJson({
-      summary: {
-        overview: 'Students reflected on their project progress.',
-        action_items: [{
-          studentName: 'Student One',
-          text: 'Student One needs support with the final section.',
-        }],
-        generated_at: '2026-05-05T14:36:00.000Z',
-      },
+      summary: { overview: 'No high-priority items were identified by this automated summary.', action_items: [], generated_at: '2026-05-05T14:36:00.000Z' },
       summary_status: 'ready',
     })))
-
-    render(
-      <LogSummary
-        classroomId="classroom-1"
-        date="2026-05-05"
-        onAvailabilityChange={onAvailabilityChange}
-      />
-    )
-    await act(async () => {
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-
-    const overview = screen.getByText('Students reflected on their project progress.')
-    const summaryContent = overview.parentElement
-    const generatedAt = screen.getByText('Today 10:36 AM')
-
-    expect(summaryContent).toHaveClass('px-3')
-    expect(summaryContent).not.toHaveClass('p-4')
-    expect(generatedAt).not.toHaveClass('border-t', 'border-border')
-    expect(screen.queryByText('Needs Attention')).not.toBeInTheDocument()
-    expect(screen.getByRole('list', { name: 'Class log follow-ups' })).toBeInTheDocument()
-    expect(screen.getByText(/Student One needs support/)).toBeInTheDocument()
-    expect(onAvailabilityChange).toHaveBeenLastCalledWith(true)
+    render(<LogSummary classroomId="classroom-1" date="2026-05-05" />)
+    const toggle = await screen.findByRole('button', { name: /Summary: Nothing urgent/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText(/No high-priority|Today/)).not.toBeInTheDocument()
   })
 
-  it('explains when a legacy broad summary has been retired', async () => {
+  it('surfaces questions inline and expands/collapses while keeping student log actions separate', async () => {
+    const onStudentClick = vi.fn()
     vi.stubGlobal('fetch', vi.fn(() => mockJson({
-      summary: null,
-      summary_status: 'unavailable',
+      summary: { overview: 'Follow-ups identified.', action_items: [
+        { studentName: 'Student One', text: 'Student One has a question.' },
+        { studentName: 'Student Two', text: 'Student Two reported an urgent wellbeing concern.' },
+      ], generated_at: '2026-05-05T14:36:00.000Z' },
+      summary_status: 'ready',
     })))
+    const { rerender } = render(<LogSummary classroomId="classroom-1" date="2026-05-05" onStudentClick={onStudentClick} />)
+    const toggle = await screen.findByRole('button', { name: /Summary: Student One has a question/ })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle.querySelector('[data-summary-text]')).toHaveClass('line-clamp-3')
+    fireEvent.click(toggle)
+    const expandedToggle = screen.getByRole('button', { name: 'Summary: Collapse summary' })
+    expect(expandedToggle).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Student One' }))
+    expect(onStudentClick).toHaveBeenCalledWith('Student One')
+    expect(expandedToggle).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByText(/reported an urgent wellbeing concern/))
+    expect(screen.getByRole('button', { name: /Summary: Student One has a question/ })).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(screen.getByRole('button', { name: /Summary: Student One has a question/ }))
+    rerender(<LogSummary classroomId="classroom-1" date="2026-05-06" onStudentClick={onStudentClick} />)
+    expect(await screen.findByRole('button', { name: /Summary: Student One has a question/ })).toHaveAttribute('aria-expanded', 'false')
+  })
 
+  it('explains when a summary is unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => mockJson({ summary: null, summary_status: 'unavailable' })))
     render(<LogSummary classroomId="classroom-1" date="2026-05-05" />)
-
-    expect(await screen.findByText(
-      'A high-priority automated summary is not available for this date.'
-    )).toBeInTheDocument()
+    expect(await screen.findByText('Summary is not available for this date.')).toBeInTheDocument()
   })
 })

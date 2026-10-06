@@ -10,7 +10,7 @@ const joined = { id: classroomId, teacher_id: actorId }
 const stats = [{ classroom_id: classroomId, date, updated_at: '2026-09-30T13:00:00Z', classroom: joined }]
 const cache = {
   id: '44444444-4444-4444-8444-444444444444', classroom_id: classroomId, date,
-  summary_items: { policy_version: 'high-priority-v1', overview: 'Progress', action_items: [{ text: 'AB needs help', initials: 'AB' }] },
+  summary_items: { policy_version: 'follow-ups-v2', overview: 'Progress', action_items: [{ text: 'AB needs help', initials: 'AB' }] },
   initials_map: { AB: 'Alice Brown' }, entry_count: 1,
   entries_updated_at: '2026-09-30T13:00:00Z', generated_at: '2026-09-30T14:00:00Z', classroom: joined,
 }
@@ -52,7 +52,7 @@ describe('contextual teacher cached Daily summary', () => {
     const f = fixture()
     const result = await read(f)
     expect(result).toEqual({ summary_status: 'ready', summary: {
-      overview: 'High-priority items were identified by this automated summary.',
+      overview: 'Follow-ups identified.',
       action_items: [{ text: 'Alice Brown needs help', studentName: 'Alice Brown' }],
       generated_at: cache.generated_at,
     } })
@@ -89,7 +89,7 @@ describe('contextual teacher cached Daily summary', () => {
     [{ cache: { data: { ...cache, entry_count: 2 }, error: null } }, 'pending'],
     [{ cache: { data: { ...cache, entries_updated_at: '2026-09-30T12:00:00Z' }, error: null } }, 'pending'],
     [{ cache: { data: { ...cache, summary_items: { policy_version: 'old', overview: 'private' } }, error: null } }, 'unavailable'],
-    [{ cache: { data: { ...cache, summary_items: { policy_version: 'high-priority-v1' } }, error: null } }, 'pending'],
+    [{ cache: { data: { ...cache, summary_items: { policy_version: 'follow-ups-v2' } }, error: null } }, 'pending'],
   ] as const)('preserves summary status %#', async (overrides, status) => {
     await expect(read(fixture(overrides))).resolves.toEqual({ summary: null, summary_status: status })
   })
@@ -121,9 +121,9 @@ describe('contextual teacher cached Daily summary', () => {
     [{ AB: '   ' }, cache.summary_items],
     [{ AB: 'Alice Brown', '': 'Another Student' }, cache.summary_items],
     [{ AB: 'Alice Brown', ' ': 'Another Student' }, cache.summary_items],
-    [{ AB: 'Alice Brown' }, { policy_version: 'high-priority-v1', overview: 'Progress', action_items: [{ text: 'needs help', initials: '' }] }],
-    [{ ' ': 'Alice Brown' }, { policy_version: 'high-priority-v1', overview: 'Progress', action_items: [{ text: 'needs help', initials: ' ' }] }],
-    [{}, { policy_version: 'high-priority-v1', overview: 'Progress', action_items: [{ text: 'needs help', initials: 'toString' }] }],
+    [{ AB: 'Alice Brown' }, { policy_version: 'follow-ups-v2', overview: 'Progress', action_items: [{ text: 'needs help', initials: '' }] }],
+    [{ ' ': 'Alice Brown' }, { policy_version: 'follow-ups-v2', overview: 'Progress', action_items: [{ text: 'needs help', initials: ' ' }] }],
+    [{}, { policy_version: 'follow-ups-v2', overview: 'Progress', action_items: [{ text: 'needs help', initials: 'toString' }] }],
   ])('rejects unresolvable or blank current-cache name evidence %#', async (initialsMap, summaryItems) => {
     const f = fixture({ cache: { data: { ...cache, initials_map: initialsMap, summary_items: summaryItems }, error: null } })
     await expect(read(f)).rejects.toMatchObject({ statusCode: 503 })
@@ -157,7 +157,7 @@ describe('contextual teacher cached Daily summary', () => {
     { cache: { data: { ...cache, classroom_id: otherId }, error: null } },
     { cache: { data: { ...cache, date: '2026-09-29' }, error: null } },
     { cache: { data: { ...cache, id: otherId, generated_at: 'broken' }, error: null } },
-    { cache: { data: { ...cache, summary_items: { policy_version: 'high-priority-v1', overview: 7, action_items: [] } }, error: null } },
+    { cache: { data: { ...cache, summary_items: { policy_version: 'follow-ups-v2', overview: 7, action_items: [] } }, error: null } },
     { cache: { data: { ...cache, initials_map: { AB: 7 } }, error: null } },
     { cache: { data: cache, error: { code: 'XX' } } },
   ])('fails closed on malformed or unbound database evidence %#', async (overrides) => {

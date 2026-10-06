@@ -9,6 +9,7 @@ import {
   AttendanceStatusSortChip,
   SORTABLE_ATTENDANCE_STATUSES,
 } from '@/app/classrooms/[classroomId]/TeacherAttendanceControls'
+import { LogSummaryContent } from '@/app/classrooms/[classroomId]/LogSummary'
 import { DateNavigator } from '@/components/DateNavigator'
 import {
   TeacherWorkSurfaceIconMenuButton,
@@ -536,10 +537,13 @@ export function DailyMockup({
                 </DataTableBody>
               </DataTable>
             </TeacherWorkSurfaceTableFrame>
-            <Card tone="panel" padding="sm">
-              <h4 className="text-sm font-semibold">Class Log Summary</h4>
-              <p className="mt-1 text-sm text-text-muted">3 complete · 1 incomplete · Habitat observations focused on moisture, shade, and pond edges.</p>
-            </Card>
+            <section aria-label="Class Log Summary" className="min-h-0 shrink-0 rounded-lg bg-surface">
+              <LogSummaryContent actionItems={[
+                { studentName: 'Avery Morgan', text: 'Avery Morgan has a question.' },
+                { studentName: 'Jordan Lee', text: 'Jordan Lee has a question.' },
+                { studentName: 'Sam Rivera', text: 'Sam Rivera has a question.' },
+              ]} />
+            </section>
           </div>
         )}
       />
