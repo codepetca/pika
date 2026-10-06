@@ -34,7 +34,8 @@ GUEST_ENV = {
     'LANG': 'C.UTF-8', 'XDG_RUNTIME_DIR': '/run/user/1002',
 }
 GUEST_GUARDS = {'isolation', 'identity', 'client', 'credentials', 'host-mount', 'docker-context',
-                'docker-socket', 'docker-rootless', 'toolchain', 'general-sudo', 'inventory'}
+                'docker-socket', 'docker-rootless', 'toolchain', 'general-sudo', 'inventory',
+                'listener-failure', 'idle-timeout', 'lifetime-timeout', 'retry-limit', 'update-timeout'}
 
 
 class Refusal(Exception):
@@ -55,18 +56,47 @@ class Lease:
         self.path = pathlib.Path(path)
         self.record = {'owner': str(uuid.uuid4()), 'pid': os.getpid(), 'vms': [vm]}
         self.inode = None
+        self.claimed = False
 
     def acquire(self):
+        # Block interruption across the create/write/handoff critical section.
+        previous = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM})
+        fd = None
         try:
-            fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-        except FileExistsError:
-            raise Refusal('host-lease-busy') from None
-        self.inode = os.fstat(fd).st_ino
-        with os.fdopen(fd, 'w') as stream:
-            json.dump(self.record, stream)
-            stream.write('\n')
-            stream.flush()
-            os.fsync(stream.fileno())
+            try:
+                fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            except FileExistsError:
+                raise Refusal('host-lease-busy') from None
+            self.inode = os.fstat(fd).st_ino
+            with os.fdopen(fd, 'w') as stream:
+                fd = None
+                json.dump(self.record, stream)
+                stream.write('\n')
+                stream.flush()
+                os.fsync(stream.fileno())
+            self.claimed = True
+        except BaseException:
+            if fd is not None:
+                os.close(fd)
+            try:
+                if self.inode is not None and self.path.lstat().st_ino == self.inode:
+                    self.path.unlink()
+            except FileNotFoundError:
+                pass
+            raise
+        finally:
+            # Roll back a pending signal before returning ownership to the caller.
+            try:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous)
+            except BaseException:
+                if self.claimed:
+                    try:
+                        if self.path.lstat().st_ino == self.inode:
+                            self.path.unlink()
+                    except FileNotFoundError:
+                        pass
+                    self.claimed = False
+                raise
 
     def assert_owned(self):
         try:
@@ -87,6 +117,7 @@ class Lease:
         if self.path.lstat().st_ino != self.inode:
             raise Refusal('host-lease-ownership-changed')
         self.path.unlink()
+        self.claimed = False
 
 
 # Static code is base64 encoded in argv to prevent Tart's shell expansion.
@@ -163,19 +194,77 @@ require(config.get('gitHubUrl','').rstrip('/')=='https://github.com/codepetca/pi
 log=client / 'pika-host-run.log'
 fd=os.open(log,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
 with os.fdopen(fd,'wb') as output:
-    runner=subprocess.Popen(['./run.sh'],cwd=client,env=env,stdout=output,stderr=output,start_new_session=True)
-    start=time.monotonic(); assigned=False
-    while runner.poll() is None:
-        assigned=assigned or any((client / '_diag').glob('Worker_*.log'))
+    start=time.monotonic(); assigned=False; attempts=0
+    def activity():
+        return {str(p): (p.stat().st_mtime_ns,p.stat().st_size) for p in (client / '_diag').glob('Worker_*.log')}
+    baseline=activity()
+    def budget():
+        global assigned
+        assigned=assigned or activity()!=baseline
         elapsed=time.monotonic()-start
-        if elapsed>=payload['lifetime'] or (not assigned and elapsed>=payload['idle']):
-            os.killpg(runner.pid,signal.SIGTERM)
-            try: runner.wait(timeout=10)
-            except subprocess.TimeoutExpired: os.killpg(runner.pid,signal.SIGKILL); runner.wait(timeout=5)
-            raise RuntimeError('runner-lifetime-exceeded')
-        time.sleep(1)
-    require(runner.returncode==0 and assigned)
+        require(elapsed<payload['lifetime'],'lifetime-timeout')
+        require(assigned or elapsed<payload['idle'],'idle-timeout')
+    while True:
+        budget(); require(attempts==0 or not assigned,'listener-failure'); attempts+=1
+        require(attempts<=3,'retry-limit')
+        # Observe the listener itself; run.sh normalizes several failures to zero.
+        runner=subprocess.Popen([str(client / 'bin/Runner.Listener'),'run'],cwd=client,env=env,
+                                stdout=output,stderr=output,start_new_session=True)
+        try:
+            while runner.poll() is None:
+                budget(); time.sleep(0.1)
+            budget()
+        finally:
+            if runner.poll() is None:
+                os.killpg(runner.pid,signal.SIGTERM)
+                try: runner.wait(timeout=10)
+                except subprocess.TimeoutExpired: os.killpg(runner.pid,signal.SIGKILL); runner.wait(timeout=5)
+        if runner.returncode==0:
+            require(assigned,'listener-failure'); break
+        # A listener is never restarted after Worker activity, even on an update.
+        require(not assigned and runner.returncode in (2,3,4),'listener-failure')
+        if runner.returncode in (3,4):
+            deadline=time.monotonic()+30; marker=client/'update.finished'
+            while not marker.exists() and time.monotonic()<deadline:
+                budget(); time.sleep(0.1)
+            require(marker.is_file() and not marker.is_symlink(),'update-timeout')
+            marker.unlink()
+        else:
+            deadline=time.monotonic()+5
+            while time.monotonic()<deadline:
+                budget(); time.sleep(0.1)
 print(json.dumps({'runner_exit':runner.returncode,'assigned_job':None}))
+'''
+
+GUEST_COLLECT = GUEST_COMMON + r'''
+import base64, re, stat
+require(client.is_dir() and not client.is_symlink(),'client')
+secrets=[s.encode() for s in payload['redactions']]
+remaining=256*1024; files=[]
+groups=[(client,['pika-host-run.log'])]
+diag=client/'_diag'
+if diag.exists():
+    require(diag.is_dir() and not diag.is_symlink(),'client')
+    names=sorted(p.name for p in diag.iterdir() if re.fullmatch(r'(Runner|Worker)_[A-Za-z0-9_.-]{1,120}\.log',p.name))[-8:]
+    groups.append((diag,names))
+for folder,names in groups:
+    directory=os.open(folder,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+    try:
+        for name in names:
+            if not remaining: break
+            require(not any(s.decode() in name for s in secrets),'credentials')
+            try: fd=os.open(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=directory)
+            except FileNotFoundError: continue
+            with os.fdopen(fd,'rb') as stream:
+                info=os.fstat(stream.fileno())
+                require(stat.S_ISREG(info.st_mode) and info.st_uid==os.getuid(),'credentials')
+                size=min(64*1024,remaining,info.st_size)
+                stream.seek(max(0,info.st_size-size)); content=stream.read(size)
+            remaining-=len(content)
+            for secret in secrets: content=content.replace(secret,b'[redacted]')
+            files.append({'name':name,'data':base64.b64encode(content).decode()})
+    finally: os.close(directory)
+print(json.dumps({'files':files}))
 '''
 
 GUEST_EMPTY = GUEST_COMMON + r'''
@@ -198,6 +287,9 @@ class Backend:
         self.sequence = 0
         self.vm_process = None
         self.unconfirmed_process = False
+        self.registration_issued = False
+        self.registration_identity = None
+        self.redactions = []
 
     @staticmethod
     def host_environment():
@@ -214,6 +306,8 @@ class Backend:
         except BaseException:
             self.contain(proc)
             raise
+        # Closed pipes do not imply descendants have exited, even on success.
+        self.contain(proc)
         # Preadmission read-only checks have no receipt directory yet.
         if not secret and self.logs is not None and self.logs.is_dir():
             path = self.logs / f'child-{self.sequence}.log'
@@ -344,12 +438,17 @@ class Backend:
         token = data.get('token')
         if not isinstance(token, str) or not re.fullmatch(r'[A-Za-z0-9_\-]{10,2048}', token):
             raise Refusal('invalid-registration-token')
+        self.redactions.append(token)
         return token
 
     def register(self, vm, token):
         if any(r.get('name') == vm for r in self.runners()):
             raise Refusal('runner-name-already-exists')
+        if token not in self.redactions:
+            self.redactions.append(token)
+        self.registration_issued = True
         identity = json.loads(self.guest(vm, GUEST_CONFIGURE, {'token': token, 'name': vm}, timeout=120))
+        self.registration_identity = identity
         matches = [r for r in self.runners() if r.get('name') == vm]
         if (len(matches) != 1 or matches[0].get('id') != identity.get('id')
                 or not {'self-hosted', 'Linux', 'pika-ci'}.issubset({l['name'] for l in matches[0].get('labels', [])})):
@@ -364,7 +463,40 @@ class Backend:
     def run_one(self, vm, idle, lifetime):
         return json.loads(self.guest(vm, GUEST_RUN, {'name': vm, 'idle': idle, 'lifetime': lifetime}, timeout=lifetime + 30))
 
+    def collect(self, vm):
+        data = json.loads(self.guest(vm, GUEST_COLLECT, {'redactions': self.redactions}, timeout=20))
+        files = data['files']
+        if not isinstance(files, list) or len(files) > 9:
+            raise Refusal('invalid-diagnostics')
+        destination = self.logs / 'guest-diagnostics'
+        destination.mkdir(mode=0o700)
+        total = 0
+        names = []
+        for item in files:
+            name = item['name']
+            if (not isinstance(name, str) or (name != 'pika-host-run.log'
+                    and not re.fullmatch(r'(Runner|Worker)_[A-Za-z0-9_.-]{1,120}\.log', name))
+                    or name in names or any(secret in name for secret in self.redactions)):
+                raise Refusal('invalid-diagnostics')
+            content = base64.b64decode(item['data'], validate=True)
+            for secret in self.redactions:
+                content = content.replace(secret.encode(), b'[redacted]')
+            total += len(content)
+            if total > 256 * 1024:
+                raise Refusal('diagnostics-too-large')
+            fd = os.open(destination / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(content)
+            names.append(name)
+        return {'status': 'collected', 'directory': str(destination), 'files': names, 'bytes': total}
+
     def unregister(self, vm, identity):
+        if not self.registration_issued:
+            return
+        identity = identity or self.registration_identity
+        if identity and (identity.get('name') != vm or identity.get('repo') != REPOSITORY
+                         or type(identity.get('id')) is not int or identity['id'] <= 0):
+            raise Refusal('orphan-registration-identity-mismatch')
         # Even a partially failed configure may have registered this unique name.
         matches = [r for r in self.runners() if r.get('name') == vm]
         if not matches:
@@ -372,6 +504,8 @@ class Backend:
         if len(matches) != 1 or (identity and matches[0]['id'] != identity['id']):
             raise Refusal('orphan-registration-identity-mismatch')
         self.api('/actions/runners/' + str(matches[0]['id']), 'DELETE')
+        if any(r.get('name') == vm for r in self.runners()):
+            raise Refusal('owned-registration-still-exists')
 
     def stop(self, vm):
         empty = False
@@ -410,7 +544,6 @@ class HostDriver:
         lease = Lease(self.lease_path, vm)
         result = {'status': 'refused', 'vm': vm, 'mode': mode, 'demand_run_id': run_id,
                   'assigned_job': None, 'registration': None, 'lease_released': False, 'stage': 'admission'}
-        acquired = False
         attempted_clone = False
         attempted_registration = False
         try:
@@ -420,7 +553,6 @@ class HostDriver:
                 if not self.backend.demand(run_id):
                     raise Refusal('no-eligible-queued-job')
             lease.acquire()
-            acquired = True
             result['stage'] = 'host-inventory'
             rows = self.backend.inventory()
             if any(r['Running'] for r in rows) or any(r['Name'] == vm for r in rows):
@@ -477,7 +609,22 @@ class HostDriver:
             result['status'] = 'failed' if attempted_clone else 'refused'
             result['failure'] = str(error) if isinstance(error, Refusal) else 'interrupted-or-command-failed'
         finally:
-            if acquired:
+            failures = []
+            if attempted_clone:
+                try:
+                    result['diagnostics'] = self.backend.collect(vm)
+                except (Exception, KeyboardInterrupt):
+                    result['diagnostics'] = {'status': 'failed', 'failure': 'guest-diagnostics-unavailable'}
+            # Revocation cannot be skipped because unrelated VM/lease cleanup failed.
+            issued = getattr(self.backend, 'registration_issued', attempted_registration)
+            if attempted_registration and issued:
+                try:
+                    self.backend.unregister(vm, result['registration'])
+                    result['registration_removed'] = True
+                except (Exception, KeyboardInterrupt):
+                    failures.append('registration')
+                    result['registration_removed'] = False
+            if lease.claimed:
                 try:
                     lease.assert_owned()
                     if getattr(self.backend, 'unconfirmed_process', False):
@@ -495,13 +642,18 @@ class HostDriver:
                             self.backend.delete(vm)
                         if any(r['Name'] == vm for r in self.backend.inventory()):
                             raise Refusal('owned-vm-still-exists')
-                    if attempted_registration:
-                        self.backend.unregister(vm, result['registration'])
-                    lease.release()
-                    result['lease_released'] = True
                 except (Exception, KeyboardInterrupt):
-                    result['status'] = 'cleanup-required'
-                    result['cleanup_failure'] = 'owned-teardown-or-lease-verification-failed'
+                    failures.append('host')
+                if not failures:
+                    try:
+                        lease.release()
+                        result['lease_released'] = True
+                    except (Exception, KeyboardInterrupt):
+                        failures.append('lease')
+            if failures:
+                result['status'] = 'cleanup-required'
+                result['cleanup_failure'] = 'owned-teardown-or-lease-verification-failed'
+                result['cleanup_failures'] = failures
             if attempted_clone:
                 private_json(directory / 'receipt.json', result)
                 result['receipt'] = str(directory / 'receipt.json')

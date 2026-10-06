@@ -100,6 +100,11 @@ guest as the dedicated runner user. It transfers only the canonical resource
 preflight into a fresh guest directory and checks all three lanes. It does not
 replay migrations. Receipts and child logs are private files under
 `~/.codex/artifacts/pika/ci-tart-host` on the prepared operator account.
+Before disposal, the driver also collects bounded tails of allowlisted guest
+runner diagnostics into that private directory. It excludes configuration,
+credentials, and environment files and redacts its known registration token.
+The receipt records collection failure; VM containment still proceeds. These
+bounded logs may be truncated and do not replace GitHub job results.
 
 The shared lease covers clone, boot, guest checks, and destruction. A held lease
 or unexpected running Tart VM causes refusal; the driver never steals a stale
@@ -125,8 +130,9 @@ The runner is ephemeral and its VM is disposable. GitHub deregisters an
 ephemeral runner after its one job; see [runner lifecycle and routing](https://docs.github.com/en/actions/reference/runners/self-hosted-runners).
 
 `--run-id` is a demand hint. GitHub routes matching labels and may assign a
-different eligible Pika job. Inspect the receipt's actual assignment rather than
-assuming the requested run used the runner. The driver exits after one job;
+different eligible Pika job. The receipt leaves the actual assignment unknown.
+Verify the unique runner name in GitHub job telemetry and check its lane result;
+do not infer assignment from the requested run ID. The driver exits after one job;
 invoke it again for another job, after HQ or another Pika invocation releases the
 lease. Its default idle limit is 300 seconds and lifetime limit is 7200 seconds;
 `--idle-seconds` and `--lifetime-seconds` set explicit bounds. Keep an operator

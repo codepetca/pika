@@ -33,6 +33,7 @@ class Fake:
         if self.run_error: raise self.run_error
         return {'runner_exit':0,'assigned_job':None}
     def unregister(self, vm, identity): self.calls.append('unregister')
+    def collect(self, vm): self.calls.append('collect'); return {'status':'collected','files':[]}
     def stop(self, vm):
         self.calls.append('stop')
         if self.fail_cleanup: raise h.Refusal('stop-failed')
@@ -53,6 +54,225 @@ function offline(code: string) {
 }
 
 describe('serial Tart host admission (offline)', () => {
+  it.each(['lease', 'child', 'stop', 'delete', 'inventory'])('independently revokes registration after %s cleanup failure', fault => {
+    offline(String.raw`
+    original=fake.run_one
+    def fail(vm,idle,lifetime):
+        outcome=original(vm,idle,lifetime)
+        kind=${JSON.stringify(fault)}
+        if kind=='lease': lease.unlink(); lease.write_text('foreign')
+        if kind=='child': fake.unconfirmed_process=True
+        if kind=='stop': fake.fail_cleanup=True
+        if kind=='delete': fake.delete=lambda vm: (_ for _ in ()).throw(h.Refusal('delete-failed'))
+        if kind=='inventory': fake.inventory=lambda: (_ for _ in ()).throw(h.Refusal('inventory-failed'))
+        return outcome
+    fake.run_one=fail
+    revoked=[]; fake.unregister=lambda vm,identity: revoked.append((vm,identity))
+    result=serve()
+    assert result['status']=='cleanup-required' and lease.exists()
+    assert len(revoked)==1 and revoked[0][1]['id']==7 and revoked[0][0]==revoked[0][1]['name']
+    assert 'collect' in fake.calls
+    if ${JSON.stringify(fault)}=='lease': assert lease.read_text()=='foreign'
+`)
+  })
+
+  it('cleans partial lease writes and handles the completed-acquisition handoff gap', () => {
+    offline(String.raw`
+    original=h.os.fsync
+    for fault in ('fsync','write'):
+        item=h.Lease(lease,'pika-ci-job-fault')
+        if fault=='fsync': h.os.fsync=lambda fd: (_ for _ in ()).throw(h.Refusal('signal'))
+        else:
+            original_dump=h.json.dump; h.json.dump=lambda *args,**kwargs: (_ for _ in ()).throw(OSError('write-failed'))
+        try: item.acquire()
+        except (h.Refusal,OSError): pass
+        else: raise AssertionError('fault not applied')
+        finally:
+            h.os.fsync=original
+            if fault=='write': h.json.dump=original_dump
+        assert not lease.exists()
+        contender=h.Lease(lease,'pika-ci-job-retry'); contender.acquire(); contender.release()
+    original_acquire=h.Lease.acquire
+    def completed_then_signal(item): original_acquire(item); raise h.Refusal('signal')
+    h.Lease.acquire=completed_then_signal
+    try: result=serve()
+    finally: h.Lease.acquire=original_acquire
+    assert result['status']=='refused' and not lease.exists()
+`)
+  })
+
+  it('preserves a replaced inode during failed acquisition', () => {
+    offline(String.raw`
+    original=h.os.fsync
+    def replace(fd):
+        replacement=root/'replacement'; replacement.write_text('foreign')
+        os.replace(replacement,lease); raise h.Refusal('signal')
+    h.os.fsync=replace
+    try: h.Lease(lease,'pika-ci-job-fault').acquire()
+    except h.Refusal: pass
+    finally: h.os.fsync=original
+    assert lease.read_text()=='foreign'
+`)
+  })
+
+  it('rolls back a real pending signal delivered at lease publication', () => {
+    offline(String.raw`
+    previous=signal.signal(signal.SIGTERM,lambda *args: (_ for _ in ()).throw(h.Refusal('signal')))
+    original=h.os.fsync
+    def pending(fd): original(fd); os.kill(os.getpid(),signal.SIGTERM)
+    h.os.fsync=pending
+    try: result=serve()
+    finally: h.os.fsync=original; signal.signal(signal.SIGTERM,previous)
+    assert result['status']=='refused' and not lease.exists() and 'clone' not in fake.calls
+    contender=h.Lease(lease,'pika-ci-job-later'); contender.acquire(); contender.release()
+`)
+  })
+
+  it.each([0, 1])('contains closed-stdio descendants after leader exit %i', exit => {
+    offline(String.raw`
+    backend=h.Backend(root)
+    original=h.subprocess.Popen; children=[]
+    def capture(*args,**kwargs):
+        proc=original(*args,**kwargs); children.append(proc); return proc
+    h.subprocess.Popen=capture
+    script='import subprocess,sys,os; subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); os._exit(${exit})'
+    try:
+        backend.command([sys.executable,'-c',script])
+    except h.Refusal: assert ${exit} != 0
+    finally:
+        h.subprocess.Popen=original
+        if h.Backend.group_running(children[0].pid):
+            h.Backend.terminate(children[0]); raise AssertionError('closed-stdio descendant survived')
+    assert not backend.unconfirmed_process
+`)
+  })
+
+  it('preserves private diagnostics before disposal even after runner failure', () => {
+    offline(String.raw`
+    fake.run_error=h.Refusal('listener-failure')
+    result=serve()
+    assert result['diagnostics']['status']=='collected'
+    assert fake.calls.index('collect') < fake.calls.index('stop') < fake.calls.index('delete')
+    assert 'PRIVATE-TOKEN-SENTINEL' not in json.dumps(result)
+`)
+  })
+
+  it('observes the real listener failure after Worker activity', () => {
+    offline(String.raw`
+    client=root/'client'; (client/'bin').mkdir(parents=True); (client/'_diag').mkdir()
+    (client/'.runner').write_text(json.dumps({'agentName':'pika-ci-job-offline','ephemeral':True,'gitHubUrl':'https://github.com/codepetca/pika'}))
+    listener=client/'bin/Runner.Listener'
+    listener.write_text('#!'+sys.executable+'\nimport pathlib,sys,time\npathlib.Path("_diag/Worker_test.log").write_text("PRIVATE-DIAGNOSTIC-SENTINEL")\ntime.sleep(0.15)\nsys.exit(1)\n'); listener.chmod(0o700)
+    code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    payload={'client':str(client),'name':'pika-ci-job-offline','idle':2,'lifetime':3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
+    assert result.returncode != 0 and 'PIKA_HOST_GUARD:listener-failure' in result.stdout
+    assert 'PRIVATE-DIAGNOSTIC-SENTINEL' not in result.stdout
+`)
+  })
+
+  it('never deletes a preexisting registration when configuration was not issued', () => {
+    offline(String.raw`
+    backend=h.Backend(root); backend.runners=lambda: [{'id':99,'name':'pika-ci-job-preexisting'}]
+    backend.guest=lambda *args,**kwargs: (_ for _ in ()).throw(AssertionError('configuration must not run'))
+    backend.api=lambda *args,**kwargs: (_ for _ in ()).throw(AssertionError('foreign registration must not be deleted'))
+    try: backend.register('pika-ci-job-preexisting','PRIVATE-TOKEN-SENTINEL')
+    except h.Refusal as error: assert str(error)=='runner-name-already-exists'
+    else: raise AssertionError('preexisting name was accepted')
+    backend.unregister('pika-ci-job-preexisting',None)
+    assert not backend.registration_issued
+`)
+  })
+
+  it('does not weaken disposal when diagnostics fail and retains admission if revocation fails', () => {
+    offline(String.raw`
+    fake.collect=lambda vm: (_ for _ in ()).throw(h.Refusal('diagnostics-failed'))
+    result=serve(); assert result['diagnostics']['status']=='failed'
+    assert result['status']=='completed' and not lease.exists() and 'delete' in fake.calls
+    fake.unregister=lambda vm,identity: (_ for _ in ()).throw(h.Refusal('revocation-failed'))
+    result=serve(); assert result['status']=='cleanup-required' and lease.exists()
+    assert result['registration_removed'] is False and fake.vms==[{'Name':h.TEMPLATE,'Running':False}]
+`)
+  })
+
+  it('redacts and caps actual guest diagnostics while excluding config and symlinks', () => {
+    offline(String.raw`
+    import base64
+    client=root/'client'; (client/'_diag').mkdir(parents=True)
+    token='PRIVATE-TOKEN-SENTINEL'
+    (client/'pika-host-run.log').write_text('PRIVATE-DIAGNOSTIC-SENTINEL '+token)
+    for i in range(8): (client/'_diag'/('Worker_'+str(i)+'.log')).write_bytes((token.encode()+b'x')*10000)
+    (client/'.credentials').write_text('FORBIDDEN-CREDENTIAL-CONTENT')
+    code=h.GUEST_COLLECT.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    payload={'client':str(client),'redactions':[token],'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
+    assert result.returncode==0, result.stderr
+    data=json.loads(result.stdout); total=sum(len(base64.b64decode(f['data'])) for f in data['files'])
+    assert total<=256*1024 and len(result.stdout)<512*1024
+    assert all(token.encode() not in base64.b64decode(f['data']) for f in data['files'])
+    assert not any(f['name'].startswith('.') for f in data['files'])
+    backend=h.Backend(root); backend.redactions=[token]; backend.guest=lambda *args,**kwargs: result.stdout
+    summary=backend.collect('pika-ci-job-offline')
+    assert summary['bytes']==total and 'PRIVATE-DIAGNOSTIC-SENTINEL' not in json.dumps(summary)
+    assert (root/'guest-diagnostics').stat().st_mode & 0o777==0o700
+    assert all(p.stat().st_mode & 0o777==0o600 for p in (root/'guest-diagnostics').iterdir())
+    assert len(data['files'])<=5, 'raw read budget exceeded before redaction'
+    (client/'pika-host-run.log').unlink(); (client/'pika-host-run.log').symlink_to(client/'.credentials')
+    result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
+    assert result.returncode != 0 and 'FORBIDDEN-CREDENTIAL-CONTENT' not in result.stdout
+`)
+  })
+
+  it('latches containment failure for a nonzero child with closed-stdio descendants', () => {
+    offline(String.raw`
+    backend=h.Backend(root); original=h.subprocess.Popen; children=[]
+    def capture(*args,**kwargs):
+        proc=original(*args,**kwargs); children.append(proc); return proc
+    h.subprocess.Popen=capture
+    backend.terminate=lambda proc: (_ for _ in ()).throw(h.Refusal('unconfirmed'))
+    script='import subprocess,sys,os; subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); os._exit(1)'
+    try: backend.command([sys.executable,'-c',script])
+    except h.Refusal: pass
+    finally:
+        h.subprocess.Popen=original; h.Backend.terminate(children[0])
+    assert backend.unconfirmed_process
+`)
+  })
+
+  it.each([0, 2, 3, 4])('never restarts listener exit %i after Worker activity', exit => {
+    offline(String.raw`
+    client=root/'client'; (client/'bin').mkdir(parents=True); (client/'_diag').mkdir()
+    (client/'.runner').write_text(json.dumps({'agentName':'pika-ci-job-offline','ephemeral':True,'gitHubUrl':'https://github.com/codepetca/pika'}))
+    listener=client/'bin/Runner.Listener'
+    listener.write_text('#!'+sys.executable+'\nimport pathlib,sys\np=pathlib.Path("attempts"); p.write_text(p.read_text()+"x" if p.exists() else "x")\npathlib.Path("_diag/Worker_test.log").write_text("activity")\nsys.exit(${exit})\n'); listener.chmod(0o700)
+    code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    payload={'client':str(client),'name':'pika-ci-job-offline','idle':2,'lifetime':3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
+    assert (client/'attempts').read_text()=='x'
+    assert (result.returncode==0)==(${exit}==0)
+`)
+  })
+
+  it.each(['update', 'idle', 'lifetime'])('bounds guest %s handling before assignment', kind => {
+    offline(String.raw`
+    client=root/'client'; (client/'bin').mkdir(parents=True); (client/'_diag').mkdir()
+    (client/'.runner').write_text(json.dumps({'agentName':'pika-ci-job-offline','ephemeral':True,'gitHubUrl':'https://github.com/codepetca/pika'}))
+    kind=${JSON.stringify(kind)}
+    listener=client/'bin/Runner.Listener'
+    if kind=='update':
+        body='p=pathlib.Path("attempts"); n=len(p.read_text()) if p.exists() else 0; p.write_text("x"*(n+1))\nif n==0: pathlib.Path("update.finished").write_text("ready"); sys.exit(4)\npathlib.Path("_diag/Worker_test.log").write_text("activity"); sys.exit(0)\n'
+    else: body='pathlib.Path("attempts").write_text("x"); sys.exit(2)\n'
+    listener.write_text('#!'+sys.executable+'\nimport pathlib,sys\n'+body); listener.chmod(0o700)
+    code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    payload={'client':str(client),'name':'pika-ci-job-offline','idle':3 if kind=='lifetime' else 0.3,'lifetime':0.3 if kind=='lifetime' else 3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
+    if kind=='update': assert result.returncode==0 and (client/'attempts').read_text()=='xx'
+    else:
+        assert result.returncode != 0 and ('PIKA_HOST_GUARD:'+kind+'-timeout') in result.stdout
+        assert (client/'attempts').read_text()=='x'
+`)
+  })
+
   it('defaults to a non-executing plan and requires literal activation acknowledgement', () => {
     offline(String.raw`
     plan=driver.execute('plan', '', None, 1, 2)
