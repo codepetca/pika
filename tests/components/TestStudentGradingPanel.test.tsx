@@ -672,6 +672,76 @@ describe('TestStudentGradingPanel save-all grading', () => {
     if (outcome === 'failure') expect(screen.getByText('Save failed')).toBeInTheDocument()
   })
 
+  it('cancels an unsent returned-work comment without erasing sent feedback, including later score saves', async () => {
+    const payload = makeResultsPayload(5, 'Already sent')
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => Promise.resolve({
+      ok: true, json: async () => init?.method === 'PATCH'
+        ? { responses: [{ id: 'response-1', revision: 2 }] }
+        : { ...payload, students: payload.students.map(student => ({ ...student, status: 'returned' })) },
+    }))
+    let saveHandler: (() => Promise<void>) | null = null
+    render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={handler => { saveHandler = handler }} />)
+    const input = await screen.findByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Cancelled comment' } })
+    fireEvent.change(input, { target: { value: '' } })
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 1000)) })
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(0)
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Q1 score' }), { target: { value: '4' } })
+    await act(async () => { await saveHandler?.() })
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    expect(JSON.parse(String(patch?.[1]?.body)).grades[0]).toMatchObject({ score: 4, feedback: 'Already sent' })
+    expect(input).toHaveValue('')
+  })
+
+  it('keeps newly sent feedback when the next draft is erased during an in-flight save', async () => {
+    const payload = makeResultsPayload(5, 'Already sent')
+    const patchResponse = deferred<any>()
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => init?.method === 'PATCH'
+      ? patchResponse.promise
+      : Promise.resolve({ ok: true, json: async () => ({ ...payload, students: payload.students.map(student => ({ ...student, status: 'returned' })) }) }))
+    let saveHandler: (() => Promise<void>) | null = null
+    render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={handler => { saveHandler = handler }} />)
+    const input = await screen.findByRole('textbox')
+    fireEvent.change(input, { target: { value: 'New sent comment' } })
+    let saving: Promise<void> | undefined
+    act(() => { saving = saveHandler?.() })
+    fireEvent.change(input, { target: { value: 'Cancelled next comment' } })
+    fireEvent.change(input, { target: { value: '' } })
+    await act(async () => {
+      patchResponse.resolve({ ok: true, json: async () => ({ responses: [{ id: 'response-1', revision: 2 }] }) })
+      await saving
+    })
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 1000)) })
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1)
+    expect(input).toHaveValue('')
+    expect(screen.getByText('New sent comment')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Q1 score' }), { target: { value: '4' } })
+    await act(async () => { await saveHandler?.() })
+    const patches = fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')
+    expect(JSON.parse(String(patches[1]?.[1]?.body)).grades[0]).toMatchObject({ score: 4, feedback: 'New sent comment' })
+  })
+
+  it('allows clearing a returned grade while its comment composer is empty', async () => {
+    const payload = makeResultsPayload(5, 'Already sent')
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => Promise.resolve({
+      ok: true, json: async () => init?.method === 'PATCH'
+        ? { responses: [{ id: 'response-1', revision: 2 }] }
+        : { ...payload, students: payload.students.map(student => ({ ...student, status: 'returned' })) },
+    }))
+    let saveHandler: (() => Promise<void>) | null = null
+    render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={handler => { saveHandler = handler }} />)
+    await screen.findByRole('textbox')
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Q1 score' }), { target: { value: '' } })
+    await act(async () => { await saveHandler?.() })
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    expect(JSON.parse(String(patch?.[1]?.body)).grades[0]).toMatchObject({ clear_grade: true })
+    expect(screen.getByRole('textbox')).toHaveValue('')
+    expect(screen.queryByText('Already sent')).not.toBeInTheDocument()
+  })
+
   it('opens returned test work with an empty comment box without saving a blank over sent feedback', async () => {
     const payload = makeResultsPayload(5, 'Already sent')
     const fetchMock = global.fetch as ReturnType<typeof vi.fn>

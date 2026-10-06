@@ -72,6 +72,8 @@ type TestResultsResponsePayload = Omit<TestResultsPayload, 'test'> & {
 interface GradeDraft {
   score: string
   feedback: string
+  // Returned feedback is retained for grading; only the new composer text is editable.
+  returnedFeedbackDraft?: string
 }
 
 interface SplitScoreInputProps {
@@ -232,6 +234,7 @@ function buildGradeDrafts(payload: TestResultsPayload): Record<string, GradeDraf
       drafts[answer.response_id] = {
         score: answer.score != null ? String(answer.score) : '',
         feedback: answer.feedback || '',
+        ...(student.status === 'returned' ? { returnedFeedbackDraft: '' } : {}),
       }
     }
   }
@@ -251,8 +254,6 @@ export function TestStudentGradingPanel({
   const [results, setResults] = useState<TestResultsPayload | null>(null)
 
   const [gradeDrafts, setGradeDrafts] = useState<Record<string, GradeDraft>>({})
-  // Returned feedback stays in gradeDrafts for score-only saves; the composer starts empty.
-  const [returnedFeedbackDrafts, setReturnedFeedbackDrafts] = useState<Record<string, string>>({})
   const [persistedDrafts, setPersistedDrafts] = useState<Record<string, GradeDraft>>({})
   const [savingAll, setSavingAll] = useState(false)
   const [savingStudentId, setSavingStudentId] = useState<string | null>(null)
@@ -275,12 +276,6 @@ export function TestStudentGradingPanel({
 
       const nextDrafts = buildGradeDrafts(payload)
       setGradeDrafts(nextDrafts)
-      setReturnedFeedbackDrafts(Object.fromEntries(payload.students
-        .filter((student) => student.status === 'returned')
-        .flatMap((student) => Object.values(student.answers)
-          .filter((answer) => answer.response_id && !answer.is_draft)
-          .map((answer) => [answer.response_id!, ''])),
-      ))
       setPersistedDrafts(nextDrafts)
       setLastSavedStudentId(null)
       setGradingError('')
@@ -350,7 +345,10 @@ export function TestStudentGradingPanel({
       if (score.kind === 'value' && (score.value < 0 || score.value > item.maxPoints)) {
         return `Q${item.questionNumber}: score must be between 0 and ${item.maxPoints}`
       }
-      if (item.questionType === 'open_response' && score.kind === 'empty' && feedback.length > 0) {
+      const hasCommentDraft = draft?.returnedFeedbackDraft === undefined
+        ? feedback.length > 0
+        : draft.returnedFeedbackDraft.trim().length > 0
+      if (item.questionType === 'open_response' && score.kind === 'empty' && hasCommentDraft) {
         return `Q${item.questionNumber}: enter a score or clear feedback`
       }
     }
@@ -358,22 +356,21 @@ export function TestStudentGradingPanel({
   }, [dirtyResponses, gradeDrafts])
 
   function updateDraft(responseId: string, updates: Partial<GradeDraft>) {
-    const feedback = updates.feedback
-    if (feedback !== undefined) {
-      setReturnedFeedbackDrafts((current) => responseId in current
-        ? { ...current, [responseId]: feedback }
-        : current)
-    }
     conflictRetryCountRef.current = 0
     setGradingError('')
-    setGradeDrafts((prev) => ({
-      ...prev,
-      [responseId]: {
-        score: prev[responseId]?.score ?? '',
-        feedback: prev[responseId]?.feedback ?? '',
+    setGradeDrafts((prev) => {
+      const draft: GradeDraft = {
+        ...(prev[responseId] ?? { score: '', feedback: '' }),
         ...updates,
-      },
-    }))
+      }
+      if (prev[responseId]?.returnedFeedbackDraft !== undefined && updates.feedback !== undefined) {
+        draft.returnedFeedbackDraft = updates.feedback
+        draft.feedback = updates.feedback.trim()
+          ? updates.feedback
+          : persistedDrafts[responseId]?.feedback ?? ''
+      }
+      return { ...prev, [responseId]: draft }
+    })
   }
 
   function autoResizeFeedbackTextarea(textarea: HTMLTextAreaElement | null) {
@@ -531,19 +528,20 @@ export function TestStudentGradingPanel({
       }
 
       if (canonicalDraftsByResponseId.size > 0) {
-        setReturnedFeedbackDrafts((current) => {
-          const next = { ...current }
-          for (const responseId of canonicalDraftsByResponseId.keys()) {
-            if (responseId in next && next[responseId] === submittedDraftsByResponseId.get(responseId)?.feedback) {
-              next[responseId] = ''
-            }
-          }
-          return next
-        })
         setGradeDrafts((prev) => {
           const next = { ...prev }
           for (const [responseId, draft] of canonicalDraftsByResponseId) {
-            if (areDraftsEqual(next[responseId], submittedDraftsByResponseId.get(responseId))) {
+            const current = next[responseId]
+            const submitted = submittedDraftsByResponseId.get(responseId)
+            if (current?.returnedFeedbackDraft !== undefined) {
+              const hasNewerComment = current.returnedFeedbackDraft.trim().length > 0
+                && current.returnedFeedbackDraft !== submitted?.feedback
+              next[responseId] = {
+                score: current.score === submitted?.score ? draft.score : current.score,
+                feedback: hasNewerComment ? current.feedback : draft.feedback,
+                returnedFeedbackDraft: hasNewerComment ? current.returnedFeedbackDraft : '',
+              }
+            } else if (areDraftsEqual(current, submitted)) {
               next[responseId] = draft
             }
           }
@@ -813,7 +811,7 @@ export function TestStudentGradingPanel({
                         feedbackTextareaRefs.current[responseId!] = element
                         autoResizeFeedbackTextarea(element)
                       }}
-                      value={returnedFeedbackDrafts[responseId] ?? gradeDrafts[responseId]?.feedback ?? ''}
+                      value={gradeDrafts[responseId]?.returnedFeedbackDraft ?? gradeDrafts[responseId]?.feedback ?? ''}
                       onChange={(event) =>
                         {
                           updateDraft(responseId!, { feedback: event.target.value })
