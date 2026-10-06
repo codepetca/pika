@@ -1935,6 +1935,7 @@ describe('TeacherAttendanceTab', () => {
     expect(panel.style.height).toBe('')
     expect(panel.style.minHeight).toBe('')
     expect(panel).not.toHaveClass('min-h-[140px]', 'h-10', 'min-h-10')
+    expect(panel.parentElement?.parentElement?.parentElement).toHaveClass('min-w-0')
     expect(summary).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Class Log Summary' })).not.toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize class log summary' })).not.toBeInTheDocument()

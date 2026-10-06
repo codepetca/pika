@@ -18,7 +18,7 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/log-summary', () => ({
-  LOG_SUMMARY_POLICY_VERSION: 'follow-ups-v2',
+  LOG_SUMMARY_POLICY_VERSION: 'follow-ups-v3',
   restoreNames: vi.fn((summary: any) => ({
     overview: summary.overview,
     action_items: [{ text: 'Check in with Alice Brown' }],
@@ -173,9 +173,9 @@ describe('GET /api/teacher/log-summary', () => {
           single: vi.fn().mockResolvedValue({
             data: {
               summary_items: {
-                policy_version: 'follow-ups-v2',
+                policy_version: 'follow-ups-v3',
                 overview: 'Strong progress',
-                action_items: [{ text: 'Check in with AB', initials: 'AB' }],
+                action_items: [{ text: 'Check in with AB', initials: 'AB', detail: 'Asks how to submit the project.' }],
               },
               initials_map: { AB: 'Alice Brown' },
               entry_count: 1,
@@ -200,6 +200,8 @@ describe('GET /api/teacher/log-summary', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
+    const { restoreNames } = await import('@/lib/log-summary')
+    expect(restoreNames).toHaveBeenCalledWith(expect.objectContaining({ action_items: [{ text: 'Check in with AB', initials: 'AB', detail: 'Asks how to submit the project.' }] }), { AB: 'Alice Brown' })
     expect(data).toEqual({
       summary_status: 'ready',
       summary: {
@@ -208,6 +210,13 @@ describe('GET /api/teacher/log-summary', () => {
         generated_at: '2026-03-15T13:00:00.000Z',
       },
     })
+  })
+
+  it.each([undefined, '', '   ', 'x'.repeat(241)])('rejects current cached items without bounded details %#', async (detail) => {
+    mockExistingEntryWithCachedSummary({ policy_version: 'follow-ups-v3', overview: 'Follow-ups identified.', action_items: [{ text: 'AB has a question.', initials: 'AB', detail }] })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/log-summary?classroom_id=c1&date=2026-03-15'))
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ summary: null, summary_status: 'unavailable' })
   })
 
   it('retires a fresh cache created by the broader legacy summary policy', async () => {
@@ -293,6 +302,8 @@ describe('GET /api/teacher/log-summary', () => {
 
   it.each([
     ['a stale legacy object', { overview: 'Older summary', action_items: [] }],
+    ['the first follow-up policy', { policy_version: 'follow-ups-v1', overview: 'Older summary', action_items: [] }],
+    ['the preceding generic follow-up policy', { policy_version: 'follow-ups-v2', overview: 'Older summary', action_items: [] }],
     ['the previous question-excluding policy', { policy_version: 'high-priority-v1', overview: 'Older summary', action_items: [] }],
     ['a legacy array', [{ text: 'Older summary' }]],
     ['a malformed object', { unexpected: true }],
@@ -527,7 +538,7 @@ describe('GET /api/teacher/log-summary', () => {
           single: vi.fn().mockResolvedValue({
             data: {
               summary_items: {
-                policy_version: 'follow-ups-v2',
+                policy_version: 'follow-ups-v3',
                 overview: 'Older summary',
                 action_items: [],
               },

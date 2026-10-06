@@ -1190,7 +1190,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       data-testid={selectedRow ? 'daily-selected-student-workspace' : undefined}
     >
       <TeacherWorkspaceSplit
-        className="flex-1"
+        className="min-w-0 flex-1"
         splitVariant="gapped"
         animateInspector
         primaryClassName="min-h-0"

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Approved classroom motion rollout
-
-Owner accepted Daily restrained200ms direction for wider adoption in the owning chat. Scoped stable/family canon, audit and Pattern Lab promotion recorded; no dependency/merge/deploy authorization. Follow-up codex/fluid-motion-rollout includes reviewedDailyb94 and targetsmain for canonical CI; prior1481/1482/1484 heads unchanged. Classwork stable table/inspector, Tests disclosure/hidden-menu Escape guard, cross-role opacity entry, reducedmotion and immediate pointerresize. Coordinator corrected primary-refresh priority and layout-controller remount before acceptance; RED mode-state regression nowGREEN,145owner cases pass. Final motion browser24/24(2.0min) across bothroles/viewport/themes/normal-reduced verifies DOM/drafts/focus/scroll, all3Classwork modes, actual200ms/0ms, pointergeometry, inert close and nooverflow. Forced-midpoint contract samples are labeled; natural recordings and fullrequiredgate/cumulative siblingproof/independent stable-SHA PR lifecycle follow. DeepSeekpaused; Sol/high worker partial delivery corrected/integrated bycoordinator; attributableactive/tokensunknown.
-
 ## 2026-10-05 — Test conflict retry correction prepared
 
 Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
@@ -616,3 +612,24 @@ Worker elapsed ~2min from dispatch to delivery; coordinator review estimate2min;
 tokens unknown. Weekly usage at startup73% used/27% remaining; DeepSeek paused through
 2026-12-31. Coordinator owns codex/compact-daily-summary and PR; no merge/deploy authority
 inferred. Review ledger: planned1 initial reviewer,0 launches/0 fix batches;60min cap.
+
+## 2026-10-06 — Daily summary label and actual question details
+
+Owner refinement: highlighted Summary without colon; expanded rows paraphrase the actual
+question or issue. Extended model/source contract with required nonblank <=240-character
+detail, sanitized separately from locally restored student attribution. follow-ups-v3
+retires prior caches and regenerates obsolete/malformed matching-digest nightly checkpoints.
+Both teacher API paths return bounded details; canonical collapsed notices remain concise,
+with urgent concerns ahead of questions. No migration or dependency change.
+Reference reuse: shared Button + Daily Pattern Lab renderer; extend feature detail payload.
+Fixed Daily split min-width so mobile expanded topics wrap within the viewport. Teacher-only
+pane, desktop/mobile light/dark collapsed/expanded/empty and Enter/Space/pane click checked.
+Artifacts /tmp/pika-summary-detail-visual; mock responses in real locally authenticated shell,
+not live model evidence. Backend worker GPT6.1Sol/high delivered 157 passing tests and
+TypeScript; source verified by coordinator, no conflicts, one UI wrapping correction.
+Worker time ~10min, coordination/review ~4min; tokens unknown. Weekly75% used/25% remaining.
+One synthetic live provider check failed with sanitized error; no retry, live topic accuracy
+unverified. Audit passes; full focused gate and independent detail/privacy review pending.
+PR1506 returned to draft and superseded CI37464659748 canceled before refinement push.
+No merge/deployment authorization inferred. Review ledger prior1 launch/0 fix batches;
+planned targeted GPT5.6Sol/high privacy + GPT6.1Sol/high integration (Terra unavailable).

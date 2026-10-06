@@ -539,9 +539,9 @@ export function DailyMockup({
             </TeacherWorkSurfaceTableFrame>
             <section aria-label="Class Log Summary" className="min-h-0 shrink-0 rounded-lg bg-surface">
               <LogSummaryContent actionItems={[
-                { studentName: 'Avery Morgan', text: 'Avery Morgan has a question.' },
-                { studentName: 'Jordan Lee', text: 'Jordan Lee has a question.' },
-                { studentName: 'Sam Rivera', text: 'Sam Rivera has a question.' },
+                { studentName: 'Avery Morgan', text: 'Avery Morgan has a question.', detail: 'asks whether the lab report needs a graph.' },
+                { studentName: 'Jordan Lee', text: 'Jordan Lee has a question.', detail: 'asks when the habitat observations are due.' },
+                { studentName: 'Sam Rivera', text: 'Sam Rivera has a question.', detail: 'asks how to label the pond-edge observations.' },
               ]} />
             </section>
           </div>

@@ -157,7 +157,7 @@ export function LogSummaryContent({
         }}
       >
         <span data-summary-text className={cn('min-w-0 break-words leading-5 [overflow-wrap:anywhere]', !expanded && 'line-clamp-3')}>
-          <span className="font-semibold">Summary: </span>
+          <span className="mr-2 rounded-sm bg-info-bg px-1.5 font-semibold text-primary">Summary</span>{' '}
           {expanded && items.length > 0 ? <span className="sr-only">Collapse summary</span> : conciseSummary}
         </span>
       </Button>
@@ -166,9 +166,10 @@ export function LogSummaryContent({
           <ul aria-label="Class log follow-ups" className="px-3 pb-2 text-sm leading-5 text-text-default">
             {items.map((item, index) => {
               const startsWithName = item.text.startsWith(item.studentName)
+              const detail = item.detail ?? (startsWithName ? item.text.slice(item.studentName.length).trim() : item.text)
               return (
                 <li key={index} className="break-words [overflow-wrap:anywhere]">
-                  {startsWithName && onStudentClick ? (
+                  {onStudentClick ? (
                     <>
                       <Button
                         variant="ghost"
@@ -180,9 +181,9 @@ export function LogSummaryContent({
                       >
                         {item.studentName}
                       </Button>
-                      {item.text.slice(item.studentName.length)}
+                      {' '}{detail}
                     </>
-                  ) : item.text}
+                  ) : <><span className="font-medium">{item.studentName}</span>{' '}{detail}</>}
                 </li>
               )
             })}
