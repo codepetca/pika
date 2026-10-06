@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner Test list streaming discovery correction
-
-IndependentSol5.6/high1189 integrationreview CLEAN; explicitfiniteacceptance then
-normal66292 failed owner/finalprojection at24requests20002ms/19473ms guards.
-Exactownedteardown/SAME savedwholecanonicalbaseline PASS; no forcedsuccessclaim.
-Root boundedread-only barrier772→stream717ms probe retained identicalcommands/
-sealedresources/max3totalprocesses; no guarantee. Eachkindfreshlist validates
-before its exact128batches queue; idleworkers may inspect while anotherlist waits.
-Fullgraph/allactivework settles before replay/resourceauthorization/privateSQL/SDK.
-Observedfailure stopsqueuedjobs and drainsactivejobs. Same completeforeignscope,
-projection/parser/one-shotmap/caps/SQLguard/app20s/native/fixture/schema/deps.
-Heldindependentlist regression RED0inspections then GREEN;86proof PASS. Targeted
-fixed-source review/freshactual rehearsal next; failure needsenvironmentcheckpoint
-not more speculativepatches or controlweakening. PRdraft/rolloutOFF; humanwaiver
-and originalcounters retained. No source/application permission expansion.
-
 ## 2026-10-04 — Owner Test list environment checkpoint
 
 IndependentSol5.6/high e024 review CLEAN; one accepted normal91629 failed first
@@ -626,3 +610,7 @@ Newgenuine45c9CLIartifact436753bytes/SHA09f1c224 BYTEIDENTICALinstalledcontracts
 migrationManifest4ae5b8af; no generatedsignature/type/sourcecodeedits. Finalreview/
 exactCI/SQLwarninggate/mainmergepending. Canonical249local/prodUNAPPLIED;
 prod/cohort/account/provider/billingOFF; componentnotphaseexit/fullgoalcompletion.
+
+## 2026-10-06 — Student journal same-owner retry continuity
+
+Extend StudentTodayTab read reconciliation to preserve mounted editor, live drafts/save timers and acknowledged saves across entry/lesson-plan retries, including unavailable durable storage. Cold/date/classroom initialization and authoritative conflicts retain their existing ownership. Reconcile late-schedule cached history without replacing newer live rows; order absent reads against first-save acknowledgement. Focused owner tests:67PASS, initial9RED plus2boundaryRED; actual-editor matrix and final required checks recorded in docs/guidance/ui/changes/student-journal-retry-continuity.md. Full17-family goal remains active; no merge or production authority granted.

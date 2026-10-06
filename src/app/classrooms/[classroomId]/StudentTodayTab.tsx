@@ -147,6 +147,7 @@ export function StudentTodayTab({
   const currentContentRef = useRef<TiptapContent>(EMPTY_DOC)
   const entryIdRef = useRef<string | null>(null)
   const entryVersionRef = useRef(1)
+  const confirmedSaveRevisionRef = useRef(0)
   const todayRef = useRef('')
   const hasLocalEditSinceLoadRef = useRef(false)
   const loadRequestIdRef = useRef(0)
@@ -185,6 +186,7 @@ export function StudentTodayTab({
         lastSavedContentRef.current = JSON.stringify(EMPTY_DOC)
         entryIdRef.current = null
         entryVersionRef.current = 1
+        confirmedSaveRevisionRef.current = 0
         initialSaveRequestedRef.current = false
         setSaveStatus('saved')
         setSaveError('')
@@ -299,15 +301,28 @@ export function StudentTodayTab({
         if (Array.isArray(cached)) {
           if (!isCurrentLoad()) return
           const relevantCachedEntries = selectRelevantEntries(cached)
-          setHistoryEntries(relevantCachedEntries)
-          const todayEntry = relevantCachedEntries.find((e: Entry) => e.date === todayDate) || null
-          applyEntryState(todayEntry)
-          entriesSnapshotClassroomIdRef.current = requestedClassroomId
-          entriesSnapshotDateRef.current = todayDate
-          setEntriesSnapshotClassroomId(requestedClassroomId)
-          setLoading(Boolean(restoredDraftAutosaveRef.current))
+          if (!hasCurrentSnapshot) {
+            setHistoryEntries(relevantCachedEntries)
+            const todayEntry = relevantCachedEntries.find((e: Entry) => e.date === todayDate) || null
+            applyEntryState(todayEntry)
+            entriesSnapshotClassroomIdRef.current = requestedClassroomId
+            entriesSnapshotDateRef.current = todayDate
+            setEntriesSnapshotClassroomId(requestedClassroomId)
+            setLoading(Boolean(restoredDraftAutosaveRef.current))
+          } else {
+            // A late schedule can make cached past dates relevant. Reconcile
+            // history without reinitializing the editor or replacing live rows.
+            setHistoryEntries(prev => {
+              if (!isCurrentLoad()) return prev
+              return selectRelevantEntries(prev).reduce(
+                (next, entry) => upsertEntryIntoHistory(next, entry, historyLimit),
+                relevantCachedEntries,
+              )
+            })
+          }
         }
 
+        const confirmedSaveRevisionAtReadStart = confirmedSaveRevisionRef.current
         const entriesPromise = fetchStudentEntriesForClassroom(requestedClassroomId)
           .then(entries => {
             if (!isCurrentLoad()) return
@@ -315,13 +330,31 @@ export function StudentTodayTab({
             entriesSnapshotClassroomIdRef.current = requestedClassroomId
             entriesSnapshotDateRef.current = todayDate
             setEntriesSnapshotClassroomId(requestedClassroomId)
-            if (hasLocalEditSinceLoadRef.current) {
-              const todayEntry = relevantEntries.find((e: Entry) => e.date === todayDate) || null
-              if ((rolloverDraftRef.current?.studentId === studentId &&
-                rolloverDraftRef.current.classroomId === requestedClassroomId &&
-                rolloverDraftRef.current.date === todayDate) ||
-                readDailyLogDraft(studentId, requestedClassroomId, todayDate)) {
-                applyEntryState(todayEntry)
+            const todayEntry = relevantEntries.find((e: Entry) => e.date === todayDate) || null
+            // A read may have started before our own save completed. Never replace
+            // its confirmed base with an older snapshot from that read.
+            const isOlderSavedSnapshot = (
+              todayEntry?.id === entryIdRef.current &&
+              (todayEntry?.version ?? 1) < entryVersionRef.current
+            ) || (
+              !todayEntry && entryIdRef.current !== null &&
+              confirmedSaveRevisionRef.current !== confirmedSaveRevisionAtReadStart
+            )
+            if (hasLocalEditSinceLoadRef.current || isOlderSavedSnapshot) {
+              // The mounted editor owns this draft, even when durable storage
+              // failed. Only cold initialization restores content from storage.
+              if (!isOlderSavedSnapshot && todayEntry && (
+                todayEntry.id !== entryIdRef.current ||
+                (todayEntry.version ?? 1) !== entryVersionRef.current
+              )) {
+                if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+                if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
+                saveTimeoutRef.current = null
+                throttledSaveTimeoutRef.current = null
+                restoredDraftAutosaveRef.current = null
+                setConflictEntry(todayEntry)
+                setSaveStatus('unsaved')
+                setSaveError('This log changed elsewhere. Review before replacing the newer version.')
               }
               setHistoryEntries(prev => {
                 if (!isCurrentLoad()) return prev
@@ -336,7 +369,6 @@ export function StudentTodayTab({
             }
             setHistoryEntries(relevantEntries)
             safeSessionSetJson(historyCacheKey, relevantEntries)
-            const todayEntry = relevantEntries.find((e: Entry) => e.date === todayDate) || null
             applyEntryState(todayEntry)
           })
 
@@ -356,14 +388,17 @@ export function StudentTodayTab({
 
     return () => {
       loadRequestIdRef.current += 1
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-      if (throttledSaveTimeoutRef.current) {
-        clearTimeout(throttledSaveTimeoutRef.current)
-      }
     }
   }, [classDays, classroom.id, currentTorontoDate, entriesRequestVersion, historyLimit, lessonPlanRequestVersion, onLessonPlanError, onLessonPlanLoad, onLessonPlanLoading, pastHistoryLimit, studentId])
+
+  // Read retries must not cancel the mounted draft's debounce or throttled save.
+  // An owner change or unmount still ends those scheduled attempts.
+  useEffect(() => () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
+    saveTimeoutRef.current = null
+    throttledSaveTimeoutRef.current = null
+  }, [classroom.id, currentTorontoDate, studentId])
 
   const retryEntries = useCallback(() => {
     invalidateStudentEntriesForClassroom(classroom.id)
@@ -564,6 +599,7 @@ export function StudentTodayTab({
       if (isActiveEntry()) {
         entryIdRef.current = savedEntry.id
         entryVersionRef.current = savedEntry.version ?? entryVersionRef.current
+        confirmedSaveRevisionRef.current += 1
       }
 
       invalidateStudentEntriesForClassroom(classroom.id)
