@@ -11,34 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Resume classroom access goal; owner Test draft saves
-
-Coordinator resumed on actual mainc25ebf78f in dedicated draft-save worktree.
-1473 is merged6586847c1/all five CI37258057073 gates; Audit1474 retained248,
-leaving immutable247. Separate Audit release records production001–248; shared
-admission/home/page/cutover/billing remainOFF. Next admitted PATCH uses current
-owner/source/document CAS and initialized-only writes; literal legacy remains.
-Three GPT6.1Sol/high workers own distinct app/SQL/proof files; effective model
-and attributable tokens unknown. Weekly54% remaining is accountwide. Startup
-missing deps recovered frozen/offline683 reused; verifyPASS. SAME saved canonical
-baseline verifiedPASS, never recaptured (first wrong-head check failed closed).
-CI cleanup contract TDD REDthenPASS; workflow25/3 and startup77/2 checks overlap,
-not an aggregate. Source/native/runtime/review/merge acceptance still pending.
-Prior task-stop/review-extension/local-migration/main-merge authority retained;
-no production/schema/cohort/provider mutation or goal/phase completion claimed.
-
-## 2026-10-05 — Draft-save review, Docker recovery and bounded diagnosis
-
-PR1480 remains draft. Initial editor-metadata and SQL-grading normalization
-findings fixed; targeted source/receipt reviews clean. Full coverage12919PASS,
-unchanged gates/two workers. Docker restart recovered only owned disposable
-stack; SAME canonical baseline and unrelated resources unchanged. Both actual
-forced-cleanup modes PASS. Normal stopped on assertion after42 SDK requests;
-exact cleanup/separate baseline PASS, no normal/types receipt. Closed source-only
-diagnostic TDD2RED→80PASS; no assertion data/SQL/keys logged or caps relaxed.
-Rebased onto43c24 preserving incoming CI policy, archive/history and immutable249;
-pending source acceptance/runtime diagnosis/final review/CI/merge. All rollout OFF.
-
 ## 2026-10-05 — Draft-save concurrency budget pinpointed
 
 Narrow diagnostic/rebase review4cb CLEAN,58offlinePASS. One normal attempt failed
@@ -156,6 +128,10 @@ error/retry, guarded successful-prop list updates, and retained warm local state
 Controlled Pattern Lab composition is explicitly separate from server retry
 evidence. Focused behavior tests (55), UI/design policies, and affected lint pass;
 root coordinator owns final screenshots, focused gate, review and draft PR.
+
+## 2026-10-06 — Consolidated product-fluidity landing
+
+Owner approved consolidating nine independently reviewed UI/UX changes into PR #1490. Preserve latest main and the complete history prefix, scope the tab draft browser locator to its owner, and verify the complete combined candidate before merge. Quiet tab/dialog entry remain experimental. Softer modal exit transitions are the next bounded phase after this landing; no production deployment or held recovery PR is included.
 
 ## 2026-10-06 — Owner draft HTTP inventory source preparation
 
@@ -555,3 +531,10 @@ motion/visibility, and reviewed native-control registry deltas compose by union.
 All original logical continuity bodies and exact main archive prefix retained.
 Combined focused check and coordinator-owned visual verification remain required;
 no feature head, protected branch, hosted service, pattern authority or rollout changed.
+
+## 2026-10-06 — Gradebook Final column background
+
+- Request: match Final to adjacent table surfaces. Reused GradebookTable's opaque header/detail/body/footer tokens and shared row hover/selection surface; no calculations or interactions changed. Risk profile: none.
+- Reference: approved `/pattern-lab#gradebook-compact` production owner; teacher desktop 1440×900/mobile 390×844, light/dark, regular/ultra-compact and percent/raw. Playwright verified 16 combinations for equal row backgrounds, opaque sticky Final cells and hover; student specimen isolation passed. Captures/results: ignored `output/playwright/final-background/`.
+- Updated the existing frozen-header acceptance assertion. UI/design policy and pre-commit audit pass. Small implementation handled directly; independent display review remains before ready CI. Weekly usage at start: 26% remaining; task token/time attribution unknown.
+- Nearby legacy PageMockups Gradebook duplication remains a refactor candidate; production owner evidence is authoritative for this fix. No experimental pattern or accessibility semantics change; existing keyboard/semantic tests retained.

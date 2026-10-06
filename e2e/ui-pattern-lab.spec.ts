@@ -170,7 +170,7 @@ for (const role of ['teacher', 'student'] as const) {
       expect(await saving.locator('svg').evaluate((element) => getComputedStyle(element).animationName)).toBe(
         motion === 'reduce' ? 'none' : 'spin',
       )
-      const draft = page.getByRole('textbox', { name: 'Example draft' })
+      const draft = page.getByTestId('tab-entry-extension').getByRole('textbox', { name: 'Example draft', exact: true })
       await draft.fill('Unsaved example')
       const node = await draft.elementHandle()
       await page.getByRole('tab', { name: 'Activity', exact: true }).click()
