@@ -775,3 +775,16 @@ diagnostics. TDD knownfirst/last codes RED2 then GREEN; out-of-range staysunknow
 rawsecret/rows suppressed. Affected85/2PASS/lintPASS; audit/review/newexactnative
 attempt stillrequired. Original13:07:17reviewclock/5launches/3targets/2batches kept;
 human stopoverride persists; actual correctness/permission holds remain.
+
+## 2026-10-06 — Publication emitted-code correction
+
+Targeted review6 at0fcc837 found five unused diagnostic codes and stale feature
+guide status. Batch4 retains only actual P2501/P2507–48 emissions; all49 range
+cases test accepted/unknown codes and raw-row suppression. TDD unusedfive RED;
+SQL/API/caps/deadlines unchanged. Guide now records approved completeB2,
+attempt2 replay/probes then contractfailure, teardown/wholeB2 PASS, and prior
+coverage3 evidence without claiming native/types/CI acceptance. Original clock
+13:07:17/6launches/4targetwaves/4fixbatches retained; human override persists.
+Affected native126 + DB6 tests PASS; startup+DB82 PASS; ESLint3/audit3/diff PASS.
+One unpinned pnpm lint command refused shared modules before mutation; corrected
+pinned10.25 invocation passed. Targeted review and exact-head native remain.

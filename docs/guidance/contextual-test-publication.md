@@ -23,20 +23,30 @@ no manual generated-type overlay is permitted. Pre-type source freeze is not PR
 readiness, database acceptance or merge evidence.
 
 Initial independent security/concurrency and architecture/compatibility source
-reviews at243a26 both returned clean. The first actual normal invocation stopped
-before disposable setup: inherited whole B1 no longer matches local auth sessions
-and rate-limit rows. Other canonical baseline fields remain equal. Preserve those
-records and the original checkpoint; owner direction for a new complete checkpoint
-is pending. No252 replay, native effects, generated-type artifact or phase exit
-was produced. A new checkpoint is not an auth-table exemption.
+reviews at243a26 both returned clean. The first normal invocation stopped before
+disposable setup because the inherited whole B1 differed from local auth records.
+The owner then approved retaining B1 and capturing a NEW complete read-only B2.
+Two equal captures cover all183 tables and all5 fields, without exemptions.
+Seven changed tables include auth, Classroom/archive, Assignment documents and
+Daily entries; attribution remains unknown. Other4 fields and catalog match B1.
+Independent review5 accepted the checkpoint and exact-head wrappers at96cfa10.
+Normalattempt2 replayed001–252 and restored all four withdrawn capabilities,
+then failed in SQL contracts with an unknown diagnostic code. Owned teardown
+and a separate read-only whole-B2 check passed; B1 remains unchanged. No normal
+success receipt, generated-type artifact or native acceptance was produced.
+The diagnostic correction retains only emitted P2501 and P2507–48 codes;
+P2502–06/P2549 remain unknown and raw stderr/rows remain suppressed. The next
+reviewed native invocation must identify and resolve the actual contract failure.
 
 Full-coverage attempts and their failures are retained in the coordinator receipt.
 Local runtime PATH needed the pinned pnpm10.25 shim; startup guidance stays within
 its unchanged17000-character budget with all required historical/environment
 receipts. The final legacy discard proof timeout is addressed only by splitting
 the original assertions into fresh full1001-row/default5-second test cases.
-Targeted tests pass; cumulative coverage and independent remediation review remain
-pending. No product/native caps, floors or source gates were relaxed.
+Wholecoverage attempt3 at3f30c482 passed14139 tests/8 skips across1085 files,
+with the unchanged global floors. Subsequent diagnostic changes require their
+own targeted checks and independent review; no exact-head full-coverage claim is
+made for them. No product/native caps, floors or source gates were relaxed.
 
 ## Scope and compatibility
 

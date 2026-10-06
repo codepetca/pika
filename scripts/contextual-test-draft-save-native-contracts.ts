@@ -37,7 +37,8 @@ const failure = () => new Error('Private native Test draft contracts failed; exa
 const contextTemplate = '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}'
 const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503', '42501', '55P03', '40P01', '40001', '57014',
   'P0001', '23502', '23503', '23505', '23514', '22P02', '25P02', '57P01', '57P02', '57P03', ...Object.keys(TEST_OWNER_CREATE_FAILURE_LABELS), ...Object.keys(TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS),
-  ...TEST_OWNER_PUBLICATION_DB_CHECK_LABELS.slice(0, -1).map((_, index) => `P25${String(index + 1).padStart(2, '0')}`)])
+  // The six catalog checks share P2501; only the later probes emit P2507–48.
+  'P2501', ...TEST_OWNER_PUBLICATION_DB_CHECK_LABELS.slice(6, -1).map((_, index) => `P25${String(index + 7).padStart(2, '0')}`)])
 type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'transitions' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'

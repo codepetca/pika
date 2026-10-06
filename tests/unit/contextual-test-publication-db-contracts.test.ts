@@ -87,6 +87,11 @@ describe('contextual Test publication rollback database contracts', () => {
     expect(manifest.contracts).not.toMatch(/raise\s+(?:notice|log|warning)|current_query\(\)|pg_read_file/i)
   })
 
+  it('emits one grouped catalog code and only the later per-probe codes', () => {
+    const emitted = [...new Set([...manifest.contracts.matchAll(/errcode='(P25\d{2})'/g)].map(match => match[1]))].sort()
+    expect(emitted).toEqual(['P2501', ...Array.from({ length: 42 }, (_, index) => `P25${String(index + 7).padStart(2, '0')}`)])
+  })
+
   it('runs only the accepted bundle and always closes its exact session', async () => {
     const acceptedManifestSha256=createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
     const target=Object.freeze({projectId:project,apiUrl:'http://127.0.0.1:54331',databaseHost:'127.0.0.1',databasePort:54332,

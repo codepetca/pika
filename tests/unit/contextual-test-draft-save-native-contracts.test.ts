@@ -418,7 +418,10 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
     expect(adapter.diagnostic()).not.toContain('PRIVATE')
   })
-  it.each([['P2501', 'P2501'], ['P2548', 'P2548'], ['P2549', 'unknown']])('keeps finite252 contract diagnostics without rendering source rows %s', async (code, expected) => {
+  it.each(Array.from({ length: 49 }, (_, index) => {
+    const number = index + 1, code = `P25${String(number).padStart(2, '0')}`
+    return [code, number === 1 || (number >= 7 && number <= 48) ? code : 'unknown']
+  }))('keeps only emitted252 contract diagnostics without rendering source rows %s', async (code, expected) => {
     const adapter = publicationFactory(); setupExit = true; stderrChunks = [`PRIVATE secret row\nERROR: ${code}\n`]
     await expect(adapter.setup()).rejects.toThrow()
     expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
