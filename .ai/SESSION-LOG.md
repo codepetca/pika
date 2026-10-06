@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Test conflict retry correction prepared
-
-Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
-
-Owner reviewed ed330c6; CI37257238985 passed build/unit and real browser lifecycle, but the SQL lifecycle harness still caught the old serialization_failure code. Corrected its two catches and the manual-grading stale-batch catch to PT409; SQL/API fix unchanged. Focused297 passed; required database CI and renewed correction review remain pending. Public traffic remains held.
-
-CI37260146916 PASS on8db4cfbad:12427 unit/API,297 browser passes (4 retried,20 skipped), all database contracts/PR Gate. During CI, main#1473 merged6586847c with owner draft GET migration247. Rebased and renamed identical conflict SQL to248; preserved main history and incoming dormant behavior. Fresh combined-tree checks/CI and complete production247–248 preview are required; public traffic stays held.
-
-CombinedCI37263237568:12641PASS/8FAIL/8SKIP; incoming owner-draft harness required exactly247 migrations and rejected248. Returned1474 to draft; cancelled unqualifiable remaining jobs. Harnesses now accept >=247 while validating/hashing every sequential migration and frozen source/copies; native offline cache count uses full actual SQL inventory. New regression proves later migration changes manifest and copied-source drift still rejects. Affected158/4PASS; runtimeSQL/API and migration248 unchanged; focused/review/stableCI pending, no new production mutation.
-
-Correction validation: focused455/29PASS plusarchitecture/UI/design/TypeScript/lintPASS. Startupdocbudgetinitially17032>17000; compactedCURRENTreceipt (gateunchanged), rerunPASS. Coordinator verified baseline/order/full-chain hashes and drift/target/resourceguards preserved; priorruntime reviewer limit persists, directowner task-wide instruction waives further review requests. Stable correctedhead/newCI pending; failedruns retained.
-
 ## 2026-10-05 — Production schema verified; release history reconciliation
 
 PR1474 merged5708750d after CI37264085316 all gates PASS (12672 unit/API,300 browser passes/1 retried/20 skipped, all database contracts). Complete247–248 preview37267273069 matched source/hashes/digest; one approved apply37267393757 is applied-verified,001–248 complete. Seven installed function bodies/security/owners/ACLs and12 unchanged controls PASS. Teacher/student own sessions freshly authorized; no more email sends. Public WAF operator-only; old application83b683c stays active until matching replacement/canaries/exactcleanup.
@@ -633,3 +621,15 @@ unverified. Audit passes; full focused gate and independent detail/privacy revie
 PR1506 returned to draft and superseded CI37464659748 canceled before refinement push.
 No merge/deployment authorization inferred. Review ledger prior1 launch/0 fix batches;
 planned targeted GPT5.6Sol/high privacy + GPT6.1Sol/high integration (Terra unavailable).
+
+## 2026-10-06 — Daily detail review remediation
+
+Independent cumulative integration review8c563690b clear; privacy review found P2:
+canonically equivalent decomposed accented initials escaped detail masking. Normalized
+prose/initial keys to NFC and supported remaining combining marks in fallback. Added
+mock-provider and cache-restoration regressions: both fail before correction, both pass
+afterwards (43 unit tests). No UI changes; prior four-combination visual evidence applies.
+Full first gate567/30 + static passed, parent56 independently rerun. Audit passed.
+Live evaluation artifact retained only provider_or_validation_failure; no status/subtype,
+no retry. Reviewledger4 launches (includes Sol capacity failure), one privacy fixbatch;
+correction review + full focused gate pending. DraftPR1506, no merge/deploy.

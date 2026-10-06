@@ -252,16 +252,17 @@ function sanitizeSummaryDetail(
   context?: AiSanitizationContext,
   sourceInitials: string[] = [],
 ): string {
+  const normalizedDetail = detail.normalize('NFC')
   let sanitized = context
-    ? sanitizeTextWithStudentNames(detail, context.students, context.initialsMap)
-    : sanitizeAiOutputText(detail)
-  const initials = [...new Set([...sourceInitials, ...Object.keys(context?.initialsMap ?? {})])]
+    ? sanitizeTextWithStudentNames(normalizedDetail, context.students, context.initialsMap)
+    : sanitizeAiOutputText(normalizedDetail)
+  const initials = [...new Set([...sourceInitials, ...Object.keys(context?.initialsMap ?? {})].map((value) => value.normalize('NFC')))]
     .filter(Boolean).sort((a, b) => b.length - a.length)
   for (const value of initials) {
     sanitized = sanitized.replace(new RegExp(`(?<![\\p{L}\\p{M}\\p{N}])${escapeRegExp(value)}(?![\\p{L}\\p{M}\\p{N}])`, 'giu'), '[student]')
   }
   // The provider is instructed to omit all initials, including names absent from the roster.
-  sanitized = sanitized.replace(/(?<![\p{L}\p{N}])(?:\p{L}\.){2,}\d*(?![\p{L}\p{N}])/gu, '[student]')
+  sanitized = sanitized.replace(/(?<![\p{L}\p{M}\p{N}])(?:\p{L}\p{M}*\.){2,}\d*(?![\p{L}\p{M}\p{N}])/gu, '[student]')
     .replace(/\s+/g, ' ').trim()
   const validated = detailSchema.safeParse(sanitized)
   if (!validated.success) throw new Error('Summary detail did not match the required schema')

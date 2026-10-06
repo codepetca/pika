@@ -318,6 +318,26 @@ describe('callOpenAIForSummary', () => {
     expect(restoreNames(result, { 'J.S.': 'John Smith' }).action_items[0]).toMatchObject({ studentName: 'John Smith', detail: result.action_items[0].detail })
   })
 
+  it('masks canonically equivalent accented initials in provider details', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => ({
+      status: 'completed', output_text: JSON.stringify({ action_items: [{ source_ref: 'log_1', category: 'student_question', detail: 'Asks E\u0301.B. about the deadline.' }] }),
+    }) } as Response)
+    const result = await callOpenAIForSummary('system', 'user', { log_1: 'É.B.' })
+    expect(result.action_items[0].detail).toBe('Asks [student] about the deadline.')
+    expect(restoreNames(result, { 'É.B.': 'Élodie Brown' }).action_items[0]).toMatchObject({
+      studentName: 'Élodie Brown', detail: 'Asks [student] about the deadline.',
+    })
+  })
+
+  it('masks decomposed roster and unknown combining-mark initials when reading stored details', () => {
+    const result = restoreNames({ overview: '', action_items: [{
+      initials: 'E\u0301.B.', text: 'E\u0301.B. has a question.', detail: 'Asks É.B. and Q\u0301.R. about the deadline.',
+    }] }, { 'E\u0301.B.': 'Élodie Brown' })
+    expect(result.action_items[0]).toMatchObject({
+      studentName: 'Élodie Brown', detail: 'Asks [student] and [student] about the deadline.',
+    })
+  })
+
   it('orders all urgent categories ahead of questions while keeping details bound to their source', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => ({ status: 'completed', output_text: JSON.stringify({ action_items: [
       { source_ref: 'log_1', category: 'student_question', detail: 'Asks about the deadline.' },
