@@ -38178,7 +38178,6 @@ set permission; no database application, fixtures, feature activation or deploym
 Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
 account-wide; DeepSeek paused. Task low-usage/review-budget override retained.
 
-<!-- pika-session-log-archive-batch:1478cc09ff6bce755672a86e3eaf224d9ce865fceb10728ebbffcb71f6a5eb95 -->
 ## 2026-10-04 — Broad audit combined landing candidate
 
 After guidance1462 merge24cb8847, consolidated the five remaining reviewed source
@@ -38703,3 +38702,549 @@ telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollo
 - Six independent review launches completed: initial security/compatibility, two targeted cancellation reviews, final cumulative review and targeted changed-base integration. All accepted blockers are fixed. A seventh mechanical review of this continuity cleanup is pending; no additional launch is authorized within the default budget. Review clock began 03:18 UTC. Two fix batches plus one base synchronization; Linux activation remains outside completed preparation.
 - Hosted CI `37260199028` on `0ad72fd7` passed Test & Build but the unchanged database harness stopped before fixtures with `sc242 fixture namespace collision`; the cause was not proven after stack teardown. Returning PR to draft canceled the browser job through normal concurrency. No harness or collision guard was weakened. Rebased onto actual main `6586847c` (#1473); only archive conflict retained upstream history. Removed two auto-merged duplicate entries after verifying their complete bodies already exist in the archive. One fresh eligible PR run remains required on the reviewed current head; merge still requires normal owner authority.
 - Evidence: `/tmp/pika-selfhost-local-live.log`, `/tmp/pika-selfhost-focused-rebased.log`, `/tmp/pika-selfhost-local-plan-rebased.log`, `/tmp/pika-selfhost-db-job.log` and `/tmp/pika-selfhost-rebase-range-diff.log`. Preparation and operational goal remain incomplete until the required CI, merge decision and host/private activation gates pass.
+
+## 2026-10-04 — Shared owner Assignment student-detail preparation
+
+PR1454 final19f91 cumulativeCLEAN; CI37174745897 exposed only CURRENT prefix
+format regression, locally reproduced. Docs-onlyf93a411e targetedCLEAN;
+47attendance/startup +266focused/1skip/staticPASS. Exact-head37175526420 running.
+No merge/production/rollout receipt yet. Seven launches/fourfix/fourtarget/onefinal
+retain original02:42:02 clock, extended04:42:02 deadline and absolute caps.
+
+Parallel isolated codex/contextual-assignment-student-detail-reads starts at
+reviewed19f91; publication/review waits for actual1454merge/base reconciliation.
+One GPT6.1Sol/high writer owns GET/helper/schema/route+SDKtests/contract; root
+owns immutable-lifecycle observer/CI/continuity/integration. Boundary map verified
+full owner-private DTO, no unavoidable SQL, perstatement exact target membership,
+archived-owner reads and historical owner-selftarget denial. No activation.
+Pure proof/CI guards TDDRED then24PASS, including exact-one-transition/no retry
+on ambiguous commit and no vacuous boundary acceptance. Observer wraps only the
+existing approved revoke request, native list observer restores/fingerprints once;
+no added fixture DML/platform/cleanup authority. Actual runtime not executed.
+DeepSeek remains explicitlyPAUSED; recent weekly19%, ordinary useallowed.
+Writer returned six owned files with107targeted/TypeScript/lint/architecturePASS.
+Root verified literal legacy body unchanged, added a bounded overview lazy-sign
+correction: two installed-SDK regressions failRED with one deferred POST after
+rejection, then passGREEN with no late request. Both readers' assertions observe
+a full event-loop turn. Combined187targeted/24proof-CI guards pass; full focused
+384PASS/8skip plus all static gates pass; explicit proof TypeScript programPASS.
+No real runtime execution or independent review yet; publication remains gated
+on1454actualmerge/base reconciliation. Nonempty supplements/signing remain unproven.
+
+Superseding receipt:1454 merged9591ee1e at04:27:09UTC after all five exactf93
+CI37175526420 gates passed (0queue/1754runseconds). Squash tree equals reviewed
+tree; canonical main cleanFF. Prepared detail branch reconciled onto actual merge;
+only CURRENT conflict resolved, preserving both histories and correct Prod DB
+prefix. Runtime unchanged except closed diagnostic repo-target alias correction.
+Production001–225 and all admission/cutover gates remain OFF. Weekly16% remaining,
+ordinary usage allowed; DeepSeek pause retained. Independent high-risk security
+and compatibility review follows focused verification; no live proof executed yet.
+
+Superseding1455receipt:initial4716a817 security5.6Sol/high and compatibility
+6.1Sol/high CLEAN. Actual coordinator CLI2.109.1 normal isolated proof PASS:
+8detailSDK/6live owner-transfer/member-remove first/later/terminal plus existing
+9listSDK/14listrevocations. Immutable original fixture/platform/transition SQL
+and restoration authority unchanged; exact fresh teardown/full canonical public,
+private/storage row fingerprints plus168metadata/settings/cron/resources match.
+Both forced modes accepted exact exit1/PASS+FAIL markers/no unexpected output;
+private0600receipts /private/tmp/pika-student-detail-cleanup.aRbYlu and
+/private/tmp/pika-student-detail-cleanup.kauZZN.384focused/8skip/all static/explicit
+proofTS/auditPASS. Executable source unchanged; docs-only receipt re-review precedes
+ready/exact-headCI/mainmerge. Original review04:29:28UTC/counters2launch/0fix
+retained; human-authorized extension through06:29:28UTC with absolute caps intact.
+No nonempty supplemental/signing/authHTTP/browser/provider/production proof claim;
+local001–239/prod001–225 and admission/cutover/account/billing/provider settings unchanged.
+
+<!-- pika-session-log-archive-batch:b11c807e0a84dec5e5b701fe23cebf07818867dccc307715ae48a68dcc6aaeb6 -->
+
+## 2026-10-04 — Prepared locked learner Classwork write boundary
+
+Actual parent1456 mergedc7e5a487 after exact2c9ee58f CI37181022226/all5PASS;
+canonical main cleanFF.1457 learnerGET remains in corrected exact-head CI,
+not merged here. Local/main001–240; productionlast225 untouched.
+
+Source worker relinquished241/four214 member RPC replacements, structural suite
+and rollback-only harness. Root complete inspection preserves214 bodies after
+only locked visibility additions; SQL SHA256
+6247d7fa0ae5a23a96bddec8079e3b4948fada29c44299246c8129138b305321.
+Root catches fresh-null169 activation prerequisite in the rollback fixture;
+regression1RED/19PASS then20GREEN after immutable guarded/coalesced transaction-only
+setup. No local SQL executed. CIstep/floor241 regression first fails23checks before
+narrow serialstep/count changes; all001240SQL/fixtureDML/platform targets/
+allowed transitions/restoration/cleanup authority remain unchanged.
+241UNAPPLIED; local types/rollback/concurrency/isolated replay and2forced receipts
+remain gates after draft/source review. Sibling history/artifact/inline visibility
+and integrated opening remain work. NoUI/admission/cutover/production/account/
+billing/provider changes; critical roster-owner node_modules and prior branches
+retained. Existing authorization covers routine local application/review/extensions/
+normal mainmerge, not bypass or uncontrolled production activation.
+
+<!-- pika-session-log-archive-batch:d4b732948795178faac943b61ddbe318abb8a11f6b2523d8c17f864600a6da23 -->
+
+## 2026-10-04 — Locked learner writes local verification and parent reconciliation
+
+1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
+(0queue/1696runseconds), tree parity and canonical cleanFF verified.1458 initial
+security/compatibility source reviews clean (distinct5.6Sol/high reviewers after
+two6.1 launch failures, both counted).241 applied once locally; exact001–241history
+and genuine generated types/check zero drift. First rollback fixture run failed
+five null due dates, but rollback and separate whole-canonical baseline PASS.
+Proof-only correction regression1RED/20PASS then21GREEN; targeted review clean.
+New241 and unchanged save rollback harnesses PASS, including actual nonempty
+artifact freeze/preflight and nonvacuous legacy/membershipPal; full canonical
+public/private/Storage fingerprints,168metadata/settings/cron/resources unchanged.
+
+Rebasecc206cce onto actual2595main keeps immutable241SQL/rollback/tests/floor
+bytes unchanged; resolves only continuity conflicts, preserves both archive batch
+markers and one identical historical entry. No stash/pop/history repair/reapply.
+104rebase checks PASS. Strict001–241 combined replay PASS9projections/6original
+revocations plus original list controls; nine sealed false-created/view RPCstubs,
+zero actualopenRPC/Storage/provider network. Both forcedmodes exit1/exact2markers,
+exactteardown/fullcanonicalunchanged PASS; private0600 receipts oe8GJq/mZNJ54.
+No realopen/signing/nonemptySDKsupplement/authHTTP/browser proof claimed. Existing
+committed-fixture concurrency is finalCI ephemeral-only because168 retains private
+identities evenPalOFF; nocanonical cleanup authority expansion. Original07:32clock,
+5launch/1target/2batch retained; factual receipt batch/finalcumulative/CI next.
+Productionlast225/admission/home/cutover/account/billing/provider unchanged;
+batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
+
+<!-- pika-session-log-archive-batch:a6d73911fd7534beebc4fde4d09e909f0394180eaedeac6eb0d0ef56cf561560 -->
+
+## 2026-10-04 — Supplemental learner permission source preparation
+
+1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
+single eligible CI37188214976 running with Test&Build/browser PASS, database/PRGate
+pending. Reviewed1458source frozen; next branch depends on that exact commit,
+not yet an actual merged parent. Local241/prodlast225 unchanged.
+
+Bounded6.1Sol/high worker relinquished only242SQL/structuraltest/rollbackharness.
+Four complete latest214/213 definitions preserve byteparity after onlylocked
+visibility additions; owner-history exception and member-only42501 precedence
+remain.21new/80related workerchecks PASS; root65related PASS, inspected harness,
+removed onlycosmetic trailing blankline, SQLdigest unchanged
+48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e.
+NewserialCI/floor regression23RED then61GREEN.242UNAPPLIED; all001241SQL and
+isolatedfixture/transport/transitions/restoration/cleanup authority unchanged.
+Harness PREPARED NOTRUN: exactcanonical/c242sc242 collisionguards/BEGINROLLBACK/
+168169ON/settingscronACL unchanged; synthetic Storage metadata only, no physical
+bytes/API/network/cleanup/activation. Outsider/crosssubject checks are notsameactor
+revocation; actualremoval/concurrency remains integrationwork. Solelatest213
+imageREAD lacksClasswork concealment and is explicit separate prerequisite;
+current4function slice doesnotclaim otherwise. Rootowns Git/review/application/
+types/runtime/CI; actualparentmerge/reconcile beforepublication. Sharedadmission/
+home/cutover/account/billing/providerOFF; assessmentphase/epic incomplete.
+
+Superseding parent receipt:1458 reviewed28e8af46 merged61c44aec at08:38:57Z,
+exactCI37188214976/all5PASS (0queue/1426runseconds), including actual unchanged
+save concurrent-authorization and new241rollback steps. Normal squash exacthead,
+reviewed/squash tree parity, canonical clean mainFF verified. Root189focused/
+13files plus architecture/UI/design/TypeScript/lint PASS for prepared242 branch.
+Current candidate remainsUNAPPLIED; reconcile onto actualidentical main tree
+without stashing/popping unrelated entries, then frozen initial review/runtime.
+Production/admission/cutover/provider/account/billing unchanged.
+
+<!-- pika-session-log-archive-batch:a80b95ae94ff611959bb7b6c4b81d07a5c797c1e24d68174c1e068554aa18b98 -->
+
+## 2026-10-04 — Supplemental learner local verification on actual main
+
+1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
+source tree; root168focused/static/47Bara/startup/audit PASS. Distinct5.6Sol/high
+initial reviews: securityCLEAN, compatibilityP1validpurged168 NULLscope disappears
+under NOT IN after fixture creation. Both baseline snapshots use correlated
+NOT EXISTS; meaningful1RED/21PASS→22GREEN. Source-only targeted reviewCLEAN.
+242 applied once locally, exact001–242history, genuine typesgenerate/check zero
+drift; SQLdigest48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e
+immutable/no reapplication. Actual PostgreSQL caught unparenthesized CASE in the
+new regression then original compatibility assertions. Root audited allCASE sites,
+two additional proof-only batches/regressions/targeted reviewsCLEAN; each failed
+transaction rolled back and wholecanonicalbaselinePASS. No SQL/application/control
+change, gate weakening or cleanup workaround. Original08:43clock/counters retained.
+
+Runtime d5dea393 new242/allsevenwrapper concealed+visible/ownerhistory/revision/
+restore/submission/nonemptyartifact/inlineeffects PASS; unchanged188189history and
+190artifact rollback contracts PASS. Fullcanonical public/private/Storage counts+
+digests/168metadata/settings/cron/resources unchanged. Full213inline script includes
+committed race fixture: finalCI ephemeral-only, never run on canonical retained
+identities. Strict001242 isolated replay9learnerprojections/6originalrevocations
+plus original listcontrols PASS; nine sealedRPCstubs falsecreated/view, zero actual
+openRPC/Storage/provider network. Bothforcedmodes exit1/exact2markers/teardown/full
+canonicalPASS, private0600 receipts UhgV7p/o2i0fH. Originalobserver authority unchanged;
+no realopen/nonemptySDKsupplements/liveSigning/authHTTP/browser/concurrentvisibility
+proof. Factualreceipt batch/finalcumulative/CI/mainmerge next. Latest213imageREAD
+concealment remains nextbounded prerequisite; assessments/goal incomplete. Local242/
+main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
+worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
+and localmigration override retained; no bypass or production permission inferred.
+
+<!-- pika-session-log-archive-batch:4cc776efa8a5b9b33f19a47964ee4545f7aed3f5bd3216720add81eb73ab9248 -->
+
+## 2026-10-04 — Locked inline-image read source preparation
+
+1459 final cumulative security review CLEAN on9f15e6e2; one ready-event exact CI
+37191597295 is running. Source frozen, original review clock/counters retained;
+explicit human-authorized extension to10:43Z for CI/normal merge only. No duplicate
+watcher, production operation or activation. Local242/main241 still.
+
+Disjoint243 source worker6.1Sol/high completed/relinquished only SQL/test/harness;
+root sole writer verified complete213 body preservation after minimal locked
+nonowner Classwork predicate. Owner inspection, original locks/error/DTO/status/
+ACL contracts unchanged.9new/90related worker checks PASS; root71new/CI/floor checks,
+bash-n/diff PASS. New exactcanonical c243/sc243 rollback metadata fixture prepared
+NOTRUN: verified/ready controls, both role labels, hidden404/owner inspection and
+invalid bindings with whole-row/settings/cron/resources/guards equality. Existing
+117 begin/schema accepts synthetic metadata; no physical Storage bytes/API/network.
+NULL-scope retained evidence and CASE grammar regressions retained from242.
+Strict replay floor only advances to243; fixture/transitions/restoration/cleanup
+authority unchanged. Candidate243 UNAPPLIED; actual1459merge/tree parity/reconcile,
+independent reviews and genuine local types/runtime/replay precede ready/CI/merge.
+No realopen/signing/nonemptySDK/HTTP/browser/concurrency proof inferred. Assessment
+phase/goal incomplete; productionlast225/admission/home/cutover/billing/providerOFF.
+
+Superseding parent receipt:1459 exactreviewed9f15e6e2 all5CI37191597295PASS
+(0queue/1698runseconds), normal squash01aedcec8 merged09:46:04Z; actualmerged state,
+tree parity and canonical cleanFF verified.243 clean prepared branch rebase--onto
+actualmain preserves complete source tree and unrelated stashes; no resequencing
+or applied-SQL edits. Local/main242;243UNAPPLIED. Frozen-source highriskreview next.
+
+<!-- pika-session-log-archive-batch:c8e70793abaafb87bbd72d3f9f07281b67a3185e494f1811e13972b2779a4554 -->
+
+## 2026-10-04 — Broad audit authorized landing reconciliation
+
+Owner instructed this task to orchestrate the all27-finding plan. Guidance1462
+merged at24cb8847; canonical hub fast-forwarded and exact source-tree parity PASS.
+Five remaining ready PRs conflict only in journal archival placement. Coordinator
+prepares one common history union preserving all complete prior body multiplicities;
+reviewed application/migration bytes remain pinned and pending source-parity checks.
+New-base focused checks, independent integration review and exact-head CI precede
+remaining merges. Production244–246 need matching application and exact-target/full-
+set permission; no database application, fixtures, feature activation or deployment.
+Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
+account-wide; DeepSeek paused. Task low-usage/review-budget override retained.
+
+<!-- pika-session-log-archive-batch:1478cc09ff6bce755672a86e3eaf224d9ce865fceb10728ebbffcb71f6a5eb95 -->
+
+<!-- pika-session-log-archive-batch:ce11c38f04917ed9bdcf56f345d9041de32da6814c9940fdee9a57b705b7daf3 -->
+## 2026-10-04 — Docker recovery; owner Test list runtime held
+
+1469 remains draft/unmerged, reviewed a000cb3c with two independent CLEAN source
+reviews, launch2/initial1/fix0. Original16:03Z review clock/counters retained;
+direct human task-stop override waives workflow review/usage stops, not proof,
+CI, source authority or rollout gates. Human Yes authorized Docker restart.
+Normal CLI restart timed out; seven verified Docker-app processes received TERM,
+one stuck verified backend then KILL; official start recovered engine29.7.2.
+No images, volumes, container data or unrelated source/stashes were deleted.
+
+External dependency target was missing. Root restored only this worktree's own
+dependencies with unchanged-lockfile install:696 reused/zero downloads. Recovery
+load caused2 test timeouts, isolated39 passed, then full197/14 and all static gates
+passed without weakening timeouts. Source/lock and reviewed HEAD remain unchanged
+apart from this pending continuity entry. Finite manifests explicitly accepted;
+new once-wx0600 private1469 canonical baseline captured, old1468 preserved.
+
+Normal SDK attempt17:39:35Z failed startup180s before extension setup. Exact owned
+CLI descendants outlived wrapper timeout; root verified project2e6078d26139 and
+TERM'd only those two processes. Cleanup failures and closed-platform independent
+baseline verification failure mean neither cleanup nor canonical equality is
+proved; no data-change claim either. Host177MiB free; temporary workdir retained.
+No forced runs, ready CI, merge, production or activation. Preserve SAME baseline;
+recover stable disk/API, inspect and finish exact owned-resource cleanup, verify
+baseline, then retry. Private1469 ledger contains receipts; no baseline recapture.
+
+Human then authorized Mac-space cleanup. Removed only npm's reconstructible3GiB
+download cache and pnpm's unreferenced cached packages (68334files/1597packages,
+no force/alien deletion). Hostfree486MiB→7.2GiB, approx6.7GiB recovered. Installed
+dependencies/source/worktrees/36stashes/Playwright browsers and Docker data remain.
+Docker-only cache pruning could not load its builder; API still unresponsive
+after space recovery. No new SDK attempt or baseline recapture. Preserve prior
+failed-proof namespace2e6078d26139 for exact owned cleanup/equality verification.
+
+## 2026-10-04 — Owner Test list disk recovery and guidance-main reconciliation
+
+Docker29.7.2 recovered; host144GiB free observed independently, not attributed to
+our6.7GiB package-cache cleanup. Fresh global/label/attachment checks authorized
+exact failed-startup2containers/1network/1volume cleanup; generated directory stays
+private for diagnostics. SAME1469 canonical baseline fivefield equality PASS.
+Unchanged-source normal retry65de445a exited1: Storage unhealthy, no extension
+setup. Exact teardown succeeded and SAME independent baseline equality PASS.
+No forced modes/readyCI/merge/activation; one Sol6.1/high read-only worker diagnoses
+Storage startup. Rebased onto guidance-only1462/main24cb8847; app/proof/CI/schema/
+package/lock bytes unchanged. Kept incoming guidance, removed three proven surplus
+history copies while retaining original full bodies. Startup budget failed17149;
+CURRENT-only shortening gives76startup tests PASS, without gate changes. Full
+230focused/14files and all static gates PASS; history multiset/no missing/surplus
+PASS. Runtime verification remains required;36stashes/prod225 preserved.
+
+## 2026-10-04 — Owner Test list bounded denial diagnostics
+
+Targeted Sol5.6/high CLEANb4d, sourceonly; reviewerVitest unavailable/noinstall,
+root280/allstatic/70proof evidence retained. Root explicitly accepted frozen
+parallel-inventory4bb75e/runner767c3a/fixturee83+complete246 before actual64763.
+Normal reached three owner cases then case3/root41requests, context1848ms/guard1829ms
+HTTP200/complete; old20s blocker resolved, newassert unknown. Exactteardown/SAME
+canonical fivefield baselinePASS; no fullnormal/forced success. Read-only Sol6.1/
+high diagnosis20:30:44–20:32:38Z narrows original class403/count1/snapshot assertions;
+offline TSX syntheticfetch confirms403/sameclass/1request but not actualSDK.
+Root TDD13 closed matrix-step/API-error outcome regressions preserve everyassert,
+own-descriptor lookup avoids SDK getters, fixed kinds/statuses only; no rawerrors/
+IDs/rows or guard/deadline weakening. Fixed-source review/acceptance precede
+rerun; original clock/counters/direct waiver retained. No prod/sharedmigration/
+accounts/providers/admission/activation; active/tokens unknown.
+RED diagnostic12/12failed, then snapshot-step2RED; fullfocused293tests/15files and
+allstatic gates PASS with13new regressions (83 proofchecks selected by focused).
+
+## 2026-10-04 — Owner Test list actual runtime closure
+
+Sol5.6/high diagnostic review CLEAN at exactd82aa4e; root accepted unchanged finite
+fixture/inventory/native/source246 manifest before normal77355. Actual normal
+EXIT0/eight SDK cases/exact2PASSmarkers/no stderr; after-fixture32135 and
+before-capture42314 fullsetup forced modes each expectedEXIT1/exactcleanupPASS+
+forcedFAIL/no unexpectedoutput. All0600 receipts verified; same independent
+once-captured wholecanonical public/private/Storage/168/settings/cron/resources
+baseline PASS after everyrun, exactownedteardownPASS. Earlier failures preserved;
+no recapture or sharedlocal/prod/schema/account/provider/admission/activation.
+Facts-only final candidate is next: cumulative independent Sol5.6/high review,
+stable reviewedSHA exactCI and normal mainmerge remain gates. Component/phase/goal
+not complete. Counters9launch/7target/0final/7fix and original clock/taskstop waiver
+retained; weekly69remaining observed, attributable active/tokens unknown.
+
+## 2026-10-04 — Owner Test list aggregate fixture CI correction
+
+Final cumulative Sol5.6/high728f review CLEAN; exact readyCI37234460529 failed one
+new100k aggregateunit test at5000ms undercoverage (12341PASS), PRdrafted beforeedit.
+PendingDB/browser lanes cancelled; PRGateFAIL, no merge/bypass/duplicateCI.
+Root found quadratic mock scans across50parents/everypage. Staticchildparent index
+preserves participantfilters/keyset/order/caps/overflow assertions; newinterleaved
+lookupregression RED16vs4 thenGREEN. App/proof/native/CI/schema/deps/sourcecaps/
+real20s/testtimeouts unchanged.44readroute and294focused/allstatic PASS.
+First fullcoverage locally had only8 installedbraces security failures, notlist
+tests. Reviewedpatchhash directory containedunpatchedsource; ordinaryfrozeninstall
+didnotrepair. Worktree-owned forcefrozen install restoredsameexistinglock/patch,
+800resolved65reused735downloaded61.7s; no newversions/manualinstalledfileedits/
+buildapproval/sourceconfigchange. Security/list46PASS. Fresh exactCIcoverage suite
+EXIT0:12343PASS/8skip,1036filesPASS/2skip; allcoveragegates PASS (statements84.98,
+branches76.98,functions91.39,lines86.94percent). Priorfailedresults retained.
+Fixedhead targetreview/fresh environment runtime check/CI/mainmerge remain gates;
+no sharedschema/prod/accounts/provider/admission/activation. NextdraftGET-only
+readonlymap retained privately; notimplemented. Originalclock/directwaiver retained.
+
+## 2026-10-04 — Owner Test list global inspection worker correction
+
+Fresh-environment normal49119 hit unchanged20s/19496ms guards/22 requests; exact
+owned teardown and SAME saved canonical baseline PASS. No fresh matrix success.
+Sol6.1/high bounded read-only diagnosis found618 volumes/five serial batches;
+paired global-worker probes765→524ms and625→555ms returned same exact commands/
+sealed resources. Root TDD five scheduling/barrier/failure regressions RED, then
+86 proof and297 focused/static PASS. Three fresh listings settle first; fixed
+three global workers reuse idle capacity across exact128-item inspections. All
+active work settles on failure; queued work stops. No command/privacy/scope/cap/
+SQLguard/sealed/app/deadline/dependency/schema change. Fixed-source review and
+new full runtime receipts precede CI; PRdraft, production/admission/rollout OFF.
+Worker elapsed approximately4min; usage/effectiveconfig/active time unknown.
+Original reviewclock/counters and direct human taskstop waiver retained.
+
+## 2026-10-04 — Owner Test list streaming discovery correction
+
+IndependentSol5.6/high1189 integrationreview CLEAN; explicitfiniteacceptance then
+normal66292 failed owner/finalprojection at24requests20002ms/19473ms guards.
+Exactownedteardown/SAME savedwholecanonicalbaseline PASS; no forcedsuccessclaim.
+Root boundedread-only barrier772→stream717ms probe retained identicalcommands/
+sealedresources/max3totalprocesses; no guarantee. Eachkindfreshlist validates
+before its exact128batches queue; idleworkers may inspect while anotherlist waits.
+Fullgraph/allactivework settles before replay/resourceauthorization/privateSQL/SDK.
+Observedfailure stopsqueuedjobs and drainsactivejobs. Same completeforeignscope,
+projection/parser/one-shotmap/caps/SQLguard/app20s/native/fixture/schema/deps.
+Heldindependentlist regression RED0inspections then GREEN;86proof PASS. Targeted
+fixed-source review/freshactual rehearsal next; failure needsenvironmentcheckpoint
+not more speculativepatches or controlweakening. PRdraft/rolloutOFF; humanwaiver
+and originalcounters retained. No source/application permission expansion.
+
+## 2026-10-04 — Owner Test list environment checkpoint
+
+IndependentSol5.6/high e024 review CLEAN; one accepted normal91629 failed first
+owner/roster:22requests20001ms/19543ms guards/503. Exactteardown/SAMEsavedbaseline
+PASS; no freshforced/CI/merge.86proof/297focused-static PASS; rolloutOFF. Stop
+patch/retryloop. Readonly618volumes/587unattached;0 ownedprooflabelmatches,
+583non-Supabase+4other-Supabase names. Ownership/disposability unproved; no deletion.
+Need clean test environment or exact verified disposable cleanup scope. No guard/
+deadline loosening, sharedschema/production/account/provider/admission change.
+
+## 2026-10-04 — Owner Test list verified cleanup and bulk transport proposal
+
+HumanYes authorizedonlyverifieddisposabletestdata cleanup. Readonly577anonymous
+localvolumes:576populated1empty0unreadable;10namedunknownexcluded. RemovedONLYone
+freshmetadata-boundunattachedemptyvolume, non-force; no datafiles/populateddata
+deleted. Available221950488KiB before/afterequal; no measuredspacegain. SAMEsaved
+wholecanonicalbaselinePASS (38356),617volumesremain. No broadprune/DBreset.
+Sol6.1/high boundedreadonlyprobe:all617 Name/rawCreatedAt/Labels exactlyequal
+bulkGET/CLIinspect;193971bytes9ms,CLIlist216ms+five serialinspect459ms. Rootverified
+officialCLI VolumeList implementation and accepts scopedproposal, notactualproof.
+Delegatehelper/offlinetests ONLY toSol6.1/high; fixedlocalsocket-boundunfiltered
+GETv1.45/volumes retainscompletefreshglobalclosure/logical128batchreplay/parser/
+one-shotconsumption/caps/allactive-settlement/privateSQL/app20s. Physicaltransport
+andJSONserialization differ; no literalstdout/physicalcommandparityclaim. No native
+run/CI/merge/sourceapp/schema/prod/account/provider/admission/rollout change yet.
+Originalclock/counters/humanstopwaiverretained; no newgoal/task/automation. Worker
+usage/effectiveconfig unknown; implementationreview/runtimeacceptance stillpending.
+Deliveredhelper/testONLY, approx10min manualworkerelapsed. TDD22newbaselinefailures;
+heldsocketfailure REDqueuednetworkwork thenGREEN immediatepoolfailuremark/drain.
+Rootnonblocking-configopen findingfixed/tested. Worker163proof/tsc/scopedlintPASS;
+root374focused15/allstatic/audit2TS/historymissing0extra0/trim40/diffPASS. Sourceapp/
+runner/fixture/sealednative/SQL/schema/CI/deps byteparity376 verified. Review14th
+launch/11thtargeted/11thfixbatch planned, originalclock/humanwaiver retained; no
+freshnative rehearsal untilfixedsourceCLEAN/coordinatorfiniteacceptance.
+
+## 2026-10-04 — Owner Test list bulk transport actual runtime closure
+
+IndependentSol5.6/high fixedca59 transport/security/compatibilityreview CLEAN;
+rootexplicitfiniteacceptance ofsameimmutable001–246 fixture/control/restoration/
+nativeStorage/cleanup andreviewedhelper86461cb4. Root374postdocs/allstaticPASS;
+freshfullCIcoverage23801 EXIT0:12423PASS8skip/1036filesPASS2skip, allthresholdsPASS
+(84.98/76.98/91.39/86.94). No coverage/native CPUoverlap. SAMEsavedbaseline9651PASS.
+Normal58299 actualall8SDKcases EXIT0/exact2stdoutPASS/stderrempty/ownedteardown.
+Bothfullsetupforced48740afterfixture/65211beforecapture expectedEXIT1/exactcleanup
+stdout/exactforcedstderr/private0600 markersPASS. SAMEoncecapturedwholecanonical
+public/private/Storage/168metadata/settings/cron/resourcesPASS aftereachrun; no
+recapture/sharedDBchange. Priorfailures retained, timingblockerclearedforthisfixed
+candidate/fixture/environmentonly; noAuthHTTP/browser/liveRace/publicLegacy or
+generallatencyguarantee. Facts-onlyparityreview/exactCI/mainmerge remainpending;
+phase/goalNOTcomplete. No app/deps/schema/prod/accounts/provider/admission/rollout.
+Originalclock/counters14launch11target1final11fix/humanwaiver preserved. Worker
+reviewapprox7minmanualelapsed/effectiveconfig/usage unknown; account65remaining
+notattributable. Populated576/10unknownvolumespreserved; no furthercleanup/prune.
+
+## 2026-10-04 — Owner Test list merge verified; draft GET design started
+
+Facts/parity review CLEAN at e8906c29; exact ready-event CI37243490974 all five
+gates PASS (0 queue / 2224 run seconds). Normal squash1469 verified MERGED at
+23:59:49Z, commit7570a9d60591183f0699001f47a6528045a392ee, exact reviewed tree
+and linear parent9c2ff7efd. Clean canonical main fast-forwarded; all36 stash hashes
+and ignored env link unchanged. Private ledger retains all prior failed attempts,
+15 launches/12 targeted/1 final/11 fix batches and original clock/human waiver.
+Lifecycle34 events/15 correction-sync pushes; attributable active/tokens unknown.
+No production promotion, schema/account/provider/cohort/rollout change; goal incomplete.
+Fresh branch/worktree codex/contextual-test-owner-draft-get at actual7570 main.
+Frozen dependency install and full startup PASS after initial missing-node_modules
+check. Next bounded GET /api/teacher/tests/[id]/draft includes hidden creation/repair;
+PATCH/publish/questions/Storage/learner/results/UI/billing/activation excluded.
+Sol6.1/high read-only design delivered in9m35 manual elapsed (not active/tokens).
+Root accepted snapshot/CAS, lock-order and retired-Test policy against existing
+sources. Three Sol6.1/high workers own disjoint app/SQL/proof files; source/offline
+only, no SQL/native execution before fixed-source review and finite acceptance.
+Baseline51+13 tests PASS; new route TDD6RED/3PASS before implementation. Initial
+continuity focused156PASS/1FAIL startup17074>17000; targeted17001 stillfailed.
+Compacted CURRENT only, threshold unchanged:16975,76 startup and157 docs-focused
+PASS. Private failure/green logs retained. RPC generated types pending genuine
+isolated reviewed-schema generation, never manual edits. Source247 not applied.
+Account64% weekly remaining at00:07Z, shared/not attributable; worker effective
+configuration/usage unknown. DeepSeek paused; no new task, goal or automation.
+Source phases2/3 active,4/5 dormant; no component phase exit or production change.
+Disjoint app/SQL/proof/native source delivered; requestedSol6.1/high, effective
+config/tokens unknown. App156checks6files; rootliterallegacyGET/PATCH/configparity.
+SQL11/source, native11/offline, proof98/offline, gen12/offline, CI59 PASS separately
+(overlap not summed). SQL initial8RED, completioncaseRED→GREEN; adapter11PASS;
+proof Set disjointness reduced42s→3.44s. Manualworkerelapsed design9m35/app6m51
+checkwindow/SQL21m41+4m02/native12m29/proof~31min, not attributable active time.
+Root generator source-before-tests checkpoint exposed retargetable substring
+config1FAIL/11PASS; exactsealedconfigfix12PASS, no originalTDD claim. Only reported
+tsc errors are2 newRPC names pending genuine isolated generation, no workaround.
+Extensionunion7actors5Classes16Tests1009questions10drafts5enrollments; app15cases
+includes1001completeness,3creates1repair;10001SQLbulkUUIDrollbackonly. Sourcecaps
+512KiB appSQL/30RPC; native2sessions/200actions/4000controls/15min. Rootverified
+mainstill7570 afterfetch. No SQL/native/gen/schema execution; fixed-source review
+and finite runtime acceptance stillpending. NormalCI/merge/phase/goal notcomplete.
+Root initialfocused EXIT1:373PASS17files/architecture/UI/design PASS, exactly2
+pendinggeneratedRPC TypeScript errors; no skipped/fabricated green gate and focused
+lint not reached.15TS audit PASS; individual worker/scopedlint receipts retained.
+Draft fixed-source checkpoint/review planned before any isolated SQL/native/gen.
+PR1473 draft c90d3981 initial independent wave completed: requestedSol5.6/high
+security8m23 andSol6.1/high compatibility6m09 (Terra unavailable fallback), manual
+elapsed/effectiveconfig/tokensunknown. Accepted2P1 future-stamp repair atomicity
+and schema/privilege-error classification plusP2 legal category fixture movement.
+One disjoint SQL/app correction batch; no native acceptance or SQL execution yet.
+Batch1 SQL14/sourcePASS after3RED, manual3m42; app220/5filesPASS after6RED,
+manual8m10 withnativeextension20/offline checks (no nativeTDDclaim). Root200/4
+and251/7 integrationchecksPASS beforelast3native-onlytest additions; finalfocused
+stillrequired. Privilegeprobeexact1SDKraw42501→503/restoredACL+definition/rows;
+25totalRPC<=unchanged30, noforcedprobe. Roottransport1RED→99fullproofGREEN.
+Scopedlint/auditPASS; SAMEcanonicalbaselineverifyPASS, not recaptured. No DBwrite.
+Finalbatch1focused398/17+architecture/UI/designPASS; EXIT1only2newRPCtypeerrors,
+focusedlintnotreached. Genuinegenerator/nativeproof remainpending, PRstaysdraft.
+Publishedbatch1 `6787f0f5`, stilldraft. Sol5.6/high targeted1 manual2m23 accepted
+initialfixes, foundP2 proofgap: SDKcallbackfailure skippedappwhole-rowcomparison.
+Rootbatch2 outerappfinally afteradapterrestoration;2REDmissinghelper→full121/2
+GREEN, no nativeexecution. Originalreviewclock00:51:52 retained, no reset.
+Batch2focused400/17+architecture/UI/designPASS; EXIT1only2ungeneratedRPCtypes;
+scoped2filelint/audit/diffPASS. No claims of native/SDK/cleanup or overallgreen.
+Sol5.6/high targeted2 CLEANsource atd6dfb537,38smanual,4launch/2targeted/2fix.
+Rootfiniteacceptedfirstnormal --generate-types; EXIT1beforeSDK(0requests), no
+genartifactaccepted. No syntheticcontainer remains; SAMEcanonicalbaselinePASS.
+Sol6.1/high originalproofowner boundedread-only~5m identified fixtureA counts:
+112lock-onlyTestupdate archive+1/blueprint+0, so2058/1026 not2059/1027. Root
+verified currenttrigger/sourcehistory. Batch3 changesexpectation only +closed
+setupdiagnostics, never DBcounters/guards.2REDnumeric/missingdiag→123/2GREEN.
+ActualnativeacceptanceFAILED/pending correctedsource review; produnchanged.
+Rootalsofound guardedSQLsnapshot restoration used_fixture butguardallowsonly
+_draft_contracts/holder/contender. Nativecontrol selects existing_contracts name
+forfixedsnapshotonly;guard/capsunchanged. Commandbinding1RED→full124/2GREEN.
+Batch3focused retainedone5s offlineprotocoltimeout withconcurrentlint; unchanged
+source/unoverlappedretry403/17+architecture/UI/designPASS, EXIT1only2RPCtypes.
+No timeout/capincrease;5TS scopedlint/audit/diffPASS. Nativefailedhead/logsretained.
+
+## 2026-10-04 — Owner draft GET Docker recovery and runtime evidence
+
+1473 remainsdraft; targeted3 Sol5.6/high CLEAN80aa. Pre-restart normalfailed
+guard/inspect/requestcounter10; counter advancesbeforeHTTPdispatch, not tencompleted
+requests. Docker container/volume endpoints stalled while Mac had207GiBfree.
+Human authorized Dockerrestart; original saved canonical baseline matched after
+warmup. Exact9800 synthetic5containers/2volumes/network checked IDs/dual labels/
+creationwindow/foreignattachments/ports/copied247 SQL/config, removed andabsence
+verified; copiedsourceevidence retained, unknownDockerdata preserved.
+Normal80aa rerun EXIT0/twoclosedPASSlines/stderr0:15SDKcases/complete1001source,
+restored42501probe/SQLrollbackcontracts/12races/inheritedcases+restoration/exact
+teardown andSAMEbaselinePASS. Genuine436178byte0600 CLIartifact installed onlytwo
+RPCcontracts, SHA82a6c12f2964ed93998047175698a792722e19cf911b1feb1173ba37e95f94ca.
+Afterfixture fullsetupforcedcase expectedEXIT1/cleanupPASS/SAMEbaselinePASS.
+Beforecapturefirst failedbefore setup/platformcommand andleft32c4418 stack; retry
+diagnostic provedCLIstart failed54332binding dueownedleftover. Exact32c4418 eight
+resources verified/recovered, SAMEbaselinePASS. Thirdattempt againpending/platform
+failure, no syntheticcontainers remain; beforecaptureNOTaccepted, no blindretry.
+Read-only Sol6.1/high proofowner2m43+52s manualdiagnoses, effective/tokensunknown,
+identified no deterministiccustodydefect. Rootdiagnosticbatch4 retains closed
+inheritedphase/cleanup state; oneRED then130/2affectedGREEN withfivephasetests.
+Initialprivate diagnosticCJS transform failure retained; fixed privateimport only.
+Reviewclock00:51:52 and5launch/3targeted/3fix counters retained untilbatch4published;
+humanreview-stopwaiver persists, no correctness/runtime/CI waiver. Account60percent
+weeklyremaining02:02Z, shared/not attributable. Prod225/local243/rolloutOFF unchanged.
+Finalfocused/type/lint/audit, targetedsourceacceptance, beforecapture proof andfinal
+cumulative review/exactheadCI/merge remain; no phase/goal completion claim.
+Batch4 requiredfocused409/17 plusarchitecture/UI/design/TypeScript/lint allPASS;
+no skippedtyping or overallfailedgate claim. Beforecapture remainsseparatelypending.
+
+## 2026-10-04 — Owner draft GET full-suite remediation
+
+Targeted4 Sol5.6/high CLEAN75c,1m59 manual; six launches/four targeted/four fixes,
+original reviewclock retained. Reviewed75c beforecapture expectedEXIT1 with exact
+cleanupPASS/intentionalFAIL, complete fixture andzero cleanupfailures; SAMEbaseline
+72477PASS. Normal/afterfixture80aa source/runtime parity retained, no new schema.
+Fullcoverage retained12664PASS/2FAIL/8SKIP: compactCURRENT missing historical
+attendance phrases, and offline persistentprotocol5334ms exceeded unchanged5s.
+Rootbatch5 restores continuity phrases and snapshots all247 actual SQLfiles only
+inside mocked transport tests; real hashguards run, changed-source fault rejects
+before dispatch, native source/guards/limits unchanged. InitialnewtestREDcache0;
+first implementation exposed incorrect expectedguard-error assertion, corrected
+to actual pre-dispatch rejection (no additional child). No blindretry/capincrease.
+Fullsuite/finalreview/stableheadCI/normalmerge pending; rolloutOFF, prod225/local243.
+Supersedingbatch5 checks:102/3affectedPASS, focused410/17+TypeScript/lint/policies
+PASS, audit/diffPASS; fullcoverage12667PASS/8SKIP andallthresholdsPASS. Failedruns
+retained. Account58percentweeklyremaining02:53Z, sharednotattributable; token/active
+telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollout.
+
+## 2026-10-05 — Survey split authoring
+
+New/Edit Survey now opens the test-style 1/3 details + 2/3 active question editor (stacked mobile); direct generated-title draft creation, MC/open-response/link, multiline prompts, selected-question navigation, autosave flush/retry, Markdown and Preview retained. Reuses CreationModalShell, Test split composition and @/ui controls; no shared-contract or stable-canon change, no experimental pattern/promotion. Survey identity guards retained; creation responses cannot open in another Classroom. Risk: workspace-state. Composite checklist reviewed: semantic pressed states, keyboard controls, modal Escape/focus; student n/a because only teacher authoring changed.
+
+Evidence: authoring/parent80 and student6 component tests PASS; browser4 PASS desktop1440x900/mobile390x844 × light/dark with edit, MC, open response, Markdown, Preview, new draft captures under test-results/survey-authoring-*; compared Test Pattern Lab reference /tmp/pika-survey-test-reference.png. Focused checks and independent review receipts follow in PR. Worktree survey-two-pane/pika; branch codex/survey-two-pane. One GPT-6.1 Sol medium worker mapped seams and wrote tests in two bounded assignments; coordinator verified80 tests. Weekly remaining50% at start; DeepSeek paused; worker/coordinator tokens and active time unknown; no edit conflicts/rework. Initial browser setup corrected theme key and fixture navigation before final4/4. No dependencies/schema/hosted changes.
+
+## 2026-10-05 — Approved classroom motion rollout
+
+Owner accepted Daily restrained200ms direction for wider adoption in the owning chat. Scoped stable/family canon, audit and Pattern Lab promotion recorded; no dependency/merge/deploy authorization. Follow-up codex/fluid-motion-rollout includes reviewedDailyb94 and targetsmain for canonical CI; prior1481/1482/1484 heads unchanged. Classwork stable table/inspector, Tests disclosure/hidden-menu Escape guard, cross-role opacity entry, reducedmotion and immediate pointerresize. Coordinator corrected primary-refresh priority and layout-controller remount before acceptance; RED mode-state regression nowGREEN,145owner cases pass. Final motion browser24/24(2.0min) across bothroles/viewport/themes/normal-reduced verifies DOM/drafts/focus/scroll, all3Classwork modes, actual200ms/0ms, pointergeometry, inert close and nooverflow. Forced-midpoint contract samples are labeled; natural recordings and fullrequiredgate/cumulative siblingproof/independent stable-SHA PR lifecycle follow. DeepSeekpaused; Sol/high worker partial delivery corrected/integrated bycoordinator; attributableactive/tokensunknown.
