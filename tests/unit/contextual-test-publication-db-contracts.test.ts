@@ -132,6 +132,30 @@ describe('contextual Test publication rollback database contracts', () => {
     expect(callBody).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
   })
 
+  it('isolates the whole-graph unrelated-row detector from target-Class revision fences', () => {
+    const target = f.tests.find(t => t.id === f.cases[0].testId)!
+    const probe = [...manifest.contracts.matchAll(/do \$probe\$([\s\S]*?)end;\$probe\$;/g)]
+      .map(match => match[1]).find(block => block.includes("message='detect-unrelated-row'"))!
+    const mutatedId = probe.match(/update public\.tests set documents=documents\|\|[\s\S]*?where id='([a-f0-9-]+)'::uuid;/)?.[1]
+    const unrelated = f.tests.find(t => t.id === mutatedId)
+    expect(unrelated).toBeDefined()
+    expect(unrelated!.id).not.toBe(target.id)
+    expect(unrelated!.classroom_id).not.toBe(target.classroom_id)
+    expect(unrelated!.blueprint_archived_at).toBeNull()
+    expect(probe).toContain("r->'test'->>'status'<>'closed'")
+    expect(probe).toContain('pg_temp.owner_publication_graph() is not distinct from inside_before')
+    expect(probe).toContain("raise exception using errcode='PT499',message='detect-unrelated-row'")
+    expect(probe).toContain('after_graph is distinct from before_graph')
+    expect(probe).toContain('into strict unrelated_before')
+    expect(probe).toContain('into strict unrelated_after')
+    expect(probe).toContain("unrelated_after->'documents' is distinct from")
+    expect(probe).toContain("inside_before->'public.tests' @> pg_catalog.jsonb_build_array(unrelated_before)")
+    expect(probe).toContain("pg_temp.owner_publication_graph()->'public.tests' @> pg_catalog.jsonb_build_array(unrelated_after)")
+    // Both rows and Classes remain in the whole rollback graph; no exemption.
+    expect(manifest.contracts).toContain(`'${unrelated!.id}'::uuid`)
+    expect(manifest.contracts).toContain(`'${unrelated!.classroom_id}'::uuid`)
+  })
+
   it('runs only the accepted bundle and always closes its exact session', async () => {
     const acceptedManifestSha256=createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
     const target=Object.freeze({projectId:project,apiUrl:'http://127.0.0.1:54331',databaseHost:'127.0.0.1',databasePort:54332,

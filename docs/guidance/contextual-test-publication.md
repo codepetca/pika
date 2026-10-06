@@ -74,6 +74,33 @@ Application/SQL252, counts, bounds and all rollback assertions are unchanged.
 Targeted independent review and fresh full native acceptance remain required;
 no generated types, PR/CI, merge, migration application or rollout is claimed.
 
+Review12 accepted the missing-Draft correction atc75d6b3. Before normalattempt8,
+the all-table checkpoint detected exactly three additional retained private PAL
+membership generations. A concurrent Daily-summary test ran at16:03:33–49 UTC,
+creating three synthetic enrollments and retaining their immutable history during
+cleanup. This is consistent with the delta, but its random generation IDs were
+not recorded and per-row attribution is unproven. Authorized B4 refresh retained
+B1/B2/B3, compared two stable full183/all5 read-only captures, and kept all other
+182 tables and four metadata fields exact. Review13 found an unguarded supporting
+log receipt; review14 cleared full object/file hashing plus a private custody copy.
+Normalattempt8 left HQ/finance-intake running, passed startup and earlier probes,
+then failed detect-unrelated-rowP2542. Exact owned cleanup and a separate strict
+whole-B4 check passed; both named testing chats were released.
+
+That detector edited another Test in the target Classroom while expecting a
+successful publication. Its extra archive/source revision effects conflict with
+the function's exact target-Class postconditions. Select an existing non-retired
+Test in a different active fixture Classroom, so the external whole-graph detector
+is exercised independently of those legitimate target-Class fences. The probe
+still requires a closed witness, a reached mutation marker, visible whole-graph
+change inside the subtransaction, and exact whole-graph equality after rollback.
+It now also captures the complete unrelated Test pre/postimages, checks its exact
+document append, and requires both full rows in the respective whole graphs.
+No fixture inventory, product/API/SQL252, scope predicates, counts or limits are
+changed. New regression RED reproduced the same-Class mistake. Targeted source
+review and fresh full native acceptance are still required; no genuine types,
+PR/CI, merge, canonical migration application or rollout is claimed.
+
 Full-coverage attempts and their failures are retained in the coordinator receipt.
 Local runtime PATH needed the pinned pnpm10.25 shim; startup guidance stays within
 its unchanged17000-character budget with all required historical/environment
