@@ -18,6 +18,27 @@ import type {
 import type { InspectorSectionId, StudentWorkData } from './types'
 
 type GradeSaveMode = 'draft' | 'graded'
+type WorkReadState = 'pending' | 'ready' | 'transient' | 'unavailable' | 'conflict'
+
+class StudentWorkReadError extends Error {
+  constructor(readonly transient: boolean) {
+    super('Failed to load student work')
+  }
+}
+
+async function fetchStudentWork(url: string): Promise<StudentWorkData> {
+  let response: Response
+  try {
+    response = await fetch(url, undefined)
+  } catch (error) {
+    if (error instanceof TypeError) throw new StudentWorkReadError(true)
+    throw error
+  }
+  if (!response.ok) {
+    throw new StudentWorkReadError(response.status >= 500 && response.status <= 599)
+  }
+  return response.json()
+}
 
 const SECTION_ORDER: InspectorSectionId[] = ['history', 'grades', 'comments']
 const DEFAULT_EXPANDED_SECTIONS: InspectorSectionId[] = ['grades', 'comments']
@@ -212,6 +233,10 @@ export interface TeacherStudentWorkController {
   data: StudentWorkData | null
   error: string
   loading: boolean
+  readState: WorkReadState
+  hasMatchingOwner: boolean
+  writesPaused: boolean
+  retryStudentWork: () => Promise<StudentWorkData | null>
   showInitialSpinner: boolean
   historyEntries: AssignmentDocHistoryEntry[]
   historyLoading: boolean
@@ -273,6 +298,30 @@ export function useTeacherStudentWorkController({
     isSaving: boolean
   }) => void
 }): TeacherStudentWorkController {
+  const owner = JSON.stringify([classroomId, assignmentId, studentId])
+  const ownerRef = useRef(owner)
+  const ownerEpochRef = useRef(0)
+  if (ownerRef.current !== owner) {
+    ownerRef.current = owner
+    ownerEpochRef.current += 1
+  }
+  const loadedOwnerRef = useRef<string | null>(null)
+  const [loadedOwner, setLoadedOwner] = useState<string | null>(null)
+  const [readState, setReadState] = useState<WorkReadState>('pending')
+  const [readOwner, setReadOwner] = useState(owner)
+  const readBlockedRef = useRef(true)
+  const confirmedRevisionRef = useRef<string | null>(null)
+  const mutationRef = useRef<{ owner: string; epoch: number; promise: Promise<void>; finish: () => void } | null>(null)
+  const beginMutation = useCallback(() => {
+    let finish!: () => void
+    const promise = new Promise<void>((resolve) => { finish = resolve })
+    const mutation = { owner: ownerRef.current, epoch: ownerEpochRef.current, promise, finish }
+    mutationRef.current = mutation
+    return () => {
+      if (mutationRef.current === mutation) mutationRef.current = null
+      finish()
+    }
+  }, [])
   const studentLoadRequestIdRef = useRef(0)
   const historyLoadRequestIdRef = useRef(0)
   const lastSavedGradeSnapshotRef = useRef('')
@@ -307,7 +356,22 @@ export function useTeacherStudentWorkController({
   const [visibleSections, setVisibleSections] = useState<InspectorSectionId[]>(() =>
     parseVisibleSections(readCookie(getInspectorVisibleSectionsCookieName(classroomId))),
   )
+  const liveSnapshotRef = useRef('')
+  liveSnapshotRef.current = buildGradeSnapshot({ scoreCompletion, scoreThinking, scoreWorkflow, feedbackDraft, mode: gradeMode })
+  const hasMatchingOwner = loadedOwner === owner
+  const activeReadState = readOwner === owner ? readState : 'pending'
+  const writesPaused = !hasMatchingOwner || activeReadState !== 'ready'
+  const canDispatch = useCallback(() => (
+    loadedOwnerRef.current === ownerRef.current && !readBlockedRef.current
+      && !(mutationRef.current?.owner === ownerRef.current && mutationRef.current.epoch === ownerEpochRef.current)
+  ), [])
   const showInitialSpinner = useDelayedBusy(loading && !data)
+
+  useEffect(() => () => {
+    ownerEpochRef.current += 1
+    studentLoadRequestIdRef.current += 1
+    loadedOwnerRef.current = null
+  }, [])
 
   useEffect(() => {
     setExpandedSections(parseExpandedSections(readCookie(getInspectorSectionsCookieName(classroomId))))
@@ -446,6 +510,7 @@ export function useTeacherStudentWorkController({
 
   const populateGradeForm = useCallback((doc: AssignmentDoc | null, mergeBaseDraft?: string | null) => {
     clearDraftAutosavedNotice()
+    confirmedRevisionRef.current = doc?.updated_at ?? null
     if (!doc) {
       setScoreCompletion('')
       setScoreThinking('')
@@ -488,42 +553,77 @@ export function useTeacherStudentWorkController({
   }, [clearDraftAutosavedNotice])
 
   const loadStudentWork = useCallback(
-    async (options?: { mergeFeedbackIntoDraftFrom?: string | null }): Promise<StudentWorkData | null> => {
+    async (options?: { mergeFeedbackIntoDraftFrom?: string | null; afterMutation?: boolean }): Promise<StudentWorkData | null> => {
       const requestId = ++studentLoadRequestIdRef.current
+      const epoch = ownerEpochRef.current
+      const isCurrent = () => requestId === studentLoadRequestIdRef.current
+        && owner === ownerRef.current && epoch === ownerEpochRef.current
+      readBlockedRef.current = true
+      if (gradeAutosaveTimeoutRef.current) {
+        window.clearTimeout(gradeAutosaveTimeoutRef.current)
+        gradeAutosaveTimeoutRef.current = null
+      }
+      if (loadedOwnerRef.current !== owner) {
+        setGradeSaving(false)
+        setFeedbackReturning(false)
+        setAutoGrading(false)
+      }
+      setReadOwner(owner)
+      setReadState('pending')
       setLoading(true)
       setError('')
       setGradeError('')
       handleExitPreview()
 
       try {
-        const result = await fetchJSON<StudentWorkData>(
+        // A refresh must observe the server acknowledgement, never optimistic data.
+        if (!options?.afterMutation) {
+          while (mutationRef.current?.owner === owner && mutationRef.current.epoch === epoch) {
+            await mutationRef.current.promise
+          }
+        }
+        if (!isCurrent()) return null
+        const result = await fetchStudentWork(
           `/api/teacher/assignments/${assignmentId}/students/${studentId}`,
-          { errorMessage: 'Failed to load student work' },
         )
-        if (requestId !== studentLoadRequestIdRef.current) {
-          return null
-        }
+        if (!isCurrent()) return null
 
-        setData(result)
-        populateGradeForm(result.doc, options?.mergeFeedbackIntoDraftFrom)
-        return result
-      } catch (err: any) {
-        if (requestId !== studentLoadRequestIdRef.current) {
-          return null
+        const sameOwner = loadedOwnerRef.current === owner
+        const dirty = liveSnapshotRef.current !== lastSavedGradeSnapshotRef.current
+        if (sameOwner && dirty && !options?.afterMutation) {
+          if ((result.doc?.updated_at ?? null) !== confirmedRevisionRef.current) {
+            setReadState('conflict')
+            return null
+          }
+          // Keep the live form and its acknowledged snapshot, including edits made during GET.
+          setData(result)
+        } else {
+          setData(result)
+          populateGradeForm(result.doc, options?.mergeFeedbackIntoDraftFrom)
         }
-        setError(err.message || 'Failed to load student work')
+        loadedOwnerRef.current = owner
+        setLoadedOwner(owner)
+        readBlockedRef.current = false
+        setReadState('ready')
+        return result
+      } catch (err: unknown) {
+        if (!isCurrent()) return null
+        const transient = err instanceof StudentWorkReadError && err.transient
+        setReadState(transient ? 'transient' : 'unavailable')
+        setError(transient ? 'Could not load student work' : 'Student work unavailable')
         return null
       } finally {
-        if (requestId === studentLoadRequestIdRef.current) {
-          setLoading(false)
-        }
+        if (isCurrent()) setLoading(false)
       }
     },
-    [assignmentId, handleExitPreview, populateGradeForm, studentId],
+    [assignmentId, handleExitPreview, owner, populateGradeForm, studentId],
   )
 
   useEffect(() => {
     void loadStudentWork()
+    return () => {
+      studentLoadRequestIdRef.current += 1
+    }
   }, [loadStudentWork, refreshKey])
 
   useEffect(() => {
@@ -570,7 +670,7 @@ export function useTeacherStudentWorkController({
 
   const persistGrade = useCallback(
     async (selectedSaveMode: GradeSaveMode, options?: { source?: 'autosave' | 'manual' }) => {
-      if (!data || mutationsDisabled || feedbackReturning) return
+      if (!data || mutationsDisabled || feedbackReturning || !canDispatch()) return
 
       const parsedScores = parseGradeInputs({
         scoreCompletion,
@@ -606,6 +706,9 @@ export function useTeacherStudentWorkController({
       })
       const previousSavedSnapshot = lastSavedGradeSnapshotRef.current
 
+      const epoch = ownerEpochRef.current
+      const finishMutation = beginMutation()
+      const isCurrent = () => ownerRef.current === owner && ownerEpochRef.current === epoch
       setGradeSaving(true)
       setGradeError('')
       const previousDoc = data.doc
@@ -667,11 +770,13 @@ export function useTeacherStudentWorkController({
             score_workflow: sw,
             feedback: feedbackDraft,
             save_mode: selectedSaveMode,
-            expected_doc_updated_at: previousDoc?.updated_at ?? null,
+            expected_doc_updated_at: confirmedRevisionRef.current,
           }),
         })
         const result = await response.json()
+        if (!isCurrent()) return
         if (!response.ok) throw new Error(result.error || 'Failed to save grade')
+        confirmedRevisionRef.current = result.doc?.updated_at ?? null
         lastSavedGradeSnapshotRef.current = nextSnapshot
         setData((current) => (current ? { ...current, doc: result.doc } : current))
         setGradeMode(getInitialGradeSaveMode(result.doc))
@@ -682,15 +787,20 @@ export function useTeacherStudentWorkController({
           clearDraftAutosavedNotice()
         }
       } catch (err: any) {
+        if (!isCurrent()) return
         lastSavedGradeSnapshotRef.current = previousSavedSnapshot
         setData((current) => (current ? { ...current, doc: previousDoc } : current))
         setGradeError(err.message || 'Failed to save grade')
       } finally {
-        setGradeSaving(false)
+        finishMutation()
+        if (isCurrent()) setGradeSaving(false)
       }
     },
     [
       assignmentId,
+      beginMutation,
+      canDispatch,
+      owner,
       data,
       dispatchGradeUpdated,
       clearDraftAutosavedNotice,
@@ -706,7 +816,7 @@ export function useTeacherStudentWorkController({
   )
 
   useEffect(() => {
-    if (!data || gradeSaving || feedbackReturning || mutationsDisabled) return
+    if (!data || gradeSaving || feedbackReturning || mutationsDisabled || writesPaused || autoGrading) return
 
     const selectedSaveMode = gradeMode
     const nextSnapshot = buildGradeSnapshot({
@@ -744,7 +854,7 @@ export function useTeacherStudentWorkController({
         gradeAutosaveTimeoutRef.current = null
       }
     }
-  }, [data, feedbackDraft, feedbackReturning, gradeMode, gradeSaving, mutationsDisabled, persistGrade, scoreCompletion, scoreThinking, scoreWorkflow])
+  }, [autoGrading, data, feedbackDraft, feedbackReturning, gradeMode, gradeSaving, mutationsDisabled, persistGrade, scoreCompletion, scoreThinking, scoreWorkflow, writesPaused])
 
   useEffect(() => {
     if (!mutationsDisabled || !gradeAutosaveTimeoutRef.current) return
@@ -778,16 +888,19 @@ export function useTeacherStudentWorkController({
 
   const handleSetGradeMode = useCallback(
     async (selectedSaveMode: GradeSaveMode) => {
-      if (gradeSaving || feedbackReturning || mutationsDisabled) return
+      if (gradeSaving || feedbackReturning || mutationsDisabled || !canDispatch()) return
       setGradeMode(selectedSaveMode)
       await persistGrade(selectedSaveMode, { source: 'manual' })
     },
-    [feedbackReturning, gradeSaving, mutationsDisabled, persistGrade],
+    [canDispatch, feedbackReturning, gradeSaving, mutationsDisabled, persistGrade],
   )
 
   const handleAutoGrade = useCallback(async () => {
-    if (!data || gradeSaving || feedbackReturning || mutationsDisabled) return
+    if (!data || gradeSaving || feedbackReturning || mutationsDisabled || !canDispatch()) return
 
+    const epoch = ownerEpochRef.current
+    const finishMutation = beginMutation()
+    const isCurrent = () => ownerRef.current === owner && ownerEpochRef.current === epoch
     setAutoGrading(true)
     setGradeError('')
     try {
@@ -797,6 +910,7 @@ export function useTeacherStudentWorkController({
         body: JSON.stringify({ student_ids: [studentId] }),
       })
       const result = await response.json()
+      if (!isCurrent()) return
       if (!response.ok) throw new Error(result.error || 'Auto-grade failed')
       if (result.errors?.length) {
         setGradeError(result.errors.join(', '))
@@ -808,17 +922,19 @@ export function useTeacherStudentWorkController({
       }
       const refreshed = await loadStudentWork({
         mergeFeedbackIntoDraftFrom: feedbackDraft.trim() ? feedbackDraft : null,
+        afterMutation: true,
       })
-      dispatchGradeUpdated(refreshed?.doc ?? null)
+      if (isCurrent()) dispatchGradeUpdated(refreshed?.doc ?? null)
     } catch (err: any) {
-      setGradeError(err.message || 'Auto-grade failed')
+      if (isCurrent()) setGradeError(err.message || 'Auto-grade failed')
     } finally {
-      setAutoGrading(false)
+      finishMutation()
+      if (isCurrent()) setAutoGrading(false)
     }
-  }, [assignmentId, data, dispatchGradeUpdated, feedbackDraft, feedbackReturning, gradeSaving, loadStudentWork, mutationsDisabled, studentId])
+  }, [assignmentId, beginMutation, canDispatch, owner, data, dispatchGradeUpdated, feedbackDraft, feedbackReturning, gradeSaving, loadStudentWork, mutationsDisabled, studentId])
 
   const handleReturnFeedback = useCallback(async () => {
-    if (!data || gradeSaving || feedbackReturning || mutationsDisabled) return
+    if (!data || gradeSaving || feedbackReturning || mutationsDisabled || !canDispatch()) return
 
     const trimmed = feedbackDraft.trim()
     if (!trimmed) {
@@ -830,6 +946,9 @@ export function useTeacherStudentWorkController({
       window.clearTimeout(gradeAutosaveTimeoutRef.current)
       gradeAutosaveTimeoutRef.current = null
     }
+    const epoch = ownerEpochRef.current
+    const finishMutation = beginMutation()
+    const isCurrent = () => ownerRef.current === owner && ownerEpochRef.current === epoch
     setFeedbackReturning(true)
     setGradeError('')
     try {
@@ -839,10 +958,11 @@ export function useTeacherStudentWorkController({
         body: JSON.stringify({
           student_id: studentId,
           feedback: trimmed,
-          expected_doc_updated_at: data.doc?.updated_at ?? null,
+          expected_doc_updated_at: confirmedRevisionRef.current,
         }),
       })
       const result = await response.json()
+      if (!isCurrent()) return
       if (!response.ok) throw new Error(result.error || 'Failed to return comments')
 
       setData((current) =>
@@ -857,12 +977,16 @@ export function useTeacherStudentWorkController({
       populateGradeForm(result.doc, '')
       dispatchGradeUpdated(result.doc)
     } catch (err: any) {
-      setGradeError(err.message || 'Failed to return comments')
+      if (isCurrent()) setGradeError(err.message || 'Failed to return comments')
     } finally {
-      setFeedbackReturning(false)
+      finishMutation()
+      if (isCurrent()) setFeedbackReturning(false)
     }
   }, [
     assignmentId,
+    beginMutation,
+    canDispatch,
+    owner,
     data,
     dispatchGradeUpdated,
     feedbackDraft,
@@ -907,8 +1031,12 @@ export function useTeacherStudentWorkController({
 
   return {
     data,
-    error,
-    loading,
+    error: readOwner === owner ? error : '',
+    loading: loading || readOwner !== owner,
+    readState: activeReadState,
+    hasMatchingOwner,
+    writesPaused,
+    retryStudentWork: loadStudentWork,
     showInitialSpinner,
     historyEntries,
     historyLoading,

@@ -412,6 +412,7 @@ export function TeacherWorkInspector({
   feedbackReturning,
   gradeSaving,
   mutationsDisabled = false,
+  writeActionsDisabled = false,
   showDraftAutosavedNotice,
   highlightedSections = [],
   expandedSections,
@@ -450,6 +451,7 @@ export function TeacherWorkInspector({
   feedbackReturning: boolean
   gradeSaving: boolean
   mutationsDisabled?: boolean
+  writeActionsDisabled?: boolean
   showDraftAutosavedNotice: boolean
   highlightedSections?: readonly InspectorSectionId[]
   expandedSections: InspectorSectionId[]
@@ -461,6 +463,7 @@ export function TeacherWorkInspector({
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
 }) {
   const gradeMutationsDisabled = gradeSaving || feedbackReturning || mutationsDisabled
+  const writeCommandsDisabled = gradeMutationsDisabled || writeActionsDisabled
   const feedbackEditorDisabled = feedbackReturning || mutationsDisabled
   const gradeStatusLabel = gradeSaving
     ? `Saving ${gradeMode === 'graded' ? 'graded' : 'draft'}...`
@@ -547,8 +550,8 @@ export function TeacherWorkInspector({
               }}
               testId="grade-mode-toggle"
               options={[
-                { value: 'draft', label: 'Draft', disabled: gradeMutationsDisabled },
-                { value: 'graded', label: 'Final', disabled: gradeMutationsDisabled },
+                { value: 'draft', label: 'Draft', disabled: writeCommandsDisabled },
+                { value: 'graded', label: 'Final', disabled: writeCommandsDisabled },
               ]}
             />
           </div>
@@ -583,7 +586,7 @@ export function TeacherWorkInspector({
                 onClick={() => {
                   void handleReturnFeedback()
                 }}
-                disabled={gradeMutationsDisabled || !feedbackDraft.trim()}
+                disabled={writeCommandsDisabled || !feedbackDraft.trim()}
               >
                 {feedbackReturning ? (
                   'Sending...'
