@@ -96,7 +96,7 @@ export function SegmentedControl<TValue extends string>({
             }}
             type="button"
             className={cn(
-              'inline-flex min-h-control min-w-control items-center justify-center gap-1.5 rounded-control text-xs font-medium transition-colors focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
+              'inline-flex min-h-control min-w-control items-center justify-center gap-1.5 rounded-control text-xs font-medium transition-colors duration-fast ease-standard motion-reduce:transition-none focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
               iconOnly ? 'h-11 w-11 px-0' : 'px-3 py-1 sm:text-sm',
               capitalizeLabels && !iconOnly ? 'capitalize' : '',
               isActive

@@ -104,7 +104,7 @@ export function Tabs<TValue extends string>({
             onClick={() => activateItem(item)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={cn(
-              'min-h-control shrink-0 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
+              'min-h-control shrink-0 px-3 py-2 text-sm font-medium transition-colors duration-fast ease-standard motion-reduce:transition-none focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset',
               variant === 'connected'
                 ? isActive
                   ? 'relative z-10 rounded-t-lg border border-border border-b-surface bg-surface text-text-default'
