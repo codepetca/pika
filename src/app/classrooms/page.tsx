@@ -30,7 +30,7 @@ export default async function ClassroomsIndexPage() {
     ])
 
     return (
-      <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+      <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
         <TeacherClassroomsIndex
           initialClassrooms={error ? [] : hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}
           initialReadError={Boolean(error)}
@@ -61,7 +61,7 @@ export default async function ClassroomsIndexPage() {
 
   if (classroomIds.length === 0) {
     return (
-      <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+      <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
         <StudentClassroomsIndex initialClassrooms={[]} studentId={user.id} />
         {palAvailable ? <StudentPalAmbientSurfaces scopeKey="classrooms-index" /> : null}
       </AppShell>
@@ -76,7 +76,7 @@ export default async function ClassroomsIndexPage() {
     .order('updated_at', { ascending: false })
 
   return (
-    <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }}>
+    <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }}>
       <StudentClassroomsIndex
         initialClassrooms={classroomError ? [] : hydrateClassroomRecords((classrooms || []).map(classroomStudentRecord))}
         initialReadError={Boolean(classroomError)}

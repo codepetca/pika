@@ -12,17 +12,17 @@ vi.mock('@/components/AuthSessionWatcher', () => ({
 
 describe('AppShell', () => {
   it('keeps the main content region full width with default and custom page classes', () => {
-    const { rerender } = render(<AppShell>Default content</AppShell>)
+    const { rerender } = render(<AppShell initialNow={Date.parse('2026-10-05T16:00:00Z')}>Default content</AppShell>)
 
     expect(screen.getByRole('main')).toHaveClass('w-full', 'max-w-7xl')
 
-    rerender(<AppShell mainClassName="max-w-none px-0 py-0">Custom content</AppShell>)
+    rerender(<AppShell initialNow={Date.parse('2026-10-05T16:00:00Z')} mainClassName="max-w-none px-0 py-0">Custom content</AppShell>)
     expect(screen.getByRole('main')).toHaveClass('w-full', 'max-w-none', 'px-0', 'py-0')
   })
 
   it('places optional application navigation between the header and main content', () => {
     render(
-      <AppShell navigation={<nav aria-label="Teacher tools">Navigation</nav>}>
+      <AppShell initialNow={Date.parse('2026-10-05T16:00:00Z')} navigation={<nav aria-label="Teacher tools">Navigation</nav>}>
         Content
       </AppShell>,
     )

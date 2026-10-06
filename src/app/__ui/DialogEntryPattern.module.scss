@@ -1,0 +1,14 @@
+.quietEntry {
+  animation: dialogEntry var(--motion-duration-standard) var(--motion-easing-standard) both;
+}
+
+@keyframes dialogEntry {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quietEntry {
+    animation: none;
+  }
+}

@@ -80,6 +80,9 @@ import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 import { UiConsistencyPattern } from './UiConsistencyPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { DialogEntryPattern } from './DialogEntryPattern'
+
+const HEADER_REFERENCE_INITIAL_NOW = Date.parse('2026-10-05T16:00:00Z')
 
 const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
   '### Task',
@@ -178,8 +181,9 @@ export function UiGallery({ role }: Props) {
   return (
     <main className="min-h-screen bg-page text-text-default">
       <section aria-label="Application header references">
-        <AppHeader user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
+        <AppHeader initialNow={HEADER_REFERENCE_INITIAL_NOW} user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
         <AppHeader
+          initialNow={HEADER_REFERENCE_INITIAL_NOW}
           user={{ email: `${role}@example.invalid`, role }}
           examModeHeader={{ testTitle: 'Exam header reference', exitsCount: 0, awayTotalSeconds: 0 }}
         />
@@ -590,6 +594,14 @@ export function UiGallery({ role }: Props) {
         </div>
 
         <ClassroomsReadRecoveryPattern role={role} />
+        <PatternSection
+          id="dialog-entry-preview"
+          eyebrow="Experimental · dialog entry"
+          title="Dialog entry comparison"
+          description="Actual ContentDialog owners with a retained local draft, nested confirmation, and fixture destination callback. This comparison awaits human review."
+        >
+          <DialogEntryPattern role={role} />
+        </PatternSection>
 
         {role === 'teacher' && (
           <PatternSection

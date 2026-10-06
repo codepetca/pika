@@ -1,0 +1,105 @@
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it } from 'vitest'
+import { DialogEntryPattern } from '@/app/__ui/DialogEntryPattern'
+
+describe('experimental dialog entry fixture', () => {
+  it.each(['teacher', 'student'] as const)('exposes both entries and canonical immediate focus for %s', async (role) => {
+    const user = userEvent.setup()
+    render(<DialogEntryPattern role={role} />)
+    expect(screen.getByText(/Experimental/)).toBeInTheDocument()
+    const immediate = screen.getByRole('button', { name: 'Open immediate dialog entry' })
+    const quiet = screen.getByRole('button', { name: 'Open quiet dialog entry' })
+    await user.click(immediate)
+    let dialog = screen.getByRole('dialog', { name: 'Dialog entry preview' })
+    expect(within(dialog).getByRole('button', { name: 'Close', exact: true })).toHaveFocus()
+    expect(within(dialog).getByText('Entry: Immediate')).toBeInTheDocument()
+    expect(within(dialog).getByText(`${role === 'teacher' ? 'Teacher' : 'Student'} presentation`)).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(immediate).toHaveFocus()
+    await user.click(quiet)
+    dialog = screen.getByRole('dialog', { name: 'Dialog entry preview' })
+    expect(within(dialog).getByRole('button', { name: 'Close', exact: true })).toHaveFocus()
+    expect(within(dialog).getByText('Entry: Quiet')).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Close', exact: true }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(quiet).toHaveFocus()
+  })
+
+  it('preserves the live draft node, selection and scroll through local updates, then its backing value on reopen', async () => {
+    const user = userEvent.setup()
+    render(<DialogEntryPattern role="teacher" />)
+    await user.click(screen.getByRole('button', { name: 'Open quiet dialog entry' }))
+    const dialog = screen.getByRole('dialog', { name: 'Dialog entry preview' })
+    const panelClass = dialog.className
+    const input = within(dialog).getByRole('textbox', { name: 'Dialog entry draft' }) as HTMLInputElement
+    await user.clear(input)
+    await user.type(input, 'Retained classroom note')
+    input.setSelectionRange(3, 11)
+    const body = screen.getByTestId('dialog-entry-body').parentElement!
+    body.scrollTop = 180
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Refresh dialog entry metadata' }))
+    expect(screen.getByRole('dialog', { name: 'Dialog entry preview' })).toBe(dialog)
+    expect(dialog.className).toBe(panelClass)
+    expect(within(dialog).getByRole('textbox', { name: 'Dialog entry draft' })).toBe(input)
+    expect(input).toHaveValue('Retained classroom note')
+    expect(input.selectionStart).toBe(3)
+    expect(input.selectionEnd).toBe(11)
+    expect(body.scrollTop).toBe(180)
+    expect(within(dialog).getByText('Metadata revision: 1')).toBeInTheDocument()
+    expect(within(dialog).getByText('Entry: Quiet')).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(input).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Open immediate dialog entry' }))
+    expect(screen.getByRole('textbox', { name: 'Dialog entry draft' })).toHaveValue('Retained classroom note')
+    expect(screen.getByText('Entry: Immediate')).toBeInTheDocument()
+  })
+
+  it('lets the canonical top layer handle Escape and restore its opener before closing the parent', async () => {
+    const user = userEvent.setup()
+    render(<DialogEntryPattern role="student" />)
+    const opener = screen.getByRole('button', { name: 'Open quiet dialog entry' })
+    await user.click(opener)
+    const parent = screen.getByRole('dialog', { name: 'Dialog entry preview' })
+    const nestedOpener = within(parent).getByRole('button', { name: 'Open dialog entry confirmation' })
+    await user.click(nestedOpener)
+    const nested = screen.getByRole('dialog', { name: 'Dialog entry nested confirmation' })
+    expect(within(nested).getByRole('button', { name: 'Close', exact: true })).toHaveFocus()
+    expect(parent.closest('[aria-hidden="true"]')).not.toBeNull()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Dialog entry nested confirmation' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Dialog entry preview' })).toBe(parent)
+    expect(nestedOpener).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(opener).toHaveFocus()
+  })
+
+  it('runs the local destination command immediately and restores background state and focus', async () => {
+    const user = userEvent.setup()
+    render(<DialogEntryPattern role="student" />)
+    const opener = screen.getByRole('button', { name: 'Open quiet dialog entry' })
+    const initialOverflow = document.body.style.overflow
+    await user.click(opener)
+    const dialog = screen.getByRole('dialog', { name: 'Dialog entry preview' })
+    expect(document.body.style.overflow).toBe('hidden')
+    const command = within(dialog).getByRole('button', { name: 'Select fixture destination' })
+    expect(screen.getByTestId('dialog-entry-body').parentElement).not.toContainElement(command)
+    await user.click(command)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Fixture destination selected: Student history')
+    expect(document.body.style.overflow).toBe(initialOverflow)
+    expect(opener).toHaveFocus()
+    expect(opener.closest('[aria-hidden="true"]')).toBeNull()
+  })
+
+  it('dismisses from the actual backdrop without retaining the panel', async () => {
+    const user = userEvent.setup()
+    render(<DialogEntryPattern role="teacher" />)
+    const opener = screen.getByRole('button', { name: 'Open quiet dialog entry' })
+    await user.click(opener)
+    await user.click(screen.getByRole('button', { name: 'Close dialog', exact: true }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(opener).toHaveFocus()
+  })
+})

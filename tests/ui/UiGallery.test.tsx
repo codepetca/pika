@@ -63,6 +63,14 @@ describe('UiGallery accessibility contracts', () => {
     expect(example.queryByRole('list', { name: 'Controlled retained classroom list' })).not.toBeInTheDocument()
   })
 
+  it.each(['teacher', 'student'] as const)('keeps the experimental dialog comparison outside the canonical capture for %s', (role) => {
+    renderGallery(role)
+    const fixture = screen.getByTestId('dialog-entry-pattern')
+    expect(screen.getByTestId('pattern-lab-contracts')).not.toContainElement(fixture)
+    expect(within(fixture).getByRole('button', { name: 'Open immediate dialog entry' })).toBeInTheDocument()
+    expect(within(fixture).getByRole('button', { name: 'Open quiet dialog entry' })).toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('demonstrates normal and exam header navigation for %s', (role) => {
     renderGallery(role)
     if (role === 'student') expect(screen.queryByRole('button', { name: 'Open survey edit prototype' })).not.toBeInTheDocument()

@@ -445,7 +445,7 @@ function renderClient(options?: {
 
   return render(
     <MarkdownPreferenceProvider>
-      <ClassroomPageClient
+      <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classroom={targetClassroom}
         user={{ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
         teacherClassrooms={[targetClassroom]}
@@ -471,7 +471,7 @@ function renderStudentClient(options?: {
 
   return render(
     <MarkdownPreferenceProvider>
-      <ClassroomPageClient
+      <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classroom={targetClassroom}
         user={{ id: 'student-1', email: 'student1@example.com', role: options?.sessionRole ?? 'student' }}
         classroomRole={options?.classroomRole}
@@ -832,7 +832,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-2?tab=today')
     view.rerender(
       <MarkdownPreferenceProvider>
-        <ClassroomPageClient
+        <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
           classroom={secondClassroom}
           user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
           teacherClassrooms={[]}
@@ -959,7 +959,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByTestId('pal-ambient-surfaces')).toBeInTheDocument()
     view.rerender(
       <MarkdownPreferenceProvider>
-        <ClassroomPageClient
+        <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
           classroom={{ ...classroom, id: 'classroom-2', feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, achievements: false } }}
           user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
           teacherClassrooms={[]}
@@ -1146,7 +1146,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     window.history.replaceState({}, '', '/classrooms/classroom-2?tab=today')
     view.rerender(
       <MarkdownPreferenceProvider>
-        <ClassroomPageClient
+        <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
           classroom={secondClassroom}
           user={{ id: 'student-1', email: 'student1@example.com', role: 'student' }}
           teacherClassrooms={[]}
@@ -1319,7 +1319,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
     view.rerender(
       <MarkdownPreferenceProvider>
-        <ClassroomPageClient
+        <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
           classroom={secondClassroom}
           user={{ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
           teacherClassrooms={[secondClassroom]}
