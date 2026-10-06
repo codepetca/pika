@@ -508,7 +508,21 @@ export interface DraftGetSession {
   execute(sql: string, timeoutMs: number): Promise<readonly { result?: unknown }[]>
   rollbackAndClose(timeoutMs: number): Promise<void>
 }
+/** Inert observation only: no source rows, errors, SQL or identities cross this
+ * seam. An observer cannot change proof rejection or prevent finally cleanup. */
+export type DraftGetObservation =
+  | { event: 'schedule-start'; index: number }
+  | { event: 'schedule-end' }
+  | { event: 'failure'; kind: 'assertion' | 'total-budget' | 'unknown' }
+export function observeDraftGetProof(driver: DraftGetDriver, event: DraftGetObservation) {
+  try { driver.observe?.(event) } catch { /* Observation must not alter execution. */ }
+}
+export function observeDraftGetProofFailure(driver: DraftGetDriver, error: unknown) {
+  observeDraftGetProof(driver, { event: 'failure', kind: error instanceof assert.AssertionError
+    ? error.message === 'Finite total harness budget exhausted' ? 'total-budget' : 'assertion' : 'unknown' })
+}
 export interface DraftGetDriver {
+  observe?(event: DraftGetObservation): void
   verifyTarget(): Promise<DraftGetTarget>
   openSession(name: string): Promise<DraftGetSession>
 }
@@ -528,6 +542,7 @@ export async function runDraftGetContracts(f: DraftGetFixture, target: DraftGetT
     await session.execute(sql, 35000)
     assert.deepEqual(await driver.verifyTarget(), target)
     await session.execute(boundsAndDrift, 90000)
+  } catch (error) { observeDraftGetProofFailure(driver, error); throw error
   } finally { await session.rollbackAndClose(DRAFT_GET_CAPS.requestMs) }
   return Object.freeze({ kind: 'rollback-contracts', sourceSha256: target.reviewedSourceSha256 })
 }

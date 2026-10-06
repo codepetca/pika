@@ -11,159 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Owner draft exact-head CI lint correction
-
-Finalcumulativefb6reviewCLEAN323/10, ready normalCI37401089941. Database warning
-gate failed:249 baseline outerv_position shadows implicitFOR variable; finish
-v_inner_result assigned but unread. Otherheavyjobs cancelled, PRGateFAIL.
-Returned1480toDRAFTbefore sourceedits; no blindrerun/bypass/thresholdchange.
-Root mechanicalSQLfix preservesloop/body/atomicwriter/exception/postconditions;
-regressionRED3/29 thenGREEN126/3. Newsource249needsfixedreview+newnormal/forced/
-genuinetypes acceptance; oldnormal10retainedhistorical. Canonical249unapplied,
-production/cohort/accounts/billingunchanged. Originalreviewclock/countersretained.
-Focused523/24 plusarchitecture/UI/design/tsc/lintPASS; originalstagedaudit1TS,
-scopedESLint/diffPASS. Officialtrim40of41 movedoneentrywithoutdroppinghistory.
-
-## 2026-10-06 — Corrected owner draft isolated proof acceptance
-
-IndependentexistingSol5.6/high reviewer accepted45c9source/normal11plan,186/3
-offlinePASS; about4minwall/effectiveunknown. RootFULLread; metadataonlyfollowup
-context/counters correction, verdictunchanged. Originalclock20launch16target11batch
-2final preserved, lifecycle27events11syncpushes; no budget/runtimecounterreset.
-Normal11 02:05:01–02:15:18Z observed10min17s total,24SDK/42RPC/0Storage;
-all16races134dispatches143778ms under180s,2803controls186actions0remainingsessions.
-Rollbackcontracts NEW249db80677f, exactwholefixture/enginecleanup/canonicalPASS.
-Bothserialforced expectedexit1/exactcleanupPASS+specificFAIL; separateWHOLEsameB1
-PASSaftereachmode/normal. OriginalB0/B1/receipt/provenancehashesunchanged,no exemptions.
-Newgenuine45c9CLIartifact436753bytes/SHA09f1c224 BYTEIDENTICALinstalledcontracts,
-migrationManifest4ae5b8af; no generatedsignature/type/sourcecodeedits. Finalreview/
-exactCI/SQLwarninggate/mainmergepending. Canonical249local/prodUNAPPLIED;
-prod/cohort/account/provider/billingOFF; componentnotphaseexit/fullgoalcompletion.
-
-## 2026-10-06 — Owner draft main merge; ordinary Test creation preparation
-
-#1480 exact reviewed7fa6674 passed all five checks in CI37403984915, including
-warning-free database lint and PR Gate. Normal squash25457e merged03:17:42UTC;
-canonical main fast-forwarded cleanly, preserving all36 unrelated stashes and
-dependency worktrees. Prior failures, proof receipts and review counters remain
-retained. Canonical249 is unapplied; no promotion, activation or account change.
-
-Next dedicated worktree contextual-test-owner-create starts from25457e. Admitted
-ordinary POST source uses one atomic owner-bound Test/draft creation RPC with
-full-row/default/post-trigger witnesses; literal GET and legacy POST unchanged.
-SQL source TDD RED10 then GREEN10, plus app171new/193combined offline checks pass.
-Root independently reran185checks/4files; suites overlap, not unique totals.
-Initial Stripe resolution failures came from root's stale hub node_modules link;
-only the new worktree symlink now reuses1480's identical package/lock dependency
-tree, installed22.6.2 verified. No package change or install. Genuine250 RPC type
-generation remains pending; tsc has one expected diagnostic, not a passing result.
-Exact route ratchet entry removed; preserved legacy POST validation debt remains.
-Independent SQL source review and finite isolated integration preparation underway;
-no native250 proof, canonical migration, production or phase-exit claim.
-
-App/source independent review CLEAN at04:09:40–04:13:32UTC (284/5 offline checks,
-eleven frozen hashes). Root combined targeted369/10 PASS; full tsc still has only
-the genuine CREATE RPC type gap. Native source review found a P1 false-positive
-allocator-plan check: index DDL could satisfy the expected name regardless of
-the actual plan. Root RED1/47 then structural plan-only decoder GREEN47; combined
-native47/race20/SQL8=75/3 PASS. Exact catalog column sets, Limit/forward exact-index
-scan and Class condition are now checked separately from index DDL; plain EXPLAIN
-is not timing evidence. Root also corrected column-only pg_get_indexdef ordering
-checks to exact catalog flags and a cold synthetic provenance breadcrumb250.
-Targeted source re-review pending; no SQL/native invocation or generated artifact.
-Lifecycle integration must import the already reviewed finite SDK transport,
-not its initial weaker duplicate. Four component source-review launches/two fix
-batches recorded privately; original clocks/counters and holds remain retained.
-
-Exact508b978 lifecycle/private runtime plan independently CLEAN;131/4 source
-checks plus staged19TSaudit and architecture PASS. Actual normal attempt1 reached
-all15 SDK/RPC requests and restored raw42501 probe, then SQL contracts failed
-P0001 (controls392/actions14). Inherited cleanup had zero failures; separate
-WHOLE SAME immutable B1 read-only verification PASS. No full native pass, forced
-run, generated artifact, PR readiness, canonical application or rollout claim.
-Immutable source comparison found no established cause; whitespace hypothesis
-was disproved. Finite PCnnn->fixed proof labels now retain a failing assertion's
-identity without raw stderr/row/credential disclosure. No assertion or cap was
-weakened; diagnostic source requires targeted review before a new sealed run.
-
-Diagnostic9934 independently CLEAN (58/2); actual normalattempt2 failed PC013
-exact trigger closure after15RPC/raw42501, with zero cleanup failures and
-separate WHOLE SAME immutable B1 PASS. Bounded read-only canonical001248 trigger
-catalog and immutable157/173 established two omitted Test triggers: gradebook
-override deletion (tgtype9) and removed-academic parent guard (tgtype27).
-The15-entry source inventory was wrong; actual closure has17 entries. Added
-exact tuples and regression RED9/10 before correction; no assertion weakening,
-app/SQL250 behavior, cap, migration application or rollout change.
-
-Trigger correction59a4 independently CLEAN; actual normal3 FULLPASS:14SDKcases,
-8pairs/15RPC/0Storage/restored42501,46rollbackchecks,9schedules/53dispatches/
-67078ms,1673controls/91actions/zero sessions. Both serial forced cleanup modes
-returned exact2markers/expectedexit1; separate SAMEwholeB1 before/after each
-PASS. Genuine436960byte CLI artifact installed byte-identically (SHA582d14b4);
-only CREATE RPC declaration added. Fresh main unchanged25457e. Focused655/26,
-architecture/UI/design/fullTSC/lint PASS. Draft PR/final integration/CI remain;
-249/250 canonical/prod unapplied and all
-admission/home/page/cutover/billing controls unchanged/OFF.
-
-## 2026-10-06 — Test creation CI remediation
-
-Exact5db integration review CLEAN; PR1500 ready run37417327589 failed coverage:
-CURRENT lost required historical attendance/control wording, and one monolithic
-native SQL-admission test exceeded its unchanged5s limit. Returned PR to draft;
-canceled run and verified ephemeral DB cleanup PASS. Restored precise recorded
-wording without a fresh hosted claim or startup-budget increase. Reused real
-immutable manifests and split all original positive/negative SQL assertions into
-fixed-SQL/schedule/cross-profile cases; no production source or cap change.
-Targeted142/3 PASS. Full coverage and independent targeted review pending;
-original review clocks,8 launches/4 batches and failures retained before batch5.
-No canonical249/250 application, production promotion or activation.
-
-Exact8a8 targeted review CLEAN155/4 and full localcoverage13449 PASS;
-readyCI37419130750 still failed only malformed-fixture rejection default5s.
-Returned draft/canceled; both ephemeral DB cleanup steps PASS. Root measured
-strict Node assertion formatting367494 error characters/589ms locally; GitHub
-coverage overhead exceeds5s. New fixed-message regression RED61/62. Use the same
-complete Node strict comparison as a boolean assertion with a closed message,
-not a sampled comparison or timeout increase. Native proof source changes, so
-fresh independently reviewed normal/forced proof is required; prior59a4 receipts
-are historical. Dependent251 app/source inventory preserved separately and held;
-no251 migration, canonical application, PR or activation.
-
-## 2026-10-06 — Pristine Test draft discard source preparation
-
-Parent1500 exactdba readyCI37422413824 Test/Build PASS; browser/database/PRGate
-still pending, not merged. Disjoint dependent source fast-forwarded onto clean
-dba without stash/reset. Root accepted full dependency inventory and app source;
-73 fixture/transport and9 DB/race source checks delivered by bounded workers.
-Root independently reran73 and75 facade/lifecycle/legacy checks. Initial lifecycle
-test used wrongCLIflag; corrected test to inherited --reviewed-head, not parser.
-New251 delegates156 once, full predicate/dualCAS/later pristine versions retained;
-current activeowner independent role/plan; nondestructive child/retainedmark/global
-managed-resource blockers and inner service-grant gate. Shared native engine
-has two fixed privilege probes without counter/deadline renewal;249/250 facade
-APIs retained. Proof/races run BEFORE normal durable SDK removals. Full generated
-RPC declaration remains missing pending genuine sealed nativeCLI generation;
-no casts/manual declarations. Source checks are not native acceptance.56 rollback
-checks/14 schedules/20RPC planned, caps unchanged; actual lifecycle-state profiles
-remain explicit rollout obligations. Canonical local/prod249–251 unapplied;
-no parent edits/promotion/accounts/providers/home/page/cutover/billing activation.
-DeepSeek paused; account33% weekly remaining last observed, attributable tokens/
-active time unknown. Frozen worker handoffs include source hashes and timings;
-native verification and independent review not yet accepted. Goal incomplete.
-
-## 2026-10-06 — Test creation merged; discard initial review remediation
-
-PR1500 exactdba CI37422413824 allfivechecksPASS, includingPRGate; normal squash
-merged06:59UTC at5bf3dbacc, identical source tree. Clean canonicalmain fast-forwarded;
-36orderedstashes preserved. No canonical249–251apply/promotion/activation.
-Discard sealed27d initial complementaryreviews finished: fullsecurity CLEAN,
-compatibility found missing wrong-Class provenance nativeproof. CurrentSQL guard
-is correct. Onebatch changes existingblocker to differentvalidClass, exactTest and
-unrelated suppliedDraft preserved; focusedregression,13affectedtests/lintPASS.
-56labels/caps/deadlines unchanged. Reviewclock06:47:09/2launches retained; runtime
-acceptance/genuineRPCtypes stillpending. Account31weeklyremaining, tasktokens/
-active time unknown; goalnotcomplete, allrolloutcontrols held.
-
 ## 2026-10-06 — Discard fixture first native attempt contained and corrected
 
 Targetedced2 source review CLEAN; root accepted finiteexactprojectwrapper/SAMEB1
@@ -519,3 +366,95 @@ reviewed-SHA CI gate is required. Production promotion remains outside scope.
 ## 2026-10-06 — Preserve Daily-summary main updates during fluidity landing
 
 Merged main PR #1506 into the reviewed fluidity candidate as one bounded reconciliation. Preserve current-main Daily summaries and student questions, all nine reviewed feature heads, the exact main archive prefix, and every prior rolling-history body. Three test/policy/history files auto-merge; production code has no textual conflict. Previous candidate 27dd240e passed local focused/static, 172 distinct browser cases, independent source review and CI/PR Gate (one unchanged test/build retry). New-head focused/browser/visual, final independent integration review and exact-head CI are required before authorized main merge and superseded-PR closure. No new feature or design change; softer modal exits follow landing.
+
+## 2026-10-06 — CI schema-copy diagnostic correction and local evidence
+
+PR1488 remains draft. At reviewed d19792dd, fresh targeted Assignment
+before-capture and native Test draft normal/after-fixture/before-capture all
+passed original expected statuses and exact receipts. Private evidence verified;
+all owned VMs disposed, dedicated daemons empty and shared HQ lease released.
+Complete Browser passed36.29hostminutes; TestBuild passed15.09minutes on earlier
+9602c92d. No full local database success: latest one approved canonical attempt
+failed Pal outbox schema-copy setup after6.19minutes with incomplete generated
+SQL; the stream boundary is unproven. Targeted success is not full-lane timing.
+
+Owner approved one schema-copy diagnostic batch and two reviews within60minutes.
+Keep the dump command/filter/imported SQL/fixtures/claims/guards/limits/cleanup
+unchanged; emit finite exporter/filter/importer statuses on failure and preserve
+pipefail's original exit before teardown. Offline mocks exercise the real shell
+harness, private-output suppression, rightmost failure and cleanup. No transport
+fix claim or retry. Review and focused verification pending at this entry.
+
+Rebased onto c88abe16b (classroom motion/Survey changes); native diagnostic
+source/test bytes unchanged, archived continuity bodies preserved. Public repo,
+unregistered/inactive Pika runner, unset opt-in, production/HQ/Mac Docker holds
+remain. No SQL/VM replay, hosted heavy CI or merge in this approved phase.
+Model recommendation: GPT5.6Sol/high targeted privacy/correctness; GPT6.1Sol/high
+cumulative integration (Terra unavailable). Risk: runtime-platform.
+
+## 2026-10-06 — Full local CI database evidence and current-main reconciliation
+
+Owner instructed “override approvals to continue goal”; current-task workflow
+approval/budget stops waived while correctness and public/runner-inactive,
+production/HQ holds remain. Earlier interrupted2325 attempt had7canonical PASS;
+final exit/time unknown, partial archive retained and owned VM disposed.
+Fresh isolated Linux ARM64/4CPU/12GiB full2325/001–248 database lane PASS:
+141canonical steps, Mac monotonic2543.246s(42.39min), guest2537.924s. Native GET
+normal1001-question/privilege-restoration/rollback/two-session and both forced
+modes passed; Assignment SDK and Pal concurrency passed; full recovery and
+shutdown passed. Private archive431members104642bytes, SHA256
+29d855236e1792cc117ae2aa7a96176b3ea8ffb728c2439db5f99a45e97a0078 verified;
+daemon containers/volumes/custom networks empty, owned VMdeleted/lease released.
+Read-only GPT6.1Sol/high main-compatibility analysis289.3s verified. Rebased onto
+865d837b740e781086f0209eb9c4d9c8dab78db3 with continuity-only conflict resolution,
+preserving incoming251-migration schema/new lifecycle checks and byte-identical
+reviewed diagnostic code. Preserve both histories by entry-body hash comparison;
+new integrated source still requires focused checks/review and exact251 replay.
+Historical2325 evidence is not relabeled as integrated251 acceptance. PR1488draft;
+public visibility and runner activation holds continue; no production changes.
+Integrated focused355tests/17files plus architecture/UI/design/TypeScript/lint
+PASS; coupled GET/schema/save-engine/new-CI tests90/6PASS; Bashsyntax/diffPASS.
+
+## 2026-10-06 — Integrated local database proof and CI compute capacity
+
+Frozen reviewed0d72a0dd/001–251 canonical local database lane PASS144steps,
+including native GET/new save/create/discard normal+forced modes, Assignment SDK,
+Pal and Stripe concurrency, recovery and shutdown. Host monotonic3947.856seconds
+(65.80min), guest3941.969seconds. Private archive440members101395bytes SHA256
+8b92cb6e5e298315094199809b46bda7237ee93e3627b524cdf95084ecca5d18 verified
+against receipt and exact251inventory07000040bee5a5506614cc3db6b191634f08c057463deb07aa0e3acf6a7da505.
+Daemon containers/volumes/custom networks empty; owned VMdisposed and lease
+released; both templates stopped. Independent prior integratedreview had no blockers.
+Main3b83808d adds only Gradebook styling/test and continuity; preserve both
+histories and all completed database inputs byte-identically. Reuse database proof
+for unchanged relevant inputs; exact new reviewed SHA still requires eligible CI.
+Fresh seven-day cohortSep29–Oct6:687runs699attempts,3472jobrows independently
+verified; >=11588projectedprivatehostedminutes,heavy11090/light498(95.7%known
+heavy). Three unfinished durations unknown. Heavy179.58knownjobhours exceeds
+168serialhours before HQsharing; Mac24GiB/8logicalCPU cannot fit2x12GiB PikaVMs
+before macOS/apps/HQ. No forecast/billing-plan/cost assumptions. Detailed private
+report and raw receipts remain external artifacts. Human task override persists;
+review counters retained. Pika remains public, runner unregistered/inactive and
+opt-in unset; no production/HQ changes. PR1488stays draft through source sync and
+independent verification, then one stable-SHA eligible CI/PR Gate run.
+
+## 2026-10-06 15:22 [CODEX]
+
+PR1488 ready CI passed Test & Build and database contracts; Classwork continuity setup raced on an obsolete student-name button. Retained traces confirm the editor mounts while that click waits. Use the existing retrying visibility assertion and preserve all refresh/Retry retention checks. Return PR to draft for corrected-source focused browser validation and independent review; repository stays public and runner activation remains held.
+
+## 2026-10-06 — Approved local CI diagnostics merge synchronization
+
+Owner approved PR1488 squash merge after reviewed86012 CI37493751710 passed
+all five jobs including PR Gate. Main advanced to2d89088cd Daily summaries;
+continuity-only rebase conflicts reconciled by preserving both complete histories.
+All eight diagnostics and Classwork readiness correction remain byte-identical;
+incoming Daily source/tests retained. New head requires focused checks, targeted
+independent synchronization review and eligible exact-head CI before approved
+merge. Prior full local DB proof remains tied to its original0d72/schema251
+inputs; incoming Daily harness changes are verified by new CI. Local auth2/
+Classwork12 zero-retry proof remains86012 evidence. Public visibility and
+unregistered/inactive runner holds persist; no production/HQ changes.
+
+## 2026-10-06 Product fluidity final current-main reconciliation
+
+Owner approved one final reconciliation batch and one independent integration reviewer within120minutes. Reconciled current main693a096df (#1488 database proof diagnostics) into the frozen baf23560 candidate. Application/UI source stays unchanged; the archive retains both exact histories, and the automatically merged experience contract retains the upstream student-work readiness correction. Parent baf23560 passed independent review, focused2388tests,8newbrowsercontracts,16composition captures, and exact-head CI37511211431 (13919coveragepasses;386browserpasses,11configured retry recoveries,20skips;PRGatePASS). Required focused checks and one final frozen-SHA review precede fresh exact-head CI, main merge and8superseded closures. No production promotion.
