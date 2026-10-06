@@ -60,6 +60,23 @@ describe('Pattern Lab teacher-family examples', () => {
     expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
   })
 
+  it('toggles Classwork with the keyboard while retaining its marking pane', async () => {
+    const user = userEvent.setup()
+    renderPatterns()
+    const toggle = screen.getByRole('button', { name: 'Change assignment layout: Student table' })
+    expect(toggle.querySelector('svg')).toHaveClass('lucide-users')
+    const marking = screen.getByText('History · Grade · Comments')
+    toggle.focus()
+    await user.keyboard('{Enter}')
+    expect(toggle).toHaveAccessibleName('Change assignment layout: Individual student')
+    expect(toggle.querySelector('svg')).toHaveClass('lucide-user')
+    expect(marking).toBeVisible()
+    expect(toggle).toHaveFocus()
+    await user.keyboard(' ')
+    expect(toggle).toHaveAccessibleName('Change assignment layout: Student table')
+    expect(marking).toBeVisible()
+  })
+
   it('discloses the continuous inspector with keyboard controls and returns focus on close', async () => {
     const user = userEvent.setup()
     renderPatterns()

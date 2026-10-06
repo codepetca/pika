@@ -29,20 +29,18 @@ import {
   GripVertical,
   LoaderCircle,
   Lock,
-  Menu,
   MessageSquare,
   Paperclip,
-  Percent,
   Pencil,
   Plus,
   Reply,
   Sparkles,
-  SquareMenu,
   Trash2,
   Unlock,
 } from 'lucide-react'
 import { Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
+import { AssignmentWorkspaceViewToggle } from '@/components/assignment-workspace/AssignmentWorkspaceViewToggle'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
 import { AssignmentModal } from '@/components/AssignmentModal'
@@ -157,26 +155,6 @@ export type AssignmentViewMode = 'summary' | 'assignment'
 
 const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 
-const ASSIGNMENT_SPLIT_PANE_VIEW_LABELS: Record<AssignmentSplitPaneView, string> = {
-  'students-grading': 'Students + grading',
-  'content-grading': 'Content + grading',
-  'students-content': 'Students + content',
-}
-
-const ASSIGNMENT_SPLIT_PANE_VIEW_ORDER: AssignmentSplitPaneView[] = [
-  'students-grading',
-  'content-grading',
-  'students-content',
-]
-
-const ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS: Record<
-  AssignmentSplitPaneView,
-  { panes: ['students' | 'grading' | 'content', 'students' | 'grading' | 'content'] }
-> = {
-  'students-grading': { panes: ['students', 'grading'] },
-  'content-grading': { panes: ['content', 'grading'] },
-  'students-content': { panes: ['students', 'content'] },
-}
 
 interface Props {
   classroom: Classroom
@@ -207,22 +185,6 @@ function MetricBar({ value }: { value: number }) {
       />
     </div>
   )
-}
-
-function AssignmentSplitPaneIcon({
-  pane,
-}: {
-  pane: 'students' | 'grading' | 'content'
-}) {
-  if (pane === 'students') {
-    return <Menu className="h-4 w-4" aria-hidden="true" />
-  }
-
-  if (pane === 'grading') {
-    return <Percent className="h-4 w-4" aria-hidden="true" />
-  }
-
-  return <SquareMenu className="h-4 w-4" aria-hidden="true" />
 }
 
 function TeacherMaterialCard({
@@ -1521,16 +1483,51 @@ export function TeacherClassroomView({
   )
   const selectedAssignmentKey =
     selection.mode === 'assignment' ? selection.assignmentId : null
+  const selectedStudentIndex = useMemo(() => {
+    if (!selectedStudentId) return -1
+    return currentStudentRows.findIndex((student) => student.student_id === selectedStudentId)
+  }, [currentStudentRows, selectedStudentId])
+
+  const canGoPrevStudent = selectedStudentIndex > 0
+  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < currentStudentRows.length - 1
+  const selectedStudentRow = useMemo(() => {
+    if (!selectedStudentId) return null
+    return currentStudentRows.find((student) => student.student_id === selectedStudentId) ?? null
+  }, [currentStudentRows, selectedStudentId])
+  const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
+  const selectedAssignmentId = selectedAssignmentBelongsToCurrentClassroom ? selection.assignmentId : null
+  const splitPaneViewSessionKey = selectedAssignmentId
+    ? getAssignmentSplitPaneViewSessionKey(classroom.id, selectedAssignmentId)
+    : null
+  const splitPaneView = splitPaneViewState.key === splitPaneViewSessionKey
+    ? splitPaneViewState.view
+    : getDefaultAssignmentSplitPaneView()
+
+  const isIndividualStudentView = splitPaneView === 'content-grading'
   const {
-    selectedIds: batchSelectedIds,
+    selectedIds: tableSelectedIds,
     toggleSelect: batchToggleSelect,
     toggleSelectAll: batchToggleSelectAll,
     allSelected: batchAllSelected,
     someSelected: batchSomeSelected,
     clearSelection: batchClearSelection,
     setSelection: batchSetSelection,
-    selectedCount: batchSelectedCount,
   } = useTableSelection(studentRowIds)
+  const batchSelectedIds = useMemo(
+    () => isIndividualStudentView
+      ? new Set(activeSelectedStudentId ? [activeSelectedStudentId] : [])
+      : tableSelectedIds,
+    [activeSelectedStudentId, isIndividualStudentView, tableSelectedIds],
+  )
+  const batchSelectedCount = batchSelectedIds.size
+
+  useEffect(() => {
+    if (!isIndividualStudentView) return
+    if (tableSelectedIds.size === batchSelectedIds.size &&
+      [...batchSelectedIds].every((studentId) => tableSelectedIds.has(studentId))) return
+    batchSetSelection(batchSelectedIds)
+  }, [batchSelectedIds, batchSetSelection, isIndividualStudentView, tableSelectedIds])
+
   const handleGradeTemplateChange = useCallback((template: TeacherAssignmentGradeTemplate | null) => {
     setGradeSelectedTemplate(template)
   }, [])
@@ -1671,7 +1668,7 @@ export function TeacherClassroomView({
   }, [activeAssignmentAiRun, batchClearSelection, hasActiveAssignmentAiRun, selectedStudentId])
 
   async function handleBatchAutoGrade() {
-    if (!selectedAssignmentData || batchSelectedCount === 0) return
+    if (!selectedAssignmentData || batchSelectedCount === 0 || (isIndividualStudentView && !individualActionsReady)) return
     setBatchProgressCount(batchSelectedCount)
     setIsAutoGrading(true)
     setError('')
@@ -1714,7 +1711,7 @@ export function TeacherClassroomView({
   }
 
   async function handleBatchReturn() {
-    if (!selectedAssignmentData || batchSelectedCount === 0) return
+    if (!selectedAssignmentData || batchSelectedCount === 0 || (isIndividualStudentView && !individualActionsReady)) return
     if (workspaceGradePersistence.hasPendingChanges || workspaceGradePersistence.isSaving) {
       setError('Wait for the current grade to finish saving before returning work')
       return
@@ -1881,25 +1878,6 @@ export function TeacherClassroomView({
     }
   }
 
-  const selectedStudentIndex = useMemo(() => {
-    if (!selectedStudentId) return -1
-    return currentStudentRows.findIndex((student) => student.student_id === selectedStudentId)
-  }, [currentStudentRows, selectedStudentId])
-
-  const canGoPrevStudent = selectedStudentIndex > 0
-  const canGoNextStudent = selectedStudentIndex !== -1 && selectedStudentIndex < currentStudentRows.length - 1
-  const selectedStudentRow = useMemo(() => {
-    if (!selectedStudentId) return null
-    return currentStudentRows.find((student) => student.student_id === selectedStudentId) ?? null
-  }, [currentStudentRows, selectedStudentId])
-  const activeSelectedStudentId = selectedStudentRow?.student_id ?? null
-  const selectedAssignmentId = selectedAssignmentBelongsToCurrentClassroom ? selection.assignmentId : null
-  const splitPaneViewSessionKey = selectedAssignmentId
-    ? getAssignmentSplitPaneViewSessionKey(classroom.id, selectedAssignmentId)
-    : null
-  const splitPaneView = splitPaneViewState.key === splitPaneViewSessionKey
-    ? splitPaneViewState.view
-    : getDefaultAssignmentSplitPaneView()
 
   useEffect(() => {
     const nextView = splitPaneViewSessionKey
@@ -2078,8 +2056,10 @@ export function TeacherClassroomView({
       setSelectedStudentAndNavigate(nextStudentId, { replace: true })
     }
 
+    if (nextView === 'students-grading') batchClearSelection()
     setPersistedSplitPaneView(nextView)
   }, [
+    batchClearSelection,
     resolveDetailsStudentId,
     setPersistedSplitPaneView,
     setSelectedStudentAndNavigate,
@@ -2187,7 +2167,7 @@ export function TeacherClassroomView({
   const canEditAssignment =
     selection.mode === 'assignment' && !!activeSelectedAssignmentData && !selectedAssignmentLoading && !isReadOnly
   const selectedStudentDisplayName =
-    individualHeaderMeta?.studentName ?? getStudentDisplayName(selectedStudentRow)
+    getStudentDisplayName(selectedStudentRow) ?? individualHeaderMeta?.studentName
   const individualCharacterCountLabel =
     selectedStudentDisplayName
       ? individualHeaderMeta
@@ -2207,7 +2187,11 @@ export function TeacherClassroomView({
     !selectedAssignmentLoading &&
     currentStudentRows.length > 0
   const workspaceGradeBusy = workspaceGradePersistence.hasPendingChanges || workspaceGradePersistence.isSaving
+  const individualActionsReady = !workspaceLoading &&
+    gradeSelectedTemplate?.assignmentId === selectedAssignmentId &&
+    gradeSelectedTemplate?.studentId === activeSelectedStudentId
   const selectedStudentActionsBusy =
+    (isIndividualStudentView && !individualActionsReady) ||
     isAutoGrading ||
     isGradeSelectedSaving ||
     hasActiveAssignmentAiRun ||
@@ -2219,7 +2203,8 @@ export function TeacherClassroomView({
   const isReturnDisabled =
     isReturning || isGradeSelectedSaving || workspaceGradeBusy || hasActiveAssignmentAiRun || isReadOnly || batchSelectedCount === 0 || !hasReturnableSelection
   const activeGradeSelectedTemplate =
-    gradeSelectedTemplate?.studentId === activeSelectedStudentId &&
+    gradeSelectedTemplate?.assignmentId === selectedAssignmentId &&
+    gradeSelectedTemplate.studentId === activeSelectedStudentId &&
     gradeSelectedTemplate.studentId === selectedStudentId
       ? gradeSelectedTemplate
       : null
@@ -2306,8 +2291,6 @@ export function TeacherClassroomView({
     </div>
   )
 
-  const splitPaneViewIndicator = ASSIGNMENT_SPLIT_PANE_VIEW_INDICATORS[splitPaneView]
-
   const openSelectedAssignmentEditor = (mode: 'visual' | 'markdown' = 'visual') => {
     if (activeSelectedAssignmentData && canEditAssignment) {
       setAssignmentInstructionsMode(mode)
@@ -2315,57 +2298,29 @@ export function TeacherClassroomView({
     }
   }
 
-  const nextSplitPaneView =
-    ASSIGNMENT_SPLIT_PANE_VIEW_ORDER[
-      (ASSIGNMENT_SPLIT_PANE_VIEW_ORDER.indexOf(splitPaneView) + 1) % ASSIGNMENT_SPLIT_PANE_VIEW_ORDER.length
-    ]
-
-  const layoutToggleLabel = ASSIGNMENT_SPLIT_PANE_VIEW_LABELS[splitPaneView]
-
   const assignmentLayoutToggle = (
-    <Tooltip content="Toggle Layout">
-      <span className="inline-flex">
-        <Button
-          type="button"
-          variant="surface"
-          size="sm"
-          aria-label={`Change assignment layout: ${layoutToggleLabel}`}
-          onClick={() => handleSelectSplitPaneView(nextSplitPaneView)}
-          disabled={!canCycleSplitPaneView}
-          className="h-9 px-2.5"
-        >
-          <span
-            className="inline-flex items-center gap-1.5"
-            data-testid="assignment-split-pane-indicator"
-            data-view-panes={splitPaneViewIndicator.panes.join('-')}
-            aria-hidden="true"
-          >
-            <span className="inline-flex items-center gap-1" data-testid="assignment-split-pane-icons">
-              {splitPaneViewIndicator.panes.map((pane) => (
-                <span key={pane} className="inline-flex" data-pane={pane}>
-                  <AssignmentSplitPaneIcon pane={pane} />
-                </span>
-              ))}
-            </span>
-          </span>
-        </Button>
-      </span>
-    </Tooltip>
+    <AssignmentWorkspaceViewToggle
+      view={splitPaneView}
+      onChange={handleSelectSplitPaneView}
+      disabled={!canCycleSplitPaneView}
+    />
   )
 
   const selectedStudentActions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'ai-grade-selected',
-      label: `AI Grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`,
+      label: isIndividualStudentView
+        ? `AI Grade ${selectedStudentDisplayName ?? 'student'}`
+        : `AI Grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`,
       icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
       onSelect: () => setShowBatchAutoGradeConfirm(true),
       disabled: selectedStudentActionsBusy,
     },
-    {
+    ...(isIndividualStudentView ? [] : [{
       id: 'grade-selected',
       label: `Copy grade to ${batchSelectedCount} selected`,
       icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-      onHoverChange: (active) => setHighlightedApplyTarget(active ? 'grade' : null),
+      onHoverChange: (active: boolean) => setHighlightedApplyTarget(active ? 'grade' : null),
       onSelect: () => {
         setHighlightedApplyTarget(null)
         setGradeSelectedConfirmTarget('grade')
@@ -2376,13 +2331,13 @@ export function TeacherClassroomView({
       id: 'comments-selected',
       label: `Copy comment to ${batchSelectedCount} selected`,
       icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
-      onHoverChange: (active) => setHighlightedApplyTarget(active ? 'comments' : null),
+      onHoverChange: (active: boolean) => setHighlightedApplyTarget(active ? 'comments' : null),
       onSelect: () => {
         setHighlightedApplyTarget(null)
         setGradeSelectedConfirmTarget('comments')
       },
       disabled: isApplyCommentsSelectedDisabled,
-    },
+    }]),
     {
       id: 'return-selected',
       label: 'Return',
@@ -2477,7 +2432,9 @@ export function TeacherClassroomView({
         <TeacherWorkSurfaceMenuButton
           label={(
             <span className="inline-flex items-center gap-2 whitespace-nowrap">
-              <span>{batchSelectedCount > 0 ? `${batchSelectedCount} selected` : 'Student actions'}</span>
+              <span>{isIndividualStudentView
+                ? selectedStudentDisplayName ?? 'Student actions'
+                : batchSelectedCount > 0 ? `${batchSelectedCount} selected` : 'Student actions'}</span>
               <ChevronDown className="h-4 w-4" aria-hidden="true" />
             </span>
           )}
@@ -2489,7 +2446,9 @@ export function TeacherClassroomView({
           menuAlign="center"
           menuAriaLabel="Selected student assignment actions"
           buttonProps={{
-            'aria-label': batchSelectedCount > 0
+            'aria-label': isIndividualStudentView && selectedStudentDisplayName
+              ? `Student actions for ${selectedStudentDisplayName}`
+              : batchSelectedCount > 0
               ? `Student actions for ${batchSelectedCount} selected`
               : 'Student actions (select students to enable)',
           }}
@@ -2913,9 +2872,7 @@ export function TeacherClassroomView({
       minInspectorPx={ASSIGNMENT_GRADING_LAYOUT.inspectorMinPx}
       primaryClassName="min-h-0 rounded-lg bg-surface"
       inspectorClassName="min-h-0 rounded-lg bg-surface"
-      dividerLabel={splitPaneView === 'students-content'
-        ? 'Resize students and content panes'
-        : 'Resize students and grading panes'}
+      dividerLabel="Resize students and grading panes"
     />
   )
 
@@ -2938,7 +2895,9 @@ export function TeacherClassroomView({
 
       <ConfirmDialog
         isOpen={showBatchAutoGradeConfirm}
-        title={`AI grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`}
+        title={isIndividualStudentView
+          ? `AI grade ${selectedStudentDisplayName ?? 'student'}?`
+          : `AI grade ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`}
         description="This will overwrite existing grade, comments and teacher edits."
         confirmLabel="AI grade"
         confirmVariant="danger"
@@ -3041,7 +3000,9 @@ export function TeacherClassroomView({
 
       <ConfirmDialog
         isOpen={showReturnConfirm}
-        title={`Return work to ${batchSelectedCount} selected student(s)?`}
+        title={isIndividualStudentView
+          ? `Return work to ${selectedStudentDisplayName ?? 'student'}?`
+          : `Return work to ${batchSelectedCount} selected student(s)?`}
         description={`Returning will mark ${batchSelectedReturnSummary.returnableCount} existing student document(s) as returned now, even if the work was never submitted. ${batchSelectedReturnSummary.missingCount > 0 ? `${batchSelectedReturnSummary.missingCount} selected student(s) have no work yet; Pika will create returned 0/0/0 documents for them without marking them submitted. ` : ''}${batchSelectedReturnSummary.alreadyReturnedCount > 0 ? `${batchSelectedReturnSummary.alreadyReturnedCount} selected student(s) were already returned and will be skipped. ` : ''}${batchSelectedReturnSummary.blockedCount > 0 ? `${batchSelectedReturnSummary.blockedCount} selected student(s) have partial rubric drafts and must be completed or cleared before return.` : ''}`.trim()}
         confirmLabel={isReturning ? 'Returning...' : 'Return'}
         cancelLabel="Cancel"

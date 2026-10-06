@@ -59,6 +59,7 @@ export interface TeacherAssignmentGradePersistenceState {
 }
 
 export interface TeacherAssignmentGradeTemplate {
+  assignmentId: string
   studentId: string
   scoreCompletion: string
   scoreThinking: string
@@ -308,7 +309,6 @@ export function TeacherStudentWorkPanel({
     onGradePersistenceStateChange,
   })
   const previousInspectorEditModeRef = useRef(inspectorEditMode)
-  const hasGradingPane = mode !== 'workspace' || splitPaneView !== 'students-content'
   const layoutMode: AssignmentWorkspaceMode =
     mode === 'workspace'
       ? splitPaneView === 'content-grading'
@@ -373,13 +373,14 @@ export function TeacherStudentWorkPanel({
   }, [onGradeTemplateChange])
 
   useEffect(() => {
-    const shouldReportGradeTemplate = (mode === 'overview' || mode === 'workspace') && hasGradingPane
-    if (!shouldReportGradeTemplate || showInitialSpinner || error || !data || data.student.id !== studentId) {
+    const shouldReportGradeTemplate = (mode === 'overview' || mode === 'workspace')
+    if (!shouldReportGradeTemplate || showInitialSpinner || error || !data || data.student.id !== studentId || data.assignment.id !== assignmentId) {
       onGradeTemplateChange?.(null)
       return
     }
 
     onGradeTemplateChange?.({
+      assignmentId,
       studentId,
       scoreCompletion,
       scoreThinking,
@@ -389,11 +390,11 @@ export function TeacherStudentWorkPanel({
       expectedDocUpdatedAt: data.doc?.updated_at ?? null,
     })
   }, [
+    assignmentId,
     data,
     error,
     feedbackDraft,
     gradeMode,
-    hasGradingPane,
     mode,
     onGradeTemplateChange,
     scoreCompletion,
@@ -513,20 +514,15 @@ export function TeacherStudentWorkPanel({
     const primaryPane = splitPaneView === 'content-grading'
       ? workPane
       : classPane ?? workPane
-    const inspectorPane = splitPaneView === 'students-content'
-      ? workPane
-      : inspector
+    const inspectorPane = inspector
     const primaryHeader = splitPaneView === 'content-grading' ? studentHeader : undefined
-    const inspectorHeader = splitPaneView === 'students-content' ? studentHeader : undefined
     const primaryMinPx = splitPaneView === 'content-grading'
       ? ASSIGNMENT_GRADING_LAYOUT.detailsPrimaryMinPx
       : ASSIGNMENT_GRADING_LAYOUT.overviewPrimaryMinPx
-    const dividerLabel =
-      splitPaneView === 'students-grading'
-        ? 'Resize students and grading panes'
-        : splitPaneView === 'content-grading'
-          ? 'Resize content and grading panes'
-          : 'Resize students and content panes'
+    const dividerLabel = splitPaneView === 'students-grading'
+      ? 'Resize students and grading panes'
+      : 'Resize content and grading panes'
+
 
     return (
       <TeacherWorkspaceSplit
@@ -560,7 +556,7 @@ export function TeacherStudentWorkPanel({
           </AssignmentWorkspacePaneFrame>
         )}
         inspector={
-          <AssignmentWorkspacePaneFrame header={inspectorHeader}>
+          <AssignmentWorkspacePaneFrame>
             {inspectorPane}
           </AssignmentWorkspacePaneFrame>
         }
