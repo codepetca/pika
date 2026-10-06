@@ -11360,6 +11360,16 @@ export type Database = {
         }
         Returns: Json
       }
+      discard_pristine_test_draft_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_deadline: string
+          p_expected_draft_version: number
+          p_expected_test_updated_at: string
+          p_test_id: string
+        }
+        Returns: Json
+      }
       discover_retained_student_cleanup_groups: {
         Args: {
           p_after_student_id?: string

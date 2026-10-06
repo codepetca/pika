@@ -1,6 +1,6 @@
 # Checkpoint — 2026-10-06 UTC
 
-Source: main `25457e2d1`; 27 audit findings accepted.
+Source: main `5bf3dbacc`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Production LIVE at pika.codepet.ca since 2026-10-05 06:27UTC; login HTTP200.
@@ -15,7 +15,7 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Settings last verified in prior receipts; no fresh hosted query here for controls.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-Next: discard251 source-only; #1500 merged5bf3db.
+Next: discard251 native/types/forced cleanup PASS; final review/PR pending.
 249–251 unapplied. No phase exit.
 See `docs/guidance/contextual-test-pristine-discard.md`.
 

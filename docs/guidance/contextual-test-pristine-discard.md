@@ -1,6 +1,6 @@
 # Contextual pristine Test draft discard
 
-Source preparation for the owner-authoring portion of access batch2. No phase
+Prepared owner-authoring portion of access batch2. No phase
 exit or activation: admission/home/page/cutover/billing remain OFF. Canonical
 local and production schema last recorded001–248;249–251 remain unapplied.
 Parent creation PR#1500 merged at5bf3dbacc after exact reviewed dba18a9e passed
@@ -30,7 +30,7 @@ never reset it or claim rollback equality. The legacy no-FK override fallback
 can still insert after commit; this wrapper does not claim perpetual orphan
 exclusion. Lost acknowledgement is503 with no retry/compensating deletion.
 
-## Acceptance still required
+## Isolated acceptance and remaining gates
 
 Source/offline tests are not native acceptance. Use the existing exact-project
 lifecycle, immutable whole canonical receipt, complete external table catalog,
@@ -54,5 +54,27 @@ operation, UI cutover or billing activation is authorized by these proof files.
 The first ced2 source rehearsal failed during fixture setup, before any RPC or
 deletion; exact cleanup and SAME whole canonical checkpoint verification passed.
 Migration164 correctly rejects inserting a new mark for an already unenrolled
-learner. Fixture and rollback-blocker correction is source-only until separately
-reviewed and successfully rerun; no native or generated-type success is implied.
+learner. The correction uses ordinary enrollment, mark creation and enrollment
+removal, retaining the genuine removed-membership generation. The next1a4 run
+completed setup and both privilege probes but rejected the catalog manifest:
+gradebook_weight was incorrectly placed after later-added columns. Source DDL
+and a read-only physical catalog confirmed its actual13th position. Only that
+expected order changed; no database, guard, deadline or limit was weakened.
+
+On2026-10-06, independently reviewed clean5f5f097673c5 normal attempt3 passed:
+18 actual installed-SDK cases,20 RPC requests,0 Storage requests,6 exact pair
+removals,2 different physically restored42501 probes,56 rollback checks and14
+two-session schedules with70 dispatches. All source snapshots remained unchanged
+outside the permitted removals; native sessions returned to zero. The genuine
+CLI-generated public schema differs only by the new RPC declaration and is
+byte-identical to the committed generated file after mechanical integration.
+Both subsequent serial forced modes exited1 with exactly the intentional-failure
+and cleanup-success markers. Separate read-only checks before/after each run
+matched the SAME complete immutable canonical B1; no baseline was recaptured.
+Earlier failed attempts remain recorded, not reclassified as successful.
+
+CI now runs normal, after-fixture and before-capture serially with exact marker
+checks and unchanged native/job limits. Full local checks, final independent
+integration review and exact-head PR Gate are still required before main merge.
+These receipts do not close the documented lifecycle-state obligations or the
+access phase, and do not authorize applying249–251 to canonical local/production.

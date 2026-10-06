@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner draft GET full-suite remediation
-
-Targeted4 Sol5.6/high CLEAN75c,1m59 manual; six launches/four targeted/four fixes,
-original reviewclock retained. Reviewed75c beforecapture expectedEXIT1 with exact
-cleanupPASS/intentionalFAIL, complete fixture andzero cleanupfailures; SAMEbaseline
-72477PASS. Normal/afterfixture80aa source/runtime parity retained, no new schema.
-Fullcoverage retained12664PASS/2FAIL/8SKIP: compactCURRENT missing historical
-attendance phrases, and offline persistentprotocol5334ms exceeded unchanged5s.
-Rootbatch5 restores continuity phrases and snapshots all247 actual SQLfiles only
-inside mocked transport tests; real hashguards run, changed-source fault rejects
-before dispatch, native source/guards/limits unchanged. InitialnewtestREDcache0;
-first implementation exposed incorrect expectedguard-error assertion, corrected
-to actual pre-dispatch rejection (no additional child). No blindretry/capincrease.
-Fullsuite/finalreview/stableheadCI/normalmerge pending; rolloutOFF, prod225/local243.
-Supersedingbatch5 checks:102/3affectedPASS, focused410/17+TypeScript/lint/policies
-PASS, audit/diffPASS; fullcoverage12667PASS/8SKIP andallthresholdsPASS. Failedruns
-retained. Account58percentweeklyremaining02:53Z, sharednotattributable; token/active
-telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollout.
-
 ## 2026-10-04 — Private-repository CI compute preparation
 
 - Goal: retain required PR verification while moving heavy lanes to a dedicated Linux runner, with canonical local CI and a hosted fallback. Worktree `self-hosted-ci`, branch `codex/self-hosted-ci`; risk `runtime-platform`. Plan and activation guide: `docs/guidance/self-hosted-ci.md`.
@@ -600,3 +581,18 @@ Thirdfixbatch corrects literalTestcolumnorder only, retains attnum/everycolumn/
 ACL assertions. Regression RED1/8, originalcaps/SQL251/fixture/app unchanged.
 Review original06:47:09clock/4launches retained; targeted review before retry.
 Canonical249–251/prod/rollout untouched; no phase/goalexit.
+
+## 2026-10-06 — Pristine Test discard isolated acceptance
+
+Targeted5f5 column-order review CLEAN19/4; root verified report/seals. Normal3
+at clean5f5f097673c5 passed18 installed-SDK cases/20RPC/0Storage/6 exact pair
+removals,2 different restored raw42501 probes,56 rollback checks/14 contention
+schedules/70 dispatches,0 remaining sessions. Genuine CLI public types copied
+mechanically and full-byte cmp PASS; only newRPC10lines. Both serial forced
+modes exited1 with exact two markers; separate SAME whole immutable B1 checks
+before/after each passed. Earlier two failures retained. No cap/deadline change.
+Added serialCI251 gate, RED1/GREEN2; focused660/27 plus policies/TSC/lintPASS.
+Full coverage PASS with unchanged floors. Original review06:47:09 clock,
+five launches/three fix batches retained under existing human task waiver.
+Final independent integration review/draftPR/exact-headCI/normal mainmerge next.
+Canonical249–251/prod/account/cohort/UI/cutover/billing holds remain; no phaseexit.

@@ -38671,3 +38671,23 @@ Finalfocused/type/lint/audit, targetedsourceacceptance, beforecapture proof andf
 cumulative review/exactheadCI/merge remain; no phase/goal completion claim.
 Batch4 requiredfocused409/17 plusarchitecture/UI/design/TypeScript/lint allPASS;
 no skippedtyping or overallfailedgate claim. Beforecapture remainsseparatelypending.
+
+<!-- pika-session-log-archive-batch:6e2f1fb53cb39f21888d81afb9f5a933f1f84414f1ee63349294fe767ebb0758 -->
+## 2026-10-04 — Owner draft GET full-suite remediation
+
+Targeted4 Sol5.6/high CLEAN75c,1m59 manual; six launches/four targeted/four fixes,
+original reviewclock retained. Reviewed75c beforecapture expectedEXIT1 with exact
+cleanupPASS/intentionalFAIL, complete fixture andzero cleanupfailures; SAMEbaseline
+72477PASS. Normal/afterfixture80aa source/runtime parity retained, no new schema.
+Fullcoverage retained12664PASS/2FAIL/8SKIP: compactCURRENT missing historical
+attendance phrases, and offline persistentprotocol5334ms exceeded unchanged5s.
+Rootbatch5 restores continuity phrases and snapshots all247 actual SQLfiles only
+inside mocked transport tests; real hashguards run, changed-source fault rejects
+before dispatch, native source/guards/limits unchanged. InitialnewtestREDcache0;
+first implementation exposed incorrect expectedguard-error assertion, corrected
+to actual pre-dispatch rejection (no additional child). No blindretry/capincrease.
+Fullsuite/finalreview/stableheadCI/normalmerge pending; rolloutOFF, prod225/local243.
+Supersedingbatch5 checks:102/3affectedPASS, focused410/17+TypeScript/lint/policies
+PASS, audit/diffPASS; fullcoverage12667PASS/8SKIP andallthresholdsPASS. Failedruns
+retained. Account58percentweeklyremaining02:53Z, sharednotattributable; token/active
+telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollout.
