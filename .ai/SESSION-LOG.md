@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Approved CI documentation correction
-
-Owner “go” authorizes one further correction batch and targeted review launch9
-(max five minutes), required checks and the already-approved PR1475 main merge.
-Launch8 accepted24b1f4d8; exactCI37308955639 failed one unchanged Bara rollout
-contract (12703PASS/8SKIP), locally reproduced. Returned draft/cancel requested.
-Upstream release #1478 shortened CURRENT's migration/control prefixes; restore
-only those two prefixes, retaining verified001–248 history and twelve unchanged
-controls from the production receipt. CI implementation and tests unchanged.
-Affected/focused verification and independent launch9 are pending; no budget
-reset or further review extension. Host/private runner activation remains pending.
-
 ## 2026-10-05 — Survey Pattern Lab prototype
 
 Owner requested Survey prototype informed by the Test modal. Added experimental
@@ -853,3 +841,7 @@ report and raw receipts remain external artifacts. Human task override persists;
 review counters retained. Pika remains public, runner unregistered/inactive and
 opt-in unset; no production/HQ changes. PR1488stays draft through source sync and
 independent verification, then one stable-SHA eligible CI/PR Gate run.
+
+## 2026-10-06 15:22 [CODEX]
+
+PR1488 ready CI passed Test & Build and database contracts; Classwork continuity setup raced on an obsolete student-name button. Retained traces confirm the editor mounts while that click waits. Use the existing retrying visibility assertion and preserve all refresh/Retry retention checks. Return PR to draft for corrected-source focused browser validation and independent review; repository stays public and runner activation remains held.
