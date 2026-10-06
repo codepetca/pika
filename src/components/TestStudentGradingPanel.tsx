@@ -493,7 +493,13 @@ export function TestStudentGradingPanel({
               submittedDraftsByResponseId.has(responseId)
               || !areDraftsEqual(currentDraft, persistedDrafts[responseId])
             ) {
-              next[responseId] = currentDraft
+              next[responseId] = {
+                ...currentDraft,
+                ...(currentDraft.returnedFeedbackDraft !== undefined
+                  && !currentDraft.returnedFeedbackDraft.trim()
+                  ? { feedback: refreshedDrafts[responseId]?.feedback ?? '' }
+                  : {}),
+              }
             }
           }
           return next
