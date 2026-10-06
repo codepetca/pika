@@ -23,6 +23,8 @@ import type { TestDraftContent } from '@/types'
 import { authorizeSharedTestDetailReadActor } from '@/lib/server/contextual-test-detail-read'
 import { getContextualTestDraft } from '@/lib/server/contextual-test-draft-get'
 import { contextualTestDraftGetQuerySchema } from '@/lib/validations/contextual-test-draft-get'
+import { saveContextualTestDraft } from '@/lib/server/contextual-test-draft-save'
+import { contextualTestDraftSaveQuerySchema, contextualTestDraftSaveRequestSchema, readContextualTestDraftSaveBody, TEST_DRAFT_SAVE_DEADLINE_MS } from '@/lib/validations/contextual-test-draft-save'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -74,6 +76,15 @@ export const GET = withErrorHandler('GetTestDraft', async (request, context) => 
 })
 
 export const PATCH = withErrorHandler('PatchTestDraft', async (request, context) => {
+  const actor = await authorizeSharedTestDetailReadActor()
+  if (actor.mode === 'shared') {
+    const deadline = Date.now() + TEST_DRAFT_SAVE_DEADLINE_MS
+    const { id } = await context.params
+    const { testId } = contextualTestDraftSaveQuerySchema.parse({ testId: id })
+    const input = contextualTestDraftSaveRequestSchema.parse(await readContextualTestDraftSaveBody(request, deadline))
+    const result = await saveContextualTestDraft({ supabase: getServiceRoleClient(), actorId: actor.user.id, testId, input, deadline })
+    return NextResponse.json(result.body, { status: result.status })
+  }
   const user = await requireRole('teacher')
   const { id: testId } = await context.params
   const body = testDraftRequestSchema.parse(await request.json())

@@ -9,13 +9,10 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
 } from 'react'
 import {
   ClipboardCopy,
   Clock3,
-  GripHorizontal,
   MoreVertical,
   QrCode as QrCodeIcon,
   RotateCcw,
@@ -101,11 +98,6 @@ const COLUMN_LIMITS: Record<ResizableColumn, { defaultWidth: number; min: number
   checkIn: { defaultWidth: 92, min: 76, max: 140 },
 }
 
-const SUMMARY_PANEL_DEFAULT_HEIGHT = 180
-const SUMMARY_PANEL_COLLAPSED_HEIGHT = 40
-const SUMMARY_PANEL_MIN_HEIGHT = 140
-const SUMMARY_PANEL_MAX_HEIGHT = 420
-const SUMMARY_PANEL_KEYBOARD_STEP = 32
 const getAttendanceStudentRowId = (studentId: string) => `attendance-student-row-${studentId}`
 const STICKY_ATTENDANCE_OFFSETS: Record<TeacherAttendanceMark, string> = {
   present: 'right-attendance-three',
@@ -124,18 +116,6 @@ function formatManualAttendanceRange(startsAt: string, endsAt: string) {
   return format(start, 'a') === format(end, 'a')
     ? `${format(start, 'h:mm')} - ${format(end, 'h:mm a')}`
     : `${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`
-}
-
-function getSummaryPanelMaxHeight() {
-  if (typeof window === 'undefined') return SUMMARY_PANEL_MAX_HEIGHT
-  return Math.max(
-    SUMMARY_PANEL_MIN_HEIGHT,
-    Math.min(SUMMARY_PANEL_MAX_HEIGHT, Math.floor(window.innerHeight * 0.48))
-  )
-}
-
-function clampSummaryPanelHeight(height: number) {
-  return Math.min(getSummaryPanelMaxHeight(), Math.max(SUMMARY_PANEL_MIN_HEIGHT, Math.round(height)))
 }
 
 interface LogRow {
@@ -185,6 +165,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [logsRequestVersion, setLogsRequestVersion] = useState(0)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [summaryHighlightedStudentId, setSummaryHighlightedStudentId] = useState<string | null>(null)
   const [showIdColumn, setShowIdColumn] = useState(true)
   const [showRelativeDate, setShowRelativeDate] = useState(true)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
@@ -198,11 +179,8 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const currentClassroomIdRef = useRef(classroom.id)
   const currentSelectedDateRef = useRef('')
   const [detailPaneWidth, setDetailPaneWidth] = useState(50)
-  const [summaryResizing, setSummaryResizing] = useState(false)
   const selectedStudentIdRef = useRef<string | null>(null)
   selectedStudentIdRef.current = selectedStudentId
-  const [summaryPanelCollapsed, setSummaryPanelCollapsed] = useState(false)
-  const [summaryPanelHeight, setSummaryPanelHeight] = useState(SUMMARY_PANEL_DEFAULT_HEIGHT)
   const [summaryReadyScopeKey, setSummaryReadyScopeKey] = useState<string | null>(null)
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false)
   const [isManualTimeDialogOpen, setIsManualTimeDialogOpen] = useState(false)
@@ -356,6 +334,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   // Selection belongs to a classroom/date, not to a refresh of that snapshot.
   useLayoutEffect(() => {
     setSelectedStudentId(null)
+    setSummaryHighlightedStudentId(null)
     selectedStudentIdRef.current = null
     onSelectEntryRef.current?.(null, '', null)
   }, [classroom.id, selectedDate])
@@ -577,6 +556,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }
 
   function handleRowClick(row: LogRow) {
+    setSummaryHighlightedStudentId(null)
     preserveStudentTableScrollPosition()
     const newSelectedId = selectedStudentId === row.student_id ? null : row.student_id
     setSelectedStudentId(newSelectedId)
@@ -592,8 +572,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const handleDeselect = useCallback(() => {
     pendingKeyboardFocusStudentIdRef.current = null
     preserveStudentTableScrollPosition()
+    setSummaryHighlightedStudentId(null)
     setSelectedStudentId(null)
-    onSelectEntry?.(null, '', null)
+    if (selectedStudentIdRef.current) onSelectEntry?.(null, '', null)
   }, [onSelectEntry, preserveStudentTableScrollPosition])
 
   const handleKeyboardDeselect = useCallback(() => {
@@ -602,7 +583,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }, [handleDeselect])
 
   useEffect(() => {
-    if (!selectedStudentId || !isActive) return
+    if ((!selectedStudentId && !summaryHighlightedStudentId) || !isActive) return
 
     function handleEscapeKey(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
@@ -615,10 +596,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
     window.addEventListener('keydown', handleEscapeKey)
     return () => window.removeEventListener('keydown', handleEscapeKey)
-  }, [handleKeyboardDeselect, isActive, selectedStudentId])
+  }, [handleKeyboardDeselect, isActive, selectedStudentId, summaryHighlightedStudentId])
 
   useEffect(() => {
-    if (!selectedStudentId || !isActive) return
+    if ((!selectedStudentId && !summaryHighlightedStudentId) || !isActive) return
 
     function handlePointerDown(event: PointerEvent) {
       const selectedWorkspace = selectedWorkspaceRef.current
@@ -629,10 +610,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
     window.addEventListener('pointerdown', handlePointerDown)
     return () => window.removeEventListener('pointerdown', handlePointerDown)
-  }, [handleDeselect, isActive, selectedStudentId])
+  }, [handleDeselect, isActive, selectedStudentId, summaryHighlightedStudentId])
 
   const selectStudentByRow = useCallback(
     (row: LogRow) => {
+      setSummaryHighlightedStudentId(null)
       preserveStudentTableScrollPosition()
       setSelectedStudentId(row.student_id)
       const studentName =
@@ -657,6 +639,28 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     },
     [logs, selectStudentByRow]
   )
+
+  const jumpToSummaryStudent = useCallback((name: string) => {
+    const row = logs.find((logRow) =>
+      [logRow.student_first_name, logRow.student_last_name].filter(Boolean).join(' ') === name
+    )
+    if (!row) return
+    const rowElement = Array.from(
+      studentTableNavigationRef.current?.querySelectorAll<HTMLTableRowElement>('tr[id]') ?? []
+    ).find((element) => element.id === getAttendanceStudentRowId(row.student_id))
+    if (!rowElement) return
+
+    setSummaryHighlightedStudentId(row.student_id)
+    rowElement.focus({ preventScroll: true })
+    rowElement.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
+    preserveStudentTableScrollPosition()
+  }, [logs, preserveStudentTableScrollPosition])
+
+  useEffect(() => {
+    if (summaryHighlightedStudentId && !rows.some((row) => row.student_id === summaryHighlightedStudentId)) {
+      setSummaryHighlightedStudentId(null)
+    }
+  }, [rows, summaryHighlightedStudentId])
 
   // Keyboard navigation handler
   const handleKeyboardSelect = useCallback(
@@ -694,13 +698,17 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       studentTableNavigationRef.current?.focus()
       pendingKeyboardTableFocusRef.current = false
     }
-  }, [selectedStudentId])
+  }, [selectedStudentId, summaryHighlightedStudentId])
   const selectedStudentName = selectedRow
     ? [selectedRow.student_first_name, selectedRow.student_last_name].filter(Boolean).join(' ') ||
       selectedRow.email_username
     : ''
   const selectedDateLabel = selectedDate ? format(parseISO(selectedDate), 'EEE MMM d') : 'Select date'
   const relativeDateLabel = selectedDate ? getPastRelativeDateLabel(selectedDate, today) : null
+  const summaryFirstNames = useMemo(() => Object.fromEntries(logs.map((row) => [
+    [row.student_first_name, row.student_last_name].filter(Boolean).join(' '),
+    row.student_first_name ?? '',
+  ])), [logs])
   const summaryScopeKey = `${classroom.id}:${selectedDate}`
   const summaryPanelVisible = Boolean(selectedDate && summaryReadyScopeKey === summaryScopeKey)
 
@@ -714,84 +722,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       return currentScopeKey === summaryScopeKey ? null : currentScopeKey
     })
   }, [summaryScopeKey])
-
-  const handleSummaryPanelDoubleClick = useCallback(() => {
-    setSummaryPanelCollapsed((collapsed) => {
-      if (collapsed) {
-        setSummaryPanelHeight(SUMMARY_PANEL_DEFAULT_HEIGHT)
-      }
-      return !collapsed
-    })
-  }, [])
-
-  const handleSummaryResizeStart = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      event.preventDefault()
-
-      setSummaryResizing(true)
-      const startY = event.clientY
-      const collapsedAtStart = summaryPanelCollapsed
-      const startHeight = collapsedAtStart ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight
-      const previousCursor = document.body.style.cursor
-      const previousUserSelect = document.body.style.userSelect
-      document.body.style.cursor = 'ns-resize'
-      document.body.style.userSelect = 'none'
-
-      const handlePointerMove = (moveEvent: globalThis.PointerEvent) => {
-        if (collapsedAtStart && moveEvent.clientY >= startY) return
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight(clampSummaryPanelHeight(startHeight + startY - moveEvent.clientY))
-      }
-
-      const handleResizeEnd = () => {
-        setSummaryResizing(false)
-        document.body.style.cursor = previousCursor
-        document.body.style.userSelect = previousUserSelect
-        window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('pointerup', handleResizeEnd)
-        window.removeEventListener('pointercancel', handleResizeEnd)
-        window.removeEventListener('blur', handleResizeEnd)
-      }
-
-      window.addEventListener('pointermove', handlePointerMove)
-      window.addEventListener('pointerup', handleResizeEnd)
-      window.addEventListener('pointercancel', handleResizeEnd)
-      window.addEventListener('blur', handleResizeEnd)
-    },
-    [summaryPanelCollapsed, summaryPanelHeight],
-  )
-
-  const handleSummaryResizeKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
-      if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight((height) =>
-          clampSummaryPanelHeight(
-            (summaryPanelCollapsed ? SUMMARY_PANEL_MIN_HEIGHT : height) + SUMMARY_PANEL_KEYBOARD_STEP
-          )
-        )
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault()
-        if (!summaryPanelCollapsed) {
-          setSummaryPanelHeight((height) => clampSummaryPanelHeight(height - SUMMARY_PANEL_KEYBOARD_STEP))
-        }
-      } else if (event.key === 'Home') {
-        event.preventDefault()
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight(SUMMARY_PANEL_MIN_HEIGHT)
-      } else if (event.key === 'End') {
-        event.preventDefault()
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight(getSummaryPanelMaxHeight())
-      } else if (event.key === 'Enter') {
-        event.preventDefault()
-        setSummaryPanelCollapsed(false)
-        setSummaryPanelHeight(SUMMARY_PANEL_DEFAULT_HEIGHT)
-      }
-    },
-    [summaryPanelCollapsed],
-  )
 
   const openTimeEditor = () => {
     if (attendanceEnabled) {
@@ -964,7 +894,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         ref={studentTableNavigationRef}
         ariaLabel="Attendance students"
         rowKeys={rowKeys}
-        selectedKey={selectedStudentId}
+        selectedKey={selectedStudentId ?? summaryHighlightedStudentId}
         onSelectKey={handleKeyboardSelect}
         onDeselect={handleKeyboardDeselect}
         getRowId={getAttendanceStudentRowId}
@@ -1099,7 +1029,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             </DataTableHead>
             <DataTableBody>
               {rows.map((row) => {
-                const isSelected = selectedStudentId === row.student_id
+                const isSelected = (selectedStudentId ?? summaryHighlightedStudentId) === row.student_id
                 const attendanceStudent = attendanceRowsById.get(row.student_id)
                 const attendancePending = attendanceStudent?.pending ?? false
                 const attendanceEditable = Boolean(
@@ -1291,7 +1221,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       data-testid={selectedRow ? 'daily-selected-student-workspace' : undefined}
     >
       <TeacherWorkspaceSplit
-        className="flex-1"
+        className="min-w-0 flex-1"
         splitVariant="gapped"
         animateInspector
         primaryClassName="min-h-0"
@@ -1318,7 +1248,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               data-testid="daily-student-scroll-pane"
               onScroll={preserveStudentTableScrollPosition}
               onClick={(event) => {
-                if (selectedStudentId && (event.target as HTMLElement).closest('table') === null) {
+                if ((selectedStudentId || summaryHighlightedStudentId) && (event.target as HTMLElement).closest('table') === null) {
                   handleDeselect()
                 }
               }}
@@ -1329,57 +1259,22 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               <section
                 role="region"
                 aria-label="Class Log Summary"
-                data-state={summaryPanelCollapsed ? 'collapsed' : 'expanded'}
-                hidden={!summaryPanelVisible}
+                hidden={!summaryPanelVisible || !!selectedRow}
                 aria-hidden={!!selectedRow || undefined}
                 ref={(element) => { element?.toggleAttribute('inert', Boolean(selectedRow)) }}
                 className={cn(
-                  selectedRow
-                    ? 'min-h-0 shrink-0 overflow-hidden rounded-lg bg-surface'
-                    : summaryPanelCollapsed
-                    ? 'flex h-10 min-h-10 shrink-0 flex-col overflow-hidden rounded-lg bg-surface'
-                    : 'flex min-h-[140px] shrink-0 flex-col overflow-hidden rounded-lg bg-surface',
-                  !summaryPanelVisible && '!hidden',
-                  !summaryResizing && 'transition-[height] duration-standard ease-standard motion-reduce:transition-none',
+                  'min-h-0 shrink-0 overflow-hidden rounded-lg bg-surface',
+                  (!summaryPanelVisible || !!selectedRow) && '!hidden',
                 )}
-                style={{ height: `${selectedRow ? 0 : summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}px` }}
-                onDoubleClick={handleSummaryPanelDoubleClick}
               >
-                <div
-                  role="separator"
-                  aria-label="Resize class log summary"
-                  aria-orientation="horizontal"
-                  aria-valuemin={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : SUMMARY_PANEL_MIN_HEIGHT}
-                  aria-valuemax={SUMMARY_PANEL_MAX_HEIGHT}
-                  aria-valuenow={summaryPanelCollapsed ? SUMMARY_PANEL_COLLAPSED_HEIGHT : summaryPanelHeight}
-                  tabIndex={0}
-                  className={
-                    summaryPanelCollapsed
-                      ? 'flex h-10 shrink-0 cursor-ns-resize items-center justify-center gap-2 px-3 text-sm font-semibold text-text-default outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg'
-                      : 'flex h-5 shrink-0 cursor-ns-resize items-center justify-center text-text-muted outline-none transition-colors hover:bg-surface-hover focus:bg-info-bg focus:text-text-default'
-                  }
-                  onPointerDown={handleSummaryResizeStart}
-                  onKeyDown={handleSummaryResizeKeyDown}
-                >
-                  <GripHorizontal className="h-4 w-4" aria-hidden="true" />
-                  {summaryPanelCollapsed ? <span>Log Summary</span> : null}
-                </div>
-                {!summaryPanelCollapsed && (
-                  <div className="flex items-center px-3 pt-3">
-                    <h3 className="truncate text-sm font-semibold text-text-default">
-                      Class Log Summary
-                    </h3>
-                  </div>
-                )}
-                <div hidden={summaryPanelCollapsed} className="min-h-0 flex-1 overflow-y-auto">
-                  <LogSummary
-                    key={summaryScopeKey}
-                    classroomId={classroom.id}
-                    date={selectedDate}
-                    onStudentClick={selectStudentByName}
-                    onAvailabilityChange={handleSummaryAvailabilityChange}
-                  />
-                </div>
+                <LogSummary
+                  key={summaryScopeKey}
+                  classroomId={classroom.id}
+                  date={selectedDate}
+                  firstNames={summaryFirstNames}
+                  onStudentClick={jumpToSummaryStudent}
+                  onAvailabilityChange={handleSummaryAvailabilityChange}
+                />
               </section>
             )}
           </div>

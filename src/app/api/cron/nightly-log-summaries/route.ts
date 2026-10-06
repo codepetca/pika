@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { summaryRetryDateSchema, summaryRetryClassroomSchema } from '@/lib/validations/nightly-log-summary'
+import { teacherLogSummaryCurrentItemsSchema } from '@/lib/validations/teacher-log-summary'
 import { withAIRequestDeadline, type AIRequestDeadlineOptions } from '@/lib/ai-request-deadline'
 import { NextRequest, NextResponse } from 'next/server'
 import { logServerError } from '@/lib/server/diagnostics'
@@ -354,12 +355,14 @@ async function generateSummaryForClassroom(
   if (existingError) throw existingError
   const existingItems = existing?.summary_items
   if (existingItems && typeof existingItems === 'object' && !Array.isArray(existingItems)
-    && existingItems.input_digest === inputDigest) {
+    && existingItems.policy_version === LOG_SUMMARY_POLICY_VERSION
+    && existingItems.input_digest === inputDigest
+    && teacherLogSummaryCurrentItemsSchema.safeParse(existingItems).success) {
     return { generated: false }
   }
   options.signal?.throwIfAborted()
   const rawResponse = await withAIRequestDeadline((signal) =>
-    callOpenAIForSummary(system, user, sourceMap, { ...options, signal }), options)
+    callOpenAIForSummary(system, user, sourceMap, { ...options, signal, sanitizationContext: { students, initialsMap } }), options)
   options.signal?.throwIfAborted()
 
   const summaryItemsForStorage = {
@@ -369,6 +372,7 @@ async function generateSummaryForClassroom(
     action_items: rawResponse.action_items.map((item) => ({
       text: item.text,
       initials: item.initials,
+      detail: item.detail,
     })),
   }
 

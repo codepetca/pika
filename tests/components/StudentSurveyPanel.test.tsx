@@ -184,7 +184,7 @@ describe('StudentSurveyPanel', () => {
     expect(responseAction.parentElement?.className).toContain('lg:left-[var(--main-content-center-x,50%)]')
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Class results' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Quick Poll' })).toBeInTheDocument()
     })
     expect(await screen.findByText('100%')).toBeInTheDocument()
     expect(screen.queryByText('1 (100%)')).not.toBeInTheDocument()

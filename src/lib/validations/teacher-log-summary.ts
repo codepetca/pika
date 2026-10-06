@@ -40,6 +40,7 @@ export const teacherLogSummaryCurrentItemsSchema = z.object({
   action_items: z.array(z.object({
     text: z.string(),
     initials: nonblank,
+    detail: z.string().trim().min(1).max(240),
   })),
 })
 

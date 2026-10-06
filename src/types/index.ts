@@ -1179,6 +1179,7 @@ export interface TestResultsAggregate {
 
 // Log summary types
 export interface LogSummaryActionItem {
+  detail?: string
   text: string
   studentName: string
 }
@@ -1190,7 +1191,7 @@ export interface LogSummary {
   summary_items: {
     policy_version: string
     overview: string
-    action_items: { text: string; initials: string }[]
+    action_items: { text: string; initials: string; detail: string }[]
   }
   initials_map: Record<string, string>
   entry_count: number

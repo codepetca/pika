@@ -24,6 +24,8 @@ import type { TestDraftContent, TestStudentAvailabilityState } from '@/types'
 import { chunkValues, loadChunkedRows } from '@/lib/server/query-chunks'
 import { authorizeSharedTestListReadActor, readContextualTestList } from '@/lib/server/contextual-test-list-read'
 import { contextualTestListQuerySchema } from '@/lib/validations/contextual-test-list-read'
+import { createContextualTest } from '@/lib/server/contextual-test-create'
+import { contextualTestCreateRequestSchema, readContextualTestCreateBody, TEST_CREATE_DEADLINE_MS } from '@/lib/validations/contextual-test-create'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -326,6 +328,14 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
 
 // POST /api/teacher/tests - Create a new test
 export const POST = withErrorHandler('CreateTeacherTest', async (request) => {
+  const actor = await authorizeSharedTestListReadActor()
+  if (actor.mode === 'shared') {
+    const deadline = Date.now() + TEST_CREATE_DEADLINE_MS
+    const decoded = await readContextualTestCreateBody(request, deadline)
+    const input = contextualTestCreateRequestSchema.parse(decoded.body)
+    const result = await createContextualTest({ supabase: getServiceRoleClient(), actorId: actor.user.id, input, deadline, bodyBytes: decoded.bytes, signal: request.signal })
+    return NextResponse.json(result, { status: 201 })
+  }
   const user = await requireRole('teacher')
   const body = await request.json()
   const { classroom_id, title } = body

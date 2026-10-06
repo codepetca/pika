@@ -92,7 +92,7 @@ vi.mock('@/lib/log-summary', async () => {
     ...actual,
     callOpenAIForSummary: vi.fn(async () => ({
       overview: 'Students engaged well.',
-      action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.' }],
+      action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.', detail: 'Asks how to submit the project.' }],
     })),
     getSummaryModel: vi.fn(() => 'gpt-test'),
   }
@@ -638,7 +638,8 @@ describe('cron nightly-log-summaries route', () => {
     expect(summaryUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         summary_items: expect.objectContaining({
-          policy_version: 'high-priority-v1',
+          policy_version: 'follow-ups-v3',
+          action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.', detail: 'Asks how to submit the project.' }],
         }),
       }),
       { onConflict: 'classroom_id,date' }
@@ -976,7 +977,7 @@ describe('cron nightly-log-summaries route', () => {
 
 // Stateful persistence models the existing unique classroom/date checkpoint.
 describe('nightly summary runtime and continuation', () => {
-  const summary = { overview: 'Students engaged well.', action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.' }] }
+  const summary = { overview: 'Students engaged well.', action_items: [{ text: 'Follow up with A.B.', initials: 'A.B.', detail: 'Asks how to submit the project.' }] }
   const request = () => new NextRequest('http://localhost:3000/api/cron/nightly-log-summaries?date=2026-10-02', {
     headers: { authorization: 'Bearer secret' },
   })
@@ -1046,6 +1047,19 @@ describe('nightly summary runtime and continuation', () => {
     expect(await retry.json()).toEqual({ status: 'ok', generated: 1, skipped: 5 })
     expect(saved.get('classroom-2')).toBe(persisted)
     expect(upsert).toHaveBeenCalledTimes(6)
+  })
+
+  it('regenerates a matching checkpoint when its policy or required detail is obsolete', async () => {
+    const { saved } = fixture(1)
+    await GET(request())
+    for (const policy of ['follow-ups-v1', 'follow-ups-v2', 'follow-ups-v3']) {
+      const row = saved.get('classroom-1')
+      row.summary_items.policy_version = policy
+      delete row.summary_items.action_items[0].detail
+      const response = await GET(request())
+      expect(await response.json()).toEqual({ status: 'ok', generated: 1, skipped: 0 })
+      expect(saved.get('classroom-1').summary_items.action_items[0].detail).toBe('Asks how to submit the project.')
+    }
   })
 
   it('stops before a later batch exceeds the job budget and resumes across multiple batches', async () => {

@@ -623,7 +623,8 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   let classroomQrToken = 'a'.repeat(43)
   let loseNextRotationResponse = false
 
-  const students = Array.from({ length: 18 }, (_, index) => {
+  // Keep the table scrollable even with the compact summary freeing more height.
+  const students = Array.from({ length: 32 }, (_, index) => {
     const ordinal = String(index + 1).padStart(2, '0')
     const studentId = `40000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
     const status = (['present', 'late', 'absent'] as const)[index % 3]
@@ -696,7 +697,9 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
           overview: 'Students reflected on their progress and next steps.',
           action_items: [{
             studentName: 'Student 02 Alpha02',
-            text: 'Student 02 Alpha02 needs a follow-up conversation.',
+            text: 'Student 02 Alpha02 asks whether the lab report needs a graph.',
+            detail: 'asks whether the lab report needs a graph.',
+            category: 'student_question',
           }],
           generated_at: '2026-08-29T14:10:00.000Z',
         },
@@ -971,10 +974,26 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('button', { name: 'Refresh attendance' })).toHaveCount(0)
   const summary = page.getByRole('region', { name: 'Class Log Summary' })
   await expect(summary).toBeVisible()
-  await expect(summary.getByText('Students reflected on their progress and next steps.')).toBeVisible()
-  await expect(summary.getByText(/10:10 AM$/)).toBeVisible()
+  await expect(summary.getByText('Summary', { exact: true })).toBeVisible()
+  await expect(summary).toContainText('Student 02 asks whether the lab report needs a graph.')
+  await expect(summary.getByText('Students reflected on their progress and next steps.')).toHaveCount(0)
+  await expect(summary.getByText(/10:10 AM$/)).toHaveCount(0)
   await expect(summary.getByText(/student02/i)).toHaveCount(0)
-  await expect(summary.getByText('Student 02 Alpha02')).toBeVisible()
+  const summaryStudent = summary.getByRole('button', { name: 'Go to Student 02 Alpha02 in student table' })
+  await expect(summaryStudent).toHaveText('Student 02')
+  const scrollPane = page.getByTestId('daily-student-scroll-pane')
+  await scrollPane.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await expect.poll(() => scrollPane.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await summaryStudent.click()
+  const summaryStudentRow = scrollPane.getByRole('row').filter({
+    has: page.getByRole('cell', { name: 'Student 02', exact: true }),
+  })
+  await expect(summaryStudentRow).toHaveAttribute('aria-selected', 'true')
+  await expect(summaryStudentRow).toBeFocused()
+  await expect(summary).toBeVisible()
+  await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(summaryStudentRow).toHaveAttribute('aria-selected', 'false')
   const longLog = page.getByText(/Completed a detailed reflection for Student 01/)
   await expect(longLog).toHaveAttribute('title', /Completed a detailed reflection/)
   const overrideUndo = page.getByRole('button', {
@@ -1007,7 +1026,6 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByTestId('daily-selected-student-workspace')).toHaveCount(0)
   await page.keyboard.press('Escape')
 
-  const scrollPane = page.getByTestId('daily-student-scroll-pane')
   await expect.poll(() => scrollPane.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
   await scrollPane.evaluate((element) => {
     element.scrollTop = element.scrollHeight
@@ -3841,7 +3859,7 @@ test('retains teacher Classwork student editor and table through background refr
   const scroller = page.getByTestId('assignment-student-scroll-pane')
   await expect(scroller.getByRole('checkbox', { name: /^Select Student/ })).toHaveCount(35)
   const editor = page.getByPlaceholder('Teacher comment draft')
-  if (await editor.count() === 0) await page.getByRole('button', { name: 'Student 00 Example', exact: true }).click()
+  // Student work loads separately after the table selects its first student.
   await expect(editor).toBeVisible()
   await editor.fill('Keep this teacher comment draft during refresh.')
   await scroller.evaluate((element) => { element.scrollTop = 160 })

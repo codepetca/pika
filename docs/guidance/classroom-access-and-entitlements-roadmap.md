@@ -1237,7 +1237,51 @@ canonical main fast-forward passed; all36 unrelated stashes and env link remain.
 The earlier failed attempts and native receipts remain recorded. This completes
 only owner Test list GET, not a phase exit or activation.
 
-Next is [contextual owner Test draft GET](contextual-test-draft-get.md), including
+Superseding 2026-10-05 coordinator receipt: owner draft GET PR #1473 merged
+as `6586847c1` after five exact-head CI37258057073 gates passed on reviewed
+`f5ba277a5`. Normal installed-SDK/SQL/native proof, both full-setup forced cleanup
+modes, genuinely generated contracts and unchanged canonical baseline passed.
+Audit #1474 is merged as `5708750d0`, retaining its conflict fix at 248 and our
+immutable GET at 247. Its separate production receipt records schema001–248;
+this does not activate shared admission, home/page or full cutover.
+
+Historical preparation was [owner Test draft saves](contextual-test-draft-save.md),
+preparing only admitted PATCH with current-owner transaction/source/document CAS,
+existing durable started-Test restrictions and literal legacy compatibility.
+GET owns initialization/repair; a missing/invalid draft baseline requires reload
+without partial PATCH writes. No Storage fallback or immediate deletion belongs
+to this boundary. Coordinator begins on actual main `c25ebf78f`; source-only
+workers own separate application, SQL and proof files. Full runtime evidence,
+independent review and exact-head CI remain required. No goal or phase exit.
+
+Superseding2026-10-06 receipt: #1480 reviewed `7fa6674c1` passed all five CI
+37403984915 checks, including warning-free SQL lint and PR Gate, and normally
+squash-merged `25457e2d1` at03:17:42UTC. Clean canonical main fast-forward passed;
+all36 unrelated stashes remain. Corrected249 normal11, both forced cleanup modes,
+genuine types and SAME whole-canonical equality passed. No canonical249 migration
+application, production promotion or activation occurred. The next bounded slice
+is [ordinary owner Test creation](contextual-test-create.md), not a phase exit.
+
+Historical successor creation250 isolated acceptance on2026-10-06: exact59a4 normal3 and
+both serial forced cleanup modes passed, with SAME whole immutable canonical B1
+and byte-identical genuine CLI types. Earlier source-inventory failures remain
+recorded; exact17-trigger closure corrected, not weakened. Final PR review/CI
+remain pending in that earlier receipt. No canonical249/250 application, production act or activation.
+
+Superseding2026-10-06: creation PR#1500 merged5bf3dbacc after all five exact-head
+CI37422413824 checks passed on reviewed dba18a9e. Squash-tree parity and clean
+canonical main fast-forward passed, preserving36 ordered unrelated stashes.
+Next is [pristine Test draft discard](contextual-test-pristine-discard.md), not
+general deletion. Clean reviewed5f5f097673c5 isolated normal proof and genuine
+CLI types passed:18 SDK cases/20 RPC/0 Storage/6 pair removals,2 physically restored
+privilege probes,56 rollback checks and14 contention schedules. Both serial
+forced cleanup modes and SAME whole canonical equality passed. Final local
+checks, independent integration review and reviewed-head PR Gate remain pending.
+Canonical249–251 and all experience/billing activation remain held; real lifecycle
+state profiles and other owner/learner operations still prevent phase closure.
+
+Historical source preparation below predates that actual merge receipt:
+[contextual owner Test draft GET](contextual-test-draft-get.md), including
 its hidden create/repair behavior. Source preparation on main7570 uses a two-phase
 service-only snapshot/CAS transaction, unchanged legacy dispatch and public DTO,
 current owner/fixed-parent checks and explicit retired-Test inspection/write rules.

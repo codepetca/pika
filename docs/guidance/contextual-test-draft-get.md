@@ -1,12 +1,13 @@
 # Contextual owner Test draft GET
 
-Status: source preparation on `codex/contextual-test-owner-draft-get`, based on
-verified main `7570a9d60591183f0699001f47a6528045a392ee`. Migration247 is additive
-source only. Shared local schema was last verified001–243 and production001–225;
-neither is changed by this preparation. Initial and targeted source reviews,
-normal runtime proof and both forced cleanup modes have passed. Genuine isolated
-schema contracts are installed and full coverage passes. Targeted correction
-review, final integration review, stable-head CI and normal main merge remain pending.
+Status: PR #1473 merged on 2026-10-05 as `6586847c1`, from reviewed
+`f5ba277a51e717744e895663204289d51938159e`; all five exact-head CI37258057073
+gates passed. Initial/targeted/final independent reviews, normal runtime proof,
+both full-setup forced-cleanup modes, genuinely generated contracts, full coverage
+and the unchanged canonical baseline passed. No admission or experience gate was
+enabled. Audit's separate production receipt now records schema001–248, including
+immutable247 and its forward conflict fix248; that is not a mixed-role cutover.
+Original source/runtime checkpoints below remain historical evidence.
 
 ## Boundary
 
