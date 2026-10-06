@@ -154,6 +154,14 @@ export function StudentTodayTab({
   const currentClassroomIdRef = useRef(classroom.id)
   const entriesSnapshotClassroomIdRef = useRef<string | null>(null)
   const entriesSnapshotDateRef = useRef<string | null>(null)
+  const conflictEntryRef = useRef<Entry | null>(null)
+  const provisionalReadConflictRef = useRef(false)
+  const resumeAfterOwnAcknowledgementRef = useRef(false)
+  const setCurrentConflictEntry = useCallback((entry: Entry | null, provisionalRead = false) => {
+    conflictEntryRef.current = entry
+    provisionalReadConflictRef.current = provisionalRead
+    setConflictEntry(entry)
+  }, [])
   currentClassroomIdRef.current = classroom.id
 
   useEffect(() => {
@@ -187,11 +195,12 @@ export function StudentTodayTab({
         entryIdRef.current = null
         entryVersionRef.current = 1
         confirmedSaveRevisionRef.current = 0
+        resumeAfterOwnAcknowledgementRef.current = false
         initialSaveRequestedRef.current = false
         setSaveStatus('saved')
         setSaveError('')
         if (rolloverDraftRef.current?.date !== todayDate) setDraftStorageUnavailable(false)
-        setConflictEntry(null)
+        setCurrentConflictEntry(null)
       }
       try {
         todayRef.current = todayDate
@@ -272,7 +281,7 @@ export function StudentTodayTab({
               recoverableDraft.entryId !== todayEntry.id || recoverableDraft.version !== (todayEntry.version ?? 1)
             )) {
               restoredDraftAutosaveRef.current = null
-              setConflictEntry(todayEntry)
+              setCurrentConflictEntry(todayEntry)
               setSaveError('This log changed elsewhere. Review before replacing the newer version.')
             }
           }
@@ -291,7 +300,7 @@ export function StudentTodayTab({
             recoverableDraft.entryId === todayEntry.id && recoverableDraft.version === (todayEntry.version ?? 1)
           )) {
             setSaveError('')
-            setConflictEntry(null)
+            setCurrentConflictEntry(null)
           }
           entryIdRef.current = todayEntry?.id ?? null
           entryVersionRef.current = todayEntry?.version ?? 1
@@ -372,7 +381,7 @@ export function StudentTodayTab({
                 setSaveStatus('saved')
                 setSaveError('')
                 setDraftStorageUnavailable(false)
-                setConflictEntry(null)
+                setCurrentConflictEntry(null)
                 setHistoryEntries(relevantEntries)
                 safeSessionSetJson(historyCacheKey, relevantEntries)
                 return
@@ -386,7 +395,7 @@ export function StudentTodayTab({
                 saveTimeoutRef.current = null
                 throttledSaveTimeoutRef.current = null
                 restoredDraftAutosaveRef.current = null
-                setConflictEntry(todayEntry)
+                setCurrentConflictEntry(todayEntry, true)
                 setSaveStatus('unsaved')
                 setSaveError('This log changed elsewhere. Review before replacing the newer version.')
               }
@@ -423,7 +432,7 @@ export function StudentTodayTab({
     return () => {
       loadRequestIdRef.current += 1
     }
-  }, [classDays, classroom.id, currentTorontoDate, entriesRequestVersion, historyLimit, lessonPlanRequestVersion, onLessonPlanError, onLessonPlanLoad, onLessonPlanLoading, pastHistoryLimit, studentId])
+  }, [classDays, classroom.id, currentTorontoDate, entriesRequestVersion, historyLimit, lessonPlanRequestVersion, onLessonPlanError, onLessonPlanLoad, onLessonPlanLoading, pastHistoryLimit, setCurrentConflictEntry, studentId])
 
   // Read retries must not cancel the mounted draft's debounce or throttled save.
   // An owner change or unmount still ends those scheduled attempts.
@@ -581,7 +590,7 @@ export function StudentTodayTab({
       if (response.status === 409) {
         const serverEntry = data.entry as Entry | undefined
         if (serverEntry) {
-          if (isActiveEntry()) setConflictEntry(serverEntry)
+          if (isActiveEntry()) setCurrentConflictEntry(serverEntry)
           else setOlderConflicts(prev => ({ ...prev, [entryDate]: serverEntry }))
           if (serverEntry.date) {
             updateHistoryEntries(serverEntry)
@@ -627,8 +636,25 @@ export function StudentTodayTab({
       notifyImmediatePalDelivery(data.pal_delivery, classroom.id)
 
       const savedEntry = data.entry as Entry
-      const savedContentStillCurrent = isActiveEntry() && JSON.stringify(currentContentRef.current) === newContentStr
       const savedEntryContent = resolveEntryContent(savedEntry)
+      const currentConflict = isActiveEntry() ? conflictEntryRef.current : null
+      const confirmsOwnReadConflict = Boolean(
+        currentConflict && provisionalReadConflictRef.current &&
+        currentConflict.id === savedEntry.id &&
+        (currentConflict.version ?? 1) === (savedEntry.version ?? 1) &&
+        JSON.stringify(resolveEntryContent(currentConflict)) === JSON.stringify(savedEntryContent)
+      )
+      const hasUnresolvedConflict = Boolean(currentConflict && !confirmsOwnReadConflict)
+      const savedContentStillCurrent = isActiveEntry() && !hasUnresolvedConflict &&
+        JSON.stringify(currentContentRef.current) === newContentStr
+      if (confirmsOwnReadConflict) {
+        // The read observed this own save. Keep newer typing and restore its
+        // normal autosave after the provisional conflict cancelled the timers.
+        resumeAfterOwnAcknowledgementRef.current = !savedContentStillCurrent
+        setCurrentConflictEntry(null)
+        const charCount = countCharacters(currentContentRef.current)
+        setSaveError(charCount > MAX_CHARS ? `Entry exceeds ${MAX_CHARS} character limit` : '')
+      }
 
       if (isActiveEntry()) {
         entryIdRef.current = savedEntry.id
@@ -640,7 +666,7 @@ export function StudentTodayTab({
       if (currentClassroomIdRef.current === classroom.id) updateHistoryEntries(savedEntry)
       if (isActiveEntry()) lastSavedContentRef.current = JSON.stringify(savedEntryContent)
       const latestDraft = readDailyLogDraft(studentId, classroom.id, entryDate)
-      if (latestDraft && JSON.stringify(latestDraft.content) === newContentStr) {
+      if (latestDraft && !hasUnresolvedConflict && JSON.stringify(latestDraft.content) === newContentStr) {
         removeDailyLogDraft(studentId, classroom.id, entryDate)
       } else if (latestDraft) {
         writeDailyLogDraft({
@@ -660,7 +686,7 @@ export function StudentTodayTab({
         setSaveStatus('saved')
         setSaveError('')
         setDraftStorageUnavailable(false)
-        setConflictEntry(null)
+        setCurrentConflictEntry(null)
         notifications?.markTodayComplete()
       } else if (isActiveEntry()) {
         setSaveStatus('unsaved')
@@ -689,7 +715,7 @@ export function StudentTodayTab({
     } finally {
       setOlderDraftSavingDate(current => current === entryDate ? null : current)
     }
-  }, [MAX_CHARS, classroom.id, historyLimit, updateHistoryEntries, notifications, studentId])
+  }, [MAX_CHARS, classroom.id, historyLimit, updateHistoryEntries, notifications, setCurrentConflictEntry, studentId])
 
   const enqueueSave = useCallback((entryDate: string) => {
     const saveKey = `${studentId}:${classroom.id}:${entryDate}`
@@ -797,6 +823,13 @@ export function StudentTodayTab({
       }
     }, waitMs)
   }, [AUTOSAVE_MIN_INTERVAL_MS, conflictEntry, enqueueSave])
+
+  useEffect(() => {
+    if (loading || conflictEntry || !resumeAfterOwnAcknowledgementRef.current) return
+    resumeAfterOwnAcknowledgementRef.current = false
+    const latest = pendingContentRef.current
+    if (latest) scheduleSave(latest)
+  }, [conflictEntry, loading, scheduleSave])
 
   useEffect(() => {
     if (loading || conflictEntry) return
@@ -956,8 +989,8 @@ export function StudentTodayTab({
     entryVersionRef.current = conflictEntry.version ?? entryVersionRef.current
     setSaveStatus('saved')
     setSaveError('')
-    setConflictEntry(null)
-  }, [classroom.id, conflictEntry, studentId])
+    setCurrentConflictEntry(null)
+  }, [classroom.id, conflictEntry, setCurrentConflictEntry, studentId])
 
   const retryAfterConflict = useCallback(() => {
     if (!conflictEntry) return
@@ -965,14 +998,14 @@ export function StudentTodayTab({
     entryVersionRef.current = conflictEntry.version ?? entryVersionRef.current
     const draft = readDailyLogDraft(studentId, classroom.id, todayRef.current)
     if (draft) writeDailyLogDraft({ ...draft, entryId: conflictEntry.id, version: conflictEntry.version ?? draft.version })
-    setConflictEntry(null)
+    setCurrentConflictEntry(null)
     const latest = pendingContentRef.current ?? content
     const date = todayRef.current
     const saveKey = `${studentId}:${classroom.id}:${date}`
     const previousSave = saveQueuesByDateRef.current.get(saveKey) ?? Promise.resolve()
     const retry = previousSave.catch(() => undefined).then(() => saveContent(latest, date, { forceFull: true }))
     saveQueuesByDateRef.current.set(saveKey, retry.catch(() => undefined))
-  }, [conflictEntry, content, saveContent, studentId, classroom.id])
+  }, [conflictEntry, content, saveContent, setCurrentConflictEntry, studentId, classroom.id])
 
   function acceptSavedOlderLog(date: string) {
     removeDailyLogDraft(studentId, classroom.id, date)

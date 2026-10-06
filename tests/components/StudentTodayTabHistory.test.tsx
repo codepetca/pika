@@ -1269,20 +1269,23 @@ describe('StudentTodayTab history section', () => {
     })
 
     it.each([
-      [false, false], [true, false], [false, true], [true, true],
-    ] as const)('does not acknowledge an outstanding save or newer local draft from a retry (blocked storage=%s, newer draft=%s)', async (blockedStorage, newerDraft) => {
+      [false, false, false], [true, false, false],
+      [false, true, false], [true, true, false],
+      [false, true, true], [true, true, true],
+    ] as const)('reconciles an outstanding own save after a retry (blocked storage=%s, newer draft=%s, throttled=%s)', async (blockedStorage, newerDraft, throttled) => {
       prepareRetry(blockedStorage)
       const retryRead = deferred<any>()
       const outstandingSave = deferred<any>()
-      let saveCount = 0
+      const laterSave = deferred<any>()
+      const saveBodies: any[] = []
       let readCount = 0
       vi.stubGlobal('fetch', vi.fn((input: RequestInfo, init?: RequestInit) => {
         const url = String(input)
         if (url.startsWith('/api/student/entries?')) return ++readCount === 1 ? mockJson({ error: 'Read offline' }, false) : retryRead.promise
         if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
         if (url === '/api/student/entries' && init?.method === 'PATCH') {
-          saveCount += 1
-          return outstandingSave.promise
+          saveBodies.push(JSON.parse(String(init.body)))
+          return saveBodies.length === 1 ? outstandingSave.promise : laterSave.promise
         }
         throw new Error(`Unhandled fetch: ${url}`)
       }))
@@ -1291,20 +1294,97 @@ describe('StudentTodayTab history section', () => {
       const editor = screen.getByRole('textbox', { name: 'Daily Log' })
       fireEvent.change(editor, { target: { value: 'Content in the outstanding save.' } })
       fireEvent.blur(editor)
-      await waitFor(() => expect(saveCount).toBe(1))
+      await waitFor(() => expect(saveBodies).toHaveLength(1))
+      vi.useFakeTimers()
       if (newerDraft) fireEvent.change(editor, { target: { value: 'Newer local draft still unsent.' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
-      await waitFor(() => expect(readCount).toBe(2))
+      if (throttled) await act(async () => vi.advanceTimersByTimeAsync(6000))
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Try again' })))
+      expect(readCount).toBe(2)
       await act(async () => retryRead.resolve(await mockJson({ entries: [committedEntry('Content in the outstanding save.'), entries[1]] })))
       expect(screen.getByRole('textbox', { name: 'Daily Log' })).toBe(editor)
       expect(editor).toHaveValue(newerDraft ? 'Newer local draft still unsent.' : 'Content in the outstanding save.')
       expect(screen.queryByText('Saved')).not.toBeInTheDocument()
-      expect(saveCount).toBe(1)
-      if (newerDraft) expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
+      expect(saveBodies).toHaveLength(1)
+      expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
       await act(async () => outstandingSave.resolve(await mockJson({ entry: committedEntry('Content in the outstanding save.') })))
       expect(screen.getByText(newerDraft ? 'Unsaved' : 'Saved')).toBeInTheDocument()
       expect(editor).toHaveValue(newerDraft ? 'Newer local draft still unsent.' : 'Content in the outstanding save.')
+      expect(screen.queryByRole('button', { name: 'Reload latest' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Retry save' })).not.toBeInTheDocument()
+      expect(screen.queryByText(/This log changed elsewhere/)).not.toBeInTheDocument()
+      if (newerDraft) {
+        expect(Boolean(screen.queryByText(/This draft could not be kept/))).toBe(blockedStorage)
+        if (!blockedStorage) {
+          const draft = JSON.parse(window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-12-16')!)
+          expect(draft).toMatchObject({ entryId: entries[0].id, version: 2 })
+          expect(JSON.stringify(draft.content)).toContain('Newer local draft still unsent.')
+        }
+        await act(async () => vi.advanceTimersByTimeAsync(15000))
+        expect(saveBodies).toHaveLength(2)
+        expect(saveBodies[1]).toMatchObject({ entry_id: entries[0].id, version: 2 })
+        expect(JSON.stringify(saveBodies[1])).toContain('Newer local draft still unsent.')
+        expect(screen.getByText('Saving…')).toBeInTheDocument()
+        await act(async () => laterSave.resolve(await mockJson({ entry: { ...committedEntry('Newer local draft still unsent.'), version: 3 } })))
+        expect(screen.getByText('Saved')).toBeInTheDocument()
+        expect(screen.queryByText(/This draft could not be kept/)).not.toBeInTheDocument()
+        expect(window.localStorage.getItem('daily-log-draft:v2:s1:c1:2025-12-16')).toBeNull()
+      } else {
+        await act(async () => vi.advanceTimersByTimeAsync(30000))
+        expect(saveBodies).toHaveLength(1)
+      }
     })
+
+    it.each([false, true].flatMap(blockedStorage => [false, true].flatMap(newerDraft =>
+      ['version', 'identity', 'content'].map(difference => ({ blockedStorage, newerDraft, difference }))
+    )))('retains a different retry conflict after own acknowledgement ($difference, blocked=$blockedStorage, newer draft=$newerDraft)', async ({ blockedStorage, newerDraft, difference }) => {
+      prepareRetry(blockedStorage)
+      const retryRead = deferred<any>()
+      const outstandingSave = deferred<any>()
+      const replacementSave = deferred<any>()
+      const ownEntry = committedEntry('Content in the outstanding save.')
+      const serverEntry = {
+        ...committedEntry(difference === 'content' ? 'Different external content.' : ownEntry.text),
+        id: difference === 'identity' ? 'other-server-entry' : ownEntry.id,
+        version: difference === 'version' ? 3 : 2,
+      }
+      const saveBodies: any[] = []
+      let readCount = 0
+      vi.stubGlobal('fetch', vi.fn((input: RequestInfo, init?: RequestInit) => {
+        const url = String(input)
+        if (url.startsWith('/api/student/entries?')) return ++readCount === 1 ? mockJson({ error: 'Read offline' }, false) : retryRead.promise
+        if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+        if (url === '/api/student/entries' && init?.method === 'PATCH') {
+          saveBodies.push(JSON.parse(String(init.body)))
+          return saveBodies.length === 1 ? outstandingSave.promise : replacementSave.promise
+        }
+        throw new Error(`Unhandled fetch: ${url}`)
+      }))
+      render(<StudentTodayTab classroom={classroom} />)
+      await screen.findByText('The latest daily log could not be loaded.')
+      const editor = screen.getByRole('textbox', { name: 'Daily Log' })
+      fireEvent.change(editor, { target: { value: ownEntry.text } })
+      fireEvent.blur(editor)
+      await waitFor(() => expect(saveBodies).toHaveLength(1))
+      vi.useFakeTimers()
+      if (newerDraft) fireEvent.change(editor, { target: { value: 'Newer local draft still unsent.' } })
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Try again' })))
+      await act(async () => retryRead.resolve(await mockJson({ entries: [serverEntry, entries[1]] })))
+      await act(async () => outstandingSave.resolve(await mockJson({ entry: ownEntry })))
+      expect(screen.getByText('Unsaved')).toBeInTheDocument()
+      expect(screen.getByText('This log changed elsewhere. Review before replacing the newer version.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Reload latest' })).toBeInTheDocument()
+      expect(screen.getByRole('textbox', { name: 'Daily Log' })).toBe(editor)
+      expect(editor).toHaveValue(newerDraft ? 'Newer local draft still unsent.' : ownEntry.text)
+      expect(Boolean(screen.queryByText(/This draft could not be kept/))).toBe(blockedStorage)
+      await act(async () => vi.advanceTimersByTimeAsync(30000))
+      fireEvent.blur(editor)
+      expect(saveBodies).toHaveLength(1)
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Retry save' })))
+      expect(saveBodies).toHaveLength(2)
+      expect(saveBodies[1]).toMatchObject({ entry_id: serverEntry.id, version: serverEntry.version })
+      expect(JSON.stringify(saveBodies[1].rich_content)).toContain(newerDraft ? 'Newer local draft still unsent.' : ownEntry.text)
+    })
+
   })
 
   it('does not overwrite local edits when the background refresh completes', async () => {
