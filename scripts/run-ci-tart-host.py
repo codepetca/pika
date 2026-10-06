@@ -35,7 +35,7 @@ GUEST_ENV = {
 }
 GUEST_GUARDS = {'isolation', 'identity', 'client', 'credentials', 'host-mount', 'docker-context',
                 'docker-socket', 'docker-rootless', 'toolchain', 'general-sudo', 'inventory',
-                'listener-failure', 'idle-timeout', 'lifetime-timeout', 'retry-limit', 'update-timeout'}
+                'listener-failure', 'idle-timeout', 'lifetime-timeout', 'retry-limit', 'update-timeout', 'process-group'}
 
 
 class Refusal(Exception):
@@ -187,6 +187,30 @@ print(json.dumps({'id':config['agentId'],'name':config['agentName'],'ephemeral':
 
 GUEST_RUN = GUEST_COMMON + r'''
 import signal
+def group_running(pgid):
+    rows=subprocess.check_output(['/bin/ps','-axo','pid=,pgid=,stat='],env=env,text=True,timeout=3)
+    return any(int(parts[1])==pgid and not parts[2].startswith('Z')
+               for line in rows.splitlines() if len(parts:=line.split())==3)
+def contain_group(runner):
+    try:
+        forced=group_running(runner.pid)
+        if forced:
+            try: os.killpg(runner.pid,signal.SIGTERM)
+            except (ProcessLookupError,PermissionError):
+                if group_running(runner.pid): raise RuntimeError('group-unavailable')
+            deadline=time.monotonic()+1
+            while group_running(runner.pid) and time.monotonic()<deadline: time.sleep(0.02)
+            if group_running(runner.pid):
+                try: os.killpg(runner.pid,signal.SIGKILL)
+                except (ProcessLookupError,PermissionError):
+                    if group_running(runner.pid): raise RuntimeError('group-unavailable')
+            deadline=time.monotonic()+2
+            while group_running(runner.pid) and time.monotonic()<deadline: time.sleep(0.02)
+        runner.wait(timeout=3)
+        require(not group_running(runner.pid),'process-group')
+        return forced
+    except BaseException:
+        require(False,'process-group')
 config=json.loads((client / '.runner').read_text())
 require(config.get('agentName')==payload['name'] and config.get('ephemeral') is True)
 require(config.get('gitHubUrl','').rstrip('/')=='https://github.com/codepetca/pika')
@@ -214,22 +238,24 @@ with os.fdopen(fd,'wb') as output:
             while runner.poll() is None:
                 budget(); time.sleep(0.1)
             budget()
+            if runner.returncode in (3,4) and not assigned:
+                # Updater children legitimately outlive the listener. Let the
+                # marker and complete group exit verify update completion first.
+                deadline=time.monotonic()+30; marker=client/'update.finished'
+                while True:
+                    budget()
+                    ready=marker.is_file() and not marker.is_symlink()
+                    if ready and not group_running(runner.pid): break
+                    require(time.monotonic()<deadline,'update-timeout')
+                    time.sleep(0.1)
+                marker.unlink()
         finally:
-            if runner.poll() is None:
-                os.killpg(runner.pid,signal.SIGTERM)
-                try: runner.wait(timeout=10)
-                except subprocess.TimeoutExpired: os.killpg(runner.pid,signal.SIGKILL); runner.wait(timeout=5)
+            forced=contain_group(runner)
         if runner.returncode==0:
-            require(assigned,'listener-failure'); break
+            require(assigned and not forced,'listener-failure'); break
         # A listener is never restarted after Worker activity, even on an update.
         require(not assigned and runner.returncode in (2,3,4),'listener-failure')
-        if runner.returncode in (3,4):
-            deadline=time.monotonic()+30; marker=client/'update.finished'
-            while not marker.exists() and time.monotonic()<deadline:
-                budget(); time.sleep(0.1)
-            require(marker.is_file() and not marker.is_symlink(),'update-timeout')
-            marker.unlink()
-        else:
+        if runner.returncode==2:
             deadline=time.monotonic()+5
             while time.monotonic()<deadline:
                 budget(); time.sleep(0.1)
@@ -287,6 +313,9 @@ class Backend:
         self.sequence = 0
         self.vm_process = None
         self.unconfirmed_process = False
+        self.unconfirmed_groups = []
+        self.guest_unconfirmed = False
+        self.admission_guard = None
         self.registration_issued = False
         self.registration_identity = None
         self.redactions = []
@@ -296,11 +325,14 @@ class Backend:
         return {'HOME': '/Users/stew', 'PATH': '/opt/homebrew/bin:/usr/bin:/bin', 'LANG': 'C.UTF-8'}
 
     def command(self, args, timeout=60, input_data=None, secret=False):
+        if args[0] == TART:
+            self.require_admission()
         self.sequence += 1
         # Secret-bearing stdin/API responses are never persisted, including errors.
         proc = subprocess.Popen(args, stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 env=self.host_environment(), start_new_session=True)
+        proc.pika_command_sequence = self.sequence
         try:
             out, err = proc.communicate(input_data.encode() if input_data is not None else None, timeout=timeout)
         except BaseException:
@@ -316,6 +348,8 @@ class Backend:
                 stream.write(out + err)
         if proc.returncode:
             if secret:
+                if 'PIKA_HOST_GUARD:process-group' in out.decode('utf8', errors='replace').splitlines():
+                    raise Refusal('guest-process-group')
                 for line in out.decode('utf8', errors='replace').splitlines():
                     if line.startswith('PIKA_HOST_GUARD:') and line[16:] in GUEST_GUARDS:
                         raise Refusal('guest-' + line[16:])
@@ -324,11 +358,18 @@ class Backend:
             raise Refusal('child-output-too-large')
         return out.decode('utf8')
 
+    def require_admission(self):
+        if self.admission_guard is None:
+            raise Refusal('host-admission-unavailable')
+        self.admission_guard()
+
     def contain(self, proc):
         try:
             self.terminate(proc)
         except BaseException:
             self.unconfirmed_process = True
+            self.unconfirmed_groups.append({'pid': proc.pid, 'pgid': proc.pid,
+                                            'sequence': getattr(proc, 'pika_command_sequence', None)})
             raise
 
     @staticmethod
@@ -403,11 +444,14 @@ class Backend:
         self.command([TART, 'set', vm, '--cpu', '4', '--memory', '12288', '--random-mac'])
 
     def start(self, vm):
+        self.require_admission()
+        self.sequence += 1
         fd = os.open(self.logs / 'tart-run.log', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, 'wb') as output:
             self.vm_process = subprocess.Popen([TART, 'run', '--no-graphics', '--no-audio', '--no-clipboard', vm],
                                                stdin=subprocess.DEVNULL, stdout=output, stderr=output,
                                                env=self.host_environment(), start_new_session=True)
+            self.vm_process.pika_command_sequence = self.sequence
 
     def guest(self, vm, code, payload=None, timeout=90):
         data = dict(payload or {}, environment=GUEST_ENV)
@@ -461,7 +505,14 @@ class Backend:
         return [runner for page in pages for runner in page['runners']]
 
     def run_one(self, vm, idle, lifetime):
-        return json.loads(self.guest(vm, GUEST_RUN, {'name': vm, 'idle': idle, 'lifetime': lifetime}, timeout=lifetime + 30))
+        try:
+            return json.loads(self.guest(vm, GUEST_RUN, {'name': vm, 'idle': idle, 'lifetime': lifetime}, timeout=lifetime + 30))
+        except BaseException as error:
+            if not isinstance(error, Refusal) or str(error) not in {
+                    'guest-listener-failure', 'guest-idle-timeout', 'guest-lifetime-timeout',
+                    'guest-retry-limit', 'guest-update-timeout'}:
+                self.guest_unconfirmed = True
+            raise
 
     def collect(self, vm):
         data = json.loads(self.guest(vm, GUEST_COLLECT, {'redactions': self.redactions}, timeout=20))
@@ -507,13 +558,16 @@ class Backend:
         if any(r.get('name') == vm for r in self.runners()):
             raise Refusal('owned-registration-still-exists')
 
-    def stop(self, vm):
+    def stop(self, vm, inspect=True):
         empty = False
-        try:
-            # No SQL or pruning: dirty resource state is contained by VM destruction.
-            empty = self.guest(vm, GUEST_EMPTY, timeout=15).strip() == 'EMPTY'
-        except (Refusal, subprocess.TimeoutExpired):
-            pass
+        if inspect:
+            try:
+                # No SQL or pruning: dirty state is contained by VM destruction.
+                empty = self.guest(vm, GUEST_EMPTY, timeout=15).strip() == 'EMPTY'
+            except (Refusal, subprocess.TimeoutExpired):
+                pass
+        else:
+            empty = None
         self.command([TART, 'stop', vm])
         if self.vm_process is not None:
             self.contain(self.vm_process)
@@ -546,6 +600,10 @@ class HostDriver:
                   'assigned_job': None, 'registration': None, 'lease_released': False, 'stage': 'admission'}
         attempted_clone = False
         attempted_registration = False
+        def admission():
+            lease.assert_owned()
+            if getattr(self.backend, 'unconfirmed_process', False):
+                raise Refusal('child-process-group-not-terminated')
         try:
             if mode == 'serve-one':
                 if not self.backend.private():
@@ -553,6 +611,8 @@ class HostDriver:
                 if not self.backend.demand(run_id):
                     raise Refusal('no-eligible-queued-job')
             lease.acquire()
+            if isinstance(self.backend, Backend):
+                self.backend.admission_guard = admission
             result['stage'] = 'host-inventory'
             rows = self.backend.inventory()
             if any(r['Running'] for r in rows) or any(r['Name'] == vm for r in rows):
@@ -610,11 +670,6 @@ class HostDriver:
             result['failure'] = str(error) if isinstance(error, Refusal) else 'interrupted-or-command-failed'
         finally:
             failures = []
-            if attempted_clone:
-                try:
-                    result['diagnostics'] = self.backend.collect(vm)
-                except (Exception, KeyboardInterrupt):
-                    result['diagnostics'] = {'status': 'failed', 'failure': 'guest-diagnostics-unavailable'}
             # Revocation cannot be skipped because unrelated VM/lease cleanup failed.
             issued = getattr(self.backend, 'registration_issued', attempted_registration)
             if attempted_registration and issued:
@@ -625,21 +680,34 @@ class HostDriver:
                     failures.append('registration')
                     result['registration_removed'] = False
             if lease.claimed:
+                if attempted_clone:
+                    result['diagnostics'] = {'status': 'skipped', 'failure': 'cleanup-admission-unavailable'}
                 try:
-                    lease.assert_owned()
-                    if getattr(self.backend, 'unconfirmed_process', False):
-                        raise Refusal('child-process-group-not-terminated')
+                    admission()
                     if attempted_clone:
                         own = [r for r in self.backend.inventory() if r['Name'] == vm]
                         if own:
                             if own[0]['Running']:
-                                result['guest_empty'] = self.backend.stop(vm)
+                                uncertain_guest = getattr(self.backend, 'guest_unconfirmed', False)
+                                if uncertain_guest:
+                                    result['diagnostics'] = {'status': 'skipped', 'failure': 'guest-process-group-unverified'}
+                                else:
+                                    try:
+                                        admission()
+                                        result['diagnostics'] = self.backend.collect(vm)
+                                    except (Exception, KeyboardInterrupt):
+                                        result['diagnostics'] = {'status': 'failed', 'failure': 'guest-diagnostics-unavailable'}
+                                admission()
+                                result['guest_empty'] = self.backend.stop(vm, inspect=not uncertain_guest)
                                 if result['guest_empty'] is False and result['status'] in ('completed', 'rehearsed'):
                                     result['status'] = 'failed'
                                     result['failure'] = 'guest-inventory-not-empty'
+                            admission()
                             if any(r['Name'] == vm and r['Running'] for r in self.backend.inventory()):
                                 raise Refusal('owned-vm-still-running')
+                            admission()
                             self.backend.delete(vm)
+                        admission()
                         if any(r['Name'] == vm for r in self.backend.inventory()):
                             raise Refusal('owned-vm-still-exists')
                 except (Exception, KeyboardInterrupt):
@@ -655,7 +723,8 @@ class HostDriver:
                 result['cleanup_failure'] = 'owned-teardown-or-lease-verification-failed'
                 result['cleanup_failures'] = failures
             if attempted_clone:
-                private_json(directory / 'receipt.json', result)
+                receipt_result = dict(result, host_unconfirmed_groups=getattr(self.backend, 'unconfirmed_groups', None))
+                private_json(directory / 'receipt.json', receipt_result)
                 result['receipt'] = str(directory / 'receipt.json')
         return result
 

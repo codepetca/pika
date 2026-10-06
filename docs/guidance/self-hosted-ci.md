@@ -100,10 +100,11 @@ guest as the dedicated runner user. It transfers only the canonical resource
 preflight into a fresh guest directory and checks all three lanes. It does not
 replay migrations. Receipts and child logs are private files under
 `~/.codex/artifacts/pika/ci-tart-host` on the prepared operator account.
-Before disposal, the driver also collects bounded tails of allowlisted guest
+While host admission and child containment remain verified, the driver collects
+bounded tails of allowlisted guest
 runner diagnostics into that private directory. It excludes configuration,
 credentials, and environment files and redacts its known registration token.
-The receipt records collection failure; VM containment still proceeds. These
+The receipt records collection failure or skipped collection. These
 bounded logs may be truncated and do not replace GitHub job results.
 
 The shared lease covers clone, boot, guest checks, and destruction. A held lease

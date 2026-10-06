@@ -34,8 +34,9 @@ class Fake:
         return {'runner_exit':0,'assigned_job':None}
     def unregister(self, vm, identity): self.calls.append('unregister')
     def collect(self, vm): self.calls.append('collect'); return {'status':'collected','files':[]}
-    def stop(self, vm):
+    def stop(self, vm, inspect=True):
         self.calls.append('stop')
+        if not inspect: self.calls.append('stop-without-guest-inspection')
         if self.fail_cleanup: raise h.Refusal('stop-failed')
         next(v for v in self.vms if v['Name']==vm)['Running']=False
         return True
@@ -65,13 +66,19 @@ describe('serial Tart host admission (offline)', () => {
         if kind=='stop': fake.fail_cleanup=True
         if kind=='delete': fake.delete=lambda vm: (_ for _ in ()).throw(h.Refusal('delete-failed'))
         if kind=='inventory': fake.inventory=lambda: (_ for _ in ()).throw(h.Refusal('inventory-failed'))
+        fake.calls.append('fault-applied')
         return outcome
     fake.run_one=fail
     revoked=[]; fake.unregister=lambda vm,identity: revoked.append((vm,identity))
     result=serve()
     assert result['status']=='cleanup-required' and lease.exists()
     assert len(revoked)==1 and revoked[0][1]['id']==7 and revoked[0][0]==revoked[0][1]['name']
-    assert 'collect' in fake.calls
+    after=fake.calls[fake.calls.index('fault-applied')+1:]
+    if ${JSON.stringify(fault)} in ('lease','child','inventory'):
+        assert 'collect' not in after and result['diagnostics']['status']=='skipped'
+    else: assert 'collect' in after
+    if ${JSON.stringify(fault)} in ('lease','child'):
+        assert not any(c in after for c in ('inventory','collect','stop','delete'))
     if ${JSON.stringify(fault)}=='lease': assert lease.read_text()=='foreign'
 `)
   })
@@ -152,7 +159,7 @@ describe('serial Tart host admission (offline)', () => {
     fake.run_error=h.Refusal('listener-failure')
     result=serve()
     assert result['diagnostics']['status']=='collected'
-    assert fake.calls.index('collect') < fake.calls.index('stop') < fake.calls.index('delete')
+    assert fake.calls.index('unregister') < fake.calls.index('collect') < fake.calls.index('stop') < fake.calls.index('delete')
     assert 'PRIVATE-TOKEN-SENTINEL' not in json.dumps(result)
 `)
   })
@@ -168,6 +175,51 @@ describe('serial Tart host admission (offline)', () => {
     result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
     assert result.returncode != 0 and 'PIKA_HOST_GUARD:listener-failure' in result.stdout
     assert 'PRIVATE-DIAGNOSTIC-SENTINEL' not in result.stdout
+`)
+  })
+
+  it.each([0, 1, 2])('empties the actual guest group after leader exit %i with a closed-stdio descendant', exit => {
+    offline(String.raw`
+    client=root/'client'; (client/'bin').mkdir(parents=True); (client/'_diag').mkdir()
+    (client/'.runner').write_text(json.dumps({'agentName':'pika-ci-job-offline','ephemeral':True,'gitHubUrl':'https://github.com/codepetca/pika'}))
+    listener=client/'bin/Runner.Listener'
+    body='import pathlib,subprocess,sys,os\np=pathlib.Path("attempts"); p.write_text(p.read_text()+"x" if p.exists() else "x")\npathlib.Path("group").write_text(str(os.getpgrp()))\nsubprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n'
+    if ${exit}!=2: body+='pathlib.Path("_diag/Worker_test.log").write_text("activity")\n'
+    listener.write_text('#!'+sys.executable+'\n'+body+'sys.exit(${exit})\n'); listener.chmod(0o700)
+    code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    payload={'client':str(client),'name':'pika-ci-job-offline','idle':0.4 if ${exit}==2 else 2,'lifetime':3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=6)
+    pgid=int((client/'group').read_text())
+    if h.Backend.group_running(pgid):
+        os.killpg(pgid,signal.SIGKILL); raise AssertionError('guest descendant survived controller return')
+    assert result.returncode != 0, 'surviving Worker must not produce success'
+    assert (client/'attempts').read_text()=='x'
+`)
+  })
+
+  it('routes uncertain guest containment directly to VM stop without new guest work', () => {
+    offline(String.raw`
+    fake.guest_unconfirmed=True; fake.run_error=h.Refusal('guest-process-group')
+    result=serve()
+    assert 'unregister' in fake.calls and 'collect' not in fake.calls
+    assert 'stop-without-guest-inspection' in fake.calls and 'delete' in fake.calls
+    assert result['diagnostics']['status']=='skipped' and not lease.exists()
+    assert result['failure']=='guest-process-group'
+`)
+  })
+
+  it('fails finitely when the actual guest controller cannot verify its exited group', () => {
+    offline(String.raw`
+    client=root/'client'; (client/'bin').mkdir(parents=True); (client/'_diag').mkdir()
+    (client/'.runner').write_text(json.dumps({'agentName':'pika-ci-job-offline','ephemeral':True,'gitHubUrl':'https://github.com/codepetca/pika'}))
+    listener=client/'bin/Runner.Listener'
+    listener.write_text('#!'+sys.executable+'\nraise SystemExit(1)\n'); listener.chmod(0o700)
+    code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    code=code.replace('forced=group_running(runner.pid)', "raise RuntimeError('PRIVATE-EXCEPTION-SENTINEL')")
+    payload={'client':str(client),'name':'pika-ci-job-offline','idle':2,'lifetime':3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
+    assert result.returncode != 0 and 'PIKA_HOST_GUARD:process-group' in result.stdout
+    assert 'PRIVATE-EXCEPTION-SENTINEL' not in result.stdout
 `)
   })
 
@@ -236,6 +288,7 @@ describe('serial Tart host admission (offline)', () => {
     finally:
         h.subprocess.Popen=original; h.Backend.terminate(children[0])
     assert backend.unconfirmed_process
+    assert backend.unconfirmed_groups==[{'pid':children[0].pid,'pgid':children[0].pid,'sequence':1}]
 `)
   })
 
@@ -264,12 +317,60 @@ describe('serial Tart host admission (offline)', () => {
     else: body='pathlib.Path("attempts").write_text("x"); sys.exit(2)\n'
     listener.write_text('#!'+sys.executable+'\nimport pathlib,sys\n'+body); listener.chmod(0o700)
     code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
-    payload={'client':str(client),'name':'pika-ci-job-offline','idle':3 if kind=='lifetime' else 0.3,'lifetime':0.3 if kind=='lifetime' else 3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    payload={'client':str(client),'name':'pika-ci-job-offline','idle':3 if kind=='lifetime' else 2 if kind=='update' else 0.3,'lifetime':0.3 if kind=='lifetime' else 3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
     result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=5)
     if kind=='update': assert result.returncode==0 and (client/'attempts').read_text()=='xx'
     else:
         assert result.returncode != 0 and ('PIKA_HOST_GUARD:'+kind+'-timeout') in result.stdout
         assert (client/'attempts').read_text()=='x'
+`)
+  })
+
+  it('waits for a real updater child to finish after its marker before restarting', () => {
+    offline(String.raw`
+    client=root/'client'; (client/'bin').mkdir(parents=True); (client/'_diag').mkdir()
+    (client/'.runner').write_text(json.dumps({'agentName':'pika-ci-job-offline','ephemeral':True,'gitHubUrl':'https://github.com/codepetca/pika'}))
+    updater='import pathlib,time; time.sleep(0.1); pathlib.Path("update.finished").write_text("ready"); time.sleep(0.3); pathlib.Path("updater-complete").write_text("done")'
+    listener=client/'bin/Runner.Listener'
+    body='import pathlib,subprocess,sys\np=pathlib.Path("attempts"); n=len(p.read_text()) if p.exists() else 0; p.write_text("x"*(n+1))\nif n==0:\n subprocess.Popen([sys.executable,"-c",'+repr(updater)+'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n sys.exit(4)\nif not pathlib.Path("updater-complete").exists(): sys.exit(1)\npathlib.Path("_diag/Worker_test.log").write_text("activity"); sys.exit(0)\n'
+    listener.write_text('#!'+sys.executable+'\n'+body); listener.chmod(0o700)
+    code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    payload={'client':str(client),'name':'pika-ci-job-offline','idle':3,'lifetime':4,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=6)
+    assert result.returncode==0, result.stdout+result.stderr
+    assert (client/'attempts').read_text()=='xx' and (client/'updater-complete').read_text()=='done'
+`)
+  })
+
+  it('does not accumulate real pre-Worker retry descendants', () => {
+    offline(String.raw`
+    client=root/'client'; (client/'bin').mkdir(parents=True); (client/'_diag').mkdir()
+    (client/'.runner').write_text(json.dumps({'agentName':'pika-ci-job-offline','ephemeral':True,'gitHubUrl':'https://github.com/codepetca/pika'}))
+    listener=client/'bin/Runner.Listener'
+    body='import pathlib,subprocess,sys,os\np=pathlib.Path("attempts"); n=len(p.read_text()) if p.exists() else 0; p.write_text("x"*(n+1))\nif n==0:\n pathlib.Path("old-group").write_text(str(os.getpgrp()))\n subprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n sys.exit(2)\ngid=int(pathlib.Path("old-group").read_text()); rows=subprocess.check_output(["/bin/ps","-axo","pid=,pgid=,stat="],text=True)\nif any(int(p[1])==gid and not p[2].startswith("Z") for l in rows.splitlines() if len(p:=l.split())==3): sys.exit(1)\npathlib.Path("_diag/Worker_test.log").write_text("activity"); sys.exit(0)\n'
+    listener.write_text('#!'+sys.executable+'\n'+body); listener.chmod(0o700)
+    code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
+    payload={'client':str(client),'name':'pika-ci-job-offline','idle':8,'lifetime':9,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=9)
+    gid=int((client/'old-group').read_text())
+    if h.Backend.group_running(gid): os.killpg(gid,signal.SIGKILL); raise AssertionError('retry descendant survived')
+    assert result.returncode==0 and (client/'attempts').read_text()=='xx', result.stdout+result.stderr
+`)
+  }, 10_000)
+
+  it('prioritizes a finite guest containment failure and records owned host group recovery metadata', () => {
+    offline(String.raw`
+    backend=h.Backend(root)
+    backend.guest=lambda *args,**kwargs: backend.command([sys.executable,'-c','print("PIKA_HOST_GUARD:idle-timeout"); print("PIKA_HOST_GUARD:process-group"); raise SystemExit(1)'],secret=True)
+    try: backend.run_one('pika-ci-job-offline',1,2)
+    except h.Refusal as error: assert str(error)=='guest-process-group'
+    else: raise AssertionError('containment failure masked')
+    assert backend.guest_unconfirmed and not backend.unconfirmed_process
+    fake.unconfirmed_process=True; fake.unconfirmed_groups=[{'pid':123,'pgid':123,'sequence':5}]
+    fake.run_error=h.Refusal('unconfirmed')
+    result=serve(); receipt=json.loads(pathlib.Path(result['receipt']).read_text())
+    assert receipt['host_unconfirmed_groups']==fake.unconfirmed_groups
+    assert 'host_unconfirmed_groups' not in result and 'collect' not in fake.calls
 `)
   })
 
