@@ -16,6 +16,5 @@
   "src/app/api/teacher/tests/[id]/student-access/route.ts",
   "src/app/api/teacher/tests/[id]/students/attempts/bulk-delete/route.ts",
   "src/app/api/teacher/tests/[id]/unsubmit/route.ts",
-  "src/app/api/teacher/tests/reorder/route.ts",
-  "src/app/api/teacher/tests/route.ts"
+  "src/app/api/teacher/tests/reorder/route.ts"
 ]

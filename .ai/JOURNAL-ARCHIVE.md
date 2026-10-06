@@ -38487,3 +38487,31 @@ SQLguard/sealed/app/deadline/dependency/schema change. Fixed-source review and
 new full runtime receipts precede CI; PRdraft, production/admission/rollout OFF.
 Worker elapsed approximately4min; usage/effectiveconfig/active time unknown.
 Original reviewclock/counters and direct human taskstop waiver retained.
+
+<!-- pika-session-log-archive-batch:d3ed420d60585d282c8bb40a7fe5d1d2b113c181d09a1d903b08f4c331bd1538 -->
+## 2026-10-04 — Owner Test list streaming discovery correction
+
+IndependentSol5.6/high1189 integrationreview CLEAN; explicitfiniteacceptance then
+normal66292 failed owner/finalprojection at24requests20002ms/19473ms guards.
+Exactownedteardown/SAME savedwholecanonicalbaseline PASS; no forcedsuccessclaim.
+Root boundedread-only barrier772→stream717ms probe retained identicalcommands/
+sealedresources/max3totalprocesses; no guarantee. Eachkindfreshlist validates
+before its exact128batches queue; idleworkers may inspect while anotherlist waits.
+Fullgraph/allactivework settles before replay/resourceauthorization/privateSQL/SDK.
+Observedfailure stopsqueuedjobs and drainsactivejobs. Same completeforeignscope,
+projection/parser/one-shotmap/caps/SQLguard/app20s/native/fixture/schema/deps.
+Heldindependentlist regression RED0inspections then GREEN;86proof PASS. Targeted
+fixed-source review/freshactual rehearsal next; failure needsenvironmentcheckpoint
+not more speculativepatches or controlweakening. PRdraft/rolloutOFF; humanwaiver
+and originalcounters retained. No source/application permission expansion.
+
+<!-- pika-session-log-archive-batch:7911da6e20f0a7ca8e41b2f29081a369b3b9ea07ce3c361579ac0a3f88ccca6e -->
+## 2026-10-04 — Owner Test list environment checkpoint
+
+IndependentSol5.6/high e024 review CLEAN; one accepted normal91629 failed first
+owner/roster:22requests20001ms/19543ms guards/503. Exactteardown/SAMEsavedbaseline
+PASS; no freshforced/CI/merge.86proof/297focused-static PASS; rolloutOFF. Stop
+patch/retryloop. Readonly618volumes/587unattached;0 ownedprooflabelmatches,
+583non-Supabase+4other-Supabase names. Ownership/disposability unproved; no deletion.
+Need clean test environment or exact verified disposable cleanup scope. No guard/
+deadline loosening, sharedschema/production/account/provider/admission change.

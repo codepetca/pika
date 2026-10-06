@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner Test list streaming discovery correction
-
-IndependentSol5.6/high1189 integrationreview CLEAN; explicitfiniteacceptance then
-normal66292 failed owner/finalprojection at24requests20002ms/19473ms guards.
-Exactownedteardown/SAME savedwholecanonicalbaseline PASS; no forcedsuccessclaim.
-Root boundedread-only barrier772→stream717ms probe retained identicalcommands/
-sealedresources/max3totalprocesses; no guarantee. Eachkindfreshlist validates
-before its exact128batches queue; idleworkers may inspect while anotherlist waits.
-Fullgraph/allactivework settles before replay/resourceauthorization/privateSQL/SDK.
-Observedfailure stopsqueuedjobs and drainsactivejobs. Same completeforeignscope,
-projection/parser/one-shotmap/caps/SQLguard/app20s/native/fixture/schema/deps.
-Heldindependentlist regression RED0inspections then GREEN;86proof PASS. Targeted
-fixed-source review/freshactual rehearsal next; failure needsenvironmentcheckpoint
-not more speculativepatches or controlweakening. PRdraft/rolloutOFF; humanwaiver
-and originalcounters retained. No source/application permission expansion.
-
-## 2026-10-04 — Owner Test list environment checkpoint
-
-IndependentSol5.6/high e024 review CLEAN; one accepted normal91629 failed first
-owner/roster:22requests20001ms/19543ms guards/503. Exactteardown/SAMEsavedbaseline
-PASS; no freshforced/CI/merge.86proof/297focused-static PASS; rolloutOFF. Stop
-patch/retryloop. Readonly618volumes/587unattached;0 ownedprooflabelmatches,
-583non-Supabase+4other-Supabase names. Ownership/disposability unproved; no deletion.
-Need clean test environment or exact verified disposable cleanup scope. No guard/
-deadline loosening, sharedschema/production/account/provider/admission change.
-
 ## 2026-10-04 — Owner Test list verified cleanup and bulk transport proposal
 
 HumanYes authorizedonlyverifieddisposabletestdata cleanup. Readonly577anonymous
@@ -626,3 +600,92 @@ Newgenuine45c9CLIartifact436753bytes/SHA09f1c224 BYTEIDENTICALinstalledcontracts
 migrationManifest4ae5b8af; no generatedsignature/type/sourcecodeedits. Finalreview/
 exactCI/SQLwarninggate/mainmergepending. Canonical249local/prodUNAPPLIED;
 prod/cohort/account/provider/billingOFF; componentnotphaseexit/fullgoalcompletion.
+
+## 2026-10-06 — Owner draft main merge; ordinary Test creation preparation
+
+#1480 exact reviewed7fa6674 passed all five checks in CI37403984915, including
+warning-free database lint and PR Gate. Normal squash25457e merged03:17:42UTC;
+canonical main fast-forwarded cleanly, preserving all36 unrelated stashes and
+dependency worktrees. Prior failures, proof receipts and review counters remain
+retained. Canonical249 is unapplied; no promotion, activation or account change.
+
+Next dedicated worktree contextual-test-owner-create starts from25457e. Admitted
+ordinary POST source uses one atomic owner-bound Test/draft creation RPC with
+full-row/default/post-trigger witnesses; literal GET and legacy POST unchanged.
+SQL source TDD RED10 then GREEN10, plus app171new/193combined offline checks pass.
+Root independently reran185checks/4files; suites overlap, not unique totals.
+Initial Stripe resolution failures came from root's stale hub node_modules link;
+only the new worktree symlink now reuses1480's identical package/lock dependency
+tree, installed22.6.2 verified. No package change or install. Genuine250 RPC type
+generation remains pending; tsc has one expected diagnostic, not a passing result.
+Exact route ratchet entry removed; preserved legacy POST validation debt remains.
+Independent SQL source review and finite isolated integration preparation underway;
+no native250 proof, canonical migration, production or phase-exit claim.
+
+App/source independent review CLEAN at04:09:40–04:13:32UTC (284/5 offline checks,
+eleven frozen hashes). Root combined targeted369/10 PASS; full tsc still has only
+the genuine CREATE RPC type gap. Native source review found a P1 false-positive
+allocator-plan check: index DDL could satisfy the expected name regardless of
+the actual plan. Root RED1/47 then structural plan-only decoder GREEN47; combined
+native47/race20/SQL8=75/3 PASS. Exact catalog column sets, Limit/forward exact-index
+scan and Class condition are now checked separately from index DDL; plain EXPLAIN
+is not timing evidence. Root also corrected column-only pg_get_indexdef ordering
+checks to exact catalog flags and a cold synthetic provenance breadcrumb250.
+Targeted source re-review pending; no SQL/native invocation or generated artifact.
+Lifecycle integration must import the already reviewed finite SDK transport,
+not its initial weaker duplicate. Four component source-review launches/two fix
+batches recorded privately; original clocks/counters and holds remain retained.
+
+Exact508b978 lifecycle/private runtime plan independently CLEAN;131/4 source
+checks plus staged19TSaudit and architecture PASS. Actual normal attempt1 reached
+all15 SDK/RPC requests and restored raw42501 probe, then SQL contracts failed
+P0001 (controls392/actions14). Inherited cleanup had zero failures; separate
+WHOLE SAME immutable B1 read-only verification PASS. No full native pass, forced
+run, generated artifact, PR readiness, canonical application or rollout claim.
+Immutable source comparison found no established cause; whitespace hypothesis
+was disproved. Finite PCnnn->fixed proof labels now retain a failing assertion's
+identity without raw stderr/row/credential disclosure. No assertion or cap was
+weakened; diagnostic source requires targeted review before a new sealed run.
+
+Diagnostic9934 independently CLEAN (58/2); actual normalattempt2 failed PC013
+exact trigger closure after15RPC/raw42501, with zero cleanup failures and
+separate WHOLE SAME immutable B1 PASS. Bounded read-only canonical001248 trigger
+catalog and immutable157/173 established two omitted Test triggers: gradebook
+override deletion (tgtype9) and removed-academic parent guard (tgtype27).
+The15-entry source inventory was wrong; actual closure has17 entries. Added
+exact tuples and regression RED9/10 before correction; no assertion weakening,
+app/SQL250 behavior, cap, migration application or rollout change.
+
+Trigger correction59a4 independently CLEAN; actual normal3 FULLPASS:14SDKcases,
+8pairs/15RPC/0Storage/restored42501,46rollbackchecks,9schedules/53dispatches/
+67078ms,1673controls/91actions/zero sessions. Both serial forced cleanup modes
+returned exact2markers/expectedexit1; separate SAMEwholeB1 before/after each
+PASS. Genuine436960byte CLI artifact installed byte-identically (SHA582d14b4);
+only CREATE RPC declaration added. Fresh main unchanged25457e. Focused655/26,
+architecture/UI/design/fullTSC/lint PASS. Draft PR/final integration/CI remain;
+249/250 canonical/prod unapplied and all
+admission/home/page/cutover/billing controls unchanged/OFF.
+
+## 2026-10-06 — Test creation CI remediation
+
+Exact5db integration review CLEAN; PR1500 ready run37417327589 failed coverage:
+CURRENT lost required historical attendance/control wording, and one monolithic
+native SQL-admission test exceeded its unchanged5s limit. Returned PR to draft;
+canceled run and verified ephemeral DB cleanup PASS. Restored precise recorded
+wording without a fresh hosted claim or startup-budget increase. Reused real
+immutable manifests and split all original positive/negative SQL assertions into
+fixed-SQL/schedule/cross-profile cases; no production source or cap change.
+Targeted142/3 PASS. Full coverage and independent targeted review pending;
+original review clocks,8 launches/4 batches and failures retained before batch5.
+No canonical249/250 application, production promotion or activation.
+
+Exact8a8 targeted review CLEAN155/4 and full localcoverage13449 PASS;
+readyCI37419130750 still failed only malformed-fixture rejection default5s.
+Returned draft/canceled; both ephemeral DB cleanup steps PASS. Root measured
+strict Node assertion formatting367494 error characters/589ms locally; GitHub
+coverage overhead exceeds5s. New fixed-message regression RED61/62. Use the same
+complete Node strict comparison as a boolean assertion with a closed message,
+not a sampled comparison or timeout increase. Native proof source changes, so
+fresh independently reviewed normal/forced proof is required; prior59a4 receipts
+are historical. Dependent251 app/source inventory preserved separately and held;
+no251 migration, canonical application, PR or activation.

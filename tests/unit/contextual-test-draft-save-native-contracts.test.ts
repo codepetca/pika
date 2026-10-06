@@ -22,7 +22,11 @@ vi.mock('node:fs', async importOriginal => {
     statSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? { isSocket: () => true, dev: 1, ino: mocks.socketInode, mode: 3, rdev: 4 } : actual.statSync(path) }
 })
 vi.mock('../../scripts/contextual-test-draft-save-proof-inventory', () => ({ draftSaveProofDockerInventory: mocks.inventory }))
-import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, validateDraftSaveNativeSql, draftSaveNativeTerminationSql } from '../../scripts/contextual-test-draft-save-native-contracts'
+import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, validateDraftSaveNativeSql, draftSaveNativeTerminationSql,
+  buildTestOwnerCreateNativeContractsManifest, validateTestOwnerCreateNativeSql, createTestOwnerCreateNativeContracts,
+  validateTestOwnerCreateAllocatorPlan } from '../../scripts/contextual-test-draft-save-native-contracts'
+import { contextualTestCreateTestSchema, contextualTestCreateDraftSchema } from '../../src/lib/validations/contextual-test-create'
+import { newTestOwnerCreateFixture } from '../../scripts/contextual-test-owner-create-proof-fixture'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { DRAFT_SAVE_CAPS } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 import { assignmentListExpectedResources } from '../../scripts/contextual-assignment-list-proof-lifecycle'
@@ -65,6 +69,70 @@ describe('inert native Test draft save contracts', () => {
   })
 })
 
+describe('closed migration250 native profile', () => {
+  const original = newAssignmentListProofFixture()
+  const f = newTestOwnerCreateFixture(original)
+  const repository = process.cwd()
+  const head = '7570a9d60591183f0699001f47a6528045a392ee'
+  // Build each real immutable manifest once; test cases do not weaken SQL admission.
+  const manifest = buildTestOwnerCreateNativeContractsManifest(original, f, head, repository)
+  const legacyManifest = buildDraftSaveNativeContractsManifest(original, head, repository)
+  it('prepares no second durable fixture and selects only the reviewed250 capability', () => {
+    expect(manifest.fixture).toEqual(f)
+    expect(manifest.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
+    expect(manifest.setup).toContain('Migration250 fixture presence differs')
+    expect(manifest.privilege.revoke).toContain('create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)')
+    expect(manifest.privilege.revoke).not.toContain('snapshot_test_draft_save_for_owner_v1')
+    expect(manifest.capabilities).toEqual(legacyManifest.capabilities)
+    expect(manifest.concurrency.schedules).toHaveLength(9)
+    expect(Object.isFrozen(manifest.fixture)).toBe(true)
+  })
+  it.each([
+    ['setup', manifest.setup],
+    ['snapshot', manifest.snapshot],
+    ['contracts', manifest.contracts.contracts],
+    ['catalog and plan', manifest.contracts.catalogAndPlan],
+  ])('accepts only literal fixed250 %s SQL', (_name, sql) => {
+    expect(validateTestOwnerCreateNativeSql(manifest, sql)).toBe(true)
+    expect(validateTestOwnerCreateNativeSql(manifest, `${sql} select 1;`)).toBe(false)
+  })
+  it.each(manifest.concurrency.schedules.map((schedule, index) => [index + 1, schedule] as const))(
+    'accepts only literal fixed250 SQL for concurrency schedule %i', (_index, schedule) => {
+      for (const sql of [schedule.holderSql, ...(schedule.holderWitnessSql ?? []), schedule.rejectSql, schedule.observeSql]) {
+        expect(validateTestOwnerCreateNativeSql(manifest, sql)).toBe(true)
+        expect(validateTestOwnerCreateNativeSql(manifest, `${sql} select 1;`)).toBe(false)
+      }
+    })
+  it('rejects arbitrary SQL, opaque substitution and a caller-selected profile', () => {
+    expect(validateTestOwnerCreateNativeSql(manifest, 'delete from public.users;')).toBe(false)
+    expect(validateTestOwnerCreateNativeSql(manifest, manifest.privilege.restore)).toBe(false)
+    expect(validateTestOwnerCreateNativeSql(manifest, legacyManifest.setup)).toBe(false)
+    let rejectedFixture: unknown
+    try { buildTestOwnerCreateNativeContractsManifest(original, { ...f, tests: [] }, head, repository) } catch (error) { rejectedFixture = error }
+    // Large assertion object diffs are not part of this closed guard's contract.
+    expect(rejectedFixture instanceof Error && rejectedFixture.message === 'Test owner-create fixture differs').toBe(true)
+    expect(typeof createTestOwnerCreateNativeContracts).toBe('function')
+  })
+  it('rejects index DDL as a substitute for the actual bounded allocator plan', () => {
+    const scan = { 'Node Type': 'Index Only Scan', 'Parent Relationship': 'Outer', 'Parallel Aware': false, 'Async Capable': false,
+      'Scan Direction': 'Forward', 'Index Name': 'idx_tests_classroom_position_owner_create', 'Relation Name': 'tests', Alias: 'test',
+      'Index Cond': `(classroom_id = '${f.classes[3].id}'::uuid)` }
+    const catalog = { function: 'a'.repeat(32), index: 'CREATE INDEX idx_tests_classroom_position_owner_create ON public.tests USING btree (classroom_id, position DESC, id DESC)',
+      test_columns: Object.keys(contextualTestCreateTestSchema.shape), draft_columns: Object.keys(contextualTestCreateDraftSchema.shape),
+      plan: [{ Plan: { 'Node Type': 'Limit', 'Parallel Aware': false, 'Async Capable': false, Plans: [scan] } }] }
+    expect(validateTestOwnerCreateAllocatorPlan(catalog, f)).toBe(true)
+    expect(validateTestOwnerCreateAllocatorPlan({ ...catalog, plan: [{ Plan: { ...catalog.plan[0].Plan, Plans: [{ ...scan, 'Node Type': 'Index Scan' }] } }] }, f)).toBe(true)
+    for (const bad of [null, { ...catalog, plan: [] }, { ...catalog, plan: [{ Plan: { 'Node Type': 'Seq Scan', 'Relation Name': 'tests' } }] },
+      { ...catalog, plan: [{ Plan: { ...catalog.plan[0].Plan, Plans: [{ ...scan, 'Index Name': 'different_index' }] } }] },
+      { ...catalog, plan: [{ Plan: { ...catalog.plan[0].Plan, Plans: [{ ...scan, 'Index Cond': `(classroom_id = '${f.classes[0].id}'::uuid)` }] } }] },
+      { ...catalog, plan: [{ Plan: { ...catalog.plan[0].Plan, Plans: [{ ...scan, 'Scan Direction': 'Backward' }] } }] },
+      { ...catalog, plan: [{ Plan: { ...catalog.plan[0].Plan, Plans: [scan, scan] } }] },
+      { ...catalog, plan: [{ Plan: { ...catalog.plan[0].Plan, Plans: [{ ...scan, Filter: 'true' }] } }] },
+      { ...catalog, test_columns: catalog.test_columns.slice(1) }, { ...catalog, unrelated: true }])
+      expect(() => validateTestOwnerCreateAllocatorPlan(bad, f)).toThrow()
+  })
+})
+
 describe('native persistent-session transport with offline child mocks', () => {
   const original = newAssignmentListProofFixture()
   const head = '7570a9d60591183f0699001f47a6528045a392ee'
@@ -78,6 +146,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   const sqlControls: Array<{ args: string[]; sql: string }> = []
   let hangingSetup = false; let failContender = false; let terminationConfirmed = true
   let setupExit = false; let malformedSetup = false; let stderrChunks: string[] = []
+  let createManifest: ReturnType<typeof buildTestOwnerCreateNativeContractsManifest> | undefined
   let serviceExecute = true; let fixtureChanged = false; let catalogChanged = false; let restorationFails = false; let publicGrant = false
   const catalog = () => ({ owner: 'postgres', definition: catalogChanged ? 'changed function' : 'reviewed function',
     acl: [{ grantor: 'postgres', grantee: 'postgres', privilege_type: 'EXECUTE', is_grantable: false },
@@ -85,11 +154,17 @@ describe('native persistent-session transport with offline child mocks', () => {
       ...(publicGrant ? [{ grantor: 'postgres', grantee: 'PUBLIC', privilege_type: 'EXECUTE', is_grantable: false }] : [])] })
   const factory = () => createDraftSaveNativeContracts({ repository, reviewedHead: head, original, capturedResources: resources,
     containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id, acceptedManifestSha256: testOwnerDigest(JSON.stringify(manifest)) })
+  const createFactory = () => {
+    createManifest = buildTestOwnerCreateNativeContractsManifest(original, newTestOwnerCreateFixture(original), head, repository)
+    return createTestOwnerCreateNativeContracts({ repository, reviewedHead: head, original, fixture: createManifest.fixture,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(createManifest)) })
+  }
   beforeEach(() => {
     mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
     vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
-    setupExit = false; malformedSetup = false; stderrChunks = []
+    setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined
     mocks.inventory.mockResolvedValue(resources)
     mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: unknown, stdout: string) => void) => {
       const child = new EventEmitter() as EventEmitter & { stdin: Writable; kill: ReturnType<typeof vi.fn> }
@@ -101,12 +176,12 @@ describe('native persistent-session transport with offline child mocks', () => {
           if (file === 'git') callback(null, args[1] === '--show-toplevel' ? repository : args[0] === 'rev-parse' ? head : '')
           else if (args[0] === 'context') callback(null, JSON.stringify({ endpoints: { docker: { Host: 'unix:///private/tmp/pika-test-native-docker.sock', SkipTLSVerify: false } }, tlsMaterial: null }))
           else if (input === manifest.termination) { terminations.push(args); callback(null, JSON.stringify({ present: true, terminated: terminationConfirmed })) }
-          else if (input === manifest.privilege.restore) {
+          else if (input === manifest.privilege.restore || input === createManifest?.privilege.restore) {
             if (restorationFails) callback(Error('private grant restore failure'), '')
             else { serviceExecute = true; callback(null, '') }
           }
-          else if (input === manifest.privilege.catalog) callback(null, JSON.stringify(catalog()))
-          else if (input === manifest.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
+          else if (input === manifest.privilege.catalog || input === createManifest?.privilege.catalog) callback(null, JSON.stringify(catalog()))
+          else if (input === manifest.snapshot || input === createManifest?.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
           else callback(null, 'ok')
         }); done()
       } })
@@ -124,15 +199,15 @@ describe('native persistent-session transport with offline child mocks', () => {
         let response = ''
         if (sql === manifest.bootstrap) response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
         else if (sql === manifest.setup && hangingSetup) { done(); return }
-        else if (sql === manifest.setup && setupExit) {
+        else if ((sql === manifest.setup || sql === createManifest?.setup) && setupExit) {
           for (const chunk of stderrChunks) child.stderr.write(chunk)
           queueMicrotask(() => child.emit('close', 1)); done(); return
         }
         else if (sql === manifest.setup && malformedSetup) response = 'PRIVATE malformed row'
         else if (sql === manifest.concurrency.observe) response = JSON.stringify({ held:true,transaction:true })
-        else if (sql === manifest.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
-        else if (sql === manifest.privilege.catalog) response = JSON.stringify(catalog())
-        else if (sql === manifest.privilege.revoke) serviceExecute = false
+        else if (sql === manifest.snapshot || sql === createManifest?.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
+        else if (sql === manifest.privilege.catalog || sql === createManifest?.privilege.catalog) response = JSON.stringify(catalog())
+        else if (sql === manifest.privilege.revoke || sql === createManifest?.privilege.revoke) serviceExecute = false
         else if (sql.includes('select public.snapshot_test_draft_save_for_owner_v1')) {
           const testId = sql.match(/_v1\('[a-f0-9-]+','([a-f0-9-]+)'/)![1]
           response = JSON.stringify({ version: 1, actor_id: manifest.fixture.owner, classroom: { id: manifest.fixture.classroom, teacher_id: manifest.fixture.owner },
@@ -167,6 +242,41 @@ describe('native persistent-session transport with offline child mocks', () => {
     return { jobs, release() { holding = false; for (const job of jobs) job.settle() } }
   }
   async function flushGuardReads() { for (let i = 0; i < 12; i++) await Promise.resolve() }
+  it('exposes only a read-only target verifier without opening a persistent SQL session', async () => {
+    const adapter = factory()
+    const target = await adapter.verifyTarget()
+    expect(target.reviewedHead).toBe(head)
+    expect(target.reviewedSourceSha256).toBe(manifest.sourceSha256)
+    expect(target.acceptedManifestSha256).toBe(testOwnerDigest(JSON.stringify(manifest)))
+    expect(mocks.spawn).not.toHaveBeenCalled()
+    expect(sqlControls.some(control => control.sql === manifest.setup)).toBe(false)
+    expect(Object.keys(adapter)).not.toContain('execute')
+  })
+  it('restores the actual250 CREATE grant and full catalog even if its SDK probe rejects', async () => {
+    const adapter = createFactory(); await adapter.setup()
+    expect(Object.keys(adapter)).not.toContain('probeSnapshotPrivilegeDrift')
+    await expect(adapter.probeCreatePrivilegeDrift(async () => { throw new Error('PRIVATE SDK rejection') })).rejects.toThrow()
+    expect(serviceExecute).toBe(true)
+    const restores = sqlControls.filter(c => c.sql === createManifest!.privilege.restore)
+    expect(restores).toHaveLength(1)
+    expect(restores[0].sql).toContain('create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)')
+    expect(adapter.diagnostic()).toContain('DIAG test-owner-create native phase=privilege')
+    expect(adapter.diagnostic()).not.toContain('PRIVATE')
+  })
+  it('reports a CREATE ACL receipt with no snapshot capability naming', async () => {
+    const adapter = createFactory(); await adapter.setup()
+    const receipt = await adapter.probeCreatePrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
+    expect(receipt).toEqual({ privilegeRestored: true, fixtureUnchanged: true, createAclSha256: expect.stringMatching(/^[a-f0-9]{64}$/) })
+    expect(serviceExecute).toBe(true)
+  })
+  it('rejects changed250 bytes before SDK guard or native work dispatch', async () => {
+    const adapter = createFactory(); await adapter.setup()
+    const childrenBefore = children.length, sqlBefore = sqlControls.length
+    mocks.driftMigration = '250_contextual_test_owner_create.sql'; mocks.sourceDrift = true
+    await expect(adapter.verifyTarget()).rejects.toThrow()
+    expect(children).toHaveLength(childrenBefore)
+    expect(sqlControls.slice(sqlBefore).every(c => !c.args.includes('exec'))).toBe(true)
+  })
   it('reports a closed guard failure and preserves it across subsequent work', async () => {
     const adapter = factory()
     mocks.inventory.mockRejectedValueOnce(Error('PRIVATE inventory failure'))
@@ -202,6 +312,14 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(diagnostic).toContain('phase=setup failure=child-exit role=fixture')
     expect(diagnostic).toContain(`sqlstate=${code} `)
     expect(diagnostic).not.toContain('PRIVATE'); expect(diagnostic).not.toContain('secret')
+    expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
+    expect(terminations).toHaveLength(1)
+  })
+  it.each([['PC001', 'PC001'], ['PC999', 'unknown']])('reports only a finite CREATE proof failure code %s', async (code, expected) => {
+    const adapter = createFactory(); setupExit = true; stderrChunks = [`PRIVATE secret\nERROR: ${code}\nPRIVATE row\n`]
+    await expect(adapter.setup()).rejects.toThrow('exact project disposal required')
+    expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
+    expect(adapter.diagnostic()).not.toMatch(/PRIVATE|secret|row/)
     expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
     expect(terminations).toHaveLength(1)
   })
