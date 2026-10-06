@@ -19,9 +19,10 @@ Publication243a26: source420/14 PASS; both source reviews CLEAN. LegacyPATCH/UI
 unchanged. Genuine252 types/native proof/CI/merge pending;249–252 unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.
 
-Native preflight stopped before setup: SAME B1 differs only in auth sessions and
-rate limits. Preserve data/old baseline; new checkpoint requires owner direction.
+Native preflight: SAME B1 differs only in auth sessions/rate limits; no setup.
+Preserve data/old baseline; new checkpoint requires owner direction.
 
 Worktrees: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators: .env.example.
 Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28.
+individual-student purge ON, other purge/Pal OFF. Historical receipts.

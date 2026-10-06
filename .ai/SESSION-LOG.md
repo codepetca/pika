@@ -748,3 +748,10 @@ and one shared historicalentry; currentowncode unchanged. Exactownedstash5c594
 restored cleanly; unrelated36 preserved. Requiredstartup/attendance docs and
 splitdiscard110/3 testsPASS undercoverage (globalpartialfloors expectedFAIL).
 One remediation batch1 contains docs/test isolation only; native/type holds remain.
+Batch1/rebase review3 completed: product/scripts/252/CI unchanged243a26, gradebook
+unchangedmain; originaldiscard assertions retained. One P1 missing historical
+purge-ON CURRENT receipt validatedRED and restored without any rollout change.
+Wholecoverage attempt3 at3f30c482 PASS14139/8SKIP,1085files,481.91s; coverage
+85.24statements/77.42branches/91.47functions/87.22lines. This precedes the docs-only
+batch2 correction; targeted docs checks and review remain required. WholeB1 owner
+decision still pending; no native/types/PR/CI/merge or activation acceptance.
