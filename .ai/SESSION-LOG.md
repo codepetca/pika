@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — CI preparation approved merge refresh
-
-Owner approved PR #1475 merge into main and explicitly approved one bounded review-budget extension: launch 8, targeted changed-base integration capped at five minutes, followed by required CI. Prior seven launches and two cancellation code fixes remain counted; no new full-review wave. Old reviewed head `55d622b4` passed all five jobs in CI37261728363: 2,678 wall seconds, about 87.5 summed job minutes; classifier/gate 11/3 seconds. Main advanced through #1474/#1477/#1478/#1479 to `c25ebf78`; only conflict was archive bookkeeping. Complete earlier trim body was already archived upstream. Retained upstream archive and all main session receipts, restored only this task's preparation entry, then ran official trim. Runner policy/preflight/local executor and tests remain byte-identical to the reviewed implementation; current all-lane inventory includes upstream migration248. Refreshed focused checks, launch8 and exact-head eligible CI/merge are pending. No production, privacy, runner or local database operation; host choice and private activation remain pending. Weekly remaining at refresh54percent, account-wide and not attributable to this task; worker token telemetry unknown.
-
 ## 2026-10-05 — Approved CI documentation correction
 
 Owner “go” authorizes one further correction batch and targeted review launch9
@@ -669,3 +665,20 @@ verified by coordinator; integration~3min, tokensunknown. Weekly77%used/23%remai
 DeepSeekpause honored. DraftPR1506, supersededCI37471864262 canceled. This subsequent
 owner-requested revision gets one bounded delta review GPT6.1Sol/high (Terra unavailable);
 prior model/cache privacy reviews unchanged. No merge/deploy authority inferred.
+
+## 2026-10-06 — Daily summary browser contract remediation before merge
+
+Owner explicitly requested merging PR1506 into main. Reviewed4d614916 passed CI test/build,
+but browser run37475083366 failed all4 Daily matrix cases on obsolete overview/timestamp
+expectations (333 other cases passed,12 retried flakes,20 skipped). Returned PR to draft
+and canceled remaining superseded run. Updated only the existing E2E fixture/assertions:
+actual question detail/category, roster first name, removed overview/time absent, scoped
+name jump with row focus/highlight, summary retained/no inspector, Escape cleanup.
+Compact summary lets18 desktop rows fit; increased fixture to32 so sticky table scrolling
+and offscreen jump remain meaningful, verified positive scroll before jump. No product edits.
+Focused581/30 and all static gates passed; revised existing browser scenario4/4 passed
+desktop/mobile light/dark in1.1min (/tmp/pika-summary-ci-remediation-browser-final.log).
+Same GPT6.1Sol/high reviewer checked this bounded test-only remediation, clear; coordinator
+verified source and results. Browser testing is quiet for the separately authorized local
+database checkpoint; no canonical writes/login activity resumes without its release.
+Merge remains conditional on reviewed final SHA PR Gate. No production promotion authorized.
