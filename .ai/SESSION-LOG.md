@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Survey Pattern Lab prototype
-
-Owner requested Survey prototype informed by the Test modal. Added experimental
-SurveyEditSplitPattern and teacher gallery discovery. Reuses CreationModalShell,
-MarkdownContentEditor, canonical action menus and UI controls. Fixed fixtures;
-local MC/open-response authoring, keyboard option reorder, settings, full Markdown,
-student preview and simulated publish. No API writes or production student changes.
-Playwright authoring flow PASS4/4 desktop/mobile light/dark; screenshots inspected
-against Test at matching desktop viewport, plus stacked mobile/open and preview.
-GPT6.1Sol/medium bounded worker delivered focused browser coverage in one pass,
-roughly3min with no implementation rework; weekly48% remaining at start.
-New prototype remains experimental pending owner feedback; no shared-shell extraction.
-
-Prototype independent GPT6.1Sol/medium review found Markdown metadata snapshot
-overwrite; locked Title/Settings while code owns metadata and added regression.
-
 ## 2026-10-05 — Survey prototype applied to real authoring
 
 Owner requested applying the selected prototype to real Pika. Teacher Survey now
@@ -689,3 +673,21 @@ Final full focused retry passed581/30 and all static gates; audit passed. No wea
 checks. Evidence /tmp/pika-summary-db-remediation-stable-focused.log. Prior browser4/4 correction
 and model/privacy reviews remain valid. Owner main-merge authority retained; final
 reviewed-SHA CI gate is required. Production promotion remains outside scope.
+
+## 2026-10-06 — Minimal survey results
+
+Task/branch: survey results cleanup, `codex/survey-results-minimal`.
+Combined survey title and Results, removed chart icon/visible option tallies,
+increased result question text to 18px, and placed wrapped option labels inside
+shared percentage tracks for teachers and students. Existing heading/Markdown
+owners reused; shared result bar extended; deterministic Pattern Lab entry added.
+Reference: Pattern Lab compact page actions/card framing. No new interaction,
+experimental pattern or composite-widget contract; no schema/API changes.
+Visual matrix: both roles, 1440×900/390×844, light/dark; loaded results, long
+labels and 0/5/35/60/100% fills inspected. Captures and rerunnable synthetic-API
+fixture script: `output/playwright/`; source changes match PR implementation.
+50 focused survey tests pass. Required check:focused with --max-workers 1:
+414 tests pass, architecture/UI/design policy pass; initial default-worker
+attempt hit an existing gallery QR timeout. Risk profile none; weekly remaining
+15%; automatic DeepSeek paused through Dec31. One independent native reviewer
+planned, GPT-6 Luna/medium; usage and active-time attribution unknown.

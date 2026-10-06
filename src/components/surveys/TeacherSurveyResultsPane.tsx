@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { BarChart3 } from 'lucide-react'
 import { Button, Card, PageState } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { TeacherSurveyResultsView } from '@/components/surveys/TeacherSurveyWorkspace'
@@ -67,13 +66,10 @@ export function TeacherSurveyResultsPane({ survey }: TeacherSurveyResultsPanePro
     <div className="flex h-full min-h-0 flex-col overflow-auto p-3">
       <div className="mx-auto flex w-full max-w-5xl flex-col">
         <Card tone="panel" padding="md" className="space-y-4">
-          <div className="space-y-3">
-            <h2 className="truncate text-xl font-semibold text-text-default">{survey.title}</h2>
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-text-muted" aria-hidden="true" />
-              <h3 className="text-base font-semibold text-text-default">Results</h3>
-            </div>
-          </div>
+          <h2 className="flex min-w-0 items-baseline gap-2 text-xl font-semibold text-text-default">
+            <span className="truncate">{survey.title}</span>
+            <span className="shrink-0">— Results</span>
+          </h2>
           {activeState?.payload && activeState.loading ? (
             <div className="flex items-center gap-2 text-sm text-text-muted" role="status">
               <Spinner size="sm" />
