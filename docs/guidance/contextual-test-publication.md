@@ -7,6 +7,13 @@ native proof and genuine types pass at735d6ab; combined focused/full coverage pa
 at9dcf0d2. Forced cleanup, documentation review, exact-head CI and merge remain pending.
 This is not rollout or a phase exit.
 
+Superseding completion: both forced cleanup modes and independent documentation
+closure passed at826e4bd; CI37509828015 passed all five checks including PR Gate
+on that exact head. Main then advanced to693a096df (#1488 proof diagnostics),
+creating an archived-history conflict. PR1510 returned to draft before rebasing;
+both histories were retained. Publication/SQL252/types/proof bytes are unchanged,
+but changed-base review, focused checks and new exact-head CI remain merge gates.
+
 ## Historical pre-type preparation
 
 The isolated proof implementation was ready for independent source review: one full-row fixture,

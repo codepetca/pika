@@ -40891,3 +40891,153 @@ promotion or schema operation authorized by this request.
 ## 2026-10-05 — Approved fluid classroom merge preparation
 
 Owner explicitly authorized merge then goal advancement. GitHub hostedrunner incident prevented PRGate in two attempts, while four CIverification lanes passed668f3d35. Currentmain5b2423d Gradebook changes retained; history reconciled with bothparents preserved. Integrate reviewed Student1482 andTeacher1484 continuity into owning1486 alongside Daily1481 alreadyincluded.32of33 finalcombinedproof sources byteidentical; sole PatternLabtest difference is exact acceptedmainGradebook additions. Reuse independent feature/cumulative reviews and prior24motion/68combined browser/natural recordings; currentmain focusedgate/browser verification required before stable ready/merge. Package/lock/schema unchanged. No production promotion authorized.
+
+<!-- pika-session-log-archive-batch:37bec9b8aa454501b8caa2eeee1999e36130db30802a985adbcf9cf7abbcb89a -->
+## 2026-10-05 — Integrated fluid classroom local gate complete
+
+Owning1486 integrates reviewed Daily1481/Student1482/Teacher1484 on currentmain5b2423d. All product/classroombrowser/component sources match independently reviewedcombinedproof; documented approval/reference/roadmap differences only. Bothparentdatedhistorybody preservation checked.644tests/35files+allstatic PASS;56uniqueclassroom+20PatternLab cases PASS. Initial16Dailycases lackedignoredfixturestate; addedemptylocalfixturestates andreranonly16unchangedcases GREEN. Currentbatch7fileauditPASS/compositesemanticscovered; rootbothrolevisualinspection acceptable. Prior sixnaturalrecordings applicable throughsourceparity. Reviewcounts4launches retained, thirdsyncbatch/no newrevieworclockreset. Ownermergemainauthorized; stableSHA CI/PRGate andactualmerge pending GitHubhostedrunner outage. No production promotion.
+
+## 2026-10-05 — Survey final motion-main integration
+
+PR 1483 candidate 33f2aef3 passed all five required CI jobs including PR Gate
+(run 37374119531). Main then advanced to 84a657eb (#1486). Resolve archived
+session history mechanically while preserving all complete bodies; retain both
+independent top-level Pattern Lab browser scenarios with their own test closures.
+Application files merged automatically. Survey owners are unchanged from reviewed
+665c1fa7; TeacherClassroomView retains the complete existing Survey patch over main.
+Owner renewed merge instruction. New-base focused checks and exact-head CI precede
+squash merge; no new application behavior, schema change or production promotion.
+
+## 2026-10-05 — Resume classroom access goal; owner Test draft saves
+
+Coordinator resumed on actual mainc25ebf78f in dedicated draft-save worktree.
+1473 is merged6586847c1/all five CI37258057073 gates; Audit1474 retained248,
+leaving immutable247. Separate Audit release records production001–248; shared
+admission/home/page/cutover/billing remainOFF. Next admitted PATCH uses current
+owner/source/document CAS and initialized-only writes; literal legacy remains.
+Three GPT6.1Sol/high workers own distinct app/SQL/proof files; effective model
+and attributable tokens unknown. Weekly54% remaining is accountwide. Startup
+missing deps recovered frozen/offline683 reused; verifyPASS. SAME saved canonical
+baseline verifiedPASS, never recaptured (first wrong-head check failed closed).
+CI cleanup contract TDD REDthenPASS; workflow25/3 and startup77/2 checks overlap,
+not an aggregate. Source/native/runtime/review/merge acceptance still pending.
+Prior task-stop/review-extension/local-migration/main-merge authority retained;
+no production/schema/cohort/provider mutation or goal/phase completion claimed.
+
+## 2026-10-05 — Draft-save review, Docker recovery and bounded diagnosis
+
+PR1480 remains draft. Initial editor-metadata and SQL-grading normalization
+findings fixed; targeted source/receipt reviews clean. Full coverage12919PASS,
+unchanged gates/two workers. Docker restart recovered only owned disposable
+stack; SAME canonical baseline and unrelated resources unchanged. Both actual
+forced-cleanup modes PASS. Normal stopped on assertion after42 SDK requests;
+exact cleanup/separate baseline PASS, no normal/types receipt. Closed source-only
+diagnostic TDD2RED→80PASS; no assertion data/SQL/keys logged or caps relaxed.
+Rebased onto43c24 preserving incoming CI policy, archive/history and immutable249;
+pending source acceptance/runtime diagnosis/final review/CI/merge. All rollout OFF.
+
+## 2026-10-05 — Draft-save concurrency budget pinpointed
+
+Narrow diagnostic/rebase review4cb CLEAN,58offlinePASS. One normal attempt failed
+disposable Storage health before fixtures; exact cleanup/SAMEbaselinePASS. Reviewed
+unchanged retry reached42SDKcalls and pinpointed concurrency-total180s assertion
+at concurrency.ts:80; exact cleanup/separateSAMEbaselinePASS. No normal/types
+receipt, canonical migration or production action. Native-only performance fix
+delegated GPT6.1Sol/high; all fresh checks,16schedules and caps must remain, no
+runtime/Git authority for worker. Original reviewclock12:51:50,6launches/4targeted/
+3batches/0final retained under human task-stop waiver. PR1480 stays draft.
+
+Worker delivered four-read allSettled parallelism only; all checkpoints/caps
+unchanged. Six trueREDs then89offlinePASS, ESLint/diffPASS; root inspected diff.
+Real180sfit unproven. Focused checks/commit and targeted source acceptance next;
+final review, genuine types, exact CI/main merge remain required.
+
+## 2026-10-05 — Draft-save native failure retained after guard improvement
+
+Parallel guard b1f targeted security/finite-plan review CLEAN,89independentPASS;
+original clock retained,7launches/5targeted/4batches/0final. Approved one normal
+rehearsal reached42SDKrequests then native generic failure, not earlier closed
+concurrency-total label. Exact cleanup/separateSAMEcanonicalbaselinePASS; no
+normal/types receipt, forced reruns, canonical migration or production action.
+Do not infer all races/budgets passed. Same GPT6.1Sol/high worker prepares only
+closed native phase/counter/known-error diagnostics with offlineTDD; no runtime,
+caps/guards/app/SQL changes. Source/plan acceptance before another invocation.
+PR1480 stays draft; all activation OFF, goal/phase incomplete.
+
+Closed diagnostic worker delivered/relinquished: first-fault fixed native phase,
+role, known SQLSTATE/counters only; psql reporting sqlstate, no raw text emitted.
+7trueRED then98PASS/3files8.27s, lint/diffPASS; root inspected complete3filediff.
+Observed15:51:27–16:01:01UTC partialwall, attributableusageunknown. Cleanup checks,
+original caps/SQL/app/guards unchanged. Fifthbatch pending focused/stagedaudit,
+stable commit and targeted source/one-normal-plan review; actual cause unknown.
+
+## 2026-10-05 — Draft-save historical reconciliation and sleep interruption
+
+Resume preserved immutable249/app/native guards through main1485 timeout-only
+rebase;477focused/22files and startup76PASS, only2pending genuineRPC type gaps.
+Owner-authorized stale-runtime cleanup stopped16audit containers and2orphaned
+browser sessions; all durable volumes/unrelated active stacks preserved.
+Historical B0 auth drift plusPAL+2 reconciled with independently recorded two
+local Gradebook smoke fixture runs; no individual historical ID attribution.
+Original B0 retained; exclusive private B1 captured once, whole-object comparisons
+include auth/PAL without exceptions. Bounded independent source/binding reviews
+accepted exactcab; original12:51:50 reviewclock retained. DeepSeek paused;
+weekly45percent accountwide remaining, attributable worker usage unknown.
+
+Normal7 reached42SDK requests, then second native contract bundle timed out
+during20:39:52–20:59:15UTC clamshell sleep. Exact disposable cleanup and separate
+wholeB1 verification PASS; no normal receipt/genuine types or canonical249 apply.
+One awake attempt proposed with temporary utility-scoped idle-sleep assertion,
+unchanged caps/guards, explicit human keep-open window pending. Normal then both
+forced modes, genuine types, final cumulative review/exactCI/mainmerge remain.
+Current main1487 Gradebook mark visibility changes preserved by rebase; only
+archive-marker conflict, both markers retained/shared entry once. No migration
+renumbering/stash pop, all36 unrelated stashes untouched. Draft1480 remains off;
+no production/promotion/account/cohort/provider/billing change or phase exit.
+
+After1487rebase,477focused/22files plus architecture/UI/design PASS; TypeScript
+still only2missing genuineRPC declarations. Incoming Gradebook server/API and
+startup114/3files PASS. All draft-save application/249/CI/native proof bytes
+equal previously reviewedcab; no generated-type fabrication or runtime retry.
+Historical B1/receipt remain immutable; verify-only exact-rebase binding requires
+bounded independent acceptance before an awake rehearsal. Original counters
+retained; current correction is continuity-only, not another app/schema fix.
+
+## 2026-10-05 — Awake draft-save rehearsal retained; inventory bottleneck isolated
+
+Normal8 onreviewed90f under utilityscopedcaffeinate/lidopen reached42SDKrequests
+and completed rollbackSQLcontracts plus wholefixture comparison before races.
+Race suite exhausted unchanged180s total atconcurrency.ts:80; native2444controls/
+162actions/0sessions, not all16schedulePASS. Exactephemeralcleanup and separate
+WHOLEpinnedB1 comparison PASS; no normalreceipt/genuineartifact/canonical249apply.
+Original B0/B1/receipt/provenance retained; no auth/PAL exemption or recapture.
+
+Bounded6.1Sol/high read-only investigation measured completeinventory463–798ms
+versus warmGit/source~45ms, three samplesonly/noSQL. Variance doesnotprove speedup.
+Rootaccepted proposalonly: PATCH-native seam chunks largecontainer inspections
+while preserving original collector/parser/nativeendpoint/config/socket checks.
+TwoCLIworkers reserve thirdslot for oneexistingbulkvolumeHTTP; samefreshgraph,
+20s/64MiB/failure settlement/dispatch barriers, originalguards/caps unchanged.
+Worker owns onlynewhelper/newoffline tests/nativecallsite; rootdocs/Git/review/
+runtime. Source TDD/independent acceptance before anynew rehearsal; no blindretry.
+
+Rebased onto84a657ebe/main1486, preserving approvedUI motion; archive conflict
+union keeps completeupstream histories and allbranchmarkers without adding
+already-present identical receipt bodies. Application/249/native/sharedcollector
+byteequal90f; no migrationrenumbering/newstash/pop,36unrelatedstashes preserved.
+Reviewclock12:51:50Z/cumulative15launch13target7batch0final retained under human
+workflowwaiver. Weekly43percentremainingaccountwide/attributableunknown; DeepSeek
+paused. Draft1480 notready; finalsource review/normal+bothforced/genuinecontracts/
+exactCI/mainmerge remain. No production/account/cohort/billing/provider operation.
+
+## 2026-10-05 — PATCH inventory chunk correction prepared
+
+Bounded Sol6.1/high worker delivered four source/test paths in approximately12min;
+root inspected full output and independently verified154/154 tests in8.36s. Offline
+realsharedcollector/parser graph129containers/617volumes/23networks preserves
+completeinventory, bulkHTTP/socketchecks, ordered32-IDchunks, twoCLIworker bound,
+queueinclusive20s/output64MiB/failure settlement. Actual180s race fit remains
+unproved. No native/SQL/Docker/typegeneration/CI/prod operation by implementation
+worker; effectiveconfig/attributableusage unknown. Root owns sourcefreeze,
+requiredchecks, originalaudit, targetedindependent review/newverifyonlyB1binding
+and onefinite normalplan before execution. Originalcheckpoints/counters preserved.

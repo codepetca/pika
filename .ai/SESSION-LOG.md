@@ -271,6 +271,7 @@ Repeated baseline clock hydration failures exposed an existing AppHeader server/
 Rebased onto reviewed PR 1491 parent `9d32e4ad`; preserved recovery/dialog gallery registrations, all continuity bodies and main archive prefix. Added required `initialNow` on enrollment-error return without weakening shell/header props. Regression RED then 84 affected tests GREEN; focused 378 tests and policy/type/lint PASS. Combined controlled browser matrix: 16 dialog and 16 recovery/clock cells covered; two dialog and one recovery initial useId-warning failures passed unchanged once-only retries, matching prior Pattern Lab warning provenance. Actual authenticated enrollment-outage RSC remains unverified. Experimental dialog stays unpromoted; no push/merge/deployment. External receipt: `product-fluidity/integration-1496-composition.md`.
 
 ## 2026-10-06 — Accurate auth resend feedback and preserved focus
+## 2026-10-05 — Privacy-safe native Test draft CI diagnostics
 
 Bounded product-fluidity work on the real signup verification/reset-code pages:
 reuse canonical ghost Button, inline FormField errors and AppMessage; check HTTP
@@ -834,3 +835,19 @@ Post-typefocused firstfailedstartup17002>17000 only(776PASS); compactedCURRENT w
 ## 2026-10-06 — Publication cumulative review and combined verification
 
 DraftPR1510 published9dcf0d2/started+draft lifecycle receipts; attachmentattempt failed100identitycap(no unrelatedcleanup/duplicates). Postrebasefocused2workers775PASS/2five-secondtimeouts; hostcompression/loadobserved, attributionunproven. Isolated2files202PASS unchanged, thenfullfocused1worker777/30+policies/TypeScript/lintPASS. Fullcoverage9dc1worker14229PASS/8SKIP1085files/2SKIP799.24s; floors85.24/77.44/91.48/87.23 unchanged. Slowrun resourcechecks read-only; lastPIDdiagnosticfound launcher alreadygone, no process/service interruption. Review18differentSol/high cumulative code/SQL/privacy/legacy/proof/CLItypes/rebase/CIwiring CLEAN; acceptedP2stalepretypestatus in guide+roadmap. Batch15 explicitlylabels history/adds supersedingnormal/B5/type/checkreceipts; onlydocs change. Original13:07:17clock/18launches15targets1final14priorbatches/standinghumanoverride retained. Forcedproofs/docclosure/eligibleexactheadCI/normalmainmergepending; canonical/prod249–252unapplied/noactivationorphaseexit.
+
+## 2026-10-06 — Publication cleanup acceptance and changed-base merge gate
+
+PR1510 reviewed826e4bd passed both serial forced cleanup modes, exact owned
+resource absence and separate whole-B5/all183/all5 preservation; normal services
+stayed online. Quiet10 release attempt found Clear sent comments already archived;
+no unarchive or active writer. CI37509828015 all5/PRGate PASS; no merge attempted
+after main693a096df (#1488) advanced and GitHub reported a history conflict.
+Returned draft before13-commit rebase. Sole JOURNAL conflict retained both sides;
+publication/source/252/types/proof byte parity verified, all37 stashes retained.
+Incoming proof diagnostics/browser fixture remain intact. Local/prod249–252 still
+unapplied; no UI/cohort/account/provider/billing/production action or phase exit.
+Original review clock/counters and human task-stop waiver persist. Targeted
+changed-base independent review/focused checks and one new exact-head CI precede
+ordinary main merge. Read-only next-slice inventory recommends atomic Test order;
+retired-row and subset/full-list semantics need explicit treatment before writing.
