@@ -23,6 +23,16 @@ Do not reopen completed MVP work from the historical checklist below.
 
 ---
 
+## Fluid classroom experience
+
+Active coordinator goal: [audit, Daily pilot and phased continuity work](../guidance/ui/fluid-classroom-plan.md).
+The accepted scoped rollout preserves Daily and Classwork workspace identity,
+drafts, focus, selection and scroll. Teacher Classwork/Tests and Student Classwork
+adopt the restrained motion pattern. The prepared integrated PR owns review and
+merge status; production promotion remains separate.
+
+---
+
 ## Historical MVP phases (completed by 2025-12-14)
 
 The inventory records Phases 0–6 as passed. This is the original MVP scope,

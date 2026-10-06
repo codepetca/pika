@@ -13,6 +13,17 @@
       ]
     },
     {
+      "file": "src/app/__ui/SurveyEditSplitPattern.tsx",
+      "reviewBy": "phase-3-surveys",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 2,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
       "file": "src/app/classrooms/[classroomId]/ClassroomPageClient.tsx",
       "reviewBy": "phase-3-dashboard-roster",
       "controls": [

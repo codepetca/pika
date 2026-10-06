@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { TeacherPatterns } from '@/app/__ui/TeacherPatterns'
 import { TooltipProvider } from '@/ui'
@@ -57,6 +58,31 @@ describe('Pattern Lab teacher-family examples', () => {
     expect(screen.getByRole('tabpanel', { name: 'Work details' })).toHaveTextContent('same selected work item')
     expect(screen.queryByRole('tabpanel', { name: 'Overview' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('tabpanel', { hidden: true })).toHaveLength(2)
+  })
+
+  it('discloses the continuous inspector with keyboard controls and returns focus on close', async () => {
+    const user = userEvent.setup()
+    renderPatterns()
+    expect(screen.getByRole('heading', { name: 'Continuous inspector', exact: true })).toBeInTheDocument()
+    const example = screen.getByTestId('continuous-inspector-example')
+    const alex = within(example).getByRole('button', { name: 'Alex Chen' })
+    const sam = within(example).getByRole('button', { name: 'Sam Patel' })
+    const inspector = example.querySelector('[data-workspace-inspector]')!
+    expect(inspector).toHaveAttribute('inert')
+    expect(within(example).queryByRole('button', { name: 'Close details' })).not.toBeInTheDocument()
+    alex.focus()
+    await user.keyboard('{Enter}')
+    expect(alex).toHaveAttribute('aria-pressed', 'true')
+    expect(inspector).not.toHaveAttribute('inert')
+    await user.click(sam)
+    expect(alex).toHaveAttribute('aria-pressed', 'false')
+    expect(sam).toHaveAttribute('aria-pressed', 'true')
+    expect(inspector).toHaveTextContent('Sam Patel')
+    await user.click(within(example).getByRole('button', { name: 'Close details' }))
+    expect(sam).toHaveFocus()
+    expect(inspector).toHaveAttribute('inert')
+    expect(sam).toHaveAttribute('aria-pressed', 'false')
+    expect(within(example).queryByRole('button', { name: 'Close details' })).not.toBeInTheDocument()
   })
 
   it('shows the disabled selection guidance using the shared checkbox', () => {

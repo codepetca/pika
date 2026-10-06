@@ -28,6 +28,7 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 describe('UiGallery accessibility contracts', () => {
   it.each(['teacher', 'student'] as const)('demonstrates normal and exam header navigation for %s', (role) => {
     renderGallery(role)
+    if (role === 'student') expect(screen.queryByRole('button', { name: 'Open survey edit prototype' })).not.toBeInTheDocument()
     const references = within(screen.getByRole('region', { name: 'Application header references' }))
     const headers = references.getAllByRole('banner')
     expect(within(headers[0]).getByRole('heading', { name: 'Classrooms' })).toBeInTheDocument()
@@ -152,21 +153,23 @@ describe('UiGallery accessibility contracts', () => {
       value: scrollIntoView,
     })
     renderGallery('teacher')
+    const navigator = screen.getByRole('combobox', { name: 'Find a pattern' })
+    const sectionNavigation = screen.getByRole('navigation', { name: 'Pattern Lab sections' })
 
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Find a pattern' }),
+      navigator,
       'page-mockups',
     )
 
     expect(window.location.hash).toBe('#page-mockups')
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
-    expect(within(screen.getByRole('navigation', { name: 'Pattern Lab sections' })).getByRole('link', { name: 'Page mockups' })).toHaveAttribute(
+    expect(within(sectionNavigation).getByRole('link', { name: 'Page mockups' })).toHaveAttribute(
       'href',
       '#page-mockups',
     )
 
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Find a pattern' }),
+      navigator,
       'status-colors',
     )
     expect(window.location.hash).toBe('#status-colors')
@@ -177,7 +180,7 @@ describe('UiGallery accessibility contracts', () => {
       return 1
     })
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Find a pattern' }),
+      navigator,
       'mockup-settings-panel',
     )
     expect(window.location.hash).toBe('#mockup-settings-panel')
@@ -185,6 +188,11 @@ describe('UiGallery accessibility contracts', () => {
     expect(screen.getByRole('tabpanel', { name: 'Settings' })).toBeVisible()
     expect(scrollIntoView).toHaveBeenCalledTimes(3)
     requestAnimationFrame.mockRestore()
+
+    fireEvent.change(navigator, { target: { value: 'survey-edit-split' } })
+    expect(window.location.hash).toBe('#survey-edit-split')
+    expect(screen.getByRole('button', { name: 'Open survey edit prototype' })).toBeVisible()
+    expect(within(sectionNavigation).getByRole('link', { name: 'Survey edit' })).toHaveAttribute('href', '#survey-edit-split')
   })
 
   it('exposes role-appropriate page mockups and named interactive owners', async () => {

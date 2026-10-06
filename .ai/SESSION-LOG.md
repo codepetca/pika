@@ -11,390 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Supplemental learner local verification on actual main
-
-1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
-source tree; root168focused/static/47Bara/startup/audit PASS. Distinct5.6Sol/high
-initial reviews: securityCLEAN, compatibilityP1validpurged168 NULLscope disappears
-under NOT IN after fixture creation. Both baseline snapshots use correlated
-NOT EXISTS; meaningful1RED/21PASS→22GREEN. Source-only targeted reviewCLEAN.
-242 applied once locally, exact001–242history, genuine typesgenerate/check zero
-drift; SQLdigest48c00a840eda6d155f5943197eca7a3c6e8834ca6454d11196b2448696f2746e
-immutable/no reapplication. Actual PostgreSQL caught unparenthesized CASE in the
-new regression then original compatibility assertions. Root audited allCASE sites,
-two additional proof-only batches/regressions/targeted reviewsCLEAN; each failed
-transaction rolled back and wholecanonicalbaselinePASS. No SQL/application/control
-change, gate weakening or cleanup workaround. Original08:43clock/counters retained.
-
-Runtime d5dea393 new242/allsevenwrapper concealed+visible/ownerhistory/revision/
-restore/submission/nonemptyartifact/inlineeffects PASS; unchanged188189history and
-190artifact rollback contracts PASS. Fullcanonical public/private/Storage counts+
-digests/168metadata/settings/cron/resources unchanged. Full213inline script includes
-committed race fixture: finalCI ephemeral-only, never run on canonical retained
-identities. Strict001242 isolated replay9learnerprojections/6originalrevocations
-plus original listcontrols PASS; nine sealedRPCstubs falsecreated/view, zero actual
-openRPC/Storage/provider network. Bothforcedmodes exit1/exact2markers/teardown/full
-canonicalPASS, private0600 receipts UhgV7p/o2i0fH. Originalobserver authority unchanged;
-no realopen/nonemptySDKsupplements/liveSigning/authHTTP/browser/concurrentvisibility
-proof. Factualreceipt batch/finalcumulative/CI/mainmerge next. Latest213imageREAD
-concealment remains nextbounded prerequisite; assessments/goal incomplete. Local242/
-main241/prodlast225; admission/home/cutover/account/billing/providerOFF. Dependency
-worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmerge
-and localmigration override retained; no bypass or production permission inferred.
-
-## 2026-10-04 — Locked inline-image read source preparation
-
-1459 final cumulative security review CLEAN on9f15e6e2; one ready-event exact CI
-37191597295 is running. Source frozen, original review clock/counters retained;
-explicit human-authorized extension to10:43Z for CI/normal merge only. No duplicate
-watcher, production operation or activation. Local242/main241 still.
-
-Disjoint243 source worker6.1Sol/high completed/relinquished only SQL/test/harness;
-root sole writer verified complete213 body preservation after minimal locked
-nonowner Classwork predicate. Owner inspection, original locks/error/DTO/status/
-ACL contracts unchanged.9new/90related worker checks PASS; root71new/CI/floor checks,
-bash-n/diff PASS. New exactcanonical c243/sc243 rollback metadata fixture prepared
-NOTRUN: verified/ready controls, both role labels, hidden404/owner inspection and
-invalid bindings with whole-row/settings/cron/resources/guards equality. Existing
-117 begin/schema accepts synthetic metadata; no physical Storage bytes/API/network.
-NULL-scope retained evidence and CASE grammar regressions retained from242.
-Strict replay floor only advances to243; fixture/transitions/restoration/cleanup
-authority unchanged. Candidate243 UNAPPLIED; actual1459merge/tree parity/reconcile,
-independent reviews and genuine local types/runtime/replay precede ready/CI/merge.
-No realopen/signing/nonemptySDK/HTTP/browser/concurrency proof inferred. Assessment
-phase/goal incomplete; productionlast225/admission/home/cutover/billing/providerOFF.
-
-Superseding parent receipt:1459 exactreviewed9f15e6e2 all5CI37191597295PASS
-(0queue/1698runseconds), normal squash01aedcec8 merged09:46:04Z; actualmerged state,
-tree parity and canonical cleanFF verified.243 clean prepared branch rebase--onto
-actualmain preserves complete source tree and unrelated stashes; no resequencing
-or applied-SQL edits. Local/main242;243UNAPPLIED. Frozen-source highriskreview next.
-
-## 2026-10-04 — Inline-image read local verification
-
-1460 draft47724239 distinct5.6Sol/high security+compatibility initial reviews CLEAN.
-Root157focused/static/47Bara/startup/audit PASS on actualmain01aedcec8. Explicit
-local preview only243; appliedonce, exact001–243 history, genuine typesgenerate/
-check zero drift. SQLhash7de3fd531a1c4144dbb6b0fc2ede3c1ba4a6503d4305af1df3cf0a3fbb21779d
-immutable/no reapplication. First actual fixture run rejected baseline history on
-already-submitted docs under untouched179 guard; full transaction rolledback and
-independent wholecanonical baselinePASS. Two-file proof-only40ce325b correction
-uses exact submit snapshots;1RED/9PASS→10GREEN,158focused/static and targeted
-compatibility review CLEAN. No migration/guard/control/application change.
-
-Actual243 complete visible/hidden/default shapes, genuine verified/ready metadata,
-both rolelabels/owner hiddenarchive/draft inspection, enrollment/subject/object/
-lifecycle/status/error/fullDTO/noeffects and unchanged242 rollback PASS. Original
-strict001243 isolated normal9projections/6SAMEoriginalrevocations plus oldlist
-controls PASS; nine sealedRPCstubs falsecreated/view, zero actualRPC/Storage/provider.
-Both forcedmodes expectedexit1/exact2markers/ownedcleanup/fullcanonicalPASS;private
-0600 receipts67HS1D/25vnVp. Independent preapplication full public/private/Storage
-rowdigests+168metadata/settings/cron/resources equality afterallPASS. No liveSigning/
-actualopen/nonemptySDK/authHTTP/browser/visibilityrace claim. Fullold213 committed
-race only inephemeralCI, never canonical retained168identities. Receiptbatch/final
-cumulative review/exactCI/normalmainmerge next. Original09:48:11clock/counters kept.
-Local243/main242/prodlast225; admission/home/cutover/billing/providerOFF. Read-only
-next integration proposal separate from immutable observer authority; no phaseexit.
-
-## 2026-10-04 — Assignment integrated SDK source preparation
-
-1460 final cumulative5.6Sol/high review CLEAN e98b78ef,158focused/static/47Bara/
-startup PASS. Ready event10:15:15Z started singleeligibleCI37194768940;source frozen.
-Original09:48:11clock/counters4launch/1target/1final/2fix retained, explicit human
-reviewextension to11:48:11Z for CI/normalmerge only. No duplicate watcher or bypass.
-Local243/main242;productionlast225 unchanged,admission/home/cutover/providerOFF.
-
-Read-only6.1Sol/high proposal identifies realopen/nonemptySDK/signing gaps beyond
-sealedobserver. Separate validatedworktree startsfromreviewede98; worker owns only
-three new proof files,source-only/no DB/network/Storagecalls. Originalfixture/
-observer/SQLallowlist/transitions/restoration/lifecycle/platform/cleanup immutable.
-Proposed disjoint finiteextension caps4actors/3classes/8assignments/8images<=1024B,
-SQL<=256KiB,512requests/64Storage/15s perrequest;exactfresh54331/54332 identities,
-168169guardsON/persistedgatesOFF/no provider/cron/vault,canonicalreadonly/no cleanup
-of individualrows/objects. Independentreview and rootexactmanifestacceptance before
-futureexecution;source preparation itself grants no new livebytes authority. Root
-serialCI exactforced2marker regression1RED/21PASS→22GREEN/ESLint/diffPASS;guide records
-constraints and unprovedHTTP/browser/removal/race. No newmigration/productcode or
-phaseexit implied. Actual1460merge/treeparity/reconcile precede next publication.
-
-Superseding parent receipt:1460 exacthead e98b78ef allfiveCI37194768940 checks
-SUCCESS includingPRGate;normal squash3c5d7097 at10:43:25Z verified, full-treeparity
-and clean canonical main fast-forward. ObservedCI0queue/1541runseconds; lifecycle
-receipts recorded. Keep dependencyworktrees/36unrelatedstashes;no production.
-Sourceworker explicitly relinquishedthree newfiles at10:43Z;8RED→31GREEN/136related/
-TypeScript/ESLintPASS. Root independently readall source;141checks/3suitesPASS
-(newproof/learneropen/CI;one mistakenly requested nonexistent observerpath didnot
-run). Frozen generator/template acceptance means exact per-run SQLdigest checked
-at dispatch, not operator reapproval of random IDs. No liveextensioncalls yet.
-
-Draft1461 exact1963f88e published afteractualmain rebase/139focused11suites/static/
-47startup/auditPASS. Two distinct5.6Sol/high initialsource reviews CLEAN(53security/
-201compatibility checks), no liveexecution. Root independently reproduced omitted
-feedback.assignment_id SDKpredicate rejection;new1RED31PASS→32GREEN fixes only
-currentAssignment exact-equality predicate, otherAssignment substitution denied.
-Single proof-only batch plus targetedreview before anyruntime;initialCLEANdoesnot
-override rootblocker. Budgetoriginal10:46:45/2launch1initial0target0final retained.
-Attachment attempted;identitylimit>100,no unrelateddeletion. Local/main243/prodlast225
-and all rolloutcontrols unchanged;assessmentphase incomplete.
-
-Targeted5114fff5 feedbackpredicate review CLEAN/32new120relatedPASS;root140focused/
-staticPASS. Root explicit finite reviewed disposable-local manifest acceptance,
-private0600 baseline capture thennormalruntime exit1/closedgenericfailure. Independent
-wholecanonical fivefields unchanged afterward;forced modesnotstarted, actualmatrix
-unproved. Root adds onlyclosed stage/step/cleanupdiagnostic labels with1RED32PASS
-regression;no privatevalues serialized/nativeauthority/product/schema/gates changes.
-Secondproof-only correction requiresreview before retry;original10:46:45 budget,
-3launch1initial1target0final1fix retained untilbatchcomplete. No production.
-
-Closeddiagnostic287de55c reviewedCLEAN/33newPASS;root141focused/staticPASS. Retry
-normal reportsfixture/extension-sql/cleanupnone;independentfivefieldbaselineunchanged.
-No SDKmatrix/forcedsuccess inferred. Sourcefound099artifact insert-after-submit
-violation;thirdfixture-only TDDordering1RED33PASS→34GREEN/172relatedPASS: newdocdraft,
-linkinsert, syntheticdocsubmit/return, then179snapshot beforedeferred099commit.
-Noexistingrows/guard/historyrepair/product/schema/capchanges. Targetedcompatibility
-andupdatedfinite manifest acceptance before anyretry;original10:46:45 clock kept.
-
-Thirdattempt60b3f874 aftertargetCLEAN:fixtureSQL passed;normalfailedopen-create,
-cleanupnone/independentwholecanonicalfivefields unchanged. Forcednotstarted/no
-matrixPASS claim. Root adds proof-onlyclosed transportphase/operation/status,
-allowlistederrorcode/aborted signal/timebucket/count diagnostics;2RED34PASS→36GREEN,
-163related/ESLint/auditPASS. No underlyingprivatevalues or native/appguard/deadline
-changes. Humanexplicitreviewextension recorded13:46:45 original10:46:45 retained;
-4thbatch/targetreview before justifiedretry;production/admission/cutover untouched.
-
-FourthtargetSolreview blocks misleading reset-to-zero guardduration receipt;
-no runtime retry. Fifthbatch only undefined/unobserved timing plus finallyelapsed
-and2regressions(2RED36PASS beforefix), fixed labels/no enforcement/deadline changes.
-Explicituserextension13:46:45 keepsoriginalclock/counters/hardcaps;targetthen
-actualruntime/finalintegration required. Root offline mockedSDK realopen+transport
-10dispatchesPASS/no networkSQL;doesnot establishexclusiveactualfailurecause.
-
-Fifthtargetb433b883 CLEAN. Fourthnormal SDKrequest5/openRPC1 aborted=true during
-heavyguard checks;fixtureSQL+cleanupPASS/independentcanonical5fields unchanged.
-Sixthbatch removes repeated inventories/unusedtablehashes insideapp20s, NOTguards:
-freshcompleteinventory/exactownedclosure/labels/54332dbport/foreignattachment plus
-oneboundreadonlySQL retains168169/all5gatesOFF/noAIruns/Vault/privatebuckets/cron.
-Original native/lifecycle/wholebaseline/cases/teardown immutable;no caching or
-deadline/cap/control expansion.2RED38PASS→40GREEN/179related/ESLint/auditPASS;
-targetreview andupdatedrootfiniteguard manifestacceptance before retry. ProdOFF.
-
-Sixthtarget45084a8b guard-equivalence CLEAN/40newPASS. Root explicitly accepted
-frozenfinitequery/template/manifest;serialnormal29actualSDKcases PASS(create/view,
-repeat,supplements,artifact+inline signing/tinyPNGdigest) plusoriginallist/revocation/
-restoration/ownedteardown+canonical closure. Both forcedmodes expectedexit1/exact2
-markers afterfullsetup/eightuploads PASS. Savedindependentpublic/private/Storage/
-168/settings/cron/resources unchanged before/afternormal/afterpair. Private0600
-CyJkHx/EN7APq receipts;no reset/canonicalDML/providers/appHTTP/browser/race/activation.
-Seventhbatch facts-only retains runtime source45084a8b;finalcumulativereview/CI/
-normalmainmerge next. Original10:46:45/extended13:46:45,8launch/6target/6fix retained
-untilbatchcommit;hard12/8/8 andphaseexitgates unchanged. Local243/prodlast225.
-
-Finalcumulative52c8b526 review found one stale future-tense delivery paragraph
-despite completeactualreceipt;eighth/finalfacts-onlybatch corrects to recorded
-upload/sign/fetch/digest results andretains appHTTP/browser/removal/race exclusions.
-No source/runtime/CI/schema bytes change or repeatedDBproof. Targetedsame-reviewer
-doccorrection check precedes stable-headCI;original10:46:45 clock/extension13:46:45,
-hard8fix/8target/12launch retained. No production/cohort/account/provider changes.
-
-## 2026-10-04 — Integrated learner proof merged; Test owner read preparation
-
-PR1461 reviewedff0a45a2 passed all5 CI37202212433 checks/PRGate and merged normal
-squash7c8fd90e at12:59:35Z. Fulltreeparity/cleanmainFF/36stashes PASS; runtime29SDK
-and2forced/wholecanonicalclosure retained. Ledger10launch/7target/1final/8fix,
-original10:46:45/extension13:46:45 retained; CIqueue0/run1816s; active/tokens unknown.
-No production/schema/cohort/account/provider/billing changes or phaseexit.
-Next Tests detailGET source-only map GPT6.1Sol/high13:01:16–13:05:30Z accepted
-after coordinator source verification. Real draft/managedref FK paths identified;
-draftGET excluded becauseensure writes. New dedicatedowner-detail WT based7c8fd90e
-passes startup/verifyenv; first invocation fromhub rejected, no codebeforecorrect
-WT verification. GPT6.1Sol/high owns onlynewhelper/validation/GETbranch/newtests;
-coordinator ownsdocs/proof/Git/integration. No actualTestSDKproof or source review
-acceptance yet. DeepSeek explicitpause honored; attributableworkerusage unknown.
-
-Appworker explicitlyrelinquished fiveownedpaths13:23:03Z: newowner-detailhelper/
-validation/GETbranch/unit+APItests. TDDmissingmoduleRED13:14–13:15→59GREEN13:22;
-scopedlint/diffPASS. Root read allnewappsource/schema/route delta andindependently
-ran39unit+6newAPI+14legacyroute=59PASS;43startup/docsPASS. No PATCH/DELETE change.
-Proofworker ownsdisjoint3newscript/testfiles; liveproof/completeintegrationchecks/
-independentreview/PR stillpending. No runtime permission inferred from sourceprep.
-
-Proofwriter offlineintegration identified2genericZoddecoder TS2352errors. Root
-constraineddecoder toTestoutput andsplitstrictJSON-envelope/rowschema parsing,
-withoutunsafe assertions or weakenedcontrols. FullTS/scopedlint/59app-routechecks
-PASS13:37Z. Root addednormal+2forced Testproof CIstep with exact2closedmarkers;
-preparedcode remainsinert untilfixed-source independentreview/manifestacceptance.
-
-Proofworker GPT6.1Sol/high13:17:40–13:42:42Z delivered/relinquished3paths:
-30newproof/151combined5files GREEN,scopedlint/fullTS/diffPASS. Rootreadallfixture/
-runner/testsource includinglastuploadfullPath/Idanddriftregressions. Original
-sealedsource untouched. Rootstage8TSauditPASS; frozenfocusedchecks running.
-Workeractive/tokens unknown; native delegation pause/control boundaries honored.
-
-Rootfrozenfocused197checks/14files+architecture/UI/designpolicy/fullTS/lintPASS;
-59app-route/30offlineproof counts distinct fromworker151original+newproof run.
-Audit8changedTS/diffPASS. Draftfixed-head source review precedesfinite live
-manifestacceptance; no actualTestDB/Storage or rollout evidence claimed yet.
-
-DraftPR1468 head68064c63; attachattempt rejected100identitycap (no unrelated
-attachment removal). InitialSol/highsecurity13:44–13:50 clean; distinctSol/high
-compat13:44–13:54 found2acceptedP2 coverage/continuity gaps. Batch1 addscopied
-question sourceidentity/populatedcache regression with externalfetch forbidden,
-updatesCURRENT/guide; app/proofgenerator/transport unchanged. ExpandedCURRENT
-firstfailedstartup16059/16000 chars; compressedfactswithoutweakeningbudget,
-then103app/route/startupPASS (60app+43startup), scopedlint/diffPASS. Original
-reviewclock13:44/default14:44;2launch/1initial/1fix, target/finalpending.
-Batch1 frozenfocused198/14files+allstaticPASS; changedunit audit1TS PASS. No
-app/proof/CI byteschanged; targetedcompatreview requestedonthenewfixedhead.
-
-Batch1 targetedcompatSol/high ba42f662 CLEAN14:01;40unitPASS,2P2resolved;
-app/proof/CIbyteparity toinitial68064c63 verified. Root explicitlyacceptedfinite
-generator/requestmanifest beforeactualrun. One wx0600independentcanonicalbaseline
-capture, neveroverwritten. Normal8actualSDK/exactteardown/fullclosurePASS14:10:32;
-forcedafter-fixture14:13:20 andbefore-capture14:15:53 fullsetup/twoPNGs/exactexit1/
-exact2closedmarkers/ownedteardown/fullcanonicalclosurePASS. Separate5fieldcanonical
-comparisonPASSafternormalandeachforced. Logsprivate0600retained; sourceunchanged
-duringruns. Facts-onlybatch2 recordsreceipts; finalcumulativeSHAreview/CIpending.
-No authHTTP/session/browser/race/publiclegacypositive/phaseexit/rollout claim.
-No canonicalDML/newmigration/production/account/provider/billing changes.
-
-FinalSol/highcumulativeCLEANdecdda34814:21:11–14:23:40. Readyonce14:25:44 started
-exactCI37209224882;11953testsPASS/2contractsFAIL: GETQuerySchema mistakenlyretired
-untouchedPATCHbodydebt, andabbreviatedCURRENTlost requiredProdDB001prefix. PR
-returnedDRAFTbeforeedits. Genericquery/params exclusion preserves24debtbaseline
-unchanged andstrengthensclassifier; newregression+2failuresRED→50selectedGREEN
-(API/Bara/43startup). Mandatoryprefixrestored; Bara/16000budget unchanged.
-OldCIcancelled(db/browsercancelled, nofailedstep;PRGatefail expected); attempted
-cancelreportedalreadycomplete. Singleoldwatcherclosedexit1. Facts/sourceapp/proof/
-schema/depsunchanged; batch3 reviewpending. Original13:44clock preserved; explicit
-humanreviewextension used45min to15:29,hard8fix/8target/12launch stillenforced.
-
-NextTestslist read-onlymap GPT6.1Sol/high14:27:30–14:36:23 completedwithoutsource/
-runtimechanges. RecommendcompleteownerGETstatistics/DTO; class-rootbatchedTests,
-participant/enrollment joins, realdraftClassFK, boundedterminalpaging; noStorage/
-AI/writes/newRPCindicated yet. ExistingSDKstatsloaderswithoutpageSize maytruncate.
-Rootacceptance/nextimplementation waitscurrent1468actualmerge; tokens unknown.
-
-TargetedSol/high81d47991 completed14:52:57 oneP2: suffixfilter stillacceptsunrelated
-identity/response/query schemas. RootreproducedREDthenbatch4 scopedASTbody-input
-trace; cachedpromises/localreturnedreaders/multipart/aliases covered; shadowing,
-unrelatedschemas/literals/unusedreads rejected. Baseline24 unchanged; app/proof/
-CI/schema/depsidentical. ExistingTypeScript reused,no dependency. Samefixbudget4;
-originalclock/deadline/hardlimits retained; targetedreviewandfreshCIpending.
-
-## 2026-10-04 — Broad audit remediation batch 1
-
-Owner authorized planning and orchestration to fix the 27-finding broad audit at main `3c5d7097`. Plan: `docs/guidance/codebase-audit-remediation-2026-10.md`; existing audit handoff tracks per-finding evidence and worker receipts. Feature worktree `codex/audit-remediation`; full startup passed after frozen-lockfile installation, with no dependency changes. Three bounded GPT-6.1 Sol workers (auth high; guidance and patterns medium) delivered non-overlapping source/tests. Auth regressions: 172/20 PASS, including one initial-password winner, login origin/JSON and UTF-8 limits; S1 remains partial pending atomic issuance/handoff generation fencing. Patterns regressions: 69/8 PASS, covering cache/poll retention, survey shapes and directly imported script-test selection. Guidance reconciles source/local/hosted checkpoints and routing, removes direct-main landing instructions, and fails startup for missing required inputs. Startup context ceiling deliberately increased from 16k to 17k characters for readable dated labels and receipt/remaining-gate text. No migration, database, hosted flag or production mutation. Draft publication and cumulative verification receipts remain with coordinator; independent review not yet launched. Codex weekly remaining at start 8%; DeepSeek paused through 2026-12-31; pr-review low-usage human checkpoint applies before reviewer launch. Goal remains active; no finding accepted from implementation delivery alone.
-
-## 2026-10-04 — Audit PR 1462 main reconciliation 902cbf76
-
-Rebased onto merged #1468 (main 902cbf76). Preserved complete historical
-bodies from both branches and the incoming contextual owner Test detail read
-and CI checks. Previously reviewed audit implementation bytes remain unchanged;
-shared continuity and CI composition receive bounded independent review.
-Final focused checks and exact reviewed-head CI are readiness gates.
-No migration reapplication, shared/hosted database operation, merge or deployment.
-
-## 2026-10-04 — Broad audit authorized landing reconciliation
-
-Owner instructed this task to orchestrate the all27-finding plan. Guidance1462
-merged at24cb8847; canonical hub fast-forwarded and exact source-tree parity PASS.
-Five remaining ready PRs conflict only in journal archival placement. Coordinator
-prepares one common history union preserving all complete prior body multiplicities;
-reviewed application/migration bytes remain pinned and pending source-parity checks.
-New-base focused checks, independent integration review and exact-head CI precede
-remaining merges. Production244–246 need matching application and exact-target/full-
-set permission; no database application, fixtures, feature activation or deployment.
-Braces residual investigation is read-only GPT6.1Sol/high. Codex weekly remaining77%
-account-wide; DeepSeek paused. Task low-usage/review-budget override retained.
-
-## 2026-10-04 — Broad audit combined landing candidate
-
-After guidance1462 merge24cb8847, consolidated the five remaining reviewed source
-packages in draft1463. Identical journal union preserves complete prior body
-multiplicities; application/migration byte parity is checked against source-package
-heads, with explicit package/UiGallery/deletion-only validation-baseline composition.
-Baseline removes five actually validated routes, no new debt. Focused runner adds
-optional positive-integer --max-workers forwarding only to Vitest;24 controls PASS,
-selection unchanged; earlier default-capacity run retained10 UI timeout failures.
-No timeout/assertion/scope reduction. Final combined focused run uses2 workers;
-independent cumulative integration review and exact-head CI remain pending.
-Fresh read-only production history is exact001–225; target/ref matches GitHub
-migration environment. Complete pending226–246 impact review is underway; no apply,
-fixture/reset/cleanup/flag change or deployment. Braces width/parent-cycle limits
-reproduced; temporary exception throughNov4 proposed, owner decision pending.
-Old local application authority remains consumed; immutable receipts retained.
-
-## 2026-10-04 — Audit continuity format correction
-
-Combined cadf CI37225590466 passed12,215 full tests with8 configured skips;
-one continuity parser failed because CURRENT lost its required Hosted: Prod DB
-prefix. Restored that machine-readable prefix with the fresh001–225 verification
-date; no product, migration, type, dependency or test assertion change.1463 returned
-to draft before correction. Independent targeted review and fresh exact-head CI
-remain required; original frozen receipts and full failure log are retained.
-No production apply, provider, canary, flags or deployment operation.
-
-## 2026-10-04 Audit source landing and coordinated release preparation
-
-- Guidance #1462 and combined #1463 are merged; main `5a396899198397e93ffc3dfcc0908bfceaa4f676` has exact reviewed-source tree parity and the hub fast-forwarded cleanly. All 27 original findings retain accepted source remedies; production runtime closure is separate. #1464–#1467 closed as superseded only after parity.
-- Final combined full CI 37226522459 and PR Gate PASS: 12,216 unit/API tests (8 configured skips), full build/static gates, all selected disposable database contracts, browser 298 passed/3 retry passes/20 configured skips. Three browser retries match previously accepted source-run failures; audit lifecycle cases passed without retry. Prior continuity assertion failure/cancellation and draft-event race receipts are preserved.
-- Production draft #1470 is prepared for cumulative independent release review. Fresh read-only production history is exactly001–225; complete pending226–246 (21 files), hashes/impact and prepared read-only contract packet are recorded externally. Workflow preview37228560431 PASS at merged source5a396899/fullCI37226522459; exact225-history/ordered226–246 and all21hashes verified against source/manifest. Digest645873e4078494fc1d7ad73bb739706352413af4950388ddfec484e6312d8c8c. Preview is preparation only; no migration apply, deployment, canary/provider/fixture/cleanup write or flag activation occurred.
-- Remaining owner gates: exact production226–246/source/digest and irreversible-authority acknowledgement, coordinated affected-traffic hold/window and compatible app release, separately scoped canary/provider/cleanup operations, and explicit residual braces risk decision. Task low-usage/review-budget waiver remains; actual authority/provider/runtime/correctness gates remain. No epic status changed without its exit evidence.
-- Evidence: `/Users/stew/.codex/audits/pika/2026-10-04-broad/` retains immutable original acceptance and cumulative execution in handoff.json; integrated-main-merge-receipt.json, corrected-integrated-ci-final.json, integrated-browser-retry-triage.md, production-pending-chain-manifest.json and static packet reviews. Canonical plan: docs/guidance/codebase-audit-remediation-2026-10.md.
-
-## 2026-10-04 — Broad audit source landing and production history reconciliation
-
-All27 accepted audit source findings landed through reviewed main PRs1462/1463;
-application source5a396899 and documentation checkpoint1471/a2175080 are merged.
-Final application CI37226522459 passed12216 tests (8 configured skips), database
-contracts and browser lane (298 passed,3 known retries,20 configured skips).
-Production history remains001–225. Exact226–246 preview37228560431 passed at
-source5a396899; digest645873e4078494fc1d7ad73bb739706352413af4950388ddfec484e6312d8c8c.
-Draft production PR1470 remains held for exact migration/effects authorization,
-coordinated traffic window, canary/provider/cleanup scope and braces residual
-exception decision. No schema application, deployment, flag changes or fixtures.
-
-Coordinator reconciles the production journal conflict on main while preserving
-all2198 prior complete dated-entry body multiplicities and both archive preambles.
-The transitional recent log retains all40 production entries plus the latest19
-main entries and this receipt; trim --keep60 keeps the permitted cap and allows
-GitHub to combine the canonical main SHA without reintroducing archived entries.
-Remaining main recent entries are preserved in the archive. Source/runtime,
-workflow, tests, dependency and migration files remain unchanged. Independent
-history review and exact-head documentation CI precede main merge. Source acceptance
-and historical review counters remain intact; low-usage/review-budget waiver persists.
-
-## 2026-10-04 — Test detail merged; owner Test list source preparation
-
-1468 reviewed039642ac exactCI37211414037 all5SUCCESS/PRGate; normalSHA-matched
-squash902cbf76 merged15:36:48Z. Whole reviewed/merged tree parity and clean hub
-mainFF passed;36 unrelated stashes/critical dependency worktrees preserved.
-ObservedCI queue0/run1918s; singlewatcherclosedexit0, no duplicateCI or bypass.
-6reviewlaunch/3target/1final/4fix, original13:44clock and explicit extensions
-preserved. Privateappend-onlymetric reports6correctionpushes from cumulative
-entry error; actual4pushes, correction documented without deleting events.
-
-Ownerlist source prepared alongsideCI onisolated039base; appGPT6.1Sol/high
-relinquished5files~15:28Z after43new/10legacy/50related/TS/lintPASS. Rootread
-238helper/54validation/fullnewtests/GET-onlydiff;93integration+24correctlegacy
-checksPASS. Initialtwo legacyfilterfilenames were nonexistent/ignored; only
-actualmatched counts claimed. FullDTO/persistedMIME/sixstats preserved, noStorage
-orprovider calls. Bounds/pagination/currentowner/Test/control/enrollment/final
-roster checks source-only; no SDK orphaseexitclaim yet.
-
-ProofdesignGPT6.1Sol/high15:12:47–15:23:52Z11m05s delivered/verified:5actors,
-3Classes,4Tests/4questions/2drafts/4attempts/5responses/5availability/5enrollments,
-onefreshremoval leaves4active+1retained168generation;169OFF meansno signals.
-147creates9owneddefaultcategories; include exactClass-bound side-effect closure,
-no trigger bypass/manual inserts. Sameworker relinquished3proof files15:53Z,
-21m29s manualwall,36new/109combined/TS/lintPASS; no live/Git operations. Root
-inspectedall3files and independently passed133checks/6files; parent ownsall
-integration before new-scopecommit/rebaseonto actual902main. Fixedindependent
-review/rootfinite-manifestacceptance precede actualdisposableSDKnormal+2forced.
-Attributableactive/tokensunknown. Originalsealedauthority/lifecycle/controls/
-cleanup/native bytesunchanged. No migration/production/cohort/home/account/
-provider/billing activation; phase2/3active,4/5dormant,goal incomplete.
-
 ## 2026-10-04 — Docker recovery; owner Test list runtime held
 
 1469 remains draft/unmerged, reviewed a000cb3c with two independent CLEAN source
@@ -819,6 +435,16 @@ telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollo
 - Hosted CI `37260199028` on `0ad72fd7` passed Test & Build but the unchanged database harness stopped before fixtures with `sc242 fixture namespace collision`; the cause was not proven after stack teardown. Returning PR to draft canceled the browser job through normal concurrency. No harness or collision guard was weakened. Rebased onto actual main `6586847c` (#1473); only archive conflict retained upstream history. Removed two auto-merged duplicate entries after verifying their complete bodies already exist in the archive. One fresh eligible PR run remains required on the reviewed current head; merge still requires normal owner authority.
 - Evidence: `/tmp/pika-selfhost-local-live.log`, `/tmp/pika-selfhost-focused-rebased.log`, `/tmp/pika-selfhost-local-plan-rebased.log`, `/tmp/pika-selfhost-db-job.log` and `/tmp/pika-selfhost-rebase-range-diff.log`. Preparation and operational goal remain incomplete until the required CI, merge decision and host/private activation gates pass.
 
+## 2026-10-05 — Survey split authoring
+
+New/Edit Survey now opens the test-style 1/3 details + 2/3 active question editor (stacked mobile); direct generated-title draft creation, MC/open-response/link, multiline prompts, selected-question navigation, autosave flush/retry, Markdown and Preview retained. Reuses CreationModalShell, Test split composition and @/ui controls; no shared-contract or stable-canon change, no experimental pattern/promotion. Survey identity guards retained; creation responses cannot open in another Classroom. Risk: workspace-state. Composite checklist reviewed: semantic pressed states, keyboard controls, modal Escape/focus; student n/a because only teacher authoring changed.
+
+Evidence: authoring/parent80 and student6 component tests PASS; browser4 PASS desktop1440x900/mobile390x844 × light/dark with edit, MC, open response, Markdown, Preview, new draft captures under test-results/survey-authoring-*; compared Test Pattern Lab reference /tmp/pika-survey-test-reference.png. Focused checks and independent review receipts follow in PR. Worktree survey-two-pane/pika; branch codex/survey-two-pane. One GPT-6.1 Sol medium worker mapped seams and wrote tests in two bounded assignments; coordinator verified80 tests. Weekly remaining50% at start; DeepSeek paused; worker/coordinator tokens and active time unknown; no edit conflicts/rework. Initial browser setup corrected theme key and fixture navigation before final4/4. No dependencies/schema/hosted changes.
+
+## 2026-10-05 — Approved classroom motion rollout
+
+Owner accepted Daily restrained200ms direction for wider adoption in the owning chat. Scoped stable/family canon, audit and Pattern Lab promotion recorded; no dependency/merge/deploy authorization. Follow-up codex/fluid-motion-rollout includes reviewedDailyb94 and targetsmain for canonical CI; prior1481/1482/1484 heads unchanged. Classwork stable table/inspector, Tests disclosure/hidden-menu Escape guard, cross-role opacity entry, reducedmotion and immediate pointerresize. Coordinator corrected primary-refresh priority and layout-controller remount before acceptance; RED mode-state regression nowGREEN,145owner cases pass. Final motion browser24/24(2.0min) across bothroles/viewport/themes/normal-reduced verifies DOM/drafts/focus/scroll, all3Classwork modes, actual200ms/0ms, pointergeometry, inert close and nooverflow. Forced-midpoint contract samples are labeled; natural recordings and fullrequiredgate/cumulative siblingproof/independent stable-SHA PR lifecycle follow. DeepSeekpaused; Sol/high worker partial delivery corrected/integrated bycoordinator; attributableactive/tokensunknown.
+
 ## 2026-10-05 — Test conflict retry correction prepared
 
 Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
@@ -867,6 +493,88 @@ controls from the production receipt. CI implementation and tests unchanged.
 Affected/focused verification and independent launch9 are pending; no budget
 reset or further review extension. Host/private runner activation remains pending.
 
+## 2026-10-05 — Survey Pattern Lab prototype
+
+Owner requested Survey prototype informed by the Test modal. Added experimental
+SurveyEditSplitPattern and teacher gallery discovery. Reuses CreationModalShell,
+MarkdownContentEditor, canonical action menus and UI controls. Fixed fixtures;
+local MC/open-response authoring, keyboard option reorder, settings, full Markdown,
+student preview and simulated publish. No API writes or production student changes.
+Playwright authoring flow PASS4/4 desktop/mobile light/dark; screenshots inspected
+against Test at matching desktop viewport, plus stacked mobile/open and preview.
+GPT6.1Sol/medium bounded worker delivered focused browser coverage in one pass,
+roughly3min with no implementation rework; weekly48% remaining at start.
+New prototype remains experimental pending owner feedback; no shared-shell extraction.
+
+Prototype independent GPT6.1Sol/medium review found Markdown metadata snapshot
+overwrite; locked Title/Settings while code owns metadata and added regression.
+
+## 2026-10-05 — Survey prototype applied to real authoring
+
+Owner requested applying the selected prototype to real Pika. Teacher Survey now
+uses the Test-style details pane, rich prompt editor, centered question navigation,
+question action menu, individual lettered options, settings and Preview/Publish.
+Feature-owned SurveyQuestionOptions is reused by real authoring and Pattern Lab;
+no broader shared shell, API/schema/dependency or student UI change. Save flushes,
+retry, stale-selection guards and Markdown metadata ownership retained. Browser
+verification exposed and fixed creation title-focus intent consumption; failed
+save number navigation also restores the actual selected number.
+Real authoring PASS4/4 desktop/mobile light/dark; MC/open/settings/Markdown/preview/
+new-draft screenshots inspected. Prototype variants pass after extraction; dark
+desktop needed an isolated retry after a development hot-reload dialog reset.
+GPT6.1Sol/medium bounded test worker delivered persistence/options/browser and
+title-focus regression coverage; parent corrected browser accessible-name and
+selection expectations. Weekly47% remaining at start; per-worker usage unavailable.
+Focused selection371/372 passed; unchanged focused-runner fixture timed out,
+isolated retryPASS in2.45s. Architecture/UI/design/TypeScript/lint and auditPASS;
+prototype unit4/4 and production-workflow fixture4/4 isolatedPASS. Final desktop
+browser retryPASS after faithful draft-status fixture correction. Independent
+standard-risk review precedes ready CI on PR1483; no production promotion.
+Full integration review GPT6.1Sol/high found twoP2 recovery blockers: closing
+loading/unavailable detail and returning from an unwanted staged question.
+One batch adds visible/shell close, stale unmount response invalidation and
+Cancel restoring prior selection with no POST. Component40/40 and real browser
+4/4 PASS; recovery and staged-form screenshots inspected. Required focused rerun
+and targeted review pending; phase ledger1launch/1fix, roughly4min review.
+Targeted recovery review clean. Cumulative reviewer identified first-question
+variant; second small batch exposes Cancel for dirty first drafts too. Gallery
+navigator test caches stable semantic query results, retaining all assertions
+after repeated5s DOM-query timeouts. Workspace/gallery48/48 and isolated startup
+76/76 PASS; prior aggregate retry368/377 had nine timeouts in startup/gallery.
+Final narrow review and static/browser evidence recorded in PR, preserving exact
+head; no changes to timeouts, gates, dependencies or production.
+Final first-question discard browserPASS16.7s after a30s overall deadline during
+concurrent static checks; all intended assertions passed when run alone. Final
+architecture/UI/design/TypeScript/lint and auditPASS; required aggregate rerun
+uses unchanged gate. Phase ledger3reviews/2fixes before final targeted acceptance.
+
+## 2026-10-05 — Fluid classroom Daily pilot
+
+Set active goal and audited continuity using one bounded GPT-6.1 Sol/medium worker; DeepSeek remains owner-paused. New fluid-classroom-plan records experience contract, governed reuse/extend choices and later teacher/student slices. Daily now keeps one table/split owner, retains valid same-date selection, clears changed scope/removed students, and discloses details with existing tokens and inert hidden controls. Escape now ignores the mounted hidden user menu while deferring to an open menu. Pattern Lab real-owner candidate remains experimental; owner acceptance requested before promotion/broader adoption. No dependency or database changes.
+
+20 Daily matrix +8 existing teacher/student reference +4 new inspector browser cases PASS; six normal/reduced light/dark desktop/mobile capture variants preserve scroll/DOM/focus and direct drag resize. Visual review caught and fixed the Lab demo's mobile height constraint. Evidence is the chat visualization fluid-pilot directory; local first-observed-selection 42–63ms is fixture-only frame sampling, not production INP. Final serial focused gate, draft publication and fixed-SHA review results tracked on the PR; concurrent gallery timeouts are addressed through serial checks without weakened limits. Goal remains active; no merge/deployment authority added.
+
+## 2026-10-05 — Daily fluid UI pilot CI remediation
+
+PR #1481 returned to draft after ready CI Test & Build failed on two unchanged
+base-branch tests; remaining database/browser jobs were cancelled by draft flow.
+Read-only Sol/high diagnosis confirmed CURRENT receipt-format drift and an
+intermittent calendar test completion outside React act. One bounded test-only
+batch accepts compact verified DB/controls wording without weakening the >=160
+floor, settles initial calendar sources and awaits retry completion in act while
+retaining workspace-focus assertions. No production or migration change. Required
+focused gate, targeted review and final integration review precede ready CI.
+Student Classwork continuity is being prepared separately with existing stable
+page states; Daily's experimental motion promotion still awaits owner feedback.
+
+## 2026-10-05 — Approved motion mobile reachability
+
+Coordinator verified six natural recordings (desktop/mobile, Teacher Classwork/Tests and Student Classwork). Added actual viewport/focus check for Classwork comments in Content + grading after it exposed an unconstrained nested split; h-full now constrains that existing split. Unsaved comment survives all three modes. Pattern Lab keyboard test asserts promoted reference heading. Initial focused gate passed 659 tests/36 files plus all static lanes; final source gate and 24-case matrix pending. Audit's sole remaining finding is the unchanged HEAD TeacherTestsTab line1001 no-store results read (confirmed byte-identical), retained deliberately to avoid changing authoritative grade refresh semantics; new code has no audit violation. Independent review and cumulative proof pending.
+
+## 2026-10-05 — Approved motion independent review batch
+
+Draft1486 frozen90dc: independent Sol/high full-diff review found two P2 blockers, inner grading subtree remount between two grading layouts and generic-shell entry reaching unscoped Roster/Gradebook. Coordinator validated both with meaningful RED tests and batches correction: keep inner split/frame position, hide unused primary slot; opt in via existing Classwork/Tests frame-class hook. Real textarea/scroller identity, selection/focus/scroll assertions plus generic-shell default coverage added; browser matrix strengthened. Initial combined677tests/static passed with sibling1482/1484 source reconciled in proof only; final frozen compatibility/browser and targeted/different-final review pending. Review budget launches1, fixbatches1, cap7/4/60min; no dependency/API/autosave/merge/deploy changes.
+
 ## 2026-10-05 — Full native protocol coverage timeout stabilization
 
 Coordinator-reported Linux ARM64 4 CPU/12 GiB baseline at 43c24ab: full coverage
@@ -881,6 +589,10 @@ Focused --base origin/main passed211/14 plusarchitecture/TypeScript/lint.
 Coordinator-owned exact-SHA Linux DB/browser benchmarks remain pending.
 No live DB/VM, workflow/routing, production or repository visibility changes.
 
+## 2026-10-05 — Approved motion final verification and main synchronization
+
+PR1486 reviewed94a7793e final candidate661/36+allstatic,185owners,24motionbrowser,6natural recordings PASS. Corrected cumulative33-source proof644/35+allstatic,56classroom+12PatternLab browser PASS; independent targeted three regressions and different cumulative final review CLEAN. Main advanced75977572b through unrelated native protocol test timeout/history changes; first ready event could not create CI because archive conflicted. Returned draft before synchronization; merged current main retaining both histories, reran required focused gate and bounded native test, product bytes unchanged. Sync head requires targeted independent confirmation and one eligible CI run before completion. No existing sibling head, dependencies, schema, merge or deployment changed.
+
 ## 2026-10-05 — Standalone Gradebook marks visible on save
 
 Owner approved removing Return marks for participation/external exam/Daily items. Student Classwork and Grades now project saved nonblank standalone scores, including existing never-returned marks; edits update immediately and clearing removes them. Pika assignment/test returns and classroom visibility/privacy gates preserved. Removed standalone return UI; renamed student heading Gradebook marks; updated canon/prototype specimens. No migration/backfill needed; legacy DB return metadata/API remain compatible.
@@ -888,3 +600,32 @@ Owner approved removing Return marks for participation/external exam/Daily items
 Evidence: initial focused514 plus architecture/UI/design/type/lint PASS; final focused check follows rebase to origin/main75977572. API regressions38 and components35 PASS. Real loopback API+DB smoke create/save/zero/edit/details/clear PASS with null return timestamps and verified fixture cleanup (/tmp/pika-direct-mark-smoke.log). Playwright Pattern Lab 8/8 role×viewport×theme PASS; dialog/save focus and student rows inspected in test-results/ui-pattern-lab-*/; empty/error behavior covered by component tests. Audit PASS; composite checklist, keyboard/focus and semantic coverage verified.
 
 Delegation: GPT6.1Sol/high test-only worker delivered two files in ~6min; coordinator verified query predicates, weighted parity and test runs; no rework/conflict. Weekly remaining45%, DeepSeek paused throughDec31; worker/coordinator tokens unknown. Current branch codex/student-daily-mark; owning chat retains integration. Independent fixed-SHA disclosure/compatibility review follows draft publication; production promotion not authorized.
+
+## 2026-10-05 — Survey merge preparation after main advanced
+
+PR 1483 reviewed head 665c1fa7 passed all five required CI jobs, including PR Gate.
+User explicitly authorized merge to main. New main changes merged into the feature
+branch; the only conflict was archived session-log batch markers and an appended
+historical entry. Preserved main markers and the retained historical entry. Survey
+implementation and tests are unchanged; independent review evidence remains valid.
+Required checks and a new exact-head CI gate run before squash merge. No production
+promotion or schema operation authorized by this request.
+
+## 2026-10-05 — Approved fluid classroom merge preparation
+
+Owner explicitly authorized merge then goal advancement. GitHub hostedrunner incident prevented PRGate in two attempts, while four CIverification lanes passed668f3d35. Currentmain5b2423d Gradebook changes retained; history reconciled with bothparents preserved. Integrate reviewed Student1482 andTeacher1484 continuity into owning1486 alongside Daily1481 alreadyincluded.32of33 finalcombinedproof sources byteidentical; sole PatternLabtest difference is exact acceptedmainGradebook additions. Reuse independent feature/cumulative reviews and prior24motion/68combined browser/natural recordings; currentmain focusedgate/browser verification required before stable ready/merge. Package/lock/schema unchanged. No production promotion authorized.
+
+## 2026-10-05 — Integrated fluid classroom local gate complete
+
+Owning1486 integrates reviewed Daily1481/Student1482/Teacher1484 on currentmain5b2423d. All product/classroombrowser/component sources match independently reviewedcombinedproof; documented approval/reference/roadmap differences only. Bothparentdatedhistorybody preservation checked.644tests/35files+allstatic PASS;56uniqueclassroom+20PatternLab cases PASS. Initial16Dailycases lackedignoredfixturestate; addedemptylocalfixturestates andreranonly16unchangedcases GREEN. Currentbatch7fileauditPASS/compositesemanticscovered; rootbothrolevisualinspection acceptable. Prior sixnaturalrecordings applicable throughsourceparity. Reviewcounts4launches retained, thirdsyncbatch/no newrevieworclockreset. Ownermergemainauthorized; stableSHA CI/PRGate andactualmerge pending GitHubhostedrunner outage. No production promotion.
+
+## 2026-10-05 — Survey final motion-main integration
+
+PR 1483 candidate 33f2aef3 passed all five required CI jobs including PR Gate
+(run 37374119531). Main then advanced to 84a657eb (#1486). Resolve archived
+session history mechanically while preserving all complete bodies; retain both
+independent top-level Pattern Lab browser scenarios with their own test closures.
+Application files merged automatically. Survey owners are unchanged from reviewed
+665c1fa7; TeacherClassroomView retains the complete existing Survey patch over main.
+Owner renewed merge instruction. New-base focused checks and exact-head CI precede
+squash merge; no new application behavior, schema change or production promotion.
