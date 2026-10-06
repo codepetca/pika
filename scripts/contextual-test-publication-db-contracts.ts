@@ -96,7 +96,7 @@ function graph(f: TestOwnerPublicationFixture) {
 
 function exactTriggers(table: string, expected: readonly (readonly [string,string,string,number])[], message: string) {
   const tuples = expected.map(row => `(${q(row[0])},${q(row[1])},${q(row[2])},${row[3]})`).join(',')
-  const actual = `select t.tgname::text,nf.nspname::text,p.proname::text,t.tgtype::integer from pg_catalog.pg_trigger t join pg_catalog.pg_proc p on p.oid=t.tgfoid join pg_catalog.pg_namespace nf on nf.oid=p.pronamespace where t.tgrelid=${q(`public.${table}`)}::regclass and not t.tgisinternal`
+  const actual = `select t.tgname::text,nf.nspname::text,catalog_proc.proname::text,t.tgtype::integer from pg_catalog.pg_trigger t join pg_catalog.pg_proc catalog_proc on catalog_proc.oid=t.tgfoid join pg_catalog.pg_namespace nf on nf.oid=catalog_proc.pronamespace where t.tgrelid=${q(`public.${table}`)}::regclass and not t.tgisinternal`
   return `if exists((${actual}) except (select * from (values ${tuples}) e(name,fn_schema,fn_name,tgtype))) or exists((select * from (values ${tuples}) e(name,fn_schema,fn_name,tgtype)) except (${actual})) or exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid=${q(`public.${table}`)}::regclass and not t.tgisinternal and (t.tgenabled<>'O' or t.tgdeferrable or t.tginitdeferred)) then raise exception ${q(message)};end if;`
 }
 function note(label: typeof TEST_OWNER_PUBLICATION_DB_CHECK_LABELS[number]) { return `checks:=checks||pg_catalog.jsonb_build_array(${q(label)});` }

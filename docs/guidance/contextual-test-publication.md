@@ -38,6 +38,18 @@ The diagnostic correction retains only emitted P2501 and P2507–48 codes;
 P2502–06/P2549 remain unknown and raw stderr/rows remain suppressed. The next
 reviewed native invocation must identify and resolve the actual contract failure.
 
+The authorized quiet window produced B3 (all183 tables/all5 fields; B1/B2 retained).
+Normalattempt3 applied001–252 but hit the unchanged180-second startup deadline
+while waiting for service health. A single controlled retry, normalattempt4,
+passed startup and four capability probes, then identified catalogue codeP2501.
+Both attempts completed owned teardown and separate strict whole-B3 checks.
+A read-only anonymous PostgreSQL reproduction confirmed a verification-query
+alias collision: the catalogue record and trigger-query table alias both used
+`p`. Giving the table alias a distinct name resolves that ambiguity without
+changing any catalogue predicates, expected definitions, API/SQL252 or limits.
+This correction still requires independent review and a fresh native invocation;
+no native success, genuine types, PR/CI, merge or rollout is claimed.
+
 Full-coverage attempts and their failures are retained in the coordinator receipt.
 Local runtime PATH needed the pinned pnpm10.25 shim; startup guidance stays within
 its unchanged17000-character budget with all required historical/environment

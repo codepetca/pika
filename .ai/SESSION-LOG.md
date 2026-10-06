@@ -788,3 +788,21 @@ coverage3 evidence without claiming native/types/CI acceptance. Original clock
 Affected native126 + DB6 tests PASS; startup+DB82 PASS; ESLint3/audit3/diff PASS.
 One unpinned pnpm lint command refused shared modules before mutation; corrected
 pinned10.25 invocation passed. Targeted review and exact-head native remain.
+
+## 2026-10-06 — Quiet-window native proof and catalogue alias diagnosis
+
+Owner yes authorized coordinating Clear sent comments and Make daily log summaries
+compact pauses plus fresh full checkpoint. Both confirmed quiet; readonly double
+B3 capture99a202 covers183/all5, exactauth3 drift only; B1/B2 retained. Review8
+custody clean except stale forced-wrapper label; one-line correction review9 CLEAN.
+Normalattempt3 isolateda2f67 applied001–252 then hit180s startup healthwait deadline.
+No explicitSQL/unhealthy/port/disk error; one controlled same-source retry4 isolated
+c4f435 passed startup/probes then failedcatalogueP2501. Both ownedteardowns and
+separate wholeB3 read-only checks PASS; both quiet windows explicitly released.
+Readonly anonymous catalogue-only PostgreSQL repro confirmedp alias/record collision
+42702 and distinctalias success; transactionREADONLY/ROLLBACK, no schema/data writes.
+Batch6 renames verification alias only; source regressionRED beforefix. API/252/
+caps/expectedcatalog unchanged; affected133/2PASS and ESLint2/diffPASS. Required
+audit/targetreview/native remain; no raw startup diagnostic or record output.
+Reviewclock13:07:17/9launches/7targets retained; humanstopoverride active. No types,
+PR/CI/merge or canonical/prod249–252 application/activation acceptance.

@@ -92,6 +92,15 @@ describe('contextual Test publication rollback database contracts', () => {
     expect(emitted).toEqual(['P2501', ...Array.from({ length: 42 }, (_, index) => `P25${String(index + 7).padStart(2, '0')}`)])
   })
 
+  it('keeps trigger catalog table aliases distinct from the enclosing procedure record', () => {
+    const catalog = manifest.contracts.split('do $catalog$')[1].split('$catalog$;')[0]
+    expect(catalog).toContain('declare p pg_catalog.pg_proc;')
+    expect(catalog).toContain('pg_catalog.pg_proc catalog_proc on catalog_proc.oid=t.tgfoid')
+    expect(catalog).toContain('catalog_proc.proname::text')
+    expect(catalog).toContain('nf.oid=catalog_proc.pronamespace')
+    expect(catalog).not.toMatch(/join pg_catalog\.pg_proc p\b/)
+  })
+
   it('runs only the accepted bundle and always closes its exact session', async () => {
     const acceptedManifestSha256=createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
     const target=Object.freeze({projectId:project,apiUrl:'http://127.0.0.1:54331',databaseHost:'127.0.0.1',databasePort:54332,
