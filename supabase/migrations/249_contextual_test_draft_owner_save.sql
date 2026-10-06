@@ -158,7 +158,6 @@ declare
   v_base integer;
   v_digit integer;
   v_accumulator numeric := 0;
-  v_position integer;
   v_trim_chars text := U&'\0009\000A\000B\000C\000D\0020\00A0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\2028\2029\202F\205F\3000\FEFF';
 begin
   while pg_catalog.jsonb_typeof(v_value)='array' loop
@@ -443,7 +442,6 @@ declare
   v_source jsonb;
   v_source_after jsonb;
   v_result jsonb;
-  v_inner_result jsonb;
   v_before public.assessment_drafts%rowtype;
   v_expected public.assessment_drafts%rowtype;
   v_after public.assessment_drafts%rowtype;
@@ -708,7 +706,7 @@ begin
   end if;
   v_write_started:=pg_catalog.clock_timestamp();
   begin
-    v_inner_result:=public.save_test_draft_atomic(p_actor_id,p_test_id,p_expected_version,p_content,
+    perform public.save_test_draft_atomic(p_actor_id,p_test_id,p_expected_version,p_content,
       p_update_documents,v_test.documents,v_documents);
   exception when no_data_found then
     -- 134 RETURNING INTO STRICT raises before our reread when a BEFORE

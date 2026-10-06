@@ -286,3 +286,21 @@ preserving all generated keys/other arguments; regression RED then19checks/2file
 GREEN and whole-project tscPASS. Runtime/app/249/helper/native source is unchanged
 by this mechanical type integration. Final cumulative review and exact-head CI
 still precede main merge; this component is not a phase exit or rollout activation.
+
+### Exact-head CI lint correction
+
+Final cumulative review accepted `fb6f78d0c`, with323checks/10suites. Its sole
+eligible CI run37401089941 failed the unchanged warning-free database gate:
+the integer FOR loop implicitly declares `v_position`, shadowing an unused
+outer declaration, and the writer stores an unread `v_inner_result`. Other
+heavy lanes were cancelled by CI; PR Gate failed. The PR returned to draft
+before source edits, with no rerun, bypass or lowered lint threshold.
+
+Remove only the redundant outer loop declaration and discard the unused writer
+return with `PERFORM`, preserving its execution, exception boundary and exact
+post-trigger rereads. Regression RED3/29 then GREEN126/3 covers these two source
+fences and inherited native/SQL fixtures. This changes249's source hash, so the
+prior normal10 receipt remains historical, not current-migration acceptance.
+Independent fixed-source/finite-plan review and one new bounded normal proof,
+both forced cleanups and genuine generation must precede ready exact-head CI.
+Canonical249 remains unapplied locally and in production; no rollout flag changes.

@@ -7,6 +7,24 @@ const sql = () => readFileSync('supabase/migrations/249_contextual_test_draft_ow
 
 // Source assertions are regression fences, not transactional runtime evidence.
 describe('contextual owner Test draft PATCH migration source contract', () => {
+  it('keeps the baseline integer loop variable scoped to its implicit PL/pgSQL declaration', () => {
+    const source = sql()
+    const baseline = source.slice(source.indexOf('create function private.test_draft_save_baseline_number_v1('), source.indexOf('revoke all on function private.test_draft_save_baseline_number_v1('))
+    expect(baseline).toContain('for v_position in 3..pg_catalog.char_length(v_text) loop')
+    expect(baseline).toContain('pg_catalog.substr(v_text,v_position,1)')
+    expect(baseline).not.toMatch(/v_position\s+integer\s*;/)
+  })
+
+  it('executes the atomic writer without an unread result and retains authoritative post-trigger rereads', () => {
+    const source = sql()
+    expect(source).toContain('perform public.save_test_draft_atomic(')
+    expect(source).not.toContain('v_inner_result')
+    expect(source).toContain('select draft.* into v_after')
+    expect(source).toContain('select test.* into v_test_after')
+    expect(source).toContain('pg_catalog.to_jsonb(v_after) is distinct from pg_catalog.to_jsonb(v_expected)')
+    expect(source).toContain('pg_catalog.to_jsonb(v_test_after) is distinct from pg_catalog.to_jsonb(v_test_expected)')
+  })
+
   it('seals every helper and gives only service role the two entrypoints', () => {
     const source = sql()
     for (const name of ['snapshot_test_draft_save_for_owner_v1', 'finish_test_draft_save_for_owner_v1']) {
@@ -134,7 +152,7 @@ describe('contextual owner Test draft PATCH migration source contract', () => {
 
   it('catches134 suppressed strict RETURNING only inside the writer and validates regenerated references', () => {
     const source = sql()
-    const call = source.indexOf('v_inner_result:=public.save_test_draft_atomic(')
+    const call = source.indexOf('perform public.save_test_draft_atomic(')
     const suppression = source.indexOf('exception when no_data_found then')
     expect(call).toBeGreaterThan(-1)
     expect(suppression).toBeGreaterThan(call)

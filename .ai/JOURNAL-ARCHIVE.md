@@ -38450,3 +38450,24 @@ Facts-only final candidate is next: cumulative independent Sol5.6/high review,
 stable reviewedSHA exactCI and normal mainmerge remain gates. Component/phase/goal
 not complete. Counters9launch/7target/0final/7fix and original clock/taskstop waiver
 retained; weekly69remaining observed, attributable active/tokens unknown.
+
+<!-- pika-session-log-archive-batch:dd08dc1fb640723dd344f9806a976bda3d961f9c05224a0a9c7a25970d5331b6 -->
+## 2026-10-04 — Owner Test list aggregate fixture CI correction
+
+Final cumulative Sol5.6/high728f review CLEAN; exact readyCI37234460529 failed one
+new100k aggregateunit test at5000ms undercoverage (12341PASS), PRdrafted beforeedit.
+PendingDB/browser lanes cancelled; PRGateFAIL, no merge/bypass/duplicateCI.
+Root found quadratic mock scans across50parents/everypage. Staticchildparent index
+preserves participantfilters/keyset/order/caps/overflow assertions; newinterleaved
+lookupregression RED16vs4 thenGREEN. App/proof/native/CI/schema/deps/sourcecaps/
+real20s/testtimeouts unchanged.44readroute and294focused/allstatic PASS.
+First fullcoverage locally had only8 installedbraces security failures, notlist
+tests. Reviewedpatchhash directory containedunpatchedsource; ordinaryfrozeninstall
+didnotrepair. Worktree-owned forcefrozen install restoredsameexistinglock/patch,
+800resolved65reused735downloaded61.7s; no newversions/manualinstalledfileedits/
+buildapproval/sourceconfigchange. Security/list46PASS. Fresh exactCIcoverage suite
+EXIT0:12343PASS/8skip,1036filesPASS/2skip; allcoveragegates PASS (statements84.98,
+branches76.98,functions91.39,lines86.94percent). Priorfailedresults retained.
+Fixedhead targetreview/fresh environment runtime check/CI/mainmerge remain gates;
+no sharedschema/prod/accounts/provider/admission/activation. NextdraftGET-only
+readonlymap retained privately; notimplemented. Originalclock/directwaiver retained.

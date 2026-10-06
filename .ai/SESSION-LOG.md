@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner Test list aggregate fixture CI correction
-
-Final cumulative Sol5.6/high728f review CLEAN; exact readyCI37234460529 failed one
-new100k aggregateunit test at5000ms undercoverage (12341PASS), PRdrafted beforeedit.
-PendingDB/browser lanes cancelled; PRGateFAIL, no merge/bypass/duplicateCI.
-Root found quadratic mock scans across50parents/everypage. Staticchildparent index
-preserves participantfilters/keyset/order/caps/overflow assertions; newinterleaved
-lookupregression RED16vs4 thenGREEN. App/proof/native/CI/schema/deps/sourcecaps/
-real20s/testtimeouts unchanged.44readroute and294focused/allstatic PASS.
-First fullcoverage locally had only8 installedbraces security failures, notlist
-tests. Reviewedpatchhash directory containedunpatchedsource; ordinaryfrozeninstall
-didnotrepair. Worktree-owned forcefrozen install restoredsameexistinglock/patch,
-800resolved65reused735downloaded61.7s; no newversions/manualinstalledfileedits/
-buildapproval/sourceconfigchange. Security/list46PASS. Fresh exactCIcoverage suite
-EXIT0:12343PASS/8skip,1036filesPASS/2skip; allcoveragegates PASS (statements84.98,
-branches76.98,functions91.39,lines86.94percent). Priorfailedresults retained.
-Fixedhead targetreview/fresh environment runtime check/CI/mainmerge remain gates;
-no sharedschema/prod/accounts/provider/admission/activation. NextdraftGET-only
-readonlymap retained privately; notimplemented. Originalclock/directwaiver retained.
-
 ## 2026-10-04 — Owner Test list global inspection worker correction
 
 Fresh-environment normal49119 hit unchanged20s/19496ms guards/22 requests; exact
@@ -632,3 +612,16 @@ exactCI/mainmerge pending; componentnotphaseexit/fullgoalcomplete.
 Finalfocused521/24PASS plusarchitecture/UI/design/tsc/lint; stagedaudit3TS PASS.
 Startupreceipt initially17205 then17010 overunchanged17k budget; compactCURRENT,
 76startupchecksPASS, fullfocusedPASS. Samec88main afterfetch; no native reruns.
+
+## 2026-10-06 — Owner draft exact-head CI lint correction
+
+Finalcumulativefb6reviewCLEAN323/10, ready normalCI37401089941. Database warning
+gate failed:249 baseline outerv_position shadows implicitFOR variable; finish
+v_inner_result assigned but unread. Otherheavyjobs cancelled, PRGateFAIL.
+Returned1480toDRAFTbefore sourceedits; no blindrerun/bypass/thresholdchange.
+Root mechanicalSQLfix preservesloop/body/atomicwriter/exception/postconditions;
+regressionRED3/29 thenGREEN126/3. Newsource249needsfixedreview+newnormal/forced/
+genuinetypes acceptance; oldnormal10retainedhistorical. Canonical249unapplied,
+production/cohort/accounts/billingunchanged. Originalreviewclock/countersretained.
+Focused523/24 plusarchitecture/UI/design/tsc/lintPASS; originalstagedaudit1TS,
+scopedESLint/diffPASS. Officialtrim40of41 movedoneentrywithoutdroppinghistory.
