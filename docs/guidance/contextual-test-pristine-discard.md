@@ -3,7 +3,8 @@
 Source preparation for the owner-authoring portion of access batch2. No phase
 exit or activation: admission/home/page/cutover/billing remain OFF. Canonical
 local and production schema last recorded001–248;249–251 remain unapplied.
-Parent creation PR#1500 must merge before this dependent slice is published.
+Parent creation PR#1500 merged at5bf3dbacc after exact reviewed dba18a9e passed
+all five CI checks, including PR Gate. Its squash tree is byte-identical.
 
 Migration251 adds a service-only, empty-search-path owner RPC. Current active
 Class ownership—not account role, historical creator or subscription—authorizes

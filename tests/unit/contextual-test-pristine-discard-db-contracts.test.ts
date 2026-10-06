@@ -69,4 +69,18 @@ describe('contextual pristine Test discard rollback database contracts', () => {
     expect(sql).toContain('pg_catalog.nextval'); expect(sql).toContain('pg_catalog.currval'); expect(sql).toContain('pg_catalog.pg_sleep(0.1)')
     expect(sql).not.toMatch(/\bsetval\s*\(|\balter\s+sequence\b|\brestart\s+(?:with\s+)?\d/i)
   })
+
+  it('blocks exact Test provenance in a different valid Class without assuming its supplied draft ID', () => {
+    const target = f.cases.find(row => row.label === 'restored-privilege-success')!
+    const test = f.tests.find(row => row.id === target.testId)!
+    const draft = f.drafts.find(row => row.assessment_id === target.testId)!
+    expect(f.classes[1].id).not.toBe(test.classroom_id)
+    const insert = sql.match(/insert into public\.classroom_guided_draft_provenance\([^;]+;/)![0]
+    const values = insert.split(' values(')[1].split(',')
+    expect(values[2]).toBe(`'${f.classes[1].id}'`)
+    expect(values[3]).toBe(`'${target.testId}'`)
+    expect(values[1]).not.toBe(`'${draft.id}'`)
+    expect(TEST_OWNER_PRISTINE_DISCARD_DB_CHECK_LABELS).toHaveLength(56)
+    expect(sql).toContain("Dependent blocker differed: block-classroom-guided-draft-provenance")
+  })
 })
