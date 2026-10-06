@@ -3,11 +3,13 @@
 Prepared access-phase2 owner-authoring slice after #1503, which merged at
 865d837b740e781086f0209eb9c4d9c8dab78db3 after reviewed9c39132d passed all five
 checks in CI37435496517. HTTP/body/SQL source-contract TDD186/4 passed. Normal
-native proof and genuine types now pass at735d6ab; forced cleanup, final cumulative
-review, focused checks, exact-head CI and merge remain pending.
+native proof and genuine types pass at735d6ab; combined focused/full coverage pass
+at9dcf0d2. Forced cleanup, documentation review, exact-head CI and merge remain pending.
 This is not rollout or a phase exit.
 
-The isolated proof implementation is ready for independent source review: one full-row fixture,
+## Historical pre-type preparation
+
+The isolated proof implementation was ready for independent source review: one full-row fixture,
 one sealed installed-SDK transport, one additive private native profile, rollback
 contracts and separately typed committed transitions. The original runner's
 whole-row rollback assertions remain intact. Four withdrawn capabilities (247,
@@ -19,7 +21,7 @@ committed transitions. Root fixture/transport/product integration296/6 and
 native/lifecycle109/3 tests pass; the final additive shared-race-clock test also
 passes (legacy/native suite77/1). Both race runners share one180-second clock
 inside the same native engine and the original adopter900-second deadline.
-Full TypeScript checking still reports only the missing genuine252 RPC declaration;
+Full TypeScript checking then reported only the missing genuine252 RPC declaration;
 no manual generated-type overlay is permitted. Pre-type source freeze is not PR
 readiness, database acceptance or merge evidence.
 
@@ -129,6 +131,16 @@ counts were zero, and a separate strict whole-B5 check passed. Both named chats
 were released; HQ/finance-intake/Pika services stayed running. Serial forced
 cleanup checks, final integration review, focused/CI gates and main merge remain
 required. Canonical local/production249–252 remain unapplied; no rollout occurred.
+
+Superseding integration receipt: cumulative review at9dcf0d2 found code, SQL,
+proof, generated types and rebase clean, with only stale pre-type wording in this
+guide and the roadmap. The combined-tree focused run passed777/30 plus
+architecture/UI/design/TypeScript/lint with one worker after a two-worker run
+hit two five-second test timeouts. Both affected files separately passed202 tests
+without source or timeout changes. Full coverage at the same9dc head then passed
+14229 tests/8 skips across1085 files/2 skips in799.24s, with unchanged floors.
+These receipts supersede the historical missing-type/native/coverage status;
+forced cleanup, documentation correction review, exact-head CI and merge remain held.
 
 Full-coverage attempts and their failures are retained in the coordinator receipt.
 Local runtime PATH needed the pinned pnpm10.25 shim; startup guidance stays within

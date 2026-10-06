@@ -1287,14 +1287,26 @@ ordered unrelated stashes were verified unchanged. Next is
 [owner Test publication](contextual-test-publication.md): a dedicated dormant
 POST publishes the current saved draft to closed, retaining the legacy PATCH
 and UI byte-for-byte. HTTP/reader/SQL source-contract TDD186/4 passed. Native
-fixture/SDK/SQL-race source is being integrated with one existing engine, four
+fixture/SDK/SQL-race source was initially integrated with one existing engine, four
 capability probes, unchanged budgets and separate committed-transition effects;
 all author deliveries are frozen and root offline integration296/6 and109/3
 checks pass, plus the additive shared180s race-clock test (native77/1).
-SerialCI3 source checks pass; the sole TSC gap is genuine252 RPC generation.
-Independent pre-type source review is next; sourcefreeze is not PR readiness. The isolated
-252 full replay, actual SDK effects, rollback/concurrency, genuine types,
-independent review and exact-head CI are not yet accepted. Canonical249–252,
+At that historical pre-type checkpoint, SerialCI3 source checks passed, but genuine252
+RPC generation, native proof, independent review and exact-head CI were unaccepted.
+That sourcefreeze was not PR readiness.
+
+Superseding2026-10-06: publication normal proof at735d6ab passed isolated001–252
+replay,49 rollback contracts,12 held-lock schedules,five committed transitions and
+ten actual installed-SDK cases (three exact closed publications,four restored
+raw42501 probes,20 RPC/0 Storage). Genuine CLI types added only the seven-argument
+252 declaration. Exact owned cleanup and a separate whole183-table/five-field B5
+check passed; B1–B4 were retained without exemptions. Current-owner publication,
+proof/migration/CI source bytes are unchanged after rebase onto2d89088cd.
+Cumulative code/SQL/security review at9dcf0d2 was clean apart from stale pre-type
+documentation. Combined focused777/30+policies/TypeScript/lint and fullcoverage
+14229/8SKIP passed at9dc with unchanged thresholds. Serialforced cleanup,
+documentation-correction review, stable exact-head CI/PR Gate and main merge
+remain required; this is draft PR#1510, not rollout. Canonical249–252,
 production promotion, admission/home/page/cutover and billing remain held.
 No component receipt constitutes the Tests batch or access phase exit.
 
