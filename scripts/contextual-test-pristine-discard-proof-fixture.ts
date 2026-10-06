@@ -42,8 +42,10 @@ export function newTestOwnerPristineDiscardFixture(original:AssignmentListProofF
     created_by:actors[label==='different-historical-creator'?3:ciFor(label)===1?1:0].id,
     updated_by:actors[label==='different-historical-creator'?3:ciFor(label)===1?1:0].id,created_at:now,updated_at:now}))
   const enrollments=[[0,0],[0,2],[0,3],[1,1]].map(([ci,ai],i)=>({id:id(`enrollment${i}`),classroom_id:classes[ci].id,student_id:actors[ai].id}))
+  const retainedEnrollment={id:id('retained-enrollment'),classroom_id:classes[0].id,student_id:actors[1].id}
   const availability=[{id:id('availability'),test_id:testId('availability-child'),student_id:actors[2].id,state:'closed',updated_by:actors[0].id}]
-  // Actor1 has no enrollment in this Class: a retained mark still blocks.
+  // Actor1 is enrolled while the mark is created, then naturally unenrolled.
+  // The retained mark and closed168 generation must both remain in the baseline.
   const overrides=[{id:id('retained-override'),classroom_id:classes[0].id,student_id:actors[1].id,assessment_type:'test',
     assessment_id:testId('retained-override'),earned:0,created_by:actors[0].id}]
   const cases=labels.map(label=>{
@@ -56,10 +58,10 @@ export function newTestOwnerPristineDiscardFixture(original:AssignmentListProofF
   const privilegeProbes=(['outer-rpc-acl','inner-156-capability'] as const).map(context=>({...restored,label:`raw-42501-${context}`,context,
     expectedHTTP:503 as const,expectedDiscarded:undefined,expectedCode:'42501' as const}))
   const allocatedIds=[...actors.map(a=>a.id),...classes.map(c=>c.id),...tests.flatMap(t=>[t.id,t.artifact_id]),...drafts.map(d=>d.id),
-    ...enrollments.map(e=>e.id),...availability.map(r=>r.id),...overrides.map(r=>r.id),missingTestId]
+    ...enrollments.map(e=>e.id),retainedEnrollment.id,...availability.map(r=>r.id),...overrides.map(r=>r.id),missingTestId]
   assert.equal(new Set(allocatedIds).size,allocatedIds.length);const originalIds=new Set(original.allocatedIds)
   assert(allocatedIds.every(i=>!originalIds.has(i)));assert(cases.length+privilegeProbes.length<=TEST_OWNER_PRISTINE_DISCARD_CAPS.rpcRequests)
-  return freeze({version:1 as const,tag,now,actors,classes,tests,drafts,enrollments,availability,overrides,cases,privilegeProbes,missingTestId,allocatedIds,
+  return freeze({version:1 as const,tag,now,actors,classes,tests,drafts,enrollments,retainedEnrollment,availability,overrides,cases,privilegeProbes,missingTestId,allocatedIds,
     inventory:{actors:4,classes:4,tests:1001,drafts:drafts.length,enrollments:4,triggerCategories:12,archiveRevisionRows:4,cases:18,successes:6},
     nativeVerified:false as const,caveats:['Full156 predicate and dualCAS retained; later pristine version may delete',
       'Managed writer sequence is nontransactional; never reset or claimed equal','Lost acknowledgement fails run; no retry/discovery/cleanup',
@@ -96,7 +98,15 @@ values ${f.tests.map(t=>`(${[t.id,t.artifact_id,t.classroom_id,t.created_by,t.ti
 insert into public.assessment_drafts(id,assessment_type,assessment_id,classroom_id,version,content,created_by,updated_by,created_at,updated_at)
 values ${f.drafts.map(d=>`(${q(d.id)},'test',${q(d.assessment_id)},${q(d.classroom_id)},${d.version},${json(d.content)},${q(d.created_by)},${q(d.updated_by)},${q(f.now)},${q(f.now)})`).join(',')};
 insert into public.test_student_availability(id,test_id,student_id,state,updated_by,created_at,updated_at) values ${f.availability.map(r=>`(${q(r.id)},${q(r.test_id)},${q(r.student_id)},${q(r.state)},${q(r.updated_by)},${q(f.now)},${q(f.now)})`).join(',')};
+insert into public.classroom_enrollments(id,classroom_id,student_id) values (${q(f.retainedEnrollment.id)},${q(f.retainedEnrollment.classroom_id)},${q(f.retainedEnrollment.student_id)});
 insert into public.gradebook_score_overrides(id,classroom_id,student_id,assessment_type,assessment_id,earned,created_by,created_at,updated_at) values ${f.overrides.map(r=>`(${q(r.id)},${q(r.classroom_id)},${q(r.student_id)},'test',${q(r.assessment_id)},0,${q(r.created_by)},${q(f.now)},${q(f.now)})`).join(',')};
+do $retained$ declare affected integer;begin
+ delete from public.classroom_enrollments where id=${q(f.retainedEnrollment.id)} and classroom_id=${q(f.retainedEnrollment.classroom_id)} and student_id=${q(f.retainedEnrollment.student_id)};
+ get diagnostics affected=row_count;
+ if affected<>1 or exists(select 1 from public.classroom_enrollments where classroom_id=${q(f.retainedEnrollment.classroom_id)} and student_id=${q(f.retainedEnrollment.student_id)})
+ or not exists(select 1 from public.gradebook_score_overrides where id=${q(f.overrides[0].id)} and classroom_id=${q(f.retainedEnrollment.classroom_id)} and student_id=${q(f.retainedEnrollment.student_id)} and assessment_type='test' and assessment_id=${q(f.overrides[0].assessment_id)})
+ or not exists(select 1 from private.pal_membership_generations where generation_id=${q(f.retainedEnrollment.id)} and state='removed' and scope_digest=private.pal_membership_scope(${q(f.retainedEnrollment.classroom_id)}::uuid,${q(f.retainedEnrollment.student_id)}::uuid))
+ then raise exception 'Pristine discard retained membership differs';end if;end;$retained$;
 do $archive$ declare affected integer;begin
  update public.classrooms set archived_at=${q(f.now)} where id=${q(f.classes[2].id)} and teacher_id=${q(f.classes[2].owner)} and archived_at is null;
  get diagnostics affected=row_count;if affected<>1 then raise exception 'Pristine discard archive differs';end if;end;$archive$;
@@ -116,7 +126,7 @@ export function testOwnerPristineDiscardSnapshotSql(f:TestOwnerPristineDiscardFi
     ['public.managed_storage_objects',`classroom_id in (${classes}) or resource_id in (${ids}) or resource_id in (${current})`],
     ['public.managed_storage_json_references',`test_id in (${ids}) or test_id in (${current})`],['public.test_document_snapshot_storage_cleanup','true'],
     ['public.pal_event_outbox',`student_id in (${actors})`],['private.pal_membership_outbox',`classroom_id in (${classes}) or student_id in (${actors})`],
-    ['private.pal_membership_generations',`generation_id in (${f.enrollments.map(e=>q(e.id)).join(',')}) or scope_digest in (${f.classes.flatMap(c=>f.actors.map(a=>`private.pal_membership_scope(${q(c.id)}::uuid,${q(a.id)}::uuid)`)).join(',')})`],
+    ['private.pal_membership_generations',`generation_id in (${[...f.enrollments.map(e=>e.id),f.retainedEnrollment.id].map(q).join(',')}) or scope_digest in (${f.classes.flatMap(c=>f.actors.map(a=>`private.pal_membership_scope(${q(c.id)}::uuid,${q(a.id)}::uuid)`)).join(',')})`],
     ...['pal_membership_settings','pal_classroom_signal_settings','student_provider_cleanup_settings','classroom_creation_entitlement_settings'].map(t=>[`private.${t}`,'true'] as [string,string]),
     ...['test_focus_events','test_ai_grading_runs','test_ai_grading_run_items'].map(t=>[`public.${t}`,`test_id in (${ids}) or test_id in (${current})`] as [string,string]),
     ['public.test_attempt_history',`test_attempt_id in (select id from public.test_attempts where test_id in (${ids}) or test_id in (${current}))`],
@@ -173,6 +183,9 @@ function baseline(f:TestOwnerPristineDiscardFixture,s:Snapshot,prior:TestOwnerPr
   for(const p of expectedDrafts){const d=ds.find(d=>d.id===p.id);assert(d);for(const[k,v]of Object.entries(p))if(k.endsWith('_at'))assert.equal(timestampInstant(d[k as keyof typeof d]),timestampInstant(v));else assert.deepEqual(d[k as keyof typeof d],v)}
   plannedRows(s['public.users'],f.actors);plannedRows(s['public.classroom_enrollments'],f.enrollments)
   plannedRows(s['public.test_student_availability'],f.availability);plannedRows(s['public.gradebook_score_overrides'],f.overrides)
+  assert(!s['public.classroom_enrollments'].some(r=>r.classroom_id===f.retainedEnrollment.classroom_id&&r.student_id===f.retainedEnrollment.student_id))
+  const retained=s['private.pal_membership_generations'].filter(r=>r.generation_id===f.retainedEnrollment.id)
+  assert.equal(retained.length,1);assert.equal(retained[0].state,'removed');assert.match(String(retained[0].scope_digest),/^[a-f0-9]{64}$/)
   const cs=indexed(s['public.classrooms'],'id');const ars=indexed(s['public.classroom_archive_revisions'],'classroom_id');assert.equal(cs.size,4);assert.equal(ars.size,4)
   for(const c of f.classes){const r=cs.get(c.id);assert(r&&ars.has(c.id));assert.equal(r.teacher_id,c.owner);assert.equal(r.title,c.title);assert.equal(r.class_code,c.code);assert(c.archived?Number.isFinite(Date.parse(String(r.archived_at))):r.archived_at===null)}
   for(const t of ['public.test_questions','public.test_attempts','public.test_responses','public.test_focus_events','public.test_ai_grading_runs','public.test_ai_grading_run_items','public.test_attempt_history','public.managed_storage_objects','public.managed_storage_json_references','public.classroom_guided_draft_provenance'])assert.equal(s[t].length,0)

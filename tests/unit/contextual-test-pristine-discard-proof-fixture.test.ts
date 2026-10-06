@@ -21,6 +21,7 @@ export function baseline() {
   s['public.classroom_enrollments'] = f.enrollments.map(e => ({...e,created_at:f.now}))
   s['public.test_student_availability'] = f.availability.map(r => ({...r,created_at:f.now,updated_at:f.now}))
   s['public.gradebook_score_overrides'] = f.overrides.map(r => ({...r,created_at:f.now,updated_at:f.now}))
+  s['private.pal_membership_generations'] = [{generation_id:f.retainedEnrollment.id,state:'removed',scope_digest:'a'.repeat(64)}]
   s.__nontarget_fingerprints = [...TEST_OWNER_PRISTINE_DISCARD_SNAPSHOT_TABLES,'storage.objects','storage.buckets'].map(table => ({table,fingerprint:'unchanged'}))
   return s
 }
@@ -47,8 +48,31 @@ describe('finite synthetic pristine discard source',()=>{
     expect(Buffer.byteLength(sql)).toBeLessThanOrEqual(TEST_OWNER_PRISTINE_DISCARD_CAPS.sqlBytes)
     expect(sql).toContain('updated_at');expect(sql).toContain(f.now)
     expect(sql).toContain('insert into public.assessment_drafts')
-    expect(sql).not.toMatch(/delete from|truncate |set (blueprint_source_revision|revision)\s*=|set_config/i)
+    expect(sql).not.toMatch(/delete from public\.(?!classroom_enrollments\b)|delete from private\.|truncate |set (blueprint_source_revision|revision)\s*=|set_config/i)
     expect(()=>testOwnerPristineDiscardSetupSql(f,'production')).toThrow()
+  })
+  it('creates a retained unenrolled mark through natural membership transitions without bypassing164/168',()=>{
+    const sql=testOwnerPristineDiscardSetupSql(f,project)
+    const retained=f.retainedEnrollment
+    expect(f.allocatedIds).toContain(retained.id)
+    expect(f.enrollments).toHaveLength(4)
+    expect(f.enrollments.some(e=>e.classroom_id===retained.classroom_id&&e.student_id===retained.student_id)).toBe(false)
+    expect(retained.student_id).toBe(f.overrides[0].student_id)
+    const insert=`insert into public.classroom_enrollments(id,classroom_id,student_id) values ('${retained.id}','${retained.classroom_id}','${retained.student_id}');`
+    const deletion=`delete from public.classroom_enrollments where id='${retained.id}' and classroom_id='${retained.classroom_id}' and student_id='${retained.student_id}';`
+    expect(sql).toContain(insert);expect(sql).toContain(deletion)
+    expect(sql.indexOf(insert)).toBeLessThan(sql.indexOf('insert into public.gradebook_score_overrides'))
+    expect(sql.indexOf('insert into public.gradebook_score_overrides')).toBeLessThan(sql.indexOf(deletion))
+    expect(sql).toContain("state='removed'")
+    expect(sql).not.toMatch(/disable trigger|session_replication_role|is_classroom_archive_maintenance_mode\s*\(|set_config|update private\.pal_membership_generations/i)
+    const before=baseline(),tables=before.__nontarget_fingerprints.map(r=>String(r.table))
+    expect(validateTestOwnerPristineDiscardSetupSnapshot(f,before,tables)).toEqual(before)
+    for(const state of ['active','purged']){
+      const bad=structuredClone(before);bad['private.pal_membership_generations'][0].state=state
+      expect(()=>validateTestOwnerPristineDiscardSetupSnapshot(f,bad,tables)).toThrow()
+    }
+    const missing=structuredClone(before);missing['private.pal_membership_generations']=[]
+    expect(()=>validateTestOwnerPristineDiscardSetupSnapshot(f,missing,tables)).toThrow()
   })
   it('captures fixed IDs OR current scope, all dependency tables and complete global catalog fingerprints',()=>{
     const sql=testOwnerPristineDiscardSnapshotSql(f)

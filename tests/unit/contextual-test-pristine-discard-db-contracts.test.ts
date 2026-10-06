@@ -83,4 +83,16 @@ describe('contextual pristine Test discard rollback database contracts', () => {
     expect(TEST_OWNER_PRISTINE_DISCARD_DB_CHECK_LABELS).toHaveLength(56)
     expect(sql).toContain("Dependent blocker differed: block-classroom-guided-draft-provenance")
   })
+  it('creates its retained override blocker while enrolled, then naturally removes that exact membership', () => {
+    const marker="assessment_type,assessment_id,earned,created_by) values("
+    const insert=sql.indexOf('insert into public.gradebook_score_overrides(id,classroom_id,student_id,'+marker)
+    expect(insert).toBeGreaterThan(0)
+    const before=sql.slice(0,insert).match(/insert into public\.classroom_enrollments\(id,classroom_id,student_id\) values\('([a-f0-9-]+)','([a-f0-9-]+)','([a-f0-9-]+)'\);$/)!
+    expect(before).not.toBeNull()
+    expect(before[2]).toBe(f.classes[0].id);expect(before[3]).toBe(f.actors[1].id)
+    const tail=sql.slice(insert)
+    expect(tail).toContain(`delete from public.classroom_enrollments where id='${before[1]}' and classroom_id='${before[2]}' and student_id='${before[3]}';`)
+    expect(tail.indexOf('delete from public.classroom_enrollments')).toBeLessThan(tail.indexOf('r:=public.discard_pristine_test_draft_for_owner_v1'))
+    expect(TEST_OWNER_PRISTINE_DISCARD_DB_CHECK_LABELS).toHaveLength(56)
+  })
 })

@@ -32,6 +32,7 @@ function sourceSnapshot(){
   s['public.gradebook_categories']=f.classes.flatMap((c,ci)=>[0,1,2].map(i=>({id:`99999999-9999-4999-8999-${String(ci*3+i).padStart(12,'0')}`,classroom_id:c.id,is_default:i===0,position:i,default_assessment_weight:10})))
   s['public.tests']=f.tests.map(t=>({...t,gradebook_category_id:s['public.gradebook_categories'].find(c=>c.classroom_id===t.classroom_id)!.id}))
   s['public.assessment_drafts']=structuredClone(f.drafts);s['public.test_student_availability']=structuredClone(f.availability);s['public.gradebook_score_overrides']=structuredClone(f.overrides)
+  s['private.pal_membership_generations']=[{generation_id:f.retainedEnrollment.id,state:'removed',scope_digest:'a'.repeat(64)}]
   s.__nontarget_fingerprints=[...TEST_OWNER_PRISTINE_DISCARD_SNAPSHOT_TABLES,'storage.objects','storage.buckets'].map(table=>({table,fingerprint:'unchanged'}));return s
 }
 beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime('2026-10-06T04:00:00Z')})

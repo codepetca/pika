@@ -17,6 +17,9 @@ rejects lifecycle bypass contexts, and retains provider/purge/decommission
 fences. Nine direct FK dependencies plus retained marks and managed-resource
 associations block deletion without cleanup. Wrong-Class managed associations
 also block; a selective partial resource index supports that global lookup.
+Retained-mark proof creates the mark while enrolled, then removes only that
+synthetic enrollment through ordinary triggers. The removed membership evidence
+is retained and captured; no enrollment/immutable-evidence guard is bypassed.
 The existing inner156 service capability must still be granted before delegation.
 Raw42501 and unknown55000 fail closed rather than becoming ordinary403 responses.
 
@@ -47,3 +50,9 @@ obligations, distinct from held locks or injected error-code tests.
 
 No canonical migration, production promotion, account/plan mutation, provider
 operation, UI cutover or billing activation is authorized by these proof files.
+
+The first ced2 source rehearsal failed during fixture setup, before any RPC or
+deletion; exact cleanup and SAME whole canonical checkpoint verification passed.
+Migration164 correctly rejects inserting a new mark for an already unenrolled
+learner. Fixture and rollback-blocker correction is source-only until separately
+reviewed and successfully rerun; no native or generated-type success is implied.
