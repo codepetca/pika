@@ -279,6 +279,16 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  // Installed249 accepts SQLNULL when inspecting a missing draft. PostgreSQL
+  // metadata omits input nullability; retain every other generated RPC argument.
+  finish_test_draft_save_for_owner_v1: FunctionContract<
+    'finish_test_draft_save_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['finish_test_draft_save_for_owner_v1']['Args'], {
+      p_expected_version: number | null
+    }>
+  >
+
   // PostgreSQL function metadata does not encode nullable input contracts.
   finalize_auth_verification_attempt_v1: FunctionContract<
     'finalize_auth_verification_attempt_v1',

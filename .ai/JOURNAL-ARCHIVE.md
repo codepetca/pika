@@ -37184,6 +37184,7 @@ No nonempty supplemental/signing/authHTTP/browser/provider/production proof clai
 local001–239/prod001–225 and admission/cutover/account/billing/provider settings unchanged.
 
 <!-- pika-session-log-archive-batch:b11c807e0a84dec5e5b701fe23cebf07818867dccc307715ae48a68dcc6aaeb6 -->
+<!-- pika-session-log-archive-batch:530f4784f44cf9a33a4c0a82a614e594cebe4899bf88027766adb9bfd9defb6b -->
 ## 2026-10-04 — Locked Classwork Assignment-open prerequisite preparation
 
 1455 finalea080944 receipt review CLEAN;76 docs tests PASS, executable tree
@@ -37305,6 +37306,7 @@ retained. Existing authorization covers routine local application/review/extensi
 normal mainmerge, not bypass or uncontrolled production activation.
 
 <!-- pika-session-log-archive-batch:d4b732948795178faac943b61ddbe318abb8a11f6b2523d8c17f864600a6da23 -->
+<!-- pika-session-log-archive-batch:843f504de6b82475790a020eb7469c4c26b9762cc1303ec22cbcd67fa57d1106 -->
 ## 2026-10-04 — Locked learner writes local verification and parent reconciliation
 
 1457 reviewed0e5cd1ba merged2595c775 at07:56:37Z, exactCI37185801031/all5PASS
@@ -37333,6 +37335,7 @@ Productionlast225/admission/home/cutover/account/billing/provider unchanged;
 batch2/epic incomplete. Critical roster-owner node_modules/branches retained.
 
 <!-- pika-session-log-archive-batch:a6d73911fd7534beebc4fde4d09e909f0394180eaedeac6eb0d0ef56cf561560 -->
+<!-- pika-session-log-archive-batch:0438631cae99dfb2850177b2d737bda93b73cfa3201b7f01b42177c369ffc5c6 -->
 ## 2026-10-04 — Supplemental learner permission source preparation
 
 1458 exact28e8af46 final cumulative security review CLEAN/155offline checks;
@@ -37367,6 +37370,7 @@ without stashing/popping unrelated entries, then frozen initial review/runtime.
 Production/admission/cutover/provider/account/billing unchanged.
 
 <!-- pika-session-log-archive-batch:a80b95ae94ff611959bb7b6c4b81d07a5c797c1e24d68174c1e068554aa18b98 -->
+<!-- pika-session-log-archive-batch:74876f3851e6ad1a228f1910805eaed631b7edb0c33ae6c517ad3bdbe83c4146 -->
 ## 2026-10-04 — Supplemental learner local verification on actual main
 
 1459 draft89a479f5 reconciled ontoactual1458main61c44aec with identical prepared
@@ -37399,6 +37403,7 @@ worktrees and unrelated36stashes preserved. Human reviewextensions/normalmainmer
 and localmigration override retained; no bypass or production permission inferred.
 
 <!-- pika-session-log-archive-batch:4cc776efa8a5b9b33f19a47964ee4545f7aed3f5bd3216720add81eb73ab9248 -->
+<!-- pika-session-log-archive-batch:a276782d9724973ee081e85c4012511c15283a734e79ca77e4f4d11e62987b86 -->
 ## 2026-10-04 — Locked inline-image read source preparation
 
 1459 final cumulative security review CLEAN on9f15e6e2; one ready-event exact CI
@@ -37428,6 +37433,7 @@ actualmain preserves complete source tree and unrelated stashes; no resequencing
 or applied-SQL edits. Local/main242;243UNAPPLIED. Frozen-source highriskreview next.
 
 <!-- pika-session-log-archive-batch:c8e70793abaafb87bbd72d3f9f07281b67a3185e494f1811e13972b2779a4554 -->
+<!-- pika-session-log-archive-batch:7710200eba6f49614205329a84452c77bc45e23f4be1df8b9fe87896aeb29b37 -->
 ## 2026-10-04 — Inline-image read local verification
 
 1460 draft47724239 distinct5.6Sol/high security+compatibility initial reviews CLEAN.
@@ -38145,6 +38151,7 @@ unrelatedschemas/literals/unusedreads rejected. Baseline24 unchanged; app/proof/
 CI/schema/depsidentical. ExistingTypeScript reused,no dependency. Samefixbudget4;
 originalclock/deadline/hardlimits retained; targetedreviewandfreshCIpending.
 
+<!-- pika-session-log-archive-batch:3ed2d4e7fea2f07553574e1e74a557b2defed0e03078fb295b52f12986a948c2 -->
 ## 2026-10-04 — Broad audit remediation batch 1
 
 Owner authorized planning and orchestration to fix the 27-finding broad audit at main `3c5d7097`. Plan: `docs/guidance/codebase-audit-remediation-2026-10.md`; existing audit handoff tracks per-finding evidence and worker receipts. Feature worktree `codex/audit-remediation`; full startup passed after frozen-lockfile installation, with no dependency changes. Three bounded GPT-6.1 Sol workers (auth high; guidance and patterns medium) delivered non-overlapping source/tests. Auth regressions: 172/20 PASS, including one initial-password winner, login origin/JSON and UTF-8 limits; S1 remains partial pending atomic issuance/handoff generation fencing. Patterns regressions: 69/8 PASS, covering cache/poll retention, survey shapes and directly imported script-test selection. Guidance reconciles source/local/hosted checkpoints and routing, removes direct-main landing instructions, and fails startup for missing required inputs. Startup context ceiling deliberately increased from 16k to 17k characters for readable dated labels and receipt/remaining-gate text. No migration, database, hosted flag or production mutation. Draft publication and cumulative verification receipts remain with coordinator; independent review not yet launched. Codex weekly remaining at start 8%; DeepSeek paused through 2026-12-31; pr-review low-usage human checkpoint applies before reviewer launch. Goal remains active; no finding accepted from implementation delivery alone.
@@ -38258,3 +38265,225 @@ review/rootfinite-manifestacceptance precede actualdisposableSDKnormal+2forced.
 Attributableactive/tokensunknown. Originalsealedauthority/lifecycle/controls/
 cleanup/native bytesunchanged. No migration/production/cohort/home/account/
 provider/billing activation; phase2/3active,4/5dormant,goal incomplete.
+
+## 2026-10-04 — Docker recovery; owner Test list runtime held
+
+1469 remains draft/unmerged, reviewed a000cb3c with two independent CLEAN source
+reviews, launch2/initial1/fix0. Original16:03Z review clock/counters retained;
+direct human task-stop override waives workflow review/usage stops, not proof,
+CI, source authority or rollout gates. Human Yes authorized Docker restart.
+Normal CLI restart timed out; seven verified Docker-app processes received TERM,
+one stuck verified backend then KILL; official start recovered engine29.7.2.
+No images, volumes, container data or unrelated source/stashes were deleted.
+
+External dependency target was missing. Root restored only this worktree's own
+dependencies with unchanged-lockfile install:696 reused/zero downloads. Recovery
+load caused2 test timeouts, isolated39 passed, then full197/14 and all static gates
+passed without weakening timeouts. Source/lock and reviewed HEAD remain unchanged
+apart from this pending continuity entry. Finite manifests explicitly accepted;
+new once-wx0600 private1469 canonical baseline captured, old1468 preserved.
+
+Normal SDK attempt17:39:35Z failed startup180s before extension setup. Exact owned
+CLI descendants outlived wrapper timeout; root verified project2e6078d26139 and
+TERM'd only those two processes. Cleanup failures and closed-platform independent
+baseline verification failure mean neither cleanup nor canonical equality is
+proved; no data-change claim either. Host177MiB free; temporary workdir retained.
+No forced runs, ready CI, merge, production or activation. Preserve SAME baseline;
+recover stable disk/API, inspect and finish exact owned-resource cleanup, verify
+baseline, then retry. Private1469 ledger contains receipts; no baseline recapture.
+
+Human then authorized Mac-space cleanup. Removed only npm's reconstructible3GiB
+download cache and pnpm's unreferenced cached packages (68334files/1597packages,
+no force/alien deletion). Hostfree486MiB→7.2GiB, approx6.7GiB recovered. Installed
+dependencies/source/worktrees/36stashes/Playwright browsers and Docker data remain.
+Docker-only cache pruning could not load its builder; API still unresponsive
+after space recovery. No new SDK attempt or baseline recapture. Preserve prior
+failed-proof namespace2e6078d26139 for exact owned cleanup/equality verification.
+
+<!-- pika-session-log-archive-batch:ef694feb37ac75bb14d2c314f78c1a3561dc06f6ff971f1d53b1eab5b8a02d27 -->
+## 2026-10-04 — Owner Test list disk recovery and guidance-main reconciliation
+
+Docker29.7.2 recovered; host144GiB free observed independently, not attributed to
+our6.7GiB package-cache cleanup. Fresh global/label/attachment checks authorized
+exact failed-startup2containers/1network/1volume cleanup; generated directory stays
+private for diagnostics. SAME1469 canonical baseline fivefield equality PASS.
+Unchanged-source normal retry65de445a exited1: Storage unhealthy, no extension
+setup. Exact teardown succeeded and SAME independent baseline equality PASS.
+No forced modes/readyCI/merge/activation; one Sol6.1/high read-only worker diagnoses
+Storage startup. Rebased onto guidance-only1462/main24cb8847; app/proof/CI/schema/
+package/lock bytes unchanged. Kept incoming guidance, removed three proven surplus
+history copies while retaining original full bodies. Startup budget failed17149;
+CURRENT-only shortening gives76startup tests PASS, without gate changes. Full
+230focused/14files and all static gates PASS; history multiset/no missing/surplus
+PASS. Runtime verification remains required;36stashes/prod225 preserved.
+
+<!-- pika-session-log-archive-batch:da774ea62947b01a114972f877e957bf4f3e88bddf48e40078471660b3a1dd82 -->
+## 2026-10-04 — Owner Test list proof-only natural revision correction
+
+Observed normal5004fed7 Storage healthy, then fixture setup failed beforeSDK;
+exact teardown and SAME once-captured1469 fivefield baseline equality PASS.
+Resumed original proof worker Sol6.1/high,18:46:32–18:55:53Z manualwall561s,
+three files relinquished; no live/Git operations, active/tokens unknown. RED→GREEN
+shows archive0 expectation contradicted existing Class initialization. Frozen
+footprint now requires three Class-bound archive rows/revisions41/7/4 and blueprint
+10/2/1. No additional DML/Storage/RPC or native/platform/deadline/control changes;
+locks/timestamps remain exact. Closed setup diagnostics add no raw private data.
+49proof/122combined/fullTS/scopedlint PASS. Root fixed-source review, updated
+manifest acceptance, actualnormal/twofullforced, finalCI/mainmerge remain gates.
+Root243focused/14files/allstatic gates, three-file audit, diff/trim and complete
+history multiset preservation PASS. App/sealed platform/lifecycle/schema unchanged.
+
+## 2026-10-04 — Owner Test list proof-only answer-key correction
+
+#1469 reviewed94afe normal failed at fixture/setup-sql before SDK requests;
+exact owned cleanup and SAME once-captured canonical five-field equality passed.
+Immutable044/catalog check requires multiple-choice answer_key=null; synthetic
+setup incorrectly gave every question a text key. Narrow fixture/test fix;
+valid generated-SQL RED captured,50proof/244focused14files/allstatic gates PASS.
+App, schema, native lifecycle and footprint unchanged. Existing human waiver
+retains cumulative review counters/authorization. No production, activation,
+account or migration operation. Source review and actual normal/two fully-set-up
+forced receipts remain required; space212GiB observed, active/tokens unknown.
+IndependentSol5.6/high ef660 review CLEAN. Actualnormal fullfixture/snapshot passed
+then failedmatrix/dispatch at19 attemptedrequests; exactteardown/SAMEbaselinePASS.
+Proof-only closed timing/abort diagnostics RED→GREEN,51proof/245focusedallstaticPASS.
+Readonly sealedinventory sample993ms/742resources; timing cause not yet proved.
+App20s/transport15s, everyrequestguard and full global inventory remain unchanged.
+Diagnostic c2d independentSol5.6/high review CLEAN; read-only Sol6.1/high diagnosis
+narrows dispatch to fetch/abort family, not proven timeout or querycause. Its
+timing caveat accepted: freeze diagnostic at helper rejection before cleanup,
+including pendingguard time. RED→GREEN52proof/246focused14/allstatic/audit PASS;
+source-only targeted follow-up and actual evidence remain required. No gate weakened.
+
+## 2026-10-04 — Owner Test list audit-main reconciliation
+
+Frozen diagnostics 4e57 independentSol5.6/high CLEAN at19:35:55Z, source-only.
+External main audit1463/receipt1471 advanced to a2175080: complete246 migration
+replay, Test attempt revisions/response closure, storage/auth fencing and locked
+dependency updates. Clean rebase had only CURRENT/archive conflicts. Own app,
+fixture, transport/diagnostics and tests remain byte-identical to4e57; incoming
+native platform/lifecycle/CI/schema/types/packages retained, no own migrations.
+History union old4e57 + maina217 − base24cb verified by full-body hashes; repaired
+four missing original copies and three malformed rebase fragments, no original
+body loss. Official trim applied;36unrelated stashes unchanged. Worktree-owned
+frozen dependency sync reused65/downloaded0; lock unchanged. No shared DB or prod
+application, account/provider/admission/rollout operation. New-base checks/review,
+finite acceptance and actual normal/twoforced remain; original cumulative counters
+and human review-extension waiver retained. Active/token telemetry unknown.
+Fresh startupPASS. Initial new-base focused262 had one startup-budget failure
+(17046>17000); shortened CURRENT wording without changing facts or budget.
+Complete262tests14files and architecture/UI/design/TypeScript/lint nowPASS.
+Actual-main-aware audit finds no new TS changes; original app/proof audit retained.
+
+## 2026-10-04 — Owner Test list frozen runtime guard overhead
+
+PR1469 draft at e8e001aa: changed-audit-base review CLEAN and root finite001–246
+manifest acceptance preceded actual normal session43761. Complete fixture setup;
+first SDK case failed real20s: frozen context20001ms/guard19651ms,18 attempted
+requests, availability/guard. Exact teardown and SAME once-captured whole-canonical
+public/private/Storage/168/settings/cron/resource equality PASS. No passing normal
+or forced SDK proof, CI, merge, production or activation claim. Host216GiB free.
+Sol6.1/high bounded worker owns additive readonly inventory helper/tests and extension
+call only: concurrent freshglobal pipelines via sealed parser, exact one-shot results,
+all pending work settled; native/SQL guards/app20s unchanged. Root retains acceptance/
+Git. Offline checks and fixed-source review precede new runtime. Counters retain
+7launches/5targeted/5fixes; existing direct task-stop waiver applies. Usage70percent
+weekly remaining; active/tokens unknown. Main9c2ff7ef only reconciles history; preserve
+incoming canonical history plus branch entries before final reviewedSHA/CI/merge.
+Worker delivered/relinquished3paths20:09:30Z (startup20:02:47Z;403s observedinterval,
+not active/token telemetry). RED18:16failed/2passed sequentialconcurrency1not3;
+GREEN70proof/2files and209related supplied; appTypeScript/lintPASS. Targeted script
+TypeScript has two independently reproduced preexisting lifecycle errors, new
+helper/test zero diagnostics. Root inspected complete helper/tests/call diff;
+sealed platform/lifecycle/parsers/originalfixture/app exactbyteparityPASS.
+
+## 2026-10-04 — Owner Test list parallel guard and history reconciliation
+
+Root verified70offline proof tests/2files and inspected all new helper/test/source
+bytes; audit3changedTS and sealed/app byteparityPASS. Additive executor overlaps
+exact3freshglobal serial128batch pipelines, validates IDs, settlesallwork and
+replays exactresults once through original parser; privateSQL/app20s unchanged.
+History-only main9c2ff7ef reconciled from clean branch, no stashpush/pop. Full-body
+incomingcanonical multiplicities plus positive branch additions PASS after
+restoring4missing copies/removing14surplus or malformed rebase fragments; no
+original bodyloss. Official trimPASS;36unrelated stashes retained; source/proof/
+tests/CI/schema/deps byteparity to pre-rebase b2ad PASS. Private patch generation
+failures were contained before writes; canonical hub stayed clean. Focusedchecks,
+fixed-source targeted review and explicit finite acceptance precede actualruntime.
+No sharedDB/prod/account/provider/admission/rollout; normal/twoforced stillpending.
+Worker403s observed interval, root coordination/history effort not separately
+timed; tokens/active unknown. Existingtaskstop waiver/cumulative ledger retained.
+Updated-main focused280tests/15files and all architecture/UI/design/TypeScript/
+lint gates PASS; officialtrim/exacthistorymultiset/diff checks PASS. Proof-only
+remediation batch6 includes this source correction and history reconciliation.
+
+## 2026-10-04 — Owner Test list bounded denial diagnostics
+
+Targeted Sol5.6/high CLEANb4d, sourceonly; reviewerVitest unavailable/noinstall,
+root280/allstatic/70proof evidence retained. Root explicitly accepted frozen
+parallel-inventory4bb75e/runner767c3a/fixturee83+complete246 before actual64763.
+Normal reached three owner cases then case3/root41requests, context1848ms/guard1829ms
+HTTP200/complete; old20s blocker resolved, newassert unknown. Exactteardown/SAME
+canonical fivefield baselinePASS; no fullnormal/forced success. Read-only Sol6.1/
+high diagnosis20:30:44–20:32:38Z narrows original class403/count1/snapshot assertions;
+offline TSX syntheticfetch confirms403/sameclass/1request but not actualSDK.
+Root TDD13 closed matrix-step/API-error outcome regressions preserve everyassert,
+own-descriptor lookup avoids SDK getters, fixed kinds/statuses only; no rawerrors/
+IDs/rows or guard/deadline weakening. Fixed-source review/acceptance precede
+rerun; original clock/counters/direct waiver retained. No prod/sharedmigration/
+accounts/providers/admission/activation; active/tokens unknown.
+RED diagnostic12/12failed, then snapshot-step2RED; fullfocused293tests/15files and
+allstatic gates PASS with13new regressions (83 proofchecks selected by focused).
+
+<!-- pika-session-log-archive-batch:559d39ec48b4d7f9bb7e9baa45bdcab05c2c502d2ca654958eb1ed3249bbe379 -->
+## 2026-10-04 — Owner Test list actual runtime closure
+
+Sol5.6/high diagnostic review CLEAN at exactd82aa4e; root accepted unchanged finite
+fixture/inventory/native/source246 manifest before normal77355. Actual normal
+EXIT0/eight SDK cases/exact2PASSmarkers/no stderr; after-fixture32135 and
+before-capture42314 fullsetup forced modes each expectedEXIT1/exactcleanupPASS+
+forcedFAIL/no unexpectedoutput. All0600 receipts verified; same independent
+once-captured wholecanonical public/private/Storage/168/settings/cron/resources
+baseline PASS after everyrun, exactownedteardownPASS. Earlier failures preserved;
+no recapture or sharedlocal/prod/schema/account/provider/admission/activation.
+Facts-only final candidate is next: cumulative independent Sol5.6/high review,
+stable reviewedSHA exactCI and normal mainmerge remain gates. Component/phase/goal
+not complete. Counters9launch/7target/0final/7fix and original clock/taskstop waiver
+retained; weekly69remaining observed, attributable active/tokens unknown.
+
+<!-- pika-session-log-archive-batch:dd08dc1fb640723dd344f9806a976bda3d961f9c05224a0a9c7a25970d5331b6 -->
+## 2026-10-04 — Owner Test list aggregate fixture CI correction
+
+Final cumulative Sol5.6/high728f review CLEAN; exact readyCI37234460529 failed one
+new100k aggregateunit test at5000ms undercoverage (12341PASS), PRdrafted beforeedit.
+PendingDB/browser lanes cancelled; PRGateFAIL, no merge/bypass/duplicateCI.
+Root found quadratic mock scans across50parents/everypage. Staticchildparent index
+preserves participantfilters/keyset/order/caps/overflow assertions; newinterleaved
+lookupregression RED16vs4 thenGREEN. App/proof/native/CI/schema/deps/sourcecaps/
+real20s/testtimeouts unchanged.44readroute and294focused/allstatic PASS.
+First fullcoverage locally had only8 installedbraces security failures, notlist
+tests. Reviewedpatchhash directory containedunpatchedsource; ordinaryfrozeninstall
+didnotrepair. Worktree-owned forcefrozen install restoredsameexistinglock/patch,
+800resolved65reused735downloaded61.7s; no newversions/manualinstalledfileedits/
+buildapproval/sourceconfigchange. Security/list46PASS. Fresh exactCIcoverage suite
+EXIT0:12343PASS/8skip,1036filesPASS/2skip; allcoveragegates PASS (statements84.98,
+branches76.98,functions91.39,lines86.94percent). Priorfailedresults retained.
+Fixedhead targetreview/fresh environment runtime check/CI/mainmerge remain gates;
+no sharedschema/prod/accounts/provider/admission/activation. NextdraftGET-only
+readonlymap retained privately; notimplemented. Originalclock/directwaiver retained.
+
+<!-- pika-session-log-archive-batch:e035a0e9666c764686ae114d94248e64a22c6e169d6985b8236df155a5bc8c16 -->
+## 2026-10-04 — Owner Test list global inspection worker correction
+
+Fresh-environment normal49119 hit unchanged20s/19496ms guards/22 requests; exact
+owned teardown and SAME saved canonical baseline PASS. No fresh matrix success.
+Sol6.1/high bounded read-only diagnosis found618 volumes/five serial batches;
+paired global-worker probes765→524ms and625→555ms returned same exact commands/
+sealed resources. Root TDD five scheduling/barrier/failure regressions RED, then
+86 proof and297 focused/static PASS. Three fresh listings settle first; fixed
+three global workers reuse idle capacity across exact128-item inspections. All
+active work settles on failure; queued work stops. No command/privacy/scope/cap/
+SQLguard/sealed/app/deadline/dependency/schema change. Fixed-source review and
+new full runtime receipts precede CI; PRdraft, production/admission/rollout OFF.
+Worker elapsed approximately4min; usage/effectiveconfig/active time unknown.
+Original reviewclock/counters and direct human taskstop waiver retained.

@@ -135,13 +135,13 @@ describe('Test draft GET shared admission boundary', () => {
     expect(getTestEditingPolicy).not.toHaveBeenCalled(); expect(mocks.from).not.toHaveBeenCalled()
   })
 
-  it('keeps PATCH on its original guard and ensure path even with malformed shared admission', async () => {
+  it('rejects malformed shared admission before contextual PATCH body or legacy guards', async () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{}')
     const result = await PATCH(new NextRequest(`http://localhost/api/teacher/tests/${testId}/draft`, {
       method: 'PATCH', body: JSON.stringify({ version: 1, content }),
     }), { params: Promise.resolve({ id: 'legacy-id' }) })
-    expect(result.status).toBe(200); expect(requireAuth).not.toHaveBeenCalled()
-    expect(requireRole).toHaveBeenCalledWith('teacher'); expect(ensureAssessmentDraft).toHaveBeenCalledTimes(1)
+    expect(result.status).toBe(503); expect(requireAuth).toHaveBeenCalledTimes(1)
+    expect(requireRole).not.toHaveBeenCalled(); expect(ensureAssessmentDraft).not.toHaveBeenCalled()
     expect(mocks.rpc).not.toHaveBeenCalled()
   })
 })

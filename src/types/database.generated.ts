@@ -11870,6 +11870,21 @@ export type Database = {
         }
         Returns: Json
       }
+      finish_test_draft_save_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_deadline: string
+          p_documents: Json
+          p_expected_source_sha256: string
+          p_expected_version: number
+          p_operation: string
+          p_test_id: string
+          p_update_documents: boolean
+        }
+        Returns: Json
+      }
       get_assignment_ai_grading_usage_contract_v2: {
         Args: never
         Returns: Json
@@ -13470,6 +13485,10 @@ export type Database = {
         }
       }
       snapshot_test_draft_for_owner_v1: {
+        Args: { p_actor_id: string; p_deadline: string; p_test_id: string }
+        Returns: Json
+      }
+      snapshot_test_draft_save_for_owner_v1: {
         Args: { p_actor_id: string; p_deadline: string; p_test_id: string }
         Returns: Json
       }
