@@ -656,3 +656,12 @@ Immutable source comparison found no established cause; whitespace hypothesis
 was disproved. Finite PCnnn->fixed proof labels now retain a failing assertion's
 identity without raw stderr/row/credential disclosure. No assertion or cap was
 weakened; diagnostic source requires targeted review before a new sealed run.
+
+Diagnostic9934 independently CLEAN (58/2); actual normalattempt2 failed PC013
+exact trigger closure after15RPC/raw42501, with zero cleanup failures and
+separate WHOLE SAME immutable B1 PASS. Bounded read-only canonical001248 trigger
+catalog and immutable157/173 established two omitted Test triggers: gradebook
+override deletion (tgtype9) and removed-academic parent guard (tgtype27).
+The15-entry source inventory was wrong; actual closure has17 entries. Added
+exact tuples and regression RED9/10 before correction; no assertion weakening,
+app/SQL250 behavior, cap, migration application or rollout change.
