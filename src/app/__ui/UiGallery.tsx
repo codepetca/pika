@@ -79,6 +79,7 @@ import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 import { UiConsistencyPattern } from './UiConsistencyPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { MobileDrawerControlsPattern } from './MobileDrawerControlsPattern'
 
 const GUIDED_ASSIGNMENT_MARKDOWN_REFERENCE = [
   '### Task',
@@ -587,6 +588,8 @@ export function UiGallery({ role }: Props) {
           </div>
           </PatternSection>
         </div>
+
+        <MobileDrawerControlsPattern role={role} />
 
         {role === 'teacher' && (
           <PatternSection

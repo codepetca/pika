@@ -484,7 +484,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 2,
+          "count": 1,
           "reason": "composite-widget"
         }
       ]
@@ -495,7 +495,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 4,
+          "count": 2,
           "reason": "composite-widget"
         }
       ]
