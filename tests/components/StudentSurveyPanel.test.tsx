@@ -172,7 +172,7 @@ describe('StudentSurveyPanel', () => {
   it('shows available class results first and exposes a response action', async () => {
     render(<StudentSurveyPanel surveyId="survey-1" />)
 
-    expect(await screen.findByRole('heading', { name: 'Quick Poll — Results' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Quick Poll' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
     const responseAction = screen.getByRole('button', { name: 'Respond' })
     expect(responseAction).toBeInTheDocument()
@@ -184,7 +184,7 @@ describe('StudentSurveyPanel', () => {
     expect(responseAction.parentElement?.className).toContain('lg:left-[var(--main-content-center-x,50%)]')
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Quick Poll — Results' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Quick Poll' })).toBeInTheDocument()
     })
     expect(await screen.findByText('100%')).toBeInTheDocument()
     expect(screen.queryByText('1 (100%)')).not.toBeInTheDocument()
@@ -276,7 +276,7 @@ describe('StudentSurveyPanel', () => {
       await currentDetail.promise
     })
 
-    expect(await screen.findByRole('heading', { name: 'Current Student Survey — Results' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Current Student Survey' })).toBeInTheDocument()
 
     await act(async () => {
       staleDetail.resolve(jsonResponse(surveyDetailPayload(
@@ -287,8 +287,8 @@ describe('StudentSurveyPanel', () => {
       await staleDetail.promise
     })
 
-    expect(screen.getByRole('heading', { name: 'Current Student Survey — Results' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Stale Student Survey — Results' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Current Student Survey' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Stale Student Survey' })).not.toBeInTheDocument()
   })
 
   it('ignores stale result responses after selected survey changes', async () => {

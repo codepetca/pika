@@ -83,7 +83,7 @@ describe('TeacherSurveyResultsPane', () => {
 
     render(<TeacherSurveyResultsPane survey={makeSurvey()} />)
 
-    expect(await screen.findByRole('heading', { name: 'Planning Poll — Results' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Planning Poll' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Results' })).not.toBeInTheDocument()
     expect(screen.queryByText('0/2 responded')).not.toBeInTheDocument()
     expect(screen.queryByText('2 of 2 students responded')).not.toBeInTheDocument()

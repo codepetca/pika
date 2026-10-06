@@ -452,10 +452,7 @@ export function StudentSurveyPanel({
 
       {showResults && (
         <Card tone="panel" padding="lg" className="space-y-4">
-          <h2 className="flex min-w-0 items-baseline gap-2 text-xl font-semibold text-text-default">
-            <span className="truncate">{survey.title}</span>
-            <span className="shrink-0">— Results</span>
-          </h2>
+          <h2 className="truncate text-xl font-semibold text-text-default">{survey.title}</h2>
           <StudentSurveyResults state={activeResultsState} onRetry={() => void loadResults()} />
         </Card>
       )}
