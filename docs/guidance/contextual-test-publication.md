@@ -22,6 +22,22 @@ Full TypeScript checking still reports only the missing genuine252 RPC declarati
 no manual generated-type overlay is permitted. Pre-type source freeze is not PR
 readiness, database acceptance or merge evidence.
 
+Initial independent security/concurrency and architecture/compatibility source
+reviews at243a26 both returned clean. The first actual normal invocation stopped
+before disposable setup: inherited whole B1 no longer matches local auth sessions
+and rate-limit rows. Other canonical baseline fields remain equal. Preserve those
+records and the original checkpoint; owner direction for a new complete checkpoint
+is pending. No252 replay, native effects, generated-type artifact or phase exit
+was produced. A new checkpoint is not an auth-table exemption.
+
+Full-coverage attempts and their failures are retained in the coordinator receipt.
+Local runtime PATH needed the pinned pnpm10.25 shim; startup guidance stays within
+its unchanged17000-character budget with all required historical/environment
+receipts. The final legacy discard proof timeout is addressed only by splitting
+the original assertions into fresh full1001-row/default5-second test cases.
+Targeted tests pass; cumulative coverage and independent remediation review remain
+pending. No product/native caps, floors or source gates were relaxed.
+
 ## Scope and compatibility
 
 Publish only a saved Test draft, materializing its questions and ending exactly
