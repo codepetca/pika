@@ -15,12 +15,12 @@ Settings last verified in prior receipts; no fresh hosted query here for control
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Discard251: #1503 merged865d837b7 after exact9c391 CI37435496517 all5PASS.
-Publication243a26: source420/14 PASS; both source reviews CLEAN. LegacyPATCH/UI
-unchanged. Genuine252 types/native proof/CI/merge pending;249–252 unapplied.
+Publication735d6ab: native49/12/5/10 PASS; genuine252 types copied. LegacyPATCH/UI
+unchanged. Forced/final-review/focused/CI/merge pending;249–252 unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.
 
-Native252: replay/probes passed; latest contracts failedP2547; cleanup/whole B4 PASS.
-B1/B2/B3 retained; approved B4 covers all183 tables and all5 fields.
+Native252 normal10 PASS; exact cleanup/whole B5 PASS, prior failures retained.
+B1–B4 retained; approved B5 covers all183 tables and all5 fields.
 
 Worktrees: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators: .env.example.

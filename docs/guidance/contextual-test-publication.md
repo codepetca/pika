@@ -2,8 +2,9 @@
 
 Prepared access-phase2 owner-authoring slice after #1503, which merged at
 865d837b740e781086f0209eb9c4d9c8dab78db3 after reviewed9c39132d passed all five
-checks in CI37435496517. HTTP/body/SQL source-contract TDD186/4 passed; actual
-database acceptance, genuine types, independent review and merge remain pending.
+checks in CI37435496517. HTTP/body/SQL source-contract TDD186/4 passed. Normal
+native proof and genuine types now pass at735d6ab; forced cleanup, final cumulative
+review, focused checks, exact-head CI and merge remain pending.
 This is not rollout or a phase exit.
 
 The isolated proof implementation is ready for independent source review: one full-row fixture,
@@ -111,6 +112,23 @@ inside SQL. Correct only the raw-42501 probe's expected SQLSTATE. Reached fault
 markers, denial, complete graph rollback and the four SDK503/raw42501 probes
 remain unchanged. Regression RED reproduced the conflated SQL/HTTP expectation;
 fresh targeted review and full native/type acceptance remain required.
+
+Review16 accepted that correction at735d6ab. Quiet9 preflight found only three
+authentication tables changed, each by one row; the other180 tables and four
+metadata fields were exact. Writer attribution remains unproven. Authorized B5
+refresh retained B1–B4 and compared two stable full183/all5 read-only captures,
+without exemptions or deletions. Review17 accepted custody after two mechanical
+diagnostic-label corrections. Normalattempt10 passed all49 rollback contracts,
+12 held-lock schedules, five committed transitions and ten actual installed-SDK
+cases, including three exact closed publications and four restored raw42501
+probes. It used20 RPCs and zero Storage requests. Genuine Supabase CLI types from
+the isolated001–252 schema passed the seven-argument AST check and were copied
+mechanically; their only source delta is the new publication RPC declaration.
+Exact temporary containers/networks/volumes were absent, both native session
+counts were zero, and a separate strict whole-B5 check passed. Both named chats
+were released; HQ/finance-intake/Pika services stayed running. Serial forced
+cleanup checks, final integration review, focused/CI gates and main merge remain
+required. Canonical local/production249–252 remain unapplied; no rollout occurred.
 
 Full-coverage attempts and their failures are retained in the coordinator receipt.
 Local runtime PATH needed the pinned pnpm10.25 shim; startup guidance stays within
