@@ -59,6 +59,21 @@ catalogue or the complete native proof. This correction requires independent
 review and fresh native verification; no native success, genuine types, PR/CI,
 merge or rollout is claimed.
 
+Independent review11 accepted the physical trigger-name correction at95aab04.
+Normalattempt6 stopped at the unchanged startup deadline before contracts.
+The owner approved a controlled retry with the two non-Pika local Docker stacks
+temporarily stopped. Normalattempt7 passed startup, the six catalogue checks and
+the first seven cases, then failed missing-draftP2514. Exact owned cleanup and
+separate whole-B3/all183/all5 preservation passed. All23 original non-Pika
+containers were restored with the same IDs, images, labels, running and healthy
+states; the initial60-second health window failed before recovery settled.
+The missing-draft SQL probe conflated snapshotHTTP404 with final sourceCAS409
+and supplied an empty invalid content fallback. It now uses valid canonical
+fixture content and expects finalPT409, leaving the SDK's one-RPC404 case intact.
+Application/SQL252, counts, bounds and all rollback assertions are unchanged.
+Targeted independent review and fresh full native acceptance remain required;
+no generated types, PR/CI, merge, migration application or rollout is claimed.
+
 Full-coverage attempts and their failures are retained in the coordinator receipt.
 Local runtime PATH needed the pinned pnpm10.25 shim; startup guidance stays within
 its unchanged17000-character budget with all required historical/environment

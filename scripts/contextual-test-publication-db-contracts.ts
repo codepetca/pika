@@ -132,7 +132,10 @@ function catalogSql() {
 
 function caseProbe(f: TestOwnerPublicationFixture, c: TestOwnerPublicationFixture['cases'][number]) {
   const test = f.tests.find(row => row.id === c.testId); const draft = f.drafts.find(row => row.assessment_id === c.testId)
-  const classId = test?.classroom_id ?? f.classes[0].id; const content = draft?.content ?? { title: 'missing', show_results: false, question_identity_version: 1, questions: [] }
+  const classId = test?.classroom_id ?? f.classes[0].id
+  // Isolate the absent persisted Draft with valid canonical fixture content;
+  // an empty fallback would fail input validation before the final source fence.
+  const content = draft?.content ?? f.drafts[0].content
   if (c.expectedHTTP === 200) {
     return probe(c.label, `declare s jsonb;r jsonb;test_before public.tests;draft_before public.assessment_drafts;class_before public.classrooms;archive_before public.classroom_archive_revisions;q_before integer;q_after integer;t integer;begin
  select * into strict test_before from public.tests where id=${q(c.testId)}::uuid;select * into strict draft_before from public.assessment_drafts where assessment_type='test' and assessment_id=test_before.id;
@@ -145,7 +148,8 @@ function caseProbe(f: TestOwnerPublicationFixture, c: TestOwnerPublicationFixtur
  or (select revision from public.classroom_archive_revisions where classroom_id=test_before.classroom_id)<>archive_before.revision+2+t+2*${c.Q}
  or q_after<>pg_catalog.jsonb_array_length(draft_before.content->'questions') or (select pg_catalog.to_jsonb(d) from public.assessment_drafts d where d.id=draft_before.id) is distinct from pg_catalog.to_jsonb(draft_before) then raise exception 'Publication exact effects differ';end if;end;`)
   }
-  const expected = c.expectedHTTP === 400 ? 'PT400' : c.expectedHTTP === 403 ? 'PT403' : c.expectedHTTP === 404 ? 'PT404' : c.expectedHTTP === 409 ? 'PT409' : 'PT503'
+  // The SDK stops at snapshot with404; a Draft absent at the final CAS is409.
+  const expected = c.label === 'missing-draft' ? 'PT409' : c.expectedHTTP === 400 ? 'PT400' : c.expectedHTTP === 403 ? 'PT403' : c.expectedHTTP === 404 ? 'PT404' : c.expectedHTTP === 409 ? 'PT409' : 'PT503'
   return probe(c.label, `declare code text;begin begin perform ${publicationCall(c,classId,content)};raise exception 'Denied publication succeeded';exception when others then get stacked diagnostics code=returned_sqlstate;if code<>${q(expected)} then raise exception 'Denied publication code differs';end if;end;end;`)
 }
 

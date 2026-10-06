@@ -111,6 +111,27 @@ describe('contextual Test publication rollback database contracts', () => {
     expect(catalog).not.toContain(`'${declared}'`)
   })
 
+  it('isolates missing persisted Draft in final SQL while retaining the snapshot HTTP404 case', () => {
+    const c = f.cases.find(c => c.label === 'missing-draft')!
+    expect(c.expectedHTTP).toBe(404)
+    expect(c.expectedRPCs).toBe(1)
+    expect(f.drafts.find(d => d.assessment_id === c.testId)).toBeUndefined()
+    const probe = [...manifest.contracts.matchAll(/do \$probe\$([\s\S]*?)end;\$probe\$;/g)]
+      .map(match => match[1]).find(block => block.includes("message='missing-draft'"))!
+    expect(probe).toContain("code<>'PT409'")
+    expect(probe).not.toContain("code<>'PT404'")
+    const contentLiteral = probe.match(/,'((?:[^']|'')*)'::jsonb,pg_catalog\.clock_timestamp/)?.[1]
+    expect(contentLiteral).toBeDefined()
+    const content = JSON.parse(contentLiteral!.replaceAll("''", "'"))
+    expect(content).toEqual(f.drafts[0].content)
+    expect(content.question_identity_version).toBe(1)
+    expect(content.questions.length).toBeGreaterThan(0)
+    const callBody = probe.split('before_graph:=pg_temp.owner_publication_graph();begin ')[1]
+      .split("raise exception using errcode='PT499'")[0]
+    expect(callBody).toContain('public.publish_test_from_draft_for_owner_v1(')
+    expect(callBody).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
+  })
+
   it('runs only the accepted bundle and always closes its exact session', async () => {
     const acceptedManifestSha256=createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
     const target=Object.freeze({projectId:project,apiUrl:'http://127.0.0.1:54331',databaseHost:'127.0.0.1',databasePort:54332,
