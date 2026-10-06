@@ -317,6 +317,95 @@ motion/visibility, and reviewed native-control registry deltas compose by union.
 All original logical continuity bodies and exact main archive prefix retained.
 Combined focused check and coordinator-owned visual verification remain required;
 no feature head, protected branch, hosted service, pattern authority or rollout changed.
+## 2026-10-06 — Pristine Test draft discard source preparation
+
+Parent1500 exactdba readyCI37422413824 Test/Build PASS; browser/database/PRGate
+still pending, not merged. Disjoint dependent source fast-forwarded onto clean
+dba without stash/reset. Root accepted full dependency inventory and app source;
+73 fixture/transport and9 DB/race source checks delivered by bounded workers.
+Root independently reran73 and75 facade/lifecycle/legacy checks. Initial lifecycle
+test used wrongCLIflag; corrected test to inherited --reviewed-head, not parser.
+New251 delegates156 once, full predicate/dualCAS/later pristine versions retained;
+current activeowner independent role/plan; nondestructive child/retainedmark/global
+managed-resource blockers and inner service-grant gate. Shared native engine
+has two fixed privilege probes without counter/deadline renewal;249/250 facade
+APIs retained. Proof/races run BEFORE normal durable SDK removals. Full generated
+RPC declaration remains missing pending genuine sealed nativeCLI generation;
+no casts/manual declarations. Source checks are not native acceptance.56 rollback
+checks/14 schedules/20RPC planned, caps unchanged; actual lifecycle-state profiles
+remain explicit rollout obligations. Canonical local/prod249–251 unapplied;
+no parent edits/promotion/accounts/providers/home/page/cutover/billing activation.
+DeepSeek paused; account33% weekly remaining last observed, attributable tokens/
+active time unknown. Frozen worker handoffs include source hashes and timings;
+native verification and independent review not yet accepted. Goal incomplete.
+
+## 2026-10-06 — Test creation merged; discard initial review remediation
+
+PR1500 exactdba CI37422413824 allfivechecksPASS, includingPRGate; normal squash
+merged06:59UTC at5bf3dbacc, identical source tree. Clean canonicalmain fast-forwarded;
+36orderedstashes preserved. No canonical249–251apply/promotion/activation.
+Discard sealed27d initial complementaryreviews finished: fullsecurity CLEAN,
+compatibility found missing wrong-Class provenance nativeproof. CurrentSQL guard
+is correct. Onebatch changes existingblocker to differentvalidClass, exactTest and
+unrelated suppliedDraft preserved; focusedregression,13affectedtests/lintPASS.
+56labels/caps/deadlines unchanged. Reviewclock06:47:09/2launches retained; runtime
+acceptance/genuineRPCtypes stillpending. Account31weeklyremaining, tasktokens/
+active time unknown; goalnotcomplete, allrolloutcontrols held.
+
+## 2026-10-06 — Discard fixture first native attempt contained and corrected
+
+Targetedced2 source review CLEAN; root accepted finiteexactprojectwrapper/SAMEB1
+and startednormal1. Failedapp-write/fixture before0RPC/Storage/deletions; exact
+cleanupnonefailures, separatewholeSAMEB1 afterPASS. No success/typesreceipt.
+Read-only source diagnosis identifies164markINSERT requiresactiveenrollment;
+fixture/nativeblocker incorrectly inserted for unenrolledactor. Secondfixbatch
+adds reserved naturaltemporaryenrollment→markINSERT→exactenrollmentDELETE,
+fullretainedmark/closed168generation guards;4activeenrollments preserved,
+no evidence bypass/delete/reset. TDD14RED/9PASS then112/6GREEN; fullfocused
+658/26PASS/staticarchitectureUI/designPASS; TSCsolemissinggenuineRPC stillFAIL,
+not completegate. Original06:47:09clock/3reviewlaunches retained; targeted
+securityreview before anyretry. No canonical/prodapply or rollout activation.
+
+## 2026-10-06 — Discard catalog physical-order correction
+
+Targeted1a4 retainedmark/securityreview CLEAN119/6; normal2 nowsetupcomplete,
+two actual distinct42501privilege probes/restorationPASS (2RPC/0Storage), then
+closedPCD01catalog-function failed before normalSDKdeletions. Exactcleanup
+nonefailures/separatewholeSAMEB1 afterPASS. No types/successreceipt/forcedmodes.
+Root source039042066112143147210 proves gradebook_weight was added before
+identity columns. Bound currentcanonical container schema-only PGdefaultreadonly/
+5stimeout query confirms exact21/10physicalcolumns; no rows/credentials/writes.
+Thirdfixbatch corrects literalTestcolumnorder only, retains attnum/everycolumn/
+ACL assertions. Regression RED1/8, originalcaps/SQL251/fixture/app unchanged.
+Review original06:47:09clock/4launches retained; targeted review before retry.
+Canonical249–251/prod/rollout untouched; no phase/goalexit.
+
+## 2026-10-06 — Pristine Test discard isolated acceptance
+
+Targeted5f5 column-order review CLEAN19/4; root verified report/seals. Normal3
+at clean5f5f097673c5 passed18 installed-SDK cases/20RPC/0Storage/6 exact pair
+removals,2 different restored raw42501 probes,56 rollback checks/14 contention
+schedules/70 dispatches,0 remaining sessions. Genuine CLI public types copied
+mechanically and full-byte cmp PASS; only newRPC10lines. Both serial forced
+modes exited1 with exact two markers; separate SAME whole immutable B1 checks
+before/after each passed. Earlier two failures retained. No cap/deadline change.
+Added serialCI251 gate, RED1/GREEN2; focused660/27 plus policies/TSC/lintPASS.
+Full coverage PASS with unchanged floors. Original review06:47:09 clock,
+five launches/three fix batches retained under existing human task waiver.
+Final independent integration review/draftPR/exact-headCI/normal mainmerge next.
+Canonical249–251/prod/account/cohort/UI/cutover/billing holds remain; no phaseexit.
+
+## 2026-10-06 — Discard CI fixture-test isolation correction
+
+Final14cab cumulativeSol-class review CLEAN211/6; draft#1503 markedready once.
+CI37432947676 retained13,775PASS/1FAIL/8SKIP: eight denial/probe contexts shared
+one offline5s test. PRreturnedDRAFT beforefix; otherlanesnormalcancelled/PRGateFAIL.
+Oldwatch46558closedexit1; no duplicateCI. Batch4 parameterizes exactsame8cases,
+freshfull1001-rowbaseline/all16assertions/default5s retained, native/app/SQLunchanged.
+Affected23PASS; fullcorrectedcoverage13,783PASS/8SKIP/144.45s, allsamefloorsPASS.
+Original06:47:09clock/sixlaunches/fourfixbatches retainedhumanwaiver. Targeted
+correction and cumulative integration carryforward/exact-head freshCI stillrequired.
+No canonicalmigration/prod/account/cohort/UI/cutover/billing orphaseexit.
 
 ## 2026-10-06 — Compact Daily summary pane
 
@@ -868,3 +957,15 @@ normal/forced output, authorities and caps unchanged. Source batch18/current
 targeted review/focused/exactheadCI pending; original13:07:17 clock/20 launches
 retained/taskstopwaiver active/DeepSeek paused. Local/prod249–252 unapplied;
 no migration/promotion/cohort/account/provider/billing/rollout or phase exit.
+
+## 2026-10-06 — Publication Survey-main reconciliation before CI
+
+Sol21 targeted startup-diagnostic review CLEAN866; focused1302/44/policies/TSC/
+lintPASS. Pushed866 onlywhilePR1510DRAFT; no ready/CI request after discovering
+mainbac3ab94c (#1511 Survey UI).16-commit rebase succeeded; sole archive conflict
+removed3markers retainingbothsides. IncomingUI/tests exactmain; publication,
+SQL252/types/nativeproof/tooling/CI byte-identical866. All37 stashes/ordereddigest
+7bb1ea11 retained; no newstash/pop/drop. Main251/branch252 unchanged/no resequence.
+Currentdocs record newbase; changed-base narrow review/focused/exactCI remain.
+Original13:07:17 reviewclock/21launches18targets1initial1final/19batches andhuman
+taskstopwaiver retained. Local/prod249–252 unapplied/noactivationorphaseexit.

@@ -30,6 +30,14 @@ behavior, proof authority and limits are unchanged. Offline32 RED preceded the
 correction; native-command wiring and related lifecycle coverage144/4 now pass.
 Targeted review, current focused checks and new exact-head CI remain required.
 
+Sol/high targeted diagnostic review and focused1302/44 passed86606bd. Before
+starting CI, main advanced to bac3ab94c (#1511 Survey results UI). PR1510 stayed
+draft; the16-commit rebase retained both sides of its sole archive conflict,
+all37 stashes and incoming UI/test bytes. Product/SQL252/types/proof/tooling/CI
+bytes remain unchanged from866, with main251/branch252 and no numbering collision.
+Changed-base review, focused checks and one new exact-head CI still precede merge;
+no new local native or coverage evidence is claimed.
+
 ## Historical pre-type preparation
 
 The isolated proof implementation was ready for independent source review: one full-row fixture,

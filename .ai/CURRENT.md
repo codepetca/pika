@@ -1,6 +1,6 @@
 # Checkpoint — 2026-10-06 UTC
 
-Main `693a096df`; 27 audit findings accepted.
+Main `bac3ab94c`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Production LIVE since2026-10-05 06:27UTC; loginHTTP200. Appc6f23b4b (#1476),
