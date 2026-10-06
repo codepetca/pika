@@ -118,12 +118,10 @@ describe('closed discard witness/effect acceptance',()=>{
     const bad=structuredClone(s);bad['public.tests'][0].title='drift'
     expect(()=>verifyTestOwnerPristineDiscardEffects(f,s,bad,label,pending,{discarded:false,test:e.test})).toThrow()
   })
-  it('denials and both raw privilege probes require whole equality and no witness/public result',()=>{
+  it.each([...f.cases.filter(c=>c.expectedHTTP!==200),...f.privilegeProbes])('denial/probe $label requires whole equality and no witness/public result',c=>{
     const s=baseline()
-    for(const c of [...f.cases.filter(c=>c.expectedHTTP!==200),...f.privilegeProbes]) {
-      expect(verifyTestOwnerPristineDiscardEffects(f,s,s,c.label,[])).toEqual([])
-      expect(()=>verifyTestOwnerPristineDiscardEffects(f,s,s,c.label,[],{discarded:true})).toThrow()
-    }
+    expect(verifyTestOwnerPristineDiscardEffects(f,s,s,c.label,[])).toEqual([])
+    expect(()=>verifyTestOwnerPristineDiscardEffects(f,s,s,c.label,[],{discarded:true})).toThrow()
   })
   it('rejects unbound/current-owner/private-shape witnesses',()=>{
     const e=witness(baseline())

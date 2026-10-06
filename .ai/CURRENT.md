@@ -15,7 +15,7 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Settings last verified in prior receipts; no fresh hosted query here for controls.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-Next: discard251 native/types/forced cleanup PASS; final review/PR pending.
+Next: discard251 proof PASS; #1503 draft for CI fixture-timeout correction/review.
 249–251 unapplied. No phase exit.
 See `docs/guidance/contextual-test-pristine-discard.md`.
 

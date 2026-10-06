@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Private-repository CI compute preparation
-
-- Goal: retain required PR verification while moving heavy lanes to a dedicated Linux runner, with canonical local CI and a hosted fallback. Worktree `self-hosted-ci`, branch `codex/self-hosted-ci`; risk `runtime-platform`. Plan and activation guide: `docs/guidance/self-hosted-ci.md`.
-- Hosted routing remains the default; self-hosting requires private same-repository source and explicit opt-in. Isolation preflight refuses existing Docker resources, occupied ports and checkout environment files. Cancellation waits for the whole command process group; unconfirmed termination refuses database cleanup. No local migration application, privacy change, runner registration or activation occurred. Host choice and operational rehearsal remain pending.
-- Native worker GPT-6.1 Sol/high delivered the local extractor and tests in about 14 minutes; two initial test/rework rounds, about three minutes coordinator effort, token telemetry unknown. Starting weekly remaining: 58%; DeepSeek pause honored. Coordinator verified delivered code and integrated checks.
-- Draft PR #1475: full clean-checkout canonical Test & Build at `5426a150` passed 12,452 tests, coverage, policies, TypeScript, lint and production build. Two cancellation fix batches passed 25 lifecycle tests, including resistant descendants. Focused checks at final implementation `0ad72fd7` and rebased `cd05f97d` passed 189 tests/13 files plus all policies, TypeScript and lint. Exact-SHA all-lanes dry run after rebase includes 247 migrations and the upstream Test owner-draft contract.
-- Six independent review launches completed: initial security/compatibility, two targeted cancellation reviews, final cumulative review and targeted changed-base integration. All accepted blockers are fixed. A seventh mechanical review of this continuity cleanup is pending; no additional launch is authorized within the default budget. Review clock began 03:18 UTC. Two fix batches plus one base synchronization; Linux activation remains outside completed preparation.
-- Hosted CI `37260199028` on `0ad72fd7` passed Test & Build but the unchanged database harness stopped before fixtures with `sc242 fixture namespace collision`; the cause was not proven after stack teardown. Returning PR to draft canceled the browser job through normal concurrency. No harness or collision guard was weakened. Rebased onto actual main `6586847c` (#1473); only archive conflict retained upstream history. Removed two auto-merged duplicate entries after verifying their complete bodies already exist in the archive. One fresh eligible PR run remains required on the reviewed current head; merge still requires normal owner authority.
-- Evidence: `/tmp/pika-selfhost-local-live.log`, `/tmp/pika-selfhost-focused-rebased.log`, `/tmp/pika-selfhost-local-plan-rebased.log`, `/tmp/pika-selfhost-db-job.log` and `/tmp/pika-selfhost-rebase-range-diff.log`. Preparation and operational goal remain incomplete until the required CI, merge decision and host/private activation gates pass.
-
 ## 2026-10-05 — Survey split authoring
 
 New/Edit Survey now opens the test-style 1/3 details + 2/3 active question editor (stacked mobile); direct generated-title draft creation, MC/open-response/link, multiline prompts, selected-question navigation, autosave flush/retry, Markdown and Preview retained. Reuses CreationModalShell, Test split composition and @/ui controls; no shared-contract or stable-canon change, no experimental pattern/promotion. Survey identity guards retained; creation responses cannot open in another Classroom. Risk: workspace-state. Composite checklist reviewed: semantic pressed states, keyboard controls, modal Escape/focus; student n/a because only teacher authoring changed.
@@ -596,3 +586,15 @@ Full coverage PASS with unchanged floors. Original review06:47:09 clock,
 five launches/three fix batches retained under existing human task waiver.
 Final independent integration review/draftPR/exact-headCI/normal mainmerge next.
 Canonical249–251/prod/account/cohort/UI/cutover/billing holds remain; no phaseexit.
+
+## 2026-10-06 — Discard CI fixture-test isolation correction
+
+Final14cab cumulativeSol-class review CLEAN211/6; draft#1503 markedready once.
+CI37432947676 retained13,775PASS/1FAIL/8SKIP: eight denial/probe contexts shared
+one offline5s test. PRreturnedDRAFT beforefix; otherlanesnormalcancelled/PRGateFAIL.
+Oldwatch46558closedexit1; no duplicateCI. Batch4 parameterizes exactsame8cases,
+freshfull1001-rowbaseline/all16assertions/default5s retained, native/app/SQLunchanged.
+Affected23PASS; fullcorrectedcoverage13,783PASS/8SKIP/144.45s, allsamefloorsPASS.
+Original06:47:09clock/sixlaunches/fourfixbatches retainedhumanwaiver. Targeted
+correction and cumulative integration carryforward/exact-head freshCI stillrequired.
+No canonicalmigration/prod/account/cohort/UI/cutover/billing orphaseexit.

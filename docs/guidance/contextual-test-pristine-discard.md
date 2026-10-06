@@ -78,3 +78,13 @@ checks and unchanged native/job limits. Full local checks, final independent
 integration review and exact-head PR Gate are still required before main merge.
 These receipts do not close the documented lifecycle-state obligations or the
 access phase, and do not authorize applying249–251 to canonical local/production.
+
+First ready-event CI37432947676 at reviewed14cab0eb passed classification but
+timed out one offline fixture test bundling eight denial/privilege cases under
+one default5-second budget;13,775 other tests passed. The PR returned to draft
+and normal concurrency canceled the remaining lanes. Split those same eight
+cases into individually named tests with fresh full1001-row baselines, every
+original assertion and unchanged default timeout. No runtime source, fixture,
+SQL, native deadline or CI job limit changed. Corrected full local coverage
+passed13,783 tests/8 existing skips with the same measured coverage and floors.
+Re-review and fresh exact-head CI remain required; the failed run is not acceptance.
