@@ -61,8 +61,8 @@ const directFks = ['test_questions_test_id_fkey','test_attempts_test_id_fkey','t
   'test_student_availability_test_id_fkey','test_ai_grading_runs_test_id_fkey','test_ai_grading_run_items_test_id_fkey',
   'managed_storage_json_references_test_id_fkey','classroom_guided_draft_provenance_test_id_fkey'] as const
 export const TEST_OWNER_PRISTINE_DISCARD_TEST_COLUMNS = Object.freeze(['id','classroom_id','title','status','show_results','position',
-  'points_possible','include_in_final','created_by','created_at','updated_at','documents','artifact_id','source_artifact_id',
-  'blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_weight',
+  'points_possible','include_in_final','created_by','created_at','updated_at','documents','gradebook_weight','artifact_id','source_artifact_id',
+  'blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id',
   'gradebook_maximum_override','gradebook_score_scale'] as const)
 export const TEST_OWNER_PRISTINE_DISCARD_DRAFT_COLUMNS = Object.freeze(['id','assessment_type','assessment_id','classroom_id','content',
   'version','created_by','updated_by','created_at','updated_at'] as const)

@@ -2,13 +2,23 @@ import { describe, expect, it } from 'vitest'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerPristineDiscardFixture } from '../../scripts/contextual-test-pristine-discard-proof-fixture'
 import { TEST_OWNER_PRISTINE_DISCARD_DB_CAPS, TEST_OWNER_PRISTINE_DISCARD_DB_CHECK_LABELS, TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS,
-  testOwnerPristineDiscardDbContractsSql, testOwnerPristineDiscardDbPlanObjectIds } from '../../scripts/contextual-test-pristine-discard-db-contracts'
+  testOwnerPristineDiscardDbContractsSql, testOwnerPristineDiscardDbPlanObjectIds,
+  TEST_OWNER_PRISTINE_DISCARD_TEST_COLUMNS, TEST_OWNER_PRISTINE_DISCARD_DRAFT_COLUMNS } from '../../scripts/contextual-test-pristine-discard-db-contracts'
 
 const f = newTestOwnerPristineDiscardFixture(newAssignmentListProofFixture(new Date('2026-10-06T03:00:00Z')))
 const project = `pika_assignment_list_${f.tag.slice(-12)}`
 const sql = testOwnerPristineDiscardDbContractsSql(f, project)
 
 describe('contextual pristine Test discard rollback database contracts', () => {
+  it('attests complete physical column order from039/042/066/112/143/147/210, not UI grouping', () => {
+    expect(TEST_OWNER_PRISTINE_DISCARD_TEST_COLUMNS).toEqual(['id','classroom_id','title','status','show_results','position',
+      'points_possible','include_in_final','created_by','created_at','updated_at','documents','gradebook_weight','artifact_id',
+      'source_artifact_id','blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id',
+      'gradebook_maximum_override','gradebook_score_scale'])
+    expect(TEST_OWNER_PRISTINE_DISCARD_DRAFT_COLUMNS).toEqual(['id','assessment_type','assessment_id','classroom_id',
+      'content','version','created_by','updated_by','created_at','updated_at'])
+    expect(sql).toContain('pg_catalog.array_agg(a.attname::text order by a.attnum)')
+  })
   it('is one finite rollback-only bundle with closed diagnostics', () => {
     expect(Buffer.byteLength(sql)).toBeLessThanOrEqual(TEST_OWNER_PRISTINE_DISCARD_DB_CAPS.sqlBytes)
     expect(TEST_OWNER_PRISTINE_DISCARD_DB_CAPS).toEqual({ sqlBytes: 256 * 1024, actionMs: 35_000, requestMs: 12_000 })

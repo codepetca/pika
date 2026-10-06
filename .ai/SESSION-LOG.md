@@ -11,36 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner draft GET Docker recovery and runtime evidence
-
-1473 remainsdraft; targeted3 Sol5.6/high CLEAN80aa. Pre-restart normalfailed
-guard/inspect/requestcounter10; counter advancesbeforeHTTPdispatch, not tencompleted
-requests. Docker container/volume endpoints stalled while Mac had207GiBfree.
-Human authorized Dockerrestart; original saved canonical baseline matched after
-warmup. Exact9800 synthetic5containers/2volumes/network checked IDs/dual labels/
-creationwindow/foreignattachments/ports/copied247 SQL/config, removed andabsence
-verified; copiedsourceevidence retained, unknownDockerdata preserved.
-Normal80aa rerun EXIT0/twoclosedPASSlines/stderr0:15SDKcases/complete1001source,
-restored42501probe/SQLrollbackcontracts/12races/inheritedcases+restoration/exact
-teardown andSAMEbaselinePASS. Genuine436178byte0600 CLIartifact installed onlytwo
-RPCcontracts, SHA82a6c12f2964ed93998047175698a792722e19cf911b1feb1173ba37e95f94ca.
-Afterfixture fullsetupforcedcase expectedEXIT1/cleanupPASS/SAMEbaselinePASS.
-Beforecapturefirst failedbefore setup/platformcommand andleft32c4418 stack; retry
-diagnostic provedCLIstart failed54332binding dueownedleftover. Exact32c4418 eight
-resources verified/recovered, SAMEbaselinePASS. Thirdattempt againpending/platform
-failure, no syntheticcontainers remain; beforecaptureNOTaccepted, no blindretry.
-Read-only Sol6.1/high proofowner2m43+52s manualdiagnoses, effective/tokensunknown,
-identified no deterministiccustodydefect. Rootdiagnosticbatch4 retains closed
-inheritedphase/cleanup state; oneRED then130/2affectedGREEN withfivephasetests.
-Initialprivate diagnosticCJS transform failure retained; fixed privateimport only.
-Reviewclock00:51:52 and5launch/3targeted/3fix counters retained untilbatch4published;
-humanreview-stopwaiver persists, no correctness/runtime/CI waiver. Account60percent
-weeklyremaining02:02Z, shared/not attributable. Prod225/local243/rolloutOFF unchanged.
-Finalfocused/type/lint/audit, targetedsourceacceptance, beforecapture proof andfinal
-cumulative review/exactheadCI/merge remain; no phase/goal completion claim.
-Batch4 requiredfocused409/17 plusarchitecture/UI/design/TypeScript/lint allPASS;
-no skippedtyping or overallfailedgate claim. Beforecapture remainsseparatelypending.
-
 ## 2026-10-04 — Owner draft GET full-suite remediation
 
 Targeted4 Sol5.6/high CLEAN75c,1m59 manual; six launches/four targeted/four fixes,
@@ -616,3 +586,17 @@ no evidence bypass/delete/reset. TDD14RED/9PASS then112/6GREEN; fullfocused
 658/26PASS/staticarchitectureUI/designPASS; TSCsolemissinggenuineRPC stillFAIL,
 not completegate. Original06:47:09clock/3reviewlaunches retained; targeted
 securityreview before anyretry. No canonical/prodapply or rollout activation.
+
+## 2026-10-06 — Discard catalog physical-order correction
+
+Targeted1a4 retainedmark/securityreview CLEAN119/6; normal2 nowsetupcomplete,
+two actual distinct42501privilege probes/restorationPASS (2RPC/0Storage), then
+closedPCD01catalog-function failed before normalSDKdeletions. Exactcleanup
+nonefailures/separatewholeSAMEB1 afterPASS. No types/successreceipt/forcedmodes.
+Root source039042066112143147210 proves gradebook_weight was added before
+identity columns. Bound currentcanonical container schema-only PGdefaultreadonly/
+5stimeout query confirms exact21/10physicalcolumns; no rows/credentials/writes.
+Thirdfixbatch corrects literalTestcolumnorder only, retains attnum/everycolumn/
+ACL assertions. Regression RED1/8, originalcaps/SQL251/fixture/app unchanged.
+Review original06:47:09clock/4launches retained; targeted review before retry.
+Canonical249–251/prod/rollout untouched; no phase/goalexit.
