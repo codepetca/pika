@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Fluid classroom Daily pilot
-
-Set active goal and audited continuity using one bounded GPT-6.1 Sol/medium worker; DeepSeek remains owner-paused. New fluid-classroom-plan records experience contract, governed reuse/extend choices and later teacher/student slices. Daily now keeps one table/split owner, retains valid same-date selection, clears changed scope/removed students, and discloses details with existing tokens and inert hidden controls. Escape now ignores the mounted hidden user menu while deferring to an open menu. Pattern Lab real-owner candidate remains experimental; owner acceptance requested before promotion/broader adoption. No dependency or database changes.
-
-20 Daily matrix +8 existing teacher/student reference +4 new inspector browser cases PASS; six normal/reduced light/dark desktop/mobile capture variants preserve scroll/DOM/focus and direct drag resize. Visual review caught and fixed the Lab demo's mobile height constraint. Evidence is the chat visualization fluid-pilot directory; local first-observed-selection 42–63ms is fixture-only frame sampling, not production INP. Final serial focused gate, draft publication and fixed-SHA review results tracked on the PR; concurrent gallery timeouts are addressed through serial checks without weakened limits. Goal remains active; no merge/deployment authority added.
-
 ## 2026-10-05 — Daily fluid UI pilot CI remediation
 
 PR #1481 returned to draft after ready CI Test & Build failed on two unchanged
@@ -665,3 +659,14 @@ Reuse/extend decisions and reference unchanged. Risk none; existing eight-view
 visual matrix refreshed with an explicit no-visible-0% check. Added zero-vote,
 zero-total and tiny-nonzero semantic cases to the existing component test.
 PR returned to draft before publishing; targeted review/final checks in PR notes.
+
+## 2026-10-06 — Survey percentage alignment
+
+PR1511 follow-up: reuse/extend SurveyOptionResultBar with labels overlaying the
+full track and a fixed-width percentage column at the far right of each row.
+Blank zero-vote percentage columns keep all tracks aligned. Original question
+and option order retained by API position ordering and existing array maps.
+Pattern Lab and visual fixture now put the highest-vote option second to verify
+that responses do not reorder the survey. Existing both-role/viewport/theme
+matrix refreshed, including percentage right alignment and order assertions.
+Risk none; no business-logic/API changes. Checks and bounded review in PR notes.

@@ -38840,3 +38840,10 @@ Final first-question discard browserPASS16.7s after a30s overall deadline during
 concurrent static checks; all intended assertions passed when run alone. Final
 architecture/UI/design/TypeScript/lint and auditPASS; required aggregate rerun
 uses unchanged gate. Phase ledger3reviews/2fixes before final targeted acceptance.
+
+<!-- pika-session-log-archive-batch:1be8995af21789dcb3990b07bff1191b00357c927c49ac9940848a17608e8bdf -->
+## 2026-10-05 — Fluid classroom Daily pilot
+
+Set active goal and audited continuity using one bounded GPT-6.1 Sol/medium worker; DeepSeek remains owner-paused. New fluid-classroom-plan records experience contract, governed reuse/extend choices and later teacher/student slices. Daily now keeps one table/split owner, retains valid same-date selection, clears changed scope/removed students, and discloses details with existing tokens and inert hidden controls. Escape now ignores the mounted hidden user menu while deferring to an open menu. Pattern Lab real-owner candidate remains experimental; owner acceptance requested before promotion/broader adoption. No dependency or database changes.
+
+20 Daily matrix +8 existing teacher/student reference +4 new inspector browser cases PASS; six normal/reduced light/dark desktop/mobile capture variants preserve scroll/DOM/focus and direct drag resize. Visual review caught and fixed the Lab demo's mobile height constraint. Evidence is the chat visualization fluid-pilot directory; local first-observed-selection 42–63ms is fixture-only frame sampling, not production INP. Final serial focused gate, draft publication and fixed-SHA review results tracked on the PR; concurrent gallery timeouts are addressed through serial checks without weakened limits. Goal remains active; no merge/deployment authority added.
