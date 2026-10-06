@@ -132,7 +132,7 @@ export function GradebookTable({
                 </DataTableHeaderCell>
               ))}
               {filler ? <DataTableHeaderCell align="center" className="bg-surface-3">{columns.length ? <span className="sr-only">Unused assessment space</span> : 'Assessments'}</DataTableHeaderCell> : null}
-              <DataTableHeaderCell align="right" className={cn('bg-gradebook-final', frozen && 'sticky right-0 z-sticky-table')}>Final</DataTableHeaderCell>
+              <DataTableHeaderCell align="right" className={cn('bg-surface-3', frozen && 'sticky right-0 z-sticky-table')}>Final</DataTableHeaderCell>
             </DataTableRow>
           </DataTableHead>
           {(showWeights || displayMode === 'raw') && columns.length > 0 ? (
@@ -148,7 +148,7 @@ export function GradebookTable({
                   </Button>
                 </DataTableCell>)}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                <DataTableCell className={cn('bg-gradebook-final', frozen && 'sticky right-0')}>{null}</DataTableCell>
+                <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0')}>{null}</DataTableCell>
               </DataTableRow> : null}
               {displayMode === 'raw' ? <DataTableRow aria-label="Max mark">
                 <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
@@ -165,7 +165,7 @@ export function GradebookTable({
                   </Button>
                 </DataTableCell>)}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                <DataTableCell className={cn('bg-gradebook-final', frozen && 'sticky right-0')}>{null}</DataTableCell>
+                <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0')}>{null}</DataTableCell>
               </DataTableRow> : null}
               {showWeights ? <>
                 <DataTableRow aria-label="Weight">
@@ -188,7 +188,7 @@ export function GradebookTable({
                     </DataTableCell>
                   })}
                   {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                  <DataTableCell className={cn('bg-gradebook-final', frozen && 'sticky right-0')}>{null}</DataTableCell>
+                  <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0')}>{null}</DataTableCell>
                 </DataTableRow>
                 <DataTableRow aria-label="Course %">
                   <DataTableCell className={cn('bg-surface-2', frozen && 'sticky left-0')}>{null}</DataTableCell>
@@ -199,7 +199,7 @@ export function GradebookTable({
                     <output aria-label={`Course weight for ${column.title}`}>{courseWeights[getAssessmentColumnKey(column)] == null ? '—' : (ultraCompact ? formatWholePercent(courseWeights[getAssessmentColumnKey(column)]) : `${courseWeights[getAssessmentColumnKey(column)]}%`)}</output>
                   </DataTableCell>)}
                   {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                  <DataTableCell className={cn('bg-gradebook-final', frozen && 'sticky right-0')}>{null}</DataTableCell>
+                  <DataTableCell className={cn('bg-surface-2', frozen && 'sticky right-0')}>{null}</DataTableCell>
                 </DataTableRow>
               </> : null}
             </tbody>
@@ -243,7 +243,7 @@ export function GradebookTable({
                   </DataTableCell>
                 })}
                 {filler ? <DataTableCell aria-label={columns.length ? undefined : 'No assessments'}>{null}</DataTableCell> : null}
-                <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold tabular-nums', frozen && 'sticky right-0', active || selected ? 'bg-surface-3' : 'bg-gradebook-final group-hover:bg-surface-hover')}>
+                <DataTableCell align="right" className={cn('whitespace-nowrap font-semibold tabular-nums', frozen && 'sticky right-0', surface)}>
                   <Button
                     type="button"
                     variant="ghost"
@@ -279,7 +279,7 @@ export function GradebookTable({
                   </DataTableCell>
                 })}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                <DataTableCell align="right" className={cn('bg-gradebook-final font-semibold tabular-nums', getGradePercentTextClass(finalAverage), frozen && 'sticky right-0 z-sticky-table')}><span data-above-maximum={isGradeAboveMaximum(finalAverage) || undefined} title={isGradeAboveMaximum(finalAverage) ? formatAboveMaximumDescription(finalAverage) : undefined} className={cn(getGradePercentTextClass(finalAverage), isGradeAboveMaximum(finalAverage) && 'inline-flex items-center gap-0.5 px-1 py-1', isGradeAboveMaximum(finalAverage) && ABOVE_MAXIMUM_CLASS)}>
+                <DataTableCell align="right" className={cn('bg-surface-2 font-semibold tabular-nums', getGradePercentTextClass(finalAverage), frozen && 'sticky right-0 z-sticky-table')}><span data-above-maximum={isGradeAboveMaximum(finalAverage) || undefined} title={isGradeAboveMaximum(finalAverage) ? formatAboveMaximumDescription(finalAverage) : undefined} className={cn(getGradePercentTextClass(finalAverage), isGradeAboveMaximum(finalAverage) && 'inline-flex items-center gap-0.5 px-1 py-1', isGradeAboveMaximum(finalAverage) && ABOVE_MAXIMUM_CLASS)}>
                   {isGradeAboveMaximum(finalAverage) ? <span className="sr-only">{formatAboveMaximumDescription(finalAverage)}: </span> : null}
                   {formatCompactPercent(finalAverage)}
                 </span></DataTableCell>
