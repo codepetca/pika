@@ -38709,3 +38709,77 @@ telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollo
 New/Edit Survey now opens the test-style 1/3 details + 2/3 active question editor (stacked mobile); direct generated-title draft creation, MC/open-response/link, multiline prompts, selected-question navigation, autosave flush/retry, Markdown and Preview retained. Reuses CreationModalShell, Test split composition and @/ui controls; no shared-contract or stable-canon change, no experimental pattern/promotion. Survey identity guards retained; creation responses cannot open in another Classroom. Risk: workspace-state. Composite checklist reviewed: semantic pressed states, keyboard controls, modal Escape/focus; student n/a because only teacher authoring changed.
 
 Evidence: authoring/parent80 and student6 component tests PASS; browser4 PASS desktop1440x900/mobile390x844 × light/dark with edit, MC, open response, Markdown, Preview, new draft captures under test-results/survey-authoring-*; compared Test Pattern Lab reference /tmp/pika-survey-test-reference.png. Focused checks and independent review receipts follow in PR. Worktree survey-two-pane/pika; branch codex/survey-two-pane. One GPT-6.1 Sol medium worker mapped seams and wrote tests in two bounded assignments; coordinator verified80 tests. Weekly remaining50% at start; DeepSeek paused; worker/coordinator tokens and active time unknown; no edit conflicts/rework. Initial browser setup corrected theme key and fixture navigation before final4/4. No dependencies/schema/hosted changes.
+
+<!-- pika-session-log-archive-batch:3f3969644f85633c1c8170bc9f5f536d0a41a47cb929858d26bc75d809f1b8b4 -->
+## 2026-10-05 — Approved classroom motion rollout
+
+Owner accepted Daily restrained200ms direction for wider adoption in the owning chat. Scoped stable/family canon, audit and Pattern Lab promotion recorded; no dependency/merge/deploy authorization. Follow-up codex/fluid-motion-rollout includes reviewedDailyb94 and targetsmain for canonical CI; prior1481/1482/1484 heads unchanged. Classwork stable table/inspector, Tests disclosure/hidden-menu Escape guard, cross-role opacity entry, reducedmotion and immediate pointerresize. Coordinator corrected primary-refresh priority and layout-controller remount before acceptance; RED mode-state regression nowGREEN,145owner cases pass. Final motion browser24/24(2.0min) across bothroles/viewport/themes/normal-reduced verifies DOM/drafts/focus/scroll, all3Classwork modes, actual200ms/0ms, pointergeometry, inert close and nooverflow. Forced-midpoint contract samples are labeled; natural recordings and fullrequiredgate/cumulative siblingproof/independent stable-SHA PR lifecycle follow. DeepSeekpaused; Sol/high worker partial delivery corrected/integrated bycoordinator; attributableactive/tokensunknown.
+
+<!-- pika-session-log-archive-batch:f58614743f8c5dea1ba71aa250d5032f6889f2c717128270a9e159cc2b7d6f8b -->
+## 2026-10-05 — Test conflict retry correction prepared
+
+Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
+
+Owner reviewed ed330c6; CI37257238985 passed build/unit and real browser lifecycle, but the SQL lifecycle harness still caught the old serialization_failure code. Corrected its two catches and the manual-grading stale-batch catch to PT409; SQL/API fix unchanged. Focused297 passed; required database CI and renewed correction review remain pending. Public traffic remains held.
+
+CI37260146916 PASS on8db4cfbad:12427 unit/API,297 browser passes (4 retried,20 skipped), all database contracts/PR Gate. During CI, main#1473 merged6586847c with owner draft GET migration247. Rebased and renamed identical conflict SQL to248; preserved main history and incoming dormant behavior. Fresh combined-tree checks/CI and complete production247–248 preview are required; public traffic stays held.
+
+CombinedCI37263237568:12641PASS/8FAIL/8SKIP; incoming owner-draft harness required exactly247 migrations and rejected248. Returned1474 to draft; cancelled unqualifiable remaining jobs. Harnesses now accept >=247 while validating/hashing every sequential migration and frozen source/copies; native offline cache count uses full actual SQL inventory. New regression proves later migration changes manifest and copied-source drift still rejects. Affected158/4PASS; runtimeSQL/API and migration248 unchanged; focused/review/stableCI pending, no new production mutation.
+
+Correction validation: focused455/29PASS plusarchitecture/UI/design/TypeScript/lintPASS. Startupdocbudgetinitially17032>17000; compactedCURRENTreceipt (gateunchanged), rerunPASS. Coordinator verified baseline/order/full-chain hashes and drift/target/resourceguards preserved; priorruntime reviewer limit persists, directowner task-wide instruction waives further review requests. Stable correctedhead/newCI pending; failedruns retained.
+
+<!-- pika-session-log-archive-batch:ce69b6bb72d2049733a275cf562ed1298ff64522dce73a70ab7952f4490297ca -->
+## 2026-10-05 — Approved classroom motion rollout
+
+Owner accepted Daily restrained200ms direction for wider adoption in the owning chat. Scoped stable/family canon, audit and Pattern Lab promotion recorded; no dependency/merge/deploy authorization. Follow-up codex/fluid-motion-rollout includes reviewedDailyb94 and targetsmain for canonical CI; prior1481/1482/1484 heads unchanged. Classwork stable table/inspector, Tests disclosure/hidden-menu Escape guard, cross-role opacity entry, reducedmotion and immediate pointerresize. Coordinator corrected primary-refresh priority and layout-controller remount before acceptance; RED mode-state regression nowGREEN,145owner cases pass. Final motion browser24/24(2.0min) across bothroles/viewport/themes/normal-reduced verifies DOM/drafts/focus/scroll, all3Classwork modes, actual200ms/0ms, pointergeometry, inert close and nooverflow. Forced-midpoint contract samples are labeled; natural recordings and fullrequiredgate/cumulative siblingproof/independent stable-SHA PR lifecycle follow. DeepSeekpaused; Sol/high worker partial delivery corrected/integrated bycoordinator; attributableactive/tokensunknown.
+
+## 2026-10-05 — Test conflict retry correction prepared
+
+Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
+
+Owner reviewed ed330c6; CI37257238985 passed build/unit and real browser lifecycle, but the SQL lifecycle harness still caught the old serialization_failure code. Corrected its two catches and the manual-grading stale-batch catch to PT409; SQL/API fix unchanged. Focused297 passed; required database CI and renewed correction review remain pending. Public traffic remains held.
+
+CI37260146916 PASS on8db4cfbad:12427 unit/API,297 browser passes (4 retried,20 skipped), all database contracts/PR Gate. During CI, main#1473 merged6586847c with owner draft GET migration247. Rebased and renamed identical conflict SQL to248; preserved main history and incoming dormant behavior. Fresh combined-tree checks/CI and complete production247–248 preview are required; public traffic stays held.
+
+CombinedCI37263237568:12641PASS/8FAIL/8SKIP; incoming owner-draft harness required exactly247 migrations and rejected248. Returned1474 to draft; cancelled unqualifiable remaining jobs. Harnesses now accept >=247 while validating/hashing every sequential migration and frozen source/copies; native offline cache count uses full actual SQL inventory. New regression proves later migration changes manifest and copied-source drift still rejects. Affected158/4PASS; runtimeSQL/API and migration248 unchanged; focused/review/stableCI pending, no new production mutation.
+
+Correction validation: focused455/29PASS plusarchitecture/UI/design/TypeScript/lintPASS. Startupdocbudgetinitially17032>17000; compactedCURRENTreceipt (gateunchanged), rerunPASS. Coordinator verified baseline/order/full-chain hashes and drift/target/resourceguards preserved; priorruntime reviewer limit persists, directowner task-wide instruction waives further review requests. Stable correctedhead/newCI pending; failedruns retained.
+
+## 2026-10-05 — Production schema verified; release history reconciliation
+
+PR1474 merged5708750d after CI37264085316 all gates PASS (12672 unit/API,300 browser passes/1 retried/20 skipped, all database contracts). Complete247–248 preview37267273069 matched source/hashes/digest; one approved apply37267393757 is applied-verified,001–248 complete. Seven installed function bodies/security/owners/ACLs and12 unchanged controls PASS. Teacher/student own sessions freshly authorized; no more email sends. Public WAF operator-only; old application83b683c stays active until matching replacement/canaries/exactcleanup.
+
+Promotion1476 exposed strict up-to-date protection: main lacked production83b683c history. Returned promotion draft/cancelled its unqualifiable CI. Main enforces linear history and squash/rebase-only PR merges; production permits merge commits. This main docsPR records receipts with every application/SQL byte unchanged from5708750d. Squash it normally, then merge production83 history into the existing release branch, verify exact resulting main tree and83 ancestry, require its fullCI/PRGate and matching deployment. Current canonical CI shortcut requires exactmainSHA, so this metadata merge takes the full path. No protection/CI bypass, no new schema/flag activation or reapply. Direct owner task-wide approval waiver applies; native independent reviewer runtime remains unavailable. Lifecycle, two exact Storage files/new provider cleanup and WAF release still pending.
+
+History sync validation: initial docs-only focused157/10PASS; every src/supabase/workflow/script/test/E2E byte equals validated5708750d. Startupbudgetinitial17026 exceeded17000; compactCURRENT and rerunPASS, gate unchanged. Shared env/startup verified; no application/schema changes or new apply. Coordinator verified three continuity paths; direct owner task-wide approval waiver covers release reconciliation.
+
+GitHub rejected normalmerge1477 under main linear-history/method rules; repository-wide merge commits are enabled, production rule permits them. No settings/protection modified. Corrected receipt/plan to normal mainsquash plus release-branch production-history merge and all required fullCI. Direct owner waiver continues; app/SQL bytes unchanged and migrationapply remains consumed.
+
+## 2026-10-05 — Production public release verified
+
+PR1477 squashed toab2e629f; releaseb5cf85b9 preserves production ancestry and exactmain tree. FullCI37268657918 PASS:12672unit/API,157workflow,298browser+3retry-passes/20skips, realTest lifecycle direct-pass, all database contracts andPRGate. Normalproduction merge1476 producedc6f23b4b; Verceldpl_6Q7Er4cNiH1t3ZVefndqj573g5uD READY andbothproduction aliases verified. Schema001–248/sevenfunction bodies/security/ACLs/twelvecontrols rechecked unchanged; no reapply.
+
+Production canaryPASS: reopenedReturn409 in2.47s, closure/CASgrade/Return/disclosure/idempotence. NormalTestDELETE, exactlytwo leased Storage deletions and fenced completions, exactledger disposal, ownedlogout401, newstudentWorkOS deletion, guardedClassroom/twoPikauser cleanup completed. Existingteacher provider/realstudent preserved; unrelated285objects digestunchanged/pending17. PreparedleaseSQL CASEsyntax initiallyrejected withnochanges; parenthesized expression corrected andguarded executionPASS. WAFbaseline restored once; publiclogin200/auth401 at06:27UTC. Private production-public-live-completion-receipt.json records evidence. Owner approval waiver respected; runtime/CI/protection limits retained. Production usable; this docs-only handoff changes no application/schema/flags.
+
+<!-- pika-session-log-archive-batch:8e98771c99c4fc6e4ce43c44058b1108b0be7c6e5a5a00de1beb35975a5ab7ed -->
+## 2026-10-05 — Audit follow-up owner disposition
+
+Owner directed leaving braces in place and remembering it. No general TODO file exists; added DEP-01 to docs/core/roadmap.md deferred maintenance, linked dependency/audit evidence and retained mitigation plus the existing November4 exception review date. Owner considers remaining live verification done: additional summary provider timeout/retry and teacher-closed zero-scoring probes are closed by waiver, without claiming new executed checks. CURRENT/audit plan and private finding/handoff ledger record this disposition. No dependencies, application, production state or feature-epic status changed; no monitor scheduled.
+
+<!-- pika-session-log-archive-batch:21ca1d5739035b6e5387b3f2a66a6ef61f7d650beda4471b77b07eccb4ac0fb7 -->
+## 2026-10-05 — CI preparation approved merge refresh
+
+Owner approved PR #1475 merge into main and explicitly approved one bounded review-budget extension: launch 8, targeted changed-base integration capped at five minutes, followed by required CI. Prior seven launches and two cancellation code fixes remain counted; no new full-review wave. Old reviewed head `55d622b4` passed all five jobs in CI37261728363: 2,678 wall seconds, about 87.5 summed job minutes; classifier/gate 11/3 seconds. Main advanced through #1474/#1477/#1478/#1479 to `c25ebf78`; only conflict was archive bookkeeping. Complete earlier trim body was already archived upstream. Retained upstream archive and all main session receipts, restored only this task's preparation entry, then ran official trim. Runner policy/preflight/local executor and tests remain byte-identical to the reviewed implementation; current all-lane inventory includes upstream migration248. Refreshed focused checks, launch8 and exact-head eligible CI/merge are pending. No production, privacy, runner or local database operation; host choice and private activation remain pending. Weekly remaining at refresh54percent, account-wide and not attributable to this task; worker token telemetry unknown.
+
+<!-- pika-session-log-archive-batch:1e85b21f963eb45e65e1b7cf968adc4aecd49948e14fab4f7bcb9f417e0127ac -->
+## 2026-10-05 — Approved CI documentation correction
+
+Owner “go” authorizes one further correction batch and targeted review launch9
+(max five minutes), required checks and the already-approved PR1475 main merge.
+Launch8 accepted24b1f4d8; exactCI37308955639 failed one unchanged Bara rollout
+contract (12703PASS/8SKIP), locally reproduced. Returned draft/cancel requested.
+Upstream release #1478 shortened CURRENT's migration/control prefixes; restore
+only those two prefixes, retaining verified001–248 history and twelve unchanged
+controls from the production receipt. CI implementation and tests unchanged.
+Affected/focused verification and independent launch9 are pending; no budget
+reset or further review extension. Host/private runner activation remains pending.

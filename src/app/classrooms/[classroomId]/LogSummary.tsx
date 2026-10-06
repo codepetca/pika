@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Spinner } from '@/components/Spinner'
-import { formatRelativeDateTimeInToronto } from '@/lib/timezone'
+import { Button, cn } from '@/ui'
 import type { LogSummaryActionItem } from '@/types'
+import { formatLogSummaryItems } from '@/lib/log-summary-presentation'
 
 interface LogSummaryProps {
   classroomId: string
   date: string
+  firstNames?: Record<string, string>
   onStudentClick?: (studentName: string) => void
   onAvailabilityChange?: (available: boolean) => void
 }
@@ -23,6 +25,7 @@ type SummaryStatus = 'ready' | 'pending' | 'no_entries' | 'unavailable'
 export function LogSummary({
   classroomId,
   date,
+  firstNames,
   onStudentClick,
   onAvailabilityChange,
 }: LogSummaryProps) {
@@ -99,7 +102,7 @@ export function LogSummary({
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
+      <div className="flex min-h-11 items-center justify-center px-3 py-2">
         <Spinner />
       </div>
     )
@@ -107,7 +110,7 @@ export function LogSummary({
 
   if (error) {
     return (
-      <div className="px-3 pb-4 pt-2">
+      <div className="px-3 py-2">
         <p className="text-sm text-danger">{error}</p>
       </div>
     )
@@ -117,11 +120,11 @@ export function LogSummary({
     const message = summaryStatus === 'pending'
       ? 'Summary will be available after the nightly run.'
       : summaryStatus === 'unavailable'
-        ? 'A high-priority automated summary is not available for this date.'
+        ? 'Summary is not available for this date.'
         : 'No student logs for this date.'
 
     return (
-      <div className="px-3 pb-4 pt-2">
+      <div className="px-3 py-2">
         <p className="text-sm text-text-muted">
           {message}
         </p>
@@ -129,61 +132,103 @@ export function LogSummary({
     )
   }
 
-  if (!summary.overview && summary.action_items.length === 0) {
-    return (
-      <div className="px-3 pb-4 pt-2">
-        <p className="text-sm text-text-muted">
-          No notable items found in student logs.
-        </p>
-      </div>
-    )
-  }
+  return <LogSummaryContent actionItems={summary.action_items} firstNames={firstNames} onStudentClick={onStudentClick} />
+}
+
+/** Feature-owned presentation also rendered with deterministic Pattern Lab fixtures. */
+export function LogSummaryContent({
+  actionItems,
+  firstNames,
+  onStudentClick,
+}: {
+  actionItems: LogSummaryActionItem[]
+  firstNames?: Record<string, string>
+  onStudentClick?: (studentName: string) => void
+}) {
+  const contentId = useId()
+  const textRef = useRef<HTMLSpanElement>(null)
+  const clippedActionRef = useRef<HTMLButtonElement | null>(null)
+  const [expanded, setExpanded] = useState(false)
+  const [overflows, setOverflows] = useState(false)
+  const items = formatLogSummaryItems(actionItems, firstNames)
+  const conciseSummary = items.length > 0
+    ? items.map((item) => `${item.firstName} ${item.detail}`).join(' ')
+    : 'Nothing urgent'
+
+  useEffect(() => {
+    if (expanded) return
+    const text = textRef.current
+    if (!text) return
+    const measure = () => setOverflows(text.scrollHeight > text.clientHeight + 1)
+    measure()
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    observer?.observe(text)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [conciseSummary, expanded, overflows])
+
+  useEffect(() => {
+    if (expanded && clippedActionRef.current) {
+      clippedActionRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      clippedActionRef.current = null
+    }
+  }, [expanded])
+
+  const canToggle = overflows || expanded
 
   return (
-    <div className="space-y-3 px-3 pb-4 pt-2">
-      {summary.overview && (
-        <p className="text-sm text-text-default leading-relaxed">
-          {summary.overview}
-        </p>
-      )}
-
-      {summary.action_items.length > 0 && (
-        <div>
-          <ul aria-label="Class log follow-ups" className="space-y-1.5">
-            {summary.action_items.map((item, index) => {
-              // The text starts with the student name — make it clickable
-              const startsWithName = item.text.startsWith(item.studentName)
-              const restOfText = startsWithName
-                ? item.text.slice(item.studentName.length)
-                : item.text
-
-              return (
-                <li key={index} className="text-sm text-text-default">
-                  <span aria-hidden="true" className="text-warning mr-1.5">&#x25CF;</span>
-                  {startsWithName && onStudentClick ? (
-                    <>
-                      <button
-                        type="button"
-                        className="font-medium text-primary hover:underline"
-                        onClick={() => onStudentClick(item.studentName)}
-                      >
-                        {item.studentName}
-                      </button>
-                      {restOfText}
-                    </>
-                  ) : (
-                    item.text
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
-
-      <p className="pt-2 text-xs text-text-muted">
-        {formatRelativeDateTimeInToronto(summary.generated_at)}
-      </p>
+    <div className="max-h-[48vh] overflow-y-auto px-3 py-2 text-sm text-text-default" onClick={() => {
+      if (canToggle) setExpanded((value) => !value)
+    }}>
+      <span id={contentId} ref={textRef} data-summary-text className={cn('block min-w-0 break-words leading-5 [overflow-wrap:anywhere]', !expanded && 'line-clamp-2')}>
+        {canToggle ? (
+          <Button
+            variant="ghost"
+            aria-label={expanded ? 'Collapse summary' : 'Expand summary'}
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            className="mr-1 inline min-h-0 min-w-0 rounded-sm border-0 p-0 align-baseline text-sm font-semibold leading-5 text-primary hover:bg-transparent"
+            onClick={(event) => {
+              event.stopPropagation()
+              setExpanded((value) => !value)
+            }}
+          >
+            Summary
+          </Button>
+        ) : <span className="mr-1 font-semibold text-primary">Summary</span>}{' '}
+        {items.length > 0 ? items.map((item, index) => (
+          <span key={index}>
+            {onStudentClick ? (
+              <Button
+                variant="ghost"
+                aria-label={`Go to ${item.studentName} in student table`}
+                className="inline min-h-0 min-w-0 rounded-sm border-0 p-0 align-baseline text-sm font-medium leading-5 text-primary underline hover:bg-transparent"
+                onFocus={(event) => {
+                  const text = textRef.current
+                  // Reveal a keyboard-focused action that lies beyond the two-line clamp.
+                  if (!expanded && overflows && text) {
+                    const actionBounds = event.currentTarget.getBoundingClientRect()
+                    const textBounds = text.getBoundingClientRect()
+                    if (text.scrollTop === 0 && actionBounds.height > 0 && actionBounds.top >= textBounds.top && actionBounds.bottom <= textBounds.bottom) return
+                    clippedActionRef.current = event.currentTarget
+                    setExpanded(true)
+                  }
+                }}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onStudentClick(item.studentName)
+                }}
+              >
+                {item.firstName}
+              </Button>
+            ) : item.firstName}
+            {' '}{item.detail}{index < items.length - 1 ? ' ' : ''}
+          </span>
+        )) : 'Nothing urgent'}
+      </span>
     </div>
   )
 }

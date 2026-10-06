@@ -24,6 +24,7 @@ const appMessageMock = vi.hoisted(() => ({
 const logSummaryMock = vi.hoisted(() => ({
   available: true,
   deferAvailabilityForDate: null as string | null,
+  studentNames: [] as string[],
 }))
 
 vi.mock('@/lib/timezone', () => ({
@@ -86,8 +87,10 @@ vi.mock('@/components/StudentLogHistory', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/LogSummary', () => ({
-  LogSummary: ({ date, onAvailabilityChange }: {
+  LogSummary: ({ date, firstNames, onStudentClick, onAvailabilityChange }: {
+    firstNames?: Record<string, string>
     date: string
+    onStudentClick?: (name: string) => void
     onAvailabilityChange?: (available: boolean) => void
   }) => {
     React.useEffect(() => {
@@ -95,7 +98,14 @@ vi.mock('@/app/classrooms/[classroomId]/LogSummary', () => ({
       onAvailabilityChange?.(logSummaryMock.available)
     }, [date, onAvailabilityChange])
 
-    return <div data-testid="class-log-summary">Cached class summary</div>
+    return <div data-testid="class-log-summary" data-first-names={JSON.stringify(firstNames)}>
+      Cached class summary
+      {logSummaryMock.studentNames.map((name) => (
+        <button key={name} type="button" onClick={() => onStudentClick?.(name)}>
+          Jump to {name}
+        </button>
+      ))}
+    </div>
   },
 }))
 
@@ -494,6 +504,7 @@ describe('TeacherAttendanceTab', () => {
     appMessageMock.clearMessage.mockReset()
     logSummaryMock.available = true
     logSummaryMock.deferAvailabilityForDate = null
+    logSummaryMock.studentNames = []
     vi.unstubAllGlobals()
   })
 
@@ -592,17 +603,9 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByText('Student1').closest('td')).toHaveClass('px-3', 'py-1')
     expect(screen.queryByLabelText('Complete')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Incomplete')).not.toBeInTheDocument()
-    const summaryTitle = screen.getByText('Class Log Summary')
-    expect(summaryTitle).toBeInTheDocument()
-    expect(summaryTitle.parentElement).not.toHaveClass('border-b', 'border-border')
-    expect(summaryTitle.parentElement).toHaveClass('pt-3')
-    expect(summaryTitle.parentElement).not.toHaveClass('min-h-10')
-    expect(screen.getByTestId('class-log-summary')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Hide class log summary' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Show class log summary' })).not.toBeInTheDocument()
-    const summaryResizeHandle = screen.getByRole('separator', { name: 'Resize class log summary' })
-    expect(summaryResizeHandle).toBeInTheDocument()
-    expect(summaryResizeHandle).not.toHaveClass('border-b', 'border-border')
+    expect(screen.getByTestId('class-log-summary')).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('separator', { name: 'Resize class log summary' })).not.toBeInTheDocument()
     expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
 
     const firstColumnResize = screen.getByRole('separator', { name: 'Resize First column' })
@@ -1931,74 +1934,159 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
   })
 
-  it('collapses and restores the class log summary from a double click', async () => {
+  it('sizes the class log summary to its content without a duplicate heading or resize control', async () => {
     mockLogsFetch()
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
     const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
-    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(panel).toHaveStyle({ height: '180px' })
-    expect(panel).toHaveAttribute('data-state', 'expanded')
+    const summary = screen.getByTestId('class-log-summary')
 
-    fireEvent.doubleClick(panel)
-
-    expect(screen.getByTestId('class-log-summary')).not.toBeVisible()
-    expect(panel).toHaveStyle({ height: '40px' })
-    expect(panel).toHaveAttribute('data-state', 'collapsed')
-    expect(screen.getByText('Log Summary')).toBeInTheDocument()
-
-    fireEvent.doubleClick(panel)
-
-    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(panel).toHaveStyle({ height: '180px' })
-    expect(panel).toHaveAttribute('data-state', 'expanded')
+    expect(panel).toHaveClass('min-h-0', 'shrink-0', 'rounded-lg', 'bg-surface')
+    expect(panel.style.height).toBe('')
+    expect(panel.style.minHeight).toBe('')
+    expect(panel).not.toHaveClass('min-h-[140px]', 'h-10', 'min-h-10')
+    expect(panel.parentElement?.parentElement?.parentElement).toHaveClass('min-w-0')
+    expect(summary).toHaveAttribute('data-first-names', JSON.stringify({ 'Student1 Test': 'Student1', 'Student2 Test': 'Student2' }))
+    expect(summary).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Class Log Summary' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('separator', { name: 'Resize class log summary' })).not.toBeInTheDocument()
   })
 
-  it('resizes the class log summary card from the handle with keyboard controls', async () => {
+  it('leaves summary disclosure to the child when the parent pane is double clicked', async () => {
     mockLogsFetch()
 
     render(<TeacherAttendanceTab classroom={classroom} />)
 
     const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
-    const separator = screen.getByRole('separator', { name: 'Resize class log summary' })
-
-    expect(panel).toHaveStyle({ height: '180px' })
-    expect(separator).toHaveClass('cursor-ns-resize')
-
-    fireEvent.keyDown(separator, { key: 'ArrowUp' })
-    expect(panel).toHaveStyle({ height: '212px' })
-
-    fireEvent.keyDown(separator, { key: 'ArrowDown' })
-    expect(panel).toHaveStyle({ height: '180px' })
-
-    fireEvent.keyDown(separator, { key: 'ArrowUp' })
-    fireEvent.keyDown(separator, { key: 'Enter' })
-    expect(panel).toHaveStyle({ height: '180px' })
-  })
-
-  it('reopens the collapsed class log summary by dragging the handle upward', async () => {
-    mockLogsFetch()
-
-    render(<TeacherAttendanceTab classroom={classroom} />)
-
-    const panel = await screen.findByRole('region', { name: 'Class Log Summary' })
+    const summary = screen.getByTestId('class-log-summary')
 
     fireEvent.doubleClick(panel)
-    expect(panel).toHaveStyle({ height: '40px' })
-    expect(panel).toHaveAttribute('data-state', 'collapsed')
 
-    fireEvent(
-      screen.getByRole('separator', { name: 'Resize class log summary' }),
-      new MouseEvent('pointerdown', { clientY: 300, bubbles: true })
-    )
-    window.dispatchEvent(new MouseEvent('pointermove', { clientY: 90, bubbles: true }))
-    window.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }))
-
-    expect(await screen.findByTestId('class-log-summary')).toBeInTheDocument()
-    expect(panel).toHaveStyle({ height: '250px' })
-    expect(panel).toHaveAttribute('data-state', 'expanded')
+    expect(screen.getByTestId('class-log-summary')).toBe(summary)
+    expect(summary).toBeVisible()
+    expect(panel.style.height).toBe('')
   })
+
+  it('jumps from a summary name to its row, retaining the compact summary and the new scroll position', async () => {
+    let latestAnimationFrame: FrameRequestCallback | null = null
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      latestAnimationFrame = callback
+      return 1
+    })
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    logSummaryMock.studentNames = ['Student25 Test', 'Missing Student']
+    mockManyLogsFetch()
+    const onSelectEntry = vi.fn()
+    render(<TeacherAttendanceTab classroom={classroom} onSelectEntry={onSelectEntry} />)
+    const row = (await screen.findByRole('cell', { name: 'Student25', exact: true })).closest('tr')!
+    const pane = screen.getByTestId('daily-student-scroll-pane')
+    const summary = screen.getByTestId('class-log-summary')
+    const focus = vi.spyOn(row, 'focus')
+    const scroll = vi.fn(() => { pane.scrollTop = 520 })
+    Object.defineProperty(row, 'scrollIntoView', { configurable: true, value: scroll })
+    onSelectEntry.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Student25 Test' }))
+
+    expect(row).toHaveFocus()
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+    expect(scroll).toHaveBeenCalledWith({ behavior: 'auto', block: 'center', inline: 'nearest' })
+    expect(row).toHaveAttribute('aria-selected', 'true')
+    expect(row).toHaveClass('bg-info-bg', 'hover:bg-info-bg-hover')
+    expect(screen.queryByTestId('student-log-history')).not.toBeInTheDocument()
+    expect(screen.queryByRole('separator', { name: 'Resize Daily panes' })).not.toBeInTheDocument()
+    expect(summary).toBeVisible()
+    expect(screen.getByTestId('class-log-summary')).toBe(summary)
+    expect(onSelectEntry).not.toHaveBeenCalled()
+
+    pane.scrollTop = 0
+    act(() => { latestAnimationFrame?.(0) })
+    expect(pane.scrollTop).toBe(520)
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Student25 Test' }))
+    expect(scroll).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Missing Student' }))
+    expect(scroll).toHaveBeenCalledTimes(2)
+    expect(row).toHaveAttribute('aria-selected', 'true')
+    expect(onSelectEntry).not.toHaveBeenCalled()
+  })
+
+  it('matches the full summary name when students share a first name', async () => {
+    logSummaryMock.studentNames = ['Alex Baker']
+    vi.stubGlobal('fetch', vi.fn(() => mockJson({ logs: [
+      { student_id: 'alex-1', student_email: 'alex1@example.com', student_first_name: 'Alex', student_last_name: 'Adams', entry: null, history_preview: [] },
+      { student_id: 'alex-2', student_email: 'alex2@example.com', student_first_name: 'Alex', student_last_name: 'Baker', entry: null, history_preview: [] },
+    ] })))
+    render(<TeacherAttendanceTab classroom={classroom} />)
+    const target = (await screen.findByRole('cell', { name: 'Baker', exact: true })).closest('tr')!
+    const other = screen.getByRole('cell', { name: 'Adams', exact: true }).closest('tr')!
+    const scroll = vi.fn()
+    Object.defineProperty(target, 'scrollIntoView', { configurable: true, value: scroll })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Alex Baker' }))
+
+    expect(target).toHaveFocus()
+    expect(target).toHaveAttribute('aria-selected', 'true')
+    expect(other).toHaveAttribute('aria-selected', 'false')
+    expect(scroll).toHaveBeenCalledOnce()
+    expect(screen.getByTestId('class-log-summary')).toBeVisible()
+  })
+
+  it('lets a row click supersede the summary highlight without restoring it after inspection', async () => {
+    logSummaryMock.studentNames = ['Student1 Test']
+    mockLogsFetch()
+    render(<TeacherAttendanceTab classroom={classroom} />)
+    const highlighted = (await screen.findByRole('cell', { name: 'Student1', exact: true })).closest('tr')!
+    Object.defineProperty(highlighted, 'scrollIntoView', { configurable: true, value: vi.fn() })
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Student1 Test' }))
+    fireEvent.click(screen.getByRole('cell', { name: 'Student2', exact: true }))
+    expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-2')
+    expect(highlighted).toHaveAttribute('aria-selected', 'false')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(highlighted).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByTestId('class-log-summary')).toBeVisible()
+  })
+
+  it('continues table keyboard navigation from the summary-highlighted row', async () => {
+    logSummaryMock.studentNames = ['Student1 Test']
+    mockLogsFetch()
+    render(<TeacherAttendanceTab classroom={classroom} />)
+    const highlighted = (await screen.findByRole('cell', { name: 'Student1', exact: true })).closest('tr')!
+    Object.defineProperty(highlighted, 'scrollIntoView', { configurable: true, value: vi.fn() })
+    fireEvent.click(screen.getByRole('button', { name: 'Jump to Student1 Test' }))
+    fireEvent.keyDown(highlighted, { key: 'ArrowDown' })
+    expect(await screen.findByTestId('student-log-history')).toHaveTextContent('History for student-2')
+    expect(screen.getByRole('cell', { name: 'Student2', exact: true }).closest('tr'))
+      .toHaveAttribute('aria-selected', 'true')
+    expect(highlighted).toHaveAttribute('aria-selected', 'false')
+  })
+
+  it.each(['Escape', 'outside click', 'date change', 'classroom change'])(
+    'clears the summary row highlight on %s', async (action) => {
+      logSummaryMock.studentNames = ['Student1 Test']
+      mockLogsFetch()
+      const onSelectEntry = vi.fn()
+      const view = render(<TeacherAttendanceTab classroom={classroom} onSelectEntry={onSelectEntry} />)
+      const row = (await screen.findByRole('cell', { name: 'Student1', exact: true })).closest('tr')!
+      Object.defineProperty(row, 'scrollIntoView', { configurable: true, value: vi.fn() })
+      fireEvent.click(screen.getByRole('button', { name: 'Jump to Student1 Test' }))
+      onSelectEntry.mockClear()
+      if (action === 'Escape') fireEvent.keyDown(row, { key: 'Escape' })
+      if (action === 'outside click') fireEvent.pointerDown(document.body)
+      if (action === 'date change') fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+      if (action === 'classroom change') view.rerender(<TeacherAttendanceTab classroom={secondClassroom} onSelectEntry={onSelectEntry} />)
+      await waitFor(() => {
+        expect(screen.getByRole('cell', { name: 'Student1', exact: true }).closest('tr'))
+          .toHaveAttribute('aria-selected', 'false')
+      })
+      expect(screen.queryByTestId('student-log-history')).not.toBeInTheDocument()
+      if (action === 'Escape') {
+        expect(screen.getByRole('region', { name: 'Attendance students' })).toHaveFocus()
+        expect(onSelectEntry).not.toHaveBeenCalled()
+      }
+      if (action === 'outside click') expect(onSelectEntry).not.toHaveBeenCalled()
+    },
+  )
 
   it('returns to the full-width log table after deselecting a selected student', async () => {
     mockLogsFetch()
@@ -2133,6 +2221,7 @@ describe('TeacherAttendanceTab', () => {
     expect(row).toHaveFocus()
     expect(summary.closest('section')).toHaveAttribute('aria-hidden', 'true')
     expect(summary.closest('section')).toHaveAttribute('inert')
+    expect(summary).not.toBeVisible()
     fireEvent.click(screen.getByRole('cell', { name: 'Student2', exact: true }))
     expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
     expect(screen.getByTestId('student-log-history')).toHaveTextContent('History for student-2')
@@ -2140,6 +2229,7 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByTestId('daily-student-scroll-pane')).toBe(scrollPane)
     expect(screen.getByTestId('class-log-summary')).toBe(summary)
     expect(summary.closest('section')).not.toHaveAttribute('inert')
+    expect(summary).toBeVisible()
   })
 
   it('preserves the selected student when the same date refreshes on reactivation', async () => {
