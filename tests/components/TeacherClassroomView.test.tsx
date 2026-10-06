@@ -420,6 +420,12 @@ vi.mock('@/lib/scheduling', () => ({
 }))
 
 vi.mock('@/lib/request-cache', () => ({
+  fetchJSON: async (input: RequestInfo | URL, options?: { init?: RequestInit }) => {
+    const response = await fetch(input, options?.init)
+    const payload = await response.json()
+    if (!response.ok) throw new Error(payload?.error || 'Request failed')
+    return payload
+  },
   fetchCachedJSON: (key: string, input: RequestInfo | URL, options?: { ttlMs?: number; errorMessage?: string }) =>
     mockFetchJSONWithCache(
       key,
@@ -1816,6 +1822,38 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(screen.getAllByRole('button', { name: 'Open poll' })[0]).not.toBeDisabled()
     })
+  })
+
+  it('keeps a created survey and warns if saving its placement conflicts', async () => {
+    const createdSurvey = makeSurveySummary('survey-new', 'New survey', { position: 2 })
+    let created = false
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('assignments') ? { assignments: [
+        makeAssignmentSummary('released', 'Released', { position: 0 }),
+        makeAssignmentSummary('draft', 'Draft', { position: 1, is_draft: true }),
+      ] } : key.includes('materials') ? { materials: [] }
+        : key.includes('surveys') ? { surveys: created ? [createdSurvey] : [] } : { class_days: [] },
+    ))
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (url === '/api/teacher/surveys') {
+        created = true
+        return Promise.resolve({ ok: true, json: async () => ({ survey: createdSurvey }) })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({ error: 'Classwork list changed' }) })
+    })
+    render(<TeacherClassroomView classroom={classroom} />)
+    await screen.findByRole('button', { name: 'Released' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Survey' }))
+    await waitFor(() => expect(mockShowMessage).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.stringContaining('Classwork was created'), tone: 'warning',
+    })))
+    expect(screen.getByRole('dialog')).toHaveTextContent('survey-new')
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/teacher/surveys')).toHaveLength(1)
+    expect(JSON.parse(fetchMock.mock.calls.find(([url]) => url.endsWith('/reorder'))![1].body)).toEqual({ items: [
+      { type: 'assignment', id: 'released' }, { type: 'survey', id: 'survey-new' }, { type: 'assignment', id: 'draft' },
+    ] })
   })
 
   it('creates a draft survey from the New classwork menu and opens visual editing', async () => {

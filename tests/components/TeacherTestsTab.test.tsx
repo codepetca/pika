@@ -1202,10 +1202,11 @@ describe('TeacherTestsTab', () => {
   })
 
   it('creates a draft test directly and opens visual editing', async () => {
-    mockTestsResponse([])
-    renderTab()
+    const existingTests = [makeTest({ id: 'existing-released', title: 'Existing released test', status: 'open' }), makeTest({ id: 'existing-draft', title: 'Existing draft test', status: 'draft' })]
+    mockTestsResponse(existingTests)
+    const view = renderTab({ testsTabClickToken: 0 })
 
-    expect(await screen.findByText('No tests yet')).toBeInTheDocument()
+    expect(await screen.findByText('Existing released test')).toBeInTheDocument()
 
     const createdTest = makeTest({ id: 'created-test-id', title: 'Untitled 2026-05-14 10:45:00' })
     fetchMock.mockImplementation((url: string, init?: RequestInit) => {
@@ -1218,7 +1219,7 @@ describe('TeacherTestsTab', () => {
       if (typeof url === 'string' && url.includes('/api/teacher/tests?classroom_id=')) {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ tests: [createdTest] }),
+          json: async () => ({ tests: [createdTest, ...existingTests] }),
         })
       }
       if (url === '/api/teacher/tests/created-test-id/results') {
@@ -1246,6 +1247,10 @@ describe('TeacherTestsTab', () => {
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: 'Authoring' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
+    view.rerender(<TeacherTestsTab classroom={classroom} testsTabClickToken={1} />)
+    const newest = await screen.findByRole('button', { name: createdTest.title, exact: true })
+    const existing = screen.getByRole('button', { name: 'Existing released test', exact: true })
+    expect(newest.compareDocumentPosition(existing) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('discards a newly created untouched Test when the authoring dialog closes', async () => {
