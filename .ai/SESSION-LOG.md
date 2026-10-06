@@ -11,123 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner Test list proof-only natural revision correction
-
-Observed normal5004fed7 Storage healthy, then fixture setup failed beforeSDK;
-exact teardown and SAME once-captured1469 fivefield baseline equality PASS.
-Resumed original proof worker Sol6.1/high,18:46:32–18:55:53Z manualwall561s,
-three files relinquished; no live/Git operations, active/tokens unknown. RED→GREEN
-shows archive0 expectation contradicted existing Class initialization. Frozen
-footprint now requires three Class-bound archive rows/revisions41/7/4 and blueprint
-10/2/1. No additional DML/Storage/RPC or native/platform/deadline/control changes;
-locks/timestamps remain exact. Closed setup diagnostics add no raw private data.
-49proof/122combined/fullTS/scopedlint PASS. Root fixed-source review, updated
-manifest acceptance, actualnormal/twofullforced, finalCI/mainmerge remain gates.
-Root243focused/14files/allstatic gates, three-file audit, diff/trim and complete
-history multiset preservation PASS. App/sealed platform/lifecycle/schema unchanged.
-
-## 2026-10-04 — Owner Test list proof-only answer-key correction
-
-#1469 reviewed94afe normal failed at fixture/setup-sql before SDK requests;
-exact owned cleanup and SAME once-captured canonical five-field equality passed.
-Immutable044/catalog check requires multiple-choice answer_key=null; synthetic
-setup incorrectly gave every question a text key. Narrow fixture/test fix;
-valid generated-SQL RED captured,50proof/244focused14files/allstatic gates PASS.
-App, schema, native lifecycle and footprint unchanged. Existing human waiver
-retains cumulative review counters/authorization. No production, activation,
-account or migration operation. Source review and actual normal/two fully-set-up
-forced receipts remain required; space212GiB observed, active/tokens unknown.
-IndependentSol5.6/high ef660 review CLEAN. Actualnormal fullfixture/snapshot passed
-then failedmatrix/dispatch at19 attemptedrequests; exactteardown/SAMEbaselinePASS.
-Proof-only closed timing/abort diagnostics RED→GREEN,51proof/245focusedallstaticPASS.
-Readonly sealedinventory sample993ms/742resources; timing cause not yet proved.
-App20s/transport15s, everyrequestguard and full global inventory remain unchanged.
-Diagnostic c2d independentSol5.6/high review CLEAN; read-only Sol6.1/high diagnosis
-narrows dispatch to fetch/abort family, not proven timeout or querycause. Its
-timing caveat accepted: freeze diagnostic at helper rejection before cleanup,
-including pendingguard time. RED→GREEN52proof/246focused14/allstatic/audit PASS;
-source-only targeted follow-up and actual evidence remain required. No gate weakened.
-
-## 2026-10-04 — Owner Test list audit-main reconciliation
-
-Frozen diagnostics 4e57 independentSol5.6/high CLEAN at19:35:55Z, source-only.
-External main audit1463/receipt1471 advanced to a2175080: complete246 migration
-replay, Test attempt revisions/response closure, storage/auth fencing and locked
-dependency updates. Clean rebase had only CURRENT/archive conflicts. Own app,
-fixture, transport/diagnostics and tests remain byte-identical to4e57; incoming
-native platform/lifecycle/CI/schema/types/packages retained, no own migrations.
-History union old4e57 + maina217 − base24cb verified by full-body hashes; repaired
-four missing original copies and three malformed rebase fragments, no original
-body loss. Official trim applied;36unrelated stashes unchanged. Worktree-owned
-frozen dependency sync reused65/downloaded0; lock unchanged. No shared DB or prod
-application, account/provider/admission/rollout operation. New-base checks/review,
-finite acceptance and actual normal/twoforced remain; original cumulative counters
-and human review-extension waiver retained. Active/token telemetry unknown.
-Fresh startupPASS. Initial new-base focused262 had one startup-budget failure
-(17046>17000); shortened CURRENT wording without changing facts or budget.
-Complete262tests14files and architecture/UI/design/TypeScript/lint nowPASS.
-Actual-main-aware audit finds no new TS changes; original app/proof audit retained.
-
-## 2026-10-04 — Owner Test list frozen runtime guard overhead
-
-PR1469 draft at e8e001aa: changed-audit-base review CLEAN and root finite001–246
-manifest acceptance preceded actual normal session43761. Complete fixture setup;
-first SDK case failed real20s: frozen context20001ms/guard19651ms,18 attempted
-requests, availability/guard. Exact teardown and SAME once-captured whole-canonical
-public/private/Storage/168/settings/cron/resource equality PASS. No passing normal
-or forced SDK proof, CI, merge, production or activation claim. Host216GiB free.
-Sol6.1/high bounded worker owns additive readonly inventory helper/tests and extension
-call only: concurrent freshglobal pipelines via sealed parser, exact one-shot results,
-all pending work settled; native/SQL guards/app20s unchanged. Root retains acceptance/
-Git. Offline checks and fixed-source review precede new runtime. Counters retain
-7launches/5targeted/5fixes; existing direct task-stop waiver applies. Usage70percent
-weekly remaining; active/tokens unknown. Main9c2ff7ef only reconciles history; preserve
-incoming canonical history plus branch entries before final reviewedSHA/CI/merge.
-Worker delivered/relinquished3paths20:09:30Z (startup20:02:47Z;403s observedinterval,
-not active/token telemetry). RED18:16failed/2passed sequentialconcurrency1not3;
-GREEN70proof/2files and209related supplied; appTypeScript/lintPASS. Targeted script
-TypeScript has two independently reproduced preexisting lifecycle errors, new
-helper/test zero diagnostics. Root inspected complete helper/tests/call diff;
-sealed platform/lifecycle/parsers/originalfixture/app exactbyteparityPASS.
-
-## 2026-10-04 — Owner Test list parallel guard and history reconciliation
-
-Root verified70offline proof tests/2files and inspected all new helper/test/source
-bytes; audit3changedTS and sealed/app byteparityPASS. Additive executor overlaps
-exact3freshglobal serial128batch pipelines, validates IDs, settlesallwork and
-replays exactresults once through original parser; privateSQL/app20s unchanged.
-History-only main9c2ff7ef reconciled from clean branch, no stashpush/pop. Full-body
-incomingcanonical multiplicities plus positive branch additions PASS after
-restoring4missing copies/removing14surplus or malformed rebase fragments; no
-original bodyloss. Official trimPASS;36unrelated stashes retained; source/proof/
-tests/CI/schema/deps byteparity to pre-rebase b2ad PASS. Private patch generation
-failures were contained before writes; canonical hub stayed clean. Focusedchecks,
-fixed-source targeted review and explicit finite acceptance precede actualruntime.
-No sharedDB/prod/account/provider/admission/rollout; normal/twoforced stillpending.
-Worker403s observed interval, root coordination/history effort not separately
-timed; tokens/active unknown. Existingtaskstop waiver/cumulative ledger retained.
-Updated-main focused280tests/15files and all architecture/UI/design/TypeScript/
-lint gates PASS; officialtrim/exacthistorymultiset/diff checks PASS. Proof-only
-remediation batch6 includes this source correction and history reconciliation.
-
-## 2026-10-04 — Owner Test list bounded denial diagnostics
-
-Targeted Sol5.6/high CLEANb4d, sourceonly; reviewerVitest unavailable/noinstall,
-root280/allstatic/70proof evidence retained. Root explicitly accepted frozen
-parallel-inventory4bb75e/runner767c3a/fixturee83+complete246 before actual64763.
-Normal reached three owner cases then case3/root41requests, context1848ms/guard1829ms
-HTTP200/complete; old20s blocker resolved, newassert unknown. Exactteardown/SAME
-canonical fivefield baselinePASS; no fullnormal/forced success. Read-only Sol6.1/
-high diagnosis20:30:44–20:32:38Z narrows original class403/count1/snapshot assertions;
-offline TSX syntheticfetch confirms403/sameclass/1request but not actualSDK.
-Root TDD13 closed matrix-step/API-error outcome regressions preserve everyassert,
-own-descriptor lookup avoids SDK getters, fixed kinds/statuses only; no rawerrors/
-IDs/rows or guard/deadline weakening. Fixed-source review/acceptance precede
-rerun; original clock/counters/direct waiver retained. No prod/sharedmigration/
-accounts/providers/admission/activation; active/tokens unknown.
-RED diagnostic12/12failed, then snapshot-step2RED; fullfocused293tests/15files and
-allstatic gates PASS with13new regressions (83 proofchecks selected by focused).
-
 ## 2026-10-04 — Owner Test list actual runtime closure
 
 Sol5.6/high diagnostic review CLEAN at exactd82aa4e; root accepted unchanged finite
@@ -579,6 +462,7 @@ Application files merged automatically. Survey owners are unchanged from reviewe
 665c1fa7; TeacherClassroomView retains the complete existing Survey patch over main.
 Owner renewed merge instruction. New-base focused checks and exact-head CI precede
 squash merge; no new application behavior, schema change or production promotion.
+
 ## 2026-10-05 — Resume classroom access goal; owner Test draft saves
 
 Coordinator resumed on actual mainc25ebf78f in dedicated draft-save worktree.
@@ -712,3 +596,30 @@ unproved. No native/SQL/Docker/typegeneration/CI/prod operation by implementatio
 worker; effectiveconfig/attributableusage unknown. Root owns sourcefreeze,
 requiredchecks, originalaudit, targetedindependent review/newverifyonlyB1binding
 and onefinite normalplan before execution. Originalcheckpoints/counters preserved.
+
+## 2026-10-06 — Owner draft HTTP inventory source preparation
+
+Normal9 exactreviewed4406 failedunchangedrace180s after42SDK/rollbackcontracts;
+1296controls85actions0sessions. Exactenginecleanup/WHOLEpinnedB1PASS; no receipt,
+types/canonical249/prod/cohort/account change. OwnerDoit authorizesdifferentfix.
+BoundedSol6.1/high read-only5attempts/3actualcomposites retain101/617/23byteparity;
+warmHTTP262–331ms/chunk352–363ms, coldHTTP545ms; not180fit orstablegain. Initialtwo
+fractionaltimeout mistakes dispatchzerochildren/requests, retainednotPASS.
+
+Cleanrebaseff8b0ea4 ontoincomingc88/#1483SurveyUI preservesapp/249/native/shared
+collector bytes. Onelastcommit archiveconflict union preservesallupstream/branch
+bodiesandmarkers; twoincomingbodies differfromupstream, neitherdiscarded.
+36stashes/ordereddigest unchanged; no migrationsrenumbered orcanonical apply.
+WorkerownsONLYPATCHhelper+tests source-onlyTDD fullHTTPinspect replacement;
+rootdocs/Git/integration/review/bindings/finiteplan.2CLIorHTTP+reservedvolume1,
+rawmetadata privacy/deadline/bounds/closure/fullparser guards required.
+Original12:51:50Z reviewclock16launch14target8batch0final retained; batch9pending.
+Weekly41percentremainingaccountwide/attributableunknown; DeepSeekpaused.
+Workerrelinquished01:03:42Z (~14min) ONLYtwofiles;176checks/3files, lint/diffPASS.
+RootFULLreadhelper/test/handoff; realparser129/617/23graph, max2own+1volume,
+rawEnvstrip/late request-response-socket closure covered. Allocationledger not
+wholeV8heap; originalvolume JSON/semanticfailure remainsoriginalclosure boundary.
+Native180fit/typesstillpending; no Docker/native executionbyworker.
+Rootfocused515/23PASS plusarchitecture/UI/design; tscONLYtwo pendinggenuineRPC
+declarations. Originalstagedaudit2TS/lint/diffPASS; incomingSurvey126/5,
+startup+proof133/2PASS. No fabricatedtypes, readyCI or native acceptance.

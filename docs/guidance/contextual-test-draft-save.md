@@ -220,5 +220,48 @@ one original bulk-volume request, final socket identity check, ordered reconstru
 and zero remaining child/request resources were verified. This is fixture evidence,
 not proof of native timing. The fresh invocation retains a two-CLI pool, a
 queue-inclusive 20-second logical deadline and aggregate retained CLI-output bound.
-All race, SQL, migration and application contracts remain unchanged. Fixed-source
-independent review and one separately accepted finite normal execution remain next.
+All race, SQL, migration and application contracts remain unchanged. Independent
+source/plan review accepted `44062e588`, with 368 checks passing. Actual normal9
+then failed the same race180s bound with1296controls/85actions/0sessions after42
+SDK requests and completed rollback contracts. Exact disposable cleanup and a
+separate WHOLE pinned checkpoint comparison passed; no receipt or genuine types
+were accepted. The CLI chunk implementation did not resolve runtime fit.
+
+### Direct full-inspection transport preparation
+
+The owner authorized a different inventory-performance correction. Three bounded
+read-only composites (five attempts, the first two rejected before any subprocess
+or HTTP request) preserved complete graph byte parity at101containers/617volumes/
+23networks. Warm HTTP collection measured262–331ms against352–363ms chunked
+collection; the HTTP-first cold sample measured545ms. These are local read-only
+observations with warm-up variance, not native180s success or a stable speedup.
+
+The proposed PATCH-only helper uses full container inspections through the already
+validated local Unix socket, retaining original context/global listings/network
+inspection, volume HTTP, parser, raw timestamps and every pre-dispatch guard.
+Two shared CLI/container-HTTP slots permanently reserve one slot for the original
+volume read. No async request proxy, summary substitution, cache or scope filtering.
+The [official Engine1.45 specification](https://docs.docker.com/reference/api/engine/version/v1.45/)
+distinguishes the smaller container-list representation from full inspection.
+Unneeded full-inspection fields, including runtime environment values, must stay
+in bounded private memory and never enter output, logs, errors or receipts.
+
+Source-only RED/GREEN tests must prove complete graph parity, identity/endpoint
+freshness, queue-inclusive20s work deadlines, aggregate output reservations,
+immediate failure containment, request/socket/child settlement and combined
+operation bound. Independent fixed-source and finite execution-plan acceptance
+precede one normal run; no relaxed limit or unchanged-source retry is authorized.
+The original bulk-volume reader keeps its own parsing boundary: transport,
+status and allocation failures can latch immediately, while volume JSON or
+semantic rejection is observed when the unchanged reader/parser returns. This
+does not claim immediate cancellation on every volume-semantic failure.
+Rebase onto `c88abe16b` preserves incoming Survey UI, CI e2e inventory and design
+exceptions. Migration249 remains unchanged and unapplied to canonical local/prod.
+
+Source-only implementation passes176checks across the PATCH helper and unchanged
+native/shared suites. The real unchanged parser integration retains129containers,
+617volumes and23networks, two own transport slots plus one original volume slot,
+private-field stripping and exact closure. Conservative aggregate reservations
+include controlled raw/text/concat/decode/projection/join allowances; this is not
+a measured whole-V8-heap cap and can reject large metadata earlier. Actual Engine
+event ordering and race180s fit still require the bounded native proof.
