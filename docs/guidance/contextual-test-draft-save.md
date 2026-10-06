@@ -304,3 +304,19 @@ prior normal10 receipt remains historical, not current-migration acceptance.
 Independent fixed-source/finite-plan review and one new bounded normal proof,
 both forced cleanups and genuine generation must precede ready exact-head CI.
 Canonical249 remains unapplied locally and in production; no rollout flag changes.
+
+Exact `45c9e9ecb` targeted independent review accepted the correction and finite
+normal11 plan;186checks/3files passed. Root normal11 on2026-10-06UTC passed24SDK
+cases/42RPC/zeroStorage and all16two-session schedules, using134dispatches/
+143778ms under the unchanged180s race cap. Native totals2803controls/186actions/
+zero remaining sessions and exact whole-fixture equality passed. Complete run
+and teardown finished in about10min17s observed wall time, not race-only time.
+
+Both serial forced modes passed their expectedexit1/exactcleanupPASS+specific
+forcedFAIL checks. Separate WHOLEsameB1 comparisons passed after normal and each
+forced mode; all original B0/B1/receipt/provenance hashes remain retained. New
+genuine45c9CLI artifact436753bytes/SHA09f1c224 is byte-identical to installed
+generated contracts, so no generated file or signature was edited. New migration
+manifest4ae5b8af binds source249SHA db80677f; old normal10 remains history.
+Final reviewed head and eligible CI/PR Gate, including warning-free SQL lint,
+still precede main merge. No canonical249 application or production activation.

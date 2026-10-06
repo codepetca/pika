@@ -38471,3 +38471,19 @@ branches76.98,functions91.39,lines86.94percent). Priorfailedresults retained.
 Fixedhead targetreview/fresh environment runtime check/CI/mainmerge remain gates;
 no sharedschema/prod/accounts/provider/admission/activation. NextdraftGET-only
 readonlymap retained privately; notimplemented. Originalclock/directwaiver retained.
+
+<!-- pika-session-log-archive-batch:e035a0e9666c764686ae114d94248e64a22c6e169d6985b8236df155a5bc8c16 -->
+## 2026-10-04 — Owner Test list global inspection worker correction
+
+Fresh-environment normal49119 hit unchanged20s/19496ms guards/22 requests; exact
+owned teardown and SAME saved canonical baseline PASS. No fresh matrix success.
+Sol6.1/high bounded read-only diagnosis found618 volumes/five serial batches;
+paired global-worker probes765→524ms and625→555ms returned same exact commands/
+sealed resources. Root TDD five scheduling/barrier/failure regressions RED, then
+86 proof and297 focused/static PASS. Three fresh listings settle first; fixed
+three global workers reuse idle capacity across exact128-item inspections. All
+active work settles on failure; queued work stops. No command/privacy/scope/cap/
+SQLguard/sealed/app/deadline/dependency/schema change. Fixed-source review and
+new full runtime receipts precede CI; PRdraft, production/admission/rollout OFF.
+Worker elapsed approximately4min; usage/effectiveconfig/active time unknown.
+Original reviewclock/counters and direct human taskstop waiver retained.

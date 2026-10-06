@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner Test list global inspection worker correction
-
-Fresh-environment normal49119 hit unchanged20s/19496ms guards/22 requests; exact
-owned teardown and SAME saved canonical baseline PASS. No fresh matrix success.
-Sol6.1/high bounded read-only diagnosis found618 volumes/five serial batches;
-paired global-worker probes765→524ms and625→555ms returned same exact commands/
-sealed resources. Root TDD five scheduling/barrier/failure regressions RED, then
-86 proof and297 focused/static PASS. Three fresh listings settle first; fixed
-three global workers reuse idle capacity across exact128-item inspections. All
-active work settles on failure; queued work stops. No command/privacy/scope/cap/
-SQLguard/sealed/app/deadline/dependency/schema change. Fixed-source review and
-new full runtime receipts precede CI; PRdraft, production/admission/rollout OFF.
-Worker elapsed approximately4min; usage/effectiveconfig/active time unknown.
-Original reviewclock/counters and direct human taskstop waiver retained.
-
 ## 2026-10-04 — Owner Test list streaming discovery correction
 
 IndependentSol5.6/high1189 integrationreview CLEAN; explicitfiniteacceptance then
@@ -625,3 +610,19 @@ genuinetypes acceptance; oldnormal10retainedhistorical. Canonical249unapplied,
 production/cohort/accounts/billingunchanged. Originalreviewclock/countersretained.
 Focused523/24 plusarchitecture/UI/design/tsc/lintPASS; originalstagedaudit1TS,
 scopedESLint/diffPASS. Officialtrim40of41 movedoneentrywithoutdroppinghistory.
+
+## 2026-10-06 — Corrected owner draft isolated proof acceptance
+
+IndependentexistingSol5.6/high reviewer accepted45c9source/normal11plan,186/3
+offlinePASS; about4minwall/effectiveunknown. RootFULLread; metadataonlyfollowup
+context/counters correction, verdictunchanged. Originalclock20launch16target11batch
+2final preserved, lifecycle27events11syncpushes; no budget/runtimecounterreset.
+Normal11 02:05:01–02:15:18Z observed10min17s total,24SDK/42RPC/0Storage;
+all16races134dispatches143778ms under180s,2803controls186actions0remainingsessions.
+Rollbackcontracts NEW249db80677f, exactwholefixture/enginecleanup/canonicalPASS.
+Bothserialforced expectedexit1/exactcleanupPASS+specificFAIL; separateWHOLEsameB1
+PASSaftereachmode/normal. OriginalB0/B1/receipt/provenancehashesunchanged,no exemptions.
+Newgenuine45c9CLIartifact436753bytes/SHA09f1c224 BYTEIDENTICALinstalledcontracts,
+migrationManifest4ae5b8af; no generatedsignature/type/sourcecodeedits. Finalreview/
+exactCI/SQLwarninggate/mainmergepending. Canonical249local/prodUNAPPLIED;
+prod/cohort/account/provider/billingOFF; componentnotphaseexit/fullgoalcompletion.
