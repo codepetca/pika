@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useId } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button, FormField, Input } from '@/ui'
 
 export default function JoinPage() {
   const router = useRouter()
-  const joinCodeId = useId()
   const [code, setCode] = useState('')
 
   function submit(e: React.FormEvent) {
@@ -24,27 +24,24 @@ export default function JoinPage() {
         </p>
 
         <form className="mt-6 space-y-3" onSubmit={submit}>
-          <label htmlFor={joinCodeId} className="block text-sm font-medium text-text-muted">
-            Join code
-          </label>
-          <input
-            id={joinCodeId}
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            className="mt-2 w-full px-3 py-2 border border-border-strong bg-surface text-text-default rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="ABC123"
-            autoCapitalize="characters"
-            autoCorrect="off"
-            spellCheck={false}
-          />
+          <FormField label="Join code">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="ABC123"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </FormField>
 
-          <button
+          <Button
             type="submit"
-            className="w-full px-4 py-2 rounded-md bg-primary-solid text-text-inverse text-sm hover:bg-primary-solid-hover disabled:opacity-50"
+            fullWidth
             disabled={!code.trim()}
           >
             Join
-          </button>
+          </Button>
         </form>
       </div>
     </div>

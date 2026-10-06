@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Survey split authoring
-
-New/Edit Survey now opens the test-style 1/3 details + 2/3 active question editor (stacked mobile); direct generated-title draft creation, MC/open-response/link, multiline prompts, selected-question navigation, autosave flush/retry, Markdown and Preview retained. Reuses CreationModalShell, Test split composition and @/ui controls; no shared-contract or stable-canon change, no experimental pattern/promotion. Survey identity guards retained; creation responses cannot open in another Classroom. Risk: workspace-state. Composite checklist reviewed: semantic pressed states, keyboard controls, modal Escape/focus; student n/a because only teacher authoring changed.
-
-Evidence: authoring/parent80 and student6 component tests PASS; browser4 PASS desktop1440x900/mobile390x844 × light/dark with edit, MC, open response, Markdown, Preview, new draft captures under test-results/survey-authoring-*; compared Test Pattern Lab reference /tmp/pika-survey-test-reference.png. Focused checks and independent review receipts follow in PR. Worktree survey-two-pane/pika; branch codex/survey-two-pane. One GPT-6.1 Sol medium worker mapped seams and wrote tests in two bounded assignments; coordinator verified80 tests. Weekly remaining50% at start; DeepSeek paused; worker/coordinator tokens and active time unknown; no edit conflicts/rework. Initial browser setup corrected theme key and fixture navigation before final4/4. No dependencies/schema/hosted changes.
-
-## 2026-10-05 — Approved classroom motion rollout
-
-Owner accepted Daily restrained200ms direction for wider adoption in the owning chat. Scoped stable/family canon, audit and Pattern Lab promotion recorded; no dependency/merge/deploy authorization. Follow-up codex/fluid-motion-rollout includes reviewedDailyb94 and targetsmain for canonical CI; prior1481/1482/1484 heads unchanged. Classwork stable table/inspector, Tests disclosure/hidden-menu Escape guard, cross-role opacity entry, reducedmotion and immediate pointerresize. Coordinator corrected primary-refresh priority and layout-controller remount before acceptance; RED mode-state regression nowGREEN,145owner cases pass. Final motion browser24/24(2.0min) across bothroles/viewport/themes/normal-reduced verifies DOM/drafts/focus/scroll, all3Classwork modes, actual200ms/0ms, pointergeometry, inert close and nooverflow. Forced-midpoint contract samples are labeled; natural recordings and fullrequiredgate/cumulative siblingproof/independent stable-SHA PR lifecycle follow. DeepSeekpaused; Sol/high worker partial delivery corrected/integrated bycoordinator; attributableactive/tokensunknown.
-
 ## 2026-10-05 — Test conflict retry correction prepared
 
 Production canary caught a hosted PostgREST retry loop on migration 244 business conflicts. Prepared forward 248 (originally247) and dual-code 409 mapping; lifecycle regression exercises actual reopened Return through HTTP. Production 001–246 applied and matching 83b683c deployed; public traffic remains operator-only while forward fix is reviewed. Owner task-wide approval now waives further approval requests for completion.
@@ -598,3 +588,11 @@ Affected23PASS; fullcorrectedcoverage13,783PASS/8SKIP/144.45s, allsamefloorsPASS
 Original06:47:09clock/sixlaunches/fourfixbatches retainedhumanwaiver. Targeted
 correction and cumulative integration carryforward/exact-head freshCI stillrequired.
 No canonicalmigration/prod/account/cohort/UI/cutover/billing orphaseexit.
+
+## 2026-10-06 — Canonical public join-code controls
+
+Reuse Pattern Lab Buttons/Form fields via FormField/Input and primary full-width Button on `/join`; both targets become44px from42/36. Preserve uppercase input/spaces until trim, blank guard, native Enter/Tab and exact encoded destination. Remove only this owner's migrated native-control registry entry. Three meaningful entry tests plus11 unchanged destination tests PASS; actual public desktop/mobile × light/dark × normal/reduced browser8 direct PASS,40 screenshots/eight natural recordings inspected, no unexpected errors. Synthetic destination HTTP500 intercepts all16 POST attempts; zero persisted enrollment writes; backend success not proven. Existing shared theme hydration dark→light→dark race verified on main-equivalent baseline and candidate, before typing; ThemeProvider/layout unchanged and shared follow-up remains required. Required focused checks/audit and draft-first fixed-SHA review/CI precede merge; no new dependencies/pattern promotion/schema/auth policy change. Product-wide17-family goal remains active; merge/production authority separate.
+
+## 2026-10-06 — Approved PR1498 integration reconciliation
+
+Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
