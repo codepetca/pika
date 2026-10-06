@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-04 — Owner Test list streaming discovery correction
-
-IndependentSol5.6/high1189 integrationreview CLEAN; explicitfiniteacceptance then
-normal66292 failed owner/finalprojection at24requests20002ms/19473ms guards.
-Exactownedteardown/SAME savedwholecanonicalbaseline PASS; no forcedsuccessclaim.
-Root boundedread-only barrier772→stream717ms probe retained identicalcommands/
-sealedresources/max3totalprocesses; no guarantee. Eachkindfreshlist validates
-before its exact128batches queue; idleworkers may inspect while anotherlist waits.
-Fullgraph/allactivework settles before replay/resourceauthorization/privateSQL/SDK.
-Observedfailure stopsqueuedjobs and drainsactivejobs. Same completeforeignscope,
-projection/parser/one-shotmap/caps/SQLguard/app20s/native/fixture/schema/deps.
-Heldindependentlist regression RED0inspections then GREEN;86proof PASS. Targeted
-fixed-source review/freshactual rehearsal next; failure needsenvironmentcheckpoint
-not more speculativepatches or controlweakening. PRdraft/rolloutOFF; humanwaiver
-and originalcounters retained. No source/application permission expansion.
-
 ## 2026-10-04 — Owner Test list environment checkpoint
 
 IndependentSol5.6/high e024 review CLEAN; one accepted normal91629 failed first
@@ -626,3 +610,38 @@ Newgenuine45c9CLIartifact436753bytes/SHA09f1c224 BYTEIDENTICALinstalledcontracts
 migrationManifest4ae5b8af; no generatedsignature/type/sourcecodeedits. Finalreview/
 exactCI/SQLwarninggate/mainmergepending. Canonical249local/prodUNAPPLIED;
 prod/cohort/account/provider/billingOFF; componentnotphaseexit/fullgoalcompletion.
+
+## 2026-10-06 — Owner draft main merge; ordinary Test creation preparation
+
+#1480 exact reviewed7fa6674 passed all five checks in CI37403984915, including
+warning-free database lint and PR Gate. Normal squash25457e merged03:17:42UTC;
+canonical main fast-forwarded cleanly, preserving all36 unrelated stashes and
+dependency worktrees. Prior failures, proof receipts and review counters remain
+retained. Canonical249 is unapplied; no promotion, activation or account change.
+
+Next dedicated worktree contextual-test-owner-create starts from25457e. Admitted
+ordinary POST source uses one atomic owner-bound Test/draft creation RPC with
+full-row/default/post-trigger witnesses; literal GET and legacy POST unchanged.
+SQL source TDD RED10 then GREEN10, plus app171new/193combined offline checks pass.
+Root independently reran185checks/4files; suites overlap, not unique totals.
+Initial Stripe resolution failures came from root's stale hub node_modules link;
+only the new worktree symlink now reuses1480's identical package/lock dependency
+tree, installed22.6.2 verified. No package change or install. Genuine250 RPC type
+generation remains pending; tsc has one expected diagnostic, not a passing result.
+Exact route ratchet entry removed; preserved legacy POST validation debt remains.
+Independent SQL source review and finite isolated integration preparation underway;
+no native250 proof, canonical migration, production or phase-exit claim.
+
+App/source independent review CLEAN at04:09:40–04:13:32UTC (284/5 offline checks,
+eleven frozen hashes). Root combined targeted369/10 PASS; full tsc still has only
+the genuine CREATE RPC type gap. Native source review found a P1 false-positive
+allocator-plan check: index DDL could satisfy the expected name regardless of
+the actual plan. Root RED1/47 then structural plan-only decoder GREEN47; combined
+native47/race20/SQL8=75/3 PASS. Exact catalog column sets, Limit/forward exact-index
+scan and Class condition are now checked separately from index DDL; plain EXPLAIN
+is not timing evidence. Root also corrected column-only pg_get_indexdef ordering
+checks to exact catalog flags and a cold synthetic provenance breadcrumb250.
+Targeted source re-review pending; no SQL/native invocation or generated artifact.
+Lifecycle integration must import the already reviewed finite SDK transport,
+not its initial weaker duplicate. Four component source-review launches/two fix
+batches recorded privately; original clocks/counters and holds remain retained.

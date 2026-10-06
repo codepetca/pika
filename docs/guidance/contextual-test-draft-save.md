@@ -1,6 +1,6 @@
 # Contextual owner Test draft saves
 
-Status: implementation in progress; no activation or phase exit. Coordinator
+Status: merged component; no activation or phase exit. Coordinator
 starts from main `c25ebf78f` on 2026-10-05. PR #1473 is merged; Audit #1474
 retains migration 248, while draft GET retains immutable 247. Production's
 recorded schema is 001–248; shared admission/home/page/cutover/billing stay OFF.
@@ -320,3 +320,9 @@ generated contracts, so no generated file or signature was edited. New migration
 manifest4ae5b8af binds source249SHA db80677f; old normal10 remains history.
 Final reviewed head and eligible CI/PR Gate, including warning-free SQL lint,
 still precede main merge. No canonical249 application or production activation.
+
+Superseding merge receipt: exact reviewed `7fa6674c1` passed all five checks in
+CI37403984915, including warning-free SQL lint and PR Gate. Normal squash merged
+`25457e2d1` at2026-10-06T03:17:42Z. Canonical main fast-forwarded cleanly with
+all36 unrelated stashes preserved. This completes only owner draft saves;
+249 remains unapplied canonically and rollout controls remain unchanged.

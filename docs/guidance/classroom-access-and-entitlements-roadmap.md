@@ -1245,7 +1245,7 @@ Audit #1474 is merged as `5708750d0`, retaining its conflict fix at 248 and our
 immutable GET at 247. Its separate production receipt records schema001–248;
 this does not activate shared admission, home/page or full cutover.
 
-The next bounded slice is [owner Test draft saves](contextual-test-draft-save.md),
+Historical preparation was [owner Test draft saves](contextual-test-draft-save.md),
 preparing only admitted PATCH with current-owner transaction/source/document CAS,
 existing durable started-Test restrictions and literal legacy compatibility.
 GET owns initialization/repair; a missing/invalid draft baseline requires reload
@@ -1253,6 +1253,14 @@ without partial PATCH writes. No Storage fallback or immediate deletion belongs
 to this boundary. Coordinator begins on actual main `c25ebf78f`; source-only
 workers own separate application, SQL and proof files. Full runtime evidence,
 independent review and exact-head CI remain required. No goal or phase exit.
+
+Superseding2026-10-06 receipt: #1480 reviewed `7fa6674c1` passed all five CI
+37403984915 checks, including warning-free SQL lint and PR Gate, and normally
+squash-merged `25457e2d1` at03:17:42UTC. Clean canonical main fast-forward passed;
+all36 unrelated stashes remain. Corrected249 normal11, both forced cleanup modes,
+genuine types and SAME whole-canonical equality passed. No canonical249 migration
+application, production promotion or activation occurred. The next bounded slice
+is [ordinary owner Test creation](contextual-test-create.md), not a phase exit.
 
 Historical source preparation below predates that actual merge receipt:
 [contextual owner Test draft GET](contextual-test-draft-get.md), including
