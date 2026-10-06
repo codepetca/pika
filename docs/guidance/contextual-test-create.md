@@ -1,7 +1,8 @@
 # Contextual owner ordinary Test creation
 
-Status: source preparation on main `25457e2d1`; no native acceptance, phase exit
-or activation. Draft-save PR #1480 merged after exact reviewed-head CI passed.
+Status: isolated normal/forced cleanup proof accepted at `59a4b35b5736`; genuine
+types installed. Final PR review/CI pending; no phase exit or activation.
+Draft-save PR #1480 merged after exact reviewed-head CI passed.
 Migration 250 is additive source only; canonical local/production 249/250 remain
 unapplied. Shared admission/home/page/cutover/billing remain OFF.
 
@@ -56,3 +57,25 @@ canonical baseline, normal and both forced-cleanup modes, genuine isolated
 CLI-generated types, focused/static checks and independent high-risk review.
 Publish draft first; normal merge requires the stable reviewed SHA and exact-head
 PR Gate. Component completion is not assessments or full rollout completion.
+
+## Isolated acceptance receipt (2026-10-06)
+
+The exact clean `59a4b35b5736d4145dab03fe09a0eab7ad0db989` normal run passed
+14 installed-SDK cases, eight committed pairs, 15 RPC requests, zero Storage
+requests and the actual restored raw-42501 probe. Native proof passed 46 rollback
+checks and nine two-session schedules (53 dispatches, 67,078ms), using 1,673
+control calls/91 actions and leaving zero sessions. Normal and both serial forced
+cleanup modes passed exact teardown and the SAME whole immutable canonical B1;
+independent B1 checks also passed before/after each forced mode.
+
+Earlier normal attempts failed, first with undifferentiated P0001 and then the
+closed PC013 trigger-catalog label. The expected inventory omitted two inherited
+Test triggers from migrations157/173. It now enforces the exact17-trigger set,
+not an optional/count-only allowance; no migration or assertion was weakened.
+
+The genuine isolated CLI artifact is 436,960bytes, SHA256
+`582d14b451555bb27690ba21c9cd624140b5ef0b8752cb40eeccfa12784f2299`.
+`database.generated.ts` is installed byte-identically and adds only the CREATE
+RPC declaration. These receipts do not apply249/250 to canonical local or
+production, activate controls, prove deferred concurrent lifecycle-state writers,
+or establish a phase/goal exit. Reviewed final SHA and required CI remain gates.

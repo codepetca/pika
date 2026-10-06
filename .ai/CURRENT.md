@@ -14,7 +14,7 @@ Recorded controls (not re-queried): admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-Next: owner Test creation250 source-only; runtime/types pending.
+Next: Test creation250 proof/types PASS; PR pending.
 #1480 merged25457e after CI37403984915 PASS;249/250 unapplied.
 See `docs/guidance/contextual-test-create.md`.
 

@@ -665,3 +665,13 @@ override deletion (tgtype9) and removed-academic parent guard (tgtype27).
 The15-entry source inventory was wrong; actual closure has17 entries. Added
 exact tuples and regression RED9/10 before correction; no assertion weakening,
 app/SQL250 behavior, cap, migration application or rollout change.
+
+Trigger correction59a4 independently CLEAN; actual normal3 FULLPASS:14SDKcases,
+8pairs/15RPC/0Storage/restored42501,46rollbackchecks,9schedules/53dispatches/
+67078ms,1673controls/91actions/zero sessions. Both serial forced cleanup modes
+returned exact2markers/expectedexit1; separate SAMEwholeB1 before/after each
+PASS. Genuine436960byte CLI artifact installed byte-identically (SHA582d14b4);
+only CREATE RPC declaration added. Fresh main unchanged25457e. Focused655/26,
+architecture/UI/design/fullTSC/lint PASS. Draft PR/final integration/CI remain;
+249/250 canonical/prod unapplied and all
+admission/home/page/cutover/billing controls unchanged/OFF.

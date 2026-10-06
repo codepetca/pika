@@ -11278,6 +11278,15 @@ export type Database = {
         }
         Returns: Json
       }
+      create_test_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_deadline: string
+          p_title: string
+        }
+        Returns: Json
+      }
       delete_announcement_for_owner_v1: {
         Args: {
           p_actor_id: string
