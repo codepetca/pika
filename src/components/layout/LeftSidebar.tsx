@@ -5,7 +5,7 @@ import { useRef, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react'
 import { PikaLogo } from '@/components/PikaLogo'
 import { useLeftSidebar, useMobileDrawer } from './ThreePanelProvider'
-import { ModalLayer, Tooltip } from '@/ui'
+import { IconButton, ModalLayer, Tooltip } from '@/ui'
 
 export interface LeftSidebarProps {
   children: ReactNode
@@ -108,15 +108,13 @@ export function LeftSidebar({
             <Menu className="h-6 w-6 text-text-muted" aria-hidden="true" />
             <span>Navigation</span>
           </div>
-          <button
+          <IconButton
             ref={firstFocusableRef}
-            type="button"
             onClick={close}
-            className="p-2 rounded-md text-text-muted hover:bg-surface-hover"
-            aria-label="Close navigation"
-          >
-            <X className="h-6 w-6" aria-hidden="true" />
-          </button>
+            variant="ghost"
+            label="Close navigation"
+            icon={X}
+          />
         </div>
 
         {/* Nav content */}

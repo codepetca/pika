@@ -3,7 +3,7 @@ import { PageState } from '@/ui'
 
 export default function ClassroomLoading() {
   return (
-    <AppShell showHeader={false} mainClassName="max-w-none px-0 py-0">
+    <AppShell initialNow={0} showHeader={false} mainClassName="max-w-none px-0 py-0">
       {/* Match ThreePanelShell grid structure exactly */}
       <div
         data-testid="classroom-skeleton"

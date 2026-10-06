@@ -98,6 +98,7 @@ interface SelectedAssignmentInstructions {
 }
 
 interface ClassroomPageClientProps {
+  initialNow: number
   classroom: Classroom
   user: UserInfo
   classroomRole?: UserInfo['role']
@@ -171,6 +172,7 @@ function buildInitialQueryString(
 }
 
 export function ClassroomPageClient({
+  initialNow,
   classroom,
   user,
   classroomRole,
@@ -311,6 +313,7 @@ export function ClassroomPageClient({
     >
       <ClassDaysProvider classroomId={effectiveClassroom.id}>
         <ClassroomPageContent
+          initialNow={initialNow}
           classroom={effectiveClassroom}
           user={user}
           classroomRole={experienceRole}
@@ -568,6 +571,7 @@ function StudentTodayWorkspace({
 
 // Separate component to access ThreePanelProvider context
 function ClassroomPageContent({
+  initialNow,
   classroom,
   user,
   classroomRole,
@@ -582,6 +586,7 @@ function ClassroomPageContent({
   featureVisibility,
   classroomQrAvailable,
 }: {
+  initialNow: number
   classroom: Classroom
   user: UserInfo
   classroomRole: UserInfo['role']
@@ -1777,6 +1782,7 @@ function ClassroomPageContent({
 
   const content = (
     <AppShell
+      initialNow={initialNow}
       user={user}
       classrooms={
         isTeacher

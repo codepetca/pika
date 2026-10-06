@@ -31,7 +31,7 @@ export default async function TeacherStudentTablesFixture({
   const role = query.role === 'student' ? 'student' : 'teacher'
   return (
     <LayoutInitialStateProvider leftSidebarExpanded>
-      <ClassroomPageClient
+      <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classroom={classroom}
         user={{ id: role === 'teacher' ? classroom.teacher_id : '30000000-0000-4000-8000-000000000015',
           email: `${role}@example.invalid`, role, first_name: 'Fixture', last_name: role }}

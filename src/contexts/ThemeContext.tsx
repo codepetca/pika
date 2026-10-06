@@ -40,10 +40,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    // Keep the root initializer's preference until client detection has completed.
+    if (!mounted) return
     document.documentElement.classList.toggle('dark', theme === 'dark')
     document.documentElement.style.colorScheme = theme
     document.documentElement.style.backgroundColor = theme === 'dark' ? '#030712' : '#f9fafb'
-  }, [theme])
+  }, [theme, mounted])
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light'

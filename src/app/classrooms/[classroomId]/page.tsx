@@ -120,7 +120,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
 
     // 3. Render with data already loaded - no spinner needed!
     return (
-      <ClassroomPageClient
+      <ClassroomPageClient initialNow={Date.now()}
         classroom={classroom}
         user={{
           id: user.id,
@@ -186,7 +186,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
   }
 
   const studentPage = (
-    <ClassroomPageClient
+    <ClassroomPageClient initialNow={Date.now()}
       classroom={hydratedClassroom}
       user={{
         id: user.id,
