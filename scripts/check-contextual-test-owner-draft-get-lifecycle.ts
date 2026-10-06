@@ -345,7 +345,9 @@ export async function testOwnerDraftGetLifecycleMain(args = process.argv.slice(2
     const receipt = testOwnerDraftGetForcedReceipt(input.mode, error, complete)
     if (receipt) { process.stdout.write(receipt.stdout); process.stderr.write(receipt.stderr); process.exitCode = receipt.exitCode; return }
     process.stderr.write(testOwnerDraftGetSetupDiagnostic(setupStage, error))
-    if (transport) process.stderr.write(transport.diagnostic()); throw new Error('Test owner draft GET lifecycle failed; private details withheld')
+    if (transport) process.stderr.write(transport.diagnostic())
+    if (sqlContracts) process.stderr.write(sqlContracts.diagnostic())
+    throw new Error('Test owner draft GET lifecycle failed; private details withheld')
   } finally { if (originalPal === undefined) delete process.env.PAL_ENABLED; else process.env.PAL_ENABLED = originalPal }
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) testOwnerDraftGetLifecycleMain().catch(() => {
