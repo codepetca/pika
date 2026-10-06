@@ -39124,3 +39124,20 @@ exact cleanup/separate baseline PASS, no normal/types receipt. Closed source-onl
 diagnostic TDD2RED→80PASS; no assertion data/SQL/keys logged or caps relaxed.
 Rebased onto43c24 preserving incoming CI policy, archive/history and immutable249;
 pending source acceptance/runtime diagnosis/final review/CI/merge. All rollout OFF.
+
+<!-- pika-session-log-archive-batch:536099626ac72779db517c029da7abaac12329278714f790693c4f41855c9f9d -->
+## 2026-10-05 — Draft-save concurrency budget pinpointed
+
+Narrow diagnostic/rebase review4cb CLEAN,58offlinePASS. One normal attempt failed
+disposable Storage health before fixtures; exact cleanup/SAMEbaselinePASS. Reviewed
+unchanged retry reached42SDKcalls and pinpointed concurrency-total180s assertion
+at concurrency.ts:80; exact cleanup/separateSAMEbaselinePASS. No normal/types
+receipt, canonical migration or production action. Native-only performance fix
+delegated GPT6.1Sol/high; all fresh checks,16schedules and caps must remain, no
+runtime/Git authority for worker. Original reviewclock12:51:50,6launches/4targeted/
+3batches/0final retained under human task-stop waiver. PR1480 stays draft.
+
+Worker delivered four-read allSettled parallelism only; all checkpoints/caps
+unchanged. Six trueREDs then89offlinePASS, ESLint/diffPASS; root inspected diff.
+Real180sfit unproven. Focused checks/commit and targeted source acceptance next;
+final review, genuine types, exact CI/main merge remain required.

@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Draft-save concurrency budget pinpointed
-
-Narrow diagnostic/rebase review4cb CLEAN,58offlinePASS. One normal attempt failed
-disposable Storage health before fixtures; exact cleanup/SAMEbaselinePASS. Reviewed
-unchanged retry reached42SDKcalls and pinpointed concurrency-total180s assertion
-at concurrency.ts:80; exact cleanup/separateSAMEbaselinePASS. No normal/types
-receipt, canonical migration or production action. Native-only performance fix
-delegated GPT6.1Sol/high; all fresh checks,16schedules and caps must remain, no
-runtime/Git authority for worker. Original reviewclock12:51:50,6launches/4targeted/
-3batches/0final retained under human task-stop waiver. PR1480 stays draft.
-
-Worker delivered four-read allSettled parallelism only; all checkpoints/caps
-unchanged. Six trueREDs then89offlinePASS, ESLint/diffPASS; root inspected diff.
-Real180sfit unproven. Focused checks/commit and targeted source acceptance next;
-final review, genuine types, exact CI/main merge remain required.
-
 ## 2026-10-05 — Draft-save native failure retained after guard improvement
 
 Parallel guard b1f targeted security/finite-plan review CLEAN,89independentPASS;
@@ -538,3 +522,7 @@ no feature head, protected branch, hosted service, pattern authority or rollout 
 - Reference: approved `/pattern-lab#gradebook-compact` production owner; teacher desktop 1440×900/mobile 390×844, light/dark, regular/ultra-compact and percent/raw. Playwright verified 16 combinations for equal row backgrounds, opaque sticky Final cells and hover; student specimen isolation passed. Captures/results: ignored `output/playwright/final-background/`.
 - Updated the existing frozen-header acceptance assertion. UI/design policy and pre-commit audit pass. Small implementation handled directly; independent display review remains before ready CI. Weekly usage at start: 26% remaining; task token/time attribution unknown.
 - Nearby legacy PageMockups Gradebook duplication remains a refactor candidate; production owner evidence is authoritative for this fix. No experimental pattern or accessibility semantics change; existing keyboard/semantic tests retained.
+
+## 2026-10-06 — Pattern Lab hydration correction for consolidated landing
+
+Owner approved one additional correction batch/final review with a 60-minute cap. Rejected the Suspense probe because it replaced server identities. Added a layout-neutral server parent around the existing guarded Gallery; eight unchanged drawer checks passed, and repeated actual-response/client ID, ARIA, menu and strict-error checks were added for both roles. Production gates, dependencies and original assertions remain intact. Focused checks, final stable-SHA matrix/review and exact-head CI remain required before authorized #1490 merge; softer modal exits follow landing. External continuation evidence: product-fluidity/review-ledger.json and hydration-ui-brief.md in this task's artifact directory.
