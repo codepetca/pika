@@ -107,7 +107,10 @@ describe('closed migration250 native profile', () => {
     expect(validateTestOwnerCreateNativeSql(manifest, 'delete from public.users;')).toBe(false)
     expect(validateTestOwnerCreateNativeSql(manifest, manifest.privilege.restore)).toBe(false)
     expect(validateTestOwnerCreateNativeSql(manifest, legacyManifest.setup)).toBe(false)
-    expect(() => buildTestOwnerCreateNativeContractsManifest(original, { ...f, tests: [] }, head, repository)).toThrow()
+    let rejectedFixture: unknown
+    try { buildTestOwnerCreateNativeContractsManifest(original, { ...f, tests: [] }, head, repository) } catch (error) { rejectedFixture = error }
+    // Large assertion object diffs are not part of this closed guard's contract.
+    expect(rejectedFixture instanceof Error && rejectedFixture.message === 'Test owner-create fixture differs').toBe(true)
     expect(typeof createTestOwnerCreateNativeContracts).toBe('function')
   })
   it('rejects index DDL as a substitute for the actual bounded allocator plan', () => {

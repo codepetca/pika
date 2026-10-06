@@ -678,3 +678,14 @@ fixed-SQL/schedule/cross-profile cases; no production source or cap change.
 Targeted142/3 PASS. Full coverage and independent targeted review pending;
 original review clocks,8 launches/4 batches and failures retained before batch5.
 No canonical249/250 application, production promotion or activation.
+
+Exact8a8 targeted review CLEAN155/4 and full localcoverage13449 PASS;
+readyCI37419130750 still failed only malformed-fixture rejection default5s.
+Returned draft/canceled; both ephemeral DB cleanup steps PASS. Root measured
+strict Node assertion formatting367494 error characters/589ms locally; GitHub
+coverage overhead exceeds5s. New fixed-message regression RED61/62. Use the same
+complete Node strict comparison as a boolean assertion with a closed message,
+not a sampled comparison or timeout increase. Native proof source changes, so
+fresh independently reviewed normal/forced proof is required; prior59a4 receipts
+are historical. Dependent251 app/source inventory preserved separately and held;
+no251 migration, canonical application, PR or activation.

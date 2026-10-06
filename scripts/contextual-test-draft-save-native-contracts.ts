@@ -5,6 +5,7 @@ import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child
 import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { isAbsolute, normalize, resolve } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
+import { isDeepStrictEqual } from 'node:util'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
 import type { AssignmentListResource } from './contextual-assignment-list-proof-lifecycle'
 import { draftSaveProofDockerInventory } from './contextual-test-draft-save-proof-inventory'
@@ -140,7 +141,9 @@ export function validateDraftSaveNativeSql(manifest: Manifest, sql: string) {
 export function buildTestOwnerCreateNativeContractsManifest(original: AssignmentListProofFixture, fixture: TestOwnerCreateFixture,
   reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
-  assert.deepEqual(fixture, newTestOwnerCreateFixture(original))
+  // Preserve complete strict equality without formatting an unbounded object
+  // diff into the failure. Native diagnostics must not render fixture rows.
+  assert(isDeepStrictEqual(fixture, newTestOwnerCreateFixture(original)), 'Test owner-create fixture differs')
   assert(Object.isFrozen(fixture))
   const projectId = `pika_assignment_list_${fixture.tag.slice(-12)}`
   const q = (value: string) => `'${value.replaceAll("'", "''")}'`
