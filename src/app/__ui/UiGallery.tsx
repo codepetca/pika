@@ -72,6 +72,7 @@ import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { TestEditSplitPattern } from './TestEditSplitPattern'
 import { SurveyEditSplitPattern } from './SurveyEditSplitPattern'
+import { SurveyOptionResultBar } from '@/components/surveys/SurveyOptionResultBar'
 import { StudentAssignmentAttachmentsPattern } from './StudentAssignmentAttachmentsPattern'
 import { GradebookCompactPattern } from './GradebookCompactPattern'
 import { PageMockups } from './PageMockups'
@@ -690,6 +691,15 @@ export function UiGallery({ role }: Props) {
             {role === 'teacher' && <AssignmentEditSplitPattern />}
             {role === 'teacher' && <TestEditSplitPattern />}
             {role === 'teacher' && <SurveyEditSplitPattern />}
+            <PatternSection id="survey-results" eyebrow="Feature-owned evidence"
+              title="Survey result bars" description="Labels overlay the shared teacher/student tracks, with selected percentages inside the right end of each backing. Options stay in their original order.">
+              <div className="space-y-1.5">
+                <SurveyOptionResultBar option="Group discussion" count={7} totalResponses={20} />
+                <SurveyOptionResultBar option="Practice problems" count={12} totalResponses={20} />
+                <SurveyOptionResultBar option="Independent reading with a longer option label that wraps on narrow screens" count={1} totalResponses={20} />
+                <SurveyOptionResultBar option="Other" count={0} totalResponses={20} />
+              </div>
+            </PatternSection>
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"

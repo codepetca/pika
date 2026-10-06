@@ -26,6 +26,20 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('keeps survey summaries accessible alongside retained interaction previews for %s', (role) => {
+    renderGallery(role)
+    const survey = within(screen.getByTestId('pattern-section-survey-results'))
+    expect(survey.getByRole('group', { name: 'Group discussion: 7 responses, 35%', exact: true })).toBeInTheDocument()
+    expect(survey.getByRole('group', { name: 'Other: 0 responses, 0%', exact: true })).toBeInTheDocument()
+    const dialogPreview = screen.getByTestId('dialog-entry-pattern')
+    expect(within(dialogPreview).getByRole('button', { name: 'Open quiet dialog entry' })).toBeInTheDocument()
+    expect(screen.getByTestId('pattern-lab-contracts')).not.toContainElement(dialogPreview)
+    expect(screen.getByTestId('mobile-drawer-controls')).toBeInTheDocument()
+    const retainedTabs = within(screen.getByTestId('tab-entry-extension'))
+    expect(retainedTabs.getByRole('tab', { name: 'Draft', selected: true })).toBeInTheDocument()
+    expect(retainedTabs.getByRole('tabpanel')).toBeInTheDocument()
+  })
+
   it.each(['teacher', 'student'] as const)('exercises ClassroomsReadRecoveryPattern first-read and retained-list recovery for %s', async (role) => {
     const user = userEvent.setup()
     renderGallery(role)

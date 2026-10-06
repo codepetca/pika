@@ -11,103 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Discard fixture first native attempt contained and corrected
-
-Targetedced2 source review CLEAN; root accepted finiteexactprojectwrapper/SAMEB1
-and startednormal1. Failedapp-write/fixture before0RPC/Storage/deletions; exact
-cleanupnonefailures, separatewholeSAMEB1 afterPASS. No success/typesreceipt.
-Read-only source diagnosis identifies164markINSERT requiresactiveenrollment;
-fixture/nativeblocker incorrectly inserted for unenrolledactor. Secondfixbatch
-adds reserved naturaltemporaryenrollment→markINSERT→exactenrollmentDELETE,
-fullretainedmark/closed168generation guards;4activeenrollments preserved,
-no evidence bypass/delete/reset. TDD14RED/9PASS then112/6GREEN; fullfocused
-658/26PASS/staticarchitectureUI/designPASS; TSCsolemissinggenuineRPC stillFAIL,
-not completegate. Original06:47:09clock/3reviewlaunches retained; targeted
-securityreview before anyretry. No canonical/prodapply or rollout activation.
-
-## 2026-10-06 — Discard catalog physical-order correction
-
-Targeted1a4 retainedmark/securityreview CLEAN119/6; normal2 nowsetupcomplete,
-two actual distinct42501privilege probes/restorationPASS (2RPC/0Storage), then
-closedPCD01catalog-function failed before normalSDKdeletions. Exactcleanup
-nonefailures/separatewholeSAMEB1 afterPASS. No types/successreceipt/forcedmodes.
-Root source039042066112143147210 proves gradebook_weight was added before
-identity columns. Bound currentcanonical container schema-only PGdefaultreadonly/
-5stimeout query confirms exact21/10physicalcolumns; no rows/credentials/writes.
-Thirdfixbatch corrects literalTestcolumnorder only, retains attnum/everycolumn/
-ACL assertions. Regression RED1/8, originalcaps/SQL251/fixture/app unchanged.
-Review original06:47:09clock/4launches retained; targeted review before retry.
-Canonical249–251/prod/rollout untouched; no phase/goalexit.
-
-## 2026-10-06 — Pristine Test discard isolated acceptance
-
-Targeted5f5 column-order review CLEAN19/4; root verified report/seals. Normal3
-at clean5f5f097673c5 passed18 installed-SDK cases/20RPC/0Storage/6 exact pair
-removals,2 different restored raw42501 probes,56 rollback checks/14 contention
-schedules/70 dispatches,0 remaining sessions. Genuine CLI public types copied
-mechanically and full-byte cmp PASS; only newRPC10lines. Both serial forced
-modes exited1 with exact two markers; separate SAME whole immutable B1 checks
-before/after each passed. Earlier two failures retained. No cap/deadline change.
-Added serialCI251 gate, RED1/GREEN2; focused660/27 plus policies/TSC/lintPASS.
-Full coverage PASS with unchanged floors. Original review06:47:09 clock,
-five launches/three fix batches retained under existing human task waiver.
-Final independent integration review/draftPR/exact-headCI/normal mainmerge next.
-Canonical249–251/prod/account/cohort/UI/cutover/billing holds remain; no phaseexit.
-
-## 2026-10-06 — Discard CI fixture-test isolation correction
-
-Final14cab cumulativeSol-class review CLEAN211/6; draft#1503 markedready once.
-CI37432947676 retained13,775PASS/1FAIL/8SKIP: eight denial/probe contexts shared
-one offline5s test. PRreturnedDRAFT beforefix; otherlanesnormalcancelled/PRGateFAIL.
-Oldwatch46558closedexit1; no duplicateCI. Batch4 parameterizes exactsame8cases,
-freshfull1001-rowbaseline/all16assertions/default5s retained, native/app/SQLunchanged.
-Affected23PASS; fullcorrectedcoverage13,783PASS/8SKIP/144.45s, allsamefloorsPASS.
-Original06:47:09clock/sixlaunches/fourfixbatches retainedhumanwaiver. Targeted
-correction and cumulative integration carryforward/exact-head freshCI stillrequired.
-No canonicalmigration/prod/account/cohort/UI/cutover/billing orphaseexit.
-
-## 2026-10-06 — PR 1490 current-main integration continuation
-
-Rebased `codex/product-fluidity` onto main `865d837b740e781086f0209eb9c4d9c8dab78db3` in the authorized single continuation batch. Preserved all prior unique feature/main continuity entry bodies and the exact main archive prefix; noncontinuity feature file parity is 21/21 against `863d6305f`. Focused validation and fixed-SHA independent review remain required before publishing. No new product behavior, dependencies, migrations or deployment.
-
-## 2026-10-06 Classroom index recovery main reconciliation
-
-PR #1491 rebased onto main `865d837b7` in one bounded continuation batch.
-Feature product, tests, and UI brief retained byte-for-byte from `4ec0d680e`;
-all unique main/feature continuity bodies preserved and the official trim/check
-used. Focused checks and final fixed-SHA independent review are required before
-any publication; no migration, rollout, or clock-visibility changes.
-
-## 2026-10-06 — Product fluidity: Blueprint read recovery preparation
-
-Broad UI/UX goal remains active. Shared interaction PR1490 is independently
-reviewed at863d6305 and runs exact-head CI37393014065 after one scoped E2E selector
-correction: actual workspace24/shared16 cases pass without retry, focused2069/189
-and all static gates pass. Classroom recovery PR1491 reviewed4ec0d680 runs
-CI37392151855; focused277/20, sixteen original plus fresh representative visual
-variants pass. Neither future merge nor production promotion is authorized yet;
-owner tab-direction acceptance remains pending. Both rebases preserve Survey1483
-and continuity history; receipts retain original review clocks and source parity.
-
-Bounded Sol/medium Blueprint audit confirmed failed-list empty copy and failed
-selected-detail selection copy/no retry; root checked actual owners. New isolated
-codex/blueprints-read-recovery worktree atmainc88abe16 passes frozen install/startup.
-Brief names approved PageState/teacher utility reference and reuse/extend decisions.
-A gated development-only fixture mounts the actual Blueprint page for controlled
-read captures, without changing production authorization. Dirty editor replacement
-is excluded from automatic warm-detail retry. Audit source only; implementation,
-actual runtime evidence and independent review still pending. Usage/active tokens
-unknown; no savings claim, DeepSeek owner pause remains honored.
-
-## 2026-10-06 — Blueprint read recovery implementation and visual acceptance
-
-- Teacher Blueprint required list/detail failures now use generic scoped PageState errors and named bounded retry. Stable region focus, cache invalidation, duplicate guards and request-generation/selected-ID guards preserve independent reads and warm data. No warm-detail refresh was added that could overwrite dirty sections.
-- Native Sol/medium worker delivered the page and regression tests; root verified source and owned gated fixture, gate tests, committed browser coverage and integration. Six baseline cases failed before the fix; 54 focused behavior tests and three fixture publication tests pass.
-- Actual client development fixture: 16 browser cases passed across desktop/mobile, light/dark and normal/reduced motion; eight supplemental warm-read variants retained rows, title DOM/caret, tab and dirty title/Outline, plus genuine-empty captures. Root inspected 80 screenshot states; synthetic reads blocked all mutations, and this does not claim authenticated teacher-shell/server-outage or production performance coverage.
-- PR #1491 final reviewed SHA 4ec0d680ecad50423aa5008adba034850bdd857d has successful final CI including PR Gate. PR #1490 remains ready at reviewed SHA 863d6305fcdde8695d7643ebf79802e1716d8c5f with final browser CI running. Owner tab-pattern acceptance and new merge authority remain pending; broader product goal active.
-- Blueprint cumulative checks, draft publication and independent review next. No dependency, schema, auth or production change. Artifacts retained externally under the current goal's blueprints-read-recovery directory.
-- Mandatory staged audit exposed an early grep/pipefail false rejection of the growing page regression file. Exact matching rules are unchanged; consuming the full input removes SIGPIPE. Added RED→GREEN large-suite exact-import and prefix-collision checks; all 78 audit/startup tests and the final required focused gate (231 tests/15 files plus static checks) pass. Staged audit covers seven TypeScript files.
-
 ## 2026-10-06 — Blueprint review remediation
 
 - Draft PR #1493 at initial reviewed candidate 6216b24c received one independently proven P2: failed-save/export operation feedback from the previous Blueprint persisted after selection changed. Complete initial 11-file review found no other actionable issues; supplemental cases failed candidate and passed exact c88 base.
@@ -367,6 +270,73 @@ reviewed-SHA CI gate is required. Production promotion remains outside scope.
 
 Merged main PR #1506 into the reviewed fluidity candidate as one bounded reconciliation. Preserve current-main Daily summaries and student questions, all nine reviewed feature heads, the exact main archive prefix, and every prior rolling-history body. Three test/policy/history files auto-merge; production code has no textual conflict. Previous candidate 27dd240e passed local focused/static, 172 distinct browser cases, independent source review and CI/PR Gate (one unchanged test/build retry). New-head focused/browser/visual, final independent integration review and exact-head CI are required before authorized main merge and superseded-PR closure. No new feature or design change; softer modal exits follow landing.
 
+## 2026-10-06 — Minimal survey results
+
+Task/branch: survey results cleanup, `codex/survey-results-minimal`.
+Combined survey title and Results, removed chart icon/visible option tallies,
+increased result question text to 18px, and placed wrapped option labels inside
+shared percentage tracks for teachers and students. Existing heading/Markdown
+owners reused; shared result bar extended; deterministic Pattern Lab entry added.
+Reference: Pattern Lab compact page actions/card framing. No new interaction,
+experimental pattern or composite-widget contract; no schema/API changes.
+Visual matrix: both roles, 1440×900/390×844, light/dark; loaded results, long
+labels and 0/5/35/60/100% fills inspected. Captures and rerunnable synthetic-API
+fixture script: `output/playwright/`; source changes match PR implementation.
+50 focused survey tests pass. Required check:focused with --max-workers 1:
+414 tests pass, architecture/UI/design policy pass; initial default-worker
+attempt hit an existing gallery QR timeout. Risk profile none; weekly remaining
+15%; automatic DeepSeek paused through Dec31. Initial GPT-6 Luna/medium independent review found one P2: the generic bar
+wrapper did not expose its label. Added a named group role and a semantic
+assertion; one batched remediation, no conflicts. Reviewer delivery verified;
+usage and active-time attribution unknown. Targeted and cumulative review
+follow in PR metadata before CI.
+
+## 2026-10-06 — Hide unselected survey percentages
+
+PR1511 follow-up: omit visible percentages when option count is zero, using the
+existing shared teacher/student result bar. Keep the accessible summary and
+nonzero-option percentages, including a selected fraction that rounds to0%.
+Reuse/extend decisions and reference unchanged. Risk none; existing eight-view
+visual matrix refreshed with an explicit no-visible-0% check. Added zero-vote,
+zero-total and tiny-nonzero semantic cases to the existing component test.
+PR returned to draft before publishing; targeted review/final checks in PR notes.
+
+## 2026-10-06 — Survey percentage alignment
+
+PR1511 follow-up: reuse/extend SurveyOptionResultBar with labels overlaying the
+full track and a fixed-width percentage column at the far right of each row.
+Blank zero-vote percentage columns keep all tracks aligned. Original question
+and option order retained by API position ordering and existing array maps.
+Pattern Lab and visual fixture now put the highest-vote option second to verify
+that responses do not reorder the survey. Existing both-role/viewport/theme
+matrix refreshed, including percentage right alignment and order assertions.
+Risk none; no business-logic/API changes. Checks and bounded review in PR notes.
+
+## 2026-10-06 — Inline survey question numbers
+
+PR1511 follow-up: reuse question Markdown and muted labels in a baseline-aligned
+row, placing Q1/Q2/etc beside the question in teacher/student results. Keep full
+question text wrapping and original order. Risk none; same eight-view matrix
+refreshed with inline-number geometry checks, plus required focused checks.
+Bounded GPT-6.1 Sol/medium targeted review continues in PR metadata.
+
+## 2026-10-06 — Percentages inside survey bar backings
+
+PR1511 follow-up: extend the existing shared result row so selected percentages
+sit inside the backing's right edge, with consistent padding. Labels overlay
+the fill; zero-vote percentages stay blank; inline question numbers and original
+question/option order retained. Pattern Lab description follows the final row.
+Risk none. Both roles × desktop/mobile × light/dark screenshots refreshed with
+inside-right-edge geometry checks. Required checks/review recorded in PR notes.
+
+## 2026-10-06 — Survey title only
+
+PR1511 copy follow-up: remove the redundant Results suffix from both survey
+headings, leaving the original survey title. Reuse existing title styling;
+update heading assertions and same eight-view visual script. Risk none.
+Previously reviewed implementation reused; coordinator checks the title-only
+delta and cumulative continuity. Required local checks/visual evidence in PR.
+
 ## 2026-10-06 — CI schema-copy diagnostic correction and local evidence
 
 PR1488 remains draft. At reviewed d19792dd, fresh targeted Assignment
@@ -458,3 +428,14 @@ unregistered/inactive runner holds persist; no production/HQ changes.
 ## 2026-10-06 Product fluidity final current-main reconciliation
 
 Owner approved one final reconciliation batch and one independent integration reviewer within120minutes. Reconciled current main693a096df (#1488 database proof diagnostics) into the frozen baf23560 candidate. Application/UI source stays unchanged; the archive retains both exact histories, and the automatically merged experience contract retains the upstream student-work readiness correction. Parent baf23560 passed independent review, focused2388tests,8newbrowsercontracts,16composition captures, and exact-head CI37511211431 (13919coveragepasses;386browserpasses,11configured retry recoveries,20skips;PRGatePASS). Required focused checks and one final frozen-SHA review precede fresh exact-head CI, main merge and8superseded closures. No production promotion.
+
+## 2026-10-06 — Survey results merge synchronization
+
+Owner authorized merging PR1511. Final4e78030 CI37514295830 passed all required
+checks/PR Gate; main advanced693a096df and conflicted only in archived session
+history. Preserved both histories and incoming main source; survey implementation
+bytes unchanged. Required focused checks and exact synchronization CI pending.
+
+## 2026-10-06 — Fluidity current-main survey reconciliation
+
+Owner explicitly overrode task approval stops; cumulative8batches/10reviewer launches retained before ninth reconciliation. Reviewedf03 CI37530998188 allrequiredgatesPASS; main1511 advanced duringCI. Preserve exactmain archive prefix, feature append, both rolling bodies and existing fluidity previews alongside exact upstream survey fixtures. Temporary main-merge hold sent to three coding chats; release after landing/checkpoint. Focused, both-role visual, targeted independent review and fresh exact-head CI pending; no production/provider/schema permission changed. Broad fluidity goal remains incomplete; softer modal exits follow verified landing.
