@@ -38785,6 +38785,7 @@ Affected/focused verification and independent launch9 are pending; no budget
 reset or further review extension. Host/private runner activation remains pending.
 
 <!-- pika-session-log-archive-batch:67aef728272963fe2ef8d7f816491fe173f005ebbbfc8d0f3e65ba938397ec68 -->
+<!-- pika-session-log-archive-batch:b31990ae4be65693a4fda4965b076fbda79f40a16f7e7e774539dcb4f48667ea -->
 ## 2026-10-05 — Survey Pattern Lab prototype
 
 Owner requested Survey prototype informed by the Test modal. Added experimental
@@ -38871,3 +38872,105 @@ Coordinator verified six natural recordings (desktop/mobile, Teacher Classwork/T
 ## 2026-10-05 — Approved motion independent review batch
 
 Draft1486 frozen90dc: independent Sol/high full-diff review found two P2 blockers, inner grading subtree remount between two grading layouts and generic-shell entry reaching unscoped Roster/Gradebook. Coordinator validated both with meaningful RED tests and batches correction: keep inner split/frame position, hide unused primary slot; opt in via existing Classwork/Tests frame-class hook. Real textarea/scroller identity, selection/focus/scroll assertions plus generic-shell default coverage added; browser matrix strengthened. Initial combined677tests/static passed with sibling1482/1484 source reconciled in proof only; final frozen compatibility/browser and targeted/different-final review pending. Review budget launches1, fixbatches1, cap7/4/60min; no dependency/API/autosave/merge/deploy changes.
+
+## 2026-10-05 — Full native protocol coverage timeout stabilization
+
+Coordinator-reported Linux ARM64 4 CPU/12 GiB baseline at 43c24ab: full coverage
+12,703 passed/1 failed/8 skipped; the finite native draft GET protocol took
+5,842 ms against Vitest's 5,000 ms default. Its 12 offline schedules repeatedly
+hash the complete migration inventory. Give only that test 15,000 ms; assertions,
+fixtures, runtime guards/caps and coverage configuration remain unchanged.
+Locked dependency setup/startup passed. Isolated CI=true V8 coverage:22/22 passed,
+18.96 s; exit1 is the unchanged whole-project threshold failure for one test file.
+Native/TeacherBlueprintTab/component UiGallery targeted:38/3 passed,12.77 s.
+Focused --base origin/main passed211/14 plusarchitecture/TypeScript/lint.
+Coordinator-owned exact-SHA Linux DB/browser benchmarks remain pending.
+No live DB/VM, workflow/routing, production or repository visibility changes.
+
+## 2026-10-05 — Approved motion final verification and main synchronization
+
+PR1486 reviewed94a7793e final candidate661/36+allstatic,185owners,24motionbrowser,6natural recordings PASS. Corrected cumulative33-source proof644/35+allstatic,56classroom+12PatternLab browser PASS; independent targeted three regressions and different cumulative final review CLEAN. Main advanced75977572b through unrelated native protocol test timeout/history changes; first ready event could not create CI because archive conflicted. Returned draft before synchronization; merged current main retaining both histories, reran required focused gate and bounded native test, product bytes unchanged. Sync head requires targeted independent confirmation and one eligible CI run before completion. No existing sibling head, dependencies, schema, merge or deployment changed.
+
+<!-- pika-session-log-archive-batch:f68b99a551ebc9074a5988eac428c285866f37ff36a3598092e8087196de4ca6 -->
+## 2026-10-05 — Full native protocol coverage timeout stabilization
+
+Coordinator-reported Linux ARM64 4 CPU/12 GiB baseline at 43c24ab: full coverage
+12,703 passed/1 failed/8 skipped; the finite native draft GET protocol took
+5,842 ms against Vitest's 5,000 ms default. Its 12 offline schedules repeatedly
+hash the complete migration inventory. Give only that test 15,000 ms; assertions,
+fixtures, runtime guards/caps and coverage configuration remain unchanged.
+Locked dependency setup/startup passed. Isolated CI=true V8 coverage:22/22 passed,
+18.96 s; exit1 is the unchanged whole-project threshold failure for one test file.
+Native/TeacherBlueprintTab/component UiGallery targeted:38/3 passed,12.77 s.
+Focused --base origin/main passed211/14 plusarchitecture/TypeScript/lint.
+Coordinator-owned exact-SHA Linux DB/browser benchmarks remain pending.
+No live DB/VM, workflow/routing, production or repository visibility changes.
+
+## 2026-10-05 — Approved motion final verification and main synchronization
+
+PR1486 reviewed94a7793e final candidate661/36+allstatic,185owners,24motionbrowser,6natural recordings PASS. Corrected cumulative33-source proof644/35+allstatic,56classroom+12PatternLab browser PASS; independent targeted three regressions and different cumulative final review CLEAN. Main advanced75977572b through unrelated native protocol test timeout/history changes; first ready event could not create CI because archive conflicted. Returned draft before synchronization; merged current main retaining both histories, reran required focused gate and bounded native test, product bytes unchanged. Sync head requires targeted independent confirmation and one eligible CI run before completion. No existing sibling head, dependencies, schema, merge or deployment changed.
+
+## 2026-10-05 — Standalone Gradebook marks visible on save
+
+Owner approved removing Return marks for participation/external exam/Daily items. Student Classwork and Grades now project saved nonblank standalone scores, including existing never-returned marks; edits update immediately and clearing removes them. Pika assignment/test returns and classroom visibility/privacy gates preserved. Removed standalone return UI; renamed student heading Gradebook marks; updated canon/prototype specimens. No migration/backfill needed; legacy DB return metadata/API remain compatible.
+
+Evidence: initial focused514 plus architecture/UI/design/type/lint PASS; final focused check follows rebase to origin/main75977572. API regressions38 and components35 PASS. Real loopback API+DB smoke create/save/zero/edit/details/clear PASS with null return timestamps and verified fixture cleanup (/tmp/pika-direct-mark-smoke.log). Playwright Pattern Lab 8/8 role×viewport×theme PASS; dialog/save focus and student rows inspected in test-results/ui-pattern-lab-*/; empty/error behavior covered by component tests. Audit PASS; composite checklist, keyboard/focus and semantic coverage verified.
+
+Delegation: GPT6.1Sol/high test-only worker delivered two files in ~6min; coordinator verified query predicates, weighted parity and test runs; no rework/conflict. Weekly remaining45%, DeepSeek paused throughDec31; worker/coordinator tokens unknown. Current branch codex/student-daily-mark; owning chat retains integration. Independent fixed-SHA disclosure/compatibility review follows draft publication; production promotion not authorized.
+
+## 2026-10-05 — Survey merge preparation after main advanced
+
+PR 1483 reviewed head 665c1fa7 passed all five required CI jobs, including PR Gate.
+User explicitly authorized merge to main. New main changes merged into the feature
+branch; the only conflict was archived session-log batch markers and an appended
+historical entry. Preserved main markers and the retained historical entry. Survey
+implementation and tests are unchanged; independent review evidence remains valid.
+Required checks and a new exact-head CI gate run before squash merge. No production
+promotion or schema operation authorized by this request.
+
+## 2026-10-05 — Approved fluid classroom merge preparation
+
+Owner explicitly authorized merge then goal advancement. GitHub hostedrunner incident prevented PRGate in two attempts, while four CIverification lanes passed668f3d35. Currentmain5b2423d Gradebook changes retained; history reconciled with bothparents preserved. Integrate reviewed Student1482 andTeacher1484 continuity into owning1486 alongside Daily1481 alreadyincluded.32of33 finalcombinedproof sources byteidentical; sole PatternLabtest difference is exact acceptedmainGradebook additions. Reuse independent feature/cumulative reviews and prior24motion/68combined browser/natural recordings; currentmain focusedgate/browser verification required before stable ready/merge. Package/lock/schema unchanged. No production promotion authorized.
+
+## 2026-10-05 — Integrated fluid classroom local gate complete
+
+Owning1486 integrates reviewed Daily1481/Student1482/Teacher1484 on currentmain5b2423d. All product/classroombrowser/component sources match independently reviewedcombinedproof; documented approval/reference/roadmap differences only. Bothparentdatedhistorybody preservation checked.644tests/35files+allstatic PASS;56uniqueclassroom+20PatternLab cases PASS. Initial16Dailycases lackedignoredfixturestate; addedemptylocalfixturestates andreranonly16unchangedcases GREEN. Currentbatch7fileauditPASS/compositesemanticscovered; rootbothrolevisualinspection acceptable. Prior sixnaturalrecordings applicable throughsourceparity. Reviewcounts4launches retained, thirdsyncbatch/no newrevieworclockreset. Ownermergemainauthorized; stableSHA CI/PRGate andactualmerge pending GitHubhostedrunner outage. No production promotion.
+
+## 2026-10-05 — Survey final motion-main integration
+
+PR 1483 candidate 33f2aef3 passed all five required CI jobs including PR Gate
+(run 37374119531). Main then advanced to 84a657eb (#1486). Resolve archived
+session history mechanically while preserving all complete bodies; retain both
+independent top-level Pattern Lab browser scenarios with their own test closures.
+Application files merged automatically. Survey owners are unchanged from reviewed
+665c1fa7; TeacherClassroomView retains the complete existing Survey patch over main.
+Owner renewed merge instruction. New-base focused checks and exact-head CI precede
+squash merge; no new application behavior, schema change or production promotion.
+
+## 2026-10-05 — Resume classroom access goal; owner Test draft saves
+
+Coordinator resumed on actual mainc25ebf78f in dedicated draft-save worktree.
+1473 is merged6586847c1/all five CI37258057073 gates; Audit1474 retained248,
+leaving immutable247. Separate Audit release records production001–248; shared
+admission/home/page/cutover/billing remainOFF. Next admitted PATCH uses current
+owner/source/document CAS and initialized-only writes; literal legacy remains.
+Three GPT6.1Sol/high workers own distinct app/SQL/proof files; effective model
+and attributable tokens unknown. Weekly54% remaining is accountwide. Startup
+missing deps recovered frozen/offline683 reused; verifyPASS. SAME saved canonical
+baseline verifiedPASS, never recaptured (first wrong-head check failed closed).
+CI cleanup contract TDD REDthenPASS; workflow25/3 and startup77/2 checks overlap,
+not an aggregate. Source/native/runtime/review/merge acceptance still pending.
+Prior task-stop/review-extension/local-migration/main-merge authority retained;
+no production/schema/cohort/provider mutation or goal/phase completion claimed.
+
+## 2026-10-05 — Draft-save review, Docker recovery and bounded diagnosis
+
+PR1480 remains draft. Initial editor-metadata and SQL-grading normalization
+findings fixed; targeted source/receipt reviews clean. Full coverage12919PASS,
+unchanged gates/two workers. Docker restart recovered only owned disposable
+stack; SAME canonical baseline and unrelated resources unchanged. Both actual
+forced-cleanup modes PASS. Normal stopped on assertion after42 SDK requests;
+exact cleanup/separate baseline PASS, no normal/types receipt. Closed source-only
+diagnostic TDD2RED→80PASS; no assertion data/SQL/keys logged or caps relaxed.
+Rebased onto43c24 preserving incoming CI policy, archive/history and immutable249;
+pending source acceptance/runtime diagnosis/final review/CI/merge. All rollout OFF.

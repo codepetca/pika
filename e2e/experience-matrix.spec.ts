@@ -3859,7 +3859,7 @@ test('retains teacher Classwork student editor and table through background refr
   const scroller = page.getByTestId('assignment-student-scroll-pane')
   await expect(scroller.getByRole('checkbox', { name: /^Select Student/ })).toHaveCount(35)
   const editor = page.getByPlaceholder('Teacher comment draft')
-  if (await editor.count() === 0) await page.getByRole('button', { name: 'Student 00 Example', exact: true }).click()
+  // Student work loads separately after the table selects its first student.
   await expect(editor).toBeVisible()
   await editor.fill('Keep this teacher comment draft during refresh.')
   await scroller.evaluate((element) => { element.scrollTop = 160 })
