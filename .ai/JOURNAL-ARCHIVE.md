@@ -38800,3 +38800,43 @@ New prototype remains experimental pending owner feedback; no shared-shell extra
 
 Prototype independent GPT6.1Sol/medium review found Markdown metadata snapshot
 overwrite; locked Title/Settings while code owns metadata and added regression.
+
+<!-- pika-session-log-archive-batch:fb9365dac4abdee83c25bc13e16c13b6fd3104efcc3fec6f3716c7429379f3e6 -->
+## 2026-10-05 — Survey prototype applied to real authoring
+
+Owner requested applying the selected prototype to real Pika. Teacher Survey now
+uses the Test-style details pane, rich prompt editor, centered question navigation,
+question action menu, individual lettered options, settings and Preview/Publish.
+Feature-owned SurveyQuestionOptions is reused by real authoring and Pattern Lab;
+no broader shared shell, API/schema/dependency or student UI change. Save flushes,
+retry, stale-selection guards and Markdown metadata ownership retained. Browser
+verification exposed and fixed creation title-focus intent consumption; failed
+save number navigation also restores the actual selected number.
+Real authoring PASS4/4 desktop/mobile light/dark; MC/open/settings/Markdown/preview/
+new-draft screenshots inspected. Prototype variants pass after extraction; dark
+desktop needed an isolated retry after a development hot-reload dialog reset.
+GPT6.1Sol/medium bounded test worker delivered persistence/options/browser and
+title-focus regression coverage; parent corrected browser accessible-name and
+selection expectations. Weekly47% remaining at start; per-worker usage unavailable.
+Focused selection371/372 passed; unchanged focused-runner fixture timed out,
+isolated retryPASS in2.45s. Architecture/UI/design/TypeScript/lint and auditPASS;
+prototype unit4/4 and production-workflow fixture4/4 isolatedPASS. Final desktop
+browser retryPASS after faithful draft-status fixture correction. Independent
+standard-risk review precedes ready CI on PR1483; no production promotion.
+Full integration review GPT6.1Sol/high found twoP2 recovery blockers: closing
+loading/unavailable detail and returning from an unwanted staged question.
+One batch adds visible/shell close, stale unmount response invalidation and
+Cancel restoring prior selection with no POST. Component40/40 and real browser
+4/4 PASS; recovery and staged-form screenshots inspected. Required focused rerun
+and targeted review pending; phase ledger1launch/1fix, roughly4min review.
+Targeted recovery review clean. Cumulative reviewer identified first-question
+variant; second small batch exposes Cancel for dirty first drafts too. Gallery
+navigator test caches stable semantic query results, retaining all assertions
+after repeated5s DOM-query timeouts. Workspace/gallery48/48 and isolated startup
+76/76 PASS; prior aggregate retry368/377 had nine timeouts in startup/gallery.
+Final narrow review and static/browser evidence recorded in PR, preserving exact
+head; no changes to timeouts, gates, dependencies or production.
+Final first-question discard browserPASS16.7s after a30s overall deadline during
+concurrent static checks; all intended assertions passed when run alone. Final
+architecture/UI/design/TypeScript/lint and auditPASS; required aggregate rerun
+uses unchanged gate. Phase ledger3reviews/2fixes before final targeted acceptance.
