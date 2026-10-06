@@ -1,8 +1,8 @@
 import type { ClassDay } from '@/types'
-import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchJSON, fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 
 type ClassDaysResponse = {
-  class_days?: ClassDay[]
+  class_days: ClassDay[]
 }
 
 const CLASS_DAYS_CACHE_TTL_MS = 20_000
@@ -15,18 +15,18 @@ export async function fetchClassDaysForClassroom(classroomId: string): Promise<C
   const data = await fetchJSONWithCache<ClassDaysResponse>(
     getClassDaysCacheKey(classroomId),
     async () => {
-      const response = await fetch(`/api/classrooms/${classroomId}/class-days`)
-      const data = await response.json().catch(() => ({ class_days: [] }))
-      if (!response.ok) {
-        const message = typeof data.error === 'string' ? data.error : 'Failed to load class days'
-        throw new Error(message)
+      const data = await fetchJSON<unknown>(`/api/classrooms/${classroomId}/class-days`, {
+        errorMessage: 'Failed to load class days',
+      })
+      if (!data || typeof data !== 'object' || !('class_days' in data) || !Array.isArray(data.class_days)) {
+        throw new Error('Failed to load class days')
       }
-      return data
+      return { class_days: data.class_days as ClassDay[] }
     },
     CLASS_DAYS_CACHE_TTL_MS,
   )
 
-  return data.class_days || []
+  return data.class_days
 }
 
 export function invalidateClassDaysForClassroom(classroomId: string) {
