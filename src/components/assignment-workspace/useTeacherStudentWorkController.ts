@@ -27,17 +27,17 @@ class StudentWorkReadError extends Error {
 }
 
 async function fetchStudentWork(url: string): Promise<StudentWorkData> {
-  let response: Response
   try {
-    response = await fetch(url, undefined)
+    const response = await fetch(url, undefined)
+    if (!response.ok) {
+      throw new StudentWorkReadError(response.status >= 500 && response.status <= 599)
+    }
+    // A connection can fail after headers arrive while the body is still downloading.
+    return await response.json()
   } catch (error) {
     if (error instanceof TypeError) throw new StudentWorkReadError(true)
     throw error
   }
-  if (!response.ok) {
-    throw new StudentWorkReadError(response.status >= 500 && response.status <= 599)
-  }
-  return response.json()
 }
 
 const SECTION_ORDER: InspectorSectionId[] = ['history', 'grades', 'comments']

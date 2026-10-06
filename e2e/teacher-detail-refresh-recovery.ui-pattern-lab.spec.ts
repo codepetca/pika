@@ -20,6 +20,18 @@ async function shot(page: Page, info: TestInfo, state: string) {
 
 async function fixture(page: Page, info: TestInfo, motion: 'reduce' | 'no-preference') {
   await page.addInitScript(theme => localStorage.setItem('theme', theme), info.project.metadata.theme as string)
+  // Controlled body-read rejection: HTTP stays200; only the selected response's json() rejects once.
+  // This verifies feature handling, not a physical interrupted-connection experiment.
+  await page.addInitScript(detailPath => {
+    const originalJson = Response.prototype.json
+    Response.prototype.json = function () {
+      if ((window as any).__rejectTeacherDetailBodyOnce && this.url && new URL(this.url).pathname === detailPath) {
+        ;(window as any).__rejectTeacherDetailBodyOnce = false
+        return Promise.reject(new TypeError('Controlled response-body network failure'))
+      }
+      return originalJson.call(this)
+    }
+  }, `/api/teacher/assignments/${assignmentId}/students/${studentId}`)
   await page.emulateMedia({ reducedMotion: motion })
   await mockTableShellReads(page, 'teacher')
   await mockLongTeacherTable(page, 'assignment', TABLE_CLASSROOM_ID)
@@ -59,6 +71,12 @@ async function fixture(page: Page, info: TestInfo, motion: 'reduce' | 'no-prefer
   return { pageErrors, consoleErrors, writes, warmRead, reads: () => readCount,
     hold: () => { readMode = 'held' },
     fail: async (status = 503) => { protectedStatus = status; readMode = 'protected'; releaseRead?.(); await expect(page.getByRole('region', { name: 'Student work', exact: true }).getByRole('alert')).toBeVisible() },
+    failBody: async () => {
+      await page.evaluate(() => { (window as any).__rejectTeacherDetailBodyOnce = true })
+      readMode = 'success'
+      releaseRead?.()
+      await expect(page.getByRole('region', { name: 'Student work', exact: true }).getByRole('alert')).toBeVisible()
+    },
     recover: (changed: boolean) => { remoteDoc = changed ? { ...originalDoc, updated_at: nextRevision, teacher_feedback_draft: 'Remote teacher change' } : originalDoc; readMode = 'success'; releaseRead?.() },
     release: () => releaseRead?.(),
     initialFail: (status: number) => { readMode = 'protected'; protectedStatus = status },
@@ -109,8 +127,8 @@ async function receipt(page: Page, info: TestInfo, f: Awaited<ReturnType<typeof 
   await info.attach('teacher-detail-recovery-receipt', { path, contentType: 'application/json' })
 }
 
-for (const motion of ['no-preference', 'reduce'] as const) for (const changedRevision of [false, true]) {
-  test(`warm teacher refresh retains draft and ${changedRevision ? 'blocks changed revision' : 'recovers original revision'} (${motion})`, async ({ page }, info) => {
+for (const failure of ['HTTP503', 'bodyTypeError'] as const) for (const motion of ['no-preference', 'reduce'] as const) for (const changedRevision of [false, true]) {
+  test(`warm teacher ${failure} refresh retains draft and ${changedRevision ? 'blocks changed revision' : 'recovers original revision'} (${motion})`, async ({ page }, info) => {
     const f = await fixture(page, info, motion)
     try {
       expect((await page.goto('/e2e-fixtures/teacher-assignment-grading', { waitUntil: 'domcontentloaded' }))?.status()).toBe(200)
@@ -124,7 +142,8 @@ for (const motion of ['no-preference', 'reduce'] as const) for (const changedRev
       await expect(page.getByRole('button', { name: 'Send comment', exact: true })).toBeDisabled()
       await expect(page.getByPlaceholder('Teacher comment draft')).toBeEnabled()
       await shot(page, info, 'warm-pending')
-      await f.fail()
+      if (failure === 'bodyTypeError') await f.failBody()
+      else await f.fail()
       await expectRetained(page, true)
       await page.clock.runFor(1200)
       expect(f.writes).toEqual([])
@@ -160,7 +179,7 @@ for (const motion of ['no-preference', 'reduce'] as const) for (const changedRev
         await expect(page.getByRole('button', { name: 'Try again', exact: true })).toHaveCount(0)
         await expect(page.getByPlaceholder('Teacher comment draft')).toHaveValue(localComment)
       }
-      await receipt(page, info, f, { motion, changedRevision, selectedUrl, retainedInputAndNonzeroScroll: true, existingInspectorSectionTransition: await page.getByPlaceholder('Teacher comment draft').evaluate(node => getComputedStyle(node.closest('div[aria-hidden]')!).transitionDuration) })
+      await receipt(page, info, f, { failure, motion, changedRevision, selectedUrl, retainedInputAndNonzeroScroll: true, existingInspectorSectionTransition: await page.getByPlaceholder('Teacher comment draft').evaluate(node => getComputedStyle(node.closest('div[aria-hidden]')!).transitionDuration) })
     } finally { f.release() }
   })
 }

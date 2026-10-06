@@ -366,7 +366,7 @@ describe('TeacherStudentWorkPanel', () => {
       setWrite: (next: typeof write) => { write = next } }
   }
 
-  it('retains dirty controls through transient refresh failure and equal-revision retry', async () => {
+  it.each(['503 response', 'interrupted response body'] as const)('retains dirty controls through %s and equal-revision retry', async (failure) => {
     const h = recoveryHarness()
     const { rerender } = render(<TeacherStudentWorkPanel {...h.props} />)
     const comment = await screen.findByPlaceholderText('Teacher comment draft') as HTMLTextAreaElement
@@ -376,7 +376,9 @@ describe('TeacherStudentWorkPanel', () => {
     comment.setSelectionRange(2, 8)
     const scroller = screen.getByTestId('grading-inspector-pane').firstElementChild as HTMLElement
     scroller.scrollTop = 120
-    h.setDetail(() => Promise.resolve({ ok: false, status: 503, json: async () => ({ error: 'Unavailable' }) } as any))
+    h.setDetail(() => Promise.resolve(failure === 'interrupted response body'
+      ? new Response(new ReadableStream({ start(controller) { controller.error(new TypeError('Network connection lost')) } }), { status: 200 })
+      : { ok: false, status: 503, json: async () => ({ error: 'Unavailable' }) }) as any)
     rerender(<TeacherStudentWorkPanel {...h.props} refreshKey={1} />)
     await screen.findByRole('button', { name: 'Try again' })
     expect(screen.getByPlaceholderText('Teacher comment draft')).toBe(comment)
@@ -447,6 +449,19 @@ describe('TeacherStudentWorkPanel', () => {
     expect(h.writes).toEqual([])
   })
 
+  it('keeps a malformed successful response unavailable instead of offering unsafe retry', async () => {
+    const h = recoveryHarness()
+    const { rerender } = render(<TeacherStudentWorkPanel {...h.props} />)
+    const comment = await screen.findByPlaceholderText('Teacher comment draft')
+    fireEvent.change(comment, { target: { value: 'Local draft' } })
+    h.setDetail(() => Promise.resolve(new Response('Not JSON', { status: 200 })) as any)
+    rerender(<TeacherStudentWorkPanel {...h.props} refreshKey={1} />)
+    await screen.findByText('Student work unavailable')
+    expect(screen.queryByPlaceholderText('Teacher comment draft')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+    expect(h.writes).toEqual([])
+  })
+
   it('retries an initial 503 even when the failed response body is malformed', async () => {
     const h = recoveryHarness()
     h.setDetail(() => Promise.resolve({ ok: false, status: 503, json: async () => { throw new SyntaxError('Bad gateway HTML') } } as any))
@@ -459,9 +474,11 @@ describe('TeacherStudentWorkPanel', () => {
     expect(h.writes).toEqual([])
   })
 
-  it('recovers an initial network failure with a GET retry', async () => {
+  it.each(['fetch rejection', 'body rejection'] as const)('recovers an initial network %s with a GET retry', async (failure) => {
     const h = recoveryHarness()
-    h.setDetail(() => Promise.reject(new TypeError('Failed to fetch')))
+    h.setDetail(() => failure === 'fetch rejection'
+      ? Promise.reject(new TypeError('Failed to fetch'))
+      : Promise.resolve(new Response(new ReadableStream({ start(controller) { controller.error(new TypeError('Network connection lost')) } }), { status: 200 })) as any)
     render(<TeacherStudentWorkPanel {...h.props} />)
     await screen.findByText('Could not load student work')
     h.setDetail(() => Promise.resolve({ ok: true, status: 200, json: async () => h.baseline }))
