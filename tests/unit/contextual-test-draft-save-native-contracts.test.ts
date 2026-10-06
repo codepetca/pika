@@ -24,9 +24,11 @@ vi.mock('node:fs', async importOriginal => {
 vi.mock('../../scripts/contextual-test-draft-save-proof-inventory', () => ({ draftSaveProofDockerInventory: mocks.inventory }))
 import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, validateDraftSaveNativeSql, draftSaveNativeTerminationSql,
   buildTestOwnerCreateNativeContractsManifest, validateTestOwnerCreateNativeSql, createTestOwnerCreateNativeContracts,
-  validateTestOwnerCreateAllocatorPlan } from '../../scripts/contextual-test-draft-save-native-contracts'
+  validateTestOwnerCreateAllocatorPlan, buildTestOwnerPristineDiscardNativeContractsManifest,
+  createTestOwnerPristineDiscardNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
 import { contextualTestCreateTestSchema, contextualTestCreateDraftSchema } from '../../src/lib/validations/contextual-test-create'
 import { newTestOwnerCreateFixture } from '../../scripts/contextual-test-owner-create-proof-fixture'
+import { newTestOwnerPristineDiscardFixture } from '../../scripts/contextual-test-pristine-discard-proof-fixture'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { DRAFT_SAVE_CAPS } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 import { assignmentListExpectedResources } from '../../scripts/contextual-assignment-list-proof-lifecycle'
@@ -147,6 +149,7 @@ describe('native persistent-session transport with offline child mocks', () => {
   let hangingSetup = false; let failContender = false; let terminationConfirmed = true
   let setupExit = false; let malformedSetup = false; let stderrChunks: string[] = []
   let createManifest: ReturnType<typeof buildTestOwnerCreateNativeContractsManifest> | undefined
+  let discardManifest: ReturnType<typeof buildTestOwnerPristineDiscardNativeContractsManifest> | undefined
   let serviceExecute = true; let fixtureChanged = false; let catalogChanged = false; let restorationFails = false; let publicGrant = false
   const catalog = () => ({ owner: 'postgres', definition: catalogChanged ? 'changed function' : 'reviewed function',
     acl: [{ grantor: 'postgres', grantee: 'postgres', privilege_type: 'EXECUTE', is_grantable: false },
@@ -160,11 +163,17 @@ describe('native persistent-session transport with offline child mocks', () => {
       capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(createManifest)) })
   }
+  const discardFactory = () => {
+    discardManifest = buildTestOwnerPristineDiscardNativeContractsManifest(original, newTestOwnerPristineDiscardFixture(original), head, repository)
+    return createTestOwnerPristineDiscardNativeContracts({ repository, reviewedHead: head, original, fixture: discardManifest.fixture,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(discardManifest)) })
+  }
   beforeEach(() => {
     mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
     vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
-    setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined
+    setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined; discardManifest = undefined
     mocks.inventory.mockResolvedValue(resources)
     mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: unknown, stdout: string) => void) => {
       const child = new EventEmitter() as EventEmitter & { stdin: Writable; kill: ReturnType<typeof vi.fn> }
@@ -176,12 +185,14 @@ describe('native persistent-session transport with offline child mocks', () => {
           if (file === 'git') callback(null, args[1] === '--show-toplevel' ? repository : args[0] === 'rev-parse' ? head : '')
           else if (args[0] === 'context') callback(null, JSON.stringify({ endpoints: { docker: { Host: 'unix:///private/tmp/pika-test-native-docker.sock', SkipTLSVerify: false } }, tlsMaterial: null }))
           else if (input === manifest.termination) { terminations.push(args); callback(null, JSON.stringify({ present: true, terminated: terminationConfirmed })) }
-          else if (input === manifest.privilege.restore || input === createManifest?.privilege.restore) {
+          else if (input === manifest.privilege.restore || input === createManifest?.privilege.restore
+            || input === discardManifest?.privilege.restore || input === discardManifest?.innerPrivilege.restore) {
             if (restorationFails) callback(Error('private grant restore failure'), '')
             else { serviceExecute = true; callback(null, '') }
           }
-          else if (input === manifest.privilege.catalog || input === createManifest?.privilege.catalog) callback(null, JSON.stringify(catalog()))
-          else if (input === manifest.snapshot || input === createManifest?.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
+          else if (input === manifest.privilege.catalog || input === createManifest?.privilege.catalog
+            || input === discardManifest?.privilege.catalog || input === discardManifest?.innerPrivilege.catalog) callback(null, JSON.stringify(catalog()))
+          else if (input === manifest.snapshot || input === createManifest?.snapshot || input === discardManifest?.snapshot) callback(null, JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' }))
           else callback(null, 'ok')
         }); done()
       } })
@@ -199,15 +210,17 @@ describe('native persistent-session transport with offline child mocks', () => {
         let response = ''
         if (sql === manifest.bootstrap) response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
         else if (sql === manifest.setup && hangingSetup) { done(); return }
-        else if ((sql === manifest.setup || sql === createManifest?.setup) && setupExit) {
+        else if ((sql === manifest.setup || sql === createManifest?.setup || sql === discardManifest?.setup) && setupExit) {
           for (const chunk of stderrChunks) child.stderr.write(chunk)
           queueMicrotask(() => child.emit('close', 1)); done(); return
         }
         else if (sql === manifest.setup && malformedSetup) response = 'PRIVATE malformed row'
         else if (sql === manifest.concurrency.observe) response = JSON.stringify({ held:true,transaction:true })
-        else if (sql === manifest.snapshot || sql === createManifest?.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
-        else if (sql === manifest.privilege.catalog || sql === createManifest?.privilege.catalog) response = JSON.stringify(catalog())
-        else if (sql === manifest.privilege.revoke || sql === createManifest?.privilege.revoke) serviceExecute = false
+        else if (sql === manifest.snapshot || sql === createManifest?.snapshot || sql === discardManifest?.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
+        else if (sql === manifest.privilege.catalog || sql === createManifest?.privilege.catalog
+          || sql === discardManifest?.privilege.catalog || sql === discardManifest?.innerPrivilege.catalog) response = JSON.stringify(catalog())
+        else if (sql === manifest.privilege.revoke || sql === createManifest?.privilege.revoke
+          || sql === discardManifest?.privilege.revoke || sql === discardManifest?.innerPrivilege.revoke) serviceExecute = false
         else if (sql.includes('select public.snapshot_test_draft_save_for_owner_v1')) {
           const testId = sql.match(/_v1\('[a-f0-9-]+','([a-f0-9-]+)'/)![1]
           response = JSON.stringify({ version: 1, actor_id: manifest.fixture.owner, classroom: { id: manifest.fixture.classroom, teacher_id: manifest.fixture.owner },
@@ -268,6 +281,59 @@ describe('native persistent-session transport with offline child mocks', () => {
     const receipt = await adapter.probeCreatePrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))
     expect(receipt).toEqual({ privilegeRestored: true, fixtureUnchanged: true, createAclSha256: expect.stringMatching(/^[a-f0-9]{64}$/) })
     expect(serviceExecute).toBe(true)
+  })
+  it('keeps default249 and250 facade APIs unchanged and exposes two fixed251 probes only', () => {
+    for (const adapter of [factory(), createFactory()]) {
+      expect(adapter).not.toHaveProperty('probeInnerPrivilegeDrift')
+      expect(adapter).not.toHaveProperty('probeLegacyDiscardPrivilegeDrift')
+    }
+    const adapter = discardFactory()
+    expect(adapter).not.toHaveProperty('probeSnapshotPrivilegeDrift')
+    expect(adapter).not.toHaveProperty('probeInnerPrivilegeDrift')
+    expect(adapter).not.toHaveProperty('selectProfile')
+    expect(adapter).toHaveProperty('probeDiscardPrivilegeDrift')
+    expect(adapter).toHaveProperty('probeLegacyDiscardPrivilegeDrift')
+  })
+  it('withdraws and restores two different251 capabilities with one shared engine', async () => {
+    const adapter = discardFactory(); await adapter.setup()
+    const callback = async () => { expect(serviceExecute).toBe(false); return {status:503 as const,rpcCalls:1 as const,rawCode:'42501' as const} }
+    expect(await adapter.probeDiscardPrivilegeDrift(callback)).toHaveProperty('discardAclSha256')
+    expect(serviceExecute).toBe(true)
+    expect(await adapter.probeLegacyDiscardPrivilegeDrift(callback)).toHaveProperty('legacyDiscardAclSha256')
+    expect(serviceExecute).toBe(true)
+    expect(sqlControls.filter(c => c.sql === discardManifest!.privilege.restore)).toHaveLength(1)
+    expect(sqlControls.filter(c => c.sql === discardManifest!.innerPrivilege.restore)).toHaveLength(1)
+    await expect(adapter.probeLegacyDiscardPrivilegeDrift(callback)).rejects.toThrow()
+  })
+  it('restores the inner156 capability and whole catalog even after callback failure', async () => {
+    const adapter = discardFactory(); await adapter.setup()
+    await expect(adapter.probeLegacyDiscardPrivilegeDrift(async () => { throw Error('PRIVATE callback failure') })).rejects.toThrow()
+    expect(serviceExecute).toBe(true)
+    expect(sqlControls.filter(c => c.sql === discardManifest!.innerPrivilege.restore)).toHaveLength(1)
+    expect(sqlControls.some(c => c.sql === discardManifest!.privilege.restore)).toBe(false)
+    expect(adapter.diagnostic()).not.toContain('PRIVATE')
+  })
+  it('does not renew251 native total budget between the two probes', async () => {
+    vi.useFakeTimers()
+    const adapter = discardFactory(); await adapter.setup()
+    await adapter.probeDiscardPrivilegeDrift(async () => ({status:503,rpcCalls:1,rawCode:'42501'}))
+    const before = children.length
+    await vi.advanceTimersByTimeAsync(900000)
+    await expect(adapter.probeLegacyDiscardPrivilegeDrift(async () => ({status:503,rpcCalls:1,rawCode:'42501'}))).rejects.toThrow()
+    expect(children).toHaveLength(before)
+    expect(adapter.diagnostic()).toContain('failure=timeout')
+  })
+  it('requires both distinct251 probes before its rollback evidence can start', async () => {
+    const adapter = discardFactory(); await adapter.setup()
+    const before = children.length
+    await expect(adapter.run()).rejects.toThrow()
+    expect(children).toHaveLength(before)
+  })
+  it.each([['PCD01', 'PCD01'], ['PCD99', 'unknown']])('keeps finite251 diagnostics without rendering source rows %s', async (code, expected) => {
+    const adapter = discardFactory(); setupExit = true; stderrChunks = [`PRIVATE row\nERROR: ${code}\n`]
+    await expect(adapter.setup()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
+    expect(adapter.diagnostic()).not.toContain('PRIVATE')
   })
   it('rejects changed250 bytes before SDK guard or native work dispatch', async () => {
     const adapter = createFactory(); await adapter.setup()
