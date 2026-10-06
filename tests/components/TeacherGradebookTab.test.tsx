@@ -1011,7 +1011,7 @@ describe('TeacherGradebookTab', () => {
     expect(screen.getByRole('region', { name: 'Gradebook controls' })).toHaveClass('grid', 'relative', 'z-floating')
     expect(screen.getByRole('button', { name: 'Gradebook more actions' }).closest('.fixed')).toBeNull()
     expect(screen.getByRole('columnheader', { name: 'First' })).toHaveClass('sticky', 'bg-surface-3', 'z-sticky-table')
-    expect(screen.getByRole('columnheader', { name: 'Final' })).toHaveClass('sticky', 'bg-gradebook-final')
+    expect(screen.getByRole('columnheader', { name: 'Final' })).toHaveClass('sticky', 'bg-surface-3')
     expect(screen.getByRole('table')).toHaveClass('border-separate', 'border-spacing-0')
     expect(screen.getByTestId('gradebook-display-controls')).not.toContainElement(screen.getByRole('button', { name: 'Student Actions' }))
   })
