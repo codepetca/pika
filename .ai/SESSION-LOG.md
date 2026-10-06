@@ -11,98 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Survey merge preparation after main advanced
-
-PR 1483 reviewed head 665c1fa7 passed all five required CI jobs, including PR Gate.
-User explicitly authorized merge to main. New main changes merged into the feature
-branch; the only conflict was archived session-log batch markers and an appended
-historical entry. Preserved main markers and the retained historical entry. Survey
-implementation and tests are unchanged; independent review evidence remains valid.
-Required checks and a new exact-head CI gate run before squash merge. No production
-promotion or schema operation authorized by this request.
-
-## 2026-10-05 — Approved fluid classroom merge preparation
-
-Owner explicitly authorized merge then goal advancement. GitHub hostedrunner incident prevented PRGate in two attempts, while four CIverification lanes passed668f3d35. Currentmain5b2423d Gradebook changes retained; history reconciled with bothparents preserved. Integrate reviewed Student1482 andTeacher1484 continuity into owning1486 alongside Daily1481 alreadyincluded.32of33 finalcombinedproof sources byteidentical; sole PatternLabtest difference is exact acceptedmainGradebook additions. Reuse independent feature/cumulative reviews and prior24motion/68combined browser/natural recordings; currentmain focusedgate/browser verification required before stable ready/merge. Package/lock/schema unchanged. No production promotion authorized.
-
-## 2026-10-05 — Integrated fluid classroom local gate complete
-
-Owning1486 integrates reviewed Daily1481/Student1482/Teacher1484 on currentmain5b2423d. All product/classroombrowser/component sources match independently reviewedcombinedproof; documented approval/reference/roadmap differences only. Bothparentdatedhistorybody preservation checked.644tests/35files+allstatic PASS;56uniqueclassroom+20PatternLab cases PASS. Initial16Dailycases lackedignoredfixturestate; addedemptylocalfixturestates andreranonly16unchangedcases GREEN. Currentbatch7fileauditPASS/compositesemanticscovered; rootbothrolevisualinspection acceptable. Prior sixnaturalrecordings applicable throughsourceparity. Reviewcounts4launches retained, thirdsyncbatch/no newrevieworclockreset. Ownermergemainauthorized; stableSHA CI/PRGate andactualmerge pending GitHubhostedrunner outage. No production promotion.
-
-## 2026-10-05 — Survey final motion-main integration
-
-PR 1483 candidate 33f2aef3 passed all five required CI jobs including PR Gate
-(run 37374119531). Main then advanced to 84a657eb (#1486). Resolve archived
-session history mechanically while preserving all complete bodies; retain both
-independent top-level Pattern Lab browser scenarios with their own test closures.
-Application files merged automatically. Survey owners are unchanged from reviewed
-665c1fa7; TeacherClassroomView retains the complete existing Survey patch over main.
-Owner renewed merge instruction. New-base focused checks and exact-head CI precede
-squash merge; no new application behavior, schema change or production promotion.
-
-## 2026-10-05 — Resume classroom access goal; owner Test draft saves
-
-Coordinator resumed on actual mainc25ebf78f in dedicated draft-save worktree.
-1473 is merged6586847c1/all five CI37258057073 gates; Audit1474 retained248,
-leaving immutable247. Separate Audit release records production001–248; shared
-admission/home/page/cutover/billing remainOFF. Next admitted PATCH uses current
-owner/source/document CAS and initialized-only writes; literal legacy remains.
-Three GPT6.1Sol/high workers own distinct app/SQL/proof files; effective model
-and attributable tokens unknown. Weekly54% remaining is accountwide. Startup
-missing deps recovered frozen/offline683 reused; verifyPASS. SAME saved canonical
-baseline verifiedPASS, never recaptured (first wrong-head check failed closed).
-CI cleanup contract TDD REDthenPASS; workflow25/3 and startup77/2 checks overlap,
-not an aggregate. Source/native/runtime/review/merge acceptance still pending.
-Prior task-stop/review-extension/local-migration/main-merge authority retained;
-no production/schema/cohort/provider mutation or goal/phase completion claimed.
-
-## 2026-10-05 — Draft-save review, Docker recovery and bounded diagnosis
-
-PR1480 remains draft. Initial editor-metadata and SQL-grading normalization
-findings fixed; targeted source/receipt reviews clean. Full coverage12919PASS,
-unchanged gates/two workers. Docker restart recovered only owned disposable
-stack; SAME canonical baseline and unrelated resources unchanged. Both actual
-forced-cleanup modes PASS. Normal stopped on assertion after42 SDK requests;
-exact cleanup/separate baseline PASS, no normal/types receipt. Closed source-only
-diagnostic TDD2RED→80PASS; no assertion data/SQL/keys logged or caps relaxed.
-Rebased onto43c24 preserving incoming CI policy, archive/history and immutable249;
-pending source acceptance/runtime diagnosis/final review/CI/merge. All rollout OFF.
-
-## 2026-10-05 — Draft-save concurrency budget pinpointed
-
-Narrow diagnostic/rebase review4cb CLEAN,58offlinePASS. One normal attempt failed
-disposable Storage health before fixtures; exact cleanup/SAMEbaselinePASS. Reviewed
-unchanged retry reached42SDKcalls and pinpointed concurrency-total180s assertion
-at concurrency.ts:80; exact cleanup/separateSAMEbaselinePASS. No normal/types
-receipt, canonical migration or production action. Native-only performance fix
-delegated GPT6.1Sol/high; all fresh checks,16schedules and caps must remain, no
-runtime/Git authority for worker. Original reviewclock12:51:50,6launches/4targeted/
-3batches/0final retained under human task-stop waiver. PR1480 stays draft.
-
-Worker delivered four-read allSettled parallelism only; all checkpoints/caps
-unchanged. Six trueREDs then89offlinePASS, ESLint/diffPASS; root inspected diff.
-Real180sfit unproven. Focused checks/commit and targeted source acceptance next;
-final review, genuine types, exact CI/main merge remain required.
-
-## 2026-10-05 — Draft-save native failure retained after guard improvement
-
-Parallel guard b1f targeted security/finite-plan review CLEAN,89independentPASS;
-original clock retained,7launches/5targeted/4batches/0final. Approved one normal
-rehearsal reached42SDKrequests then native generic failure, not earlier closed
-concurrency-total label. Exact cleanup/separateSAMEcanonicalbaselinePASS; no
-normal/types receipt, forced reruns, canonical migration or production action.
-Do not infer all races/budgets passed. Same GPT6.1Sol/high worker prepares only
-closed native phase/counter/known-error diagnostics with offlineTDD; no runtime,
-caps/guards/app/SQL changes. Source/plan acceptance before another invocation.
-PR1480 stays draft; all activation OFF, goal/phase incomplete.
-
-Closed diagnostic worker delivered/relinquished: first-fault fixed native phase,
-role, known SQLSTATE/counters only; psql reporting sqlstate, no raw text emitted.
-7trueRED then98PASS/3files8.27s, lint/diffPASS; root inspected complete3filediff.
-Observed15:51:27–16:01:01UTC partialwall, attributableusageunknown. Cleanup checks,
-original caps/SQL/app/guards unchanged. Fifthbatch pending focused/stagedaudit,
-stable commit and targeted source/one-normal-plan review; actual cause unknown.
-
 ## 2026-10-05 — Draft-save historical reconciliation and sleep interruption
 
 Resume preserved immutable249/app/native guards through main1485 timeout-only
@@ -623,6 +531,73 @@ checks. Evidence /tmp/pika-summary-db-remediation-stable-focused.log. Prior brow
 and model/privacy reviews remain valid. Owner main-merge authority retained; final
 reviewed-SHA CI gate is required. Production promotion remains outside scope.
 
+## 2026-10-06 — Minimal survey results
+
+Task/branch: survey results cleanup, `codex/survey-results-minimal`.
+Combined survey title and Results, removed chart icon/visible option tallies,
+increased result question text to 18px, and placed wrapped option labels inside
+shared percentage tracks for teachers and students. Existing heading/Markdown
+owners reused; shared result bar extended; deterministic Pattern Lab entry added.
+Reference: Pattern Lab compact page actions/card framing. No new interaction,
+experimental pattern or composite-widget contract; no schema/API changes.
+Visual matrix: both roles, 1440×900/390×844, light/dark; loaded results, long
+labels and 0/5/35/60/100% fills inspected. Captures and rerunnable synthetic-API
+fixture script: `output/playwright/`; source changes match PR implementation.
+50 focused survey tests pass. Required check:focused with --max-workers 1:
+414 tests pass, architecture/UI/design policy pass; initial default-worker
+attempt hit an existing gallery QR timeout. Risk profile none; weekly remaining
+15%; automatic DeepSeek paused through Dec31. Initial GPT-6 Luna/medium independent review found one P2: the generic bar
+wrapper did not expose its label. Added a named group role and a semantic
+assertion; one batched remediation, no conflicts. Reviewer delivery verified;
+usage and active-time attribution unknown. Targeted and cumulative review
+follow in PR metadata before CI.
+
+## 2026-10-06 — Hide unselected survey percentages
+
+PR1511 follow-up: omit visible percentages when option count is zero, using the
+existing shared teacher/student result bar. Keep the accessible summary and
+nonzero-option percentages, including a selected fraction that rounds to0%.
+Reuse/extend decisions and reference unchanged. Risk none; existing eight-view
+visual matrix refreshed with an explicit no-visible-0% check. Added zero-vote,
+zero-total and tiny-nonzero semantic cases to the existing component test.
+PR returned to draft before publishing; targeted review/final checks in PR notes.
+
+## 2026-10-06 — Survey percentage alignment
+
+PR1511 follow-up: reuse/extend SurveyOptionResultBar with labels overlaying the
+full track and a fixed-width percentage column at the far right of each row.
+Blank zero-vote percentage columns keep all tracks aligned. Original question
+and option order retained by API position ordering and existing array maps.
+Pattern Lab and visual fixture now put the highest-vote option second to verify
+that responses do not reorder the survey. Existing both-role/viewport/theme
+matrix refreshed, including percentage right alignment and order assertions.
+Risk none; no business-logic/API changes. Checks and bounded review in PR notes.
+
+## 2026-10-06 — Inline survey question numbers
+
+PR1511 follow-up: reuse question Markdown and muted labels in a baseline-aligned
+row, placing Q1/Q2/etc beside the question in teacher/student results. Keep full
+question text wrapping and original order. Risk none; same eight-view matrix
+refreshed with inline-number geometry checks, plus required focused checks.
+Bounded GPT-6.1 Sol/medium targeted review continues in PR metadata.
+
+## 2026-10-06 — Percentages inside survey bar backings
+
+PR1511 follow-up: extend the existing shared result row so selected percentages
+sit inside the backing's right edge, with consistent padding. Labels overlay
+the fill; zero-vote percentages stay blank; inline question numbers and original
+question/option order retained. Pattern Lab description follows the final row.
+Risk none. Both roles × desktop/mobile × light/dark screenshots refreshed with
+inside-right-edge geometry checks. Required checks/review recorded in PR notes.
+
+## 2026-10-06 — Survey title only
+
+PR1511 copy follow-up: remove the redundant Results suffix from both survey
+headings, leaving the original survey title. Reuse existing title styling;
+update heading assertions and same eight-view visual script. Risk none.
+Previously reviewed implementation reused; coordinator checks the title-only
+delta and cumulative continuity. Required local checks/visual evidence in PR.
+
 ## 2026-10-06 — CI schema-copy diagnostic correction and local evidence
 
 PR1488 remains draft. At reviewed d19792dd, fresh targeted Assignment
@@ -711,8 +686,21 @@ inputs; incoming Daily harness changes are verified by new CI. Local auth2/
 Classwork12 zero-retry proof remains86012 evidence. Public visibility and
 unregistered/inactive runner holds persist; no production/HQ changes.
 
+## 2026-10-06 — Survey results merge synchronization
+
+Owner authorized merging PR1511. Final4e78030 CI37514295830 passed all required
+checks/PR Gate; main advanced693a096df and conflicted only in archived session
+history. Preserved both histories and incoming main source; survey implementation
+bytes unchanged. Required focused checks and exact synchronization CI pending.
+
 ## 2026-10-06 — Shared Mac CI admission preparation
 
 - Continued the owner's shared-Mac CI goal after #1488 merged; Pika remains public, with runner registration and automatic self-hosted routing pending an explicit activation decision.
 - Prepared an on-demand, one-job Tart host driver with a shared exclusive HQ/Pika lease, separate Pika guest template, private receipts, and disposable VM teardown. Default planning and unregistered rehearsal do not register a GitHub runner or replay migrations.
 - Risk: runtime-platform. Documented the fixed Sep 29–Oct 6 cohort: 179.58 heavy-job hours exceed one serial host's weekly hours before HQ/startup. Initial74ba298c passed15offlinefault tests, focused204/14 plus static checks, and an unregistered VM rehearsal with all3preflights/emptyDocker/ownedVMdeleted/leasefree. PR1512 published draft; two independent reviews identified containment, lease-acquisition, listener-exit and private-diagnostic issues for one batched correction. Final readiness remains tied to corrected-source evidence and the required PR gate.
+
+## 2026-10-06 — Shared Mac one-job CI admission preparation reviewed
+
+Draft PR1512 adds operator-present Pika Tart admission under the shared HQ lease, separate 4CPU/12GiB disposable guest and at most one ephemeral job. Fixed8f6ebdff security and final integration reviews CLEAN after two batched corrections. Focused235/14 and46 offline driver fault cases PASS; exact8f6 unregistered rehearsal passed three canonical preflights, rootless/emptyDocker, bounded private diagnostics, ownedVM disposal and lease release. Source hashes bind retained proof; no SQL replay or registration. Sync incomingmainbac3ab94 (#1511) preserves its survey source/test bytes and both dated history bodies; reviewed driver/preflight/workflow inputs retained. Relevant new-base focused verification and targeted sync acceptance precede a stable reviewed head.
+
+Repository remains public, zero runners and automatic PIKA opt-in unset. Known cohort heavy demand179.58h/week exceeds one serial host's168h theoretical week before HQ/startup; this driver provides no unattended scheduler/fair queue. Exact-head PRGate, new PR merge and private registered activation retain separate owner decisions. No HQ/production mutations. Delegation requested GPT5.6Sol/high security and GPT6.1Sol/high operability (Terra unavailable), five review launches, two fix batches; final source acceptance verified by coordinator. Weekly14% remaining at phase start; effective model/token/active-use telemetry unknown; DeepSeek paused. Task-scoped human stop override persists without removing correctness or consequential authority gates.
