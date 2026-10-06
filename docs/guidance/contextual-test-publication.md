@@ -38,6 +38,17 @@ bytes remain unchanged from866, with main251/branch252 and no numbering collisio
 Changed-base review, focused checks and one new exact-head CI still precede merge;
 no new local native or coverage evidence is claimed.
 
+Sol/high changed-base review and focused1302/44 passed d7edcba. Its eligible
+CI37532673399 passed all five checks including PR Gate on that exact head;
+publication and the previously failing Assignment integrated startup step passed.
+The old startup cause remains unknown. The Svelte coordinator's temporary main
+merge hold prevented merging until #1490 landed3a0b17d6a and released the hold.
+PR1510 returned to draft before the17-commit rebase. Retain both histories,
+incoming UI/test/tooling bytes, all37 stashes and unchanged publication/SQL252/
+types/proof/CI bytes. Renew changed-base review, focused checks and exact-head CI
+before merge. Historical local native/forced/coverage evidence is not a new local
+run; no canonical migration, production promotion, activation or phase exit.
+
 ## Historical pre-type preparation
 
 The isolated proof implementation was ready for independent source review: one full-row fixture,
