@@ -370,7 +370,7 @@ function AutoGrowFeedbackTextarea({
         'min-h-[10rem] w-full overflow-hidden rounded border px-2 py-1 text-sm text-text-default',
         hasFreshAIDraft ? 'border-primary bg-info-bg' : 'border-border bg-surface',
       ].join(' ')}
-      placeholder="Teacher comment draft"
+      placeholder="Leave a comment..."
     />
   )
 }

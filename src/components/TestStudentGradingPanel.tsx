@@ -251,6 +251,8 @@ export function TestStudentGradingPanel({
   const [results, setResults] = useState<TestResultsPayload | null>(null)
 
   const [gradeDrafts, setGradeDrafts] = useState<Record<string, GradeDraft>>({})
+  // Returned feedback stays in gradeDrafts for score-only saves; the composer starts empty.
+  const [returnedFeedbackDrafts, setReturnedFeedbackDrafts] = useState<Record<string, string>>({})
   const [persistedDrafts, setPersistedDrafts] = useState<Record<string, GradeDraft>>({})
   const [savingAll, setSavingAll] = useState(false)
   const [savingStudentId, setSavingStudentId] = useState<string | null>(null)
@@ -273,6 +275,12 @@ export function TestStudentGradingPanel({
 
       const nextDrafts = buildGradeDrafts(payload)
       setGradeDrafts(nextDrafts)
+      setReturnedFeedbackDrafts(Object.fromEntries(payload.students
+        .filter((student) => student.status === 'returned')
+        .flatMap((student) => Object.values(student.answers)
+          .filter((answer) => answer.response_id && !answer.is_draft)
+          .map((answer) => [answer.response_id!, ''])),
+      ))
       setPersistedDrafts(nextDrafts)
       setLastSavedStudentId(null)
       setGradingError('')
@@ -350,6 +358,12 @@ export function TestStudentGradingPanel({
   }, [dirtyResponses, gradeDrafts])
 
   function updateDraft(responseId: string, updates: Partial<GradeDraft>) {
+    const feedback = updates.feedback
+    if (feedback !== undefined) {
+      setReturnedFeedbackDrafts((current) => responseId in current
+        ? { ...current, [responseId]: feedback }
+        : current)
+    }
     conflictRetryCountRef.current = 0
     setGradingError('')
     setGradeDrafts((prev) => ({
@@ -365,6 +379,7 @@ export function TestStudentGradingPanel({
   function autoResizeFeedbackTextarea(textarea: HTMLTextAreaElement | null) {
     if (!textarea) return
     textarea.style.height = `${GRADE_BOX_HEIGHT_PX}px`
+    if (!textarea.value) return
     const measuredHeight = textarea.scrollHeight
     const nextHeight =
       measuredHeight > GRADE_BOX_HEIGHT_PX + 2
@@ -516,6 +531,15 @@ export function TestStudentGradingPanel({
       }
 
       if (canonicalDraftsByResponseId.size > 0) {
+        setReturnedFeedbackDrafts((current) => {
+          const next = { ...current }
+          for (const responseId of canonicalDraftsByResponseId.keys()) {
+            if (responseId in next && next[responseId] === submittedDraftsByResponseId.get(responseId)?.feedback) {
+              next[responseId] = ''
+            }
+          }
+          return next
+        })
         setGradeDrafts((prev) => {
           const next = { ...prev }
           for (const [responseId, draft] of canonicalDraftsByResponseId) {
@@ -773,6 +797,9 @@ export function TestStudentGradingPanel({
                   )}
                 </div>
 
+                {selectedStudent.status === 'returned' && answer?.feedback ? (
+                  <p className="whitespace-pre-wrap text-sm text-text-muted">{answer.feedback}</p>
+                ) : null}
                 {!answer ? (
                   <p className="text-sm text-text-muted">No response submitted.</p>
                 ) : answer.is_draft || !responseId ? (
@@ -786,7 +813,7 @@ export function TestStudentGradingPanel({
                         feedbackTextareaRefs.current[responseId!] = element
                         autoResizeFeedbackTextarea(element)
                       }}
-                      value={gradeDrafts[responseId]?.feedback ?? ''}
+                      value={returnedFeedbackDrafts[responseId] ?? gradeDrafts[responseId]?.feedback ?? ''}
                       onChange={(event) =>
                         {
                           updateDraft(responseId!, { feedback: event.target.value })
@@ -796,7 +823,7 @@ export function TestStudentGradingPanel({
                       onBlur={flushAutosave}
                       rows={1}
                       className="h-9 w-full overflow-hidden resize-none rounded-md border border-border bg-surface px-3 py-1 text-base leading-tight text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Comment"
+                      placeholder="Leave a comment..."
                     />
                     <SplitScoreInput
                       ariaLabel={`Q${index + 1} score`}

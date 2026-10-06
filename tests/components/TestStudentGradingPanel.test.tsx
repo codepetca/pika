@@ -618,6 +618,71 @@ describe('TestStudentGradingPanel save-all grading', () => {
     })
   })
 
+  it('clears the comment box when refreshed work is returned, preserving sent feedback on score edits', async () => {
+    const payload = makeResultsPayload(2, 'Sent test comment')
+    let returned = false
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => Promise.resolve({
+      ok: true,
+      json: async () => init?.method === 'PATCH'
+        ? { responses: [{ id: 'response-1', revision: 2 }] }
+        : { ...payload, students: payload.students.map((student) => ({ ...student, status: returned ? 'returned' : 'submitted' })) },
+    }))
+    let saveHandler: (() => Promise<void>) | null = null
+    const register = (handler: (() => Promise<void>) | null) => { saveHandler = handler }
+    const { rerender } = render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={0} onRegisterSaveHandler={register} />)
+    expect(await screen.findByRole('textbox')).toHaveValue('Sent test comment')
+    returned = true
+    rerender(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" refreshToken={1} onRegisterSaveHandler={register} />)
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue(''))
+    expect(screen.getByText('Sent test comment')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Leave a comment...')).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Q1 score' }), { target: { value: '4' } })
+    await act(async () => { await saveHandler?.() })
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH')
+    expect(JSON.parse(String(patch?.[1]?.body)).grades[0]).toMatchObject({ score: 4, feedback: 'Sent test comment' })
+    expect(screen.getByRole('textbox')).toHaveValue('')
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'New comment' } })
+    expect(screen.getByRole('textbox')).toHaveValue('New comment')
+  })
+
+  it.each(['success', 'failure', 'typing'] as const)('handles %s when saving a new comment on returned test work', async (outcome) => {
+    const payload = makeResultsPayload(5, 'Already sent')
+    const patchResponse = deferred<any>()
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((_input: RequestInfo | URL, init?: RequestInit) => init?.method === 'PATCH'
+      ? patchResponse.promise
+      : Promise.resolve({ ok: true, json: async () => ({ ...payload, students: payload.students.map((student) => ({ ...student, status: 'returned' })) }) }))
+    let saveHandler: (() => Promise<void>) | null = null
+    const register = (handler: (() => Promise<void>) | null) => { saveHandler = handler }
+    render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" onRegisterSaveHandler={register} />)
+    const input = await screen.findByRole('textbox')
+    fireEvent.change(input, { target: { value: 'New comment' } })
+    let saving: Promise<void> | undefined
+    act(() => { saving = saveHandler?.() })
+    if (outcome === 'typing') fireEvent.change(input, { target: { value: 'New comment still being edited' } })
+    await act(async () => {
+      patchResponse.resolve({ ok: outcome !== 'failure', json: async () => outcome === 'failure'
+        ? { error: 'Save failed' }
+        : { responses: [{ id: 'response-1', revision: 2 }] } })
+      await saving
+    })
+    expect(input).toHaveValue(outcome === 'success' ? '' : outcome === 'typing' ? 'New comment still being edited' : 'New comment')
+    if (outcome === 'success') expect(screen.getByText('New comment')).toBeInTheDocument()
+    if (outcome === 'failure') expect(screen.getByText('Save failed')).toBeInTheDocument()
+  })
+
+  it('opens returned test work with an empty comment box without saving a blank over sent feedback', async () => {
+    const payload = makeResultsPayload(5, 'Already sent')
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ...payload, students: payload.students.map((student) => ({ ...student, status: 'returned' })) }) })
+    render(<TestStudentGradingPanel testId="test-1" selectedStudentId="student-1" />)
+    expect(await screen.findByRole('textbox')).toHaveValue('')
+    expect(screen.getByText('Already sent')).toBeInTheDocument()
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 1000)) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('reloads results when refreshToken changes', async () => {
     const fetchMock = global.fetch as ReturnType<typeof vi.fn>
     fetchMock

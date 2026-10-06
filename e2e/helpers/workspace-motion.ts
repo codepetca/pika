@@ -165,7 +165,7 @@ export async function verifyWorkspaceMotion(page: Page, testInfo: TestInfo,
       await expect(separator).toBeFocused()
     }
     if (surface === 'assignment') {
-      const comment = inspector.getByRole('textbox', { name: 'Teacher comment draft' })
+      const comment = inspector.getByRole('textbox', { name: 'Leave a comment...' })
       await expect(comment).toBeVisible()
       await comment.fill('Unsaved layout comment')
       const commentHandle = await comment.elementHandle()
@@ -178,7 +178,7 @@ export async function verifyWorkspaceMotion(page: Page, testInfo: TestInfo,
       const layout = page.getByRole('button', { name: /^Change assignment layout:/ })
       await layout.click()
       await expect(layout).toHaveAccessibleName('Change assignment layout: Content + grading')
-      await expect(inspector.getByRole('textbox', { name: 'Teacher comment draft' })).toHaveValue('Unsaved layout comment')
+      await expect(inspector.getByRole('textbox', { name: 'Leave a comment...' })).toHaveValue('Unsaved layout comment')
       expect(await comment.evaluate((element, original) => element === original, commentHandle)).toBe(true)
       expect(await gradingScroller.evaluate((element, original) => element === original, gradingScrollerHandle)).toBe(true)
       expect(await comment.evaluate((element: HTMLTextAreaElement) => [element.selectionStart, element.selectionEnd])).toEqual([2, 8])
@@ -194,7 +194,7 @@ export async function verifyWorkspaceMotion(page: Page, testInfo: TestInfo,
       await expect(layout).toHaveAccessibleName('Change assignment layout: Students + content')
       await layout.click()
       await expect(layout).toHaveAccessibleName('Change assignment layout: Students + grading')
-      await expect(inspector.getByRole('textbox', { name: 'Teacher comment draft' })).toHaveValue('Unsaved layout comment')
+      await expect(inspector.getByRole('textbox', { name: 'Leave a comment...' })).toHaveValue('Unsaved layout comment')
       expect(await scroll.evaluate((element, original) => element === original, scrollHandle)).toBe(true)
       expect(studentWorkReads).toBe(readsBeforeLayout)
       measurements.layoutReads = { before: readsBeforeLayout, after: studentWorkReads }

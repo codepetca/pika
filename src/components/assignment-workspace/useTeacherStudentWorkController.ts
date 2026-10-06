@@ -466,7 +466,8 @@ export function useTeacherStudentWorkController({
     const nextScoreCompletion = doc.score_completion?.toString() ?? ''
     const nextScoreThinking = doc.score_thinking?.toString() ?? ''
     const nextScoreWorkflow = doc.score_workflow?.toString() ?? ''
-    const baseDraft = mergeBaseDraft ?? doc.teacher_feedback_draft ?? doc.feedback ?? ''
+    const baseDraft = mergeBaseDraft ?? doc.teacher_feedback_draft
+      ?? (doc.feedback_returned_at || doc.returned_at ? '' : doc.feedback ?? '')
     const mergedDraft = mergeFeedbackDraft(baseDraft, doc.ai_feedback_suggestion, {
       draftUpdatedAt: doc.teacher_feedback_draft_updated_at,
       suggestionUpdatedAt: doc.ai_feedback_suggested_at,

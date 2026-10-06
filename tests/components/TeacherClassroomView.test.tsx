@@ -335,7 +335,7 @@ vi.mock('@/components/TeacherStudentWorkPanel', () => ({
             )}
           </div>
           <div data-testid="assignment-right-pane">
-            <textarea aria-label="Teacher comment draft" defaultValue="" />
+            <textarea aria-label="Leave a comment..." defaultValue="" />
             {splitPaneView === 'students-content' ? (
               <>
                 {studentHeader}
@@ -778,7 +778,7 @@ describe('TeacherClassroomView', () => {
     const props = { classroom, selectedAssignmentId: 'assignment-1', selectedAssignmentStudentId: 'student-1' }
     const view = render(<TeacherClassroomView {...props} />)
     const inspector = await screen.findByTestId('teacher-work-panel')
-    const draft = screen.getByRole('textbox', { name: 'Teacher comment draft' })
+    const draft = screen.getByRole('textbox', { name: 'Leave a comment...' })
     fireEvent.change(draft, { target: { value: 'Keep my local draft' } })
     draft.textContent = 'Retry'
     draft.focus()
@@ -819,7 +819,7 @@ describe('TeacherClassroomView', () => {
     const props = { classroom, selectedAssignmentId: 'assignment-1', selectedAssignmentStudentId: 'student-1' }
     const view = render(<TeacherClassroomView {...props} />)
     const inspector = await screen.findByTestId('teacher-work-panel')
-    const draft = screen.getByRole('textbox', { name: 'Teacher comment draft' })
+    const draft = screen.getByRole('textbox', { name: 'Leave a comment...' })
     fireEvent.change(draft, { target: { value: 'Keep my local teacher draft' } })
     draft.textContent = 'Retry'
     draft.focus()
