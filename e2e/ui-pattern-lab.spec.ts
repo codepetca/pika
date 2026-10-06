@@ -1284,10 +1284,11 @@ test.describe('teacher Pattern Lab', () => {
     await expect(date).not.toHaveAttribute('aria-describedby')
     expect((await date.boundingBox())!.height).toBe(dateHeightWithSubtitle)
 
-    await page.getByRole('tab', { name: 'Overview', exact: true }).focus()
+    const workspace = examples.getByTestId('attached-shell-example')
+    await workspace.getByRole('tab', { name: 'Overview', exact: true }).focus()
     await page.keyboard.press('ArrowRight')
-    await expect(page.getByRole('tab', { name: 'Work details' })).toBeFocused()
-    await expect(page.getByRole('tabpanel', { name: 'Work details' })).toBeVisible()
+    await expect(workspace.getByRole('tab', { name: 'Work details' })).toBeFocused()
+    await expect(workspace.getByRole('tabpanel', { name: 'Work details' })).toBeVisible()
     await testInfo.attach('teacher-family-future-and-selected', {
       body: await examples.screenshot({ path: testInfo.outputPath('teacher-family-future-and-selected.png'), animations: 'disabled' }), contentType: 'image/png',
     })

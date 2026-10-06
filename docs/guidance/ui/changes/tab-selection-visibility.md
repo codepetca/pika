@@ -4,7 +4,8 @@ Surface: canonical horizontal `Tabs`, shared by teacher and student workspaces.
 Reference: approved Pattern Lab Selection controls; `src/ui/README.md` Composite
 controls and `composite-control-conventions.md` narrow-width scrolling contract.
 This extends existing scrolling behavior without changing its visual treatment.
-Coordinator: GPT-6.1 Sol; risk: workspace-state (selection, focus and scroll).
+Implementation assignment: GPT-6.1 Sol/medium (requested); effective runtime
+telemetry unavailable. Risk: workspace-state (selection, focus and scroll).
 
 Roles: teacher/student. Viewports: desktop/mobile. Themes: light/dark.
 States: initial later-tab selection, owner remount with retained selection,
