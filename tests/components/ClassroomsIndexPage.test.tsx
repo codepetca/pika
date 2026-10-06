@@ -49,6 +49,18 @@ describe('classroom index required server reads', () => {
     expect(mocks.teacher).toHaveBeenCalledWith(expect.anything(), 'owner-id')
   })
 
+  it('seeds the required shell clock when the student enrollment read fails', async () => {
+    const serverNow = Date.parse('2026-10-06T03:59:59.000Z')
+    const now = vi.spyOn(Date, 'now').mockReturnValue(serverNow)
+    try {
+      mocks.from.mockReturnValue(query(failure))
+      const shell = await ClassroomsIndexPage() as ReactElement<{ initialNow: number }>
+      expect(shell.props.initialNow).toBe(serverNow)
+    } finally {
+      now.mockRestore()
+    }
+  })
+
   it('does not mistake failed enrollment for a successful empty list or query classrooms', async () => {
     const enrollment = query(failure)
     mocks.from.mockReturnValue(enrollment)

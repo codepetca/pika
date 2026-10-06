@@ -20,3 +20,18 @@ Regression: deterministic SSR→hydrateRoot across minute and Toronto midnight b
 On base `c88abe16bb2acc5942f7b5430e296ea3bd09c37f`, the regression failed before the repair with three recoverable hydration errors at the minute boundary and four at Toronto midnight, including full root regeneration. After the repair: nine affected Vitest files / 91 tests passed; scoped Next lint passed without warnings/errors; `git diff --check` passed. The regression verifies immediate post-mount current time, 60-second ticks, preserved header/clock nodes, no recoverable errors, and zero remaining timers after unmount. Server owner tests cover both classroom roles and both utility layouts. Production source audit covers all three classrooms-index return branches; only header-free loading/error/not-found shells use the zero sentinel. Pattern Lab headers and synthetic fixtures use the fixed October 5 snapshot and refresh normally after mount.
 
 Final both-role visual acceptance and full focused/policy/type checks remain coordinator-owned; this receipt does not claim browser verification.
+
+## Combined classroom recovery composition (2026-10-06)
+
+PR #1496 depends on the reviewed classroom first-read recovery source in PR #1491.
+Reuse the existing AppShell/AppHeader clock and classroom recovery owners; extend
+the server timestamp transport to the new student enrollment-error return. The
+required `initialNow` contract remains mandatory. Both Pattern Lab recovery and
+experimental dialog registrations/tests remain present. Existing role, viewport,
+theme and motion acceptance applies to the combined source, including error,
+pending retry and recovery. No promotion or production scaffold is included.
+
+Regression: the server page's failed enrollment branch must supply its captured
+clock timestamp. This failed with undefined before the correction and passed
+after supplying `initialNow={Date.now()}`. Existing SSR-to-hydration minute/date
+boundary tests verify preserved clock nodes and resumed live ticks.

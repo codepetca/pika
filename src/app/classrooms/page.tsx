@@ -51,7 +51,7 @@ export default async function ClassroomsIndexPage() {
 
   if (enrollmentError) {
     return (
-      <AppShell user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+      <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
         <StudentClassroomsIndex initialClassrooms={[]} initialReadError studentId={user.id} />
       </AppShell>
     )
