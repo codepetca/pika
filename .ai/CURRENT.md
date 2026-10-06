@@ -16,7 +16,7 @@ Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Discard251: #1503 merged865d837b7 after exact9c391 CI37435496517 all5PASS.
 Publication735d6ab: native49/12/5/10 PASS; genuine252 types copied. LegacyPATCH/UI
-unchanged. 826 forced/docs/CI PASS; rebase review/CI/merge pending;249–252 unapplied.
+unchanged. 826 CI PASS;006 CI startup FAIL/draft1510;249–252 unapplied.
 No phase exit; `docs/guidance/contextual-test-publication.md`.
 
 Native252 normal10 PASS; exact cleanup/whole B5 PASS, failures retained.

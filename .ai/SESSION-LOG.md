@@ -288,6 +288,7 @@ continue. No new dependency, backend/auth policy/schema or design promotion; mai
 merge/production authorization remains separate. Full17-family goal stays active.
 
 ## 2026-10-06 — Approved PR1497 integration reconciliation
+## 2026-10-05 — Native diagnostics review correction batch
 
 Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
 
@@ -851,3 +852,19 @@ Original review clock/counters and human task-stop waiver persist. Targeted
 changed-base independent review/focused checks and one new exact-head CI precede
 ordinary main merge. Read-only next-slice inventory recommends atomic Test order;
 retired-row and subset/full-list semantics need explicit treatment before writing.
+
+## 2026-10-06 — Publication CI startup diagnostic containment
+
+Changed-base Sol20 review/focused777/30 passed006; CI37528258223 failed existing
+Assignment integrated startup in5s before Test publication. Build passed;
+returning PR1510 to draft caused concurrency replacement/browser cancellation;
+PRGate failed. Private600 job log06ddb685 retained; startup JSON not uploaded,
+cause unknown. Bounded readonly6.1Sol/high worker verified gap/closed literals,
+no operations; effective configuration/attributableusage unknown, weekly13%.
+Root32 RED precede closed command/exit/killed/observed-marker facts sealed in
+WeakMap; raw tails/path/credentials never emitted. Mock native wiring/private
+receipt and related lifecycle144/4 PASS; lint/audit PASS. Product/252/types,
+normal/forced output, authorities and caps unchanged. Source batch18/current
+targeted review/focused/exactheadCI pending; original13:07:17 clock/20 launches
+retained/taskstopwaiver active/DeepSeek paused. Local/prod249–252 unapplied;
+no migration/promotion/cohort/account/provider/billing/rollout or phase exit.

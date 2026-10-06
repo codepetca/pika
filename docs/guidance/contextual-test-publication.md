@@ -14,6 +14,22 @@ creating an archived-history conflict. PR1510 returned to draft before rebasing;
 both histories were retained. Publication/SQL252/types/proof bytes are unchanged,
 but changed-base review, focused checks and new exact-head CI remain merge gates.
 
+Changed-base review and focused777/30 passed at00603a2. CI37528258223 then
+failed the existing Assignment integrated-SDK proof during isolated startup
+(`start/not-started/cleanup=none`), before Test publication. Build/unit checks
+passed; returning PR1510 to draft triggered the CI concurrency replacement,
+cancelling the browser lane. PR Gate failed. The private runner startup receipt
+was not uploaded, so its underlying cause remains unknown; no unchanged retry
+or merge follows from the earlier826 CI pass. The diagnostic-only correction
+adds sealed command/exit/killed facts and fixed observed error-marker labels to
+the integrated startup failure. Unknown values remain unknown; killed does not
+prove a timeout, and marker text in logs can be incidental rather than causal.
+Only existing16KiB tails are classified. Raw output/path/credentials remain
+private, no diagnostic artifact is uploaded, and success/forced output, product
+behavior, proof authority and limits are unchanged. Offline32 RED preceded the
+correction; native-command wiring and related lifecycle coverage144/4 now pass.
+Targeted review, current focused checks and new exact-head CI remain required.
+
 ## Historical pre-type preparation
 
 The isolated proof implementation was ready for independent source review: one full-row fixture,

@@ -41041,3 +41041,19 @@ unproved. No native/SQL/Docker/typegeneration/CI/prod operation by implementatio
 worker; effectiveconfig/attributableusage unknown. Root owns sourcefreeze,
 requiredchecks, originalaudit, targetedindependent review/newverifyonlyB1binding
 and onefinite normalplan before execution. Originalcheckpoints/counters preserved.
+
+<!-- pika-session-log-archive-batch:8c531e7bd2fe5e2349890c1f711c63b6f4b7a961eaa489f7adc4a57cdfb3138f -->
+## 2026-10-05 — Privacy-safe native Test draft CI diagnostics
+
+Base75977572b; runtime-platform; GPT-6.1 Sol/high sole writer, no recursive
+delegation; weekly remaining45% at startup. Full startup/locked install passed.
+Native adapter now retains finite stage/schedule/phase/failure kind, bounded
+elapsed/exit metadata and separate cleanup state; lifecycle emits it only for
+real failures. Opaque errors, manifests, SQL, caps, guards and exact teardown
+are preserved; forced-failure two-line receipts unchanged. Offline failure
+injection/non-leakage coverage:137 tests/2 files pass; focused workflow/affected
+tests plus architecture/UI/design/TypeScript/lint checked, final receipt in
+/tmp/pika-native-diag-focused-final.log. No production/migration/workflow change,
+live SQL, VM/Docker, browser benchmark, provider/GitHub operation or replay.
+Prior executable failure remains undiagnosed; root owns review and exact-source
+replay authorization. Session-log trim alone archives one oldest retained entry.
