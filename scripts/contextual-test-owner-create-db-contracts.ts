@@ -5,6 +5,35 @@ import assert from 'node:assert/strict'
 import type { TestOwnerCreateFixture } from './contextual-test-owner-create-proof-fixture'
 
 export const TEST_OWNER_CREATE_DB_CAPS = Object.freeze({ sqlBytes: 256 * 1024, actionMs: 35_000, requestMs: 12_000 })
+const catalogFailures = Object.freeze({
+  'catalog-function': 'Function owner/SECDEF/search_path/locktimeout/ACL catalog differs',
+  'catalog-test-columns': 'Exact21 Test columns differ', 'catalog-draft-columns': 'Exact10 draft columns differ',
+  'catalog-test-types': 'Test column types/nullability differ', 'catalog-draft-types': 'Draft column types/nullability differ',
+  'catalog-test-defaults': 'Exact Test default columns differ', 'catalog-draft-defaults': 'Exact draft default columns differ',
+  'catalog-default-values': 'Defaults differ', 'catalog-test-constraints': 'Exact Test constraints differ',
+  'catalog-draft-constraints': 'Exact draft constraints differ', 'catalog-constraint-modes': 'Constraint validation/mode/body differs',
+  'catalog-index': 'Position index differs', 'catalog-triggers': 'Exact noninternal trigger closure differs',
+  'catalog-trigger-modes': 'Trigger enable/deferral mode differs',
+})
+const probeFailureLabels = Object.freeze([
+  'student-owner-create', 'bulk-1001-retired-max', 'uncategorized-fallback', 'custom-category-default',
+  'invalid-null-title', 'invalid-blank-title', 'invalid-long-title', 'invalid-deadline', 'expired-deadline', 'wrong-owner',
+  'missing-classroom', 'archived-owner', 'restore-fence', 'compaction-fence', 'identity-fence', 'position-intmax',
+  'missing-revision', 'missing-settings', 'hot-purge-fence-state', 'cold-purge-fence-state',
+  'attendance-decommission-fenced', 'attendance-decommission-remote_deleted', 'attendance-decommission-local_deleted',
+  'known-55000', 'unknown-55000', 'raw-42501', 'suppress-test', 'fail-test', 'suppress-draft', 'fail-draft',
+  'drift-test-before', 'drift-test-after', 'drift-draft-before', 'drift-draft-after', 'drift-test-identity', 'drift-draft-identity',
+  'drift-defaults', 'drift-parent', 'drift-revisions', 'drift-settings', 'drift-category', 'deadline-after-test', 'deadline-after-draft',
+  'final-fixture-equality', 'evidence-bound',
+])
+/** Private proof diagnostics only: fixed labels, never exception text or rows. */
+export const TEST_OWNER_CREATE_FAILURE_LABELS: Readonly<Record<string, string>> = Object.freeze(Object.fromEntries(
+  [...Object.keys(catalogFailures), ...probeFailureLabels].map((label, i) => [`PC${String(i + 1).padStart(3, '0')}`, label]),
+))
+function failureCode(label: string) {
+  const entry = Object.entries(TEST_OWNER_CREATE_FAILURE_LABELS).find(([, known]) => known === label)
+  assert(entry); return entry[0]
+}
 const q = (value: string) => `'${value.replaceAll("'", "''")}'`
 function freeze<T>(value: T): T {
   if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) }
@@ -78,7 +107,8 @@ function rollbackProbe(label: string, body: string) {
   raise exception using errcode='PT499',message=${q(`owner_create_probe:${label}`)};
  exception when sqlstate 'PT499' then if sqlerrm<>${q(`owner_create_probe:${label}`)} then raise;end if;end;
  if pg_temp.owner_create_snapshot() is distinct from baseline then raise exception 'Exact fixture rows changed between rollback probes: ${label}';end if;
- perform pg_temp.owner_create_note(${q(label)},true,'00000');end;$probe$;`
+ perform pg_temp.owner_create_note(${q(label)},true,'00000');
+ exception when others then raise exception using errcode=${q(failureCode(label))},message='Closed owner-create proof failure';end;$probe$;`
 }
 function errorProbe(label: string, expression: string, expected: string, setup = '', verify = '') {
   return rollbackProbe(label, `${setup}
@@ -132,7 +162,7 @@ function catalogSql() {
   const types = (rows: readonly (readonly [string,string,boolean])[]) => `values ${rows.map(([name,type,notnull]) => `(${q(name)},${q(type)},${notnull})`).join(',')}`
   const constraints = (rows: readonly (readonly [string,string])[]) => `values ${rows.map(([name,type]) => `(${q(name)},${q(type)})`).join(',')}`
   const triggers = `values ${triggerPairs.map(([table,name,schema,fn,type]) => `(${q(table)},${q(name)},${q(schema)},${q(fn)},${type})`).join(',')}`
-  return `do $catalog$ declare p pg_proc;actual text[];bad integer;idx record;begin
+  const sql = `do $catalog$ declare p pg_proc;actual text[];bad integer;idx record;begin
  select proc.* into p from pg_proc proc join pg_namespace n on n.oid=proc.pronamespace
  where n.nspname='public' and proc.oid='public.create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)'::regprocedure;
  if not found or p.proowner::regrole::text<>'postgres' or not p.prosecdef or p.prorettype::regtype::text<>'jsonb'
@@ -215,6 +245,11 @@ function catalogSql() {
    and not t.tgisinternal and (t.tgenabled<>'O' or t.tgdeferrable or t.tginitdeferred))
  then raise exception 'Trigger enable/deferral mode differs';end if;
  perform pg_temp.owner_create_note('catalog-250',true,'00000');end;$catalog$;`
+  return Object.entries(catalogFailures).reduce((statement, [label, message]) => {
+    const needle = `raise exception ${q(message)};`
+    assert.equal(statement.split(needle).length, 2)
+    return statement.replace(needle, `raise exception using errcode=${q(failureCode(label))},message=${q(message)};`)
+  }, sql)
 }
 
 function strictPairHelper() {
@@ -387,7 +422,7 @@ ${ordinaryErrors(f)}
 ${lifecycleStateProbes(f)}
 ${faults(f)}
 do $final$ begin
- if pg_temp.owner_create_snapshot() is distinct from (select value from pg_temp.owner_create_initial) then raise exception 'Exact fixture rows changed between rollback probes: final';end if;
+ if pg_temp.owner_create_snapshot() is distinct from (select value from pg_temp.owner_create_initial) then raise exception using errcode=${q(failureCode('final-fixture-equality'))},message='Exact fixture rows changed between rollback probes: final';end if;
  perform pg_temp.owner_create_note('missing-actor-skipped-fk',false,'SKIP0');
 end;$final$;
 create temp table owner_create_result on commit drop as select pg_catalog.jsonb_build_object('version',1,'native_execution',true,'rollback_only',true,'fixture_tag',${q(f.tag)},
@@ -400,7 +435,7 @@ create temp table owner_create_result on commit drop as select pg_catalog.jsonb_
   'fixture_classes',(select count(*) from public.classrooms where id=any(array[${f.classes.map(c=>`${q(c.id)}::uuid`).join(',')}]))),
  'missing_actor_probe','skipped: classroom teacher FK prevents isolating a missing actor without deleting/reparenting the owned Class',
  'deferred',${q(JSON.stringify(remaining))}::jsonb,'logical_deadline_only',true) value;
-do $bound$ begin if (select pg_catalog.octet_length(value::text) from pg_temp.owner_create_result)>65536 then raise exception 'Evidence result exceeds 64KiB';end if;end;$bound$;
+do $bound$ begin if (select pg_catalog.octet_length(value::text) from pg_temp.owner_create_result)>65536 then raise exception using errcode=${q(failureCode('evidence-bound'))},message='Evidence result exceeds 64KiB';end if;end;$bound$;
 select value as result from pg_temp.owner_create_result;
 rollback;`)
 }

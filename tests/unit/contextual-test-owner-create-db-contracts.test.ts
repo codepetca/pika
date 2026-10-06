@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerCreateFixture } from '../../scripts/contextual-test-owner-create-proof-fixture'
-import { TEST_OWNER_CREATE_DB_CAPS, testOwnerCreateContractsManifest } from '../../scripts/contextual-test-owner-create-db-contracts'
+import { TEST_OWNER_CREATE_DB_CAPS, TEST_OWNER_CREATE_FAILURE_LABELS, testOwnerCreateContractsManifest } from '../../scripts/contextual-test-owner-create-db-contracts'
 
 const f = newTestOwnerCreateFixture(newAssignmentListProofFixture(new Date('2026-10-06T03:30:00Z')))
 const manifest = testOwnerCreateContractsManifest(f)
@@ -116,5 +116,15 @@ describe('contextual Test owner-create rollback database contracts', () => {
     expect(manifest.contracts).toContain('i.indexprs is null')
     expect(manifest.contracts).not.toMatch(/pg_get_indexdef\([^\n]+,\s*[23],true\)[^\n]*DESC/)
     expect(manifest.contracts).not.toContain('249_contextual_test_owner_create')
+  })
+  it('uses actual whitespace and finite private failure codes without weakening assertions', () => {
+    expect(manifest.contracts.includes("' \t\n'")).toBe(true)
+    expect(Object.isFrozen(TEST_OWNER_CREATE_FAILURE_LABELS)).toBe(true)
+    expect(Object.keys(TEST_OWNER_CREATE_FAILURE_LABELS).length).toBeLessThan(100)
+    expect(Object.keys(TEST_OWNER_CREATE_FAILURE_LABELS).every(code => /^PC\d{3}$/.test(code))).toBe(true)
+    for (const [code, label] of Object.entries(TEST_OWNER_CREATE_FAILURE_LABELS)) {
+      expect(/^[a-z0-9_-]{1,80}$/.test(label)).toBe(true)
+      expect(manifest.contracts.includes(`errcode='${code}'`)).toBe(true)
+    }
   })
 })

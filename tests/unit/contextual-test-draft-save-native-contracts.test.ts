@@ -184,7 +184,7 @@ describe('native persistent-session transport with offline child mocks', () => {
         let response = ''
         if (sql === manifest.bootstrap) response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
         else if (sql === manifest.setup && hangingSetup) { done(); return }
-        else if (sql === manifest.setup && setupExit) {
+        else if ((sql === manifest.setup || sql === createManifest?.setup) && setupExit) {
           for (const chunk of stderrChunks) child.stderr.write(chunk)
           queueMicrotask(() => child.emit('close', 1)); done(); return
         }
@@ -297,6 +297,14 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(diagnostic).toContain('phase=setup failure=child-exit role=fixture')
     expect(diagnostic).toContain(`sqlstate=${code} `)
     expect(diagnostic).not.toContain('PRIVATE'); expect(diagnostic).not.toContain('secret')
+    expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
+    expect(terminations).toHaveLength(1)
+  })
+  it.each([['PC001', 'PC001'], ['PC999', 'unknown']])('reports only a finite CREATE proof failure code %s', async (code, expected) => {
+    const adapter = createFactory(); setupExit = true; stderrChunks = [`PRIVATE secret\nERROR: ${code}\nPRIVATE row\n`]
+    await expect(adapter.setup()).rejects.toThrow('exact project disposal required')
+    expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
+    expect(adapter.diagnostic()).not.toMatch(/PRIVATE|secret|row/)
     expect(children[0].kill).toHaveBeenCalledWith('SIGKILL')
     expect(terminations).toHaveLength(1)
   })

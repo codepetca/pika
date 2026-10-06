@@ -17,7 +17,7 @@ import {
 } from './check-contextual-test-draft-save-db-contracts'
 import { draftSaveConcurrencyManifest, runDraftSaveConcurrency } from './check-contextual-test-draft-save-concurrency'
 import { newTestOwnerCreateFixture, testOwnerCreateSnapshotSql, type TestOwnerCreateFixture } from './contextual-test-owner-create-proof-fixture'
-import { testOwnerCreateContractsManifest } from './contextual-test-owner-create-db-contracts'
+import { testOwnerCreateContractsManifest, TEST_OWNER_CREATE_FAILURE_LABELS } from './contextual-test-owner-create-db-contracts'
 import { testOwnerCreateConcurrencyManifest, validateTestOwnerCreateConcurrencySql, validateOwnerCreateTarget, runTestOwnerCreateConcurrency } from './check-contextual-test-create-concurrency'
 import { contextualTestCreateTestSchema, contextualTestCreateDraftSchema } from '../src/lib/validations/contextual-test-create'
 
@@ -26,7 +26,7 @@ const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, cont
 const failure = () => new Error('Private native Test draft contracts failed; exact project disposal required')
 const contextTemplate = '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}'
 const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503', '42501', '55P03', '40P01', '40001', '57014',
-  'P0001', '23502', '23503', '23505', '23514', '22P02', '25P02', '57P01', '57P02', '57P03'])
+  'P0001', '23502', '23503', '23505', '23514', '22P02', '25P02', '57P01', '57P02', '57P03', ...Object.keys(TEST_OWNER_CREATE_FAILURE_LABELS)])
 type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'
