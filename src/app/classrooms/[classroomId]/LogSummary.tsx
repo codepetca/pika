@@ -147,6 +147,7 @@ export function LogSummaryContent({
 }) {
   const contentId = useId()
   const textRef = useRef<HTMLSpanElement>(null)
+  const clippedActionRef = useRef<HTMLButtonElement | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [overflows, setOverflows] = useState(false)
   const items = formatLogSummaryItems(actionItems, firstNames)
@@ -169,56 +170,65 @@ export function LogSummaryContent({
     }
   }, [conciseSummary, expanded, overflows])
 
-  const summaryText = (
-    <span ref={textRef} data-summary-text className={cn('block min-w-0 break-words leading-5 [overflow-wrap:anywhere]', !expanded && 'line-clamp-2')}>
-      <span className="mr-1 font-semibold text-primary">Summary</span>{' '}
-      {expanded && items.length > 0 ? <span className="sr-only">Collapse summary</span> : conciseSummary}
-    </span>
-  )
+  useEffect(() => {
+    if (expanded && clippedActionRef.current) {
+      clippedActionRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+      clippedActionRef.current = null
+    }
+  }, [expanded])
+
+  const canToggle = overflows || expanded
 
   return (
-    <div className="max-h-[48vh] overflow-y-auto" onClick={() => {
-      if (overflows || expanded) setExpanded((value) => !value)
+    <div className="max-h-[48vh] overflow-y-auto px-3 py-2 text-sm text-text-default" onClick={() => {
+      if (canToggle) setExpanded((value) => !value)
     }}>
-      {overflows || expanded ? (
-        <Button
-          variant="ghost"
-          aria-expanded={expanded}
-          aria-controls={contentId}
-          className="w-full justify-start rounded-lg border-0 px-3 py-2 text-left text-sm font-normal text-text-default"
-          onClick={(event) => {
-            event.stopPropagation()
-            setExpanded((value) => !value)
-          }}
-        >
-          {summaryText}
-        </Button>
-      ) : <div className="px-3 py-2 text-sm text-text-default">{summaryText}</div>}
-      <div id={contentId} hidden={!expanded}>
-        {items.length > 0 && (
-          <ul aria-label="Class log follow-ups" className="px-3 pb-2 text-sm leading-5 text-text-default">
-            {items.map((item, index) => (
-              <li key={index} className="break-words [overflow-wrap:anywhere]">
-                {onStudentClick ? (
-                  <>
-                    <Button
-                      variant="ghost"
-                      className="-ml-2 border-0 px-2 py-1 font-medium text-primary hover:underline"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onStudentClick(item.studentName)
-                      }}
-                    >
-                      {item.firstName}
-                    </Button>
-                    {' '}{item.detail}
-                  </>
-                ) : <><span className="font-medium">{item.firstName}</span>{' '}{item.detail}</>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <span id={contentId} ref={textRef} data-summary-text className={cn('block min-w-0 break-words leading-5 [overflow-wrap:anywhere]', !expanded && 'line-clamp-2')}>
+        {canToggle ? (
+          <Button
+            variant="ghost"
+            aria-label={expanded ? 'Collapse summary' : 'Expand summary'}
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            className="mr-1 inline min-h-0 min-w-0 rounded-sm border-0 p-0 align-baseline text-sm font-semibold leading-5 text-primary hover:bg-transparent"
+            onClick={(event) => {
+              event.stopPropagation()
+              setExpanded((value) => !value)
+            }}
+          >
+            Summary
+          </Button>
+        ) : <span className="mr-1 font-semibold text-primary">Summary</span>}{' '}
+        {items.length > 0 ? items.map((item, index) => (
+          <span key={index}>
+            {onStudentClick ? (
+              <Button
+                variant="ghost"
+                aria-label={`Go to ${item.studentName} in student table`}
+                className="inline min-h-0 min-w-0 rounded-sm border-0 p-0 align-baseline text-sm font-medium leading-5 text-primary underline hover:bg-transparent"
+                onFocus={(event) => {
+                  const text = textRef.current
+                  // Reveal a keyboard-focused action that lies beyond the two-line clamp.
+                  if (!expanded && overflows && text) {
+                    const actionBounds = event.currentTarget.getBoundingClientRect()
+                    const textBounds = text.getBoundingClientRect()
+                    if (text.scrollTop === 0 && actionBounds.height > 0 && actionBounds.top >= textBounds.top && actionBounds.bottom <= textBounds.bottom) return
+                    clippedActionRef.current = event.currentTarget
+                    setExpanded(true)
+                  }
+                }}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onStudentClick(item.studentName)
+                }}
+              >
+                {item.firstName}
+              </Button>
+            ) : item.firstName}
+            {' '}{item.detail}{index < items.length - 1 ? ' ' : ''}
+          </span>
+        )) : 'Nothing urgent'}
+      </span>
     </div>
   )
 }

@@ -103,22 +103,25 @@ describe('LogSummary', () => {
       summary_status: 'ready',
     })))
     const { rerender } = render(<LogSummary classroomId="classroom-1" date="2026-05-05" onStudentClick={onStudentClick} />)
-    const toggle = await screen.findByRole('button', { name: /Summary Avery asks whether the lab report needs a graph/ })
+    const toggle = await screen.findByRole('button', { name: 'Expand summary' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(toggle.querySelector('[data-summary-text]')).toHaveClass('line-clamp-2')
+    expect(toggle.closest('[data-summary-text]')).toHaveClass('line-clamp-2')
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Avery Morgan in student table' }))
+    expect(onStudentClick).toHaveBeenCalledWith('Avery Morgan')
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(toggle)
-    const expandedToggle = screen.getByRole('button', { name: 'Summary Collapse summary' })
+    const expandedToggle = screen.getByRole('button', { name: 'Collapse summary' })
     expect(expandedToggle).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('list')).toHaveTextContent('Avery asks whether the lab report needs a graph.')
-    expect(screen.getByRole('list')).toHaveTextContent('Jordan reports an injury that prevents taking part in the lab.')
-    fireEvent.click(screen.getByRole('button', { name: 'Avery' }))
+    expect(expandedToggle.closest('[data-summary-text]')).toHaveTextContent('Avery asks whether the lab report needs a graph.')
+    expect(expandedToggle.closest('[data-summary-text]')).toHaveTextContent('Jordan reports an injury that prevents taking part in the lab.')
+    fireEvent.click(screen.getByRole('button', { name: 'Go to Avery Morgan in student table' }))
     expect(onStudentClick).toHaveBeenCalledWith('Avery Morgan')
     expect(expandedToggle).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.click(screen.getByRole('list').querySelector('li:last-child')!)
-    expect(screen.getByRole('button', { name: /Summary Avery asks whether the lab report needs a graph/ })).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(screen.getByRole('button', { name: /Summary Avery asks whether the lab report needs a graph/ }))
+    fireEvent.click(screen.getByText(/reports an injury that prevents taking part/))
+    expect(screen.getByRole('button', { name: 'Expand summary' })).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'Expand summary' }))
     rerender(<LogSummary classroomId="classroom-1" date="2026-05-06" onStudentClick={onStudentClick} />)
-    expect(await screen.findByRole('button', { name: /Summary Avery asks whether the lab report needs a graph/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(await screen.findByRole('button', { name: 'Expand summary' })).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('shows a fitting summary without disclosure and preserves multiword first names', async () => {
@@ -139,13 +142,41 @@ describe('LogSummary', () => {
       action_items: [{ studentName: 'Avery Morgan', text: 'Avery Morgan has a question.', detail: 'Asks when the project is due.' }],
     } })))
     render(<LogSummary classroomId="classroom-1" date="2026-05-05" />)
-    expect(await screen.findByRole('button', { name: /Summary Avery asks/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(await screen.findByRole('button', { name: 'Expand summary' })).toHaveAttribute('aria-expanded', 'false')
     height = 20
     fireEvent(window, new Event('resize'))
     await waitFor(() => expect(screen.queryByRole('button')).not.toBeInTheDocument())
     height = 60
     fireEvent(window, new Event('resize'))
-    expect(await screen.findByRole('button', { name: /Summary Avery asks/ })).toHaveAttribute('aria-expanded', 'false')
+    expect(await screen.findByRole('button', { name: 'Expand summary' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it.each(['outside', 'internally scrolled'])('reveals a %s keyboard-focused name while retaining the same action', async (mode) => {
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(80)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
+    const onStudentClick = vi.fn()
+    vi.stubGlobal('fetch', vi.fn(() => mockJson({ summary_status: 'ready', summary: {
+      action_items: [
+        { studentName: 'Avery Morgan', text: '', detail: 'asks about the lab report.' },
+        { studentName: 'Avery Lee', text: '', detail: 'asks about the deadline.' },
+      ],
+    } })))
+    render(<LogSummary classroomId="classroom-1" date="2026-05-05" onStudentClick={onStudentClick} />)
+    const toggle = await screen.findByRole('button', { name: 'Expand summary' })
+    const text = toggle.closest('[data-summary-text]')!
+    const name = screen.getByRole('button', { name: 'Go to Avery Lee in student table' })
+    name.scrollIntoView = vi.fn()
+    text.scrollTop = mode === 'internally scrolled' ? 140 : 0
+    vi.spyOn(text, 'getBoundingClientRect').mockReturnValue({ top: 0, bottom: 40, height: 40 } as DOMRect)
+    vi.spyOn(name, 'getBoundingClientRect').mockReturnValue(mode === 'internally scrolled'
+      ? { top: 20, bottom: 40, height: 20 } as DOMRect
+      : { top: 60, bottom: 80, height: 20 } as DOMRect)
+    fireEvent.focus(name)
+    expect(screen.getByRole('button', { name: 'Collapse summary' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: 'Go to Avery Lee in student table' })).toBe(name)
+    expect(name.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+    fireEvent.click(name)
+    expect(onStudentClick).toHaveBeenCalledWith('Avery Lee')
   })
 
   it('explains when a summary is unavailable', async () => {

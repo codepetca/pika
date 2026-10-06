@@ -155,7 +155,7 @@ describe('PageMockups', () => {
     render(
       <ThemeProvider>
         <TooltipProvider>
-          <DailyMockup attendanceMode="manual" />
+          <DailyMockup attendanceMode="manual" onPrototypeAction={vi.fn()} />
         </TooltipProvider>
       </ThemeProvider>,
     )
@@ -163,10 +163,19 @@ describe('PageMockups', () => {
     const daily = screen.getByTestId('daily-mockup')
     expect(within(daily).getByRole('button', { name: 'Edit attendance time, manual attendance, 9:00 - 10:00 AM' })).toBeVisible()
     expect(within(daily).getByRole('button', { name: 'More actions' })).toBeVisible()
-    expect(within(daily).getByText(/Avery asks whether the lab report needs a graph/)).toBeVisible()
-    expect(within(daily).getByText(/Avery asks whether the lab report needs a graph/)).toHaveClass('line-clamp-2')
+    const summaryName = within(daily).getByRole('button', { name: 'Go to Maya Chen in student table' })
+    const summaryText = summaryName.closest('[data-summary-text]')
+    expect(summaryText).toHaveTextContent('Maya asks whether the lab report needs a graph.')
+    expect(summaryText).toHaveClass('line-clamp-2')
     expect(within(daily).getByText('Summary')).toHaveClass('text-primary')
     expect(within(daily).getByText('Summary')).not.toHaveClass('bg-info-bg')
+    const target = within(daily).getByRole('row', { name: /Maya Chen/ })
+    const scrollIntoView = vi.fn()
+    target.scrollIntoView = scrollIntoView
+    fireEvent.click(summaryName)
+    expect(target).toHaveAttribute('aria-selected', 'true')
+    expect(target).toHaveFocus()
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center', inline: 'nearest', behavior: 'auto' })
     expect(within(daily).getByRole('button', { name: 'Mark Maya Chen present' }))
       .toHaveClass('h-8', 'min-h-8', 'w-8', 'min-w-8')
     expect(within(daily).getByRole('button', { name: 'Undo override for Noah Williams' }))

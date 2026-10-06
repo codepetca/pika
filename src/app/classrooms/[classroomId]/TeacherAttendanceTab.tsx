@@ -165,6 +165,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [logsRequestVersion, setLogsRequestVersion] = useState(0)
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [summaryHighlightedStudentId, setSummaryHighlightedStudentId] = useState<string | null>(null)
   const [showIdColumn, setShowIdColumn] = useState(true)
   const [showRelativeDate, setShowRelativeDate] = useState(true)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
@@ -333,6 +334,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   // Selection belongs to a classroom/date, not to a refresh of that snapshot.
   useLayoutEffect(() => {
     setSelectedStudentId(null)
+    setSummaryHighlightedStudentId(null)
     selectedStudentIdRef.current = null
     onSelectEntryRef.current?.(null, '', null)
   }, [classroom.id, selectedDate])
@@ -554,6 +556,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }
 
   function handleRowClick(row: LogRow) {
+    setSummaryHighlightedStudentId(null)
     preserveStudentTableScrollPosition()
     const newSelectedId = selectedStudentId === row.student_id ? null : row.student_id
     setSelectedStudentId(newSelectedId)
@@ -569,8 +572,9 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const handleDeselect = useCallback(() => {
     pendingKeyboardFocusStudentIdRef.current = null
     preserveStudentTableScrollPosition()
+    setSummaryHighlightedStudentId(null)
     setSelectedStudentId(null)
-    onSelectEntry?.(null, '', null)
+    if (selectedStudentIdRef.current) onSelectEntry?.(null, '', null)
   }, [onSelectEntry, preserveStudentTableScrollPosition])
 
   const handleKeyboardDeselect = useCallback(() => {
@@ -579,7 +583,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }, [handleDeselect])
 
   useEffect(() => {
-    if (!selectedStudentId || !isActive) return
+    if ((!selectedStudentId && !summaryHighlightedStudentId) || !isActive) return
 
     function handleEscapeKey(event: KeyboardEvent) {
       if (event.key !== 'Escape' || event.defaultPrevented) return
@@ -592,10 +596,10 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
     window.addEventListener('keydown', handleEscapeKey)
     return () => window.removeEventListener('keydown', handleEscapeKey)
-  }, [handleKeyboardDeselect, isActive, selectedStudentId])
+  }, [handleKeyboardDeselect, isActive, selectedStudentId, summaryHighlightedStudentId])
 
   useEffect(() => {
-    if (!selectedStudentId || !isActive) return
+    if ((!selectedStudentId && !summaryHighlightedStudentId) || !isActive) return
 
     function handlePointerDown(event: PointerEvent) {
       const selectedWorkspace = selectedWorkspaceRef.current
@@ -606,10 +610,11 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
 
     window.addEventListener('pointerdown', handlePointerDown)
     return () => window.removeEventListener('pointerdown', handlePointerDown)
-  }, [handleDeselect, isActive, selectedStudentId])
+  }, [handleDeselect, isActive, selectedStudentId, summaryHighlightedStudentId])
 
   const selectStudentByRow = useCallback(
     (row: LogRow) => {
+      setSummaryHighlightedStudentId(null)
       preserveStudentTableScrollPosition()
       setSelectedStudentId(row.student_id)
       const studentName =
@@ -634,6 +639,28 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
     },
     [logs, selectStudentByRow]
   )
+
+  const jumpToSummaryStudent = useCallback((name: string) => {
+    const row = logs.find((logRow) =>
+      [logRow.student_first_name, logRow.student_last_name].filter(Boolean).join(' ') === name
+    )
+    if (!row) return
+    const rowElement = Array.from(
+      studentTableNavigationRef.current?.querySelectorAll<HTMLTableRowElement>('tr[id]') ?? []
+    ).find((element) => element.id === getAttendanceStudentRowId(row.student_id))
+    if (!rowElement) return
+
+    setSummaryHighlightedStudentId(row.student_id)
+    rowElement.focus({ preventScroll: true })
+    rowElement.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
+    preserveStudentTableScrollPosition()
+  }, [logs, preserveStudentTableScrollPosition])
+
+  useEffect(() => {
+    if (summaryHighlightedStudentId && !rows.some((row) => row.student_id === summaryHighlightedStudentId)) {
+      setSummaryHighlightedStudentId(null)
+    }
+  }, [rows, summaryHighlightedStudentId])
 
   // Keyboard navigation handler
   const handleKeyboardSelect = useCallback(
@@ -671,7 +698,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       studentTableNavigationRef.current?.focus()
       pendingKeyboardTableFocusRef.current = false
     }
-  }, [selectedStudentId])
+  }, [selectedStudentId, summaryHighlightedStudentId])
   const selectedStudentName = selectedRow
     ? [selectedRow.student_first_name, selectedRow.student_last_name].filter(Boolean).join(' ') ||
       selectedRow.email_username
@@ -867,7 +894,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
         ref={studentTableNavigationRef}
         ariaLabel="Attendance students"
         rowKeys={rowKeys}
-        selectedKey={selectedStudentId}
+        selectedKey={selectedStudentId ?? summaryHighlightedStudentId}
         onSelectKey={handleKeyboardSelect}
         onDeselect={handleKeyboardDeselect}
         getRowId={getAttendanceStudentRowId}
@@ -1002,7 +1029,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             </DataTableHead>
             <DataTableBody>
               {rows.map((row) => {
-                const isSelected = selectedStudentId === row.student_id
+                const isSelected = (selectedStudentId ?? summaryHighlightedStudentId) === row.student_id
                 const attendanceStudent = attendanceRowsById.get(row.student_id)
                 const attendancePending = attendanceStudent?.pending ?? false
                 const attendanceEditable = Boolean(
@@ -1221,7 +1248,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
               data-testid="daily-student-scroll-pane"
               onScroll={preserveStudentTableScrollPosition}
               onClick={(event) => {
-                if (selectedStudentId && (event.target as HTMLElement).closest('table') === null) {
+                if ((selectedStudentId || summaryHighlightedStudentId) && (event.target as HTMLElement).closest('table') === null) {
                   handleDeselect()
                 }
               }}
@@ -1245,7 +1272,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                   classroomId={classroom.id}
                   date={selectedDate}
                   firstNames={summaryFirstNames}
-                  onStudentClick={selectStudentByName}
+                  onStudentClick={jumpToSummaryStudent}
                   onAvailabilityChange={handleSummaryAvailabilityChange}
                 />
               </section>

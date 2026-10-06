@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-05 — Audit follow-up owner disposition
-
-Owner directed leaving braces in place and remembering it. No general TODO file exists; added DEP-01 to docs/core/roadmap.md deferred maintenance, linked dependency/audit evidence and retained mitigation plus the existing November4 exception review date. Owner considers remaining live verification done: additional summary provider timeout/retry and teacher-closed zero-scoring probes are closed by waiver, without claiming new executed checks. CURRENT/audit plan and private finding/handoff ledger record this disposition. No dependencies, application, production state or feature-epic status changed; no monitor scheduled.
-
 ## 2026-10-05 — CI preparation approved merge refresh
 
 Owner approved PR #1475 merge into main and explicitly approved one bounded review-budget extension: launch 8, targeted changed-base integration capped at five minutes, followed by required CI. Prior seven launches and two cancellation code fixes remain counted; no new full-review wave. Old reviewed head `55d622b4` passed all five jobs in CI37261728363: 2,678 wall seconds, about 87.5 summed job minutes; classifier/gate 11/3 seconds. Main advanced through #1474/#1477/#1478/#1479 to `c25ebf78`; only conflict was archive bookkeeping. Complete earlier trim body was already archived upstream. Retained upstream archive and all main session receipts, restored only this task's preparation entry, then ran official trim. Runner policy/preflight/local executor and tests remain byte-identical to the reviewed implementation; current all-lane inventory includes upstream migration248. Refreshed focused checks, launch8 and exact-head eligible CI/merge are pending. No production, privacy, runner or local database operation; host choice and private activation remain pending. Weekly remaining at refresh54percent, account-wide and not attributable to this task; worker token telemetry unknown.
@@ -645,3 +641,31 @@ DRAFT; supersededCI37469990462 canceled. Subsequent owner-requested UI revision 
 bounded independent delta review (GPT6.1Sol/high; Terra unavailable), no full-wave repeat.
 Weekly77% used/23% remaining; DeepSeekpause honored. Small coherent edits handled by
 coordinator; previous worker unchanged. No merge/deployment authority inferred.
+
+## 2026-10-06 — Inline Daily summary row jumps
+
+Owner authorized direct first-name actions to scroll/highlight their matching student rows.
+Reuse Daily table focus/selection tokens + shared Button; extend feature inline summary
+composition and independent jump highlight, no new shared component. Inline content actions
+retain text-sized targets in the owner-requested compact2x20px prose; table controls retain
+existing geometry. Summary text/body toggles disclosure; name actions stop propagation.
+Expanded summary retains same action DOM. A clipped keyboard-focused name reveals full
+prose and scrolls into view; browserfocus can internally scroll CSS-clamped text, detected
+and regression-covered. Full-name attribution routes names, including duplicate first names.
+Jump focuses/centers row with immediateauto scroll, saves new scrollmemory and keeps summary
+available without opening inspector. Existing imperative/row inspection preserved. Escape,
+outside/deselect/date/class/removed row clear independent highlight; keyboard progresses.
+Reference Daily + Pattern Lab now demonstrates real Maya/Noah/Theo row targets. Teacher-only
+matrix1440x900/390x844 light/dark PASS with32 synthetic rows in real authenticated shell:
+compact2x20px, pointer/Enter/Space, scroll526/582->0, row focus/highlight, no inspector,
+clipped-name reveal, Escape, no horizontal overflow; /tmp/pika-summary-links-visual and
+/tmp/pika-summary-links-visual.cjs. Sourceae26f2977 + task diff; not live-provider evidence.
+Initial UI test fixture lacked required prototype callback; corrected fixture34/34 pass.
+Focused580/30 +allpolicies/TypeScript/lint PASS; final keyboard8/8 inclnative clamp-scroll
+regression; parent64/64, auditPASS. Visual iteration corrected browserfocus/clamp behavior;
+no weakened checks. Composite checklist reviewed. No model/cache/API/dependency migration.
+Worker GPT6.1Sol/high parent+tests delivered in~6min, one unsupported test assertion reworked,
+verified by coordinator; integration~3min, tokensunknown. Weekly77%used/23%remaining,
+DeepSeekpause honored. DraftPR1506, supersededCI37471864262 canceled. This subsequent
+owner-requested revision gets one bounded delta review GPT6.1Sol/high (Terra unavailable);
+prior model/cache privacy reviews unchanged. No merge/deploy authority inferred.
