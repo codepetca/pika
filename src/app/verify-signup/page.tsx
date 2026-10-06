@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, FormEvent, Suspense } from 'react'
+import { useState, useRef, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AppMessageFallback, Input, Button, FormField, useAppMessage } from '@/ui'
+import { AppMessageFallback, Input, Button, FormField } from '@/ui'
 import { buildAuthContinuationPath } from '@/lib/auth-redirect'
 import { getSafeInternalPath } from '@/lib/navigation-safety'
+import { useAuthCodeResend } from '@/hooks/useAuthCodeResend'
 
 const SIGNUP_HANDOFF_TOKEN_STORAGE_KEY = 'pika.signupHandoffToken'
 
@@ -18,10 +19,19 @@ function VerifySignupForm() {
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const { showMessage } = useAppMessage()
+  const verifyingRef = useRef(false)
+  const resend = useAuthCodeResend({
+    kind: 'signup',
+    email,
+    isBlocked: () => verifyingRef.current,
+    onStart: () => setError(''),
+  })
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (verifyingRef.current || resend.isPending()) return
+    verifyingRef.current = true
+    resend.clearFeedback()
     setError('')
     setLoading(true)
 
@@ -46,20 +56,8 @@ function VerifySignupForm() {
       router.push(buildAuthContinuationPath('/create-password', { email, next: nextPath }))
     } catch (err: any) {
       setError(err.message || 'An error occurred')
+      verifyingRef.current = false
       setLoading(false)
-    }
-  }
-
-  async function handleResendCode() {
-    try {
-      await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      showMessage({ text: 'Code sent', tone: 'success' })
-    } catch (err) {
-      setError('Failed to resend code')
     }
   }
 
@@ -81,18 +79,18 @@ function VerifySignupForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              disabled={loading}
+              disabled={loading || resend.pending}
             />
           </FormField>
 
-          <FormField label="Verification Code" error={error} required>
+          <FormField label="Verification Code" error={error || resend.error} required>
             <Input
               type="text"
               placeholder="A7Q2F"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               required
-              disabled={loading}
+              disabled={loading || resend.pending}
               maxLength={5}
             />
           </FormField>
@@ -100,19 +98,23 @@ function VerifySignupForm() {
           <Button
             type="submit"
             className="w-full mt-6"
-            disabled={loading || !email || code.length !== 5}
+            disabled={loading || resend.pending || !email || code.length !== 5}
           >
             {loading ? 'Verifying...' : 'Verify Email'}
           </Button>
         </form>
 
         <div className="mt-4 text-center">
-          <button
-            onClick={handleResendCode}
-            className="text-sm text-primary hover:underline"
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={resend.resend}
+            disabled={loading || resend.pending || !email}
+            aria-busy={resend.pending || undefined}
           >
-            Resend verification code
-          </button>
+            {resend.pending ? 'Sending…' : 'Resend verification code'}
+          </Button>
         </div>
       </div>
     </div>

@@ -209,7 +209,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 2,
+          "count": 1,
           "reason": "legacy-form-control"
         }
       ]
@@ -306,17 +306,6 @@
         {
           "kind": "button",
           "count": 2,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
-      "file": "src/app/verify-signup/page.tsx",
-      "reviewBy": "phase-6-auth-verification",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 1,
           "reason": "legacy-form-control"
         }
       ]
