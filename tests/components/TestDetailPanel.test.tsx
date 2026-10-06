@@ -2910,6 +2910,9 @@ Correct Option: 2
         expect(screen.getByText('Markdown')).toBeInTheDocument()
       })
 
+      // Verify the expected initial draft before editing.
+      await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
+
       holdAutosaveDebounce()
 
       fireEvent.click(screen.getByText('Markdown'))
