@@ -26,6 +26,10 @@ import { testOwnerPristineDiscardDbContractsSql, testOwnerPristineDiscardDbPlanO
   TEST_OWNER_PRISTINE_DISCARD_DB_CAPS, TEST_OWNER_PRISTINE_DISCARD_DB_CHECK_LABELS,
   TEST_OWNER_PRISTINE_DISCARD_DB_LIMITATIONS, TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS } from './contextual-test-pristine-discard-db-contracts'
 import { testOwnerPristineDiscardConcurrencyManifest, validateTestOwnerPristineDiscardConcurrencySql, runTestOwnerPristineDiscardConcurrency } from './check-contextual-test-discard-concurrency'
+import { newTestOwnerPublicationFixture, testOwnerPublicationSnapshotSql, type TestOwnerPublicationFixture } from './contextual-test-publication-proof-fixture'
+import { testOwnerPublicationDbContractsManifest, runTestOwnerPublicationDbContracts } from './contextual-test-publication-db-contracts'
+import { testOwnerPublicationConcurrencyManifest, validateTestOwnerPublicationConcurrencySql, runTestOwnerPublicationConcurrency,
+  testOwnerPublicationCommittedManifest, validateTestOwnerPublicationCommittedSql, runTestOwnerPublicationCommittedTransitions } from './check-contextual-test-publication-concurrency'
 
 const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, controlMs: 45000, closeMs: 12000,
   actionMs: 90000, totalMs: 900000, outputBytes: 8 * 1024 * 1024, stderrBytes: 65536, totalBytes: 64 * 1024 * 1024 })
@@ -33,7 +37,7 @@ const failure = () => new Error('Private native Test draft contracts failed; exa
 const contextTemplate = '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}'
 const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503', '42501', '55P03', '40P01', '40001', '57014',
   'P0001', '23502', '23503', '23505', '23514', '22P02', '25P02', '57P01', '57P02', '57P03', ...Object.keys(TEST_OWNER_CREATE_FAILURE_LABELS), ...Object.keys(TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS)])
-type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'complete'
+type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'transitions' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'
 // Retain only one allowlisted code. Untrusted stderr lines are bounded and
@@ -71,11 +75,16 @@ function freeze<T>(value: T): T {
   }
   return value
 }
-function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' = 'snapshot') {
+type PublicationPrivilegeKind = 'snapshot247' | 'publication252' | 'legacy139' | 'activation134'
+function snapshotPrivilegeSql(kind: 'snapshot' | 'create' | 'discard' | 'discard-inner' | PublicationPrivilegeKind = 'snapshot') {
   const signature = kind === 'snapshot' ? 'public.snapshot_test_draft_save_for_owner_v1(uuid,uuid,timestamp with time zone)'
     : kind === 'create' ? 'public.create_test_for_owner_v1(uuid,uuid,text,timestamp with time zone)'
     : kind === 'discard' ? 'public.discard_pristine_test_draft_for_owner_v1(uuid,uuid,integer,timestamp with time zone,timestamp with time zone)'
-    : 'public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)'
+    : kind === 'discard-inner' ? 'public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)'
+    : kind === 'snapshot247' ? 'public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)'
+    : kind === 'publication252' ? 'public.publish_test_from_draft_for_owner_v1(uuid,uuid,uuid,text,integer,jsonb,timestamp with time zone)'
+    : kind === 'legacy139' ? 'public.publish_test_from_draft_atomic(uuid,uuid,integer)'
+    : 'public.activate_test_from_draft_atomic(uuid,uuid,integer)'
   const catalog = `begin read only;set local lock_timeout='1s';set local statement_timeout='8s';
 select jsonb_build_object('owner',pg_get_userbyid(p.proowner),'definition',pg_get_functiondef(p.oid),
 'acl',(select coalesce(jsonb_agg(jsonb_build_object('grantor',pg_get_userbyid(a.grantor),
@@ -96,7 +105,7 @@ revoke execute on function ${signature} from service_role;commit;`
   const restore = `begin;set local lock_timeout='1s';set local statement_timeout='8s';
 grant execute on function ${signature} to service_role;commit;`
   return freeze({ catalog, revoke, restore, expectedOwner: 'postgres', expectedRoles: ['postgres', 'service_role'],
-    expectedEvidence: { status: 503, rpcCalls: 1, rawCode: '42501' }, probes: 1 })
+    expectedEvidence: { status: 503, rpcCalls: (['publication252', 'legacy139', 'activation134'].includes(kind) ? 2 : 1) as 1 | 2, rawCode: '42501' }, probes: 1 })
 }
 type SnapshotCatalog = { owner: string; definition: string; acl: { grantor: string; grantee: string; privilege_type: string; is_grantable: boolean }[] }
 function decodeSnapshotCatalog(rows: readonly { result?: unknown }[]): SnapshotCatalog {
@@ -374,6 +383,59 @@ async function runTestOwnerPristineDiscardContracts(manifest: DiscardManifest, b
       evidenceSha256: testOwnerDigest(JSON.stringify(value)), sourceSha256: bound.reviewedSourceSha256 })
   } finally { await session.rollbackAndClose(CAPS.closeMs) }
 }
+
+/** The shared inherited512KiB setup hook installs this fixture once. This
+ * additive profile only verifies presence; every admitted native SQL stays256KiB. */
+export function buildTestOwnerPublicationNativeContractsManifest(original: AssignmentListProofFixture,
+  fixture: TestOwnerPublicationFixture, reviewedHead: string, repository: string) {
+  assert.match(reviewedHead, /^[a-f0-9]{40}$/)
+  assert(isDeepStrictEqual(fixture, newTestOwnerPublicationFixture(original)), 'Test publication fixture differs')
+  assert(Object.isFrozen(fixture))
+  const projectId = `pika_assignment_list_${fixture.tag.slice(-12)}`
+  const q = (s: string) => `'${s.replaceAll("'", "''")}'`
+  const classes = fixture.classes.map(c => `${q(c.id)}::uuid`).join(',')
+  const actors = fixture.actors.map(a => `${q(a.id)}::uuid`).join(',')
+  const guard = testOwnerGuardSql(projectId)
+  const setup = `${guard}\nbegin read only;set local lock_timeout='1s';set local statement_timeout='8s';
+do $presence$ begin
+ if current_database()<>'postgres' or current_user<>'postgres'
+ or to_regprocedure('public.publish_test_from_draft_for_owner_v1(uuid,uuid,uuid,text,integer,jsonb,timestamp with time zone)') is null
+ or to_regprocedure('public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)') is null
+ or to_regprocedure('public.publish_test_from_draft_atomic(uuid,uuid,integer)') is null
+ or to_regprocedure('public.activate_test_from_draft_atomic(uuid,uuid,integer)') is null
+ or (select count(*) from public.users where id=any(array[${actors}]) and email like ${q(fixture.tag + '%@example.invalid')})<>4
+ or (select count(*) from public.classrooms where id=any(array[${classes}]))<>6
+ or (select count(*) from public.tests where classroom_id=any(array[${classes}]))<>16
+ or (select count(*) from public.assessment_drafts where classroom_id=any(array[${classes}]))<>15
+ or (select count(*) from public.test_questions where test_id in (select id from public.tests where classroom_id=any(array[${classes}])))<>${fixture.inventory.questions}
+ or (select count(*) from public.classroom_enrollments where classroom_id=any(array[${classes}]))<>2
+ or (select count(*) from public.gradebook_categories where classroom_id=any(array[${classes}]))<>18
+ or (select count(*) from public.classroom_archive_revisions where classroom_id=any(array[${classes}]))<>6
+ or (select count(*) from public.course_blueprints where id=${q(fixture.blueprint.id)}::uuid)<>1
+ or (select count(*) from public.course_blueprint_versions where course_blueprint_id=${q(fixture.blueprint.id)}::uuid)<>1
+ then raise exception 'Migration252 fixture presence differs';end if;
+end;$presence$;rollback;`
+  const contracts = testOwnerPublicationDbContractsManifest(fixture, projectId)
+  const concurrency = testOwnerPublicationConcurrencyManifest(fixture)
+  const committed = testOwnerPublicationCommittedManifest(fixture)
+  const snapshot = testOwnerPublicationSnapshotSql(fixture)
+  for (const sql of [setup, snapshot, contracts.contracts]) assert(Buffer.byteLength(sql) <= DRAFT_SAVE_CAPS.sqlBytes)
+  const publicationPrivileges = freeze({ snapshot247: snapshotPrivilegeSql('snapshot247'), publication252: snapshotPrivilegeSql('publication252'),
+    legacy139: snapshotPrivilegeSql('legacy139'), activation134: snapshotPrivilegeSql('activation134') })
+  return freeze({ version: 1, reviewedHead, migrationManifestSha256: draftSaveMigrationManifestSha256(repository),
+    sourceSha256: testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/252_contextual_test_owner_publication.sql'), 'utf8')),
+    fixture, guard, setup, contracts, concurrency, committed, snapshot, bootstrap: boot, termination: draftSaveNativeTerminationSql(),
+    close: 'rollback;', capabilities: CAPS, framing: 'psql-echo-monotonic-v1', contextTemplate,
+    privilege: publicationPrivileges.publication252, publicationPrivileges })
+}
+type PublicationManifest = ReturnType<typeof buildTestOwnerPublicationNativeContractsManifest>
+export function validateTestOwnerPublicationNativeSql(manifest: PublicationManifest, sql: string) {
+  if (typeof sql !== 'string' || Buffer.byteLength(sql) > DRAFT_SAVE_CAPS.sqlBytes) return false
+  return [manifest.setup, manifest.snapshot, manifest.bootstrap, manifest.close, manifest.contracts.contracts,
+    ...Object.values(manifest.publicationPrivileges).flatMap(p => [p.catalog, p.revoke])].includes(sql)
+    || validateTestOwnerPublicationConcurrencySql(manifest.concurrency, sql)
+    || validateTestOwnerPublicationCommittedSql(manifest.committed, sql)
+}
 type Backend = { pid: number; started: string; name: string; database: 'postgres'; user: 'postgres' }
 function backend(value: unknown, name: string): Backend {
   assert(value && typeof value === 'object' && !Array.isArray(value)); const row = value as Record<string, unknown>
@@ -392,9 +454,14 @@ type NativeManifestShape = Omit<Manifest, 'fixture' | 'contracts' | 'concurrency
 type NativeOwnerProfile<M extends NativeManifestShape, C, R> = Readonly<{
   manifest: M;
   project: string;
-  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql';
-  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard';
+  sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql';
+  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication';
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
+  publicationPrivileges?: Readonly<Record<PublicationPrivilegeKind, ReturnType<typeof snapshotPrivilegeSql>>>;
+  absoluteDeadline?: number;
+  singleMs?: number;
+  committedSha256?: string;
+  runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): ReturnType<typeof runTestOwnerPublicationCommittedTransitions>;
   validateSql(sql: string): boolean;
   contractsSha256: string;
   racesSha256: string;
@@ -415,8 +482,8 @@ export function createDraftSaveNativeContracts(input: NativeOwnerInput) {
     runContracts: (bound, d) => runDraftSaveContracts(manifest.fixture, bound, input.repository, d),
     runRaces: (bound, d) => runDraftSaveConcurrency(manifest.fixture, bound, input.repository, d),
   })
-  const { probeInnerPrivilegeDrift: internalOnly, ...facade } = engine
-  void internalOnly
+  const { probeInnerPrivilegeDrift: internalOnly, probeFixedPrivilegeDrift: publicationOnly, runCommittedTransitions: committedOnly, ...facade } = engine
+  void internalOnly; void publicationOnly; void committedOnly
   return Object.freeze(facade)
 }
 
@@ -429,8 +496,8 @@ export function createTestOwnerCreateNativeContracts(input: NativeOwnerInput & {
     runContracts: (bound, d) => runTestOwnerCreateContracts(manifest, bound, input.repository, d),
     runRaces: (bound, d) => runTestOwnerCreateConcurrency(manifest.fixture, bound, input.repository, d),
   })
-  const { probeSnapshotPrivilegeDrift: probe, probeInnerPrivilegeDrift: internalOnly, ...facade } = engine
-  void internalOnly
+  const { probeSnapshotPrivilegeDrift: probe, probeInnerPrivilegeDrift: internalOnly, probeFixedPrivilegeDrift: publicationOnly, runCommittedTransitions: committedOnly, ...facade } = engine
+  void internalOnly; void publicationOnly; void committedOnly
   return Object.freeze({ ...facade, async probeCreatePrivilegeDrift(callback: Parameters<typeof probe>[0]) {
     const receipt = await probe(callback)
     return Object.freeze({ privilegeRestored: receipt.privilegeRestored, fixtureUnchanged: receipt.fixtureUnchanged, createAclSha256: receipt.snapshotAclSha256 })
@@ -447,7 +514,8 @@ export function createTestOwnerPristineDiscardNativeContracts(input: NativeOwner
     runContracts: (bound, d) => runTestOwnerPristineDiscardContracts(manifest, bound, d),
     runRaces: (bound, d) => runTestOwnerPristineDiscardConcurrency(manifest.fixture, bound, input.repository, d),
   })
-  const { probeSnapshotPrivilegeDrift: outer, probeInnerPrivilegeDrift: inner, ...facade } = engine
+  const { probeSnapshotPrivilegeDrift: outer, probeInnerPrivilegeDrift: inner, probeFixedPrivilegeDrift: publicationOnly, runCommittedTransitions: committedOnly, ...facade } = engine
+  void publicationOnly; void committedOnly
   return Object.freeze({ ...facade,
     async probeDiscardPrivilegeDrift(callback: Parameters<typeof outer>[0]) {
       const r = await outer(callback)
@@ -459,6 +527,32 @@ export function createTestOwnerPristineDiscardNativeContracts(input: NativeOwner
     } })
 }
 
+/** Four explicit capabilities and one committed-transition operation. This
+ * facade never exports a profile selector, SQL callback or expected-state setter. */
+export function createTestOwnerPublicationNativeContracts(input: NativeOwnerInput & { fixture: TestOwnerPublicationFixture; absoluteDeadline: number }) {
+  assert(Number.isFinite(input.absoluteDeadline) && input.absoluteDeadline > Date.now() && input.absoluteDeadline <= Date.now() + CAPS.totalMs)
+  const manifest = buildTestOwnerPublicationNativeContractsManifest(input.original, input.fixture, input.reviewedHead, input.repository)
+  const engine = createNativeOwnerContracts(input, {
+    manifest, project: `pika_assignment_list_${manifest.fixture.tag.slice(-12)}`,
+    sourceFile: '252_contextual_test_owner_publication.sql', label: 'test-owner-publication',
+    publicationPrivileges: manifest.publicationPrivileges, absoluteDeadline: input.absoluteDeadline, singleMs: 12000,
+    validateSql: sql => validateTestOwnerPublicationNativeSql(manifest, sql),
+    contractsSha256: testOwnerDigest(JSON.stringify(manifest.contracts)), racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
+    committedSha256: testOwnerDigest(JSON.stringify(manifest.committed)),
+    runContracts: (bound, d) => runTestOwnerPublicationDbContracts(manifest.contracts, bound, d),
+    runRaces: (bound, d) => runTestOwnerPublicationConcurrency(manifest.fixture, bound, input.repository, d),
+    runCommitted: (bound, d) => runTestOwnerPublicationCommittedTransitions(manifest.fixture, bound, input.repository, d),
+  })
+  const { probeSnapshotPrivilegeDrift: oldSnapshot, probeInnerPrivilegeDrift: oldInner, probeFixedPrivilegeDrift: probe, ...facade } = engine
+  void oldSnapshot; void oldInner
+  return Object.freeze({ ...facade,
+    probePublicationSnapshotPrivilegeDrift: (callback: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) => probe('snapshot247', callback),
+    probePublicationPrivilegeDrift: (callback: () => Promise<{ status: 503; rpcCalls: 2; rawCode: '42501' }>) => probe('publication252', callback),
+    probeLegacyPublicationPrivilegeDrift: (callback: () => Promise<{ status: 503; rpcCalls: 2; rawCode: '42501' }>) => probe('legacy139', callback),
+    probeActivationPrivilegeDrift: (callback: () => Promise<{ status: 503; rpcCalls: 2; rawCode: '42501' }>) => probe('activation134', callback),
+  })
+}
+
 function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: NativeOwnerInput, profile: NativeOwnerProfile<M, C, R>) {
   input = Object.freeze({ ...input })
   profile = Object.freeze({ ...profile })
@@ -468,8 +562,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
   assert(isAbsolute(input.repository) && realpathSync(input.repository) === input.repository)
   const project = profile.project
   const closure = structuredClone(input.capturedResources)
-  const start = Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let probing = false
-  const probed = new Set<'outer' | 'inner'>()
+  const start = Date.now(); let controls = 0; let actions = 0; let exchanged = 0; let failed = false; let setupDone = false; let ran = false; let probing = false; let committedRan = false
+  const probed = new Set<'outer' | 'inner' | PublicationPrivilegeKind>()
+  // The rollback and committed publication schedules share one race clock.
+  // Entering the second runner must not renew its 180-second phase budget.
+  let publicationRaceDeadline: number | undefined
   const sessions = new Set<NativeSession>()
   let phase: Phase = 'idle'
   let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number }> | undefined
@@ -486,9 +583,14 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
   }
   let endpoint: { host: string; identity: number[] } | undefined
   function check(observe = true) {
-    if (observe && !failed && Date.now() - start >= CAPS.totalMs) record('timeout')
+    const raceExpired = publicationRaceDeadline !== undefined
+      && ['races', 'races-verify', 'transitions'].includes(phase) && Date.now() >= publicationRaceDeadline
+    if (observe && !failed && (Date.now() - start >= CAPS.totalMs
+      || (profile.absoluteDeadline !== undefined && Date.now() >= profile.absoluteDeadline) || raceExpired)) record('timeout')
     if (observe && controls > CAPS.controlCalls - 32) record('budget')
     assert(!failed && Date.now() - start < CAPS.totalMs && controls <= CAPS.controlCalls - 32)
+    if (profile.absoluteDeadline !== undefined) assert(Date.now() < profile.absoluteDeadline)
+    assert(!raceExpired, 'Publication race deadline exhausted')
   }
   function dockerArgs(name: string, variables: string[] = []) {
     assert([`${project}_fixture`, `${project}_draft_contracts`, `${project}_draft_holder`, `${project}_draft_contender`].includes(name))
@@ -681,11 +783,12 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
   }
   async function single(sql: string, setup = false) {
     const d = driver(target(input.acceptedManifestSha256)); const session = await d.openSession(`${project}_${setup ? 'fixture' : 'draft_contracts'}`)
-    try { return await session.execute(sql, CAPS.actionMs) } finally { await session.rollbackAndClose(CAPS.closeMs) }
+    try { return await session.execute(sql, profile.singleMs ?? CAPS.actionMs) } finally { await session.rollbackAndClose(CAPS.closeMs) }
   }
   async function restorationControl(sql: string) {
     assert([manifest.privilege.catalog, manifest.privilege.restore, manifest.snapshot,
-      ...(profile.innerPrivilege ? [profile.innerPrivilege.catalog, profile.innerPrivilege.restore] : [])].includes(sql))
+      ...(profile.innerPrivilege ? [profile.innerPrivilege.catalog, profile.innerPrivilege.restore] : []),
+      ...Object.values(profile.publicationPrivileges ?? {}).flatMap(p => [p.catalog, p.restore])].includes(sql))
     assert(++actions <= CAPS.actions)
     // Cleanup is allowed after a failed SDK/dispatch; all immutable bindings and
     // original safety guards still pass before the fixed restoration operation.
@@ -696,9 +799,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
   }
   // Both closed251 capabilities use this SAME engine, counters, deadline and
   // session ownership. A second engine would renew the native proof budgets.
-  async function probePrivilege(kind: 'outer' | 'inner', probe: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) {
+  async function probePrivilege(kind: 'outer' | 'inner' | PublicationPrivilegeKind, probe: () => Promise<{ status: 503; rpcCalls: 1 | 2; rawCode: '42501' }>) {
     phase = 'privilege'
-    const privilege = kind === 'outer' ? manifest.privilege : profile.innerPrivilege
+    const privilege = kind === 'outer' ? manifest.privilege : kind === 'inner' ? profile.innerPrivilege : profile.publicationPrivileges?.[kind]
     let ownsProbe = false
     try {
       assert(privilege && setupDone && !ran && !probing && !probed.has(kind) && sessions.size === 0)
@@ -749,11 +852,27 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
     },
     probeSnapshotPrivilegeDrift: (probe: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) => probePrivilege('outer', probe),
     probeInnerPrivilegeDrift: (probe: () => Promise<{ status: 503; rpcCalls: 1; rawCode: '42501' }>) => probePrivilege('inner', probe),
+    probeFixedPrivilegeDrift: (kind: PublicationPrivilegeKind, probe: () => Promise<{ status: 503; rpcCalls: 1 | 2; rawCode: '42501' }>) => probePrivilege(kind, probe),
+    async runCommittedTransitions() {
+      phase = 'transitions'
+      try {
+        assert(profile.publicationPrivileges && profile.runCommitted && profile.committedSha256)
+        assert(setupDone && ran && !committedRan && !probing && sessions.size === 0)
+        assert(Object.keys(profile.publicationPrivileges).every(k => probed.has(k as PublicationPrivilegeKind)))
+        committedRan = true; check()
+        const bound = target(profile.committedSha256)
+        const transitions = await profile.runCommitted(bound, driver(bound))
+        check(); assert.equal(sessions.size, 0); phase = 'complete'
+        return freeze({ transitions, manifestSha256: input.acceptedManifestSha256,
+          controls, actions, exchangeBytes: exchanged, remainingSessions: sessions.size })
+      } catch (error) { record('unknown'); throw error }
+    },
     async run() {
       phase = 'snapshot'
       try {
       assert(setupDone && !ran && !probing)
       if (profile.innerPrivilege) assert(probed.has('outer') && probed.has('inner'))
+      if (profile.publicationPrivileges) assert(Object.keys(profile.publicationPrivileges).every(k => probed.has(k as PublicationPrivilegeKind)))
       ran = true; check()
       const before = await single(manifest.snapshot)
       phase = 'contracts'
@@ -763,6 +882,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R>(input: 
       assert.deepEqual(await single(manifest.snapshot), before, 'Rollback contract whole-row equality differs')
       const raceTarget = target(profile.racesSha256)
       phase = 'races'
+      if (profile.publicationPrivileges) publicationRaceDeadline = Date.now() + 180000
       const races = await profile.runRaces(raceTarget, driver(raceTarget))
       phase = 'races-verify'
       assert.deepEqual(await single(manifest.snapshot), before, 'Rollback schedule whole-row equality differs')

@@ -417,3 +417,38 @@ PR1512 hold explicitly released after verified80ae7746 landing, reviewed tree pa
 ## 2026-10-07 — Modal CI confirmation-query remediation
 
 CI37553687244 failed three five-second Gallery cases: both new confirmation flows and existing teacher classroom recovery; 14024 tests PASS/8skip. Browser job canceled and ephemeral cleanup PASS; no manual rerun/dispatch. Narrowed confirmation queries to existing controls/active modal, preserving the global closed-dialog absence assertion, accessible description, Escape/opener focus, local status, real user events and unchanged timeout. Four affected isolated instrumented cases PASS: one local before/after tests observation2.82s→1.67s, not proof of the Linux cause. Full Gallery24 cases PASS with coverage instrumentation; partial runs still fail unchanged repository coverage floors and are not full coverage acceptance. All UI/config/dependency blobs remain unchanged; original browser/visual/race provenance retained. New focused and targeted test-only review precede one corrected exact-head CI. Current post-review fixbatches2, prior1490 sourcefix10/reviews12 preserved; no cap reset under task waiver. Three-owner audit found static Instructions preview first source candidate; QR menus/rich viewers/scheduling need lifetime evidence, with promotion/production holds retained. Broad goal incomplete.
+## 2026-10-06 — Owner Test publication boundary started
+
+Discard#1503 merged865d837b7 after exact reviewed9c391 CI37435496517 all5PASS;
+DB56m49s/PRGate2s. Canonicalmain cleanFF;36orderedstashes unchanged. Parentledger
+retains allfailed attempts,7reviews/4batches and originalclock; no phaseexit.
+Owner approved nextpublication slice. Newworktree865d/startupNode24.12 PASS;
+managedattachment100identitycap retained checkout afteroneattachretry.
+Two existingSol-class/high workers delivered read-only SQL/HTTPdesigns and now
+author disjoint SQL/HTTP files; third maps nativeproof read-only. Effective
+configuration/tokens unknown. Weeklyremaining29percent account-wide;
+DeepSeekpausedthroughDecember31Toronto. Root selects separate gatedPOSTpublish:
+literalPATCH/UI unchanged avoids16Kclassificationregression for large documents.
+Draft-to-closed only; two boundedread/validated-sourceCAS phases. Root verified
+HTTP frozenreceipt/hash andcombined186/4PASS; worker555/8adjacent+lintPASS. Root reader
+TDD RED/GREEN for duplicate keys, rawsize, locked-body and empty-chunk bounds.
+SQL252 full690line/hash rootread/sourceTDDPASS. Next disjoint nativefixture,
+SDKtransport andDB/race source authors reuseSol-class/high; rootprivateengine/
+lifecycle/serialCI. Fixture38offlinePASS provisional; rootAST18/CI3PASS,5filelint.
+Weekly27remaining accountwide, active/tokensunknown; no savingsclaimed. Native
+profileTDD5RED beforeimplementation; integrationpending. Actualnative proof/
+types/cleanup, independentreview andexactCI remain. No native/CI dispatch.
+Canonical249–new/prod/cohort/account/provider/UI/cutover/billing holds unchanged.
+Allthree authors now relinquished frozen fixture/transport/DB+race sources;
+root fullsource/hash delivery checks and296/6 product/adapter integrationPASS.
+Corrected proof holders actor/settingsFORUPDATE, exact advisory key observers,
+consolidated12schedules48actions, exact Start denial codes/successsentinels,
+reached fault markers/fullrollback baseline49checks, five committed transitions.
+Root added final-restoration/catalog/completion tests109/3PASS and one shared
+180s race-clock test (native77/1PASS). Lint/diffPASS; TSC sole genuine252 gap.
+Precommit audit initially sees onlytracked2files; staged fullaudit stillrequired.
+Pre-type sourcefreeze/independenthigh-risk review precedes isolated runtime.
+No native/types/CI/PR dispatch or component/phase/goal acceptance yet.
+Staged fullaudit21TSfilesPASS. Combined420/14PASS; root foundcompletion context
+set sorting mismatch, reproducedRED1 then minimalexpected-sort fix28/1GREEN.
+Latest4rootfilelintPASS; no actualDatabase/SDK/CLI acceptance from these tests.

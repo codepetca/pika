@@ -38704,6 +38704,7 @@ telemetry unknown. Batch5 publication/targeted5/finalreview/CI pending, no rollo
 - Evidence: `/tmp/pika-selfhost-local-live.log`, `/tmp/pika-selfhost-focused-rebased.log`, `/tmp/pika-selfhost-local-plan-rebased.log`, `/tmp/pika-selfhost-db-job.log` and `/tmp/pika-selfhost-rebase-range-diff.log`. Preparation and operational goal remain incomplete until the required CI, merge decision and host/private activation gates pass.
 
 <!-- pika-session-log-archive-batch:3cb73fe6d30e9a7ccaf7a6c609acb76f4563abb16a0cfcd1cf6a79583cf13215 -->
+<!-- pika-session-log-archive-batch:3f42edc405af0e0ad799d3ecf6ac9286ef8f7a41c569e3345a7c6d5efd5e60cd -->
 ## 2026-10-05 — Survey split authoring
 
 New/Edit Survey now opens the test-style 1/3 details + 2/3 active question editor (stacked mobile); direct generated-title draft creation, MC/open-response/link, multiline prompts, selected-question navigation, autosave flush/retry, Markdown and Preview retained. Reuses CreationModalShell, Test split composition and @/ui controls; no shared-contract or stable-canon change, no experimental pattern/promotion. Survey identity guards retained; creation responses cannot open in another Classroom. Risk: workspace-state. Composite checklist reviewed: semantic pressed states, keyboard controls, modal Escape/focus; student n/a because only teacher authoring changed.

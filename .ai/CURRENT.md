@@ -1,6 +1,6 @@
 # Checkpoint — 2026-10-06 UTC
 
-Source: main `5bf3dbacc`; 27 audit findings accepted.
+Source: main `865d837b7`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Production LIVE at pika.codepet.ca since 2026-10-05 06:27UTC; login HTTP200.
@@ -15,9 +15,12 @@ entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
 Settings last verified in prior receipts; no fresh hosted query here for controls.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
-Next: discard251 proof PASS; #1503 draft for CI fixture-timeout correction/review.
-249–251 unapplied. No phase exit.
-See `docs/guidance/contextual-test-pristine-discard.md`.
+Discard251: #1503 merged865d837b7 after exact9c391 CI37435496517 all5PASS.
+Next: owner Test publication HTTP/body/SQL source186/4PASS; isolated proof source frozen.
+Combined source420/14 PASS; completion regression RED then corrected28/1 PASS.
+Only TSC gap is genuine252 RPC types. Native proof/review/CI/merge not accepted.
+ExistingPATCH/UI unchanged. Four SDK privileges and committed-race proof pending.
+249–252 unapplied. No phase exit; see `docs/guidance/contextual-test-publication.md`.
 
 Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
 individual-student purge ON, other purge/Pal OFF. Historical receipts.

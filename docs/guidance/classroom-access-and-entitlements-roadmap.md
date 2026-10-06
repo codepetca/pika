@@ -1280,6 +1280,24 @@ checks, independent integration review and reviewed-head PR Gate remain pending.
 Canonical249–251 and all experience/billing activation remain held; real lifecycle
 state profiles and other owner/learner operations still prevent phase closure.
 
+Superseding2026-10-06: discard#1503 normally squash-merged865d837b7 after
+reviewed9c39132d passed all five CI37435496517 checks, including the serial
+normal/forced251 database profile and PR Gate. Canonical main cleanFF and36
+ordered unrelated stashes were verified unchanged. Next is
+[owner Test publication](contextual-test-publication.md): a dedicated dormant
+POST publishes the current saved draft to closed, retaining the legacy PATCH
+and UI byte-for-byte. HTTP/reader/SQL source-contract TDD186/4 passed. Native
+fixture/SDK/SQL-race source is being integrated with one existing engine, four
+capability probes, unchanged budgets and separate committed-transition effects;
+all author deliveries are frozen and root offline integration296/6 and109/3
+checks pass, plus the additive shared180s race-clock test (native77/1).
+SerialCI3 source checks pass; the sole TSC gap is genuine252 RPC generation.
+Independent pre-type source review is next; sourcefreeze is not PR readiness. The isolated
+252 full replay, actual SDK effects, rollback/concurrency, genuine types,
+independent review and exact-head CI are not yet accepted. Canonical249–252,
+production promotion, admission/home/page/cutover and billing remain held.
+No component receipt constitutes the Tests batch or access phase exit.
+
 Historical source preparation below predates that actual merge receipt:
 [contextual owner Test draft GET](contextual-test-draft-get.md), including
 its hidden create/repair behavior. Source preparation on main7570 uses a two-phase
