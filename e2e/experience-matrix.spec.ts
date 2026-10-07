@@ -12,6 +12,7 @@ import { verifyWorkspaceMotion } from './helpers/workspace-motion'
 import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
 import { verifyAssignmentPreviewMotion, verifyAssignmentPreviewPreferenceChange } from './helpers/assignment-preview-motion'
 import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } from './helpers/assignment-editor-exit'
+import { verifyAnnouncementMutationFeedback } from './helpers/announcement-mutation-feedback'
 import { verifyStudentGradesContinuity } from './helpers/student-grades-continuity'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
@@ -4015,4 +4016,18 @@ test('retains teacher Classwork student editor and table through background refr
   expect(detailReads).toBe(newDetailReads)
   await capture('navigation-assignment-recovered')
   await verifyProjectContract(page, testInfo)
+})
+
+
+test.describe('Announcement mutation feedback', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retains drafts and requires explicit mutation recovery', async ({ page }, testInfo) => {
+        await applyProjectTheme(page, testInfo)
+        await verifyAnnouncementMutationFeedback(page, testInfo)
+      })
+    })
+  }
 })
