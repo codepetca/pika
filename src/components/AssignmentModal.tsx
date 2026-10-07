@@ -188,6 +188,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const activeSaveRef = useRef<{
     session: number
     values: AssignmentEditorValues
+    savedValues: AssignmentEditorValues | null
     promise: Promise<Assignment | null>
   } | null>(null)
 
@@ -564,8 +565,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     values: AssignmentEditorValues,
     options?: { closeAfter?: boolean }
   ) => {
-    const promise = saveChanges(values, options)
-    const activeSave = { session: editorSessionRef.current, values, promise }
+    const session = editorSessionRef.current
+    const savedValues = lastSavedValuesRef.current
+    const previousSave = activeSaveRef.current
+    // Blur flushes must account for the write already in flight, including reverts.
+    const promise: Promise<Assignment | null> = previousSave?.session === session
+      ? previousSave.promise.then((savedAssignment) => {
+          activeSave.savedValues = savedAssignment ? previousSave.values : previousSave.savedValues
+          return saveChanges(values, options, { session, savedValues: activeSave.savedValues })
+        })
+      : saveChanges(values, options)
+    const activeSave = { session, values, savedValues, promise }
     activeSaveRef.current = activeSave
     void promise.finally(() => {
       if (activeSaveRef.current === activeSave) {
@@ -718,7 +728,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
     setSaving(true)
     const valuesToSave = pendingValuesRef.current ?? buildEditorValues()
-    const savedValues = lastSavedValuesRef.current
     const activeSave = activeSaveRef.current
     if (activeSave && activeSave.session === session) {
       const savedAssignment = await activeSave.promise
@@ -726,8 +735,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         if (savedAssignment && areAssignmentEditorValuesEqual(activeSave.values, valuesToSave)) {
           onSuccess(savedAssignment, { closeModal: false })
         } else {
-          // Finish the initiating manual save against its original resource/baseline.
-          await saveChanges(valuesToSave, { closeAfter: true }, { session, savedValues })
+          // A completed autosave may have persisted values the manual save reverted.
+          await saveChanges(valuesToSave, { closeAfter: true }, {
+            session,
+            savedValues: savedAssignment ? activeSave.values : activeSave.savedValues,
+          })
         }
         return
       }

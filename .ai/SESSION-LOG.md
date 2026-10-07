@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Percentages inside survey bar backings
-
-PR1511 follow-up: extend the existing shared result row so selected percentages
-sit inside the backing's right edge, with consistent padding. Labels overlay
-the fill; zero-vote percentages stay blank; inline question numbers and original
-question/option order retained. Pattern Lab description follows the final row.
-Risk none. Both roles × desktop/mobile × light/dark screenshots refreshed with
-inside-right-edge geometry checks. Required checks/review recorded in PR notes.
-
 ## 2026-10-06 — Survey title only
 
 PR1511 copy follow-up: remove the redundant Results suffix from both survey
@@ -429,3 +420,7 @@ editor reopen; session-lifetime correction remains next, outside1517.
 PR1517 merged2c99c5f41 after exactd016 CI37626691269 Test/Build, Browser and PR Gate PASS; landing tree/sole base parent and clean hub sync verified. Fluidity follow-up guards AssignmentModal/create/save/flush/timer/close/discard and useAssignmentScheduling late effects by external session. Initiated original-resource commands and appropriate quiet publication continue; TeacherClassroomView guards stale-classroom list writes/reloads while retaining cache/creation positioning. Preserves editor/preview identity, native undo and current same-ID external refresh reset. No dependencies/backend/schema/deployment changes; abandoned backing-draft cleanup excluded. Risk: workspace-state; reuse actual editor and Pattern Lab SaveStatus references.
 
 Test-first evidence:21RED/1dirty-buffer control across separate baseline runs; additional manual Draft case genuinelyRED on original source thenGREEN. Six affected suites161PASS; cumulative focused465PASS with all static gates, after one nullable-ref annotation correction (failed logs retained). Isolated source work overlapped frozen1517CI after coordinator narrowed its own source hold; rebase/publication waited for landing. Exact six source/test hashes survived rebase onto identical main tree. Natural teacher8-case viewport/theme/motion visual matrixPASS;24PNG/8videos retained, all8 late-error images and4preview images inspected; APIs intercepted, zero backend writes. Native preview continuity8/8PASS (typing/undo, dismissal, rapid reopen and reduced-motion preference change); final rebased focused408/21plusallstatic/auditPASS. Draft-first independent review and stable-head CI follow before authorized main merge. Broad fluidity goal remains incomplete.
+
+## 2026-10-07 — Assignment session review correction
+
+Independent full PR1518 review found a P2: a stale manual Draft continuation compared reverted fields against the pre-autosave baseline and could omit its restoring PATCH. One correction batch retains the actual predecessor baseline and serializes same-session blur follow-ups. Five regressions cover full/mixed reverts in both preselected-action and actual menu/blur flows, plus a successful-save/failed-queued-save chain; original-resource publication remains quiet and the replacement editor retains drafts/focus/controls. All RED and intermediate failed correction evidence retained externally. Component58/58 and focused413/21 with architecture/UI/design/TypeScript/lint/audit PASS. Worker writes stopped; coordinator verified delivered hashes. Browser evidence is being refreshed before targeted independent delta review and final stable-head CI. PR remains draft; no production/schema/dependency changes. User pause honored, then explicit resume received. Broad product fluidity goal remains incomplete.

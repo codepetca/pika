@@ -98,9 +98,12 @@ describe('AssignmentModal async ownership across editor sessions', () => {
 
   async function advance(ms: number) { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
   function title(value: string) { fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value } }) }
-  function draftSave() {
+  function selectDraftAction() {
     fireEvent.click(screen.getByRole('button', { name: 'Choose assignment action' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+  }
+  function draftSave() {
+    selectDraftAction()
     fireEvent.click(screen.getByRole('button', { name: 'Draft' }))
   }
   function assertBOpen() { expect(screen.queryByRole('textbox', { name: 'Title' })).toHaveValue(B.title) }
@@ -186,6 +189,111 @@ describe('AssignmentModal async ownership across editor sessions', () => {
     await advance(0)
     expect(writes.find((write) => write.body.title === 'B pending values')).toMatchObject({
       url: `/api/teacher/assignments/${B.id}`, body: { title: 'B pending values' },
+    })
+  })
+
+  it.each(['preselected Draft', 'menu after input'] as const)('restores reverted A title after completed autosave while preserving B pending edits (%s)', async (action) => {
+    const saveA = hold((write) => write.url.endsWith(A.id) && write.body.title === 'A autosave')
+    const owner = mount()
+    if (action === 'preselected Draft') selectDraftAction()
+    title('A autosave')
+    await advance(3000)
+    expect(saveA.entry.used).toBe(true)
+    title(A.title)
+    if (action === 'preselected Draft') fireEvent.click(screen.getByRole('button', { name: 'Draft', exact: true }))
+    else draftSave()
+    if (action === 'preselected Draft') expect(writes).toHaveLength(1)
+    owner.changeOwner(B)
+    title('B pending after A revert')
+    const bTitle = screen.getByRole('textbox', { name: 'Title' })
+    bTitle.focus()
+    await saveA.finish({ assignment: { ...A, title: 'A autosave' } })
+    expect.soft(writes.filter((write) => write.url.endsWith(A.id))).toEqual([
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: 'A autosave' } },
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: A.title } },
+    ])
+    expect.soft(owner.publication).toHaveBeenCalledWith(expect.objectContaining({ id: A.id, title: A.title }), { closeModal: false })
+    expect.soft(owner.close).not.toHaveBeenCalled()
+    expect.soft(screen.queryByRole('textbox', { name: 'Title' })).toHaveValue('B pending after A revert')
+    expect.soft(bTitle).toHaveFocus()
+    expect.soft(screen.queryByRole('status')).toHaveTextContent('Unsaved')
+    expect.soft(screen.queryByRole('button', { name: 'Post', exact: true })).toBeEnabled()
+    draftSave()
+    await advance(0)
+    expect(writes.find((write) => write.body.title === 'B pending after A revert')).toEqual({
+      url: `/api/teacher/assignments/${B.id}`, method: 'PATCH', body: { title: 'B pending after A revert' },
+    })
+  })
+
+  it.each(['preselected Draft', 'menu after input'] as const)('restores reverted A requirement alongside changed title after autosave without erasing B edits (%s)', async (action) => {
+    const requirement = { id: 'session-requirement-A', type: 'link' as const, label: 'Original A link',
+      instructions: '', required: true, position: 0, validation_policy_json: {} }
+    const initial = { ...A, submission_requirements: [requirement] } as Assignment
+    const saveA = hold((write) => write.url.endsWith(A.id) && Array.isArray(write.body.submission_requirements))
+    const owner = mount(initial)
+    if (action === 'preselected Draft') selectDraftAction()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Link label' }), { target: { value: 'A autosaved link' } })
+    await advance(3000)
+    expect(saveA.entry.used).toBe(true)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Link label' }), { target: { value: requirement.label } })
+    title('A mixed manual title')
+    if (action === 'preselected Draft') fireEvent.click(screen.getByRole('button', { name: 'Draft', exact: true }))
+    else draftSave()
+    if (action === 'preselected Draft') expect(writes).toHaveLength(1)
+    owner.changeOwner(B)
+    title('B pending after A mixed revert')
+    const bTitle = screen.getByRole('textbox', { name: 'Title' })
+    bTitle.focus()
+    await saveA.finish({ assignment: { ...initial, submission_requirements: [{ ...requirement, label: 'A autosaved link' }] } })
+    const writesA = writes.filter((write) => write.url.endsWith(A.id))
+    expect.soft(writesA).toHaveLength(2)
+    expect.soft(writesA[1]).toEqual({ url: `/api/teacher/assignments/${A.id}`, method: 'PATCH',
+      body: { title: 'A mixed manual title', submission_requirements: [requirement] } })
+    expect.soft(owner.publication).toHaveBeenCalledWith(expect.objectContaining({
+      id: A.id, title: 'A mixed manual title', submission_requirements: [requirement],
+    }), { closeModal: false })
+    expect.soft(owner.close).not.toHaveBeenCalled()
+    expect.soft(screen.queryByRole('textbox', { name: 'Title' })).toHaveValue('B pending after A mixed revert')
+    expect.soft(bTitle).toHaveFocus()
+    expect.soft(screen.queryByRole('textbox', { name: 'Link label' })).not.toBeInTheDocument()
+    expect.soft(screen.queryByRole('status')).toHaveTextContent('Unsaved')
+    expect.soft(screen.queryByRole('button', { name: 'Post', exact: true })).toBeEnabled()
+    draftSave()
+    await advance(0)
+    expect(writes.find((write) => write.body.title === 'B pending after A mixed revert')).toEqual({
+      url: `/api/teacher/assignments/${B.id}`, method: 'PATCH', body: { title: 'B pending after A mixed revert' },
+    })
+  })
+
+  it('restores A using the last persisted baseline when an intervening queued save fails', async () => {
+    const first = hold((write) => write.url.endsWith(A.id) && write.body.title === 'A first persisted title')
+    const second = hold((write) => write.url.endsWith(A.id) && write.body.title === 'A failed queued title')
+    const owner = mount()
+    title('A first persisted title')
+    await advance(3000)
+    title('A failed queued title')
+    fireEvent.blur(screen.getByRole('textbox', { name: 'Title' }))
+    title(A.title)
+    draftSave()
+    owner.changeOwner(B)
+    title('B pending after queued failure')
+    await first.finish({ assignment: { ...A, title: 'A first persisted title' } })
+    expect(second.entry.used).toBe(true)
+    await second.finish({ error: 'A queued save failed' }, false)
+    expect.soft(writes.filter((write) => write.url.endsWith(A.id))).toEqual([
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: 'A first persisted title' } },
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: 'A failed queued title' } },
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: A.title } },
+    ])
+    expect.soft(owner.publication).toHaveBeenCalledWith(expect.objectContaining({ id: A.id, title: A.title }), { closeModal: false })
+    expect.soft(owner.close).not.toHaveBeenCalled()
+    expect.soft(screen.queryByText('A queued save failed')).not.toBeInTheDocument()
+    expect.soft(screen.queryByRole('textbox', { name: 'Title' })).toHaveValue('B pending after queued failure')
+    expect.soft(screen.queryByRole('status')).toHaveTextContent('Unsaved')
+    draftSave()
+    await advance(0)
+    expect(writes.find((write) => write.body.title === 'B pending after queued failure')).toEqual({
+      url: `/api/teacher/assignments/${B.id}`, method: 'PATCH', body: { title: 'B pending after queued failure' },
     })
   })
 
