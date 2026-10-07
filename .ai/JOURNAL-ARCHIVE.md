@@ -40642,12 +40642,11 @@ unknown; no savings claim, DeepSeek owner pause remains honored.
 - Root owns cumulative required gate, publication, one targeted re-review and a different final integration reviewer. Budget remains original 00:40:12 UTC: one initial wave, one planned correction batch, no reset. Full visual state matrix remains valid for unchanged styling/composition; targeted actual-client selection/error evidence is next.
 - Broad product goal active. No new merge or production authority; PR #1491 final CI passed and PR #1490 final browser CI remains under its one watcher.
 
-<!-- pika-session-log-archive-batch:3d582cd29443408779a1ca41d002cbf4e8a3fa9c55719afca159fc7c895b1e10 -->
+<!-- pika-session-log-archive-batch:0e8cd2ed69a01911198586bd26a97cc974de0453aeac4cbe30508b41380033ad -->
 ## 2026-10-06 — Blueprint approved integration reconciliation
 
 Reconciled PR1493 onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
 
-<!-- pika-session-log-archive-batch:2399bbf6bce8c6c653eefbb8523fadf8029ca6fce170b78951d84cdd03eff6cd -->
 ## 2026-10-06 — Shared selected-tab visibility
 
 Product-wide fluid UI goal remains active. Baseline actual Blueprint client switches
@@ -40664,3 +40663,24 @@ Root corrected two harness assumptions and scoped an existing gallery assertion 
 its intended owner; no weakened behavior assertions. Independent review, exact-SHA
 CI and release state belong to the PR. Earlier PR1490/1491/1493 main-merge and tab-
 motion direction decisions remain pending; no production authorization.
+
+## 2026-10-06 — Approved PR1494 integration reconciliation
+
+Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
+
+<!-- pika-session-log-archive-batch:9713d1ded755ef4b740efffbccd6a9260ba46c67dbe044bdb3cf60c0256d2ce7 -->
+## 2026-10-06 — Shared mobile drawer dismissal controls
+
+Active product-wide fluidity goal advances independently of four pending owner merge/promotion decisions. Reuse ghost IconButton for Navigation Close and both RightSidebar Back variants; preserve original ModalLayer refs, labels, immediate commands and shell. Measured pre-edit mobile targets40/36px versus canonical44px in four role/theme presentations; native baseline keyboard outlines visibly present. New deterministic Pattern Lab reference renders actual owners with fixed local content outside existing golden region. Only teacher Calendar currently enables RightSidebar; student detail evidence is shared-owner composition, not a live student route. No dependency, schema, feature-state or design-promotion change.
+
+Both-role desktop/mobile light/dark normal/reduced browser contracts and natural evidence accompany focused semantic tests, UI/design policy and staged audit. Three retired native controls removed from exact registry. Full required focused gate, independent stable-SHA draft PR review and CI precede delivery; main merge/production remain owner-gated. Goal remains active across all17 route-family groups; this control repair is one bounded slice.
+
+## 2026-10-06 — Approved PR1495 integration reconciliation
+
+Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
+
+## 2026-10-06 Header hydration continuity and dialog entry comparison
+
+Added a development-only immediate/quiet ContentDialog comparison using existing owners and motion tokens; the direction remains experimental and unpromoted. Natural first-frame focus, isolation and immediate commands are covered in both-role desktop/mobile light/dark normal/reduced matrix (16/16 pass); no API/write/error events. Retained before/after screenshots, recordings and all failed authoring receipts in the owning chat artifacts.
+
+Repeated baseline clock hydration failures exposed an existing AppHeader server/client minute mismatch. Required server timestamps now reach all production header owners; mount refresh and 60-second ticking retain the current presentation. SSR minute/Toronto-midnight regressions changed from hydration errors and DOM replacement to preserved nodes and zero recoverable errors. Nine affected test files/91 tests and scoped lint pass. Full goal route coverage, experimental promotion and merge/production authority remain separate; stable-SHA review/CI receipts belong to the PR.
