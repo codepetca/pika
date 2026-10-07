@@ -481,3 +481,17 @@ one writable transaction/one receipt, same finite caps/clocks/product253SHA.
 Root106 affected checks/4files PASS, additional race wrapper/identity regression
 5PASS/lint/diff; worker17 committed checks PASS. Batch3 targeted review before
 fresh native proof remains required. No PR, phase exit or rollout activation.
+
+## 2026-10-07 — Test reorder committed fixture correction
+
+Astra/high targeted session review clearedcc886. Normal attempt3 passed nine DB
+batches,21 rollback schedules/42dispatches and16 installed-SDK cases plus raw42501
+(17RPC/34captures), then failed committed delete-freshness step6 (P0001/action117).
+Exact disposal/all-five-field canonical preservation passed; no full proof/types.
+Root and original Sol/high fixture author independently identified the named
+create title violates156's pristine Untitled Test/draft fence. Corrected the fixed
+fixture title with source-derived dual-regex TDD; retained product discard policy,
+253SHA, clocks/caps/session guards unchanged. Remaining revision/default oracles
+source-checked without another concrete mismatch.103 affected checks/3files and
+lint/diff/audit PASS; startup-budget1PASS/77skipped. Targeted source review before
+fresh native acceptance; no blind retry, PR or phase-exit claim. All holds remain.

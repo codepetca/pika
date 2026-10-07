@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerReorderFixture } from '../../scripts/contextual-test-reorder-proof-fixture'
@@ -35,6 +36,28 @@ function mockDriver(mutate?:(receipt:Record<string,unknown>,index:number)=>void)
 }
 
 describe('inert fixed committed owner Test reorder contracts',()=>{
+  it('creates the deletion source with a namespaced title accepted by both genuine156 pristine predicates',()=>{
+    const source=readFileSync('supabase/migrations/156_harden_pristine_test_draft_discard.sql','utf8')
+    const testPattern=/btrim\(v_test\.title\) !~\s*'([^']+)'/.exec(source)?.[1]
+    const draftPattern=/btrim\(coalesce\(v_draft\.content->>'title', ''\)\) !~\s*'([^']+)'/.exec(source)?.[1]
+    expect(testPattern).toBeDefined();expect(draftPattern).toBeDefined();expect(testPattern).toBe(draftPattern)
+    const create=manifest.steps.find(s=>s.label==='create-freshness:writer')!
+    const discard=manifest.steps.find(s=>s.label==='delete-freshness:writer')!
+    const title=/expected_graph:=pg_temp\.reorder_committed_create\(before_graph,[^\n]*,'([^']+)'\);/.exec(create.sql)?.[1]
+    expect(title).toBeDefined()
+    for(const pattern of [testPattern!,draftPattern!]){
+      // This regression checks the actual SQL patterns against ASCII source
+      // titles. Only POSIX whitespace syntax is translated for the JS engine;
+      // it is not a claim that native PostgreSQL execution has been verified.
+      const predicate=new RegExp(pattern.replaceAll('[[:space:]]','\\s'))
+      expect(predicate.test(title!)).toBe(true)
+      expect(predicate.test(`${fixture.tag} committed create`)).toBe(false)
+    }
+    expect(title).toBe(`Untitled (${fixture.now.slice(0,10)} ${fixture.tag} committed create)`)
+    expect(discard.sql).toContain(`and title='${title}'`)
+    expect(create.sql).toContain("'content',jsonb_build_object('title',title,'show_results',false")
+    expect(discard.sql).toContain("'discarded',true")
+  })
   it('guards the exact phase side in one writable transaction and preserves every inherited safety predicate',()=>{
     const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';"
     const terminal="end;$guard$;select 'ok';rollback;"

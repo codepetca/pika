@@ -125,7 +125,9 @@ export function testOwnerReorderCommittedManifest(f: TestOwnerReorderFixture) {
   assert(teacher&&student&&empty);assert.equal(teacher.owner,f.actors[0].id);assert.equal(empty.owner,teacher.owner);assert.equal(student.owner,f.actors[1].id)
   const u=`${q(teacher.owner)}::uuid`, ec=`${q(empty.id)}::uuid`, tc=`${q(teacher.id)}::uuid`, sc=`${q(student.id)}::uuid`
   const seedHex=hash(`${f.tag}:committed-seed`), seed=`${seedHex.slice(0,8)}-${seedHex.slice(8,12)}-4${seedHex.slice(13,16)}-8${seedHex.slice(17,20)}-${seedHex.slice(20,32)}`
-  const title=`${f.tag} committed create`, seedTitle=`${f.tag} committed seed`, legacyTitle=`${f.tag} committed cached MAX`, maxTitle=`${f.tag} committed MAX predecessor`
+  // The genuine156 discard requires BOTH Test/draft titles to stay Untitled;
+  // its date-parenthesis form permits this fixed disposable namespace marker.
+  const title=`Untitled (${f.now.slice(0,10)} ${f.tag} committed create)`, seedTitle=`${f.tag} committed seed`, legacyTitle=`${f.tag} committed cached MAX`, maxTitle=`${f.tag} committed MAX predecessor`
   const fn=functions()
   const steps:Step[]=[]
   function step(label:string,side:Side,outcome:string,body:string,chain:Step['chain']='prior') {
