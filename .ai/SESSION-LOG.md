@@ -495,3 +495,20 @@ fixture title with source-derived dual-regex TDD; retained product discard polic
 source-checked without another concrete mismatch.103 affected checks/3files and
 lint/diff/audit PASS; startup-budget1PASS/77skipped. Targeted source review before
 fresh native acceptance; no blind retry, PR or phase-exit claim. All holds remain.
+
+## 2026-10-07 — Test reorder native and generated-type acceptance
+
+Sol/high targeted pristine-fixture review clearedaa914. Fresh normal passed16
+installed-SDK cases/6full-effect reorders/raw42501restore,9DBbatches,21rollback
+schedules/42dispatches and7committed schedules/31dispatches; complete graphs,
+exact disposal and all-five-field canonical preservation passed. Both deliberate
+after-fixture/before-capture failures returned expectedexit1/exacttwo markers
+and preservation PASS. Before-capture skips initial resource capture; no late-
+commit replay claim. Root verified private receipt/type SHA and mechanically
+installed genuine CLI artifact (only9generatedRPC lines), leaving overlay intact.
+APP117/native144 actions (261/400),180783056SDKsnapshot bytes; cumulative bound
+286004882/402653184bytes, committed120478ms, no sessions remain. LegacycachedMAX
+residual demonstrated, not closed; successfulBlueprint/proposal/enabledpurge
+still outstanding. Focused820/TSC/lint/architecture/UI/design PASS; final
+cumulative review/draft exact-head CI next. Source coverage reused unchanged.
+249–253 remain unapplied canonically/production; all rollout holds unchanged.
