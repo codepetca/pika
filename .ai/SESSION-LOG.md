@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 PR 1496 combined recovery clock continuation
-
-Rebased onto reviewed PR 1491 parent `9d32e4ad`; preserved recovery/dialog gallery registrations, all continuity bodies and main archive prefix. Added required `initialNow` on enrollment-error return without weakening shell/header props. Regression RED then 84 affected tests GREEN; focused 378 tests and policy/type/lint PASS. Combined controlled browser matrix: 16 dialog and 16 recovery/clock cells covered; two dialog and one recovery initial useId-warning failures passed unchanged once-only retries, matching prior Pattern Lab warning provenance. Actual authenticated enrollment-outage RSC remains unverified. Experimental dialog stays unpromoted; no push/merge/deployment. External receipt: `product-fluidity/integration-1496-composition.md`.
-
 ## 2026-10-06 — Accurate auth resend feedback and preserved focus
 
 Bounded product-fluidity work on the real signup verification/reset-code pages:
@@ -427,3 +423,7 @@ One remediation batch preserves return provenance through React's cleanup/setup 
 ## 2026-10-07 — Softer modal exits synchronized after CI preparation landing
 
 PR1512 hold explicitly released after verified80ae7746 landing, reviewed tree parity and all five gates PASS. PR1514 synchronized once while draft: preserve incoming runner documentation/script/test and both complete histories; previously reviewed modal source/tests/briefs unchanged. Corrected2680 review CLEAN, focused2186/195+static, native browser48PASS without retries, fresh48 visual cases with24 true midpoint captures and both-role pointer/reduced-motion races retained with original execution provenance. New-base focused and targeted synchronization review precede final ready-SHA CI/PR Gate; no production, schema, dependency, provider/runner change or generic-dialog promotion. Task approval override persists; current phase review launches2/remediation1 and prior1490 counters12/10 retained. Broader route/state coverage remains incomplete.
+
+## 2026-10-07 — Modal CI confirmation-query remediation
+
+CI37553687244 failed three five-second Gallery cases: both new confirmation flows and existing teacher classroom recovery; 14024 tests PASS/8skip. Browser job canceled and ephemeral cleanup PASS; no manual rerun/dispatch. Narrowed confirmation queries to existing controls/active modal, preserving the global closed-dialog absence assertion, accessible description, Escape/opener focus, local status, real user events and unchanged timeout. Four affected isolated instrumented cases PASS: one local before/after tests observation2.82s→1.67s, not proof of the Linux cause. Full Gallery24 cases PASS with coverage instrumentation; partial runs still fail unchanged repository coverage floors and are not full coverage acceptance. All UI/config/dependency blobs remain unchanged; original browser/visual/race provenance retained. New focused and targeted test-only review precede one corrected exact-head CI. Current post-review fixbatches2, prior1490 sourcefix10/reviews12 preserved; no cap reset under task waiver. Three-owner audit found static Instructions preview first source candidate; QR menus/rich viewers/scheduling need lifetime evidence, with promotion/production holds retained. Broad goal incomplete.
