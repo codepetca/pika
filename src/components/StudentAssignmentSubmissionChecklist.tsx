@@ -2,7 +2,7 @@
 
 import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Camera, CheckCircle2, FolderGit2, Link2, Upload } from 'lucide-react'
-import { Button, FormField, Input } from '@/ui'
+import { Button, CircularProgress, FormField, Input } from '@/ui'
 import {
   getSubmissionRequirementCompletion,
 } from '@/lib/assignment-submission-requirements'
