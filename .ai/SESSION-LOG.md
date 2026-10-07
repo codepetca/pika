@@ -343,3 +343,26 @@ Student1522 reviewed correction ca311 exactCI37704331390 passes the fixed Grades
 ## 2026-10-07 — Circular progress student-main integration
 
 Reviewed0a5 exactCI37703713253 attempt2 passes all required gates after one publication-fixture timeout rerun. Main advanced to a2d70efa8 (#1522) during CI. Rebase preserves its Grades/Achievements recovery and formatted-help test scope. Only archive conflict: all2489 feature archive entry bodies already exist in main2493, verified before retaining main archive. Feature implementation/test/snapshot patches remain unchanged apart from upstream gallery test. Targeted source integration review, refreshed focused and no-update canonical browser verification precede new exact-head CI and the authorized merge. Human budget override persists; no production changes.
+## 2026-10-07 — Dormant classroom Test tier caps
+
+Owner approved Basic20/Pro50/Max100 retained Tests per classroom; Free0 additions.
+Separate codex/classroom-test-tier-caps branch on7357f9f0; final checks caught
+the reserved254 gap; cap uses next253 and pending reorder must later resequence.
+Private guard OFF, owner-derived plan, TRY/NOWAIT authority locking,
+all-row consumption, retained same-class edits and privileged recovery preserved.
+Immutable billing versions without explicit Test terms retain purchased behavior;
+no account assignment, catalog rewrite, canonical schema or production change.
+Sol6.1/high worker delivered migration, rollback fixture and exact old proof
+catalog additions; coordinator verified source and ran actual isolated PG17
+boundary/bulk/move/restore-spoof and observed two-session insert/plan/parent/owner
+contention. Rollbackfalse|0 and owned container removal verified. Narrow fixture
+uses setup stub: not full Supabase replay or native proof acceptance. Initial
+focused197PASS/14 before final catalog/CI edits; worker35PASS/4, CIhook2PASS.
+Final focused/audit, independent high-risk review and exact-head CI follow.
+Initial final-check attempt failed the migration gap and startup summary budget;
+both corrected before publication, with failure evidence retained.
+Error response integration remains next before activation. Reorder1515 draft
+unchanged;10k fixture not a real over-limit class and not silently reduced.
+Standing task workflow waiver persists; original05:04UTC ledger24reviews,
+20targetedwaves/21fix-sync batches retained. Weekly83percent remaining at start;
+DeepSeek explicitly paused. No phase exit,249+ application or rollout claim.

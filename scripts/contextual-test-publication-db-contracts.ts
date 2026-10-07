@@ -46,6 +46,7 @@ function validateFixture(f: TestOwnerPublicationFixture, projectId: string) {
 }
 
 const testTriggers = [
+  ['enforce_classroom_test_quota','private','enforce_classroom_test_quota_v1',23],
   ['assign_test_default_gradebook_category','public','assign_default_gradebook_category',23],
   ['car_tests','public','bump_classroom_archive_revision_from_resource',31],
   ['classroom_purge_fence_tests','public','reject_classroom_resource_change_during_purge',31],
@@ -107,6 +108,29 @@ const graphRef = 'pg_temp.owner_publication_graph()'
 function publicationCall(c: TestOwnerPublicationFixture['cases'][number], classroomId: string, content: unknown, sha = '0'.repeat(64), version = c.input.draft_version) {
   return `public.publish_test_from_draft_for_owner_v1(${q(c.actorId)}::uuid,${q(c.testId)}::uuid,${q(classroomId)}::uuid,${q(sha)},${version},${j(content)},pg_catalog.clock_timestamp()+interval '8 seconds')`
 }
+
+// Immutable migration253 body receipt: review and refresh only with its source.
+function quota253CatalogSql() {
+  return `declare quota_proc pg_catalog.pg_proc;settings_table pg_catalog.pg_class;begin
+ select p.* into quota_proc from pg_catalog.pg_proc p where p.oid='private.enforce_classroom_test_quota_v1()'::regprocedure;
+ select c.* into settings_table from pg_catalog.pg_class c where c.oid='private.classroom_test_quota_settings'::regclass;
+ if quota_proc.proowner::regrole::text<>'postgres' or not quota_proc.prosecdef
+ or quota_proc.prorettype::regtype::text<>'trigger' or quota_proc.provolatile<>'v'
+ or quota_proc.prolang<>(select oid from pg_catalog.pg_language where lanname='plpgsql')
+ or quota_proc.proconfig is distinct from array['search_path=""']::text[]
+ or pg_catalog.md5(quota_proc.prosrc)<> 'cf66a5cbda0251600e26dbcfcda49ad2'
+ or exists(select 1 from pg_catalog.aclexplode(coalesce(quota_proc.proacl,pg_catalog.acldefault('f',quota_proc.proowner))) quota_acl where quota_acl.privilege_type='EXECUTE' and quota_acl.grantee<>quota_proc.proowner)
+ or not settings_table.relrowsecurity or settings_table.relowner::regrole::text<>'postgres'
+ or exists(select 1 from pg_catalog.aclexplode(coalesce(settings_table.relacl,pg_catalog.acldefault('r',settings_table.relowner))) settings_acl where settings_acl.grantee<>settings_table.relowner)
+ or exists(select 1 from pg_catalog.pg_attribute a cross join lateral pg_catalog.aclexplode(a.attacl) column_acl where a.attrelid=settings_table.oid and column_acl.grantee<>settings_table.relowner)
+ or (select count(*) from private.classroom_test_quota_settings)<>1
+ or not exists(select 1 from private.classroom_test_quota_settings where singleton and not enabled)
+ or not exists(select 1 from pg_catalog.pg_attribute a join pg_catalog.pg_attrdef d on d.adrelid=a.attrelid and d.adnum=a.attnum where a.attrelid=settings_table.oid and a.attname='enabled' and a.attnotnull and a.atttypid='boolean'::regtype and pg_catalog.pg_get_expr(d.adbin,d.adrelid)='false')
+ or not exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass and t.tgname='enforce_classroom_test_quota'
+   and t.tgattr::text=(select a.attnum::text from pg_catalog.pg_attribute a where a.attrelid='public.tests'::regclass and a.attname='classroom_id'))
+ then raise exception 'Quota253 function or dormant settings differ';end if;end;`
+}
+
 function catalogSql() {
   const columns = (table: string, expected: readonly string[], message: string) => `select pg_catalog.array_agg(a.attname::text order by a.attnum) into actual from pg_catalog.pg_attribute a where a.attrelid=${q(`public.${table}`)}::regclass and a.attnum>0 and not a.attisdropped;if actual is distinct from array[${expected.map(q).join(',')}]::text[] then raise exception ${q(message)};end if;`
   return `do $catalog$ declare p pg_catalog.pg_proc;actual text[];checks jsonb;begin select value into checks from pg_temp.owner_publication_checks;
@@ -119,7 +143,7 @@ function catalogSql() {
  or not pg_catalog.has_function_privilege('service_role',p.oid,'EXECUTE')
  or exists(select 1 from pg_catalog.aclexplode(coalesce(p.proacl,pg_catalog.acldefault('f',p.proowner))) a where a.privilege_type='EXECUTE' and a.grantee not in (p.proowner,'service_role'::regrole)) then raise exception 'Publication function catalog differs';end if;${note('catalog-function')}
  ${columns('tests',TEST_OWNER_PUBLICATION_TEST_COLUMNS,'Exact21 Test columns differ')}${columns('assessment_drafts',TEST_OWNER_PUBLICATION_DRAFT_COLUMNS,'Exact10 Draft columns differ')}${columns('test_questions',TEST_OWNER_PUBLICATION_QUESTION_COLUMNS,'Exact21 question columns differ')}${note('catalog-columns')}
- ${exactTriggers('tests',testTriggers,'Exact Test trigger closure differs')}${note('catalog-test-triggers')}
+ ${exactTriggers('tests',testTriggers,'Exact Test trigger closure differs')}${quota253CatalogSql()}${note('catalog-test-triggers')}
  ${exactTriggers('assessment_drafts',draftTriggers,'Exact Draft trigger closure differs')}${note('catalog-draft-triggers')}
  ${exactTriggers('test_questions',questionTriggers,'Exact question trigger closure differs')}${note('catalog-question-triggers')}
  if not pg_catalog.has_function_privilege('service_role','public.publish_test_from_draft_atomic(uuid,uuid,integer)','EXECUTE')
