@@ -41901,3 +41901,29 @@ headings, leaving the original survey title. Reuse existing title styling;
 update heading assertions and same eight-view visual script. Risk none.
 Previously reviewed implementation reused; coordinator checks the title-only
 delta and cumulative continuity. Required local checks/visual evidence in PR.
+
+<!-- pika-session-log-archive-batch:d1236ff78b5eba1786de53e85d9b2f44f57e69fa68acd07ff73c4cbe2c334378 -->
+## 2026-10-06 — CI schema-copy diagnostic correction and local evidence
+
+PR1488 remains draft. At reviewed d19792dd, fresh targeted Assignment
+before-capture and native Test draft normal/after-fixture/before-capture all
+passed original expected statuses and exact receipts. Private evidence verified;
+all owned VMs disposed, dedicated daemons empty and shared HQ lease released.
+Complete Browser passed36.29hostminutes; TestBuild passed15.09minutes on earlier
+9602c92d. No full local database success: latest one approved canonical attempt
+failed Pal outbox schema-copy setup after6.19minutes with incomplete generated
+SQL; the stream boundary is unproven. Targeted success is not full-lane timing.
+
+Owner approved one schema-copy diagnostic batch and two reviews within60minutes.
+Keep the dump command/filter/imported SQL/fixtures/claims/guards/limits/cleanup
+unchanged; emit finite exporter/filter/importer statuses on failure and preserve
+pipefail's original exit before teardown. Offline mocks exercise the real shell
+harness, private-output suppression, rightmost failure and cleanup. No transport
+fix claim or retry. Review and focused verification pending at this entry.
+
+Rebased onto c88abe16b (classroom motion/Survey changes); native diagnostic
+source/test bytes unchanged, archived continuity bodies preserved. Public repo,
+unregistered/inactive Pika runner, unset opt-in, production/HQ/Mac Docker holds
+remain. No SQL/VM replay, hosted heavy CI or merge in this approved phase.
+Model recommendation: GPT5.6Sol/high targeted privacy/correctness; GPT6.1Sol/high
+cumulative integration (Terra unavailable). Risk: runtime-platform.
