@@ -35,6 +35,9 @@ interface LayerEntry {
 }
 
 const openLayers: LayerEntry[] = []
+// React runs every layout cleanup before sibling setups. Keep return provenance
+// through that handoff even when an immediate exit has already removed its DOM.
+const pendingFocusReturns: LayerEntry[] = []
 const elementStates = new Map<HTMLElement, ElementState>()
 let originalBodyOverflow: string | undefined
 
@@ -108,10 +111,18 @@ function registerLayer(entry: LayerEntry) {
     const wasTop = openLayers.at(-1) === entry
     const index = openLayers.lastIndexOf(entry)
     if (index >= 0) openLayers.splice(index, 1)
+    if (wasTop) pendingFocusReturns.push(entry)
     updateModalEnvironment()
     return () => {
+      const pendingIndex = pendingFocusReturns.lastIndexOf(entry)
+      if (pendingIndex >= 0) pendingFocusReturns.splice(pendingIndex, 1)
       if (!wasTop) return
       const top = getTopLayer()
+      const active = document.activeElement
+      // A replacement may already have focused its requested control. Its
+      // earlier sibling's deferred return must not override that valid focus.
+      if (top && active instanceof HTMLElement && top.panel.contains(active)
+        && !active.closest('[inert], [hidden], [aria-hidden="true"], [data-modal-state="closing"]')) return
       const target = entry.returnTargets.find((candidate) =>
         candidate.isConnected
         && !candidate.closest('[inert], [hidden], [aria-hidden="true"], [data-modal-state="closing"]')
@@ -275,10 +286,14 @@ export function ModalLayer({
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const focusedDescendant = opener && activePanel.contains(opener) ? opener : null
     const parent = getTopLayer()
-    const returnTargets = [
-      ...(opener ? [opener] : []),
+    const exitingOwner = pendingFocusReturns.findLast((entry) =>
+      !opener || opener === document.body || entry.layer.contains(opener),
+    )
+    const returnTargets = [...new Set([
+      ...(opener && opener !== document.body ? [opener] : []),
+      ...(exitingOwner?.returnTargets ?? []),
       ...(parent?.returnTargets ?? []),
-    ]
+    ])]
     const unregister = registerLayer({
       layer: activeLayer,
       panel: activePanel,

@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Shared selected-tab visibility
-
-Product-wide fluid UI goal remains active. Baseline actual Blueprint client switches
-retain Settings selection but clip its remounted tab on mobile (4/4 variants).
-Extend the canonical Tabs scrolling contract: reveal selection locally on mount,
-controlled selection or layout change; preserve manual browsing on unrelated renders,
-focus, ancestor scroll, caller state and IDs. No new design/dependency/schema.
-Native Sol/medium owned Tabs/tests; root verified RED→GREEN 11 tests, integrated
-bounded Pattern Lab underline/connected/RTL examples and browser checks. Both-role
-16-case theme/viewport/motion matrix passed; actual unchanged-main Blueprint owner
-switching passed 8 variants via a temporary gated wrapper removed before publication.
-Visual capture/recording evidence is in this chat's `tab-selection-visibility` folder.
-Root corrected two harness assumptions and scoped an existing gallery assertion to
-its intended owner; no weakened behavior assertions. Independent review, exact-SHA
-CI and release state belong to the PR. Earlier PR1490/1491/1493 main-merge and tab-
-motion direction decisions remain pending; no production authorization.
-
 ## 2026-10-06 — Approved PR1494 integration reconciliation
 
 Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
@@ -438,3 +421,9 @@ Owner explicitly overrode task approval stops; cumulative8batches/10reviewer lau
 Continued the product-wide fluidity goal after #1490 landed at `3a0b17d6a`. Reused canonical ModalLayer/Dialog and semantic motion tokens; extended passive opacity exits with immediate logical close, focus/scroll/isolation restoration, reduced-motion removal and reopen cancellation. Static AlertDialog/ConfirmDialog adopt the fade; generic ContentDialog/DialogPanel and drawers remain immediate unless explicitly opted in after a child-lifetime audit. Added real Pattern Lab confirmation/action coverage and quiet-entry/exit comparison; broader UI coverage remains incomplete.
 
 Worker delivery: 96 targeted tests, TypeScript and targeted ESLint passed. Coordinator audit and 24 Gallery tests passed after adding meaningful local confirmation coverage. Both-role desktop/mobile light/dark normal/reduced screenshots, natural recordings and frame assertions: 48 capture cases passed; exact browser/focused final results remain in the external task evidence/PR. Historical normal-motion baseline disappeared on the first frame; new passive exits retain inert/aria-hidden content while commands and focus complete immediately. Temporary peer #1512 main merge hold is respected. Owner's task-wide approval override waives workflow budget/elapsed/low-usage stops; existing correctness and explicit holds remain.
+
+## 2026-10-07 — Modal replacement focus correction
+
+Draft #1514 at7619e522 completed one independent Sol/high full-diff review. Accepted one blocking P2: closing a later sibling while opening an earlier sibling in the same commit overrode the replacement's initial focus and lost its outside opener. Exact-base/head harness comparison reproduced it; new tests failed4/8 before correction across sibling orders and mixed immediate/opacity modes.
+
+One remediation batch preserves return provenance through React's cleanup/setup handoff and respects an already-focused active replacement. Coordinator's original reproduction now restores the initial button and outside opener. Required focused/browser/visual and targeted cumulative independent review follow on the corrected frozen head. Task waiver and cumulative original review counts persist; #1512 main merge hold and production exclusions remain.

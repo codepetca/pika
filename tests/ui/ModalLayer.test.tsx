@@ -428,4 +428,31 @@ describe('ModalLayer visual exit lifecycle', () => {
     act(() => vi.advanceTimersByTime(180))
     expect(oldPanel).toBeInTheDocument()
   })
+
+  it.each((['old-first', 'new-first'] as const).flatMap((order) =>
+    (['none', 'opacity'] as const).flatMap((oldExit) =>
+      (['none', 'opacity'] as const).map((newExit) => ({ order, oldExit, newExit })),
+    ),
+  ))('preserves initial and return focus during sibling replacement ($order, $oldExit → $newExit)', ({ order, oldExit, newExit }) => {
+    function Harness({ oldOpen, newOpen }: { oldOpen: boolean; newOpen: boolean }) {
+      const old = <ModalLayer key="old" isOpen={oldOpen} exitMotion={oldExit} onClose={vi.fn()} ariaLabel="Old"><button data-modal-initial-focus>Old initial</button></ModalLayer>
+      const replacement = <ModalLayer key="new" isOpen={newOpen} exitMotion={newExit} onClose={vi.fn()} ariaLabel="New"><button data-modal-initial-focus>New initial</button></ModalLayer>
+      return <><button>Outside opener</button>{order === 'old-first' ? <>{old}{replacement}</> : <>{replacement}{old}</>}</>
+    }
+    const { rerender } = render(<Harness oldOpen={false} newOpen={false} />)
+    const outside = screen.getByRole('button', { name: 'Outside opener' })
+    outside.focus()
+    rerender(<Harness oldOpen newOpen={false} />)
+    expect(screen.getByRole('button', { name: 'Old initial' })).toHaveFocus()
+    rerender(<Harness oldOpen={false} newOpen />)
+    expect(screen.getByRole('button', { name: 'New initial' })).toHaveFocus()
+    expect(screen.getByRole('dialog', { name: 'New' }).parentElement!.inert).toBe(false)
+    expect(document.body.style.overflow).toBe('hidden')
+    rerender(<Harness oldOpen={false} newOpen={false} />)
+    expect(outside).toHaveFocus()
+    expect(document.body.style.overflow).toBe('')
+    act(() => vi.runAllTimers())
+    expect(screen.queryByRole('dialog', { hidden: true })).not.toBeInTheDocument()
+    expect(outside).toHaveFocus()
+  })
 })

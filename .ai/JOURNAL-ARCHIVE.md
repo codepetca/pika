@@ -40646,3 +40646,21 @@ unknown; no savings claim, DeepSeek owner pause remains honored.
 ## 2026-10-06 — Blueprint approved integration reconciliation
 
 Reconciled PR1493 onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
+
+<!-- pika-session-log-archive-batch:2399bbf6bce8c6c653eefbb8523fadf8029ca6fce170b78951d84cdd03eff6cd -->
+## 2026-10-06 — Shared selected-tab visibility
+
+Product-wide fluid UI goal remains active. Baseline actual Blueprint client switches
+retain Settings selection but clip its remounted tab on mobile (4/4 variants).
+Extend the canonical Tabs scrolling contract: reveal selection locally on mount,
+controlled selection or layout change; preserve manual browsing on unrelated renders,
+focus, ancestor scroll, caller state and IDs. No new design/dependency/schema.
+Native Sol/medium owned Tabs/tests; root verified RED→GREEN 11 tests, integrated
+bounded Pattern Lab underline/connected/RTL examples and browser checks. Both-role
+16-case theme/viewport/motion matrix passed; actual unchanged-main Blueprint owner
+switching passed 8 variants via a temporary gated wrapper removed before publication.
+Visual capture/recording evidence is in this chat's `tab-selection-visibility` folder.
+Root corrected two harness assumptions and scoped an existing gallery assertion to
+its intended owner; no weakened behavior assertions. Independent review, exact-SHA
+CI and release state belong to the PR. Earlier PR1490/1491/1493 main-merge and tab-
+motion direction decisions remain pending; no production authorization.
