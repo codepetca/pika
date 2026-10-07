@@ -148,7 +148,7 @@ export async function verifyMobileDrawerControls(page: Page, options: MobileDraw
   await fixture.getByRole('button', { name: 'Block drawer home navigation', exact: true }).click()
   const blocked = await open(navigationOpener, 'Navigation menu', 'Close navigation')
   const originalURL = page.url()
-  await blocked.dialog.getByRole('link', { name: 'All classrooms', exact: true }).click()
+  await blocked.dialog.getByRole('link', { name: 'Classrooms', exact: true }).click()
   await expect(blocked.dialog).toBeVisible()
   expect(page.url()).toBe(originalURL)
   await page.keyboard.press('Escape')

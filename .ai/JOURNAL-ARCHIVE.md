@@ -41806,3 +41806,8 @@ Final full focused retry passed581/30 and all static gates; audit passed. No wea
 checks. Evidence /tmp/pika-summary-db-remediation-stable-focused.log. Prior browser4/4 correction
 and model/privacy reviews remain valid. Owner main-merge authority retained; final
 reviewed-SHA CI gate is required. Production promotion remains outside scope.
+
+<!-- pika-session-log-archive-batch:a3102b6149c7d17a1070fbc5b11c5767d6cd9a8282b278e66bdac42743a677fd -->
+## 2026-10-06 — Preserve Daily-summary main updates during fluidity landing
+
+Merged main PR #1506 into the reviewed fluidity candidate as one bounded reconciliation. Preserve current-main Daily summaries and student questions, all nine reviewed feature heads, the exact main archive prefix, and every prior rolling-history body. Three test/policy/history files auto-merge; production code has no textual conflict. Previous candidate 27dd240e passed local focused/static, 172 distinct browser cases, independent source review and CI/PR Gate (one unchanged test/build retry). New-head focused/browser/visual, final independent integration review and exact-head CI are required before authorized main merge and superseded-PR closure. No new feature or design change; softer modal exits follow landing.

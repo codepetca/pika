@@ -53,10 +53,10 @@ describe('LeftSidebar mobile drawer', () => {
     )
 
     const homeLink = within(screen.getByRole('dialog', { name: 'Navigation menu' }))
-      .getByRole('link', { name: 'All classrooms' })
+      .getByRole('link', { name: 'Classrooms' })
 
     expect(homeLink).toHaveAttribute('href', '/classrooms')
-    expect(homeLink).toHaveTextContent('All classrooms')
+    expect(homeLink).toHaveTextContent('Classrooms')
     expect(homeLink).toHaveClass('bg-surface-2', 'hover:bg-surface-hover')
     expect(within(homeLink).getByRole('img', { name: 'Pika' })).toBeInTheDocument()
     expect(homeLink.querySelector('.lucide-chevron-right')).not.toBeInTheDocument()
@@ -80,7 +80,7 @@ describe('LeftSidebar mobile drawer', () => {
       </TooltipProvider>,
     )
 
-    fireEvent.click(screen.getByRole('link', { name: 'All classrooms' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Classrooms' }))
 
     expect(close).not.toHaveBeenCalled()
   })
