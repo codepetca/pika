@@ -49,6 +49,20 @@ types/proof/CI bytes. Renew changed-base review, focused checks and exact-head C
 before merge. Historical local native/forced/coverage evidence is not a new local
 run; no canonical migration, production promotion, activation or phase exit.
 
+Sol/high changed-base review and focused1304/44 passed08459fa9. Eligible
+CI37548424656 passed all five checks including PR Gate on that exact head;
+publication normal/forced proofs, build and browser checks passed. Main advanced
+via #1512 to80ae7746 while CI ran, creating another archive-history conflict under
+strict up-to-date protection. PR1510 returned to draft after retaining the full
+private600 receipt (queue3s/run3733s). The Svelte coordinator's #1514 merge window
+was honored without speculative rebases, duplicate CI or extra review launches.
+It explicitly released after #1514 landed d0bdbdfa5. The18-commit rebase retains
+both histories, incoming modal/CI-host source and unchanged publication/SQL252/
+types/proof/CI bytes; all37 stashes and migration numbering remain intact.
+Changed-base review, focused verification and eligible exact-new-head CI remain
+required. No new local native/coverage, canonical schema, production, activation
+or phase-exit acceptance is inferred from these historical receipts.
+
 ## Historical pre-type preparation
 
 The isolated proof implementation was ready for independent source review: one full-row fixture,
