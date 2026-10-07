@@ -142,7 +142,9 @@ describe('strict complete reorder effect sink', () => {
     expect(() => verifyTestOwnerReorderEffects(f, before, before, 'member-denied', done)).toThrow()
     const drift = structuredClone(noOp.after); drift['public.users'][0].preserved = false
     expect(() => verifyTestOwnerReorderEffects(f, noOp.after, drift, 'member-denied', done)).toThrow()
-  })
+    // Complete21k-row snapshots and the two-effect ledger chain are intentionally
+    // retained under coverage. This unit-runner limit is not a product deadline.
+  }, 15000)
   it('rejects revision drift, unchanged-row timestamps, incomplete membership and response leakage', () => {
     const before = reorderBaseline(); const p = reorderPostimage(before, 'teacher-owner')
     const pending = registerTestOwnerReorderWitness(f, [], 'teacher-owner', p.envelope, window)

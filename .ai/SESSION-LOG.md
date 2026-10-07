@@ -564,3 +564,25 @@ First focused run found two stale9batch expectations (830PASS/2FAIL); updated
 their explicit count, keeping every runtime-cap assertion. Subsequent833 focused
 checks/static gates PASS. Success output now derives the dispatch count from the
 sealed manifest; final exact-tree verification and independent review follow.
+
+## 2026-10-07 — Reorder CI heavy fixture-test runner timeout
+
+Batching240e Sol/high target review CLEAN; fresh normal16SDK/6effects/27SQLframes/
+50probes/21races/7committed schedules PASS. Private600 receipt/rootSHA verified:
+APP115/native162 actions277/400,3109controls, allresource/ordinary clocks retained.
+Exactteardown/freshcanonical five-field equality and both forcedcleanups PASS;
+fresh initial canonicalhash differs historical receipt, not a globalB5 reset.
+Ready240e CI37604183593 failed unitlane:14868PASS/8SKIP, one complete21k-row
+no-op/denial/forged-ledger test exceeded default5s under coverage, no failed
+assertion. Returned1515 to draft; stopped only localwatch78354, no manualCIcancel.
+Completed-job logs read through GitHubAPI after whole-run CLI correctly withheld
+in-progress logs. Narrowly give this single compound test15s; preserve every
+assertion, all source/runtime/SQL/HTTP35s/8s/20s/900s limits and suite-wide defaults.
+Focused/coverage/independentreview/new exactheadCI remain gates. Native240e
+receipts may be reused only for unchanged runtime/profile/environment/base; no
+receipt reheading or newheadnative-success claim. Originalclock/counters/human
+waiver and production/canonical249–253/rollout holds remain unchanged.
+Targeted V8 run38checks PASS, but whole-repository coverage thresholds correctly
+failed for unexecuted files; no coverage-gate PASS or threshold exclusion claimed.
+Focused833/TSC/lint/policies/audit PASS; runtime/profile/config byte parity with
+accepted240e verified. OldCI now terminalcancelled with failedunit/gate, retained.

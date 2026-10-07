@@ -41975,3 +41975,8 @@ report and raw receipts remain external artifacts. Human task override persists;
 review counters retained. Pika remains public, runner unregistered/inactive and
 opt-in unset; no production/HQ changes. PR1488stays draft through source sync and
 independent verification, then one stable-SHA eligible CI/PR Gate run.
+
+<!-- pika-session-log-archive-batch:09a7d6bbe609e5f53e34cf39737dee8c236d167ab96ffa265b4bdb5fd8390337 -->
+## 2026-10-06 15:22 [CODEX]
+
+PR1488 ready CI passed Test & Build and database contracts; Classwork continuity setup raced on an obsolete student-name button. Retained traces confirm the editor mounts while that click waits. Use the existing retrying visibility assertion and preserve all refresh/Retry retention checks. Return PR to draft for corrected-source focused browser validation and independent review; repository stays public and runner activation remains held.
