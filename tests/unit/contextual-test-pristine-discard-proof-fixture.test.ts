@@ -93,23 +93,40 @@ describe('finite synthetic pristine discard source',()=>{
   })
 })
 describe('closed discard witness/effect acceptance',()=>{
-  it('accepts only exact selected pair deletion and whole +2/+4 rows with shared transaction stamp',()=>{
+  function selectedPair() {
     const before=baseline();const e=witness(before);const after=structuredClone(before);const stamp='2026-10-06T04:00:00Z'
     after['public.tests']=after['public.tests'].filter(t=>t.id!==e.test_id)
     after['public.assessment_drafts']=after['public.assessment_drafts'].filter(d=>d.assessment_id!==e.test_id)
     const classroom=after['public.classrooms'].find(c=>c.id===e.classroom.id)!;classroom.blueprint_source_revision=9;classroom.updated_at=stamp
     const archive=after['public.classroom_archive_revisions'].find(c=>c.classroom_id===e.classroom.id)!;archive.revision=17;archive.updated_at=stamp
     const pending=registerTestOwnerPristineDiscardWitness(f,[],f.cases[0].label,e,{startMs:Date.parse(stamp)-1000,deadlineMs:Date.parse(stamp)+1000})
+    return { before, e, after, stamp, pending }
+  }
+  it('accepts only exact selected pair deletion and whole +2/+4 rows with shared transaction stamp',()=>{
+    const {before,after,stamp,pending}=selectedPair()
     expect(pending[0].state).toBe('provisional')
-    expect(()=>registerTestOwnerPristineDiscardWitness(f,pending,f.cases[1].label,e)).toThrow()
     const accepted=verifyTestOwnerPristineDiscardEffects(f,before,after,f.cases[0].label,pending,{discarded:true},stamp)
     expect(accepted[0].state).toBe('verified');expect(Object.isFrozen(accepted[0])).toBe(true)
+  })
+  it('rejects a second pending witness before the first effect is verified',()=>{
+    const {e,pending}=selectedPair()
+    expect(()=>registerTestOwnerPristineDiscardWitness(f,pending,f.cases[1].label,e)).toThrow()
+  })
+  it('rejects reuse of an already verified discard witness',()=>{
+    const {before,after,stamp,pending}=selectedPair()
+    const accepted=verifyTestOwnerPristineDiscardEffects(f,before,after,f.cases[0].label,pending,{discarded:true},stamp)
     expect(()=>verifyTestOwnerPristineDiscardEffects(f,before,after,f.cases[0].label,accepted,{discarded:true},stamp)).toThrow()
-    for(const change of [(s:typeof after)=>{s['public.assessment_drafts']=before['public.assessment_drafts']},
-      (s:typeof after)=>{s['public.classrooms'][0].preserved=false},(s:typeof after)=>{s.__nontarget_fingerprints[0].fingerprint='changed'},
-      (s:typeof after)=>{s['public.tests'][0].title='drift'}]) {
-      const bad=structuredClone(after);change(bad);expect(()=>verifyTestOwnerPristineDiscardEffects(f,before,bad,f.cases[0].label,pending,{discarded:true},stamp)).toThrow()
-    }
+  })
+  it.each(['draft-restored','classroom-drift','fingerprint-drift','test-drift'] as const)('rejects selected-pair %s with the complete1001-row fixture',kind=>{
+    const {before,after,stamp,pending}=selectedPair();const bad=structuredClone(after)
+    if(kind==='draft-restored')bad['public.assessment_drafts']=before['public.assessment_drafts']
+    else if(kind==='classroom-drift')bad['public.classrooms'][0].preserved=false
+    else if(kind==='fingerprint-drift')bad.__nontarget_fingerprints[0].fingerprint='changed'
+    else bad['public.tests'][0].title='drift'
+    expect(()=>verifyTestOwnerPristineDiscardEffects(f,before,bad,f.cases[0].label,pending,{discarded:true},stamp)).toThrow()
+  })
+  it('rejects private reason fields on a public success result',()=>{
+    const {before,after,stamp,pending}=selectedPair()
     expect(()=>verifyTestOwnerPristineDiscardEffects(f,before,after,f.cases[0].label,pending,{discarded:true,reason:'private'},stamp)).toThrow()
   })
   it.each(['stale-version','stale-test-cas','title-changed','missing-draft','availability-child','retained-override'])('false %s retains every complete row',label=>{

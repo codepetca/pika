@@ -1,0 +1,188 @@
+import { describe, expect, it } from 'vitest'
+import { createHash } from 'node:crypto'
+import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
+import { newTestOwnerPublicationFixture } from '../../scripts/contextual-test-publication-proof-fixture'
+import {
+  TEST_OWNER_PUBLICATION_DB_CAPS,
+  TEST_OWNER_PUBLICATION_DB_CHECK_LABELS,
+  TEST_OWNER_PUBLICATION_DB_LIMITATIONS,
+  TEST_OWNER_PUBLICATION_DRAFT_COLUMNS,
+  TEST_OWNER_PUBLICATION_QUESTION_COLUMNS,
+  TEST_OWNER_PUBLICATION_SOURCE_SHA256,
+  TEST_OWNER_PUBLICATION_TEST_COLUMNS,
+  testOwnerPublicationDbContractsManifest,
+  runTestOwnerPublicationDbContracts,
+} from '../../scripts/contextual-test-publication-db-contracts'
+import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
+
+const f = newTestOwnerPublicationFixture(newAssignmentListProofFixture(new Date('2026-10-06T12:00:00Z')))
+const project = `pika_assignment_list_${f.tag.slice(-12)}`
+const manifest = testOwnerPublicationDbContractsManifest(f, project)
+
+describe('contextual Test publication rollback database contracts', () => {
+  it('is inert, finite, rollback-only and source-pinned', () => {
+    expect(TEST_OWNER_PUBLICATION_SOURCE_SHA256).toMatch(/^[a-f0-9]{64}$/)
+    expect(TEST_OWNER_PUBLICATION_DB_CAPS).toEqual({ sqlBytes: 256 * 1024, actionMs: 35_000, requestMs: 12_000 })
+    expect(Buffer.byteLength(manifest.contracts)).toBeLessThanOrEqual(TEST_OWNER_PUBLICATION_DB_CAPS.sqlBytes)
+    expect(manifest.contracts.trimStart()).toMatch(/^begin;/i)
+    expect(manifest.contracts.trimEnd()).toMatch(/rollback;$/i)
+    expect(manifest.contracts).not.toMatch(/\bcommit\s*;|truncate\s|setval\s*\(|reset\s+.*sequence/i)
+    expect(manifest.contracts.match(/\bas result\b/gi)).toHaveLength(1)
+    expect(manifest.sourceSha256).toBe(TEST_OWNER_PUBLICATION_SOURCE_SHA256)
+    expect(Object.isFrozen(manifest)).toBe(true)
+  })
+
+  it('attests the complete physical Test, Draft, and question rows plus closed catalog', () => {
+    expect(TEST_OWNER_PUBLICATION_TEST_COLUMNS).toHaveLength(21)
+    expect(TEST_OWNER_PUBLICATION_DRAFT_COLUMNS).toHaveLength(10)
+    expect(TEST_OWNER_PUBLICATION_QUESTION_COLUMNS).toHaveLength(21)
+    for (const token of [
+      'publish_test_from_draft_for_owner_v1(uuid,uuid,uuid,text,integer,jsonb,timestamp with time zone)',
+      'publish_test_from_draft_atomic(uuid,uuid,integer)',
+      'activate_test_from_draft_atomic(uuid,uuid,integer)',
+      'snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)',
+      'prosecdef', 'search_path=""', 'lock_timeout=1s',
+      'has_function_privilege', 'pg_catalog.aclexplode', 'tgenabled', 'tgdeferrable',
+      'Exact Test trigger closure differs', 'Exact Draft trigger closure differs',
+      'Exact question trigger closure differs',
+    ]) expect(manifest.contracts).toContain(token)
+    expect(TEST_OWNER_PUBLICATION_QUESTION_COLUMNS).toEqual(['id','test_id','question_type','question_text','options','correct_option',
+      'points','response_max_chars','position','created_at','updated_at','response_monospace','answer_key','ai_reference_cache_key',
+      'ai_reference_cache_answers','ai_reference_cache_model','ai_reference_cache_generated_at','sample_solution','artifact_id',
+      'source_artifact_id','source_blueprint_version_id'])
+    expect(manifest.contracts).toContain('pg_catalog.cardinality(p.proconfig)<>2')
+    expect(manifest.contracts).not.toContain("'statement_timeout=8s'")
+  })
+
+  it('seals rollback probes for authorization, CAS, materialization, blockers and drift', () => {
+    for (const label of TEST_OWNER_PUBLICATION_DB_CHECK_LABELS) expect(manifest.contracts).toContain(label)
+    for (const c of f.cases) {
+      expect(manifest.contracts).toContain(c.label)
+      expect(manifest.contracts).toContain(c.actorId)
+      expect(manifest.contracts).toContain(c.testId)
+    }
+    for (const token of [
+      'source_sha256', 'p_validated_content', 'question_identity_version', 'source_artifact_id',
+      'ai_reference_cache_key', 'classroom_guided_draft_provenance', 'managed_storage_json_references',
+      'test_document_snapshot_storage_cleanup',
+      'gradebook_score_overrides', 'test_attempts', 'test_responses', 'test_focus_events',
+      'test_student_availability', 'test_ai_grading_runs', 'test_ai_grading_run_items',
+      'blueprint_source_revision', 'classroom_archive_revisions',
+      "code<>'PT409'", "code is distinct from 'PT503'", "errcode='42501'",
+    ]) expect(manifest.contracts).toContain(token)
+    expect(TEST_OWNER_PUBLICATION_DB_LIMITATIONS.join(' ')).toMatch(/wrong-Class.*no-FK/i)
+    expect(manifest.contracts.match(/create temp sequence p252_/g)?.length).toBeGreaterThanOrEqual(19)
+    expect(manifest.contracts).toContain('Publication fault trigger was not reached')
+    expect(manifest.contracts).toContain('owner_publication_baseline')
+    expect(manifest.contracts).toContain('select value into strict baseline_graph')
+    expect(manifest.contracts).toContain("raise exception using errcode='42501',message='publication raw privilege probe'")
+    expect(manifest.contracts).toContain("raise exception using errcode='55000',message='publication unknown probe'")
+    expect(manifest.contracts).not.toMatch(/perform '(?:test_attempts|test_responses|classroom_guided_draft_provenance)'/)
+  })
+
+  it('returns only closed labels and bounded non-secret evidence', () => {
+    expect(TEST_OWNER_PUBLICATION_DB_CHECK_LABELS.length).toBeGreaterThanOrEqual(30)
+    expect(manifest.expectedResult).toEqual({ version: 1, checks: [...TEST_OWNER_PUBLICATION_DB_CHECK_LABELS].sort(), rolledBack: true })
+    expect(manifest.contracts).toContain("jsonb_build_object('version',1,'checks'")
+    expect(manifest.contracts).not.toMatch(/raise\s+(?:notice|log|warning)|current_query\(\)|pg_read_file/i)
+  })
+
+  it('emits one grouped catalog code and only the later per-probe codes', () => {
+    const emitted = [...new Set([...manifest.contracts.matchAll(/errcode='(P25\d{2})'/g)].map(match => match[1]))].sort()
+    expect(emitted).toEqual(['P2501', ...Array.from({ length: 42 }, (_, index) => `P25${String(index + 7).padStart(2, '0')}`)])
+  })
+
+  it('keeps trigger catalog table aliases distinct from the enclosing procedure record', () => {
+    const catalog = manifest.contracts.split('do $catalog$')[1].split('$catalog$;')[0]
+    expect(catalog).toContain('declare p pg_catalog.pg_proc;')
+    expect(catalog).toContain('pg_catalog.pg_proc catalog_proc on catalog_proc.oid=t.tgfoid')
+    expect(catalog).toContain('catalog_proc.proname::text')
+    expect(catalog).toContain('nf.oid=catalog_proc.pronamespace')
+    expect(catalog).not.toMatch(/join pg_catalog\.pg_proc p\b/)
+  })
+
+  it('attests the physical PostgreSQL name of the long question trigger', () => {
+    const declared = 'touch_classroom_blueprint_source_from_test_questions_insert_delete'
+    const physical = 'touch_classroom_blueprint_source_from_test_questions_insert_del'
+    expect(Buffer.byteLength(declared)).toBe(66)
+    expect(Buffer.byteLength(physical)).toBe(63)
+    const catalog = manifest.contracts.split('do $catalog$')[1].split('$catalog$;')[0]
+    expect(catalog).toContain(`('${physical}','public','touch_classroom_blueprint_source_from_test_question',13)`)
+    expect(catalog).not.toContain(`'${declared}'`)
+  })
+
+  it('isolates missing persisted Draft in final SQL while retaining the snapshot HTTP404 case', () => {
+    const c = f.cases.find(c => c.label === 'missing-draft')!
+    expect(c.expectedHTTP).toBe(404)
+    expect(c.expectedRPCs).toBe(1)
+    expect(f.drafts.find(d => d.assessment_id === c.testId)).toBeUndefined()
+    const probe = [...manifest.contracts.matchAll(/do \$probe\$([\s\S]*?)end;\$probe\$;/g)]
+      .map(match => match[1]).find(block => block.includes("message='missing-draft'"))!
+    expect(probe).toContain("code<>'PT409'")
+    expect(probe).not.toContain("code<>'PT404'")
+    const contentLiteral = probe.match(/,'((?:[^']|'')*)'::jsonb,pg_catalog\.clock_timestamp/)?.[1]
+    expect(contentLiteral).toBeDefined()
+    const content = JSON.parse(contentLiteral!.replaceAll("''", "'"))
+    expect(content).toEqual(f.drafts[0].content)
+    expect(content.question_identity_version).toBe(1)
+    expect(content.questions.length).toBeGreaterThan(0)
+    const callBody = probe.split('before_graph:=pg_temp.owner_publication_graph();begin ')[1]
+      .split("raise exception using errcode='PT499'")[0]
+    expect(callBody).toContain('public.publish_test_from_draft_for_owner_v1(')
+    expect(callBody).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
+  })
+
+  it('isolates the whole-graph unrelated-row detector from target-Class revision fences', () => {
+    const target = f.tests.find(t => t.id === f.cases[0].testId)!
+    const probe = [...manifest.contracts.matchAll(/do \$probe\$([\s\S]*?)end;\$probe\$;/g)]
+      .map(match => match[1]).find(block => block.includes("message='detect-unrelated-row'"))!
+    const mutatedId = probe.match(/update public\.tests set documents=documents\|\|[\s\S]*?where id='([a-f0-9-]+)'::uuid;/)?.[1]
+    const unrelated = f.tests.find(t => t.id === mutatedId)
+    expect(unrelated).toBeDefined()
+    expect(unrelated!.id).not.toBe(target.id)
+    expect(unrelated!.classroom_id).not.toBe(target.classroom_id)
+    expect(unrelated!.blueprint_archived_at).toBeNull()
+    expect(probe).toContain("r->'test'->>'status'<>'closed'")
+    expect(probe).toContain('pg_temp.owner_publication_graph() is not distinct from inside_before')
+    expect(probe).toContain("raise exception using errcode='PT499',message='detect-unrelated-row'")
+    expect(probe).toContain('after_graph is distinct from before_graph')
+    expect(probe).toContain('into strict unrelated_before')
+    expect(probe).toContain('into strict unrelated_after')
+    expect(probe).toContain("unrelated_after->'documents' is distinct from")
+    expect(probe).toContain("inside_before->'public.tests' @> pg_catalog.jsonb_build_array(unrelated_before)")
+    expect(probe).toContain("pg_temp.owner_publication_graph()->'public.tests' @> pg_catalog.jsonb_build_array(unrelated_after)")
+    // Both rows and Classes remain in the whole rollback graph; no exemption.
+    expect(manifest.contracts).toContain(`'${unrelated!.id}'::uuid`)
+    expect(manifest.contracts).toContain(`'${unrelated!.classroom_id}'::uuid`)
+  })
+
+  it('keeps raw SQL42501 distinct from HTTP503 and normalized unknown55000', () => {
+    const blocks = [...manifest.contracts.matchAll(/do \$probe\$([\s\S]*?)end;\$probe\$;/g)].map(match => match[1])
+    const raw = blocks.find(block => block.includes("message='raw-42501'"))!
+    const unknown = blocks.find(block => block.includes("message='unknown-55000'"))!
+    expect(raw).toContain("errcode='42501',message='publication raw privilege probe'")
+    expect(raw).toContain("code is distinct from '42501'")
+    expect(raw).not.toContain("code is distinct from 'PT503'")
+    expect(unknown).toContain("errcode='55000',message='publication unknown probe'")
+    expect(unknown).toContain("code is distinct from 'PT503'")
+    for (const probe of [raw, unknown]) {
+      expect(probe).toMatch(/pg_catalog\.currval\('[^']+_hit'::regclass\)<1/)
+      expect(probe).toContain('after_graph is distinct from before_graph')
+      expect(probe).toContain('succeeded or code is distinct from')
+    }
+    expect(f.privilegeProbes).toHaveLength(4)
+    expect(f.privilegeProbes.every(probe => probe.expectedHTTP === 503 && probe.expectedCode === '42501')).toBe(true)
+  })
+
+  it('runs only the accepted bundle and always closes its exact session', async () => {
+    const acceptedManifestSha256=createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
+    const target=Object.freeze({projectId:project,apiUrl:'http://127.0.0.1:54331',databaseHost:'127.0.0.1',databasePort:54332,
+      containerId:'a'.repeat(64),containerProjectLabel:project,disposable:true as const,reviewedHead:'b'.repeat(40),migrationManifestSha256:'c'.repeat(64),
+      reviewedSourceSha256:TEST_OWNER_PUBLICATION_SOURCE_SHA256,acceptedManifestSha256}) satisfies DraftSaveTarget
+    let closed=0;const driver:DraftSaveDriver={verifyTarget:async()=>target,openSession:async name=>({name,
+      execute:async(sql,timeout)=>{expect(sql).toBe(manifest.contracts);expect(timeout).toBe(35_000);return [{result:manifest.expectedResult}]},
+      rollbackAndClose:async()=>{closed++}})}
+    await expect(runTestOwnerPublicationDbContracts(manifest,target,driver)).resolves.toMatchObject({kind:'rollback-test-owner-publication-contracts',checks:manifest.expectedResult.checks})
+    expect(closed).toBe(1)
+  })
+})

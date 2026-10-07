@@ -14,7 +14,7 @@ import { readContextualAssignmentInlineImage } from '../src/lib/server/contextua
 import { buildPrivateStorageRedirect } from '../src/lib/server/direct-storage-delivery'
 import { newAssignmentListProofFixture, assignmentListFixtureSetupSql } from './contextual-assignment-list-proof-fixture'
 import { runAssignmentListEphemeralLifecycle, AssignmentListLifecycleError, type AssignmentListLifecycleAdapters } from './contextual-assignment-list-proof-lifecycle'
-import { createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations, assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListDockerInventory } from './contextual-assignment-list-proof-platform'
+import { AssignmentListStartupError, assignmentListStartupDiagnostic, createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations, assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListDockerInventory } from './contextual-assignment-list-proof-platform'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { validateAssignmentListProofTarget } from './check-contextual-assignment-list-reads'
@@ -252,7 +252,8 @@ export function integratedFailureDiagnostic(error:unknown,step:string) {
   const stage=failure?.primary&&stages.has(failure.primary.stage)?failure.primary.stage:'unknown'
   const safeStep=steps.has(step)?step:'unknown'
   const cleanup=failure?failure.cleanupFailures.length?'present':'none':'unknown'
-  return `DIAG isolated assignment-learner-integrated stage=${stage} step=${safeStep} cleanup=${cleanup}.\n`
+  const startup = stage === 'start' && failure?.primary?.error instanceof AssignmentListStartupError ? assignmentListStartupDiagnostic(failure.primary.error) : ''
+  return `DIAG isolated assignment-learner-integrated stage=${stage} step=${safeStep} cleanup=${cleanup}.\n${startup}`
 }
 
 export async function assignmentLearnerIntegratedMain(args=process.argv.slice(2)) {
