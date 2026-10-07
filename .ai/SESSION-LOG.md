@@ -366,3 +366,24 @@ unchanged;10k fixture not a real over-limit class and not silently reduced.
 Standing task workflow waiver persists; original05:04UTC ledger24reviews,
 20targetedwaves/21fix-sync batches retained. Weekly83percent remaining at start;
 DeepSeek explicitly paused. No phase exit,249+ application or rollout claim.
+
+## 2026-10-07 — Test cap review remediation and full-schema proof
+
+Draft1524 at1a0c6497 completed Sol/high security and Astra/high compatibility
+reviews:3accepted P2 (trial authority, fixture creators, transfer categories).
+One batched correction;3source regressions genuinelyRED then48/7GREEN;487/27
+focused plus all static/auditPASS. BodyMD5 8e21004e27de5796420497e475ab808b
+sealed in all3 quota catalog blocks. Full001–253 fresh Supabase DB-only replay
+and corrected rollback fixture PASS with real plan/trial/expiry writers;false|0|0|0
+preserved. All3 quota metadataDOs PASS, not full inherited native profiles.
+Three concurrency schedules PASS; eligible Pro100-to-Basic20 owner follow-up
+PASS, stale isolation denied and20retained edits preserved. Initial full harness
+expected busy before inherited car_tests; actual archive revision serialization
+waits1.8s thenPTC01. Source-confirmed expectation correction retained oldfailure;
+Free owner transfer correctly fails existing creation gate, so actual eligible
+transfer tested separately. No product gate/assertion weakened. Bootstrap/CLI
+port/exclusion failures retained; normal CLI isolation used without stopping
+canonical resources. Whole owned synthetic project cleanup follows verification.
+Targeted delta review/final integration and exact-head CI remain before main
+merge; no canonical/prod249+ application, activation, billing/account/promotion.
+Task waiver/original05:04ledger24launches retained; capwave2reviews/1fixbatch.

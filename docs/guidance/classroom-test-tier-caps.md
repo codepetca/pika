@@ -62,7 +62,7 @@ promotion remain held. A main merge alone must not make the cap live.
 
 ## Current evidence
 
-The exact migration and rollback contract passed against isolated PostgreSQL 17
+The initial migration and rollback contract passed against isolated PostgreSQL 17
 on 2026-10-07: all tier boundaries, bulk rollback, moves, retained edits,
 historical offering terms and an unprivileged restore-context spoof. Separate
 observed two-session cases covered last-slot insertion, plan-lock contention,
@@ -71,11 +71,33 @@ closed. Settings and fixture rows returned to `false|0`, and the owned container
 was removed. This was a narrow schema-shaped fixture, with an initial-plan setup
 stub, not full Supabase replay or proof of the production plan-writer RPC.
 
+Independent initial review found three fixture/compatibility issues: required
+Test creators, destination gradebook categories, and the actual Pro trial
+assignment. One correction batch adds all creators, clears transfer categories,
+and validates trial/access/entitlement revisions and windows. Active trials have
+50 slots; elapsed and applied expiry deny additions even below the cap, without
+blocking retained edits. Malformed trial graphs fail closed.
+
+The corrected migration replayed with all 001–253 source migrations in a fresh,
+database-only Supabase project (CLI 2.109.1, PostgreSQL 17). Its rollback fixture
+passed with the real plan and trial/expiry writers and inherited constraints;
+the setting/users/Tests/trials returned to `false|0|0|0`. All three additional
+quota metadata blocks executed successfully. Observed two-session cases passed
+for the last slot, real plan writer, parent row and eligible Pro-to-Basic owner
+transfer, plus stale isolation and retained edits. The inherited `car_tests`
+archive-revision update serializes some writes before quota evaluation: observed
+last-slot/owner contenders waited about 1.8s of a 2s holder, then denied with
+`PTC01`. The new guard's TRY/NOWAIT locking is not an end-to-end no-wait claim.
+The whole owned test project is disposed after committed concurrency fixtures;
+no canonical database, API application or hosted project was used.
+
 Creation, publication and pristine-discard catalogs now retain every previous
 trigger and attest the additional trigger, its column scope, sealed function,
-private privileges and disabled settings. Source regressions pass; full-schema
-execution of these updated catalogs and friendly creation error integration
-remain required before enforcement can be enabled.
+private privileges and disabled settings. Final corrected focused checks pass:
+487 tests in 27 files and all static gates. Whole inherited native-profile
+execution, independent delta review, exact-head CI and friendly creation error
+integration remain distinct gates; passing the new metadata blocks alone is not
+whole-profile acceptance or authority to enable enforcement.
 
 A loopback-bound, read-only query of `supabase_db_pika` on 2026-10-07 found
 the largest local classroom had 5 Test rows, with zero local classrooms above

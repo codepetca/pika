@@ -63,4 +63,30 @@ describe('dormant classroom Test quota database contract', () => {
     expect(sql.trim()).toMatch(/rollback;$/)
     for (const label of ['tier boundaries', 'grandfathered edits', 'bulk rollback', 'target transfer', 'unknown plan', 'billing terms', 'privileges', 'identity mapping']) expect(sql).toContain(label)
   })
+
+  it('binds every actual Test fixture insert to a valid actor and clears transferred categories', () => {
+    const sql = readFileSync(resolve(process.cwd(), 'scripts/check-classroom-test-tier-caps-database.sql'), 'utf8')
+    const columns = [...sql.matchAll(/insert into public\.tests\(([^)]+)\)/g)].map(match => match[1].split(','))
+    expect(columns.length).toBeGreaterThanOrEqual(9)
+    expect(columns.every(names => names.includes('created_by'))).toBe(true)
+    expect((sql.match(/set classroom_id=v_target,gradebook_category_id=null/g) ?? []).length).toBe(2)
+  })
+
+  it('resolves current trial facts and both unapplied and applied expiry without rewriting paid terms', () => {
+    const sql = migration()
+    for (const token of ["v_plan.management_source = 'trial'", 'public.billing_account_access', 'public.billing_trials',
+      'public.billing_trial_definitions', 'public.effective_feature_entitlements',
+      'v_access.account_plan_revision is distinct from v_plan.revision',
+      'v_access.entitlement_revision is distinct from v_entitlement.revision',
+      'v_trial.converted_to_paid_at is not null', 'v_trial.ends_at',
+      "v_plan.plan_key = 'plus'", "v_plan.plan_key = 'free'", 'v_access.expiry_applied_at',
+      'v_limit := 50', 'pg_catalog.clock_timestamp() >= v_trial.ends_at']) expect(sql.includes(token)).toBe(true)
+  })
+
+  it('prepares real trial-writer fixtures with active, stale-expired, applied-Free and malformed cases', () => {
+    const sql = readFileSync(resolve(process.cwd(), 'scripts/check-classroom-test-tier-caps-database.sql'), 'utf8')
+    for (const token of ['private.billing_write_access_v1', 'active trial 1-50', 'unapplied trial expiry',
+      'applied trial Free', 'malformed trial facts', 'missing trial facts', 'stale trial revision',
+      'generate_series(1,50)', 'converted_to_paid_at', 'billing_account_access']) expect(sql.includes(token)).toBe(true)
+  })
 })

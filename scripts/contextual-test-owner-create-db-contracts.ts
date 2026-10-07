@@ -166,7 +166,7 @@ function quota253CatalogSql() {
  or quota_proc.prorettype::regtype::text<>'trigger' or quota_proc.provolatile<>'v'
  or quota_proc.prolang<>(select oid from pg_catalog.pg_language where lanname='plpgsql')
  or quota_proc.proconfig is distinct from array['search_path=""']::text[]
- or pg_catalog.md5(quota_proc.prosrc)<> 'cf66a5cbda0251600e26dbcfcda49ad2'
+ or pg_catalog.md5(quota_proc.prosrc)<> '8e21004e27de5796420497e475ab808b'
  or exists(select 1 from pg_catalog.aclexplode(coalesce(quota_proc.proacl,pg_catalog.acldefault('f',quota_proc.proowner))) quota_acl where quota_acl.privilege_type='EXECUTE' and quota_acl.grantee<>quota_proc.proowner)
  or not settings_table.relrowsecurity or settings_table.relowner::regrole::text<>'postgres'
  or exists(select 1 from pg_catalog.aclexplode(coalesce(settings_table.relacl,pg_catalog.acldefault('r',settings_table.relowner))) settings_acl where settings_acl.grantee<>settings_table.relowner)

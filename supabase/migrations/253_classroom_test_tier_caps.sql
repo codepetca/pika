@@ -23,6 +23,10 @@ declare
   v_owner_id uuid;
   v_locked_owner_id uuid;
   v_plan public.account_plans%rowtype;
+  v_access public.billing_account_access%rowtype;
+  v_trial public.billing_trials%rowtype;
+  v_trial_definition public.billing_trial_definitions%rowtype;
+  v_entitlement public.effective_feature_entitlements%rowtype;
   v_features jsonb;
   v_offering_plan text;
   v_limit numeric;
@@ -89,6 +93,66 @@ begin
     v_limit := case v_plan.plan_key
       when 'free' then 0 when 'basic' then 20 when 'plus' then 50 when 'pro' then 100
       else null end;
+  elsif v_plan.management_source = 'trial' and v_plan.billing_offering_version_id is null then
+    --215 writes trial assignments as plus, then Free upon applied expiry.
+    -- Its subject-plan lock also serializes the access and entitlement writer;
+    -- NOWAIT row locks fail closed for any out-of-protocol concurrent mutation.
+    select access.* into v_access from public.billing_account_access access
+      where access.subject_user_id = v_owner_id for share nowait;
+    if not found or v_access.source is distinct from 'trial'
+      or v_access.trial_subject_user_id is distinct from v_owner_id
+      or v_access.subscription_id is not null or v_access.offering_version_id is not null
+      or v_access.paid_period_start is not null or v_access.paid_through is not null
+      or v_access.last_paid_invoice_id is not null or v_access.failed_renewal_invoice_id is not null
+      or v_access.end_reason is distinct from 'trial'
+      or v_access.account_plan_revision is distinct from v_plan.revision then
+      raise exception using errcode = 'PTC02', message = 'classroom_test_quota_unavailable';
+    end if;
+    select trial.* into v_trial from public.billing_trials trial
+      where trial.subject_user_id = v_owner_id for share nowait;
+    if not found or v_trial.converted_to_paid_at is not null
+      or not pg_catalog.isfinite(v_trial.started_at) or not pg_catalog.isfinite(v_trial.ends_at)
+      or v_trial.ends_at is distinct from v_trial.started_at + interval '720 hours'
+      or v_access.starts_at is distinct from v_trial.started_at
+      or v_access.access_ends_at is distinct from v_trial.ends_at then
+      raise exception using errcode = 'PTC02', message = 'classroom_test_quota_unavailable';
+    end if;
+    select definition.* into v_trial_definition from public.billing_trial_definitions definition
+      where definition.id = v_trial.definition_id for share nowait;
+    if not found or v_trial_definition.plan_key is distinct from 'plus'
+      or v_trial_definition.classroom_limit is distinct from 5
+      or v_trial_definition.duration_seconds is distinct from 2592000 then
+      raise exception using errcode = 'PTC02', message = 'classroom_test_quota_unavailable';
+    end if;
+    select entitlement.* into v_entitlement from public.effective_feature_entitlements entitlement
+      where entitlement.subject_user_id = v_owner_id and entitlement.feature_key = 'classrooms.create'
+      for share nowait;
+    if not found or v_entitlement.source is distinct from 'trial'
+      or v_access.entitlement_revision is distinct from v_entitlement.revision then
+      raise exception using errcode = 'PTC02', message = 'classroom_test_quota_unavailable';
+    end if;
+    if v_plan.plan_key = 'plus' and v_access.expiry_applied_at is null then
+      if not v_entitlement.enabled or v_entitlement.quota_limit is distinct from 5
+        or v_entitlement.starts_at is distinct from v_access.starts_at
+        or v_entitlement.expires_at is distinct from v_trial.ends_at then
+        raise exception using errcode = 'PTC02', message = 'classroom_test_quota_unavailable';
+      end if;
+      v_limit := 50;
+      if pg_catalog.clock_timestamp() < v_trial.started_at
+        or pg_catalog.clock_timestamp() >= v_trial.ends_at then v_limit := 0; end if;
+    elsif v_plan.plan_key = 'free' and v_access.expiry_applied_at is not null then
+      if not pg_catalog.isfinite(v_access.expiry_applied_at)
+        or v_access.expiry_applied_at < v_trial.ends_at
+        or v_access.expiry_applied_at > pg_catalog.clock_timestamp()
+        or v_entitlement.enabled or v_entitlement.quota_limit is distinct from 0
+        or v_entitlement.starts_at is distinct from v_access.expiry_applied_at
+        or v_entitlement.expires_at is not null then
+        raise exception using errcode = 'PTC02', message = 'classroom_test_quota_unavailable';
+      end if;
+      v_limit := 0;
+    else
+      raise exception using errcode = 'PTC02', message = 'classroom_test_quota_unavailable';
+    end if;
   elsif v_plan.management_source = 'billing' and v_plan.billing_offering_version_id is not null then
     select version.features, offering.plan_key into v_features, v_offering_plan
       from public.stripe_billing_offering_versions version
@@ -118,6 +182,11 @@ begin
   -- Blueprint replacements. Existing classroom indexes support this count.
   select count(*) into v_count
     from public.tests test where test.classroom_id = new.classroom_id;
+  -- Recheck after the count so crossing the trial cutoff during source reads
+  -- cannot consume another slot before the expiry writer applies Free.
+  if v_plan.management_source = 'trial' and pg_catalog.clock_timestamp() >= v_trial.ends_at then
+    v_limit := 0;
+  end if;
   if v_count >= v_limit then
     raise exception using errcode = 'PTC01', message = 'classroom_test_quota_exhausted';
   end if;
