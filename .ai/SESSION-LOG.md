@@ -723,3 +723,19 @@ preserved. Batch16;18reviews/15targets/original05:04 clock/human waiver retained
 before targetedreview19. Native/CI inactive; canonical/prod applications,
 promotion and activation remain held. Worker approx16min elapsed; effective/
 active/tokens unknown, no savings claim.
+
+## 2026-10-07 — Reorder Assignment editor-session base reconciliation
+
+Progress diagnostic frozen224 independentSol6.1/high review CLEAN; source scopes,
+first-fault privacy, unchangedcaps and all10paths checked,918 focused/staticPASS
+reused. No new normal proof or notice-delivery acceptance. Published draft224;
+lifecycle45events/10 correction-sync pushes, all earlier failures retained.
+Main5405/#1518 Assignment editor async-session ownership merged; source/UI/hook/
+tests/doc only, eligible TestBuild/browser/PRGate SUCCESS, no schema/proof change.
+Clean18commit rebase to7eed resolved two archive-marker-only conflicts retaining
+main prefix; all2545 prior and2521 main entry occurrences retained in2564 current
+entries,32 reviewedfeature paths unchanged and7 incoming paths byte-exactmain.
+253 unique/SHA71ed/no rename or application;38 ordered stashes/digest6b73c9fb
+unchanged, no stash commands. Update currentmain and require focused/proportional
+base review before fresh native/types/forced/CI. Batch17;19reviews/16targets,
+original05:04 clock/human waiver/all canonical-prod-activation holds retained.
