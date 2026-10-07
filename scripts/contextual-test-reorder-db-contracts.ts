@@ -13,6 +13,14 @@ import {
 import type { DraftSaveDriver, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
 
 export const TEST_OWNER_REORDER_SOURCE_SHA256 = '6c58370f3234cce74a767cde1819a4d6af0265725cb69b843f54b4e8a9b55c6e' as const
+// Proof-only SQLSTATEs: never print PostgreSQL messages, rows or query context.
+// Unknown PT503 messages propagate unchanged; every mapped failure still aborts.
+export const TEST_OWNER_REORDER_BULK_FAILURE_CODES = Object.freeze({
+  PRD01: 'test_reorder_deadline', PRD02: 'test_reorder_source_limit',
+  PRD03: 'test_reorder_catalog_changed', PRD04: 'test_reorder_invalid_source',
+  PRD05: 'test_reorder_revision_limit', PRD06: 'test_reorder_postcondition_failed',
+  PRD07: 'test_reorder_result_limit',
+} as const)
 export const TEST_OWNER_REORDER_DB_CAPS = Object.freeze({ sqlBytes: 262144, responseBytes: 1048576, actionMs: 35000, requestMs: 12000, batches: 9 })
 export const TEST_OWNER_REORDER_TEST_COLUMNS = Object.freeze(['id','classroom_id','title','status','show_results','position',
   'points_possible','include_in_final','created_by','created_at','updated_at','documents','gradebook_weight','artifact_id','source_artifact_id',
@@ -154,7 +162,11 @@ function success(f: TestOwnerReorderFixture, label: string, noop = false) {
   return probe(label, `declare ids uuid[];r jsonb;operation_before jsonb;expected_graph jsonb;after_graph jsonb;expected_rows jsonb;table_name text;n bigint;c bigint;begin
  ids:=${input};n:=cardinality(ids);operation_before:=before_graph;${noop ? `perform ${call(c.actorId,c.classroomId,'ids')};operation_before:=pg_temp.owner_reorder_graph();` : ''}
  select count(*) into c from public.tests test join unnest(ids) with ordinality desired(id,ordinality) on desired.id=test.id where test.classroom_id=${q(c.classroomId)}::uuid and test.position is distinct from (n-desired.ordinality)::integer;
- r:=${call(c.actorId,c.classroomId,'ids')};
+ ${label === 'bulk-10000' ? `begin r:=${call(c.actorId,c.classroomId,'ids')};
+ exception when sqlstate 'PT503' then case sqlerrm
+ ${Object.entries(TEST_OWNER_REORDER_BULK_FAILURE_CODES).map(([code, message]) =>
+   `when ${q(message)} then raise exception using errcode=${q(code)},message='Reorder bulk-capacity proof failed';`).join('\n')}
+ else raise;end case;end;` : `r:=${call(c.actorId,c.classroomId,'ids')};`}
  if r is distinct from jsonb_build_object('version',1,'actor_id',${q(c.actorId)}::uuid,'classroom_id',${q(c.classroomId)}::uuid,'test_ids',to_jsonb(ids),
  'positions',(select coalesce(jsonb_agg((n-ordinality)::integer order by ordinality),'[]'::jsonb) from unnest(ids) with ordinality d(id,ordinality)),'count',n,'changed_count',c)
  ${noop ? 'or c<>0' : ''} then raise exception 'Reorder exact witness differs';end if;

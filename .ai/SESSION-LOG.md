@@ -529,3 +529,17 @@ heavy run, migration application, promotion, rollout activation or phase exit.
 Draft conversion subsequently cancelled the old remaining lanes through normal
 CI concurrency; no explicit runner/cancel command. Focused821/TSC/lint/policies
 PASS; final failed/cancelled run receipt retained before the new reviewed run.
+
+## 2026-10-07 — Reorder CI bulk-capacity failure diagnostics
+
+Reviewedb668 CI37584113261:14857PASS/8SKIP, build and browser PASS; database
+normal253 failedPT503 at21actions/308controls. Root+Sol/high independent trace
+identifies bulk10000 success dispatch. Setup/cleanup completed; no full receipt.
+Returned1515 to draft; watcher endedexit1. Deadline is likely, not observed.
+Added proof-only PRD01–07 exact-message SQLSTATEs for that success call; unknown
+PT503 remains unchanged, all failures abort. Raw PostgreSQL messages stay hidden.
+TDD caught a code collision with252; switched to a disjoint finite namespace.
+232 affected/831 focused checks, TypeScript/lint/policies PASS. Product SQL/HTTP/types, dense10000 workload,
+8s/20s deadlines, trigger closure and all caps unchanged. Source review/actual
+proof/new exact-head CI remain gates; no source fix or merge success claimed.
+Canonical/prod249–253, promotion and all activation remain held. Counters carried.

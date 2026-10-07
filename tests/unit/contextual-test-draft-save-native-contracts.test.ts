@@ -427,6 +427,15 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
     expect(adapter.diagnostic()).not.toMatch(/PRIVATE|secret|row/)
   })
+  it.each(Array.from({ length: 9 }, (_, index) => {
+    const number = index + 1, code = `PRD${String(number).padStart(2, '0')}`
+    return [code, number <= 7 ? code : 'unknown']
+  }))('keeps only emitted253 bulk failure codes without rendering source rows %s', async (code, expected) => {
+    const adapter = publicationFactory(); setupExit = true; stderrChunks = [`PRIVATE secret row\nERROR: ${code}\n`]
+    await expect(adapter.setup()).rejects.toThrow()
+    expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
+    expect(adapter.diagnostic()).not.toMatch(/PRIVATE|secret|row/)
+  })
   it('rejects changed250 bytes before SDK guard or native work dispatch', async () => {
     const adapter = createFactory(); await adapter.setup()
     const childrenBefore = children.length, sqlBefore = sqlControls.length

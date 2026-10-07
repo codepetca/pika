@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerReorderFixture } from '../../scripts/contextual-test-reorder-proof-fixture'
 import {
-  TEST_OWNER_REORDER_SOURCE_SHA256, TEST_OWNER_REORDER_DB_CAPS, TEST_OWNER_REORDER_TEST_COLUMNS,
+  TEST_OWNER_REORDER_SOURCE_SHA256, TEST_OWNER_REORDER_DB_CAPS, TEST_OWNER_REORDER_TEST_COLUMNS, TEST_OWNER_REORDER_BULK_FAILURE_CODES,
   testOwnerReorderDbContractsManifest, runTestOwnerReorderDbContracts,
 } from '../../scripts/contextual-test-reorder-db-contracts'
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
@@ -23,6 +23,25 @@ function target(): DraftSaveTarget {
 }
 
 describe('inert contextual Test reorder database contracts', () => {
+  it('reports only fixed bulk-capacity SQL failures without weakening the success probe', () => {
+    expect(TEST_OWNER_REORDER_BULK_FAILURE_CODES).toEqual({
+      PRD01: 'test_reorder_deadline', PRD02: 'test_reorder_source_limit',
+      PRD03: 'test_reorder_catalog_changed', PRD04: 'test_reorder_invalid_source',
+      PRD05: 'test_reorder_revision_limit', PRD06: 'test_reorder_postcondition_failed',
+      PRD07: 'test_reorder_result_limit',
+    })
+    expect(Object.isFrozen(TEST_OWNER_REORDER_BULK_FAILURE_CODES)).toBe(true)
+    const bulk = manifest.contracts.find(batch => batch.name === 'bulk-10000')!
+    for (const [code, message] of Object.entries(TEST_OWNER_REORDER_BULK_FAILURE_CODES)) {
+      expect(bulk.sql).toContain(`when '${message}' then raise exception using errcode='${code}',message='Reorder bulk-capacity proof failed';`)
+    }
+    expect(bulk.sql).toContain("exception when sqlstate 'PT503' then case sqlerrm")
+    expect(bulk.sql).toContain('else raise;end case;end;')
+    expect(bulk.sql).toContain('Reorder exact witness differs')
+    expect(bulk.sql).toContain('Reorder full effect graph differs')
+    expect(bulk.sql).toContain("clock_timestamp()+interval '8 seconds'")
+    expect(manifest.contracts.filter(batch => batch.sql.includes('Reorder bulk-capacity proof failed')).map(batch => batch.name)).toEqual(['bulk-10000'])
+  })
   it('pins the exact source and emits finite frozen rollback batches', () => {
     expect(TEST_OWNER_REORDER_SOURCE_SHA256).toBe('6c58370f3234cce74a767cde1819a4d6af0265725cb69b843f54b4e8a9b55c6e')
     expect(digest(readFileSync('supabase/migrations/253_contextual_test_owner_reorder.sql', 'utf8'))).toBe(TEST_OWNER_REORDER_SOURCE_SHA256)

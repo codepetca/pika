@@ -126,3 +126,20 @@ Independent risk-matched stable-SHA review, focused checks and final exact-head
 PR Gate remain required before normal main merge. Canonical local/production
 migrations249 onward, production promotion and all rollout/account/billing/
 provider controls remain held; no UI adopter or activation in this slice.
+
+## CI bulk-capacity diagnosis — 2026-10-07
+
+PR1515's reviewedb668 CI37584113261 passed14857 tests (8 skipped), build and
+browser checks, but the reorder normal proof failed with PT503 at the
+bulk10000 success dispatch (21 actions/308 controls). Earlier accepted local
+proofs remain historical evidence; they do not substitute for this failed CI.
+The underlying PT503 reason is not yet observed. The dense fixture changes all
+10000 positions and inherits10000 Classroom and20000 archive-revision writes.
+
+The proof now maps only seven exact known PT503 messages to fixed PRD01–07
+SQLSTATEs for this dispatch: deadline, source limit, catalog drift, invalid
+source, revision limit, postcondition and result limit respectively. Unknown
+messages retain PT503; every mapped error still aborts. This exposes no raw
+PostgreSQL message, query, row or context. The product RPC, workload,8s/20s
+deadlines, byte/action caps, one-update and sealed trigger contracts are unchanged.
+No capacity/performance relaxation or native/CI acceptance is implied.

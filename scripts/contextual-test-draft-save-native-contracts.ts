@@ -31,7 +31,7 @@ import { TEST_OWNER_PUBLICATION_DB_CHECK_LABELS, testOwnerPublicationDbContracts
 import { testOwnerPublicationConcurrencyManifest, validateTestOwnerPublicationConcurrencySql, runTestOwnerPublicationConcurrency,
   testOwnerPublicationCommittedManifest, validateTestOwnerPublicationCommittedSql, runTestOwnerPublicationCommittedTransitions } from './check-contextual-test-publication-concurrency'
 import { newTestOwnerReorderFixture, testOwnerReorderSnapshotSql, type TestOwnerReorderFixture } from './contextual-test-reorder-proof-fixture'
-import { TEST_OWNER_REORDER_SOURCE_SHA256, testOwnerReorderDbContractsManifest, runTestOwnerReorderDbContracts } from './contextual-test-reorder-db-contracts'
+import { TEST_OWNER_REORDER_SOURCE_SHA256, TEST_OWNER_REORDER_BULK_FAILURE_CODES, testOwnerReorderDbContractsManifest, runTestOwnerReorderDbContracts } from './contextual-test-reorder-db-contracts'
 import { testOwnerReorderConcurrencyManifest, validateTestOwnerReorderConcurrencySql, runTestOwnerReorderConcurrency } from './check-contextual-test-reorder-concurrency'
 import { testOwnerReorderCommittedManifest, validateTestOwnerReorderCommittedSql, runTestOwnerReorderCommittedTransitions } from './check-contextual-test-reorder-committed'
 
@@ -42,7 +42,8 @@ const contextTemplate = '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .
 const sqlstates = new Set(['PT400', 'PT403', 'PT404', 'PT409', 'PT499', 'PT503', '42501', '55P03', '40P01', '40001', '57014',
   'P0001', '23502', '23503', '23505', '23514', '22P02', '25P02', '57P01', '57P02', '57P03', ...Object.keys(TEST_OWNER_CREATE_FAILURE_LABELS), ...Object.keys(TEST_OWNER_PRISTINE_DISCARD_FAILURE_LABELS),
   // The six catalog checks share P2501; only the later probes emit P2507–48.
-  'P2501', ...TEST_OWNER_PUBLICATION_DB_CHECK_LABELS.slice(6, -1).map((_, index) => `P25${String(index + 7).padStart(2, '0')}`)])
+  'P2501', ...TEST_OWNER_PUBLICATION_DB_CHECK_LABELS.slice(6, -1).map((_, index) => `P25${String(index + 7).padStart(2, '0')}`),
+  ...Object.keys(TEST_OWNER_REORDER_BULK_FAILURE_CODES)])
 type Phase = 'idle' | 'setup' | 'privilege' | 'snapshot' | 'contracts' | 'contracts-verify' | 'races' | 'races-verify' | 'transitions' | 'complete'
 type Role = 'none' | 'fixture' | 'contracts' | 'holder' | 'contender'
 type Fault = 'guard' | 'timeout' | 'child-exit' | 'protocol' | 'budget' | 'unknown'
