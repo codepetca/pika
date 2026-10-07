@@ -1,9 +1,24 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DialogEntryPattern } from '@/app/__ui/DialogEntryPattern'
 
 describe('experimental dialog entry fixture', () => {
+  beforeEach(() => {
+    const originalComputedStyle = window.getComputedStyle.bind(window)
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+      const style = originalComputedStyle(element)
+      style.setProperty('--motion-duration-standard', '180ms')
+      return style
+    })
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
   it.each(['teacher', 'student'] as const)('exposes both entries and canonical immediate focus for %s', async (role) => {
     const user = userEvent.setup()
     render(<DialogEntryPattern role={role} />)
@@ -49,7 +64,9 @@ describe('experimental dialog entry fixture', () => {
     expect(within(dialog).getByText('Metadata revision: 1')).toBeInTheDocument()
     expect(within(dialog).getByText('Entry: Quiet')).toBeInTheDocument()
     await user.keyboard('{Escape}')
-    expect(input).not.toBeInTheDocument()
+    expect(input).toBeInTheDocument()
+    expect(input.closest('[data-modal-state="closing"]')).toHaveAttribute('aria-hidden', 'true')
+    await waitFor(() => expect(input).not.toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: 'Open immediate dialog entry' }))
     expect(screen.getByRole('textbox', { name: 'Dialog entry draft' })).toHaveValue('Retained classroom note')
     expect(screen.getByText('Entry: Immediate')).toBeInTheDocument()
@@ -93,13 +110,47 @@ describe('experimental dialog entry fixture', () => {
     expect(opener.closest('[aria-hidden="true"]')).toBeNull()
   })
 
-  it('dismisses from the actual backdrop without retaining the panel', async () => {
+  it('dismisses from the actual backdrop immediately while retaining an inert visual exit', async () => {
     const user = userEvent.setup()
     render(<DialogEntryPattern role="teacher" />)
     const opener = screen.getByRole('button', { name: 'Open quiet dialog entry' })
     await user.click(opener)
+    const panel = screen.getByRole('dialog')
     await user.click(screen.getByRole('button', { name: 'Close dialog', exact: true }))
+    expect(panel).toBeInTheDocument()
+    expect(panel.parentElement!.inert).toBe(true)
+    await waitFor(() => expect(panel).not.toBeInTheDocument())
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(opener).toHaveFocus()
   })
+
+  it('retains the quiet mode and draft during exit, cancels it on rapid reopen, and keeps immediate mode immediate', () => {
+    vi.useFakeTimers()
+    render(<DialogEntryPattern role="teacher" />)
+    const quiet = screen.getByRole('button', { name: 'Open quiet dialog entry' })
+    quiet.focus()
+    fireEvent.click(quiet)
+    const panel = screen.getByRole('dialog', { name: 'Dialog entry preview' })
+    const input = screen.getByRole('textbox', { name: 'Dialog entry draft' })
+    fireEvent.change(input, { target: { value: 'Retained draft' } })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(panel).toBeInTheDocument()
+    expect(within(panel).getByText('Entry: Quiet')).toBeInTheDocument()
+    expect(input).toHaveValue('Retained draft')
+    expect(quiet).toHaveFocus()
+    fireEvent.click(quiet)
+    expect(screen.getByRole('dialog', { name: 'Dialog entry preview' })).toBe(panel)
+    act(() => vi.advanceTimersByTime(180))
+    expect(panel).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    act(() => vi.advanceTimersByTime(180))
+    expect(panel).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open immediate dialog entry' }))
+    const immediate = screen.getByRole('dialog', { name: 'Dialog entry preview' })
+    expect(screen.getByRole('textbox', { name: 'Dialog entry draft' })).toHaveValue('Retained draft')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(immediate).not.toBeInTheDocument()
+  })
+
 })

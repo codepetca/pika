@@ -16,7 +16,9 @@ interface EntryTrace {
   mountedAt: number
   starts: number
   frames: Frame[]
-  fast?: { command: Command; before: Frame; followingPaint: { connected: boolean; focusReturned: boolean; isolated: boolean; overflow: string; pageY: number; at: number } }
+  fast?: { command: Command; before: Frame; followingPaint: { connected: boolean; focusReturned: boolean; isolated: boolean; overflow: string; pageY: number; at: number; inert: boolean; ariaHidden: string | null; ariaModal: string | null; pointerEvents: string } }
+  exitFrames?: Array<{ at: number; rootOpacity: number; panelOpacity: number; effectiveOpacity: number }>
+  physicallyRemovedAt?: number
 }
 interface Probe {
   traces: EntryTrace[]
@@ -74,13 +76,28 @@ export async function installDialogEntryProbe(page: Page) {
           } else {
             Array.from(panel!.querySelectorAll('button')).find((button) => button.textContent === 'Select fixture destination')!.click()
           }
-          trace.fast = { command, before, followingPaint: { connected: true, focusReturned: false, isolated: true, overflow: '', pageY: 0, at: 0 } }
-          requestAnimationFrame(() => {
-            trace.fast!.followingPaint = {
-              connected: panel!.isConnected, focusReturned: document.activeElement === probe.opener,
-              isolated: Boolean(document.querySelector('[data-testid="dialog-entry-pattern"]')?.closest('[inert]')),
-              overflow: document.body.style.overflow, pageY: window.scrollY, at: performance.now(),
+          trace.fast = { command, before, followingPaint: { connected: true, focusReturned: false, isolated: true, overflow: '', pageY: 0, at: 0, inert: false, ariaHidden: null, ariaModal: 'true', pointerEvents: '' } }
+          const root = panel!.parentElement!
+          trace.exitFrames = []
+          requestAnimationFrame(function observeExit() {
+            const at = performance.now()
+            if (trace.fast!.followingPaint.at === 0) {
+              trace.fast!.followingPaint = {
+                connected: panel!.isConnected, focusReturned: document.activeElement === probe.opener,
+                isolated: Boolean(document.querySelector('[data-testid="dialog-entry-pattern"]')?.closest('[inert]')),
+                overflow: document.body.style.overflow, pageY: window.scrollY, at,
+                inert: root.inert, ariaHidden: root.getAttribute('aria-hidden'),
+                ariaModal: panel!.getAttribute('aria-modal'), pointerEvents: getComputedStyle(root).pointerEvents,
+              }
             }
+            if (!panel!.isConnected) {
+              trace.physicallyRemovedAt = at
+              return
+            }
+            const rootOpacity = Number(getComputedStyle(root).opacity)
+            const panelOpacity = Number(getComputedStyle(panel!).opacity)
+            trace.exitFrames!.push({ at, rootOpacity, panelOpacity, effectiveOpacity: rootOpacity * panelOpacity })
+            if (at - before.at < 600) requestAnimationFrame(observeExit)
           })
           return
         }
@@ -227,8 +244,10 @@ export async function verifyDialogEntry(page: Page, testInfo: TestInfo, role: 't
       await expect(dialog).toHaveCount(0)
       await expect(opener).toBeFocused()
       await assertRestored(page, original)
-      expect(await node!.evaluate((element) => element.isConnected)).toBe(false)
+      // Logical close is already asserted above; retained presentation must then physically leave.
+      await expect.poll(() => node!.evaluate((element) => element.isConnected), { timeout: 2_000 }).toBe(false)
       await openEntry(page, mode)
+      const reopenedPanel = await dialog.elementHandle()
       await expect(input).toHaveValue(retainedDraft)
       expect(await input.evaluate((element, originalNode) => element === originalNode, node)).toBe(false)
       await captureDialogEntry(page, testInfo, `${mode}-reopen`)
@@ -240,6 +259,8 @@ export async function verifyDialogEntry(page: Page, testInfo: TestInfo, role: 't
       await expect(dialog).toHaveCount(0)
       await expect(opener).toBeFocused()
       await assertRestored(page, original)
+      await expect.poll(() => reopenedPanel!.evaluate((element) => element.isConnected), { timeout: 2_000 }).toBe(false)
+      await reopenedPanel!.dispose()
       stateEvidence.push({ mode, scrollTop, retainedDraft, originalNodeDisconnectedOnClose: true, newNodeOnReopen: true })
     }
     const natural = await page.evaluate(() => window.dialogEntryProbe.traces)
@@ -280,7 +301,22 @@ export async function verifyDialogEntry(page: Page, testInfo: TestInfo, role: 't
           expect(fast.before.animations[0]).toMatchObject({ playState: 'running', duration: 200 })
           expect(fast.before.animations[0].currentTime).toBeLessThan(200)
         } else expect(fast.before.animations).toEqual([])
-        expect(fast.followingPaint).toMatchObject({ connected: false, focusReturned: true, isolated: false, overflow: original.overflow, pageY: original.pageY })
+        expect(fast.followingPaint).toMatchObject({ focusReturned: true, isolated: false, overflow: original.overflow, pageY: original.pageY })
+        if (mode === 'quiet' && motion === 'no-preference') {
+          // A late browser frame may land after the real duration; never invent an intermediate frame.
+          if (fast.followingPaint.at - fast.before.at < 200) {
+            expect(fast.followingPaint).toMatchObject({ connected: true, inert: true, ariaHidden: 'true', ariaModal: null, pointerEvents: 'none' })
+          }
+          await page.waitForFunction(() => window.dialogEntryProbe.traces.at(-1)?.physicallyRemovedAt, undefined, { timeout: 2_000, polling: 'raf' })
+          const finished = await page.evaluate(() => window.dialogEntryProbe.traces.at(-1)!)
+          expect(finished.exitFrames!.some((frame) => frame.rootOpacity > 0 && frame.rootOpacity < 1)).toBe(true)
+          for (let index = 1; index < finished.exitFrames!.length; index += 1) {
+            expect(finished.exitFrames![index].effectiveOpacity).toBeLessThanOrEqual(finished.exitFrames![index - 1].effectiveOpacity + 0.01)
+          }
+          expect(finished.physicallyRemovedAt! - fast.before.at).toBeGreaterThanOrEqual(190)
+        } else {
+          expect(fast.followingPaint.connected).toBe(false)
+        }
         if (command === 'destination') await expect(page.getByTestId('dialog-entry-destination')).toHaveText(`Fixture destination selected: ${role === 'teacher' ? 'Teacher dashboard' : 'Student history'}`)
       }
     }
@@ -290,7 +326,7 @@ export async function verifyDialogEntry(page: Page, testInfo: TestInfo, role: 't
     expect(errors).toEqual([])
     expect(consoleErrors).toEqual([])
   } finally {
-    const receipt = { role, motion, project: testInfo.project.name, viewport, scope: 'development-only shared ContentDialog/ModalLayer presentations; no authenticated route, backend or production performance claim', commands: 'Synthetic real-handler command checks at first rAF; removal and environment sampled at following rAF', stateEvidence, apiRequests, writes, errors, consoleErrors, traces: await page.evaluate(() => window.dialogEntryProbe.traces) }
+    const receipt = { role, motion, project: testInfo.project.name, viewport, scope: 'development-only shared ContentDialog/ModalLayer entry and explicit opacity-exit presentations; no authenticated route, backend or production performance claim', commands: 'Synthetic real-handler command checks at first rAF; immediate logical close and natural physical exit sampled on subsequent frames', stateEvidence, apiRequests, writes, errors, consoleErrors, traces: await page.evaluate(() => window.dialogEntryProbe.traces) }
     const path = testInfo.outputPath('dialog-entry-receipt.json')
     await writeFile(path, JSON.stringify(receipt, null, 2))
     await testInfo.attach('dialog-entry-receipt', { path, contentType: 'application/json' })

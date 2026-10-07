@@ -23,6 +23,8 @@ const READING_PARAGRAPHS = [
 /** Development-only composition. Entry mode belongs to this fixture, not the dialog owner. */
 export function DialogEntryPattern({ role }: { role: Role }) {
   const [entry, setEntry] = useState<EntryMode | null>(null)
+  // Keep the selected exit contract when logical close clears the entry.
+  const [exitMotion, setExitMotion] = useState<'none' | 'opacity'>('none')
   const [draft, setDraft] = useState('Explain how the example supports your conclusion.')
   const [metadataRevision, setMetadataRevision] = useState(0)
   const [nestedOpen, setNestedOpen] = useState(false)
@@ -43,16 +45,17 @@ export function DialogEntryPattern({ role }: { role: Role }) {
   return (
     <PageDensityProvider density={role}>
       <div data-testid="dialog-entry-pattern" className="space-y-3">
-        <p className="text-sm text-text-muted">Experimental · development-only. Compare immediate entry with quiet 200ms opacity entry.</p>
+        <p className="text-sm text-text-muted">Experimental · development-only. Compare immediate entry and dismissal with quiet 200ms opacity entry and dismissal.</p>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="surface" onClick={() => setEntry('immediate')}>Open immediate dialog entry</Button>
-          <Button type="button" variant="surface" onClick={() => setEntry('quiet')}>Open quiet dialog entry</Button>
+          <Button type="button" variant="surface" onClick={() => { setExitMotion('none'); setEntry('immediate') }}>Open immediate dialog entry</Button>
+          <Button type="button" variant="surface" onClick={() => { setExitMotion('opacity'); setEntry('quiet') }}>Open quiet dialog entry</Button>
         </div>
         <p role="status" data-testid="dialog-entry-destination" className="text-sm text-text-muted">
           {destination ? `Fixture destination selected: ${destination}` : 'No fixture destination selected.'}
         </p>
         <ContentDialog
           isOpen={entry !== null}
+          exitMotion={exitMotion}
           onClose={closePreview}
           title="Dialog entry preview"
           subtitle={`${presentation} presentation · local fixture`}
@@ -81,6 +84,7 @@ export function DialogEntryPattern({ role }: { role: Role }) {
         </ContentDialog>
         <ContentDialog
           isOpen={nestedOpen}
+          exitMotion={exitMotion}
           onClose={() => setNestedOpen(false)}
           title="Dialog entry nested confirmation"
           maxWidth="max-w-sm"

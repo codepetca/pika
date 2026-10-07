@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   ContentDialog,
+  ConfirmDialog,
   QrCode,
   FormField,
   Input,
@@ -173,6 +174,8 @@ export function UiGallery({ role }: Props) {
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable')
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [confirmationOpen, setConfirmationOpen] = useState(false)
+  const [exampleConfirmed, setExampleConfirmed] = useState(false)
   const referenceRoutes = REFERENCE_ROUTES[role]
   const navigationDestinations = getPatternLabDestinations(role)
   const quickLinkIds = role === 'teacher'
@@ -505,7 +508,11 @@ export function UiGallery({ role }: Props) {
                 <Button type="button" variant="surface" size="sm" onClick={() => setDialogOpen(true)}>
                   Open alert dialog
                 </Button>
+                <Button type="button" variant="surface" size="sm" onClick={() => setConfirmationOpen(true)}>
+                  Open confirmation dialog
+                </Button>
                 <span className="text-xs text-text-muted">Dialogs preserve focus, Escape, and overlay ownership.</span>
+                {exampleConfirmed ? <span role="status" className="text-xs text-text-muted">Local example confirmed.</span> : null}
                 <QrSizingExample />
               </div>
             </Card>
@@ -736,6 +743,17 @@ export function UiGallery({ role }: Props) {
         description="This dialog is rendered by the canonical shared owner."
         variant="success"
         buttonLabel="Close example"
+      />
+      <ConfirmDialog
+        isOpen={confirmationOpen}
+        onCancel={() => setConfirmationOpen(false)}
+        onConfirm={() => {
+          setExampleConfirmed(true)
+          setConfirmationOpen(false)
+        }}
+        title="Confirm local example"
+        description="Confirm this example to update the local feedback."
+        confirmLabel="Confirm example"
       />
     </main>
   )

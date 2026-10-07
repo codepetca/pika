@@ -26,6 +26,24 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('returns focus and confirms only the explicit local action for %s', async (role) => {
+    const user = userEvent.setup()
+    renderGallery(role)
+    const opener = screen.getByRole('button', { name: 'Open confirmation dialog' })
+    await user.click(opener)
+    let dialog = screen.getByRole('dialog', { name: 'Confirm local example' })
+    expect(dialog).toHaveAccessibleDescription('Confirm this example to update the local feedback.')
+    await user.keyboard('{Escape}')
+    expect(opener).toHaveFocus()
+    expect(screen.queryByText('Local example confirmed.')).not.toBeInTheDocument()
+    await user.click(opener)
+    dialog = screen.getByRole('dialog', { name: 'Confirm local example' })
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm example' }))
+    expect(screen.queryByRole('dialog', { name: 'Confirm local example' })).not.toBeInTheDocument()
+    expect(opener).toHaveFocus()
+    expect(screen.getByText('Local example confirmed.')).toHaveAttribute('role', 'status')
+  })
+
   it.each(['teacher', 'student'] as const)('keeps survey summaries accessible alongside retained interaction previews for %s', (role) => {
     renderGallery(role)
     const survey = within(screen.getByTestId('pattern-section-survey-results'))
