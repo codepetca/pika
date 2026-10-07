@@ -634,3 +634,21 @@ historical, scalar candidate performance unmeasured. Original05:04 clock and13
 launches/10 targets/1 initial/1 final/10 fixes retained; reconciliation batch11.
 Human workflow-stop waiver persists. Canonical/prod249–253, promotion and all
 admission/home/page/cutover/billing/account/provider/runner/visibility holds remain.
+
+## 2026-10-07 — Reorder proof-only deadline checkpoints
+
+Reviewed b8 local normal/types/both forced cleanup PASS; seventh eligible CI
+37621234779 again failed bulk10000 PRD01, with test/build/browser PASS and exact
+cleanup/canonical preservation PASS. PR1515 returned to draft; no release.
+Bounded GPT-6.1 Sol/high read-only diagnosis accepted after root source/PG17
+verification. Add fixed PRD11–16 for six exact source-bound first RPC RAISE
+frames; bounded private context discarded, unknown fallback PRD01. Existing
+expired-deadline probe calibrates actual format and rejection cases; no extra
+probes, product SQL, deadlines, workload, triggers, types or limits changed.
+TDD eight RED then160 narrow PASS;846 focused/32 files and all static/audit
+checks PASS. Targeted review and fresh native proofs still required. Fourteen
+prior review launches/11 targeted/11
+fix-sync batches and original05:04 clock retained; this is batch12, next targeted
+review launch15. Human waiver persists; all canonical/prod/rollout holds remain.
+Worker elapsed approx10min; effective model/active time/tokens unknown; no
+savings claim. Root owns implementation, Git and acceptance.

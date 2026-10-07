@@ -5,6 +5,7 @@ import { newAssignmentListProofFixture } from '../../scripts/contextual-assignme
 import { newTestOwnerReorderFixture } from '../../scripts/contextual-test-reorder-proof-fixture'
 import {
   TEST_OWNER_REORDER_SOURCE_SHA256, TEST_OWNER_REORDER_DB_CAPS, TEST_OWNER_REORDER_TEST_COLUMNS, TEST_OWNER_REORDER_BULK_FAILURE_CODES,
+  TEST_OWNER_REORDER_DEADLINE_PHASE_CODES,
   testOwnerReorderDbContractsManifest, runTestOwnerReorderDbContracts,
 } from '../../scripts/contextual-test-reorder-db-contracts'
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
@@ -32,7 +33,7 @@ describe('inert contextual Test reorder database contracts', () => {
     })
     expect(Object.isFrozen(TEST_OWNER_REORDER_BULK_FAILURE_CODES)).toBe(true)
     const bulk = manifest.contracts.find(batch => batch.name === 'bulk-10000')!
-    for (const [code, message] of Object.entries(TEST_OWNER_REORDER_BULK_FAILURE_CODES)) {
+    for (const [code, message] of Object.entries(TEST_OWNER_REORDER_BULK_FAILURE_CODES).filter(([code]) => code !== 'PRD01')) {
       expect(bulk.sql).toContain(`when '${message}' then raise exception using errcode='${code}',message='Reorder bulk-capacity proof failed';`)
     }
     expect(bulk.sql).toContain("exception when sqlstate 'PT503' then case sqlerrm")
@@ -41,6 +42,38 @@ describe('inert contextual Test reorder database contracts', () => {
     expect(bulk.sql).toContain('Reorder full effect graph differs')
     expect(bulk.sql).toContain("clock_timestamp()+interval '8 seconds'")
     expect(manifest.contracts.filter(batch => batch.sql.includes('Reorder bulk-capacity proof failed')).map(batch => batch.name)).toEqual(['bulk-10000'])
+  })
+  it('classifies only bounded first-frame deadline checkpoints and calibrates the unchanged expired-deadline probe', () => {
+    expect(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES).toEqual({
+      PRD11: 50, PRD12: 121, PRD13: 212, PRD14: 229, PRD15: 288, PRD16: 298,
+    })
+    expect(Object.isFrozen(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES)).toBe(true)
+    const source = readFileSync('supabase/migrations/253_contextual_test_owner_reorder.sql', 'utf8')
+    const body = source.split('as $function$')[1].split('$function$')[0]
+    expect(body.split('\n').flatMap((line, index) => line.includes("message = 'test_reorder_deadline'") ? [index+1] : []))
+      .toEqual(Object.values(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES))
+    const bulk = manifest.contracts.find(batch => batch.name === 'bulk-10000')!.sql
+    expect(bulk).toContain('get stacked diagnostics deadline_context=pg_exception_context;')
+    expect(bulk).toContain('pg_catalog.octet_length(deadline_context)<=8192')
+    expect(bulk).toContain("pg_catalog.split_part(deadline_context,E'\\n',1)")
+    for (const [code, line] of Object.entries(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES)) {
+      for (const schema of ['', 'public.']) {
+        expect(bulk).toContain(`when 'PL/pgSQL function ${schema}reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone) line ${line} at RAISE' then '${code}'`)
+      }
+    }
+    expect(bulk).toContain("else 'PRD01' end else 'PRD01' end")
+    expect(bulk).toContain("deadline_context:=null;raise exception using errcode=deadline_code,message='Reorder bulk-capacity proof failed';")
+    const calibration = manifest.contracts.find(batch => batch.expectedResult.checks.includes('deadline-reached'))!.sql
+    expect(calibration).toContain("clock_timestamp()-interval '1 millisecond'")
+    expect(calibration).toContain("if deadline_code is distinct from 'PRD11' then")
+    expect(calibration).toContain('Deadline classifier calibration differs')
+    expect(calibration).toContain('Deadline classifier rejection differs')
+    for (const rejected of ['private.reorder_tests_for_owner_v1', 'line 51 at RAISE', 'line 50 at PERFORM', 'forged prefix',
+      'uuid,uuid,text[]', 'foreign frame', 'trailing private data', 'line 050']) {
+      expect(calibration).toContain(rejected)
+    }
+    expect(calibration).toContain("repeat('x',8193)")
+    expect(bulk).not.toMatch(/raise (?:notice|warning)|message\s*=\s*deadline_context|detail\s*=|hint\s*=/i)
   })
   it('pins the exact source and emits finite frozen rollback batches', () => {
     expect(TEST_OWNER_REORDER_SOURCE_SHA256).toBe('71ed984850fdcf7205ddf9245f4dfc89dc8102caf3dcee0772104eb0f0e94006')

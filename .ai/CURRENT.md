@@ -17,7 +17,8 @@ Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Discard251: #1503/865d837b7; exact9c391 CI37435496517 all5PASS.
 Publication#1510 merged473a5de8a: reviewed2f3/CI37564268228 all5PASS.
 Native25249/12/5/10 PASS/types; legacyPATCH/UI unchanged.
-Next: reorder253 scalar-byte optimization/proof.249–253 unapplied.
+Next: reorder253 proof-only deadline checkpoint diagnosis; CI capacity unresolved.
+249–253 unapplied; legacy reorder/UI unchanged.
 No phase exit; `docs/guidance/contextual-test-reorder.md`.
 
 B1–B5 retained; native252 cleanup/all183-table,5-field B5 PASS.

@@ -427,9 +427,9 @@ describe('native persistent-session transport with offline child mocks', () => {
     expect(adapter.diagnostic()).toContain(`sqlstate=${expected} `)
     expect(adapter.diagnostic()).not.toMatch(/PRIVATE|secret|row/)
   })
-  it.each(Array.from({ length: 9 }, (_, index) => {
+  it.each(Array.from({ length: 18 }, (_, index) => {
     const number = index + 1, code = `PRD${String(number).padStart(2, '0')}`
-    return [code, number <= 7 ? code : 'unknown']
+    return [code, number <= 7 || (number >= 11 && number <= 16) ? code : 'unknown']
   }))('keeps only emitted253 bulk failure codes without rendering source rows %s', async (code, expected) => {
     const adapter = publicationFactory(); setupExit = true; stderrChunks = [`PRIVATE secret row\nERROR: ${code}\n`]
     await expect(adapter.setup()).rejects.toThrow()
@@ -471,6 +471,7 @@ describe('native persistent-session transport with offline child mocks', () => {
     [['PRIVATE secret\nERR', 'OR:  57', '014\n'], '57014'],
     [['FAT', 'AL: PT409\nPRIVATE secret\n'], 'PT409'],
     [['ERROR: ZZ999\nPRIVATE secret\n'], 'unknown'],
+    [['PRIVATE row\nERR', 'OR: PR', 'D14\nPRIVATE context\n'], 'PRD14'],
     [['PRIVATE token ERROR: 42501 extra secret\n'], 'unknown'],
   ] as const)('reports only allowlisted SQLSTATE after split stderr and child exit %s', async (chunks, code) => {
     const adapter = factory(); setupExit = true; stderrChunks = [...chunks]

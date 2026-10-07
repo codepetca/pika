@@ -21,6 +21,11 @@ export const TEST_OWNER_REORDER_BULK_FAILURE_CODES = Object.freeze({
   PRD05: 'test_reorder_revision_limit', PRD06: 'test_reorder_postcondition_failed',
   PRD07: 'test_reorder_result_limit',
 } as const)
+// Cumulative deadline checkpoints, NOT per-query timings. Body-relative RAISE
+// lines are bound to the exact migration SHA and verified during manifest build.
+export const TEST_OWNER_REORDER_DEADLINE_PHASE_CODES = Object.freeze({
+  PRD11: 50, PRD12: 121, PRD13: 212, PRD14: 229, PRD15: 288, PRD16: 298,
+} as const)
 export const TEST_OWNER_REORDER_DB_CAPS = Object.freeze({ sqlBytes: 262144, responseBytes: 1048576, actionMs: 35000, requestMs: 12000,
   logicalGroups: 9, batches: 27, probesPerBatch: 2 })
 export const TEST_OWNER_REORDER_TEST_COLUMNS = Object.freeze(['id','classroom_id','title','status','show_results','position',
@@ -39,6 +44,38 @@ const j = (value: unknown) => `${q(JSON.stringify(value))}::jsonb`
 function freeze<T>(value: T): T { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) } return value }
 function bounded(sql: string) { assert(Buffer.byteLength(sql) <= TEST_OWNER_REORDER_DB_CAPS.sqlBytes, 'Reorder SQL action exceeds fixed cap'); return sql }
 const issued = new WeakSet<object>()
+const deadlineFrame = (line: number, schema = '') =>
+  `PL/pgSQL function ${schema}reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone) line ${line} at RAISE`
+// SQL-only private context: exact first frame, never later query text/frames.
+// Unknown/localized/oversized context keeps the original generic deadline code.
+function deadlineCodeSql() {
+  return `case when pg_catalog.octet_length(deadline_context)<=8192 then case pg_catalog.split_part(deadline_context,E'\\n',1)
+ ${Object.entries(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES).flatMap(([code, line]) =>
+   ['', 'public.'].map(schema => `when ${q(deadlineFrame(line, schema))} then ${q(code)}`)).join('\n')}
+ else 'PRD01' end else 'PRD01' end`
+}
+function deadlineCalibration(rpc: string) {
+  const positive = Object.entries(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES).flatMap(([code, line]) =>
+    ['', 'public.'].map(schema => `(${q(deadlineFrame(line, schema))},${q(code)})`))
+  const frame = deadlineFrame(50)
+  const rejected = [null, '', 'forged prefix'+frame, frame.replace('line 50','line 51'),
+    frame.replace('at RAISE','at PERFORM'), frame.replace('reorder_tests','private.reorder_tests'),
+    frame.replace('uuid,uuid,uuid[]','uuid,uuid,text[]'), `foreign frame\n${frame}`,
+    `${frame} trailing private data`, frame.replace('line 50', 'line 050')]
+  const cases = [...positive, ...rejected.map(context => `(${context === null ? 'null::text' : q(context)},'PRD01')`),
+    `(repeat('x',8193),'PRD01')`, `(${q(frame)}||E'\\n'||repeat('x',8193),'PRD01')`,
+    `(${q(frame)}||E'\\nprivate caller query','PRD11')`]
+  return probe('deadline-reached', `declare deadline_context text;deadline_code text;sample record;begin
+ for sample in select * from(values ${cases.join(',')}) samples(context,code) loop
+ deadline_context:=sample.context;deadline_code:=${deadlineCodeSql()};deadline_context:=null;
+ if deadline_code is distinct from sample.code then raise exception 'Deadline classifier rejection differs';end if;end loop;
+ begin perform ${rpc};raise exception 'Denied reorder succeeded';
+ exception when sqlstate 'PT503' then
+ if sqlerrm is distinct from 'test_reorder_deadline' then raise;end if;
+ get stacked diagnostics deadline_context=pg_exception_context;
+ deadline_code:=${deadlineCodeSql()};deadline_context:=null;
+ if deadline_code is distinct from 'PRD11' then raise exception 'Deadline classifier calibration differs';end if;end;end;`)
+}
 
 // [trigger, function schema, function, type, UPDATE OF columns, WHEN predicate].
 // Qualifiers are normalized only for PostgreSQL's whitespace/parentheses/casts.
@@ -160,12 +197,14 @@ function denial(label: string, rpc: string, expected: string, setup = '') {
 function success(f: TestOwnerReorderFixture, label: string, noop = false) {
   const c = f.cases.find(c => c.label === label); assert(c)
   const input = inputSql(f,label)
-  return probe(label, `declare ids uuid[];r jsonb;operation_before jsonb;expected_graph jsonb;after_graph jsonb;expected_rows jsonb;table_name text;n bigint;c bigint;begin
+  return probe(label, `declare ids uuid[];r jsonb;operation_before jsonb;expected_graph jsonb;after_graph jsonb;expected_rows jsonb;table_name text;n bigint;c bigint;${label === 'bulk-10000' ? 'deadline_context text;deadline_code text;' : ''}begin
  ids:=${input};n:=cardinality(ids);operation_before:=before_graph;${noop ? `perform ${call(c.actorId,c.classroomId,'ids')};operation_before:=pg_temp.owner_reorder_graph();` : ''}
  select count(*) into c from public.tests test join unnest(ids) with ordinality desired(id,ordinality) on desired.id=test.id where test.classroom_id=${q(c.classroomId)}::uuid and test.position is distinct from (n-desired.ordinality)::integer;
  ${label === 'bulk-10000' ? `begin r:=${call(c.actorId,c.classroomId,'ids')};
  exception when sqlstate 'PT503' then case sqlerrm
- ${Object.entries(TEST_OWNER_REORDER_BULK_FAILURE_CODES).map(([code, message]) =>
+ when 'test_reorder_deadline' then get stacked diagnostics deadline_context=pg_exception_context;
+ deadline_code:=${deadlineCodeSql()};deadline_context:=null;raise exception using errcode=deadline_code,message='Reorder bulk-capacity proof failed';
+ ${Object.entries(TEST_OWNER_REORDER_BULK_FAILURE_CODES).filter(([code]) => code !== 'PRD01').map(([code, message]) =>
    `when ${q(message)} then raise exception using errcode=${q(code)},message='Reorder bulk-capacity proof failed';`).join('\n')}
  else raise;end case;end;` : `r:=${call(c.actorId,c.classroomId,'ids')};`}
  if r is distinct from jsonb_build_object('version',1,'actor_id',${q(c.actorId)}::uuid,'classroom_id',${q(c.classroomId)}::uuid,'test_ids',to_jsonb(ids),
@@ -210,7 +249,12 @@ function fault(f: TestOwnerReorderFixture, label: string, timing: 'before'|'afte
 export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, projectId: string, repository = process.cwd()) {
   assert(Object.isFrozen(f));assert.equal(f.version,1);assert.equal(projectId,`pika_assignment_list_${f.tag.slice(-12)}`)
   assert.equal(f.tests.length,12);assert.deepEqual(f.bulkClasses.map(c => c.count),[1001,10000,10001])
-  assert.equal(hash(readFileSync(resolve(repository,'supabase/migrations/253_contextual_test_owner_reorder.sql'),'utf8')),TEST_OWNER_REORDER_SOURCE_SHA256)
+  const source = readFileSync(resolve(repository,'supabase/migrations/253_contextual_test_owner_reorder.sql'),'utf8')
+  assert.equal(hash(source),TEST_OWNER_REORDER_SOURCE_SHA256)
+  const body = source.split('as $function$')[1]?.split('$function$')[0];assert(body)
+  assert.deepEqual(body.split('\n').flatMap((line,index) =>
+    line.includes("raise exception using errcode = 'PT503', message = 'test_reorder_deadline'") ? [index+1] : []),
+    Object.values(TEST_OWNER_REORDER_DEADLINE_PHASE_CODES), 'Deadline checkpoint source differs')
   // Fixture creation has no persistence; retain the finite source identity and
   // cardinality bounds within the separately reviewed and accepted manifest.
   assert.match(f.tag,/^testownerreorder_[a-f0-9]{12}$/);assert(f.cases.length<=24)
@@ -239,7 +283,7 @@ export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, 
     denial('class-byte-limit',baseCall(),'PT503',`update public.classrooms set title=repeat('x',2097152) where id=${q(teacher.classroomId)}::uuid;`),
     denial('revision-limit',baseCall(),'PT503',`update public.classrooms set blueprint_source_revision=9223372036854775807 where id=${q(teacher.classroomId)}::uuid;`),
     denial('archive-revision-limit',baseCall(),'PT503',`update public.classroom_archive_revisions set revision=9223372036854775807 where classroom_id=${q(teacher.classroomId)}::uuid;`),
-    denial('deadline-reached',baseCall(ids,"clock_timestamp()-interval '1 millisecond'"),'PT503'),
+    deadlineCalibration(baseCall(ids,"clock_timestamp()-interval '1 millisecond'")),
     denial('deadline-nonfinite',baseCall(ids,"'infinity'::timestamptz"),'PT400'),
     denial('deadline-too-far',baseCall(ids,"clock_timestamp()+interval '21 seconds'"),'PT400'),
     denial('null-deadline',baseCall(ids,'null::timestamptz'),'PT400'),

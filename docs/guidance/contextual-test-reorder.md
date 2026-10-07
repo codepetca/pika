@@ -177,3 +177,28 @@ workload, triggers, revision deltas, full postimages and proof limits remain fix
 This removes avoidable expression evaluation; its performance benefit and CI
 capacity outcome are unmeasured. New independent review, full native/cleanup
 evidence and exact-head CI are required. See [PostgreSQL17 materialization](https://www.postgresql.org/docs/17/queries-with.html#QUERIES-WITH-CTE-MATERIALIZATION).
+
+CI37621234779 on b8f45fba passed test/build and browser, but again failed at
+bulk10000 with PRD01 (39actions/524controls). The scalar-byte optimization did
+not resolve CI capacity. Exact teardown and full canonical preservation passed;
+the remaining SDK/race/committed matrix was not reached. Fresh local b8 native
+normal/types and both forced-cleanup receipts passed but do not replace this CI.
+An earlier same-head CI failed an unchanged UI test's5s timer; targeted/full-gallery
+checks and this retry passed without source or timeout changes.
+
+The next candidate changes proof diagnostics only, leaving migration253 SHA
+71ed9848, all limits and the production function unchanged. Exact PT503 deadline
+failures in bulk10000 inspect bounded private stacked context in PostgreSQL.
+Only the first exact sealed RPC frame, its RAISE action and six source-bound
+body lines map to PRD11–16; unfamiliar/oversized context keeps PRD01. PRD02–07
+and unknown PT503 propagation remain unchanged. No raw context, query or row is
+rendered. The existing expired-deadline probe calibrates actual PG17 first-frame
+format and executes fixed positive/rejection cases within its unchanged rollback
+frame. All50 probes/27 frames/full effect and rollback assertions remain.
+
+PRD11/12/13/14/15/16 identify cumulative exhaustion after input validation,
+Class locks/bounded discovery, pre-update validation/expected image, sole UPDATE
+and immediate triggers, full postconditions/fences, and result construction,
+respectively. They are not per-query timings: PRD14 does not attribute the cost
+to UPDATE alone. Later checkpoints remain unobserved until actually reached.
+See [PG17 stacked diagnostics](https://www.postgresql.org/docs/17/plpgsql-control-structures.html#PLPGSQL-EXCEPTION-DIAGNOSTICS).
