@@ -32,9 +32,11 @@ inputs, pending provenance and initiated commands; active/pending mouse, touch
 and keyboard drags; owner refresh, rapid reopen, unmount and preference change.
 Primary signal: quiet opacity, without scale, translation or a new duration.
 
-The feature context carries logical activity and the existing session generation
-outside ModalLayer's snapshot. Requirement owners retire on external session
-refresh without remounting the rich editor. Same-ID whole external object refresh
+The feature context carries logical activity and a rollback-safe requirement
+owner generation outside ModalLayer's snapshot. Interaction guards publish during
+commit, before closing focus cleanup, so suspended or abandoned renders leave the
+visible editor and active drag functional. Requirement owners retire on an
+external classroom or assignment-object refresh without remounting the rich editor. Same-ID whole external object refresh
 keeps its existing field-reset behavior. Already initiated A save/release commands
 retain their existing A ownership; new outgoing inputs cannot affect B.
 
@@ -53,8 +55,8 @@ library instance access, global cancellation events or dependency changes.
 Composite accessibility checklist: named dialog/menu controls, top-layer Escape,
 keyboard navigation, current initial/final focus, immediate hidden/inert outgoing
 controls, noneditable outgoing instructions, scroll release and stale callback
-fences. Component tests cover ownership, undo, abandoned concurrent close and
-reduced preference changes. Native checks must activate actual sensors before
+fences. Component tests cover ownership, undo, input and real drag liveness during
+suspended or abandoned closes, and reduced preference changes. Native checks must activate actual sensors before
 asserting cleanup; mere DOM disappearance is insufficient.
 
 Verification uses the development-only fixture, including an external close,

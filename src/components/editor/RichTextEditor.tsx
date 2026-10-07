@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref } from '@/lib/tiptap-content'
@@ -362,7 +362,10 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const canEdit = editable && !disabled
   const interactionRef = useRef(interactionActive)
-  interactionRef.current = interactionActive
+  useInsertionEffect(() => {
+    interactionRef.current = interactionActive
+    return () => { interactionRef.current = false }
+  }, [interactionActive])
   const resolvedToolbarPreset: RichTextToolbarPreset =
     showToolbar === false ? 'none' : toolbarPreset
   const visibleToolbarPreset =
@@ -378,7 +381,7 @@ export function RichTextEditor({
   const imageUploadDocIdRef = useRef(assignmentDocId)
   const imageUploadContextRef = useRef({ assignmentDocId, canEdit, mounted: true })
   imageUploadContextRef.current.assignmentDocId = assignmentDocId
-  imageUploadContextRef.current.canEdit = canEdit && interactionActive
+  imageUploadContextRef.current.canEdit = canEdit
   const imageUploadStateRef = useRef<TransientImageUploadState>({ status: 'idle' })
   const [imageUploadState, setImageUploadState] = useState<TransientImageUploadState>({ status: 'idle' })
   const { viewportRef, minimapState } = useHistoryPreviewViewport(
@@ -576,6 +579,7 @@ export function RichTextEditor({
       if (imageUploadGenerationRef.current !== generation
         || !currentContext.mounted
         || !currentContext.canEdit
+        || !interactionRef.current
         || currentContext.assignmentDocId !== uploadAssignmentDocId
         || !editor.isEditable) {
         if (managedObjectId) {

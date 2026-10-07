@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useInsertionEffect, useRef, useState } from 'react'
 import { fetchCachedJSON } from '@/lib/request-cache'
 
 type Props = {
@@ -22,11 +22,15 @@ export function ClassroomBlueprintDraftSource({ classroomId, target, artifactId,
   const [source, setSource] = useState<Source | null>(null)
 
   const ownerRef = useRef({ classroomId, target, artifactId, isOpen })
-  if (ownerRef.current.classroomId !== classroomId || ownerRef.current.target !== target
-    || ownerRef.current.artifactId !== artifactId || ownerRef.current.isOpen !== isOpen) {
-    // Publication is fenced during render, independently of passive cleanup.
-    ownerRef.current = { classroomId, target, artifactId, isOpen }
-  }
+  useInsertionEffect(() => {
+    // Retire publication at commit, before layout callbacks or passive cleanup.
+    // A suspended render must leave the committed open request eligible.
+    const owner = { classroomId, target, artifactId, isOpen }
+    ownerRef.current = owner
+    return () => {
+      if (ownerRef.current === owner) ownerRef.current = { ...owner, isOpen: false }
+    }
+  }, [classroomId, target, artifactId, isOpen])
 
   useEffect(() => {
     if (!isOpen || !artifactId) {

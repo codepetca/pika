@@ -1,8 +1,35 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
+import { startTransition, Suspense, useState } from 'react'
 
 describe('AssignmentSubmissionRequirementsEditor', () => {
+  it('keeps the committed requirement input live while retirement is suspended', () => {
+    const pending = new Promise<void>(() => {})
+    const onChange = vi.fn()
+    const requirements = [{ id: 'live-link', type: 'link' as const, label: 'Live link', instructions: '', required: true, position: 0, validation_policy_json: {} }]
+    let retire!: (value: boolean) => void
+    let suspendedAttempts = 0
+    function Suspender({ inactive }: { inactive: boolean }) {
+      if (inactive) { suspendedAttempts += 1; throw pending }
+      return null
+    }
+    function Parent() {
+      const [inactive, setInactive] = useState(false)
+      retire = setInactive
+      return <Suspense fallback={<p>Pending</p>}>
+        <AssignmentSubmissionRequirementsEditor interactionActive={!inactive} requirements={requirements} onChange={onChange} />
+        <Suspender inactive={inactive} />
+      </Suspense>
+    }
+    render(<Parent />)
+    act(() => { startTransition(() => retire(true)) })
+    expect(suspendedAttempts).toBeGreaterThan(0)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Link label' }), { target: { value: 'Typed during suspension' } })
+    expect(onChange).toHaveBeenCalledExactlyOnceWith([{ ...requirements[0], label: 'Typed during suspension' }])
+    act(() => { retire(false) })
+  })
+
   it.each(['retire', 'disable', 'unmount'] as const)('releases an activated real keyboard sensor on %s', async (transition) => {
     const onChange = vi.fn()
     const requirements = ['First', 'Second'].map((label, position) => ({ id: label, type: 'link' as const, label, instructions: '', required: true, position, validation_policy_json: {} }))

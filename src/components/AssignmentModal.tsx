@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useRef, useState, useCallback, type ComponentProps } from 'react'
+import { createContext, useContext, useEffect, useInsertionEffect, useRef, useState, useCallback, type ComponentProps } from 'react'
 import { X } from 'lucide-react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
@@ -24,7 +24,7 @@ import { isAssignmentScheduledForFuture } from '@/lib/assignments'
 
 // This provider stays outside ModalLayer's outgoing presentation snapshot.
 // Retained body props remain visual snapshots; context retires live descendants.
-const AssignmentInteractionContext = createContext({ active: false, session: 0 })
+const AssignmentInteractionContext = createContext({ active: false, requirementsOwner: 0, publishInputOwner: () => () => {} })
 
 type AssignmentEditorBodyProps = ComponentProps<typeof AssignmentForm> & {
   sourceClassroomId: string
@@ -42,7 +42,10 @@ function AssignmentEditorBody({
   requirementsDisabled,
   ...formProps
 }: AssignmentEditorBodyProps) {
-  const { active, session } = useContext(AssignmentInteractionContext)
+  const { active, requirementsOwner, publishInputOwner } = useContext(AssignmentInteractionContext)
+  // Publish from inside the retained body: its insertion phase precedes the
+  // ancestor ModalLayer's layout cleanup/focus return, even on physical removal.
+  useInsertionEffect(publishInputOwner, [publishInputOwner])
   return (
     <AssignmentForm
       {...formProps}
@@ -58,7 +61,7 @@ function AssignmentEditorBody({
           />
           {/* External owner refresh retires its drag without remounting Tiptap. */}
           <AssignmentSubmissionRequirementsEditor
-            key={session}
+            key={requirementsOwner}
             requirements={requirements}
             onChange={onRequirementsChange}
             disabled={requirementsDisabled}
@@ -188,8 +191,22 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     // Own-component derived state rolls back with an abandoned concurrent render.
     setBodyLifetime({ open: isOpen, key: bodyLifetime.key + (isOpen ? 1 : 0) })
   }
-  const bodyLifetimeRef = useRef(bodyLifetime)
-  bodyLifetimeRef.current = bodyLifetime
+  const [requirementsOwner, setRequirementsOwner] = useState({ classroomId, assignment, generation: 0 })
+  if (requirementsOwner.classroomId !== classroomId || requirementsOwner.assignment !== assignment) {
+    // External refresh retires only its requirements owner. Abandoned renders
+    // must not turn the legacy business session counter into a physical remount.
+    setRequirementsOwner({ classroomId, assignment, generation: requirementsOwner.generation + 1 })
+  }
+  const committedInputOwnerRef = useRef({ isOpen, classroomId, assignment, lifetime: bodyLifetime.key })
+  const publishInputOwner = useCallback(() => {
+    const owner = { isOpen, classroomId, assignment, lifetime: bodyLifetime.key }
+    committedInputOwnerRef.current = owner
+    return () => {
+      if (committedInputOwnerRef.current === owner) {
+        committedInputOwnerRef.current = { ...owner, isOpen: false }
+      }
+    }
+  }, [isOpen, classroomId, assignment, bodyLifetime.key])
   const titleInputRef = useRef<HTMLInputElement>(null)
   const titleFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editorSessionRef = useRef(0)
@@ -919,14 +936,14 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
   }
 
-  // Guard captured outgoing inputs before layout focus return can fire blur.
+  // Guard captured inputs against the committed body, not speculative renders.
   // Initiated save/release/discard continuations keep their existing ownership rules.
-  const inputOwner = editorOwnerRef.current
-  const inputLifetime = bodyLifetimeRef.current.key
+  const inputLifetime = bodyLifetime.key
   function activeInput<Args extends unknown[]>(callback: (...args: Args) => void) {
     return (...args: Args) => {
-      if (!editorOwnerRef.current.isOpen || editorOwnerRef.current !== inputOwner
-        || bodyLifetimeRef.current.key !== inputLifetime) return
+      const owner = committedInputOwnerRef.current
+      if (!owner.isOpen || owner.classroomId !== classroomId || owner.assignment !== assignment
+        || owner.lifetime !== inputLifetime) return
       callback(...args)
     }
   }
@@ -952,7 +969,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const previewSubtitle = isLive ? title.trim() || undefined : undefined
 
   return (
-    <AssignmentInteractionContext.Provider value={{ active: isOpen, session: editorSessionRef.current }}>
+    <AssignmentInteractionContext.Provider value={{ active: isOpen, requirementsOwner: requirementsOwner.generation, publishInputOwner }}>
       <CreationModalShell
         isOpen={isOpen}
         exitMotion="opacity"

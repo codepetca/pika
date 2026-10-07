@@ -332,10 +332,60 @@ describe('AssignmentModal logical close with retained real descendants', () => {
     expect(suspendedAttempts).toBeGreaterThan(0)
     expect(current).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Edit Draft' })).toBeInTheDocument()
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    fireEvent.change(title, { target: { value: 'Typed while close is suspended' } })
+    expect(title).toHaveValue('Typed while close is suspended')
     act(() => { change(true, false) })
     expect(editor()).toBe(current)
     expect(current).toHaveTextContent('Original instructions old-session edit')
     expect(current.editor.can().undo()).toBe(true)
+    expect(writes()).toHaveLength(0)
+  })
+
+  it('keeps an activated requirement drag through an abandoned close and retires it on external refresh', async () => {
+    const pending = new Promise<void>(() => {})
+    const record = { ...assignment, submission_requirements: ['First', 'Second'].map((label, position) => ({
+      id: label, type: 'link' as const, label, instructions: '', required: true, position, validation_policy_json: {},
+    })) } as Assignment
+    let suspendedAttempts = 0
+    let change!: (open: boolean, suspend: boolean, nextRecord?: Assignment) => void
+    function Suspender({ suspend }: { suspend: boolean }) {
+      if (suspend) { suspendedAttempts += 1; throw pending }
+      return null
+    }
+    function Parent() {
+      const [state, setState] = useState({ open: true, suspend: false, record })
+      change = (open, suspend, nextRecord = state.record) => setState({ open, suspend, record: nextRecord })
+      return <Suspense fallback={<p>Pending parent</p>}>
+        <AssignmentModal isOpen={state.open} classroomId="classroom-exit" assignment={state.record} onClose={vi.fn()} onSuccess={vi.fn()} />
+        <Suspender suspend={state.suspend} />
+      </Suspense>
+    }
+    render(<Parent />, { wrapper: TooltipProvider })
+    const current = editor()
+    const handle = screen.getByRole('button', { name: 'Drag to reorder First' })
+    fireEvent.keyDown(handle, { key: ' ', code: 'Space' })
+    await advance(0)
+    expect(handle).toHaveAttribute('aria-pressed', 'true')
+    act(() => { startTransition(() => change(false, true)) })
+    expect(suspendedAttempts).toBeGreaterThan(0)
+    const duringSuspension = new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true })
+    act(() => { document.dispatchEvent(duringSuspension) })
+    expect(duringSuspension.defaultPrevented).toBe(true)
+    act(() => { change(true, false) })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'Committed open edit' } })
+    expect(screen.getByRole('button', { name: 'Drag to reorder First' })).toBe(handle)
+    expect(handle).toHaveAttribute('aria-pressed', 'true')
+    const afterEdit = new KeyboardEvent('keydown', { key: 'ArrowUp', code: 'ArrowUp', bubbles: true, cancelable: true })
+    act(() => { document.dispatchEvent(afterEdit) })
+    expect(afterEdit.defaultPrevented).toBe(true)
+    act(() => { change(true, false, { ...record, title: 'External refresh' }) })
+    expect(screen.getByRole('button', { name: 'Drag to reorder First' })).not.toBe(handle)
+    expect(editor()).toBe(current)
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('External refresh')
+    const afterRefresh = new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', bubbles: true, cancelable: true })
+    act(() => { document.dispatchEvent(afterRefresh) })
+    expect(afterRefresh.defaultPrevented).toBe(false)
     expect(writes()).toHaveLength(0)
   })
 })

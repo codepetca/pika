@@ -1,10 +1,35 @@
 import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
+import { startTransition, Suspense, useState } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { DialogPanel, SplitButton } from '@/ui'
 
 describe('SplitButton', () => {
+  it('keeps the committed primary action live while retirement is suspended', () => {
+    const pending = new Promise<void>(() => {})
+    const onPrimaryClick = vi.fn()
+    let retire!: (value: boolean) => void
+    let suspendedAttempts = 0
+    function Suspender({ inactive }: { inactive: boolean }) {
+      if (inactive) { suspendedAttempts += 1; throw pending }
+      return null
+    }
+    function Parent() {
+      const [inactive, setInactive] = useState(false)
+      retire = setInactive
+      return <Suspense fallback={<p>Pending</p>}>
+        <SplitButton label="Post" interactionActive={!inactive} onPrimaryClick={onPrimaryClick} options={[]} />
+        <Suspender inactive={inactive} />
+      </Suspense>
+    }
+    render(<Parent />)
+    act(() => { startTransition(() => retire(true)) })
+    expect(suspendedAttempts).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    expect(onPrimaryClick).toHaveBeenCalledOnce()
+    act(() => { retire(false) })
+  })
+
   it('cancels and fences deferred focus across retirement and rapid reactivation without changing button styling', () => {
     let oldFrame!: FrameRequestCallback
     const frameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { oldFrame = callback; return 41 })

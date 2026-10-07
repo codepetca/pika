@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Integrated local database proof and CI compute capacity
-
-Frozen reviewed0d72a0dd/001–251 canonical local database lane PASS144steps,
-including native GET/new save/create/discard normal+forced modes, Assignment SDK,
-Pal and Stripe concurrency, recovery and shutdown. Host monotonic3947.856seconds
-(65.80min), guest3941.969seconds. Private archive440members101395bytes SHA256
-8b92cb6e5e298315094199809b46bda7237ee93e3627b524cdf95084ecca5d18 verified
-against receipt and exact251inventory07000040bee5a5506614cc3db6b191634f08c057463deb07aa0e3acf6a7da505.
-Daemon containers/volumes/custom networks empty; owned VMdisposed and lease
-released; both templates stopped. Independent prior integratedreview had no blockers.
-Main3b83808d adds only Gradebook styling/test and continuity; preserve both
-histories and all completed database inputs byte-identically. Reuse database proof
-for unchanged relevant inputs; exact new reviewed SHA still requires eligible CI.
-Fresh seven-day cohortSep29–Oct6:687runs699attempts,3472jobrows independently
-verified; >=11588projectedprivatehostedminutes,heavy11090/light498(95.7%known
-heavy). Three unfinished durations unknown. Heavy179.58knownjobhours exceeds
-168serialhours before HQsharing; Mac24GiB/8logicalCPU cannot fit2x12GiB PikaVMs
-before macOS/apps/HQ. No forecast/billing-plan/cost assumptions. Detailed private
-report and raw receipts remain external artifacts. Human task override persists;
-review counters retained. Pika remains public, runner unregistered/inactive and
-opt-in unset; no production/HQ changes. PR1488stays draft through source sync and
-independent verification, then one stable-SHA eligible CI/PR Gate run.
-
 ## 2026-10-06 15:22 [CODEX]
 
 PR1488 ready CI passed Test & Build and database contracts; Classwork continuity setup raced on an obsolete student-name button. Retained traces confirm the editor mounts while that click waits. Use the existing retrying visibility assertion and preserve all refresh/Retry retention checks. Return PR to draft for corrected-source focused browser validation and independent review; repository stays public and runner activation remains held.
@@ -401,3 +378,15 @@ naive lifetime REDs plus capture/sensor/fixture failures retained externally.
 Focused source/checks, independent review and final exact-head CI remain required
 before main landing. Broad17-family product goal remains incomplete. No dependency,
 schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
+
+## 2026-10-07 — Assignment editor committed interaction ownership
+
+PR1521 initial23-path review found a genuine suspended-close Title-input loss.
+Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
+before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
+speculative legacy session generation remounted its visible requirement owner.
+Rollback-safe feature generation preserves abandoned-close drag continuity while
+external whole-object refresh still retires the drag and preserves Tiptap identity.
+Legacy initiated-command/session rules remain unchanged. Corrected-source local,
+visual, targeted independent review and exact-head CI remain required before merge.
+Broader17-family fluidity goal remains incomplete; no production promotion.

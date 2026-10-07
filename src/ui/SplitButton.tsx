@@ -5,6 +5,7 @@ import {
   Fragment,
   useCallback,
   useLayoutEffect,
+  useInsertionEffect,
   useId,
   useRef,
   useState,
@@ -66,9 +67,14 @@ export function SplitButton({
   const [activeOptionId, setActiveOptionId] = useState<string | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const interactionRef = useRef({ active: interactionActive, generation: 0 })
-  if (interactionRef.current.active !== interactionActive) {
-    interactionRef.current = { active: interactionActive, generation: interactionRef.current.generation + 1 }
-  }
+  useInsertionEffect(() => {
+    if (interactionRef.current.active !== interactionActive) {
+      interactionRef.current = { active: interactionActive, generation: interactionRef.current.generation + 1 }
+    }
+    return () => {
+      interactionRef.current = { active: false, generation: interactionRef.current.generation + 1 }
+    }
+  }, [interactionActive])
   const mountedRef = useRef(true)
   const focusFrameRef = useRef<number | null>(null)
   const tabTimeoutRef = useRef<number | null>(null)

@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { FolderGit2, GripVertical, ImageIcon, Link2, Plus, Trash2 } from 'lucide-react'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useInsertionEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button, ConfirmDialog, Input, SplitButton, Tooltip, TooltipProvider, cn } from '@/ui'
 import {
   DEFAULT_REQUIREMENT_LABELS,
@@ -157,9 +157,12 @@ export function AssignmentSubmissionRequirementsEditor({
   interactionActive = true,
 }: AssignmentSubmissionRequirementsEditorProps) {
   const activeRef = useRef(interactionActive)
-  activeRef.current = interactionActive
   const disabledRef = useRef(disabled)
-  disabledRef.current = disabled
+  useInsertionEffect(() => {
+    activeRef.current = interactionActive
+    disabledRef.current = disabled
+    return () => { activeRef.current = false }
+  }, [interactionActive, disabled])
   const [sensorOwner] = useState(() => createAssignmentDragSensorOwner(() => activeRef.current && !disabledRef.current))
   useLayoutEffect(() => {
     if (!interactionActive || disabled) sensorOwner.cancel()
