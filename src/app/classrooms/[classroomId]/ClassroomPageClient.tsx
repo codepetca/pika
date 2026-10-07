@@ -21,7 +21,7 @@ import { StudentAnnouncementsTab } from './StudentAnnouncementsTab'
 import { TeacherTestsTab } from './TeacherTestsTab'
 import { TeacherBlueprintTab } from './TeacherBlueprintTab'
 import { StudentTestsTab } from './StudentTestsTab'
-import { StudentGradesTab } from './StudentGradesTab'
+import { StudentGradesTab, type StudentGradesReadHandle } from './StudentGradesTab'
 import { StudentPalAmbientSurfaces } from '@/integrations/pal'
 import { StudentAchievementsTab } from './StudentAchievementsTab'
 import { StudentCalendarDateContent } from '@/components/StudentCalendarDateContent'
@@ -630,6 +630,7 @@ function ClassroomPageContent({
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
   }))
+  const studentGradesReadRef = useRef<StudentGradesReadHandle>(null)
   const lastTabIntentRef = useRef<Record<string, number>>({})
   const scrollPositionsRef = useRef<Record<string, number>>({})
   const prevActiveTabRef = useRef(activeTab)
@@ -1555,6 +1556,11 @@ function ClassroomPageContent({
       }
 
       if (tab === 'grades' && !isTeacher) {
+        const gradesOwner = studentGradesReadRef.current
+        if (gradesOwner?.classroomId === classroom.id) {
+          gradesOwner.prefetch()
+          return
+        }
         prefetchJSON(
           `student-grades:${classroom.id}`,
           async () => {
@@ -2107,7 +2113,7 @@ function ClassroomPageContent({
                   )}
                   {mountedTabs.grades && (
                     <TabContentTransition isActive={activeTab === 'grades'}>
-                      <StudentGradesTab classroom={classroom} isActive={activeTab === 'grades'} />
+                      <StudentGradesTab ref={studentGradesReadRef} classroom={classroom} isActive={activeTab === 'grades'} />
                     </TabContentTransition>
                   )}
                   {mountedTabs.calendar && (

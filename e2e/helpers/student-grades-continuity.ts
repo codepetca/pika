@@ -32,6 +32,7 @@ async function navigate(page: Page, name: string, mobile: boolean) {
 }
 
 async function screenshot(page: Page, testInfo: TestInfo, name: string) {
+  await expect(page.getByRole('region', { name: 'Grades', exact: true }).locator('..')).toHaveCSS('opacity', '1')
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath(`grades-${name}.png`), animations: 'allow' })
 }
@@ -130,34 +131,42 @@ export async function verifyStudentGradesContinuity(page: Page, testInfo: TestIn
   await nativeTabTo(page, deniedIntent)
   await expect.poll(() => requests.length).toBe(5)
   await expect(deniedIntent).not.toHaveAttribute('aria-current', 'page')
-  await deniedIntent.press('Enter')
-  await expect(view).toBeVisible()
-  // The shared prefetch promise must preserve 403 even when the body is not JSON.
+  // The retained hidden owner must consume a settled intent denial before activation.
   await held.get(5)!.fulfill({ status: 403, contentType: 'text/plain', body: 'Unavailable' })
   held.delete(5)
+  await expect.poll(() => row.evaluate(element => element.isConnected)).toBe(false)
   await expect(view).toHaveCount(0)
+  await expect(deniedIntent).toBeFocused()
+  await expect(deniedIntent).not.toHaveAttribute('aria-current', 'page')
+  await deniedIntent.press('Enter')
+  await expect.poll(() => requests.length).toBe(6)
+  await expect(region).toHaveAttribute('aria-busy', 'true')
+  await expect(view).toHaveCount(0)
+  await held.get(6)!.fulfill({ status: 503, contentType: 'text/plain', body: 'Temporary outage' })
+  held.delete(6)
   await expect(region.getByText('Grades unavailable', { exact: true })).toBeVisible()
-  expect(await row.evaluate(element => element.isConnected)).toBe(false)
+  await expect(view).toHaveCount(0)
   await screenshot(page, testInfo, 'denied')
   const coldRetry = region.getByRole('button', { name: 'Retry', exact: true })
   await nativeTabTo(page, coldRetry)
   await coldRetry.press('Enter')
-  await expect.poll(() => requests.length).toBe(6)
+  await expect.poll(() => requests.length).toBe(7)
   await expect(region).toBeFocused()
   await screenshot(page, testInfo, 'cold-retry-pending')
-  await held.get(6)!.fulfill({ json: { currentPercent: null, items: [] } })
-  held.delete(6)
+  await held.get(7)!.fulfill({ json: { currentPercent: null, items: [] } })
+  held.delete(7)
   await expect(view.getByText('No grades yet', { exact: true })).toBeVisible()
   await expect(view.getByText('—', { exact: true })).toBeVisible()
   await expect(region).toBeFocused()
   await screenshot(page, testInfo, 'empty')
-  expect(requests).toHaveLength(6)
+  expect(requests).toHaveLength(7)
   expect(held.size).toBe(0)
   expect(errors).toEqual([])
   expect(writes).toEqual([])
   await testInfo.attach('grades-native-receipt', { body: JSON.stringify({
     requests: requests.length, realCacheExpiryWaits: 2, savedScroll, retryScroll,
-    rowIdentityRetained: true, prefetchBeforeActivation: true, deniedSnapshotCleared: true,
+    rowIdentityRetained: true, prefetchBeforeActivation: true, deniedSnapshotCleared: true, settledInactiveDenialConsumed: true,
+    pendingAndRecoverableReadAfterDenialShowsNoOldMarks: true,
     keyboardRetryFocus: true, errors, writes,
     limits: 'Real production ClassroomPageClient/Grades owners with native navigation and actual 30s TTL; synthetic identities and intercepted reads; no authenticated persistence or hardware performance claim.',
   }, null, 2), contentType: 'application/json' })

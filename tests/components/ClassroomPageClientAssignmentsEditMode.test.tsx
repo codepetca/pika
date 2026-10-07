@@ -9,6 +9,7 @@ import {
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
 } from '@/lib/events'
 
+const realGradesOwner = vi.hoisted(() => ({ enabled: false }))
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockInvalidateCachedJSON = vi.hoisted(() => vi.fn())
 const mockPrefetchJSON = vi.hoisted(() => vi.fn())
@@ -149,6 +150,7 @@ vi.mock('@/components/layout', async () => {
           <button
             type="button"
             onFocus={() => onTabIntent?.('grades')}
+            onMouseEnter={() => onTabIntent?.('grades')}
             onClick={() => onTabChange('grades')}
           >
             Go Grades
@@ -238,15 +240,23 @@ vi.mock('@/ui', async (importOriginal) => {
         </div>
       ) : null
     ),
-    TabContentTransition: ({ children, isActive }: any) => (isActive ? <>{children}</> : null),
+    TabContentTransition: ({ children, isActive }: any) => realGradesOwner.enabled
+      ? <actual.TabContentTransition isActive={isActive}>{children}</actual.TabContentTransition>
+      : (isActive ? <>{children}</> : null),
   }
 })
 
-vi.mock('@/lib/request-cache', () => ({
-  fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
-  invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
-  prefetchJSON: (...args: any[]) => mockPrefetchJSON(...args),
-}))
+vi.mock('@/lib/request-cache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/request-cache')>()
+  return {
+    fetchJSONWithCache: (...args: Parameters<typeof actual.fetchJSONWithCache>) => realGradesOwner.enabled && args[0].startsWith('student-grades:')
+      ? actual.fetchJSONWithCache(...args) : mockFetchJSONWithCache(...args),
+    invalidateCachedJSON: (key: string) => realGradesOwner.enabled && key.startsWith('student-grades:')
+      ? actual.invalidateCachedJSON(key) : mockInvalidateCachedJSON(key),
+    prefetchJSON: (...args: Parameters<typeof actual.prefetchJSON>) => realGradesOwner.enabled && args[0].startsWith('student-grades:')
+      ? actual.prefetchJSON(...args) : mockPrefetchJSON(...args),
+  }
+})
 
 vi.mock('@/lib/assignment-markdown', () => ({
   assignmentsToMarkdown: (...args: any[]) => mockAssignmentsToMarkdown(...args),
@@ -495,6 +505,7 @@ function renderStudentClient(options?: {
 
 describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
   beforeEach(() => {
+    realGradesOwner.enabled = false
     window.localStorage.clear()
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=assignments')
     Object.defineProperty(window, 'scrollTo', {
@@ -1208,6 +1219,65 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       expect(params.has('testId')).toBe(false)
     })
     expect(mockTeacherTestsTabProps).not.toHaveBeenCalled()
+  })
+
+  it.each([401, 403, 404])('retires settled inactive Grades intent denial %s before activation with the real cache', async (status) => {
+    const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
+    cache.invalidateCachedJSON('student-grades:classroom-1')
+    realGradesOwner.enabled = true
+    let now = Date.now()
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => now)
+    let resolveActivation!: (value: Response) => void
+    const activation = new Promise<Response>((resolve) => { resolveActivation = resolve })
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      if (!String(url).endsWith('/grades')) return Promise.resolve(new Response('{}'))
+      return Promise.reject(new Error('Unexpected Grades read'))
+    })
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({
+      currentPercent: 84,
+      items: [{ id: 'a', kind: 'Classwork', title: 'Essay', earned: 8, possible: 10, percent: 80, included: true, href: '/essay' }],
+    })))
+    const view = renderStudentClient({
+      initialTab: 'grades',
+      classroom: { ...classroom, feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, student_grades: true } },
+    })
+    try {
+      await screen.findByText('84%')
+      fireEvent.click(screen.getByRole('button', { name: 'Go Course Guide' }))
+      const locationBeforeIntent = window.location.href
+      now += 30_001
+      fetchSpy.mockResolvedValueOnce(new Response('Unavailable', { status }))
+      const gradesButton = screen.getByRole('button', { name: 'Go Grades' })
+      await act(async () => {
+        if (status === 403) fireEvent.mouseEnter(gradesButton)
+        gradesButton.focus()
+      })
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).endsWith('/grades'))).toHaveLength(2)
+      expect(window.location.href).toBe(locationBeforeIntent)
+      expect(gradesButton).toHaveFocus()
+      const region = screen.getByRole('region', { name: 'Grades', hidden: true })
+      expect(region.parentElement).toHaveAttribute('aria-hidden', 'true')
+      expect(region.parentElement).toHaveAttribute('inert')
+      expect(screen.queryByText('84%')).not.toBeInTheDocument()
+      expect(screen.queryByText('Essay')).not.toBeInTheDocument()
+      fetchSpy.mockReturnValueOnce(activation)
+      fireEvent.click(gradesButton)
+      expect(new URLSearchParams(window.location.search).get('tab')).toBe('grades')
+      expect(region).toHaveAttribute('aria-busy', 'true')
+      expect(screen.queryByText('84%')).not.toBeInTheDocument()
+      await act(async () => { resolveActivation(new Response('Temporary outage', { status: 503 })) })
+      expect(screen.getByText('Grades unavailable')).toBeVisible()
+      expect(screen.queryByText('Essay')).not.toBeInTheDocument()
+      expect(screen.queryByText(/Showing the last returned grades/)).not.toBeInTheDocument()
+      expect(gradesButton).toHaveFocus()
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).endsWith('/grades'))).toHaveLength(3)
+    } finally {
+      view.unmount()
+      fetchSpy.mockRestore()
+      clock.mockRestore()
+      realGradesOwner.enabled = false
+      cache.invalidateCachedJSON('student-grades:classroom-1')
+    }
   })
 
   it.each([

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import { StudentGradesView } from '@/components/gradebook/StudentGradesView'
 import { ApiError } from '@/lib/api-error'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
@@ -8,7 +8,12 @@ import type { StudentGradesResponse } from '@/lib/student-grades'
 import type { Classroom } from '@/types'
 import { Button, PageState, RefreshingIndicator } from '@/ui'
 
-export function StudentGradesTab({ classroom, isActive = true }: { classroom: Classroom; isActive?: boolean }) {
+export type StudentGradesReadHandle = {
+  classroomId: string
+  prefetch: () => void
+}
+
+export const StudentGradesTab = forwardRef<StudentGradesReadHandle, { classroom: Classroom; isActive?: boolean }>(function StudentGradesTab({ classroom, isActive = true }, readRef) {
   const [grades, setGrades] = useState<StudentGradesResponse | null>(null)
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -36,6 +41,7 @@ export function StudentGradesTab({ classroom, isActive = true }: { classroom: Cl
 
   const loadGrades = useCallback(async () => {
     const classroomId = classroom.id
+    if (classroomIdRef.current !== classroomId) return
     const requestId = ++requestIdRef.current
     pendingRef.current = true
     setLoading(true)
@@ -70,6 +76,13 @@ export function StudentGradesTab({ classroom, isActive = true }: { classroom: Cl
       }
     }
   }, [classroom.id])
+
+  // Mounted Grades owns intent reads too: a settled rejection must retire its
+  // snapshot while the retained workspace is inactive.
+  useImperativeHandle(readRef, () => ({
+    classroomId: classroom.id,
+    prefetch: () => { void loadGrades() },
+  }), [classroom.id, loadGrades])
 
   useEffect(() => {
     if (isActive && !wasActiveRef.current) void loadGrades()
@@ -115,4 +128,4 @@ export function StudentGradesTab({ classroom, isActive = true }: { classroom: Cl
       )}
     </div>
   )
-}
+})

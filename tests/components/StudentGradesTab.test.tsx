@@ -1,7 +1,7 @@
-import type { ReactElement } from 'react'
+import { createRef, type ReactElement } from 'react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { StudentGradesTab } from '@/app/classrooms/[classroomId]/StudentGradesTab'
+import { StudentGradesTab, type StudentGradesReadHandle } from '@/app/classrooms/[classroomId]/StudentGradesTab'
 import { ApiError } from '@/lib/api-error'
 import { fetchJSONWithCache, invalidateCachedJSON, prefetchJSON } from '@/lib/request-cache'
 import type { StudentGradesResponse } from '@/lib/student-grades'
@@ -278,6 +278,107 @@ describe('StudentGradesTab', () => {
     expect(screen.getByText('Grades unavailable', { selector: 'h2' })).toBeVisible()
     expect(screen.queryByText('Essay')).not.toBeInTheDocument()
     expect(screen.queryByText('84%')).not.toBeInTheDocument()
+  })
+
+  it('deduplicates repeated retained intent and activation, then consumes the current inactive denial without moving focus', async () => {
+    const owner = createRef<StudentGradesReadHandle>()
+    fetchMock.mockResolvedValueOnce(response(returnedGrades))
+    const { rerender } = renderGrades(<StudentGradesTab ref={owner} classroom={classroom} />)
+    await screen.findByText('84%')
+    const region = screen.getByRole('region', { name: 'Grades' })
+    region.focus()
+    const focus = vi.spyOn(region, 'focus')
+    rerender(<StudentGradesTab ref={owner} classroom={classroom} isActive={false} />)
+    now += 30_000
+    const read = deferred<Response>()
+    fetchMock.mockReturnValueOnce(read.promise)
+    act(() => {
+      owner.current!.prefetch()
+      owner.current!.prefetch()
+    })
+    rerender(<StudentGradesTab ref={owner} classroom={classroom} isActive />)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('84%')).toBeVisible()
+    expect(region).toHaveAttribute('aria-busy', 'true')
+    rerender(<StudentGradesTab ref={owner} classroom={classroom} isActive={false} />)
+    await settleRead(read, new Response('Access denied', { status: 403 }))
+    expect(screen.queryByText('84%')).not.toBeInTheDocument()
+    expect(screen.getByText('Grades unavailable')).toBeVisible()
+    expect(region).toHaveAttribute('aria-busy', 'false')
+    expect(region).toHaveFocus()
+    expect(focus).not.toHaveBeenCalled()
+  })
+
+  it.each(['pending', 'successful'])('ignores obsolete intent denial after a newer current intent is %s', async (newerState) => {
+    const owner = createRef<StudentGradesReadHandle>()
+    fetchMock.mockResolvedValueOnce(response(returnedGrades))
+    const { rerender } = renderGrades(<StudentGradesTab ref={owner} classroom={classroom} />)
+    await screen.findByText('84%')
+    rerender(<StudentGradesTab ref={owner} classroom={classroom} isActive={false} />)
+    now += 30_000
+    const obsolete = deferred<Response>()
+    const current = deferred<Response>()
+    fetchMock.mockReturnValueOnce(obsolete.promise).mockReturnValueOnce(current.promise)
+    act(() => { owner.current!.prefetch() })
+    invalidateCachedJSON(cacheKey)
+    act(() => { owner.current!.prefetch() })
+    if (newerState === 'successful') await settleRead(current, response(emptyGrades))
+    await settleRead(obsolete, new Response('Obsolete access denial', { status: 401 }))
+    const region = screen.getByRole('region', { name: 'Grades' })
+    expect(region).toHaveAttribute('aria-busy', String(newerState === 'pending'))
+    expect(screen.queryByText('Grades unavailable')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    if (newerState === 'pending') {
+      expect(screen.getByText('84%')).toBeVisible()
+      await settleRead(current, response(emptyGrades))
+    }
+    expect(screen.getByText('No grades yet')).toBeVisible()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('retires the old classroom intent and handle before the new current owner publishes', async () => {
+    const owner = createRef<StudentGradesReadHandle>()
+    fetchMock.mockResolvedValueOnce(response(returnedGrades))
+    const { rerender } = renderGrades(<StudentGradesTab ref={owner} classroom={classroom} />)
+    await screen.findByText('84%')
+    rerender(<StudentGradesTab ref={owner} classroom={classroom} isActive={false} />)
+    now += 30_000
+    const read = deferred<Response>()
+    fetchMock.mockReturnValueOnce(read.promise)
+    const obsoleteOwner = owner.current!
+    act(() => { obsoleteOwner.prefetch() })
+    fetchMock.mockResolvedValueOnce(response(emptyGrades))
+    rerender(<StudentGradesTab ref={owner} classroom={anotherClassroom} />)
+    await screen.findByText('No grades yet')
+    expect(owner.current!.classroomId).toBe(anotherClassroom.id)
+    act(() => { obsoleteOwner.prefetch() })
+    await settleRead(read, new Response('Old classroom access denied', { status: 404 }))
+    expect(screen.getByText('No grades yet')).toBeVisible()
+    expect(screen.queryByText('Grades unavailable')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('detaches the intent handle on unmount and ignores its delayed denial beside a new mount', async () => {
+    const owner = createRef<StudentGradesReadHandle>()
+    fetchMock.mockResolvedValueOnce(response(returnedGrades))
+    const { rerender, unmount } = renderGrades(<StudentGradesTab ref={owner} classroom={classroom} />)
+    await screen.findByText('84%')
+    rerender(<StudentGradesTab ref={owner} classroom={classroom} isActive={false} />)
+    now += 30_000
+    const read = deferred<Response>()
+    fetchMock.mockReturnValueOnce(read.promise)
+    const obsoleteOwner = owner.current!
+    act(() => { obsoleteOwner.prefetch() })
+    unmount()
+    expect(owner.current).toBeNull()
+    act(() => { obsoleteOwner.prefetch() })
+    fetchMock.mockResolvedValueOnce(response(emptyGrades))
+    renderGrades(<StudentGradesTab classroom={anotherClassroom} />)
+    await screen.findByText('No grades yet')
+    await settleRead(read, new Response('Unmounted access denied', { status: 403 }))
+    expect(screen.getByText('No grades yet')).toBeVisible()
+    expect(screen.queryByText('Grades unavailable')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it.each(['success', 'rejection'])('retires old-owner %s and finally while the new owner is pending', async (outcome) => {
