@@ -99,6 +99,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<{ announcementId: string; message: string } | null>(null)
+  const [deleteError, setDeleteError] = useState<Announcement | null>(null)
   const [scheduleDateTime, setScheduleDateTime] = useState('')
   const [pendingScheduleDate, setPendingScheduleDate] = useState('')
   const [pendingScheduleTime, setPendingScheduleTime] = useState('')
@@ -165,6 +168,9 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     setSaving(false)
     setDeleteTarget(null)
     setDeleting(false)
+    setCreateError(null)
+    setEditError(null)
+    setDeleteError(null)
     setScheduleDateTime('')
     setShowScheduleDropdown(false)
     setShowEditScheduleDropdown(false)
@@ -242,6 +248,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   }
 
   function cancelEditing() {
+    setEditError(null)
     setEditingId(null)
     setEditTitle('')
     setOriginalTitle(null)
@@ -348,6 +355,14 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     } catch (err) {
       if (saveRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setAnnouncements(prevAnnouncements)
+      const operation = mode === 'publish' ? 'posting this announcement'
+        : mode === 'draft' ? 'saving this draft'
+          : mode === 'schedule' ? 'scheduling this announcement'
+            : 'saving changes to this announcement'
+      setEditError({
+        announcementId,
+        message: `Pika could not confirm ${operation}. Review the announcement list before using the current save or publication action again.`,
+      })
       console.error('Error updating announcement:', err)
     } finally {
       if (saveRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
@@ -418,6 +433,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === tempId ? data.announcement : a))
       )
+      setCreateError(null)
       setIsCreating(false)
       setNewTitle('')
       setNewContent('')
@@ -426,6 +442,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
     } catch (err) {
       if (saveRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setAnnouncements((prev) => prev.filter((a) => a.id !== tempId))
+      const operation = mode === 'publish' ? 'posting this announcement'
+        : mode === 'draft' ? 'saving this draft' : 'scheduling this announcement'
+      const action = mode === 'publish' ? 'Post' : mode === 'draft' ? 'Save draft' : 'Schedule'
+      setCreateError(`Pika could not confirm ${operation}. Review the announcement list before using ${action} again.`)
       console.error('Error creating announcement:', err)
     } finally {
       if (saveRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
@@ -435,7 +455,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   }
 
   async function handleDelete() {
-    if (!deleteTarget) return
+    if (!deleteTarget || deleting || isReadOnly || deleteTarget.classroom_id !== classroom.id) return
     const classroomId = classroom.id
     const requestId = deleteRequestIdRef.current + 1
     deleteRequestIdRef.current = requestId
@@ -454,10 +474,12 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       invalidateCachedJSON(`student-announcements:${classroomId}`)
       if (deleteRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setDeleteTarget(null)
+      setDeleteError((error) => error?.id === target.id ? null : error)
     } catch (err) {
       if (deleteRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
       setAnnouncements(prevAnnouncements)
       console.error('Delete error:', err)
+      setDeleteError(target)
       setDeleteTarget(null)
     } finally {
       if (deleteRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
@@ -474,6 +496,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
 
   function handleNewKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Escape') {
+      setCreateError(null)
       setIsCreating(false)
       setNewTitle('')
       setNewContent('')
@@ -493,6 +516,10 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
   }
 
   const currentAnnouncements = loadedClassroomId === classroom.id ? announcements : []
+  const currentDeleteError = deleteError?.classroom_id === classroom.id ? deleteError : null
+  const retryDeleteTarget = currentDeleteError
+    ? currentAnnouncements.find((announcement) => announcement.id === currentDeleteError.id)
+    : undefined
   const hasCurrentClassroomData = loadedClassroomId === classroom.id
   const loadError = loadErrorClassroomId === classroom.id
   const isInitialLoading = !hasCurrentClassroomData && !loadError
@@ -570,6 +597,24 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
         </div>
       )}
 
+      {currentDeleteError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          <span>Pika could not confirm deleting “{normalizeAnnouncementTitle(currentDeleteError.title) ?? currentDeleteError.content.trim().slice(0, 80)}”. Review the announcement list before trying again.</span>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={isReadOnly || deleting || !retryDeleteTarget}
+            onClick={() => {
+              if (!isReadOnly && !deleting && retryDeleteTarget?.classroom_id === currentClassroomIdRef.current) {
+                setDeleteTarget(retryDeleteTarget)
+              }
+            }}
+          >
+            Retry delete
+          </Button>
+        </div>
+      ) : null}
+
       {/* New announcement form */}
       {isCreating ? (
         <div className="bg-surface rounded-lg border border-border p-4">
@@ -593,6 +638,11 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
             className="max-h-[50vh] min-h-[10rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             placeholder="Write an announcement..."
           />
+          {createError ? (
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+              <span>{createError}</span>
+            </div>
+          ) : null}
           {scheduleDateTime && (
             <div className="mt-2 flex items-center gap-2">
               <button
@@ -621,6 +671,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
             <button
               type="button"
               onClick={() => {
+                setCreateError(null)
                 setIsCreating(false)
                 setNewTitle('')
                 setNewContent('')
@@ -739,6 +790,11 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
                       rows={6}
                       className="max-h-[50vh] min-h-[10rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                     />
+                    {editError?.announcementId === announcement.id ? (
+                      <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                        <span>{editError.message}</span>
+                      </div>
+                    ) : null}
                     {/* Show scheduled date if set */}
                     {editScheduleDateTime && (
                       <div className="flex items-center gap-2">
@@ -922,7 +978,7 @@ export function TeacherAnnouncementsSection({ classroom, className }: Props) {
       <ConfirmDialog
         isOpen={!!deleteTarget}
         title="Delete announcement?"
-        description="This will permanently remove the announcement. Students will no longer be able to see it."
+        description={`This will permanently remove “${deleteTarget ? normalizeAnnouncementTitle(deleteTarget.title) ?? deleteTarget.content.trim().slice(0, 80) : 'this announcement'}”. Students will no longer be able to see it.`}
         confirmLabel={deleting ? 'Deleting...' : 'Delete'}
         cancelLabel="Cancel"
         confirmVariant="danger"

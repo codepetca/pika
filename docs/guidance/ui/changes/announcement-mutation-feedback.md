@@ -1,0 +1,19 @@
+# Teacher Announcement mutation feedback
+
+Surface: TeacherAnnouncementsSection in the actual Classroom Announcements tab. Approved reference: existing teacher warm-read and student acknowledgement role=alert/Button composition; canonical PageState/Button and `/pattern-lab?role=teacher#page-states`. Coordinator inspected four light/dark desktop/mobile Pattern Lab captures and eight real ClassroomPageClient teacher/student captures before implementation. Student baseline intentionally aborts acknowledgement to exhibit its existing error/retry reference; it is not a healthy acknowledgement or backend/authentication claim. Error-specific list feedback is feature owned; no experimental pattern or promotion.
+
+Roles: teacher changed; student unchanged regression/reference. Viewports1440x900 and390x844, themes light/dark, motion normal/reduced. States: existing successful/cold/warm/empty reads; create Post/Save Draft/Schedule, edit save/publication, and delete pending/failure/explicit recovery; preserved input/caret/textarea dimensions/list/scroll; archived read-only; current classroom versus late obsolete or suspended/abandoned switch completion. Primary signal: operation-specific failure beside the existing work and controls, without adding page chrome.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Mutation feedback | Existing Announcement role=alert semantic-token composition | reuse | Same feature already has readable recovery feedback. |
+| Recovery controls | Button and current Post/save/schedule actions | reuse | Existing commands retain explicit submission semantics and44px targets. |
+| Delete confirmation | Existing ConfirmDialog and identified delete target | reuse | Retry must reopen the explicit confirmation and never silently reissue DELETE. |
+| Operation/error ownership | TeacherAnnouncementsSection | extend | Current classroom/request guards and draft/target live here. |
+| Shell lifecycle | Existing ClassroomPageClient/TabContentTransition | reuse | Preserve immediate navigation, retained drafts, inert hidden descendants and reduced motion. |
+
+Show visible current-operation feedback after POST/PATCH/DELETE failure. Network failure may follow a server commit: wording must say Pika could not confirm the operation, not promise nothing changed. Keep create/edit fields and schedule, let the teacher review the visible list and use the current explicit action; never automatically retry/reconcile/refetch or guarantee idempotency. Delete recovery identifies the target and opens existing confirmation before another request. Preserve per-operation error identity: unrelated operation success must not clear a different error. Retire errors on committed classroom change with the existing ownership guards; no stale feedback/input publication from obsolete responses. Avoid automatic focus moves on async error; keyboard actions and confirmation return remain usable. Cancellation may clear feedback for the cancelled editor. Keep read errors independent.
+
+Excluded: server/schema/request bodies/auth/provider/API/business-publication/cache semantics, Toronto scheduling rules, dependencies, shared controls/gates, layout/motion overhaul. Existing optimistic rollback and request fencing remain unchanged. No family/product completion claim.
+
+Composite checklist applies to reused delete confirmation/menu/native keyboard boundaries: verify roles, explicit target, Escape/Tab/Enter, focus return, hidden controls inert and no delayed focus. Focused meaningful RED/GREEN tests including existing suspended/abandoned switch contracts; root actual-parent native interactions/recordings/screenshots in both roles/viewports/themes/motion; source-bound focused/static/audit and independent frozen review. Authenticated persistence/hardwareINP not claimed. Publication/review/CI delivery sequenced after combined student1522 landing; isolated implementation may proceed during predecessorCI.
