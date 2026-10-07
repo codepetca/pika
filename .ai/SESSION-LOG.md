@@ -586,3 +586,16 @@ Targeted V8 run38checks PASS, but whole-repository coverage thresholds correctly
 failed for unexecuted files; no coverage-gate PASS or threshold exclusion claimed.
 Focused833/TSC/lint/policies/audit PASS; runtime/profile/config byte parity with
 accepted240e verified. OldCI now terminalcancelled with failedunit/gate, retained.
+
+## 2026-10-07 — Reorder current-main integration
+
+Main advanced to01e629d73 via Classwork creation placement1509 during draft e6
+publication. Clean rebase succeeded without conflicts; migration253 unchanged,
+no numbering collision. Incoming Classwork UI/helper/tests are retained; the
+reorder API/SQL/proof/runtime/config/type bytes remain identical to reviewed e6
+and native240e. Stashes were not touched. Keep60 official history trim retains
+all54 entries without duplicating already archived bodies; archive unchanged.
+Source-equivalent old native receipts stay labeled240e; changed-base review and
+fresh focused checks/new exact-head CI remain required. Original05:04 clock,
+11 launches/8 targeted/1 final/8 fixes and human stop waiver retained; one Sol/high
+changed-base review follows. Canonical/prod249–253, promotion and rollout held.

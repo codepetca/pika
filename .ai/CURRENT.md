@@ -1,6 +1,6 @@
 # Checkpoint — 2026-10-07 UTC
 
-Main `473a5de8a`; 27 audit findings accepted.
+Main `01e629d73`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Production LIVE since2026-10-05 06:27UTC; loginHTTP200. Appc6f23b4b (#1476),
@@ -17,7 +17,7 @@ Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Discard251: #1503/865d837b7; exact9c391 CI37435496517 all5PASS.
 Publication#1510 merged473a5de8a: reviewed2f3/CI37564268228 all5PASS.
 Native25249/12/5/10 PASS/types; legacyPATCH/UI unchanged.
-Next: reorder253 CI fixture-test timeout correction.249–253 unapplied.
+Next: reorder253 changed-base review/CI.249–253 unapplied.
 No phase exit; `docs/guidance/contextual-test-reorder.md`.
 
 B1–B5 retained; native252 cleanup/all183-table,5-field B5 PASS.
