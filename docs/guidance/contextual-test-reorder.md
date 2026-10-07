@@ -242,3 +242,19 @@ The offline action-saturation test alone has a15s runner allowance after a
 parallel focused5s timeout; its isolated original5s run passed in2.86s. Its200+
 fresh-source guards,199 private SQL observations, assertions and actual proof
 caps remain unchanged. No suite-wide or native/application deadline extension.
+
+Reviewed700b native normal completed setup but hit the whole35s frame timeout
+at densebulk10000 (39actions/524controls); no inner RPC deadline code or cost
+attribution was observed. Exact teardown and full canonical five-field equality
+passed; no types, whole normal acceptance or forced checks were reached. PR1515
+remains draft; seventh eligible CI capacity failure remains unresolved.
+
+The next proof-only diagnostic uses four fixed INFO progress codes: frame entry,
+RPC dispatch, normal RPC return, and final full assertions. A calibration code
+in the existing expired-deadline probe verifies notice delivery. Parsing must be
+bounded, monotonic and scoped to exact source-owned SQL/profile/role/phase, with
+the first fault freezing the last observation. Missing calibration is unverified;
+missing or last-seen signals cannot establish query cost or the operation still
+running. No raw messages, IDs, SQL, values or timing are emitted. All50 probes,
+27 complete rollback frames, five bulk graph computations and original deadlines,
+workload, assertions, caps, product SQL and rollout holds remain unchanged.

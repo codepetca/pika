@@ -24,6 +24,22 @@ function target(): DraftSaveTarget {
 }
 
 describe('inert contextual Test reorder database contracts', () => {
+  it('places fixed INFO progress only inside the existing bulk and verified calibration frames', () => {
+    const marker = (code: string) => `raise info using errcode='${code}',message='Reorder proof checkpoint';`
+    const bulk = manifest.contracts.find(batch => batch.name === 'bulk-10000')!.sql
+    const calibration = manifest.contracts.find(batch => batch.expectedResult.checks.includes('deadline-reached'))!.sql
+    for (const code of ['PRG01', 'PRG02', 'PRG03', 'PRG04']) {
+      expect(bulk.split(marker(code))).toHaveLength(2)
+      expect(manifest.contracts.filter(batch => batch.sql.includes(marker(code))).map(batch => batch.name)).toEqual(['bulk-10000'])
+    }
+    expect(bulk.indexOf(marker('PRG01'))).toBeLessThan(bulk.indexOf('create temp table owner_reorder_checks'))
+    expect(bulk).toContain(`${marker('PRG02')}r:=public.reorder_tests_for_owner_v1`)
+    expect(bulk.indexOf(marker('PRG03'))).toBeLessThan(bulk.indexOf("exception when sqlstate 'PT503'"))
+    expect(bulk).toContain(`insert into pg_temp.owner_reorder_checks values('final-fixture-equality');${marker('PRG04')}end;$final$;`)
+    expect(calibration).toContain(`raise exception 'Deadline classifier calibration differs';end if;${marker('PRG00')}end;end;`)
+    expect(manifest.contracts.filter(batch => batch.sql.includes(marker('PRG00')))).toHaveLength(1)
+    expect(bulk.match(/pg_temp\.owner_reorder_graph\(\)/g)).toHaveLength(6) // Definition plus five whole graph calls.
+  })
   it('reports only fixed bulk-capacity SQL failures without weakening the success probe', () => {
     expect(TEST_OWNER_REORDER_BULK_FAILURE_CODES).toEqual({
       PRD01: 'test_reorder_deadline', PRD02: 'test_reorder_source_limit',

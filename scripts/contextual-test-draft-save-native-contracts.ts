@@ -34,6 +34,7 @@ import { newTestOwnerReorderFixture, testOwnerReorderSnapshotSql, type TestOwner
 import { TEST_OWNER_REORDER_SOURCE_SHA256, TEST_OWNER_REORDER_BULK_FAILURE_CODES, TEST_OWNER_REORDER_DEADLINE_PHASE_CODES, testOwnerReorderDbContractsManifest, runTestOwnerReorderDbContracts } from './contextual-test-reorder-db-contracts'
 import { testOwnerReorderConcurrencyManifest, validateTestOwnerReorderConcurrencySql, runTestOwnerReorderConcurrency } from './check-contextual-test-reorder-concurrency'
 import { testOwnerReorderCommittedManifest, validateTestOwnerReorderCommittedSql, runTestOwnerReorderCommittedTransitions } from './check-contextual-test-reorder-committed'
+import { captureTestOwnerReorderProgress, type TestOwnerReorderProgressCheckpoint, type TestOwnerReorderProgressScope } from './contextual-test-reorder-progress'
 
 const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, controlMs: 45000, closeMs: 12000,
   actionMs: 90000, totalMs: 900000, outputBytes: 8 * 1024 * 1024, stderrBytes: 65536, totalBytes: 64 * 1024 * 1024 })
@@ -524,6 +525,7 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   singleMs?: number;
   committedSha256?: string;
   committedOuterPrivilege?: true;
+  reorderProgressSql?: Readonly<{ bulk: string; calibration: string }>;
   runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<T>;
   validateSql(sql: string): boolean;
   contractsSha256: string;
@@ -625,6 +627,8 @@ export function createTestOwnerReorderNativeContracts(input: NativeOwnerInput & 
     manifest, project: `pika_assignment_list_${manifest.fixture.tag.slice(-12)}`,
     sourceFile: '253_contextual_test_owner_reorder.sql', label: 'test-owner-reorder',
     absoluteDeadline, singleMs: 35000, committedOuterPrivilege: true,
+    reorderProgressSql: Object.freeze({ bulk: manifest.contracts.contracts.find(batch => batch.name === 'bulk-10000')!.sql,
+      calibration: manifest.contracts.contracts.find(batch => batch.expectedResult.checks.includes('deadline-reached'))!.sql }),
     validateSql: sql => validateTestOwnerReorderNativeSql(manifest, sql),
     contractsSha256: testOwnerDigest(JSON.stringify(manifest.contracts)), racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
     committedSha256: testOwnerDigest(JSON.stringify(manifest.committed)),
@@ -655,7 +659,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   let publicationRaceDeadline: number | undefined
   const sessions = new Set<NativeSession>()
   let phase: Phase = 'idle'
-  let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number }> | undefined
+  let bulkProgress: TestOwnerReorderProgressCheckpoint = 'none'; let progressCalibrated = false
+  let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number;
+    progress: TestOwnerReorderProgressCheckpoint; calibration: 'verified' | 'unverified' }> | undefined
   function role(name: string): Role {
     if (name === `${project}_fixture`) return 'fixture'
     if (name === `${project}_draft_contracts`) return 'contracts'
@@ -664,7 +670,13 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     return 'none'
   }
   function record(kind: Fault, ownedRole: Role = 'none', sqlstate = 'unknown') {
+    if (firstFault) return
+    const observations = [...sessions].map(session => session.progressObservation())
+    const activeBulk = observations.find(value => value.scope === 'bulk')
+    const activeCalibration = observations.find(value => value.scope === 'calibration')
     firstFault ??= Object.freeze({ phase, failure: kind, role: ownedRole, sqlstate: sqlstates.has(sqlstate) ? sqlstate : 'unknown',
+      progress: activeBulk?.snapshot.checkpoint ?? bulkProgress,
+      calibration: progressCalibrated || activeCalibration?.snapshot.calibrated ? 'verified' : 'unverified',
       controls: Math.min(controls, CAPS.controlCalls + 1), actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1) })
   }
   let endpoint: { host: string; identity: number[] } | undefined
@@ -769,7 +781,10 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private partial = ''; private stderr = 0; private frame = 0; private closing?: Promise<void>
     private decoder = new StringDecoder('utf8')
     private sqlstate = captureSqlstate()
+    private progressScope: TestOwnerReorderProgressScope = 'none'
+    private progress = captureTestOwnerReorderProgress('none')
     private cleaning = false
+    progressObservation() { return { scope: this.progressScope, snapshot: this.progress.snapshot() } }
     private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
     constructor(name: string) {
       this.name = name
@@ -798,17 +813,29 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       this.child.stderr.on('data', (chunk: Buffer) => {
         this.stderr += chunk.length
         if (this.stderr > CAPS.stderrBytes) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
-        else this.sqlstate.push(chunk)
+        else {
+          this.sqlstate.push(chunk)
+          if (!this.cleaning && !firstFault && this.active) this.progress.push(chunk)
+        }
       })
     }
     private reject() { if (this.active) { clearTimeout(this.active.timer); this.active.reject(failure()); this.active = undefined } }
     private raw(sql: string, timeoutMs: number): Promise<readonly { result?: unknown }[]> {
       assert(!this.ended && !this.active); assert(timeoutMs > 0 && timeoutMs <= CAPS.actionMs)
+      this.progressScope = !this.cleaning && !firstFault && profile.label === 'test-owner-reorder' && phase === 'contracts'
+        && role(this.name) === 'contracts' && profile.reorderProgressSql
+        ? sql === profile.reorderProgressSql.bulk ? 'bulk' : sql === profile.reorderProgressSql.calibration ? 'calibration' : 'none'
+        : 'none'
+      this.progress = captureTestOwnerReorderProgress(this.progressScope)
       const marker = `__draft_save_end_${++this.frame}__`
       return new Promise((resolveRows, reject) => {
         const timer = setTimeout(() => { this.fault('timeout'); this.reject(); void closeAll().catch(() => {}) }, timeoutMs)
         this.active = { timer, reject, end: marker, bytes: 0, lines: [], finish: () => {
           const active = this.active!; this.active = undefined; clearTimeout(timer)
+          if (!firstFault && !this.cleaning) {
+            if (this.progressScope === 'bulk') bulkProgress = this.progress.snapshot().checkpoint
+            if (this.progressScope === 'calibration') progressCalibrated = this.progress.snapshot().calibrated
+          }
           try { resolveRows(active.lines.map(line => {
             try { return { result: JSON.parse(line) as unknown } }
             catch { assert(/^[a-f0-9-]{36}$/.test(line) || /^-?[0-9]+$/.test(line) || line === 'ok'); return { result: line } }
@@ -926,8 +953,9 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     },
     diagnostic() {
       const d = firstFault ?? { phase, failure: 'none', role: 'none', sqlstate: 'unknown', controls: Math.min(controls, CAPS.controlCalls + 1),
-        actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1) }
-      return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}.\n`
+        actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1),
+        progress: bulkProgress, calibration: progressCalibrated ? 'verified' : 'unverified' }
+      return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}${profile.label === 'test-owner-reorder' ? ` progress=${d.progress} calibration=${d.calibration}` : ''}.\n`
     },
     async setup() {
       phase = 'setup'

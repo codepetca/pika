@@ -700,3 +700,26 @@ all assertions and product/proof caps. Full focused/static checks pending. Batch
 17 reviews/14 targets/original05:04/human stop waiver retained before review18.
 All canonical/prod/activation/billing holds unchanged. Worker effective/active/
 tokens unknown; elapsed approx5min, no savings claim. No native or eligible CI active.
+
+## 2026-10-07 — Reorder whole-frame timeout diagnosis
+
+Batch15 frozen700b source review CLEAN;886 focused/32files/static/audit/58of60
+PASS. Ordinary draft push and truthful PRbody update completed; metrics typo
+rejected before write, corrected once to43events/9correction-sync pushes. Native
+normal19947 failed after481000ms: setupcomplete, contracts timeout at bulk10000
+39actions/524controls; no inner deadline or cost attribution. Exact disposable
+cleanup and complete canonical five-field closure PASS; types/normal acceptance/
+forced checks absent. Private600 failure receipt f868a4fc retained, PR1515draft.
+Bounded Sol6.1/high read-only analysis/root verification identified five full
+graph computations within the same35s frame, not measured cost. Sol6.1/high sole
+writer completed six source/test paths; fixed INFO progress/calibration diagnostics
+retain source SQL/actions/transactions/assertions/workload/deadlines. TDD RED,
+then201 affected cases covered across passing runs, not combined acceptance.
+Initial focused907PASS/11 unchanged5s failures retained; both failing suites117
+PASS independently, then full focused918/33files PASS149.3s with one worker and
+all static checks PASS. No timer extension or additional source correction.
+Audit6TS/diff PASS; official trim kept40 and all58 prior log bodies/archive prefix
+preserved. Batch16;18reviews/15targets/original05:04 clock/human waiver retained
+before targetedreview19. Native/CI inactive; canonical/prod applications,
+promotion and activation remain held. Worker approx16min elapsed; effective/
+active/tokens unknown, no savings claim.

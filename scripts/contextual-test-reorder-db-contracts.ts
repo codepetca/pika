@@ -74,7 +74,7 @@ function deadlineCalibration(rpc: string) {
  if sqlerrm is distinct from 'test_reorder_deadline' then raise;end if;
  get stacked diagnostics deadline_context=pg_exception_context;
  deadline_code:=${deadlineCodeSql()};deadline_context:=null;
- if deadline_code is distinct from 'PRD11' then raise exception 'Deadline classifier calibration differs';end if;end;end;`)
+ if deadline_code is distinct from 'PRD11' then raise exception 'Deadline classifier calibration differs';end if;raise info using errcode='PRG00',message='Reorder proof checkpoint';end;end;`)
 }
 
 // [trigger, function schema, function, type, UPDATE OF columns, WHEN predicate].
@@ -200,7 +200,7 @@ function success(f: TestOwnerReorderFixture, label: string, noop = false) {
   return probe(label, `declare ids uuid[];r jsonb;operation_before jsonb;expected_graph jsonb;after_graph jsonb;expected_rows jsonb;table_name text;n bigint;c bigint;${label === 'bulk-10000' ? 'deadline_context text;deadline_code text;' : ''}begin
  ids:=${input};n:=cardinality(ids);operation_before:=before_graph;${noop ? `perform ${call(c.actorId,c.classroomId,'ids')};operation_before:=pg_temp.owner_reorder_graph();` : ''}
  select count(*) into c from public.tests test join unnest(ids) with ordinality desired(id,ordinality) on desired.id=test.id where test.classroom_id=${q(c.classroomId)}::uuid and test.position is distinct from (n-desired.ordinality)::integer;
- ${label === 'bulk-10000' ? `begin r:=${call(c.actorId,c.classroomId,'ids')};
+ ${label === 'bulk-10000' ? `begin raise info using errcode='PRG02',message='Reorder proof checkpoint';r:=${call(c.actorId,c.classroomId,'ids')};raise info using errcode='PRG03',message='Reorder proof checkpoint';
  exception when sqlstate 'PT503' then case sqlerrm
  when 'test_reorder_deadline' then get stacked diagnostics deadline_context=pg_exception_context;
  deadline_code:=${deadlineCodeSql()};deadline_context:=null;raise exception using errcode=deadline_code,message='Reorder bulk-capacity proof failed';
@@ -354,7 +354,7 @@ export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, 
     const expectedResult=freeze({version:1 as const,batch:name,checks:[...labels,'final-fixture-equality'].sort(),rolledBack:true as const})
     const sql=bounded(`begin;set local lock_timeout='1s';set local statement_timeout='35s';
  do $guard$ begin if current_setting('application_name')<>${q(projectId+'_draft_contracts')} or current_database()<>'postgres' or current_user<>'postgres'
- or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null then raise exception 'Migration253 disposable source differs';end if;end;$guard$;
+ or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null then raise exception 'Migration253 disposable source differs';end if;${group.name==='bulk-10000' ? "raise info using errcode='PRG01',message='Reorder proof checkpoint';" : ''}end;$guard$;
  create temp table owner_reorder_checks(label text not null unique) on commit drop;
  create function pg_temp.owner_reorder_graph() returns jsonb language sql stable set search_path='' as $snapshot$ select ${graph} $snapshot$;
  create temp table owner_reorder_baseline(value jsonb not null) on commit drop;insert into owner_reorder_baseline select pg_temp.owner_reorder_graph();
@@ -362,7 +362,7 @@ export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, 
  do $final$ declare baseline_graph jsonb;begin select value into strict baseline_graph from pg_temp.owner_reorder_baseline;
  if baseline_graph is distinct from pg_temp.owner_reorder_graph() then raise exception 'Reorder final fixture differs';end if;
  if(select count(*) from pg_temp.owner_reorder_checks)<>${labels.length} then raise exception 'Reorder check count differs';end if;
- insert into pg_temp.owner_reorder_checks values('final-fixture-equality');end;$final$;
+ insert into pg_temp.owner_reorder_checks values('final-fixture-equality');${group.name==='bulk-10000' ? "raise info using errcode='PRG04',message='Reorder proof checkpoint';" : ''}end;$final$;
  select jsonb_build_object('version',1,'batch',${q(name)},'checks',(select jsonb_agg(label order by label) from pg_temp.owner_reorder_checks),'rolledBack',true) as result;rollback;`)
     return freeze({name,logicalGroup:group.name,sql,expectedResult})
     })
