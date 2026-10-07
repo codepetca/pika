@@ -145,6 +145,15 @@ vi.mock('@/components/layout', async () => {
             Go Classwork
           </button>
         ) : null}
+        {featureVisibility?.student_grades ? (
+          <button
+            type="button"
+            onFocus={() => onTabIntent?.('grades')}
+            onClick={() => onTabChange('grades')}
+          >
+            Go Grades
+          </button>
+        ) : null}
         {featureVisibility?.tests !== false ? (
           <button type="button" onClick={() => onTabChange('tests')}>
             Go Tests
@@ -1199,6 +1208,37 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       expect(params.has('testId')).toBe(false)
     })
     expect(mockTeacherTestsTabProps).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [401, false], [403, false], [404, false], [403, true],
+  ])('preserves Grades intent denial status %s (JSON=%s) without navigating', async (status, jsonBody) => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=today')
+    renderStudentClient({
+      initialTab: 'today',
+      classroom: { ...classroom, feature_visibility: { ...DEFAULT_CLASSROOM_FEATURE_VISIBILITY, student_grades: true } },
+    })
+    const locationBeforeIntent = window.location.href
+    fireEvent.focus(screen.getByRole('button', { name: 'Go Grades' }))
+    const prefetch = mockPrefetchJSON.mock.calls.find(([key]) => key === 'student-grades:classroom-1')
+    expect(prefetch).toBeDefined()
+    expect(prefetch![2]).toBe(30_000)
+    expect(window.location.href).toBe(locationBeforeIntent)
+    expect(screen.getByTestId('student-today-primary')).toBeInTheDocument()
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      jsonBody ? JSON.stringify({ error: 'Grades are unavailable' }) : 'Unavailable',
+      { status, headers: { 'Content-Type': jsonBody ? 'application/json' : 'text/plain' } },
+    ))
+    try {
+      await expect(prefetch![1]()).rejects.toMatchObject({
+        name: 'ApiError', statusCode: status,
+        message: jsonBody ? 'Grades are unavailable' : 'Failed to load grades',
+      })
+      expect(fetchSpy).toHaveBeenCalledWith('/api/student/classrooms/classroom-1/grades')
+      expect(window.location.href).toBe(locationBeforeIntent)
+    } finally {
+      fetchSpy.mockRestore()
+    }
   })
 
   it('does not prefetch a hidden feature even when stale intent is emitted', async () => {

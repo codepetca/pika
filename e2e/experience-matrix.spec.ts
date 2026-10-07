@@ -12,6 +12,7 @@ import { verifyWorkspaceMotion } from './helpers/workspace-motion'
 import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
 import { verifyAssignmentPreviewMotion, verifyAssignmentPreviewPreferenceChange } from './helpers/assignment-preview-motion'
 import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } from './helpers/assignment-editor-exit'
+import { verifyStudentGradesContinuity } from './helpers/student-grades-continuity'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -64,6 +65,20 @@ test.describe('Assignment editor retirement', () => {
       })
       test('retires nested controls and closes after the parent publishes Post', async ({ page }, testInfo) => {
         await verifyAssignmentEditorControls(page, testInfo)
+      })
+    })
+  }
+})
+
+test.describe('student Grades continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('preserves native reactivation and recovery', async ({ page }, testInfo) => {
+        test.setTimeout(150_000)
+        await applyProjectTheme(page, testInfo)
+        await verifyStudentGradesContinuity(page, testInfo)
       })
     })
   }
