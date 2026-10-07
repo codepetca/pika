@@ -143,3 +143,20 @@ messages retain PT503; every mapped error still aborts. This exposes no raw
 PostgreSQL message, query, row or context. The product RPC, workload,8s/20s
 deadlines, byte/action caps, one-update and sealed trigger contracts are unchanged.
 No capacity/performance relaxation or native/CI acceptance is implied.
+
+CI37593268925 on3531 passed build and browser checks, but failed earlier:
+the native35s frame timer expired in authority-effects (15 actions/236controls,
+unknown SQLSTATE), before bulk execution. Its13 probes perform33 complete graph
+computations within one frame. This is not evidence of a product RPC deadline
+failure, and the previous bulk PT503 remains independently unresolved.
+
+The rollback manifest retains all50 unique probes in9 logical groups, now
+partitioned into27 exact source-owned executions, at most2 probes each. Every
+execution has its own BEGIN/ROLLBACK, full baseline, unchanged probe bodies and
+full effect/rollback assertions, final fixture equality and exact compact receipt.
+The existing native validator admits these exact issued SQL strings only.
+Native/application action, control, byte and900s lifetime caps remain unchanged;
+35s per-frame and8s/20s product deadlines are not extended. The additional18
+dispatches and compact receipts remain counted. Fresh source review, native
+normal/forced-cleanup proofs and exact-head CI are required; this rebatching is
+not acceptance or a fix for the separate bulk-capacity failure.

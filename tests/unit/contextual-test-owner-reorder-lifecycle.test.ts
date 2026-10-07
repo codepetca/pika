@@ -62,7 +62,10 @@ describe('closed reorder lifecycle source contracts', () => {
   it('freezes the complete253 union while distinguishing rollback proof from remaining gates', () => {
     const union = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(Object.isFrozen(union.sql.concurrency.schedules)).toBe(true)
-    expect(union.sql.contracts.contracts).toHaveLength(9); expect(union.sql.concurrency.schedules).toHaveLength(21)
+    expect(union.sql.contracts.contracts).toHaveLength(27); expect(union.sql.concurrency.schedules).toHaveLength(21)
+    const source = readFileSync('scripts/check-contextual-test-owner-reorder-lifecycle.ts', 'utf8')
+    expect(source).toContain('${union.sql.contracts.contracts.length} rollback SQL batches')
+    expect(source).not.toContain('nine rollback SQL batches')
     expect(union.applicationCapabilities).toEqual({ controls: 4000, actions: 200, totalMs: 900000, controlMs: 45000, totalBytes: 384 * 1024 * 1024 })
     expect(union.inventory).toMatchObject({ sdkCases: 16, sdkReorders: 6, privilegeDriftProbes: 1, rpcRequests: 17, storageRequests: 0, rollbackSchedules: 21, committedTransitions: 7 })
     expect(union.remainingGates).toEqual(['Successful Blueprint/proposal workflow', 'Enabled purge workflow activation'])

@@ -21,7 +21,8 @@ export const TEST_OWNER_REORDER_BULK_FAILURE_CODES = Object.freeze({
   PRD05: 'test_reorder_revision_limit', PRD06: 'test_reorder_postcondition_failed',
   PRD07: 'test_reorder_result_limit',
 } as const)
-export const TEST_OWNER_REORDER_DB_CAPS = Object.freeze({ sqlBytes: 262144, responseBytes: 1048576, actionMs: 35000, requestMs: 12000, batches: 9 })
+export const TEST_OWNER_REORDER_DB_CAPS = Object.freeze({ sqlBytes: 262144, responseBytes: 1048576, actionMs: 35000, requestMs: 12000,
+  logicalGroups: 9, batches: 27, probesPerBatch: 2 })
 export const TEST_OWNER_REORDER_TEST_COLUMNS = Object.freeze(['id','classroom_id','title','status','show_results','position',
   'points_possible','include_in_final','created_by','created_at','updated_at','documents','gradebook_weight','artifact_id','source_artifact_id',
   'blueprint_archived_at','source_blueprint_version_id','questions_locked_at','gradebook_category_id','gradebook_maximum_override','gradebook_score_scale'] as const)
@@ -294,25 +295,36 @@ export function testOwnerReorderDbContractsManifest(f: TestOwnerReorderFixture, 
     {name:'bulk-10001',probes:[denial('source-10001-limit',call(teacher.actorId,b10001.classroomId,`(${bulkSource})[1:10000]`),'PT503'),
       denial('full-10001-input',call(teacher.actorId,b10001.classroomId,bulkSource),'PT400')]},
   ]
-  assert.equal(groups.length,TEST_OWNER_REORDER_DB_CAPS.batches)
+  assert.equal(groups.length,TEST_OWNER_REORDER_DB_CAPS.logicalGroups)
   const graph=testOwnerReorderSnapshotExpressionSql(f)
-  const contracts=groups.map(group=>{
-    const labels=group.probes.map(p=>p.label);assert.equal(new Set(labels).size,labels.length)
-    const expectedResult=freeze({version:1 as const,batch:group.name,checks:[...labels,'final-fixture-equality'].sort(),rolledBack:true as const})
+  // Bound cumulative native frame work, not just PostgreSQL's per-statement
+  // timeout. Every frame remains a complete standalone rollback transaction;
+  // no probe, full-graph comparison, product deadline or runtime cap is removed.
+  const contracts=groups.flatMap(group=>{
+    const chunkCount=Math.ceil(group.probes.length/TEST_OWNER_REORDER_DB_CAPS.probesPerBatch)
+    return Array.from({length:chunkCount},(_,index)=>{
+    const probes=group.probes.slice(index*TEST_OWNER_REORDER_DB_CAPS.probesPerBatch,(index+1)*TEST_OWNER_REORDER_DB_CAPS.probesPerBatch)
+    assert(probes.length>0&&probes.length<=TEST_OWNER_REORDER_DB_CAPS.probesPerBatch)
+    const name=chunkCount===1?group.name:`${group.name}-${index+1}`
+    const labels=probes.map(p=>p.label);assert.equal(new Set(labels).size,labels.length)
+    const expectedResult=freeze({version:1 as const,batch:name,checks:[...labels,'final-fixture-equality'].sort(),rolledBack:true as const})
     const sql=bounded(`begin;set local lock_timeout='1s';set local statement_timeout='35s';
  do $guard$ begin if current_setting('application_name')<>${q(projectId+'_draft_contracts')} or current_database()<>'postgres' or current_user<>'postgres'
  or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null then raise exception 'Migration253 disposable source differs';end if;end;$guard$;
  create temp table owner_reorder_checks(label text not null unique) on commit drop;
  create function pg_temp.owner_reorder_graph() returns jsonb language sql stable set search_path='' as $snapshot$ select ${graph} $snapshot$;
  create temp table owner_reorder_baseline(value jsonb not null) on commit drop;insert into owner_reorder_baseline select pg_temp.owner_reorder_graph();
- ${group.probes.map(p=>p.sql).join('\n')}
+ ${probes.map(p=>p.sql).join('\n')}
  do $final$ declare baseline_graph jsonb;begin select value into strict baseline_graph from pg_temp.owner_reorder_baseline;
  if baseline_graph is distinct from pg_temp.owner_reorder_graph() then raise exception 'Reorder final fixture differs';end if;
  if(select count(*) from pg_temp.owner_reorder_checks)<>${labels.length} then raise exception 'Reorder check count differs';end if;
  insert into pg_temp.owner_reorder_checks values('final-fixture-equality');end;$final$;
- select jsonb_build_object('version',1,'batch',${q(group.name)},'checks',(select jsonb_agg(label order by label) from pg_temp.owner_reorder_checks),'rolledBack',true) as result;rollback;`)
-    return freeze({name:group.name,sql,expectedResult})
+ select jsonb_build_object('version',1,'batch',${q(name)},'checks',(select jsonb_agg(label order by label) from pg_temp.owner_reorder_checks),'rolledBack',true) as result;rollback;`)
+    return freeze({name,logicalGroup:group.name,sql,expectedResult})
+    })
   })
+  assert.equal(contracts.length,TEST_OWNER_REORDER_DB_CAPS.batches)
+  assert.equal(new Set(contracts.map(batch=>batch.name)).size,contracts.length)
   const checkLabels=groups.flatMap(g=>g.probes.map(p=>p.label));assert.equal(new Set(checkLabels).size,checkLabels.length)
   const expectedResult=freeze({version:1 as const,checks:[...checkLabels].sort(),rolledBack:true as const})
   const manifest=freeze({version:1 as const,fixture:f,projectId,sourceFile:'253_contextual_test_owner_reorder.sql' as const,

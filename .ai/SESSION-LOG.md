@@ -543,3 +543,24 @@ TDD caught a code collision with252; switched to a disjoint finite namespace.
 8s/20s deadlines, trigger closure and all caps unchanged. Source review/actual
 proof/new exact-head CI remain gates; no source fix or merge success claimed.
 Canonical/prod249–253, promotion and all activation remain held. Counters carried.
+
+## 2026-10-07 — Reorder rollback-frame timeout remediation
+
+Reviewed3531 CI37593268925 passed build/browser; database failed earlier than
+the bulk probe: native35s framing timeout in authority-effects13probes,
+15actions/236controls, SQLSTATEunknown. Returned1515 to draft before edits;
+single watcher endedexit1, compact terminal receipt retained. Root+Sol/high
+bounded read-only trace confirms33 full graphs in one frame; no product8s
+deadline diagnosis. Worker initially miscounted max2 chunks as26; root rejected
+and worker corrected to27. Root TDD3RED/10PASS, then retained all50probes/9groups
+as27 complete sealed rollback executions (max2probes), unchanged full baseline,
+effect/rollback/final assertions and compact acknowledgements. No partial-frame
+protocol or product/trigger/types change;35s/8s/20s and all runtime resource/900s
+limits retained. Additional dispatches counted; earlier bulkPT503 remains separate.
+Focused/static/review/fresh native/CI remain gates. Original05:04 review clock,
+counters and human workflow-stop waiver retained, no approval/counter reset.
+Canonical/prod249–253 application, production promotion and rollout remain held.
+First focused run found two stale9batch expectations (830PASS/2FAIL); updated
+their explicit count, keeping every runtime-cap assertion. Subsequent833 focused
+checks/static gates PASS. Success output now derives the dispatch count from the
+sealed manifest; final exact-tree verification and independent review follow.

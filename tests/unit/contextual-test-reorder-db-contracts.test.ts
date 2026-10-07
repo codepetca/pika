@@ -45,8 +45,9 @@ describe('inert contextual Test reorder database contracts', () => {
   it('pins the exact source and emits finite frozen rollback batches', () => {
     expect(TEST_OWNER_REORDER_SOURCE_SHA256).toBe('6c58370f3234cce74a767cde1819a4d6af0265725cb69b843f54b4e8a9b55c6e')
     expect(digest(readFileSync('supabase/migrations/253_contextual_test_owner_reorder.sql', 'utf8'))).toBe(TEST_OWNER_REORDER_SOURCE_SHA256)
-    expect(TEST_OWNER_REORDER_DB_CAPS).toEqual({ sqlBytes: 262144, responseBytes: 1048576, actionMs: 35000, requestMs: 12000, batches: 9 })
-    expect(manifest.contracts).toHaveLength(9)
+    expect(TEST_OWNER_REORDER_DB_CAPS).toEqual({ sqlBytes: 262144, responseBytes: 1048576, actionMs: 35000, requestMs: 12000,
+      logicalGroups: 9, batches: 27, probesPerBatch: 2 })
+    expect(manifest.contracts).toHaveLength(27)
     for (const batch of manifest.contracts) {
       expect(Object.isFrozen(batch)).toBe(true)
       expect(Buffer.byteLength(batch.sql)).toBeLessThanOrEqual(262144)
@@ -57,6 +58,36 @@ describe('inert contextual Test reorder database contracts', () => {
     }
     expect(Object.isFrozen(manifest)).toBe(true)
     expect(manifest.sourceFile).toBe('253_contextual_test_owner_reorder.sql')
+  })
+
+  it('splits all nine logical groups into complete sealed rollback frames without losing probes', () => {
+    const expectedGroups = {
+      catalog: 1, 'authority-effects': 13, 'input-membership': 6, bounds: 8,
+      'lifecycle-guards': 8, 'injected-faults': 9, 'bulk-1001': 2, 'bulk-10000': 1, 'bulk-10001': 2,
+    }
+    const labels: string[] = []
+    for (const [group, count] of Object.entries(expectedGroups)) {
+      const chunks = manifest.contracts.filter(batch => batch.logicalGroup === group)
+      expect(chunks).toHaveLength(Math.ceil(count / 2))
+      let probes = 0
+      chunks.forEach((chunk, index) => {
+        expect(chunk.name).toBe(count <= 2 ? group : `${group}-${index + 1}`)
+        const batchLabels = chunk.expectedResult.checks.filter(label => label !== 'final-fixture-equality')
+        expect(batchLabels.length).toBeGreaterThan(0)
+        expect(batchLabels.length).toBeLessThanOrEqual(2)
+        expect(chunk.sql.match(/do \$probe\$/g)).toHaveLength(batchLabels.length)
+        expect(chunk.sql).toContain("set local statement_timeout='35s'")
+        expect(chunk.sql).toContain('Reorder final fixture differs')
+        expect(chunk.sql).toContain('Rollback graph differs')
+        expect(chunk.sql).toContain('create temp table owner_reorder_baseline')
+        probes += batchLabels.length
+        labels.push(...batchLabels)
+      })
+      expect(probes).toBe(count)
+    }
+    expect(labels).toHaveLength(50)
+    expect(new Set(labels).size).toBe(50)
+    expect(labels.sort()).toEqual([...manifest.checkLabels].sort())
   })
 
   it('seals exact columns, all13 triggers, column qualifiers and reachable routine source', () => {
@@ -158,7 +189,7 @@ describe('inert contextual Test reorder database contracts', () => {
       }, rollbackAndClose: async timeout => { expect(timeout).toBe(12000); closed++ },
     }) }
     await expect(runTestOwnerReorderDbContracts(manifest, sealed, driver,Date.now()+315000)).resolves.toMatchObject({ kind: 'rollback-test-owner-reorder-contracts', checks: manifest.expectedResult.checks })
-    expect(calls).toBe(9); expect(closed).toBe(1)
+    expect(calls).toBe(27); expect(closed).toBe(1)
   })
 
   it('closes on execution, target drift, acknowledgement and session-name failures', async () => {
@@ -186,6 +217,21 @@ describe('inert contextual Test reorder database contracts', () => {
     }) }
     await expect(runTestOwnerReorderDbContracts(manifest, sealed, driver, Date.now() + 315000)).rejects.toMatchObject({ code: '22023' })
     expect(calls).toBe(1); expect(closed).toBe(1)
+  })
+
+  it('stops and closes immediately when a later sealed rollback frame fails', async () => {
+    const sealed = target(); let calls = 0; let closed = 0
+    const driver: DraftSaveDriver = { verifyTarget: async () => sealed, openSession: async name => ({ name,
+      execute: async statement => {
+        const batch = manifest.contracts[calls++]
+        expect(statement).toBe(batch.sql)
+        if (calls === 10) throw new Error('Synthetic later frame timeout')
+        return [{ result: batch.expectedResult }]
+      }, rollbackAndClose: async () => { closed++ },
+    }) }
+    await expect(runTestOwnerReorderDbContracts(manifest, sealed, driver, Date.now() + 315000))
+      .rejects.toThrow('Synthetic later frame timeout')
+    expect(calls).toBe(10); expect(closed).toBe(1)
   })
 
   it('rejects a cloned or changed source manifest and hosted target before any session', async () => {
