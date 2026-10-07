@@ -652,3 +652,16 @@ fix-sync batches and original05:04 clock retained; this is batch12, next targete
 review launch15. Human waiver persists; all canonical/prod/rollout holds remain.
 Worker elapsed approx10min; effective model/active time/tokens unknown; no
 savings claim. Root owns implementation, Git and acceptance.
+
+## 2026-10-07 — Reorder assignment-preview main reconciliation
+
+Targeted Sol6.1/high source review of43e58276 CLEAN; actual diagnostic calibration
+still pending. Main advanced to2c99c5f41 (#1517 Assignment preview), so rebase
+before native acceptance. Three archive-marker conflicts retain verified exact
+main prefix and shared survey bodies; all prior/main entry bodies retained.
+Incoming UI/test sources byte-exact main; reviewed product/proof/type/config
+bytes unchanged,253 unique. No stash operations or unrelated edits; ordered
+stash digest unchanged across this rebase. New focused/changed-base review and
+one frozen-head native normal/types plus both forced cleanup proofs pending.
+Prior15 launches/12 targeted/12 fixes, original05:04 clock and human waiver
+retained; reconciliation batch13. No production/canonical/activation changes.
