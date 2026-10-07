@@ -1,3 +1,5 @@
+import { CircularProgress } from '@/ui'
+
 export function Spinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const sizeClasses = {
     sm: 'w-4 h-4',
@@ -7,9 +9,7 @@ export function Spinner({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 
   return (
     <div className="flex justify-center items-center">
-      <div
-        className={`${sizeClasses[size]} border-4 border-border border-t-primary rounded-full animate-spin`}
-      />
+      <CircularProgress className={`${sizeClasses[size]} text-primary`} />
     </div>
   )
 }

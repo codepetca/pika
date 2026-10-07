@@ -26,6 +26,22 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher') {
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['teacher', 'student'] as const)('keeps loading names and busy semantics with decorative circular progress for %s', (role) => {
+    renderGallery(role)
+    const example = screen.getByTestId('circular-progress-example')
+    const status = within(example).getByRole('status')
+    expect(status).toHaveTextContent('Loading classroom')
+    expect(status).toHaveAttribute('aria-busy', 'true')
+    for (const name of ['Saving', 'Creating classroom']) {
+      const button = within(example).getByRole('button', { name })
+      expect(button).toBeDisabled()
+      expect(button).toHaveAttribute('aria-busy', 'true')
+    }
+    for (const icon of example.querySelectorAll('svg')) {
+      expect(icon).toHaveAttribute('aria-hidden', 'true')
+    }
+  })
+
   it.each(['teacher', 'student'] as const)('returns focus and confirms only the explicit local action for %s', async (role) => {
     const user = userEvent.setup()
     renderGallery(role)

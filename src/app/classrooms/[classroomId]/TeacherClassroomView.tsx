@@ -27,7 +27,6 @@ import {
   Copy,
   EllipsisVertical,
   GripVertical,
-  LoaderCircle,
   Lock,
   Menu,
   MessageSquare,
@@ -41,7 +40,7 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { CircularProgress, Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
@@ -2493,7 +2492,7 @@ export function TeacherClassroomView({
 
   const workspaceStatus = workspaceLoading ? (
     <div aria-live="polite" className="inline-flex items-center text-text-muted">
-      <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+      <CircularProgress className="h-4 w-4" />
       <span className="sr-only">Updating assignment workspace</span>
     </div>
   ) : null

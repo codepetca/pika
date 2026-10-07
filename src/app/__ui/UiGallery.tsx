@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Spinner } from '@/components/Spinner'
 import { AppHeader } from '@/components/AppHeader'
 import { ClassroomsReadRecoveryPattern } from './ClassroomsReadRecoveryPattern'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -8,6 +9,7 @@ import {
   AlertDialog,
   Button,
   Card,
+  CircularProgress,
   ContentDialog,
   ConfirmDialog,
   QrCode,
@@ -414,6 +416,21 @@ export function UiGallery({ role }: Props) {
                 </Tooltip>
               </div>
             </Card>
+
+            <div id="circular-progress" data-testid="circular-progress-example">
+              <Card tone="panel" padding="md">
+                <PatternHeading title="Circular progress" owner="src/ui/CircularProgress.tsx" />
+                <p className="mt-2 text-sm text-text-muted">One circular loader with no background or track. Its status or control supplies the accessible label; reduced motion keeps it static.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-6">
+                  <Spinner size="sm" />
+                  <Spinner size="md" />
+                  <Spinner size="lg" />
+                  <Button size="sm" loading>Saving</Button>
+                  <IconButton icon={Plus} label="Creating classroom" loading />
+                </div>
+                <PageState compact kind="loading" title="Loading classroom" />
+              </Card>
+            </div>
 
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <Card tone="panel" padding="md">
@@ -909,8 +926,8 @@ function StatusExample({ status }: { status: StatusCatalogEntry }) {
   return (
     <Card tone="panel" padding="md">
       <div className="flex items-start gap-3">
-        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-control border', STATUS_TONE_CLASSES[status.tone])}>
-          <Icon className={cn('h-5 w-5', status.icon === 'loader' && 'animate-spin motion-reduce:animate-none')} aria-hidden="true" />
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center', status.icon === 'loader' ? 'text-primary' : cn('rounded-control border', STATUS_TONE_CLASSES[status.tone]))}>
+          {status.icon === 'loader' ? <CircularProgress className="h-5 w-5" /> : <Icon className="h-5 w-5" aria-hidden="true" />}
         </div>
         <div>
           <div className="flex flex-wrap items-center gap-2">

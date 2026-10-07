@@ -1,7 +1,7 @@
 'use client'
 
 import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Camera, CheckCircle2, FolderGit2, Link2, Loader2, Upload } from 'lucide-react'
+import { AlertCircle, Camera, CheckCircle2, FolderGit2, Link2, Upload } from 'lucide-react'
 import { Button, FormField, Input } from '@/ui'
 import {
   getSubmissionRequirementCompletion,
@@ -36,7 +36,7 @@ function RequirementIcon({ type }: { type: AssignmentSubmissionRequirement['type
 
 function StatusIcon({ item }: { item: ReturnType<typeof getSubmissionRequirementCompletion>['items'][number] }) {
   if (item.artifact?.validation_status === 'pending') {
-    return <Loader2 className="h-4 w-4 animate-spin text-text-muted" aria-hidden="true" />
+    return <CircularProgress className="h-4 w-4 text-text-muted" />
   }
   if (item.isPresent && item.artifact?.validation_status === 'valid') {
     return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />

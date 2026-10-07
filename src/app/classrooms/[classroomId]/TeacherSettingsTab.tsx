@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClipboardCopy, Info, QrCode as QrCodeIcon, RefreshCw } from 'lucide-react'
 import {
+  CircularProgress,
   Button,
   Card,
   ConfirmDialog,
@@ -656,7 +657,7 @@ export function TeacherSettingsTab({
                 title="Generate new join code and link"
                 className="h-11 w-11 shrink-0 border-warning bg-warning-bg px-0 text-warning hover:bg-warning-bg focus:ring-warning"
               >
-                <RefreshCw className={cn('h-4 w-4', isRegenerating ? 'animate-spin' : '')} aria-hidden="true" />
+                {isRegenerating ? <CircularProgress /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
               </Button>
             </div>
 

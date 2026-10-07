@@ -45,6 +45,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 ```
 
+### CircularProgress
+
+Use `CircularProgress` for circular loading indicators. It renders the Lucide
+`LoaderCircle` with no background, border tile, or muted track, inherits the
+owning surface's text color, and stops spinning for reduced motion. Set size
+and semantic color through `className`; the default is 16px.
+
+The indicator is decorative. Its owning control or status supplies the loading
+label and busy semantics. `Button`, `IconButton`, `PageState`, and the legacy
+`Spinner` wrapper all use this owner. Do not recreate a loading SVG or add a
+background around the indicator.
+
 ### IconButton
 
 Use `IconButton` for icon-only actions. Pass a Lucide `icon` and contextual `label`;
