@@ -11,42 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Shared mobile drawer dismissal controls
-
-Active product-wide fluidity goal advances independently of four pending owner merge/promotion decisions. Reuse ghost IconButton for Navigation Close and both RightSidebar Back variants; preserve original ModalLayer refs, labels, immediate commands and shell. Measured pre-edit mobile targets40/36px versus canonical44px in four role/theme presentations; native baseline keyboard outlines visibly present. New deterministic Pattern Lab reference renders actual owners with fixed local content outside existing golden region. Only teacher Calendar currently enables RightSidebar; student detail evidence is shared-owner composition, not a live student route. No dependency, schema, feature-state or design-promotion change.
-
-Both-role desktop/mobile light/dark normal/reduced browser contracts and natural evidence accompany focused semantic tests, UI/design policy and staged audit. Three retired native controls removed from exact registry. Full required focused gate, independent stable-SHA draft PR review and CI precede delivery; main merge/production remain owner-gated. Goal remains active across all17 route-family groups; this control repair is one bounded slice.
-
-## 2026-10-06 — Approved PR1495 integration reconciliation
-
-Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
-
-## 2026-10-06 Header hydration continuity and dialog entry comparison
-
-Added a development-only immediate/quiet ContentDialog comparison using existing owners and motion tokens; the direction remains experimental and unpromoted. Natural first-frame focus, isolation and immediate commands are covered in both-role desktop/mobile light/dark normal/reduced matrix (16/16 pass); no API/write/error events. Retained before/after screenshots, recordings and all failed authoring receipts in the owning chat artifacts.
-
-Repeated baseline clock hydration failures exposed an existing AppHeader server/client minute mismatch. Required server timestamps now reach all production header owners; mount refresh and 60-second ticking retain the current presentation. SSR minute/Toronto-midnight regressions changed from hydration errors and DOM replacement to preserved nodes and zero recoverable errors. Nine affected test files/91 tests and scoped lint pass. Full goal route coverage, experimental promotion and merge/production authority remain separate; stable-SHA review/CI receipts belong to the PR.
-
-## 2026-10-06 PR 1496 combined recovery clock continuation
-
-Rebased onto reviewed PR 1491 parent `9d32e4ad`; preserved recovery/dialog gallery registrations, all continuity bodies and main archive prefix. Added required `initialNow` on enrollment-error return without weakening shell/header props. Regression RED then 84 affected tests GREEN; focused 378 tests and policy/type/lint PASS. Combined controlled browser matrix: 16 dialog and 16 recovery/clock cells covered; two dialog and one recovery initial useId-warning failures passed unchanged once-only retries, matching prior Pattern Lab warning provenance. Actual authenticated enrollment-outage RSC remains unverified. Experimental dialog stays unpromoted; no push/merge/deployment. External receipt: `product-fluidity/integration-1496-composition.md`.
-
-## 2026-10-06 — Accurate auth resend feedback and preserved focus
-
-Bounded product-fluidity work on the real signup verification/reset-code pages:
-reuse canonical ghost Button, inline FormField errors and AppMessage; check HTTP
-outcomes, suppress obsolete notices, exclude overlapping resend/verification and
-retain code/email drafts. Native pending disabling originally lost opener focus;
-bounded ownership restoration now respects deliberate pointer/keyboard/focus moves,
-owner changes and unmount, with preventScroll. Narrow tests31 PASS; actual public
-16-case viewport/theme/motion matrix directly PASS, root visual review96 state PNG
-and16 sampled natural videos PASS. Every API response intercepted;64 POST attempts,
-zero backend/email writes; no production INP or email-delivery proof. First focused
-check220 tests PASS then caught stale native-control registry; migrate only the two
-resend entries. Required focused/audit and draft stable-SHA independent review/CI
-continue. No new dependency, backend/auth policy/schema or design promotion; main
-merge/production authorization remains separate. Full17-family goal stays active.
-
 ## 2026-10-06 — Approved PR1497 integration reconciliation
 
 Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
@@ -427,3 +391,29 @@ Repository remains public, zero runners and automatic PIKA opt-in unset. Known c
 ## 2026-10-06 — CI runner preparation synchronized after fluidity landing
 
 Owner selected keep-public and coordinate toward merging1512. The1490coordinator explicitly released its temporary main-merge hold after verified landing3a0b17d6; preserve incoming product/CI inputs and both complete continuity histories in1512. Reviewed8f6driver and46fault cases, corrected unregistered rehearsal and security/finalintegration coverage remain source-specific; retain original executionSHA when relevant byte parity permits reuse. Prior25cde focused461/25/static and targeted sync CLEAN; new-base focused/targeted integration and one final exact-head hostedCI/PRGate precede normal squash merge. No public runner registration, privatevisibility, automaticoptin, HQ, database or production changes. Requested source coordinator defer its next mainmerge until1512landing/checkpoint; local softer-modal work can continue. Cumulative review counters and human task-stop waiver retained; weekly11%remaining/ordinaryusageallowed; DeepSeek pause remains.
+
+## 2026-10-07 — Teacher gallery image baseline correction (#1514)
+
+- Full coverage and Test & Build passed at daaebd00:14,027 tests/1,087 files,8 test/2 file skips; original coverage floors and all static/build checks passed. Browser37555943140 passed389 cases, recovered4 configured retries and skipped20; four terminal teacher-contract screenshots mismatch because the added confirmation example changes the fixture. PR Gate failed; draft restored before correction. Browser ephemeral cleanup passed; no manual rerun/dispatch.
+- Inspected exact-head Linux expected/actual pairs in all four desktop/mobile light/dark variants. Expected artifacts match prior tracked bytes; all three attempts are pixel-identical. Confirmation is on the desktop row, adds56px on mobile; reviewed control/icon regions remain coherent. Copy only these four actual PNG baselines; source, assertions, thresholds, native events, configuration and dependencies stay identical. Initial analysis helpers needed Pillow instead of unavailable NumPy and corrected a desktop-height assumption before any mutation.
+- Prior focused/static,48 browser/48 visual/24 midpoint and race evidence retains its original source provenance. Baseline-only stable-SHA independent review and corrected normal CI remain required. Task approval override and cumulative failed attempts/counters persist. Broader product goal incomplete; excluded PRs/production/schema/provider/dependency holds preserved. Next owner proposal remains Assignment Instructions preview only, pending current landing and individual lifecycle evidence.
+
+## 2026-10-07 — Softer modal dismissal implementation
+
+Continued the product-wide fluidity goal after #1490 landed at `3a0b17d6a`. Reused canonical ModalLayer/Dialog and semantic motion tokens; extended passive opacity exits with immediate logical close, focus/scroll/isolation restoration, reduced-motion removal and reopen cancellation. Static AlertDialog/ConfirmDialog adopt the fade; generic ContentDialog/DialogPanel and drawers remain immediate unless explicitly opted in after a child-lifetime audit. Added real Pattern Lab confirmation/action coverage and quiet-entry/exit comparison; broader UI coverage remains incomplete.
+
+Worker delivery: 96 targeted tests, TypeScript and targeted ESLint passed. Coordinator audit and 24 Gallery tests passed after adding meaningful local confirmation coverage. Both-role desktop/mobile light/dark normal/reduced screenshots, natural recordings and frame assertions: 48 capture cases passed; exact browser/focused final results remain in the external task evidence/PR. Historical normal-motion baseline disappeared on the first frame; new passive exits retain inert/aria-hidden content while commands and focus complete immediately. Temporary peer #1512 main merge hold is respected. Owner's task-wide approval override waives workflow budget/elapsed/low-usage stops; existing correctness and explicit holds remain.
+
+## 2026-10-07 — Modal replacement focus correction
+
+Draft #1514 at7619e522 completed one independent Sol/high full-diff review. Accepted one blocking P2: closing a later sibling while opening an earlier sibling in the same commit overrode the replacement's initial focus and lost its outside opener. Exact-base/head harness comparison reproduced it; new tests failed4/8 before correction across sibling orders and mixed immediate/opacity modes.
+
+One remediation batch preserves return provenance through React's cleanup/setup handoff and respects an already-focused active replacement. Coordinator's original reproduction now restores the initial button and outside opener. Required focused/browser/visual and targeted cumulative independent review follow on the corrected frozen head. Task waiver and cumulative original review counts persist; #1512 main merge hold and production exclusions remain.
+
+## 2026-10-07 — Softer modal exits synchronized after CI preparation landing
+
+PR1512 hold explicitly released after verified80ae7746 landing, reviewed tree parity and all five gates PASS. PR1514 synchronized once while draft: preserve incoming runner documentation/script/test and both complete histories; previously reviewed modal source/tests/briefs unchanged. Corrected2680 review CLEAN, focused2186/195+static, native browser48PASS without retries, fresh48 visual cases with24 true midpoint captures and both-role pointer/reduced-motion races retained with original execution provenance. New-base focused and targeted synchronization review precede final ready-SHA CI/PR Gate; no production, schema, dependency, provider/runner change or generic-dialog promotion. Task approval override persists; current phase review launches2/remediation1 and prior1490 counters12/10 retained. Broader route/state coverage remains incomplete.
+
+## 2026-10-07 — Modal CI confirmation-query remediation
+
+CI37553687244 failed three five-second Gallery cases: both new confirmation flows and existing teacher classroom recovery; 14024 tests PASS/8skip. Browser job canceled and ephemeral cleanup PASS; no manual rerun/dispatch. Narrowed confirmation queries to existing controls/active modal, preserving the global closed-dialog absence assertion, accessible description, Escape/opener focus, local status, real user events and unchanged timeout. Four affected isolated instrumented cases PASS: one local before/after tests observation2.82s→1.67s, not proof of the Linux cause. Full Gallery24 cases PASS with coverage instrumentation; partial runs still fail unchanged repository coverage floors and are not full coverage acceptance. All UI/config/dependency blobs remain unchanged; original browser/visual/race provenance retained. New focused and targeted test-only review precede one corrected exact-head CI. Current post-review fixbatches2, prior1490 sourcefix10/reviews12 preserved; no cap reset under task waiver. Three-owner audit found static Instructions preview first source candidate; QR menus/rich viewers/scheduling need lifetime evidence, with promotion/production holds retained. Broad goal incomplete.

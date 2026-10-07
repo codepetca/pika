@@ -104,6 +104,7 @@ interface AlertDialogProps {
   variant?: 'default' | 'success' | 'error'
   buttonLabel?: string
   autoDismiss?: boolean
+  exitMotion?: 'none' | 'opacity'
 }
 ```
 
@@ -123,12 +124,22 @@ interface ConfirmDialogProps {
   confirmVariant?: 'primary' | 'danger'
   isCancelDisabled?: boolean
   isConfirmDisabled?: boolean
+  exitMotion?: 'none' | 'opacity'
 }
 ```
 
 ### ModalLayer
 
 `ModalLayer` is the behavioral foundation for canonical dialogs and mobile drawers. Prefer `AlertDialog`, `ConfirmDialog`, `ContentDialog`, or `DialogPanel` for normal product work. Use `ModalLayer` directly only for a custom modal surface such as a navigation or inspector drawer.
+
+The primitive portals to `document.body`, focuses the requested initial control, contains Tab focus, restores the opener, makes background roots inert, locks page scroll, and ensures only the top nested layer handles Escape. Callers provide the panel layout and accessible label; they must not add separate global Escape or scroll-lock effects.
+
+`exitMotion="opacity"` briefly fades the existing root using the standard semantic duration and easing. Logical dismissal remains immediate: the closed root is inert, hidden from accessibility APIs and unable to receive commands; focus, modal-stack membership and page scroll restore before the visual exit completes. Reduced motion skips retention. Reopening cancels the obsolete exit and makes the layer active immediately.
+
+`ModalLayer`, `ContentDialog` and `DialogPanel` default to `exitMotion="none"`. `AlertDialog` and `ConfirmDialog` default to opacity because their descendants are static text and controls; pass `none` when immediate physical removal is required. All four dialog owners forward the opt-in.
+
+An opacity exit retains the last committed open presentation, including its React descendants, until visual removal. Inertness does not stop child effects, requests, timers or editor instances. Audit a generic dialog's descendants before opting in, preserve its parent close/request invalidation immediately, and leave rich editors, live widgets and arbitrary drawers on the immediate default until their lifetime is reviewed. An owner removed by a conditional parent cannot animate after that unmount. See the [bounded dismissal brief](../../docs/guidance/ui/changes/softer-modal-dismissal.md) and [experimental adoption guidance](../../docs/guidance/ui/experimental/softer-modal-dismissal.md).
+
 
 ### QrCode
 
@@ -139,7 +150,6 @@ feature-local QR with theme-dependent foreground/background colors. Use
 to let the SVG fill that surface; retain a clear light quiet zone around every
 code.
 
-The primitive portals to `document.body`, focuses the requested initial control, contains Tab focus, restores the opener, makes background roots inert, locks page scroll, and ensures only the top nested layer handles Escape. Callers provide the panel layout and accessible label; they must not add separate global Escape or scroll-lock effects.
 
 ### Card
 

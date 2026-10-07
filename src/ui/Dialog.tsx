@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cva } from 'class-variance-authority'
 import { Button } from './Button'
-import { ModalLayer } from './ModalLayer'
+import { ModalLayer, type ModalLayerProps } from './ModalLayer'
 
 // Dialog panel styles with CVA
 const dialogPanelStyles = cva([
@@ -33,6 +33,7 @@ export interface AlertDialogState {
 export interface AlertDialogProps extends AlertDialogState {
   buttonLabel?: string
   onClose: () => void
+  exitMotion?: ModalLayerProps['exitMotion']
 }
 
 function ErrorIcon() {
@@ -63,6 +64,7 @@ export function AlertDialog({
   variant = 'default',
   autoDismiss = false,
   onClose,
+  exitMotion = 'opacity',
 }: AlertDialogProps) {
   const titleId = useId()
   const descriptionId = useId()
@@ -81,6 +83,7 @@ export function AlertDialog({
   return (
     <ModalLayer
       isOpen={isOpen}
+      exitMotion={exitMotion}
       onClose={onClose}
       role="alertdialog"
       onEnter={onClose}
@@ -123,6 +126,7 @@ type ConfirmDialogVariant = 'default' | 'danger'
 
 export interface ConfirmDialogProps {
   isOpen: boolean
+  exitMotion?: ModalLayerProps['exitMotion']
   title: string
   description?: string
   confirmLabel?: string
@@ -161,6 +165,7 @@ export function ConfirmDialog({
   isConfirmDisabled = false,
   onConfirm,
   onCancel,
+  exitMotion = 'opacity',
 }: ConfirmDialogProps) {
   const titleId = useId()
   const descriptionId = useId()
@@ -177,6 +182,7 @@ export function ConfirmDialog({
   return (
     <ModalLayer
       isOpen={isOpen}
+      exitMotion={exitMotion}
       onClose={onCancel}
       ariaLabelledBy={titleId}
       ariaDescribedBy={description ? descriptionId : undefined}
@@ -233,6 +239,8 @@ export function ConfirmDialog({
 
 export interface DialogPanelProps {
   isOpen: boolean
+  /** Defaults to immediate unmount. Opacity retains descendants through the exit. */
+  exitMotion?: ModalLayerProps['exitMotion']
   onClose: () => void
   maxWidth?: string
   className?: string
@@ -270,10 +278,12 @@ export function DialogPanel({
   viewportPaddingClassName = 'p-4',
   ariaLabelledBy,
   children,
+  exitMotion,
 }: DialogPanelProps) {
   return (
     <ModalLayer
       isOpen={isOpen}
+      exitMotion={exitMotion}
       onClose={onClose}
       ariaLabelledBy={ariaLabelledBy}
       rootClassName={`flex items-center justify-center ${viewportPaddingClassName}`}
@@ -290,6 +300,8 @@ export function DialogPanel({
 
 export interface ContentDialogProps {
   isOpen: boolean
+  /** Defaults to immediate unmount. Opacity retains descendants through the exit. */
+  exitMotion?: ModalLayerProps['exitMotion']
   onClose: () => void
   title: string
   subtitle?: string
@@ -331,6 +343,7 @@ export function ContentDialog({
   showFooterClose = true,
   panelClassName,
   footer,
+  exitMotion,
 }: ContentDialogProps) {
   const titleId = useId()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -338,6 +351,7 @@ export function ContentDialog({
   return (
     <ModalLayer
       isOpen={isOpen}
+      exitMotion={exitMotion}
       onClose={onClose}
       ariaLabelledBy={titleId}
       initialFocusRef={showHeaderClose ? closeButtonRef : undefined}

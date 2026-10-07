@@ -40667,3 +40667,42 @@ motion direction decisions remain pending; no production authorization.
 ## 2026-10-06 — Approved PR1494 integration reconciliation
 
 Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
+
+<!-- pika-session-log-archive-batch:9713d1ded755ef4b740efffbccd6a9260ba46c67dbe044bdb3cf60c0256d2ce7 -->
+## 2026-10-06 — Shared mobile drawer dismissal controls
+
+Active product-wide fluidity goal advances independently of four pending owner merge/promotion decisions. Reuse ghost IconButton for Navigation Close and both RightSidebar Back variants; preserve original ModalLayer refs, labels, immediate commands and shell. Measured pre-edit mobile targets40/36px versus canonical44px in four role/theme presentations; native baseline keyboard outlines visibly present. New deterministic Pattern Lab reference renders actual owners with fixed local content outside existing golden region. Only teacher Calendar currently enables RightSidebar; student detail evidence is shared-owner composition, not a live student route. No dependency, schema, feature-state or design-promotion change.
+
+Both-role desktop/mobile light/dark normal/reduced browser contracts and natural evidence accompany focused semantic tests, UI/design policy and staged audit. Three retired native controls removed from exact registry. Full required focused gate, independent stable-SHA draft PR review and CI precede delivery; main merge/production remain owner-gated. Goal remains active across all17 route-family groups; this control repair is one bounded slice.
+
+## 2026-10-06 — Approved PR1495 integration reconciliation
+
+Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
+
+## 2026-10-06 Header hydration continuity and dialog entry comparison
+
+Added a development-only immediate/quiet ContentDialog comparison using existing owners and motion tokens; the direction remains experimental and unpromoted. Natural first-frame focus, isolation and immediate commands are covered in both-role desktop/mobile light/dark normal/reduced matrix (16/16 pass); no API/write/error events. Retained before/after screenshots, recordings and all failed authoring receipts in the owning chat artifacts.
+
+Repeated baseline clock hydration failures exposed an existing AppHeader server/client minute mismatch. Required server timestamps now reach all production header owners; mount refresh and 60-second ticking retain the current presentation. SSR minute/Toronto-midnight regressions changed from hydration errors and DOM replacement to preserved nodes and zero recoverable errors. Nine affected test files/91 tests and scoped lint pass. Full goal route coverage, experimental promotion and merge/production authority remain separate; stable-SHA review/CI receipts belong to the PR.
+
+<!-- pika-session-log-archive-batch:4d1a15a67757b3302d7800ad96369bf174fc00ddb0174ede77026278ea047871 -->
+## 2026-10-06 PR 1496 combined recovery clock continuation
+
+Rebased onto reviewed PR 1491 parent `9d32e4ad`; preserved recovery/dialog gallery registrations, all continuity bodies and main archive prefix. Added required `initialNow` on enrollment-error return without weakening shell/header props. Regression RED then 84 affected tests GREEN; focused 378 tests and policy/type/lint PASS. Combined controlled browser matrix: 16 dialog and 16 recovery/clock cells covered; two dialog and one recovery initial useId-warning failures passed unchanged once-only retries, matching prior Pattern Lab warning provenance. Actual authenticated enrollment-outage RSC remains unverified. Experimental dialog stays unpromoted; no push/merge/deployment. External receipt: `product-fluidity/integration-1496-composition.md`.
+
+<!-- pika-session-log-archive-batch:3ca185c06b6caf98d8885be4eb81735400518a4cf8f8b1d8d02cfeca74a991c6 -->
+## 2026-10-06 — Accurate auth resend feedback and preserved focus
+
+Bounded product-fluidity work on the real signup verification/reset-code pages:
+reuse canonical ghost Button, inline FormField errors and AppMessage; check HTTP
+outcomes, suppress obsolete notices, exclude overlapping resend/verification and
+retain code/email drafts. Native pending disabling originally lost opener focus;
+bounded ownership restoration now respects deliberate pointer/keyboard/focus moves,
+owner changes and unmount, with preventScroll. Narrow tests31 PASS; actual public
+16-case viewport/theme/motion matrix directly PASS, root visual review96 state PNG
+and16 sampled natural videos PASS. Every API response intercepted;64 POST attempts,
+zero backend/email writes; no production INP or email-delivery proof. First focused
+check220 tests PASS then caught stale native-control registry; migrate only the two
+resend entries. Required focused/audit and draft stable-SHA independent review/CI
+continue. No new dependency, backend/auth policy/schema or design promotion; main
+merge/production authorization remains separate. Full17-family goal stays active.
