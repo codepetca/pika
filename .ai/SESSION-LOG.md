@@ -439,3 +439,18 @@ Canonical/prod249–253 unapplied; all rollout/promotion/account/billing/provide
 holds remain. Proof budgets are explicit feature-only; prior engine/product caps
 and all parent history remain. DeepSeek pause and task-scoped workflow-stop waiver
 retained; no destructive cleanup or dependency installation accepted.
+
+## 2026-10-07 — Test reorder proof cleanup remediation
+
+Initial source reviews on10fef18a completed: Sol/high security clear;
+Astra/high architecture found two proof blockers, not a product authorization
+defect. One batched fix retains canonical-after verification after execution
+budget exhaustion and reports200 application/200 native action ceilings honestly.
+Original Sol/high worker owns adopter/tests; root corrected inherited revocation
+session accounting in the same batch. Actual injected parent lifecycle tests
+cover clock/action exhaustion, prepare ownership, all-five-field drift and normal
+adapter counts. Root105 affected checks/4files, audit and diff PASS; worker76
+narrow checks/lint PASS. Genuine RPC types remain pending. Targeted independent
+review and isolated native verification are next; no full-focused, PR, migration
+application or phase-exit claim. Production/rollout holds unchanged. Preserved
+original review history and task-stop waiver; active time/tokens unknown.

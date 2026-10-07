@@ -1320,8 +1320,9 @@ presentation, including Blueprint-retired Test positions without content edits;
 reject stale/incomplete current lists. Verify existing trigger/lifecycle policy
 before implementation. No legacy reorder/UI adopter or phase exit is implied.
 Source implementation is now prepared in the dedicated reorder checkout;
-21 rollback and seven committed proof schedules are source-only. Native/types,
-independent review and final exact-head CI remain pending. Canonical/prod249–253
+21 rollback and seven committed proof schedules are source-only. Initial source
+reviews completed; cleanup-verification and budget-evidence fixes are in progress.
+Native/types, final independent review and exact-head CI remain pending. Canonical/prod249–253
 remain unapplied; see [reorder contract](contextual-test-reorder.md).
 
 Historical source preparation below predates that actual merge receipt:

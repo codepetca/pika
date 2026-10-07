@@ -33,6 +33,9 @@ import { generateTestDraftSaveTypes } from './generate-contextual-test-draft-sav
 const cleanupMarker = 'PASS isolated test-owner-reorder exact teardown and unchanged canonical baseline.\n'
 // Feature-owned proof accounting; parent engine and product limits are unchanged.
 const APP_CAPS = Object.freeze({ controls: 4000, actions: 200, totalMs: 900000, controlMs: 45000, totalBytes: 384 * 1024 * 1024 })
+// One receipt-sized allowance inside384MiB, not an execution-clock renewal.
+// The unchanged platform canonical adapter owns finite internal command bounds.
+const CANONICAL_AFTER_CAPS = Object.freeze({ attempts: 1, bytes: 8 * 1024 * 1024 })
 type Rows = Record<string, Array<Record<string, unknown>>>
 type Session = Parameters<AssignmentListLifecycleAdapters['executeSql']>[0]
 function freeze<T>(value: T): T { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) } return value }
@@ -42,15 +45,47 @@ export function testOwnerReorderUnionManifest(original: ReturnType<typeof newAss
   const sql = buildTestOwnerReorderNativeContractsManifest(original, fixture, reviewedHead, repository)
   const project = `pika_assignment_list_${fixture.tag.slice(-12)}`
   const cases = [...fixture.privilegeProbes, ...fixture.cases]
+  const inheritedCases = original.manifest.cases.length, revocations = assignmentListRevocationPlans(original).length
   assert(fixture.cases.findIndex(c => c.label === 'teacher-owner') < fixture.cases.findIndex(c => c.label === 'teacher-noop'))
   return freeze({ version: 1, reviewedHead, originalSha256: testOwnerDigest(JSON.stringify(original.manifest)),
     application: testOwnerReorderRequestManifest(fixture), sql,
     applicationSetupSha256: testOwnerDigest(testOwnerReorderSetupSql(fixture, project)),
     applicationSnapshotSha256: testOwnerDigest(testOwnerReorderSnapshotSql(fixture)), applicationCapabilities: APP_CAPS,
+    canonicalAfterCapabilities: CANONICAL_AFTER_CAPS,
+    // Each revocation has its loop session plus scoped revoke/restore sessions.
+    inheritedLifecycleCapabilities: { canonicalSnapshot: 2, inventory: 8 + inheritedCases + 3 * revocations, prepare: 1, command: 2,
+      verifyEphemeral: 1 + inheritedCases + 3 * revocations, executeSql: 1 + 2 * revocations, runCase: inheritedCases,
+      runRevocation: revocations, verifyRestoration: revocations, teardown: 1, removeWorkdir: 1 },
     inventory: { ...fixture.inventory, sdkCases: fixture.cases.length, sdkReorders: fixture.cases.filter(c => c.expectedHTTP === 200).length,
       privilegeDriftProbes: fixture.privilegeProbes.length, rpcRequests: cases.reduce((n, c) => n + c.expectedRPCs, 0),
       storageRequests: 0, rollbackSchedules: sql.concurrency.schedules.length, committedTransitions: sql.committed.schedules.length },
     remainingGates: ['Successful Blueprint/proposal workflow', 'Enabled purge workflow activation'] })
+}
+
+/** Pure receipt accounting. Opaque inherited/CLI internals are deliberately not
+ * represented as SQL dispatches or measured exchanges. */
+export function testOwnerReorderAccountingReceipt(union: ReturnType<typeof testOwnerReorderUnionManifest>,
+  application: { controls: number; actions: number; exchangeBytes: number }, nativeCumulativeAtCommitted: { controls: number; actions: number; exchangeBytes: number },
+  sdkExchangeBytes: number, cleanup: { attempts: number; bytes: number }, inheritedCalls: Record<string, number>) {
+  const integer = (n: number, max: number) => assert(Number.isSafeInteger(n) && n >= 0 && n <= max)
+  integer(application.controls, APP_CAPS.controls); integer(application.actions, APP_CAPS.actions); integer(application.exchangeBytes, APP_CAPS.totalBytes)
+  integer(nativeCumulativeAtCommitted.controls, union.sql.capabilities.controlCalls); integer(nativeCumulativeAtCommitted.actions, union.sql.capabilities.actions)
+  integer(nativeCumulativeAtCommitted.exchangeBytes, union.sql.capabilities.totalBytes); integer(sdkExchangeBytes, TEST_OWNER_REORDER_CAPS.totalBytes)
+  assert.equal(cleanup.attempts, CANONICAL_AFTER_CAPS.attempts); integer(cleanup.bytes, CANONICAL_AFTER_CAPS.bytes)
+  assert.deepEqual(Object.keys(inheritedCalls).sort(), Object.keys(union.inheritedLifecycleCapabilities).sort())
+  for (const [name, cap] of Object.entries(union.inheritedLifecycleCapabilities)) integer(inheritedCalls[name], cap)
+  const sum = application.actions + nativeCumulativeAtCommitted.actions, sumCeiling = APP_CAPS.actions + union.sql.capabilities.actions
+  integer(sum, sumCeiling)
+  const accountedUpperBoundBytes = application.exchangeBytes + cleanup.bytes + sdkExchangeBytes + union.sql.capabilities.totalBytes
+  integer(accountedUpperBoundBytes, APP_CAPS.totalBytes)
+  return freeze({ countedActions: { application: application.actions, nativeCumulativeAtCommitted: nativeCumulativeAtCommitted.actions, sum,
+    applicationCeiling: APP_CAPS.actions, nativeCeiling: union.sql.capabilities.actions, sumCeiling },
+    nativeAccountingScope: 'cumulative-through-committed-stage; subsequent guards remain inside reserved native budget',
+    exchange: { application: application.exchangeBytes, canonicalAfter: cleanup.bytes, reservedCanonicalAfter: CANONICAL_AFTER_CAPS.bytes,
+      reservedNative: union.sql.capabilities.totalBytes, nativeMeasuredAtCommitted: nativeCumulativeAtCommitted.exchangeBytes,
+      sdk: sdkExchangeBytes, accountedUpperBoundBytes, ceiling: APP_CAPS.totalBytes,
+      excludes: ['opaque inherited adapter IO', 'opaque type-generator CLI IO'] },
+    inherited: { calls: { ...inheritedCalls }, ceilings: union.inheritedLifecycleCapabilities, scope: 'adapter-calls-not-internal-SQL-or-bytes' } })
 }
 
 /** Structural checks supplement the fixture's complete first-baseline/effect
@@ -198,13 +233,17 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
   const input = parseTestOwnerReorderLifecycleArgs(args)
   const started = Date.now(), absoluteDeadline = started + APP_CAPS.totalMs
   let controls = 0, actions = 0, appBytes = 0
+  let executionStopped = false
+  const canonicalCleanup = { attempts: 0, bytes: 0 }
   let transport: ReturnType<typeof createTestOwnerReorderProofTransport> | undefined
   // The closed native engine owns its private counters. Reserve its unchanged
   // complete64MiB budget throughout, including restoration and later guards.
   const nativeByteReserve = 64 * 1024 * 1024
   function check() {
-    assert(Date.now() < absoluteDeadline && controls <= APP_CAPS.controls && actions <= APP_CAPS.actions)
-    assert(appBytes + nativeByteReserve + (transport?.counts.exchangeBytes ?? 0) <= APP_CAPS.totalBytes)
+    try {
+      assert(!executionStopped && Date.now() < absoluteDeadline && controls <= APP_CAPS.controls && actions <= APP_CAPS.actions)
+      assert(appBytes + nativeByteReserve + CANONICAL_AFTER_CAPS.bytes + (transport?.counts.exchangeBytes ?? 0) <= APP_CAPS.totalBytes)
+    } catch (error) { executionStopped = true; throw error }
   }
   function account(text: string, limit = TEST_OWNER_REORDER_CAPS.snapshotBytes) {
     const bytes = Buffer.byteLength(text); assert(bytes <= limit); appBytes += bytes; check()
@@ -226,6 +265,13 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
   const unionSha256 = testOwnerDigest(JSON.stringify(union))
   let target: ReturnType<typeof validateAssignmentListProofTarget> | undefined, session: Session | undefined
   let closure: Awaited<ReturnType<typeof assignmentListDockerInventory>> | undefined, expectedTables: readonly string[] | undefined, canonicalSha256: string | undefined
+  let canonicalRequest: Parameters<AssignmentListLifecycleAdapters['canonicalSnapshot']>[0] | undefined
+  const inheritedCalls = { canonicalSnapshot: 0, inventory: 0, prepare: 0, command: 0, verifyEphemeral: 0, executeSql: 0,
+    runCase: 0, runRevocation: 0, verifyRestoration: 0, teardown: 0, removeWorkdir: 0 }
+  function inheritedAdmission(name: keyof typeof inheritedCalls, ordinary = true) {
+    if (ordinary) check()
+    assert(inheritedCalls[name] < union.inheritedLifecycleCapabilities[name]); inheritedCalls[name]++
+  }
   let client: ReturnType<typeof createClient<Database>> | undefined
   let sqlContracts: ReturnType<typeof createTestOwnerReorderNativeContracts> | undefined, nativeReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['run']>> | undefined
   let committedReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['runCommittedTransitions']>> | undefined
@@ -313,7 +359,9 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
     testOwnerReorderCommittedCompletion(union, committedReceipt); committedComplete = true
     if (input.generateTypes) {
       assert(input.mode === 'normal' && complete && matrixComplete && sqlComplete && committedComplete)
+      check()
       typesReceipt = await generateTestDraftSaveTypes({ repository, reviewedHead: input.head, projectId, guard: sdkGuard })
+      check()
       assert.equal(typesReceipt.migrationManifestSha256, union.sql.migrationManifestSha256)
       validateTestOwnerReorderGeneratedTypes(readFileSync(typesReceipt.path, 'utf8'), typesReceipt.sha256)
     }
@@ -324,20 +372,45 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
       restorationPolicies: assignmentListRevocationPlans(original).map(plan => assignmentListRestorationPolicy(original, plan)) }, {
       ...native,
       async canonicalSnapshot(request) {
-        check(); assert(++controls <= APP_CAPS.controls)
+        assert.deepEqual(request, { projectId: 'pika', dbPort: 54322, applicationName: `${projectId}_canonical_readonly`, readOnly: true })
+        const after = canonicalRequest !== undefined
+        if (after) {
+          assert.deepEqual(request, canonicalRequest); assert(expectedTables && canonicalSha256)
+          assert(canonicalCleanup.attempts < CANONICAL_AFTER_CAPS.attempts); canonicalCleanup.attempts++
+          executionStopped = true
+        } else { check(); assert(++controls <= APP_CAPS.controls); canonicalRequest = freeze(structuredClone(request)) }
+        inheritedAdmission('canonicalSnapshot', false)
         const captured = await native.canonicalSnapshot(request), catalog = testOwnerReorderTableCatalogFromCanonical(captured)
-        account(JSON.stringify(captured))
+        assert.deepEqual(Object.keys(captured).sort(), ['rowDigests','guard168Metadata','settings','cronJobs','resources'].sort())
+        for (const field of Object.values(captured)) assert(typeof field === 'string' && field.length > 0)
+        if (after) { canonicalCleanup.bytes = Buffer.byteLength(JSON.stringify(captured)); assert(canonicalCleanup.bytes <= CANONICAL_AFTER_CAPS.bytes) }
+        else account(JSON.stringify(captured))
         if (expectedTables) assert.deepEqual(catalog, expectedTables); else { expectedTables = catalog; canonicalSha256 = testOwnerDigest(JSON.stringify(captured)) }
         return captured
       },
+      async inventory(request) {
+        inheritedAdmission('inventory', false)
+        assert.equal(request.projectId, projectId); assert.equal(request.workdir, assignmentListProofWorkdir(projectId))
+        return native.inventory(request)
+      },
+      async prepare(request, sourceMigrations) {
+        inheritedAdmission('prepare'); const receipt = await native.prepare(request, sourceMigrations)
+        // Return ownership evidence even on exhaustion so the parent records the
+        // exact created workdir before its next ordinary admission fails.
+        try { check() } catch { /* Sticky stop; no subsequent execution resumes. */ }
+        return receipt
+      },
       async command(request) {
-        check(); assert(++controls <= APP_CAPS.controls)
+        inheritedAdmission('command'); assert(++controls <= APP_CAPS.controls)
         const result = await native.command({ ...request, timeoutMs: Math.min(request.timeoutMs, absoluteDeadline - Date.now()) })
         if (result !== undefined) account(JSON.stringify(result)); check()
         if (request.args[0] === 'status') target = validateAssignmentListProofTarget(result, projectId); return result
       },
+      async verifyEphemeral(request) {
+        inheritedAdmission('verifyEphemeral'); const result = await native.verifyEphemeral(request); check(); return result
+      },
       async executeSql(request) {
-        await native.executeSql(request)
+        inheritedAdmission('executeSql'); await native.executeSql(request); check()
         if (request.sql === originalSetup) {
           assert(!session && target && expectedTables); session = { ...request }
           transport = createTestOwnerReorderProofTransport(f, target, projectId, fetch, sdkGuard)
@@ -345,17 +418,31 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
           await setup()
         }
       },
-      async runCase(request) { const result = await native.runCase(request); if (!matrixComplete) await matrix(); return result },
+      async runCase(request) {
+        inheritedAdmission('runCase'); const result = await native.runCase(request); check()
+        if (!matrixComplete) await matrix(); check(); return result
+      },
+      async runRevocation(request) {
+        inheritedAdmission('runRevocation'); const result = await native.runRevocation(request); check(); return result
+      },
+      async verifyRestoration(request) {
+        inheritedAdmission('verifyRestoration'); const result = await native.verifyRestoration(request); check(); return result
+      },
+      async teardown(request) { inheritedAdmission('teardown', false); return native.teardown(request) },
+      async removeWorkdir(request) { inheritedAdmission('removeWorkdir', false); return native.removeWorkdir(request) },
     })
     assert(complete && matrixComplete && sqlComplete && committedComplete && nativeReceipt && committedReceipt)
+    const accounting = testOwnerReorderAccountingReceipt(union, { controls, actions, exchangeBytes: appBytes }, committedReceipt,
+      transport!.counts.exchangeBytes, canonicalCleanup, inheritedCalls)
     process.stdout.write(`PASS isolated test-owner-reorder ${f.cases.length} installed-SDK helper cases; ${union.inventory.sdkReorders} full-effect reorders; restored raw42501; nine rollback SQL batches and ${union.inventory.rollbackSchedules} held-lock schedules (declined Blueprint114 and bidirectional purge-guard122); ${union.inventory.committedTransitions} committed schedules. Legacy cached MAX residual demonstrated, not closed. Remaining: successful Blueprint/proposal and enabled purge workflow activation.\n${cleanupMarker}`)
     return freeze({ types: typesReceipt ?? null, proof: { reviewedHead: input.head, manifestSha256: unionSha256, canonicalSha256,
       tableCatalogSha256: testOwnerDigest(JSON.stringify(expectedTables)), sdkCases: f.cases.length, sdkReorders: union.inventory.sdkReorders,
       rollbackSchedules: union.inventory.rollbackSchedules, committedTransitions: union.inventory.committedTransitions,
       legacyMaxResidual: 'demonstrated-not-closed', rpcRequests: transport!.counts.rpc, storageRequests: transport!.counts.storage, exchangeBytes: transport!.counts.exchangeBytes,
-      snapshotBytes: transport!.counts.snapshotBytes, native: nativeReceipt, committed: committedReceipt, application: { controls, actions, exchangeBytes: appBytes,
+      snapshotBytes: transport!.counts.snapshotBytes, rollback: nativeReceipt, native: committedReceipt, committed: committedReceipt, accounting,
+      application: { controls, actions, exchangeBytes: appBytes,
         reservedNativeBytes: nativeByteReserve, sdkExchangeBytes: transport!.counts.exchangeBytes,
-        accountedUpperBoundBytes: appBytes + nativeByteReserve + transport!.counts.exchangeBytes },
+        canonicalAfter: canonicalCleanup, accountedUpperBoundBytes: accounting.exchange.accountedUpperBoundBytes },
       remainingGates: union.remainingGates } })
   } catch (error) {
     const forced = testOwnerReorderForcedReceipt(input.mode, error, complete)

@@ -105,10 +105,17 @@ is about 5.14 MiB; real native measurements remain required. Preserve the existi
 8 MiB per-snapshot and 64 MiB native-engine limits. The new feature's fixed SDK
 matrix separately caps cumulative private before/after snapshots at 256 MiB
 (at most 24 contexts/48 snapshots) and actual SDK request/response exchange at
-64 MiB. The dedicated lifecycle adopter may account up to 384 MiB of total
-snapshot/control exchange under the unchanged 900-second/200-action bounds.
-These are explicit isolated-proof scale budgets, not wider application limits
-or changes to earlier proof profiles. Every captured snapshot is counted.
+64 MiB. The dedicated lifecycle adopter caps its counted snapshot/control/SDK
+exchange at 384 MiB, reserving the complete 64 MiB native-engine allowance.
+Its application layer and native engine each retain a 200-action cap (400
+counted actions combined), rather than a single shared 200-action allowance.
+Inherited lifecycle adapter calls are reported separately; these counters do
+not claim to measure opaque CLI traffic or every internal SQL statement.
+Ordinary execution retains one absolute 900-second deadline. A bounded,
+one-time canonical-after verification reserve remains available during cleanup
+after execution-budget exhaustion; it cannot resume ordinary work. These are
+isolated-proof scale budgets, not wider application limits or changes to earlier
+proof profiles. Every captured feature snapshot is counted.
 
 Legacy creation can read MAX(position) before this transaction and insert that
 previously computed position after commit (migration250's existing residual).

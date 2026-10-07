@@ -1,14 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import ts from 'typescript'
-import { AssignmentListLifecycleError } from '../../scripts/contextual-assignment-list-proof-lifecycle'
+import { AssignmentListLifecycleError, runAssignmentListEphemeralLifecycle, type AssignmentListLifecycleAdapters } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { testOwnerDigest } from '../../scripts/contextual-test-owner-detail-proof-fixture'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerReorderFixture, TEST_OWNER_REORDER_SNAPSHOT_TABLES, testOwnerReorderTableCatalogFromCanonical } from '../../scripts/contextual-test-reorder-proof-fixture'
+import { assignmentListExpectedResources, assignmentListRestorationPolicy, loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
+import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
+import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
 import {
   parseTestOwnerReorderLifecycleArgs, testOwnerReorderForcedReceipt, validateTestOwnerReorderGeneratedTypes,
   testOwnerReorderUnionManifest, testOwnerReorderMatrixCompletion, validateTestOwnerReorderSnapshotCatalog,
-  testOwnerReorderSetupDiagnostic, testOwnerReorderCommittedCompletion,
+  testOwnerReorderSetupDiagnostic, testOwnerReorderCommittedCompletion, testOwnerReorderAccountingReceipt,
 } from '../../scripts/check-contextual-test-owner-reorder-lifecycle'
 
 const generated = `export type Json = unknown;
@@ -70,6 +73,190 @@ describe('closed reorder lifecycle source contracts', () => {
     expect(diagnostic).toContain('setup=unknown'); expect(diagnostic).not.toContain('private')
     expect(testOwnerReorderSetupDiagnostic('sql-setup', new AssignmentListLifecycleError({ stage: 'fixture', error: privateError }, []))).toContain('lifecycle=fixture')
   })
+  it('reports the actual200-per-layer action sum and reserves cleanup/native bytes without claiming opaque IO', () => {
+    const union = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
+    const calls = Object.fromEntries(Object.keys(union.inheritedLifecycleCapabilities).map(k => [k, 0]))
+    const result = testOwnerReorderAccountingReceipt(union, { controls: 100, actions: 115, exchangeBytes: 1000 },
+      { controls: 300, actions: 144, exchangeBytes: 2000 }, 3000, { attempts: 1, bytes: 4000 }, calls)
+    expect(result.countedActions).toEqual({ application: 115, nativeCumulativeAtCommitted: 144, sum: 259, applicationCeiling: 200, nativeCeiling: 200, sumCeiling: 400 })
+    expect(result.exchange.accountedUpperBoundBytes).toBe(1000 + 4000 + 3000 + 64 * 1024 * 1024)
+    expect(result.exchange.ceiling).toBe(384 * 1024 * 1024)
+    expect(result.inherited.scope).toBe('adapter-calls-not-internal-SQL-or-bytes')
+    expect(result.exchange.excludes).toEqual(['opaque inherited adapter IO', 'opaque type-generator CLI IO'])
+    expect(() => testOwnerReorderAccountingReceipt(union, { controls: 0, actions: 201, exchangeBytes: 1 },
+      { controls: 0, actions: 0, exchangeBytes: 0 }, 0, { attempts: 1, bytes: 1 }, calls)).toThrow()
+    expect(() => testOwnerReorderAccountingReceipt(union, { controls: 0, actions: 0, exchangeBytes: 1 },
+      { controls: 0, actions: 201, exchangeBytes: 0 }, 0, { attempts: 1, bytes: 1 }, calls)).toThrow()
+  })
+  it('derives exact inherited ceilings from the actual normal parent, including both scoped SQL sessions per revocation', async () => {
+    const union = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd()), caps = union.inheritedLifecycleCapabilities
+    const calls = { canonicalSnapshot: 0, inventory: 0, prepare: 0, command: 0, verifyEphemeral: 0, executeSql: 0,
+      runCase: 0, runRevocation: 0, verifyRestoration: 0, teardown: 0, removeWorkdir: 0 }
+    const project = `pika_assignment_list_${original.manifest.syntheticTag.slice(-12)}`, workdir = assignmentListProofWorkdir(project)
+    let running = false, exists = false
+    const resources = assignmentListExpectedResources(project).map((r, index) => ({ ...r, id: (index + 1).toString(16).padStart(64, '0'),
+      createdAt: '2026-10-07T03:00:00Z', labels: { 'com.supabase.cli.project': project, 'com.docker.compose.project': project }, attachedIds: [],
+      ports: r.name.startsWith('supabase_db_') && r.kind === 'container' ? [54332] : r.name.startsWith('supabase_kong_') ? [54331] : [] }))
+    const adapters: AssignmentListLifecycleAdapters = {
+      async canonicalSnapshot() { calls.canonicalSnapshot++; return { ...canonical } },
+      async inventory() { calls.inventory++; return { resources: running ? structuredClone(resources) : [], occupiedPorts: running ? [54331,54332] : [], workdirExists: exists } },
+      async prepare(plan, migrations) { calls.prepare++; exists = true; return { workdir, realpath: workdir, created: true,
+        configSha256: testOwnerDigest(plan.config), migrations: migrations.map(({ name, sha256 }) => ({ name, sha256 })), envFiles: [], symlinks: [] } },
+      async command(request) { calls.command++; if (request.args[0] === 'start') { running = true; return }
+        return { API_URL: 'http://127.0.0.1:54331', DB_URL: 'postgresql://postgres:demo@127.0.0.1:54332/postgres',
+          SERVICE_ROLE_KEY: `header.${Buffer.from(JSON.stringify({ iss: 'supabase-demo', role: 'service_role' })).toString('base64url')}.signature` } },
+      async verifyEphemeral(request) { calls.verifyEphemeral++; return { ...request, containerId: resources[0].id,
+        guard168Enabled: true, persistedGatesOff: true, activeNetworkCronAbsent: true } },
+      async executeSql() { calls.executeSql++ },
+      async runCase(request) { calls.runCase++; return { actorId: request.proofCase.actorId, classroomId: request.proofCase.classroomId, status: request.proofCase.expectedStatus } },
+      async runRevocation(request) { calls.runRevocation++; await request.executeSql(request.plan.revokeSql)
+        await request.executeSql(request.plan.restoreSql); await request.verifyRestoration(request.plan)
+        return { transition: request.plan.transition, boundary: request.plan.boundary, expectedStatus: request.plan.expectedStatus } },
+      async verifyRestoration() { calls.verifyRestoration++; return { nonTargetBefore: 'unchanged', nonTargetAfter: 'unchanged', semanticRestored: true, changedCells: [] } },
+      async teardown() { calls.teardown++; running = false },
+      async removeWorkdir() { calls.removeWorkdir++; exists = false },
+    }
+    await runAssignmentListEphemeralLifecycle({ fixture: original, projectId: project, workdir, mode: 'normal',
+      migrations: loadAssignmentListReviewedMigrations(process.cwd()), expectedResources: assignmentListExpectedResources(project),
+      reviewedManifestSha256: testOwnerDigest(JSON.stringify(original.manifest)),
+      restorationPolicies: assignmentListRevocationPlans(original).map(p => assignmentListRestorationPolicy(original, p)) }, adapters)
+    expect(calls).toEqual(caps); expect(running).toBe(false); expect(exists).toBe(false)
+    expect(calls.verifyEphemeral).toBe(1 + original.manifest.cases.length + 3 * assignmentListRevocationPlans(original).length)
+  })
+})
+
+describe.sequential('actual original lifecycle with offline platform faults', () => {
+  afterEach(() => {
+    vi.restoreAllMocks(); vi.resetModules()
+    for (const name of ['node:child_process', 'node:fs', '../../scripts/contextual-assignment-list-proof-platform',
+      '../../scripts/contextual-assignment-list-proof-lifecycle', '../../scripts/contextual-test-reorder-proof-fixture',
+      '../../scripts/contextual-test-reorder-proof-transport', '../../scripts/contextual-test-draft-save-native-contracts',
+      '../../scripts/contextual-test-draft-save-proof-inventory']) vi.doUnmock(name)
+  })
+  async function faultRun(fault: 'clock' | 'actions' | 'case-clock' | 'prepare-clock', changedField?: keyof typeof canonical) {
+    vi.resetModules()
+    const events: string[] = [], canonicalRequests: unknown[] = [], fieldReads: string[] = []
+    let launched = false, workdirExists = false, project = '', resources: import('../../scripts/contextual-assignment-list-proof-lifecycle').AssignmentListResource[] = []
+    let failure: import('../../scripts/contextual-assignment-list-proof-lifecycle').AssignmentListLifecycleError | undefined
+    let guard: (() => Promise<void>) | undefined, clock = Date.parse('2026-10-07T03:00:00Z')
+    vi.spyOn(Date, 'now').mockImplementation(() => clock)
+    const output = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    vi.doMock('node:child_process', async () => ({ ...await vi.importActual<typeof import('node:child_process')>('node:child_process'),
+      execFileSync: (file: string, args: string[], options: { input?: string }) => {
+        if (file === 'git') return args[0] === 'rev-parse' ? args[1] === 'HEAD' ? 'a'.repeat(40) : process.cwd() : ''
+        expect(file).toBe('docker'); expect(options.input).toBeTypeOf('string'); events.push('private-sql')
+        return options.input!.includes('jsonb_build_object') && options.input!.includes('__nontarget_fingerprints') ? JSON.stringify(graph()) : 'ok'
+      } }))
+    vi.doMock('node:fs', async () => ({ ...await vi.importActual<typeof import('node:fs')>('node:fs'),
+      statSync: () => ({ isSocket: () => true, dev: 1, ino: 2, mode: 3, rdev: 4 }) }))
+    vi.doMock('../../scripts/contextual-assignment-list-proof-lifecycle', async () => {
+      const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-lifecycle')>('../../scripts/contextual-assignment-list-proof-lifecycle')
+      return { ...actual, runAssignmentListEphemeralLifecycle: async (...args: Parameters<typeof actual.runAssignmentListEphemeralLifecycle>) => {
+        try { return await actual.runAssignmentListEphemeralLifecycle(...args) }
+        catch (error) { failure = error as typeof failure; throw error }
+      } }
+    })
+    vi.doMock('../../scripts/contextual-assignment-list-proof-platform', async () => {
+      const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-platform')>('../../scripts/contextual-assignment-list-proof-platform')
+      return { ...actual, createAssignmentListNativeAdapters: () => ({
+        async canonicalSnapshot(request: unknown) {
+          canonicalRequests.push(structuredClone(request)); events.push(canonicalRequests.length === 1 ? 'canonical-before' : 'canonical-after')
+          const value = { ...canonical, ...(changedField ? { [changedField]: changedField === 'rowDigests'
+            ? canonical.rowDigests.replace('a'.repeat(32), 'b'.repeat(32)) : 'changed' } : {}) }
+          if (canonicalRequests.length === 1) return { ...canonical }
+          return Object.defineProperties({}, Object.fromEntries(Object.keys(value).map(field => [field, { enumerable: true,
+            get: () => { fieldReads.push(field); return value[field as keyof typeof value] } }])))
+        },
+        async inventory() { events.push(launched ? 'inventory-present' : 'inventory-absent'); return { resources: structuredClone(resources), occupiedPorts: launched ? [54331,54332] : [], workdirExists } },
+        async prepare(plan: { projectId: string; workdir: string; config: string }, migrations: Array<{ name: string; sha256: string }>) {
+          events.push('prepare'); project = plan.projectId; workdirExists = true
+          if (fault === 'prepare-clock') clock += 900001
+          return { workdir: plan.workdir, realpath: plan.workdir, created: true, configSha256: testOwnerDigest(plan.config), migrations: migrations.map(({ name, sha256 }) => ({ name, sha256 })), envFiles: [], symlinks: [] }
+        },
+        async command(request: { args: string[] }) {
+          events.push(`command-${request.args[0]}`)
+          if (request.args[0] === 'start') {
+            launched = true; resources = actual.assignmentListExpectedResources(project).map((r, index) => ({ ...r,
+              id: (index + 1).toString(16).padStart(64, '0'), createdAt: '2026-10-07T03:00:00Z',
+              labels: { 'com.supabase.cli.project': project, 'com.docker.compose.project': project }, attachedIds: [],
+              ports: r.name.startsWith('supabase_db_') && r.kind === 'container' ? [54332] : r.name.startsWith('supabase_kong_') ? [54331] : [] }))
+            return
+          }
+          const token = `header.${Buffer.from(JSON.stringify({ iss: 'supabase-demo', role: 'service_role' })).toString('base64url')}.signature`
+          return { API_URL: 'http://127.0.0.1:54331', DB_URL: 'postgresql://postgres:demo@127.0.0.1:54332/postgres', SERVICE_ROLE_KEY: token }
+        },
+        async verifyEphemeral(request: object) { events.push('verify-ephemeral'); return { ...request, containerId: resources[0].id,
+          guard168Enabled: true, persistedGatesOff: true, activeNetworkCronAbsent: true } },
+        async executeSql() { events.push('inherited-sql'); if (fault === 'clock') clock += 900001 },
+        async runCase(request: { proofCase: { actorId: string; classroomId: string; expectedStatus: string } }) { events.push('inherited-case');
+          if (fault === 'case-clock') clock += 900001
+          return { actorId: request.proofCase.actorId, classroomId: request.proofCase.classroomId, status: request.proofCase.expectedStatus } },
+        async runRevocation() { events.push('inherited-revocation'); throw Error('Must not resume') },
+        async verifyRestoration() { events.push('inherited-restoration'); throw Error('Must not resume') },
+        async teardown() { events.push('teardown'); launched = false; resources = [] },
+        async removeWorkdir() { events.push('remove-workdir'); workdirExists = false },
+      }) }
+    })
+    if (fault === 'actions' || fault === 'case-clock') {
+      vi.doMock('../../scripts/contextual-test-reorder-proof-fixture', async () => ({
+        ...await vi.importActual<typeof import('../../scripts/contextual-test-reorder-proof-fixture')>('../../scripts/contextual-test-reorder-proof-fixture'), validateTestOwnerReorderSetupSnapshot: vi.fn(),
+      }))
+      vi.doMock('../../scripts/contextual-test-reorder-proof-transport', async () => ({
+        ...await vi.importActual<typeof import('../../scripts/contextual-test-reorder-proof-transport')>('../../scripts/contextual-test-reorder-proof-transport'),
+        createTestOwnerReorderProofTransport: (_f: unknown, _target: unknown, _project: unknown, _fetch: unknown, g: () => Promise<void>) => {
+          guard = g; return { counts: { exchangeBytes: 0 }, diagnostic: () => 'offline transport\n' }
+        },
+      }))
+      vi.doMock('../../scripts/contextual-test-draft-save-proof-inventory', () => ({ draftSaveProofDockerInventory: async (options: { stat: (path: string) => unknown }) => {
+        options.stat('/private/tmp/offline-only-docker.sock'); return structuredClone(resources)
+      } }))
+      vi.doMock('../../scripts/contextual-test-draft-save-native-contracts', async () => {
+        const actual = await vi.importActual<typeof import('../../scripts/contextual-test-draft-save-native-contracts')>('../../scripts/contextual-test-draft-save-native-contracts')
+        return { ...actual, createTestOwnerReorderNativeContracts: (input: Parameters<typeof actual.createTestOwnerReorderNativeContracts>[0]) => {
+          const m = actual.buildTestOwnerReorderNativeContractsManifest(input.original, input.fixture, input.reviewedHead, input.repository)
+          return { setup: async () => ({ fixtureSha256: testOwnerDigest(JSON.stringify(input.fixture)), setupSha256: testOwnerDigest(m.setup) }),
+            verifyTarget: async () => undefined, diagnostic: () => 'offline native\n', probeReorderPrivilegeDrift: async () => {
+              events.push('action-saturation'); for (let i = 0; i < 201; i++) await guard!(); throw Error('Action cap must reject')
+            } }
+        } }
+      })
+    }
+    const main = await import('../../scripts/check-contextual-test-owner-reorder-lifecycle')
+    await expect(main.testOwnerReorderLifecycleMain(['--reviewed-head', 'a'.repeat(40), '--mode', 'normal'])).rejects.toThrow('private details withheld')
+    if (fault === 'prepare-clock') expect(events).not.toContain('teardown')
+    else expect(events).toContain('teardown')
+    expect(events).toContain('remove-workdir')
+    expect(events.lastIndexOf('inventory-absent')).toBeGreaterThan(events.indexOf('remove-workdir'))
+    expect(canonicalRequests).toHaveLength(2); expect(canonicalRequests[1]).toEqual(canonicalRequests[0])
+    expect(new Set(fieldReads)).toEqual(new Set(Object.keys(canonical)))
+    expect(events.at(-1)).toBe('canonical-after'); expect(workdirExists).toBe(false); expect(resources).toEqual([])
+    expect(output).not.toHaveBeenCalled(); expect(failure?.primary).toBeDefined()
+    if (changedField) {
+      const comparison = failure?.cleanupFailures.find(f => f.stage === 'canonical-after')?.error as { operator?: string; actual?: typeof canonical; expected?: typeof canonical }
+      expect(comparison.operator).toBe('deepStrictEqual'); expect(comparison.expected).toEqual(canonical)
+      expect(Object.keys(comparison.actual!).sort()).toEqual(Object.keys(canonical).sort())
+      expect(comparison.actual?.[changedField]).not.toBe(canonical[changedField])
+    }
+    else expect(failure?.cleanupFailures).toEqual([])
+    expect(events).not.toContain('inherited-revocation'); expect(events).not.toContain('inherited-restoration')
+    return events
+  }
+  it('still tears down and compares all five canonical fields after the absolute execution clock expires', async () => {
+    const events = await faultRun('clock'); expect(events).not.toContain('inherited-case')
+  })
+  it('still tears down and compares all five canonical fields after the app action budget is exhausted', async () => {
+    const events = await faultRun('actions'); expect(events).toContain('action-saturation')
+    expect(events.filter(e => e === 'private-sql')).toHaveLength(199)
+  })
+  it('does not start the matrix or remaining inherited cases/revocations after a read crosses the deadline', async () => {
+    const events = await faultRun('case-clock'); expect(events.filter(e => e === 'inherited-case')).toHaveLength(1)
+    expect(events).not.toContain('action-saturation')
+  })
+  it('retains the exact prepare ownership receipt for cleanup without starting after exhaustion', async () => {
+    const events = await faultRun('prepare-clock'); expect(events).not.toContain('command-start'); expect(events).not.toContain('inherited-sql')
+  })
+  it.each(Object.keys(canonical) as Array<keyof typeof canonical>)('never turns canonical-after %s drift into PASS after exhaustion', field => faultRun('clock', field))
 })
 
 describe('reorder snapshot/completion admission', () => {
@@ -126,7 +313,7 @@ describe('closed adopter AST/source wiring', () => {
     expect(source).toContain('testOwnerReorderTableCatalogFromCanonical(captured)')
     expect(source).toContain('validateTestOwnerReorderSetupSnapshot(f, rows, expectedTables)')
     expect(source).toContain('testOwnerReorderMatrixCompletion(f, transport, executed)')
-    expect(source).toContain('appBytes + nativeByteReserve + (transport?.counts.exchangeBytes ?? 0) <= APP_CAPS.totalBytes')
+    expect(source).toContain('appBytes + nativeByteReserve + CANONICAL_AFTER_CAPS.bytes + (transport?.counts.exchangeBytes ?? 0) <= APP_CAPS.totalBytes')
     expect(source).toContain('assert.equal(union.sql.capabilities.totalBytes, nativeByteReserve)')
   })
   it('restores the real permission probe through the same engine before rollback contracts and the normal matrix', () => {
@@ -161,6 +348,20 @@ describe('closed adopter AST/source wiring', () => {
     expect(exported).not.toContain('appGuard'); expect(exported).not.toContain('privateSql')
     expect(source).toContain('if (process.argv[1] === fileURLToPath(import.meta.url))')
     expect(source).toContain('complete = true; setupStage = \'complete\'')
+  })
+  it('guards every ordinary inherited forward and uses the final cumulative native receipt for the sum', () => {
+    for (const name of ['executeSql','runCase','runRevocation','verifyRestoration','verifyEphemeral']) {
+      const start = source.lastIndexOf(`async ${name}(request)`), end = source.indexOf('\n      },', start)
+      const body = source.slice(start, end)
+      expect(body.indexOf(`inheritedAdmission('${name}')`)).toBeLessThan(body.indexOf(`await native.${name}(request)`))
+      expect(body.indexOf(`await native.${name}(request)`)).toBeLessThan(body.indexOf('check()'))
+    }
+    expect(source).toContain('testOwnerReorderAccountingReceipt(union, { controls, actions, exchangeBytes: appBytes }, committedReceipt,')
+    expect(source).toContain('rollback: nativeReceipt, native: committedReceipt')
+    expect(source).toContain('canonicalCleanup.attempts < CANONICAL_AFTER_CAPS.attempts')
+    expect(source).toContain('assert.deepEqual(request, canonicalRequest)')
+    for (const name of ['inventory','teardown','removeWorkdir']) expect(source).toContain(`inheritedAdmission('${name}', false)`)
+    expect(source).toContain('executionStopped = true'); expect(source).toContain('assert(!executionStopped && Date.now() < absoluteDeadline')
   })
 })
 
