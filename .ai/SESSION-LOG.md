@@ -11,46 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Integrated local database proof and CI compute capacity
-
-Frozen reviewed0d72a0dd/001–251 canonical local database lane PASS144steps,
-including native GET/new save/create/discard normal+forced modes, Assignment SDK,
-Pal and Stripe concurrency, recovery and shutdown. Host monotonic3947.856seconds
-(65.80min), guest3941.969seconds. Private archive440members101395bytes SHA256
-8b92cb6e5e298315094199809b46bda7237ee93e3627b524cdf95084ecca5d18 verified
-against receipt and exact251inventory07000040bee5a5506614cc3db6b191634f08c057463deb07aa0e3acf6a7da505.
-Daemon containers/volumes/custom networks empty; owned VMdisposed and lease
-released; both templates stopped. Independent prior integratedreview had no blockers.
-Main3b83808d adds only Gradebook styling/test and continuity; preserve both
-histories and all completed database inputs byte-identically. Reuse database proof
-for unchanged relevant inputs; exact new reviewed SHA still requires eligible CI.
-Fresh seven-day cohortSep29–Oct6:687runs699attempts,3472jobrows independently
-verified; >=11588projectedprivatehostedminutes,heavy11090/light498(95.7%known
-heavy). Three unfinished durations unknown. Heavy179.58knownjobhours exceeds
-168serialhours before HQsharing; Mac24GiB/8logicalCPU cannot fit2x12GiB PikaVMs
-before macOS/apps/HQ. No forecast/billing-plan/cost assumptions. Detailed private
-report and raw receipts remain external artifacts. Human task override persists;
-review counters retained. Pika remains public, runner unregistered/inactive and
-opt-in unset; no production/HQ changes. PR1488stays draft through source sync and
-independent verification, then one stable-SHA eligible CI/PR Gate run.
-
-## 2026-10-06 15:22 [CODEX]
-
-PR1488 ready CI passed Test & Build and database contracts; Classwork continuity setup raced on an obsolete student-name button. Retained traces confirm the editor mounts while that click waits. Use the existing retrying visibility assertion and preserve all refresh/Retry retention checks. Return PR to draft for corrected-source focused browser validation and independent review; repository stays public and runner activation remains held.
-
-## 2026-10-06 — Approved local CI diagnostics merge synchronization
-
-Owner approved PR1488 squash merge after reviewed86012 CI37493751710 passed
-all five jobs including PR Gate. Main advanced to2d89088cd Daily summaries;
-continuity-only rebase conflicts reconciled by preserving both complete histories.
-All eight diagnostics and Classwork readiness correction remain byte-identical;
-incoming Daily source/tests retained. New head requires focused checks, targeted
-independent synchronization review and eligible exact-head CI before approved
-merge. Prior full local DB proof remains tied to its original0d72/schema251
-inputs; incoming Daily harness changes are verified by new CI. Local auth2/
-Classwork12 zero-retry proof remains86012 evidence. Public visibility and
-unregistered/inactive runner holds persist; no production/HQ changes.
-
 ## 2026-10-06 Product fluidity final current-main reconciliation
 
 Owner approved one final reconciliation batch and one independent integration reviewer within120minutes. Reconciled current main693a096df (#1488 database proof diagnostics) into the frozen baf23560 candidate. Application/UI source stays unchanged; the archive retains both exact histories, and the automatically merged experience contract retains the upstream student-work readiness correction. Parent baf23560 passed independent review, focused2388tests,8newbrowsercontracts,16composition captures, and exact-head CI37511211431 (13919coveragepasses;386browserpasses,11configured retry recoveries,20skips;PRGatePASS). Required focused checks and one final frozen-SHA review precede fresh exact-head CI, main merge and8superseded closures. No production promotion.
@@ -474,5 +434,6 @@ Student1522 reviewed correction ca311 exactCI37704331390 passes the fixed Grades
 - Playwright representative matrix8/8 and normal/reduced motion passed; Darwin4/4 and Linux4/4 canonical Pattern Lab snapshots updated and visually reviewed. Final focused gate2232 passed, including the corrected checklist import and pending-validation regression coverage; independent review accepted1922edb90. PR1520 CI exposed an unchanged Markdown test selecting another fixture's PATCH; scope its assertion to existing ownerCalls and recheck/review before merge. Evidence: `/tmp/pika-circular-evidence/`; startup verified after dependency install. Initial import/fixture mistakes corrected before review.
 - Merge follow-up: Markdown test correction independently accepted at e036c5c21; Test & Build CI passed. Browser CI identified duplicate Saving fixture name and incorrect Linux capture font. Rename the new example Creating class; retain unique Saving coverage. Recapture Linux with fonts-dejavu-core in the disposable Playwright container: desktop pixels outside the label match CI; mobile dimensions match with minor rendering noise. Interaction16/16 and representative matrix8/8 pass; Darwin4/4 and Linux4/4 reviewed. Owner explicitly overrode review budgets on2026-10-07; counters retained in the evidence ledger, exact-SHA review/CI still required before authorized main merge. No product dependency or font change.
 - Third CI exposed a5s timeout in the new gallery test's redundant whole-page Saving lookup. Remove that expensive lookup; existing browser continuity16/16 retains unique Saving coverage, while the unit test retains exact scoped loading names/busy/disabled/decorative assertions. Targeted26tests pass under coverage instrumentation (whole-repo coverage thresholds are inapplicable to a single file); final focused check and targeted review required. Playwright's unchanged comparator also accepts all four Linux captures against CI outside the changed example.
+- Final reviewed76c1e04cf CI37699017298 passed all required lanes/PR Gate:14529tests and browser matrix. Main advanced to8031d2bed (#1521) during CI, causing a journal-only conflict. Rebased while draft; kept main's archive entry already identical to our archived receipt, preserving both histories. Range-diff shows all product/test/snapshot patches unchanged. Combined main's SplitButton interaction retirement still requires integration-focused review, local checks, and exact rebased-SHA CI before the owner-authorized merge; budget override remains active.
 - Audit heuristic flags existing composite semantics in touched feature files even though only decorative icons change; direct keyboard/state suites and independent review cover these unchanged contracts. No audit rule or policy is weakened.
 - Orchestration: small coherent implementation handled locally; weekly remaining86%, DeepSeek pilot paused through2026-12-31. GPT-6 Luna/medium initial review318de08 completed with one missing checklist import blocker, confirmed by TypeScript and fixed in one batch; targeted re-review pending. One launch/initial wave/one fix batch; per-task tokens/time unknown.
