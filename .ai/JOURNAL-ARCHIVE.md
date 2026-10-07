@@ -41892,3 +41892,12 @@ the fill; zero-vote percentages stay blank; inline question numbers and original
 question/option order retained. Pattern Lab description follows the final row.
 Risk none. Both roles × desktop/mobile × light/dark screenshots refreshed with
 inside-right-edge geometry checks. Required checks/review recorded in PR notes.
+
+<!-- pika-session-log-archive-batch:8f555e739264cee7d57cc7ad18070a162e64645cc02aac14a96531e082e2050f -->
+## 2026-10-06 — Survey title only
+
+PR1511 copy follow-up: remove the redundant Results suffix from both survey
+headings, leaving the original survey title. Reuse existing title styling;
+update heading assertions and same eight-view visual script. Risk none.
+Previously reviewed implementation reused; coordinator checks the title-only
+delta and cumulative continuity. Required local checks/visual evidence in PR.

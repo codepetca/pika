@@ -28,6 +28,7 @@ export async function verifyAssignmentPreviewMotion(
   const editorNode = await editor.elementHandle()
   const ownerNode = await owner.elementHandle()
   const opener = owner.getByRole('button', { name: 'Preview', exact: true })
+  const openerNode = await opener.elementHandle()
   await expect(editor).toContainText('Read the field guide.')
   await editor.click()
   await page.keyboard.press('ControlOrMeta+End')
@@ -71,12 +72,29 @@ export async function verifyAssignmentPreviewMotion(
   await opener.click()
   const preview = page.getByRole('dialog', { name: 'Instructions', exact: true })
   const root = await preview.evaluateHandle((element) => element.closest<HTMLElement>('[data-modal-state]')!)
-  await preview.getByRole('button', { name: 'Close', exact: true }).click()
+  const closeButton = preview.getByRole('button', { name: 'Close', exact: true })
+  const reopenObservation = await page.evaluateHandle(({ close, opener, original }) => {
+    const observation = { closedAt: 0, reopenedAt: 0, rootConnectedAtReopen: false }
+    close!.addEventListener('click', () => { observation.closedAt = performance.now() }, { once: true, capture: true })
+    opener!.addEventListener('click', () => {
+      observation.reopenedAt = performance.now()
+      observation.rootConnectedAtReopen = original!.isConnected
+    }, { once: true, capture: true })
+    return observation
+  }, { close: await closeButton.elementHandle(), opener: openerNode, original: root })
+  await closeButton.click()
   await opener.click()
   await expect(preview).toBeVisible()
+  const observedReopen = await reopenObservation.jsonValue()
   if (motion === 'no-preference') {
-    expect(await preview.evaluate((element, original) => element.closest('[data-modal-state]') === original, root)).toBe(true)
+    // Native automation can reopen after the 200ms exit already removed the root.
+    // A retained root must be reused; an expired root must be replaced.
+    expect(await preview.evaluate((element, original) => element.closest('[data-modal-state]') === original, root))
+      .toBe(observedReopen.rootConnectedAtReopen)
   }
+  const reopenedRoot = await preview.evaluateHandle((element) => element.closest<HTMLElement>('[data-modal-state]')!)
+  evidence.push({ nativeReopenIntervalMs: observedReopen.reopenedAt - observedReopen.closedAt,
+    rootConnectedAtReopen: observedReopen.rootConnectedAtReopen })
   // Wait beyond the obsolete timer; this is a race observation, not an action delay.
   await page.waitForTimeout(250)
   await expect(preview).toBeVisible()
@@ -84,12 +102,12 @@ export async function verifyAssignmentPreviewMotion(
   await page.keyboard.press('Escape')
   await expect(opener).toBeFocused()
   if (motion === 'no-preference') {
-    expect(await root.evaluate((element) => element.isConnected && element.dataset.modalState === 'closing')).toBe(true)
+    expect(await reopenedRoot.evaluate((element) => element.dataset.modalState)).toBe('closing')
     await page.emulateMedia({ reducedMotion: 'reduce' })
-    await expect.poll(() => root.evaluate((element) => element.isConnected)).toBe(false)
+    await expect.poll(() => reopenedRoot.evaluate((element) => element.isConnected)).toBe(false)
     await expect(opener).toBeFocused()
   }
-  await expect.poll(() => root.evaluate((element) => element.isConnected)).toBe(false)
+  await expect.poll(() => reopenedRoot.evaluate((element) => element.isConnected)).toBe(false)
   await testInfo.attach('editor-after-dismissal', { body: await page.screenshot({ animations: 'allow' }), contentType: 'image/png' })
   await owner.getByRole('button', { name: 'Close assignment modal', exact: true }).click()
   await expect(owner).toHaveCount(0)
