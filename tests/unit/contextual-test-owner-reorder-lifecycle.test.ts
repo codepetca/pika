@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { AssertionError } from 'node:assert'
 import ts from 'typescript'
 import { AssignmentListLifecycleError, runAssignmentListEphemeralLifecycle, type AssignmentListLifecycleAdapters } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { testOwnerDigest } from '../../scripts/contextual-test-owner-detail-proof-fixture'
@@ -76,6 +77,49 @@ describe('closed reorder lifecycle source contracts', () => {
     expect(diagnostic).toContain('setup=unknown'); expect(diagnostic).not.toContain('private')
     expect(testOwnerReorderSetupDiagnostic('sql-setup', new AssignmentListLifecycleError({ stage: 'fixture', error: privateError }, []))).toContain('lifecycle=fixture')
   })
+  it.each(['check-contextual-test-owner-reorder-lifecycle.ts', 'contextual-assignment-list-proof-lifecycle.ts',
+    'contextual-assignment-list-proof-platform.ts', 'contextual-assignment-list-proof-revocations.ts',
+    'check-contextual-assignment-list-reads.ts', 'contextual-assignment-list-proof-path.ts'])
+  ('emits only a bounded first owned assertion coordinate and closed lifecycle evidence: %s', file => {
+    for (const column of [7, 81]) {
+      const error = new AssertionError({ message: 'restoration-owner', actual: { secret: 'PRIVATE row credential' }, expected: {}, operator: 'strictEqual' })
+      // Exact fixed label only. Node24 may append a value diff to strictEqual's
+      // supplied message; decorated/lookalike labels must remain unrecognized.
+      error.message = 'restoration-owner'
+      error.stack = `PRIVATE message\n    at node:internal/assert:20:3\n    at verify (/PRIVATE/secret/scripts/${file}:244:${column})\nPRIVATE SQL`;
+      const wrapped = new AssignmentListLifecycleError({ stage: 'revocations', transition: 'owner-transfer', boundary: 'later', error }, [])
+      const diagnostic = testOwnerReorderSetupDiagnostic('complete', wrapped)
+      expect(diagnostic).toContain(`location=${file}:244:${column}`)
+      expect(diagnostic).toContain('transition=owner-transfer boundary=later operator=strictEqual status=none checkpoint=restoration-owner')
+      expect(diagnostic).toContain('lifecycle=revocations cleanup=none failure=assertion')
+      expect(diagnostic).not.toMatch(/PRIVATE|secret|credential|SQL|\bat verify|node:internal|actual|expected/)
+    }
+  })
+  it.each([
+    'PRIVATE only', 'PRIVATE\n    at check (/private/scripts/unrelated.ts:244:7)',
+    'PRIVATE\n    at check (/private/scripts/check-contextual-test-owner-reorder-lifecycle.ts:0:7)',
+    'PRIVATE\n    at check (/private/scripts/check-contextual-test-owner-reorder-lifecycle.ts:244:0)',
+    'PRIVATE\n    at foreign (/private/unrelated.ts:1:2)\n    at check (/private/scripts/check-contextual-test-owner-reorder-lifecycle.ts:244:7)',
+    'PRIVATE\n    at check (/private/scripts/check-contextual-test-owner-reorder-lifecycle.ts:244:7) PRIVATE',
+    'x'.repeat(8193),
+  ])('rejects malformed, foreign, later or oversized assertion stack without rendering it %#', stack => {
+    const error = new AssertionError({ message: 'PRIVATE row credential', operator: 'PRIVATE' }); error.stack = stack
+    const diagnostic = testOwnerReorderSetupDiagnostic('complete', new AssignmentListLifecycleError({ stage: 'revocations', error }, []))
+    expect(diagnostic).toContain('location=unknown')
+    expect(diagnostic).toContain('operator=none status=none checkpoint=none')
+    expect(diagnostic).not.toMatch(/PRIVATE|row|credential|unrelated|\/private|xxxx/)
+  })
+  it('reuses only exact restoration checkpoint labels, never decorated lookalikes', () => {
+    for (const label of ['restoration-scope', 'restoration-nontarget', 'restoration-owner',
+      'restoration-archive', 'restoration-visibility', 'restoration-member']) {
+      const error = new AssertionError({ message: label, actual: false, expected: true, operator: '==' })
+      const diagnostic = testOwnerReorderSetupDiagnostic('complete', new AssignmentListLifecycleError({ stage: 'revocations', error }, []))
+      expect(diagnostic).toContain(`checkpoint=${label}`)
+      error.message = `${label}\nPRIVATE row credential`
+      const decorated = testOwnerReorderSetupDiagnostic('complete', new AssignmentListLifecycleError({ stage: 'revocations', error }, []))
+      expect(decorated).toContain('checkpoint=none'); expect(decorated).not.toMatch(/PRIVATE|row|credential/)
+    }
+  })
   it('reports the actual200-per-layer action sum and reserves cleanup/native bytes without claiming opaque IO', () => {
     const union = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     const calls = Object.fromEntries(Object.keys(union.inheritedLifecycleCapabilities).map(k => [k, 0]))
@@ -135,6 +179,31 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
       '../../scripts/contextual-assignment-list-proof-lifecycle', '../../scripts/contextual-test-reorder-proof-fixture',
       '../../scripts/contextual-test-reorder-proof-transport', '../../scripts/contextual-test-draft-save-native-contracts',
       '../../scripts/contextual-test-draft-save-proof-inventory']) vi.doUnmock(name)
+  })
+  it('keeps guarded-main revocation failure failed and emits only its closed diagnostic', async () => {
+    vi.resetModules()
+    const output = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    const error = new AssertionError({ message: 'restoration-nontarget', actual: 'PRIVATE row', expected: 'SECRET credential', operator: 'strictEqual' })
+    error.message = 'restoration-nontarget'
+    error.stack = 'PRIVATE\n    at verify (/SECRET/scripts/contextual-assignment-list-proof-platform.ts:330:19)'
+    const exec = vi.fn((file: string, args: string[]) => {
+      expect(file).toBe('git'); return args[0] === 'rev-parse' ? args[1] === 'HEAD' ? 'a'.repeat(40) : process.cwd() : ''
+    })
+    vi.doMock('node:child_process', async () => ({ ...await vi.importActual<typeof import('node:child_process')>('node:child_process'), execFileSync: exec }))
+    vi.doMock('../../scripts/contextual-assignment-list-proof-lifecycle', async () => {
+      const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-lifecycle')>('../../scripts/contextual-assignment-list-proof-lifecycle')
+      return { ...actual, runAssignmentListEphemeralLifecycle: async () => {
+        throw new actual.AssignmentListLifecycleError({ stage: 'revocations', transition: 'visibility', boundary: 'terminal', error }, [])
+      } }
+    })
+    const main = await import('../../scripts/check-contextual-test-owner-reorder-lifecycle')
+    await expect(main.testOwnerReorderLifecycleMain(['--reviewed-head', 'a'.repeat(40), '--mode', 'normal'])).rejects.toThrow('private details withheld')
+    const diagnostic = stderr.mock.calls.map(call => call[0]).join('')
+    expect(diagnostic).toContain('location=contextual-assignment-list-proof-platform.ts:330:19')
+    expect(diagnostic).toContain('transition=visibility boundary=terminal operator=strictEqual status=none checkpoint=restoration-nontarget')
+    expect(diagnostic).not.toMatch(/PRIVATE|SECRET|credential|row|PASS/)
+    expect(output).not.toHaveBeenCalled()
   })
   async function faultRun(fault: 'clock' | 'actions' | 'case-clock' | 'prepare-clock', changedField?: keyof typeof canonical) {
     vi.resetModules()

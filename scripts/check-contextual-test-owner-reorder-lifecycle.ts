@@ -12,7 +12,7 @@ import type { Database } from '../src/types/database'
 import { ApiError } from '../src/lib/api-error'
 import { boundedAssignmentListJson } from '../src/lib/validations/contextual-assignment-list-read'
 import { newAssignmentListProofFixture, assignmentListFixtureSetupSql } from './contextual-assignment-list-proof-fixture'
-import { AssignmentListLifecycleError, runAssignmentListEphemeralLifecycle, type AssignmentListLifecycleAdapters } from './contextual-assignment-list-proof-lifecycle'
+import { AssignmentListLifecycleError, assignmentListLifecycleDiagnostic, runAssignmentListEphemeralLifecycle, type AssignmentListLifecycleAdapters } from './contextual-assignment-list-proof-lifecycle'
 import { createAssignmentListNativeAdapters, loadAssignmentListReviewedMigrations, assignmentListExpectedResources,
   assignmentListRestorationPolicy, assignmentListDockerInventory } from './contextual-assignment-list-proof-platform'
 import { assignmentListRevocationPlans } from './contextual-assignment-list-proof-revocations'
@@ -187,7 +187,17 @@ export function testOwnerReorderSetupDiagnostic(stage: unknown, error: unknown) 
   const phases = ['canonical-before', 'preflight', 'prepare', 'pre-start', 'start', 'capture', 'status', 'fixture', 'cases', 'revocations', 'after-fixture', 'before-capture']
   const phase = phases.includes(lifecycle?.primary?.stage ?? '') ? lifecycle!.primary!.stage : 'unknown'
   const cause = lifecycle ? lifecycle.primary?.error : error
-  return `DIAG test-owner-reorder setup=${setup} lifecycle=${phase} cleanup=${lifecycle ? lifecycle.cleanupFailures.length ? 'present' : 'none' : 'unknown'} failure=${cause instanceof assert.AssertionError ? 'assertion' : 'unknown'}.\n`
+  // This is the propagated assertion coordinate, not proof of the first causal
+  // fault or a compound guard's exhausted condition. No raw stack/path escapes.
+  const locations = ['check-contextual-test-owner-reorder-lifecycle.ts', 'contextual-assignment-list-proof-lifecycle.ts',
+    'contextual-assignment-list-proof-platform.ts', 'contextual-assignment-list-proof-revocations.ts',
+    'check-contextual-assignment-list-reads.ts', 'contextual-assignment-list-proof-path.ts']
+  const stack = cause instanceof assert.AssertionError && typeof cause.stack === 'string' ? cause.stack : ''
+  const frame = Buffer.byteLength(stack) <= 8192 ? stack.split('\n').find(line => /^\s+at /.test(line) && !/\bat (?:.*\()?node:/.test(line)) : undefined
+  const coordinate = frame?.match(/\/scripts\/([a-z-]+\.ts):([1-9]\d{0,4}):([1-9]\d{0,4})\)?$/)
+  const location = coordinate && locations.includes(coordinate[1]) ? `${coordinate[1]}:${coordinate[2]}:${coordinate[3]}` : 'unknown'
+  const inherited = lifecycle?.primary ? ` ${assignmentListLifecycleDiagnostic(lifecycle.primary)}` : ''
+  return `DIAG test-owner-reorder setup=${setup} lifecycle=${phase} cleanup=${lifecycle ? lifecycle.cleanupFailures.length ? 'present' : 'none' : 'unknown'} failure=${cause instanceof assert.AssertionError ? 'assertion' : 'unknown'} location=${location}${inherited}.\n`
 }
 export function parseTestOwnerReorderLifecycleArgs(args: string[]) {
   const generateTypes = args.length === 5 && args[4] === '--generate-types'

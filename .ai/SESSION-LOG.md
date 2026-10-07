@@ -665,3 +665,21 @@ stash digest unchanged across this rebase. New focused/changed-base review and
 one frozen-head native normal/types plus both forced cleanup proofs pending.
 Prior15 launches/12 targeted/12 fixes, original05:04 clock and human waiver
 retained; reconciliation batch13. No production/canonical/activation changes.
+
+## 2026-10-07 — Reorder inherited revocation diagnosis
+
+Reviewed39 native normal failed a later inherited revocation assertion after
+complete reorder/calibration/SDK/race/committed/genuine-types phases. No full
+native acceptance; exact cleanup and canonical five-field preservation PASS.
+Private600 failure receipt abd5150c; fresh type bytes437800/d84c71 match source.
+Frozen39 PR1515 stays draft; no forced cases, readiness or release.
+Bounded Sol6.1/high source diagnosis verified missing existing closed lifecycle
+fields in reorder catch; cause and timeout attribution remain unobserved.
+Reuse safe transition/boundary/operator/status/checkpoint, plus bounded first
+non-Node assertion basename/line/column allowlist; never raw message/path/stack/
+values. TDD14 RED then142 narrow PASS; final861 focused/32files and all static
+checks PASS. Node24 decorated assertion labels stay unknown; tests explicitly
+distinguish exact fixed labels. Source review and fresh proof still required.
+Prior16 launches/13 targeted/13 fixes/original05:04 clock/human waiver retained;
+this is batch14. No product SQL, limits, ABI/types, triggers or rollout changes.
+Worker approx5min elapsed, effective/active/tokens unknown; no savings claim.

@@ -202,3 +202,21 @@ and immediate triggers, full postconditions/fences, and result construction,
 respectively. They are not per-query timings: PRD14 does not attribute the cost
 to UPDATE alone. Later checkpoints remain unobserved until actually reached.
 See [PG17 stacked diagnostics](https://www.postgresql.org/docs/17/plpgsql-control-structures.html#PLPGSQL-EXCEPTION-DIAGNOSTICS).
+
+Fresh39c74de8 local normal reached complete native reorder/calibration, SDK,
+committed and genuine CLI types phases, but failed a later inherited revocation
+assertion. Native3121controls/162actions/zero sessions; transport17RPC/34 captures.
+Exact cleanup and complete canonical five-field preservation passed. No whole
+normal acceptance, forced-check completion or resolved CI capacity is claimed.
+The assertion site and cause remain unobserved; elapsed time is not a timeout
+diagnosis. Type bytes437800/d84c71 remain genuine and byte-exact checked-in.
+
+The wrapper now reuses the existing closed Assignment-list lifecycle diagnostic
+for transition/boundary/operator/status/restoration checkpoint. It additionally
+emits only the first non-Node assertion frame's allowlisted script basename and
+bounded numeric line/column from a stack capped8192 bytes; unfamiliar/malformed
+or oversized context reports unknown. No raw stack, path, message or assertion
+values are rendered. This reports the propagated assertion location, not an
+earlier fault that restoration might replace or a compound guard's specific
+condition. Source-only checks are not runtime diagnosis; product and proof
+execution, limits and acceptance gates remain unchanged.
