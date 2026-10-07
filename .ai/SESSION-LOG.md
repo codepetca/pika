@@ -512,3 +512,20 @@ residual demonstrated, not closed; successfulBlueprint/proposal/enabledpurge
 still outstanding. Focused820/TSC/lint/architecture/UI/design PASS; final
 cumulative review/draft exact-head CI next. Source coverage reused unchanged.
 249–253 remain unapplied canonically/production; all rollout holds unchanged.
+
+## 2026-10-07 — Reorder CI continuity-marker remediation
+
+PR1515 draft/final Astra/high cumulative review covered31paths with zero findings;
+readyf37 triggered exact-head CI37582018644 once. Test/build reported14855PASS
+and one Bara history assertion failure: CURRENT compaction omitted required
+Recorded releases/dated teacher_entitlements smoke markers. Returned PR to draft
+before edits; stopped only its local watcher, leaving remaining CI lanes running.
+Restored both historical markers and compacted redundant prose without removing
+facts or raising startup limits. Added startup-suite regression REDbeforefix so
+focused checks catch this history contract.86 affected checks/3files, lint/diff
+PASS. SQL/HTTP/native/type artifact unchanged; prior accepted proof reused.
+Targeted independent review and new stable-head CI remain required; no duplicate
+heavy run, migration application, promotion, rollout activation or phase exit.
+Draft conversion subsequently cancelled the old remaining lanes through normal
+CI concurrency; no explicit runner/cancel command. Focused821/TSC/lint/policies
+PASS; final failed/cancelled run receipt retained before the new reviewed run.
