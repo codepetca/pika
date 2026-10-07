@@ -65,3 +65,13 @@ teacher-parent simulation, not authenticated persistence. Natural opacity uses
 real animation frames and compositor screenshots; no paused or fabricated
 midpoints. Local evidence does not measure hardware paint/INP. Wider editor
 adoptions still require their own descendant and lifetime audits.
+
+The inherited Instructions-preview browser helper checks immediate main-dialog
+dismissal and focus return, then eventual physical editor removal. Main closure
+now has the same normal-motion exit lifecycle; the preview’s own retention,
+geometry, reopen and keyboard assertions remain unchanged. CI exposed this old
+immediate-removal expectation. A separate publication retry was interrupted during
+a logged Next dev-server restart; the initial timeout remained undetermined.
+The unchanged real seeded lifecycle passed
+locally (unpublish404, publish200 and final restore). New reviewed-head CI remains
+a gate; local reproduction is not a substitute.
