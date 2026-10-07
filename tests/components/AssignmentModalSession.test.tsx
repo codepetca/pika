@@ -394,4 +394,168 @@ describe('AssignmentModal async ownership across editor sessions', () => {
     assertBOpen()
   })
 
+
+  it.each(['preselected Draft', 'menu after input'] as const)('current owner restores a full title revert after the awaited autosave (%s)', async (action) => {
+    const saveA = hold((write) => write.url.endsWith(A.id) && write.body.title === 'A autosave')
+    const owner = mount()
+    if (action === 'preselected Draft') selectDraftAction()
+    title('A autosave')
+    await advance(3000)
+    expect(saveA.entry.used).toBe(true)
+    title(A.title)
+    // Preselected click isolates the manual continuation without a title blur flush.
+    if (action === 'preselected Draft') fireEvent.click(screen.getByRole('button', { name: 'Draft', exact: true }))
+    else draftSave()
+    expect(owner.publication).not.toHaveBeenCalled()
+    expect(owner.close).not.toHaveBeenCalled()
+    await saveA.finish({ assignment: { ...A, title: 'A autosave' } })
+    expect.soft(writes).toEqual([
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: 'A autosave' } },
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: A.title } },
+    ])
+    expect.soft(owner.publication).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      id: A.id, title: A.title, is_draft: true, released_at: null,
+    }), undefined)
+    expect.soft(owner.close).toHaveBeenCalledTimes(1)
+    await advance(200)
+    expect.soft(screen.queryByRole('textbox', { name: 'Title' })).not.toBeInTheDocument()
+  })
+
+  it.each(['preselected Draft', 'menu after input'] as const)('current owner restores a requirement revert alongside a newer title after the awaited autosave (%s)', async (action) => {
+    const requirement = { id: 'session-requirement-A', type: 'link' as const, label: 'Original A link',
+      instructions: '', required: true, position: 0, validation_policy_json: {} }
+    const initial = { ...A, submission_requirements: [requirement] } as Assignment
+    const autosavedRequirement = { ...requirement, label: 'A autosaved link' }
+    const saveA = hold((write) => write.url.endsWith(A.id) && Array.isArray(write.body.submission_requirements))
+    const owner = mount(initial)
+    if (action === 'preselected Draft') selectDraftAction()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Link label' }), { target: { value: autosavedRequirement.label } })
+    await advance(3000)
+    expect(saveA.entry.used).toBe(true)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Link label' }), { target: { value: requirement.label } })
+    title('A mixed manual title')
+    if (action === 'preselected Draft') fireEvent.click(screen.getByRole('button', { name: 'Draft', exact: true }))
+    else draftSave()
+    expect(owner.publication).not.toHaveBeenCalled()
+    expect(owner.close).not.toHaveBeenCalled()
+    await saveA.finish({ assignment: { ...initial, submission_requirements: [autosavedRequirement] } })
+    expect.soft(writes).toEqual([
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { submission_requirements: [autosavedRequirement] } },
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: {
+        title: 'A mixed manual title', submission_requirements: [requirement],
+      } },
+    ])
+    expect.soft(owner.publication).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      id: A.id, title: 'A mixed manual title', submission_requirements: [requirement], is_draft: true, released_at: null,
+    }), undefined)
+    expect.soft(owner.close).toHaveBeenCalledTimes(1)
+    await advance(200)
+    expect.soft(screen.queryByRole('textbox', { name: 'Title' })).not.toBeInTheDocument()
+  })
+
+  it('current owner restores a requirement-only revert after focus transfers to preselected Draft', async () => {
+    const requirement = { id: 'session-requirement-A', type: 'link' as const, label: 'Original A link',
+      instructions: '', required: true, position: 0, validation_policy_json: {} }
+    const initial = { ...A, submission_requirements: [requirement] } as Assignment
+    const autosavedRequirement = { ...requirement, label: 'A autosaved link' }
+    const saveA = hold((write) => write.url.endsWith(A.id) && Array.isArray(write.body.submission_requirements))
+    const owner = mount(initial)
+    selectDraftAction()
+    const link = screen.getByRole('textbox', { name: 'Link label' })
+    act(() => link.focus())
+    fireEvent.change(link, { target: { value: autosavedRequirement.label } })
+    await advance(3000)
+    expect(saveA.entry.used).toBe(true)
+    act(() => link.focus())
+    fireEvent.change(link, { target: { value: requirement.label } })
+    expect(link).toHaveFocus()
+    const draft = screen.getByRole('button', { name: 'Draft', exact: true })
+    act(() => draft.focus())
+    expect(draft).toHaveFocus()
+    expect(link).not.toHaveFocus()
+    // Requirement input blur has no autosave flush; this focus transfer leaves one active write.
+    expect(writes).toHaveLength(1)
+    fireEvent.click(draft)
+    expect(owner.publication).not.toHaveBeenCalled()
+    expect(owner.close).not.toHaveBeenCalled()
+    await saveA.finish({ assignment: { ...initial, submission_requirements: [autosavedRequirement] } })
+    expect.soft(writes).toEqual([
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { submission_requirements: [autosavedRequirement] } },
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { submission_requirements: [requirement] } },
+    ])
+    expect.soft(owner.publication).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      id: A.id, title: A.title, submission_requirements: [requirement], is_draft: true, released_at: null,
+    }), undefined)
+    expect.soft(owner.close).toHaveBeenCalledTimes(1)
+    await advance(200)
+    expect.soft(screen.queryByRole('textbox', { name: 'Title' })).not.toBeInTheDocument()
+  })
+
+  it('current owner preserves the latest pending input delivered as manual Draft begins awaiting autosave', async () => {
+    const saveA = hold((write) => write.url.endsWith(A.id) && write.body.title === 'A autosave')
+    const owner = mount()
+    selectDraftAction()
+    title('A autosave')
+    await advance(3000)
+    expect(saveA.entry.used).toBe(true)
+    title(A.title)
+    const titleInput = screen.getByRole('textbox', { name: 'Title' })
+    const draft = screen.getByRole('button', { name: 'Draft', exact: true })
+    // Unit event-order contract: deliver one final input before React commits the disabled form.
+    // This does not claim a native pointer sequence or typing into an already-disabled input.
+    act(() => {
+      fireEvent.click(draft)
+      expect(titleInput).toBeEnabled()
+      fireEvent.change(titleInput, { target: { value: 'A latest pending title' } })
+    })
+    expect(titleInput).toHaveValue('A latest pending title')
+    expect(titleInput).toBeDisabled()
+    expect(owner.publication).not.toHaveBeenCalled()
+    expect(owner.close).not.toHaveBeenCalled()
+    await saveA.finish({ assignment: { ...A, title: 'A autosave' } })
+    expect.soft(writes).toEqual([
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: 'A autosave' } },
+      { url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: 'A latest pending title' } },
+    ])
+    expect.soft(owner.publication).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      id: A.id, title: 'A latest pending title', is_draft: true, released_at: null,
+    }), undefined)
+    expect.soft(owner.close).toHaveBeenCalledTimes(1)
+    await advance(200)
+    expect.soft(screen.queryByRole('textbox', { name: 'Title' })).not.toBeInTheDocument()
+  })
+
+
+  it('current owner retries a failed awaited autosave and keeps a failed manual follow-up recoverable', async () => {
+    const autosave = hold((write) => write.url.endsWith(A.id) && write.body.title === 'A retry title')
+    const manualSave = hold((write) => write.url.endsWith(A.id) && write.body.title === 'A retry title')
+    const owner = mount()
+    selectDraftAction()
+    title('A retry title')
+    await advance(3000)
+    expect(autosave.entry.used).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Draft', exact: true }))
+    await autosave.finish({ error: 'Autosave failed' }, false)
+    expect(manualSave.entry.used).toBe(true)
+    expect(owner.publication).not.toHaveBeenCalled()
+    expect(owner.close).not.toHaveBeenCalled()
+    await manualSave.finish({ error: 'Manual retry failed' }, false)
+    expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue('A retry title')
+    expect(screen.getByRole('textbox', { name: 'Title' })).toBeEnabled()
+    expect(screen.getByRole('status')).toHaveTextContent('Unsaved')
+    expect(screen.getByText('Manual retry failed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Draft', exact: true })).toBeEnabled()
+    expect(owner.publication).not.toHaveBeenCalled()
+    expect(owner.close).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Draft', exact: true }))
+    await advance(0)
+    expect(writes).toEqual(Array.from({ length: 3 }, () => ({
+      url: `/api/teacher/assignments/${A.id}`, method: 'PATCH', body: { title: 'A retry title' },
+    })))
+    expect(owner.publication).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      id: A.id, title: 'A retry title', is_draft: true, released_at: null,
+    }), undefined)
+    expect(owner.close).toHaveBeenCalledTimes(1)
+  })
+
 })

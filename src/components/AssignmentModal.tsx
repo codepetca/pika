@@ -563,10 +563,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   const startSaveChanges = useCallback((
     values: AssignmentEditorValues,
-    options?: { closeAfter?: boolean }
+    options?: { closeAfter?: boolean },
+    savedValues: AssignmentEditorValues | null = lastSavedValuesRef.current
   ) => {
     const session = editorSessionRef.current
-    const savedValues = lastSavedValuesRef.current
     const previousSave = activeSaveRef.current
     // Blur flushes must account for the write already in flight, including reverts.
     const promise: Promise<Assignment | null> = previousSave?.session === session
@@ -574,7 +574,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           activeSave.savedValues = savedAssignment ? previousSave.values : previousSave.savedValues
           return saveChanges(values, options, { session, savedValues: activeSave.savedValues })
         })
-      : saveChanges(values, options)
+      : saveChanges(values, options, { session, savedValues })
     const activeSave = { session, values, savedValues, promise }
     activeSaveRef.current = activeSave
     void promise.finally(() => {
@@ -727,7 +727,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       throttledSaveTimeoutRef.current = null
     }
     setSaving(true)
-    const valuesToSave = pendingValuesRef.current ?? buildEditorValues()
+    let valuesToSave = pendingValuesRef.current ?? buildEditorValues()
+    let savedValues = lastSavedValuesRef.current
     const activeSave = activeSaveRef.current
     if (activeSave && activeSave.session === session) {
       const savedAssignment = await activeSave.promise
@@ -754,10 +755,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         setSaving(false)
         return
       }
+      // The response may leave newer input untouched, so carry its persisted baseline.
+      savedValues = savedAssignment ? activeSave.values : activeSave.savedValues
+      valuesToSave = latestValues
     }
 
     pendingValuesRef.current = null
-    await startSaveChanges(valuesToSave, { closeAfter: true })
+    await startSaveChanges(valuesToSave, { closeAfter: true }, savedValues)
     if (ownsSession(session)) setSaving(false)
   }
 

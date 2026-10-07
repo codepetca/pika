@@ -28,6 +28,7 @@ export async function verifyAssignmentPreviewMotion(
   const editorNode = await editor.elementHandle()
   const ownerNode = await owner.elementHandle()
   const opener = owner.getByRole('button', { name: 'Preview', exact: true })
+  const openerNode = await opener.elementHandle()
   await expect(editor).toContainText('Read the field guide.')
   await editor.click()
   await page.keyboard.press('ControlOrMeta+End')
@@ -71,25 +72,36 @@ export async function verifyAssignmentPreviewMotion(
   await opener.click()
   const preview = page.getByRole('dialog', { name: 'Instructions', exact: true })
   const root = await preview.evaluateHandle((element) => element.closest<HTMLElement>('[data-modal-state]')!)
-  await preview.getByRole('button', { name: 'Close', exact: true }).click()
+  const closeButton = preview.getByRole('button', { name: 'Close', exact: true })
+  const reopenObservation = await page.evaluateHandle(({ close, opener, original }) => {
+    const observation = { closedAt: 0, reopenedAt: 0, rootConnectedAtReopen: false }
+    close!.addEventListener('click', () => { observation.closedAt = performance.now() }, { once: true, capture: true })
+    opener!.addEventListener('click', () => {
+      observation.reopenedAt = performance.now()
+      observation.rootConnectedAtReopen = original!.isConnected
+    }, { once: true, capture: true })
+    return observation
+  }, { close: await closeButton.elementHandle(), opener: openerNode, original: root })
+  await closeButton.click()
   await opener.click()
   await expect(preview).toBeVisible()
+  const observedReopen = await reopenObservation.jsonValue()
   if (motion === 'no-preference') {
-    expect(await preview.evaluate((element, original) => element.closest('[data-modal-state]') === original, root)).toBe(true)
+    // Native automation can reopen after the 200ms exit already removed the root.
+    // A retained root must be reused; an expired root must be replaced.
+    expect(await preview.evaluate((element, original) => element.closest('[data-modal-state]') === original, root))
+      .toBe(observedReopen.rootConnectedAtReopen)
   }
+  const reopenedRoot = await preview.evaluateHandle((element) => element.closest<HTMLElement>('[data-modal-state]')!)
+  evidence.push({ nativeReopenIntervalMs: observedReopen.reopenedAt - observedReopen.closedAt,
+    rootConnectedAtReopen: observedReopen.rootConnectedAtReopen })
   // Wait beyond the obsolete timer; this is a race observation, not an action delay.
   await page.waitForTimeout(250)
   await expect(preview).toBeVisible()
   await expect(preview.getByRole('button', { name: 'Close', exact: true })).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(opener).toBeFocused()
-  if (motion === 'no-preference') {
-    expect(await root.evaluate((element) => element.isConnected && element.dataset.modalState === 'closing')).toBe(true)
-    await page.emulateMedia({ reducedMotion: 'reduce' })
-    await expect.poll(() => root.evaluate((element) => element.isConnected)).toBe(false)
-    await expect(opener).toBeFocused()
-  }
-  await expect.poll(() => root.evaluate((element) => element.isConnected)).toBe(false)
+  await expect.poll(() => reopenedRoot.evaluate((element) => element.isConnected)).toBe(false)
   await testInfo.attach('editor-after-dismissal', { body: await page.screenshot({ animations: 'allow' }), contentType: 'image/png' })
   await owner.getByRole('button', { name: 'Close assignment modal', exact: true }).click()
   await expect(owner).toHaveCount(0)
@@ -105,4 +117,58 @@ export async function verifyAssignmentPreviewMotion(
 
 function sizeFor(viewport: 'desktop' | 'mobile') {
   return viewport === 'desktop' ? { width: 1440, height: 900 } : { width: 390, height: 844 }
+}
+
+/** Timer-controlled coverage; natural dismissal/reopen is verified separately above. */
+export async function verifyAssignmentPreviewPreferenceChange(page: Page, testInfo: TestInfo) {
+  const theme = testInfo.project.metadata.theme as 'light' | 'dark'
+  const viewport = testInfo.project.metadata.viewport as 'desktop' | 'mobile'
+  const errors: string[] = []
+  const writes: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  // Install before app timers exist; only this case freezes the exit deadline.
+  await page.clock.install({ time: new Date('2026-10-07T12:00:00Z') })
+  await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
+  await page.route('**/api/**', async (route) => {
+    if (route.request().method() !== 'GET') writes.push(route.request().method())
+    await route.fulfill({ json: { provenance: null } })
+  })
+  const response = await page.goto('/e2e-fixtures/teacher-assignment-preview', { waitUntil: 'networkidle' })
+  expect(response?.status()).toBe(200)
+  expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(false)
+  expect(page.viewportSize()).toEqual(sizeFor(viewport))
+  await page.getByRole('button', { name: 'Edit fixture assignment' }).click()
+  const owner = page.getByRole('dialog', { name: 'Edit Draft', exact: true })
+  const editor = owner.getByRole('textbox', { name: 'Instructions', exact: true })
+  const editorNode = await editor.elementHandle()
+  const opener = owner.getByRole('button', { name: 'Preview', exact: true })
+  await opener.click()
+  const preview = page.getByRole('dialog', { name: 'Instructions', exact: true })
+  await expect(preview.getByRole('button', { name: 'Close', exact: true })).toBeFocused()
+  const root = await preview.evaluateHandle((element) => element.closest<HTMLElement>('[data-modal-state]')!)
+  // Paused timer prevents native command transport from consuming the 200ms exit.
+  await page.clock.pauseAt(new Date('2026-10-07T12:05:00Z'))
+  await page.keyboard.press('Escape')
+  await expect(preview).toHaveCount(0)
+  await expect(opener).toBeFocused()
+  expect(await root.evaluate((element) => element.isConnected && element.dataset.modalState === 'closing')).toBe(true)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect.poll(() => root.evaluate((element) => element.isConnected)).toBe(false)
+  await expect(opener).toBeFocused()
+  expect(await editor.evaluate((element, original) => element === original, editorNode)).toBe(true)
+  await opener.click()
+  await expect(preview).toBeVisible()
+  await page.clock.runFor(250)
+  await expect(preview).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(preview).toHaveCount(0)
+  await expect(opener).toBeFocused()
+  expect(writes).toEqual([])
+  expect(errors).toEqual([])
+  await testInfo.attach('preview-preference-controlled', {
+    body: Buffer.from(JSON.stringify({ viewport: sizeFor(viewport), theme, timerControlled: true,
+      retainedBeforePreference: true, removedWithoutAdvancingExitClock: true, editorIdentityPreserved: true,
+      obsoleteTimerCannotRemoveReopenedPreview: true, writes, errors })),
+    contentType: 'application/json',
+  })
 }

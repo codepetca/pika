@@ -10,7 +10,7 @@ import type { TeacherAttendanceView } from '../src/lib/teacher-attendance'
 import { LONG_ROSTER_SIZE, TABLE_CLASSROOM_ID, mockLongTeacherTable, mockTableShellReads } from './helpers/teacher-student-tables'
 import { verifyWorkspaceMotion } from './helpers/workspace-motion'
 import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
-import { verifyAssignmentPreviewMotion } from './helpers/assignment-preview-motion'
+import { verifyAssignmentPreviewMotion, verifyAssignmentPreviewPreferenceChange } from './helpers/assignment-preview-motion'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -63,6 +63,12 @@ test.describe('Assignment Instructions preview continuity', () => {
       })
     })
   }
+  test.describe('preference change with controlled exit timer', () => {
+    test.use({ contextOptions: { reducedMotion: 'no-preference' } })
+    test('removes the retained preview before its exit deadline', async ({ page }, testInfo) => {
+      await verifyAssignmentPreviewPreferenceChange(page, testInfo)
+    })
+  })
 })
 
 test.describe('Blueprint required-read recovery', () => {

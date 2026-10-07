@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Survey title only
-
-PR1511 copy follow-up: remove the redundant Results suffix from both survey
-headings, leaving the original survey title. Reuse existing title styling;
-update heading assertions and same eight-view visual script. Risk none.
-Previously reviewed implementation reused; coordinator checks the title-only
-delta and cumulative continuity. Required local checks/visual evidence in PR.
-
-## 2026-10-06 — CI schema-copy diagnostic correction and local evidence
-
-PR1488 remains draft. At reviewed d19792dd, fresh targeted Assignment
-before-capture and native Test draft normal/after-fixture/before-capture all
-passed original expected statuses and exact receipts. Private evidence verified;
-all owned VMs disposed, dedicated daemons empty and shared HQ lease released.
-Complete Browser passed36.29hostminutes; TestBuild passed15.09minutes on earlier
-9602c92d. No full local database success: latest one approved canonical attempt
-failed Pal outbox schema-copy setup after6.19minutes with incomplete generated
-SQL; the stream boundary is unproven. Targeted success is not full-lane timing.
-
-Owner approved one schema-copy diagnostic batch and two reviews within60minutes.
-Keep the dump command/filter/imported SQL/fixtures/claims/guards/limits/cleanup
-unchanged; emit finite exporter/filter/importer statuses on failure and preserve
-pipefail's original exit before teardown. Offline mocks exercise the real shell
-harness, private-output suppression, rightmost failure and cleanup. No transport
-fix claim or retry. Review and focused verification pending at this entry.
-
-Rebased onto c88abe16b (classroom motion/Survey changes); native diagnostic
-source/test bytes unchanged, archived continuity bodies preserved. Public repo,
-unregistered/inactive Pika runner, unset opt-in, production/HQ/Mac Docker holds
-remain. No SQL/VM replay, hosted heavy CI or merge in this approved phase.
-Model recommendation: GPT5.6Sol/high targeted privacy/correctness; GPT6.1Sol/high
-cumulative integration (Terra unavailable). Risk: runtime-platform.
-
 ## 2026-10-06 — Full local CI database evidence and current-main reconciliation
 
 Owner instructed “override approvals to continue goal”; current-task workflow
@@ -424,3 +391,11 @@ Test-first evidence:21RED/1dirty-buffer control across separate baseline runs; a
 ## 2026-10-07 — Assignment session review correction
 
 Independent full PR1518 review found a P2: a stale manual Draft continuation compared reverted fields against the pre-autosave baseline and could omit its restoring PATCH. One correction batch retains the actual predecessor baseline and serializes same-session blur follow-ups. Five regressions cover full/mixed reverts in both preselected-action and actual menu/blur flows, plus a successful-save/failed-queued-save chain; original-resource publication remains quiet and the replacement editor retains drafts/focus/controls. All RED and intermediate failed correction evidence retained externally. Component58/58 and focused413/21 with architecture/UI/design/TypeScript/lint/audit PASS. Worker writes stopped; coordinator verified delivered hashes. Browser evidence is being refreshed before targeted independent delta review and final stable-head CI. PR remains draft; no production/schema/dependency changes. User pause honored, then explicit resume received. Broad product fluidity goal remains incomplete.
+
+## 2026-10-07 — Same-editor manual Draft restoration
+
+PR1518 merged5405dcf10 after reviewed9d206 CI37645638621 all required gates PASS; exact tree/sole parent and clean hub sync verified. Proven pre-existing same-editor reverts now retain the awaited persisted baseline and latest pending input. Four genuine RED regressions becameGREEN; two menu controls/original18 preserved; failed-predecessor/manual failure control preserves retry. Worker65component/420focused21 plus architecture/UI/design/type/lint/auditPASS on inherited reviewed source; isolated implementation overlapped frozen1518CI, publication waits for its actual landing. Teacher natural8-case viewport/theme/motion matrixPASS with exact restoring PATCH/close; old owner natural focus/click reproduction omits the restoring PATCH. APIs intercepted, zero backend writes. Screenshots inspected. Native preview initial4normal failures/4reducedPASS exposed timer-window assumptions; old/new measured native clicks cross200ms exit, so the helper checks physical eligibility at actual reopen and cleanup of reopened root. Failed/intermediate evidence retained. Rebase, final focused checks, complete independent review and stable-head CI remain before next main merge. No dependencies/backend/schema/deployment change; broad fluidity goal incomplete.
+
+## 2026-10-07 — Preview preference coverage correction
+
+PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
