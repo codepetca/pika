@@ -25,5 +25,5 @@ Native252 normal10/cleanup/B5 PASS; B1–B4/failures retained;183tables/all5fiel
 
 Worktrees: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators: .env.example.
-Prior receipts: attendance `teacher_entitlements` smoke4/4(2026-08-28);
+Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
 individual-student purge ON; other purge/Pal OFF.
