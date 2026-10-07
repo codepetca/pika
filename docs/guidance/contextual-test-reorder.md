@@ -1,0 +1,121 @@
+# Dormant contextual Test-list reorder
+
+Implementation contract, 2026-10-07; parent main `473a5de8a23c252eafc0f53572853cbf83b52724`.
+This is preparation, not native acceptance, migration application or rollout.
+
+## Scope and compatibility
+
+Prepare `POST /api/teacher/tests/reorder/atomic` with the legacy request
+`{ classroom_id, test_ids }` and response `{ success: true }`. Leave the existing
+reorder endpoint, UI and dispatch unchanged. Shared classroom-experience
+admission must precede body reads and service-client construction. SQL authorizes
+the current active Classroom owner, independent of global account role or plan.
+Admission, classroom authority and subscription entitlements remain separate.
+
+The input must contain the complete current Classroom Test membership, including
+Blueprint-retired rows. The current list reader retains those rows, and the
+legacy UI permits their presentation reordering. Only `position` and inherited
+`updated_at` may change; authored content, lifecycle, lineage and runtime stay
+read-only. An empty list succeeds only for an empty active owned Classroom.
+Reject stale/partial/foreign membership with 409. Unchanged membership is not an
+order-version CAS: concurrent reorders retain ordinary last-writer semantics.
+
+## Fixed HTTP and RPC contract
+
+Use one absolute 20-second body-plus-RPC deadline, with caller cancellation and
+no retries, compensation or fallback. Bound actual UTF-8 body bytes to 512 KiB;
+reject duplicate JSON keys (including escaped equivalents), malformed UTF-8,
+deep JSON, locked/used bodies and oversized bodies. Require strict request keys,
+canonicalized UUIDs, unique IDs and at most 10,000 IDs.
+
+Exactly one `reorder_tests_for_owner_v1` service-only SECURITY DEFINER RPC:
+`p_actor_id uuid`, `p_classroom_id uuid`, `p_test_ids uuid[]`,
+`p_deadline timestamptz`. Empty search path, PostgreSQL owner, revoke PUBLIC,
+anon and authenticated EXECUTE; grant service_role only. No table, Storage or
+provider calls from HTTP. Never hand-edit generated database types or cast an
+unregistered RPC around their contract.
+
+Private strict acknowledgement keys: `version` (1), `actor_id`, `classroom_id`,
+`test_ids` (requested order), `positions` (`N-1` through `0`), `count`,
+`changed_count`. Bind identity, order, every position and count to the request.
+Bound acknowledgement/envelope to 512 KiB/1 MiB. Release only `{ success: true }`.
+Missing or malformed acknowledgement, transport failure or lost commit response
+means 503; it never permits an automatic second write.
+
+## Transaction and preservation
+
+READ COMMITTED, finite deadline no farther than 20 seconds ahead; existing
+8-second SQL phase budget capped by that same absolute deadline. Try/NOWAIT
+locks: managed settings SHARE (without writer-sequence advancement), Classroom
+purge-operation key, membership-change key, full Classroom UPDATE, archive
+revision UPDATE, actor KEY SHARE, every current Test UPDATE in ascending UUID
+order. Bound membership discovery to 10,001; above 10,000 fails closed.
+
+Apply publication252 maintenance/finalization/purge/provider-cleanup guards.
+Compare the complete current membership before any mutation. Update only changed
+positions, retaining both Test ID and fixed Classroom predicates. Verify affected
+count, complete membership and full row postimages after all immediate triggers.
+Bound each Test row to 2 MiB and cumulative pre/post state to 64 MiB. Bound and
+check Class/archive/settings state too. Overflow and deadline checks precede
+mutation and postcondition acknowledgement.
+
+With C changed-position Tests, exact expected deltas are: each changed Test only
+position/updated_at; unchanged Tests identical; Classroom
+blueprint_source_revision +C and archive revision +2C, timestamps at
+transaction_timestamp() iff C > 0; all other fields unchanged. Settings unchanged
+and no operation-caused managed writer sequence calls. The current catalog has
+**13** Test triggers (including update_tests_updated_at); catalog reachability and
+native full-Class/whole-project comparisons must attest no children, managed
+state or queue writes. This is not a product-runtime global fingerprint.
+
+Map named SQL errors: PT400 invalid input, PT403 forbidden/fenced, PT404 missing
+Classroom, PT409 membership/busy/serialization, PT503 bounds/deadline/source/
+postcondition failure. Raw permission failures and unknown 55000 are unavailable,
+not an invented authorization success or fallback.
+
+## Required evidence before acceptance
+
+TDD body/route/helper boundary checks; SQL source/catalog contracts; isolated
+native complete-chain replay and genuine CLI-generated types; role-neutral owner
+and denial checks; mixed live/retired/started Tests and populated preserved
+children; empty/no-op, 1,001/10,000 success and 10,001/byte/revision limits;
+partial/superset/foreign/duplicate/null rejection; injected suppression,
+alteration, reparenting and revision drift rollback; real lock races with two
+reorders, ownership/archive, create250, discard251, save249/publication252,
+legacy writers and Blueprint/purge operations; installed SDK transport;
+forced-cleanup and canonical whole-project preservation receipts. Proof execution
+requires a reviewed finite fixture/manifest, not an unbounded ad hoc runner.
+
+The fixed rollback schedules include the actual migration114 archived-Class
+Blueprint reuse entrypoint, which locks an active Class before declining with
+`source_classroom_not_archived`, and both directions of contention with
+migration122's actual purge lifecycle guard. These do not claim successful
+Blueprint creation/proposal coverage or an enabled purge workflow. Enabled purge
+execution remains held; persisted purge/provider fences are checked separately.
+Committed schedules must run after the SDK matrix and attest stale membership
+after create/delete/reparent commits, revoked authority after owner/archive
+commits, unchanged-membership last-writer semantics and the legacy MAX residual.
+They must compare complete graphs internally and return compact receipts without
+restoring committed changes or reusing the prior SDK effect ledger.
+
+The dedicated proof fixture represents 21,002 bulk rows using each row's full
+immutable-postimage SHA256 plus identity/position/timestamp, while retaining raw
+small representative rows and populated children. Its measured offline snapshot
+is about 5.14 MiB; real native measurements remain required. Preserve the existing
+8 MiB per-snapshot and 64 MiB native-engine limits. The new feature's fixed SDK
+matrix separately caps cumulative private before/after snapshots at 256 MiB
+(at most 24 contexts/48 snapshots) and actual SDK request/response exchange at
+64 MiB. The dedicated lifecycle adopter may account up to 384 MiB of total
+snapshot/control exchange under the unchanged 900-second/200-action bounds.
+These are explicit isolated-proof scale budgets, not wider application limits
+or changes to earlier proof profiles. Every captured snapshot is counted.
+
+Legacy creation can read MAX(position) before this transaction and insert that
+previously computed position after commit (migration250's existing residual).
+Do not claim this slice closes that race, disabled-trigger maintenance writes or
+nonconforming direct writers after commit. Demonstrate the residual honestly.
+
+Independent risk-matched stable-SHA review, focused checks and final exact-head
+PR Gate remain required before normal main merge. Canonical local/production
+migrations249 onward, production promotion and all rollout/account/billing/
+provider controls remain held; no UI adopter or activation in this slice.

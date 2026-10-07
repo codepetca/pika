@@ -502,6 +502,23 @@ jobs:
             grep -Fx 'PASS isolated test-owner-publication exact teardown and unchanged canonical baseline.' "$test_owner_publication_log"
           done
 
+      - name: Verify isolated contextual Test owner reorder transactions
+        shell: bash
+        run: |
+          test_owner_reorder_head=$(git rev-parse HEAD)
+          test_owner_reorder_log=$(mktemp)
+          chmod 600 "$test_owner_reorder_log"
+          trap 'rm -f -- "$test_owner_reorder_log"' EXIT
+          pnpm exec tsx scripts/check-contextual-test-owner-reorder-lifecycle.ts --reviewed-head "$test_owner_reorder_head" --mode normal
+          for test_owner_reorder_mode in after-fixture before-capture; do
+            test_owner_reorder_status=0
+            pnpm exec tsx scripts/check-contextual-test-owner-reorder-lifecycle.ts --reviewed-head "$test_owner_reorder_head" --mode "$test_owner_reorder_mode" > "$test_owner_reorder_log" 2>&1 || test_owner_reorder_status=$?
+            [[ "$test_owner_reorder_status" -eq 1 ]] || exit 1
+            [[ "$(wc -l < "$test_owner_reorder_log" | tr -d ' ')" -eq 2 ]] || exit 1
+            grep -Fx "FAIL forced isolated test-owner-reorder lifecycle: ${test_owner_reorder_mode}." "$test_owner_reorder_log"
+            grep -Fx 'PASS isolated test-owner-reorder exact teardown and unchanged canonical baseline.' "$test_owner_reorder_log"
+          done
+
       - name: Verify contextual Daily Log save atomicity and privileges
         run: bash scripts/check-contextual-daily-log-save-database.sh
 

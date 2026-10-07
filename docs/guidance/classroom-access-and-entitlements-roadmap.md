@@ -1310,6 +1310,20 @@ remain required; this is draft PR#1510, not rollout. Canonical249–252,
 production promotion, admission/home/page/cutover and billing remain held.
 No component receipt constitutes the Tests batch or access phase exit.
 
+Superseding2026-10-07: publication#1510 merged473a5de8a after reviewed2f3e6d41
+passed changed-base review, focused1304/44 and all five CI37564268228 jobs/PRGate.
+Publication normal/forced transactions passed; squash-tree equality and clean
+canonical main fast-forward preserved all37 ordered stashes. Canonical/local/prod
+249–252 and all experience/billing activation remain held. Next bounded source
+design is atomic current-owner Test-list reorder: preserve complete descending
+presentation, including Blueprint-retired Test positions without content edits;
+reject stale/incomplete current lists. Verify existing trigger/lifecycle policy
+before implementation. No legacy reorder/UI adopter or phase exit is implied.
+Source implementation is now prepared in the dedicated reorder checkout;
+21 rollback and seven committed proof schedules are source-only. Native/types,
+independent review and final exact-head CI remain pending. Canonical/prod249–253
+remain unapplied; see [reorder contract](contextual-test-reorder.md).
+
 Historical source preparation below predates that actual merge receipt:
 [contextual owner Test draft GET](contextual-test-draft-get.md), including
 its hidden create/repair behavior. Source preparation on main7570 uses a two-phase

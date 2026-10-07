@@ -399,3 +399,43 @@ PR1518 merged5405dcf10 after reviewed9d206 CI37645638621 all required gates PASS
 ## 2026-10-07 — Preview preference coverage correction
 
 PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
+## 2026-10-07 — Publication accepted; atomic Test-list reorder design
+
+#1510 normally squash-merged473a5de8a at04:05:25UTC after exact reviewed2f3
+CI37564268228 all5/PRGatePASS (queue2s/run4166s), changed-base Sol/high review24
+and focused1304/44. Fresh main/head/review/authority gate and squash-tree parity
+passed; clean canonical main fast-forwarded, all37 ordered stashes/hash7bb1ea11
+and dependent worktrees retained. Private600 CI/merge receipts and append-only
+lifecycle42events/six correction-sync pushes recorded; original publication
+review clock/counters24launches21targets21batches1initial1final retained.
+New dedicated reorder checkout at473 verified, one registration retry hit the
+existing100-attachment cap without duplicate creation. Atomic reorder source
+design only: current UI sends whole IDs; preserve retired-position presentation
+with read-only content and reject stale/incomplete lists, subject to actual
+trigger verification. One bounded fresh GPT6.1Sol/high read-only transaction
+designer runs while coordinator checks HTTP limits; no implementation/native
+acceptance yet. Fresh weekly99percent remaining/ordinary execution allowed;
+no reset-credit action, active/tokens unknown, DeepSeek still paused. Canonical/
+prod249–future applications, production promotion and rollout/account/billing/
+provider/runner/visibility remain held. Component merge is not phase/goal exit.
+
+## 2026-10-07 — Dormant atomic Test reorder implementation checkpoint
+
+Dedicated codex/contextual-test-owner-reorder worktree, base473a5de8a.
+Source-only253 RPC/HTTP/validator prepared; current-owner authorization is neutral
+to global role/plan and old reorder/UI remain unchanged. Full membership includes
+retired/started Tests with position-only effects. SQL253 SHA6c58370f unchanged;
+catalog seals13 triggers/21 columns/22 routines including real114 declined
+archived-Class reuse. Three bounded GPT6.1Sol/high workers delivered SQL/API,
+fixture, transport and adopter checks; requested configuration/effective unknown,
+active time/tokens unknown. Root279 offline checks passed at initial integration,
+then162 API/validation checks passed with99.37% lines/92.94% branches; latest
+21 rollback schedules/42 dispatches and DB checks11PASS. Committed7-schedule
+source and same-engine/adopter integration delivered;15 mock committed checks PASS.
+Combined799 checks passed; startup-size failure fixed/targeted PASS. Architecture,
+UI/design policy and22-file precommit audit PASS. No full focused-pass or native acceptance,
+genuine generated253 types, independent source review, PR or phase exit yet.
+Canonical/prod249–253 unapplied; all rollout/promotion/account/billing/provider
+holds remain. Proof budgets are explicit feature-only; prior engine/product caps
+and all parent history remain. DeepSeek pause and task-scoped workflow-stop waiver
+retained; no destructive cleanup or dependency installation accepted.
