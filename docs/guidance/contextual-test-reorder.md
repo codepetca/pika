@@ -303,3 +303,28 @@ recover a returned-copy receipt; failed-copy nullable observations make no phase
 or cost claim. Initial diagnostic review found and corrected an outer-catcher
 issue: only fixed RPC denial codes can produce failure measurements; witness,
 effect-graph, rollback and unexpected errors must abort diagnostic completion.
+
+### Diagnostic observation and remaining decision (2026-10-07)
+
+Corrected a0bdde4d on main7357 passed945 focused checks and static gates; targeted
+independent review closed the catcher finding. Its sole diagnostic run failed
+after196932ms, starting18:05:02.113Z. Fixed backend observations were0/445023/
+11238707µs: the update/trigger interval was10793684µs, including original ROW_COUNT
+capture, instrumentation and the temporary copy's different cache/history. This
+exceeded8s but is not isolated original production UPDATE cost or a complete
+diagnostic receipt. Child exit remained SQLSTATEunknown; no source-returned
+measurement, normal/type/forced/eligible CI acceptance exists.
+
+Exact teardown/workdir/full five-field canonical preservation passed; fresh
+source-owned inventory found zero disposable resources. Source analysis confirms
+copy deadline context falls back to PRD01 and is caught, as is PRD06 postcondition
+failure. No missing catch defect was proved. The later error is unresolved because
+raw terse stderr was discarded; do not infer assertion failure or recover evidence
+that was not retained. No unchanged rerun or control relaxation is selected.
+
+The full-scale capacity gate remains unresolved. The next substantive choice is
+a smaller supported atomic reorder ceiling (for example1000 Tests, independently
+verified), or keeping10000 with a separately reviewed redesign of inherited
+metadata-trigger work. Both change the agreed operating contract and require an
+explicit product/architecture decision before implementation. Legacy behavior and
+all canonical/production/activation holds remain unchanged.

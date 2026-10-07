@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Approved local CI diagnostics merge synchronization
-
-Owner approved PR1488 squash merge after reviewed86012 CI37493751710 passed
-all five jobs including PR Gate. Main advanced to2d89088cd Daily summaries;
-continuity-only rebase conflicts reconciled by preserving both complete histories.
-All eight diagnostics and Classwork readiness correction remain byte-identical;
-incoming Daily source/tests retained. New head requires focused checks, targeted
-independent synchronization review and eligible exact-head CI before approved
-merge. Prior full local DB proof remains tied to its original0d72/schema251
-inputs; incoming Daily harness changes are verified by new CI. Local auth2/
-Classwork12 zero-retry proof remains86012 evidence. Public visibility and
-unregistered/inactive runner holds persist; no production/HQ changes.
-
 ## 2026-10-06 Product fluidity final current-main reconciliation
 
 Owner approved one final reconciliation batch and one independent integration reviewer within120minutes. Reconciled current main693a096df (#1488 database proof diagnostics) into the frozen baf23560 candidate. Application/UI source stays unchanged; the archive retains both exact histories, and the automatically merged experience contract retains the upstream student-work readiness correction. Parent baf23560 passed independent review, focused2388tests,8newbrowsercontracts,16composition captures, and exact-head CI37511211431 (13919coveragepasses;386browserpasses,11configured retry recoveries,20skips;PRGatePASS). Required focused checks and one final frozen-SHA review precede fresh exact-head CI, main merge and8superseded closures. No production promotion.
@@ -752,3 +739,26 @@ Need new-base focused/static checks and one combined diagnostic-fix/base targete
 review before one diagnostic-only native run. No acceptance or phase-exit claim.
 22reviews/18targets,19committedfixes plus base-sync20inprogress; original05:04 clock
 and direct human workflow waiver retained, no reviewer/CI/runtime/writer active.
+
+## 2026-10-07 — Reorder measured interval and capacity decision
+
+Sol/high23rd review COMPLETE CLEANa0/7357: acceptedP2 closed, no newfinding.
+Newbase945focused/34files/static PASS; published exact7832leasea0 while draft,
+lifecycle52events/13 correction-sync pushes. One diagnostic-only native86930
+exit1: start18:05:02.113Z/196932ms, setupcomplete/lifecyclecases/cleanupnone.
+Nativecontracts child-exitunknown at98controls/6actions/1session latched. Three
+fixed backend observationsvalid0/445023/11238707us; update/trigger interval
+10793684us includes ROW_COUNT scalar, instrumentation and copy/cache history.
+It exceeds8s, not isolated original production UPDATE cost. No sourceReturned
+or complete diagnostic/normal/types/forced/CI receipt; no unchanged retry.
+Source exactteardown/workdir/fullcanonical5field equality PASS; fresh59566exit0
+inventory found0 disposable resources. Private600failedreceipt SHA8aaa7669 kept.
+BoundedSol/high readonly source check confirms deadlinecopy falls backPRD01
+and is caught, postconditionPRD06 also caught; no missingcatch defect proved.
+Later error unresolved because terse stderr was discarded; assertions stay fatal.
+The original full-scale bulk gate is unresolved. Next needs a product/architecture
+choice: smaller atomic reorder ceiling (e.g.1000 Tests), or retain10000 with a
+separately reviewed inherited metadata-trigger redesign. Neither is authorized
+by changing proof assertions or deadlines; current legacy/UI/production held.
+No execution/provider/billing/account/cohort change or broaderphase exit.23reviews/
+19targets/20committedfixsync/original05:04 clock/taskhumanwaiver retained.
