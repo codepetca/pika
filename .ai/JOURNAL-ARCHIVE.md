@@ -41873,3 +41873,22 @@ Pattern Lab and visual fixture now put the highest-vote option second to verify
 that responses do not reorder the survey. Existing both-role/viewport/theme
 matrix refreshed, including percentage right alignment and order assertions.
 Risk none; no business-logic/API changes. Checks and bounded review in PR notes.
+
+<!-- pika-session-log-archive-batch:6c9c4f7bcd0ed8b466794d847b5d8403893df3f8630b059ddca1e61fd12a0a37 -->
+## 2026-10-06 — Inline survey question numbers
+
+PR1511 follow-up: reuse question Markdown and muted labels in a baseline-aligned
+row, placing Q1/Q2/etc beside the question in teacher/student results. Keep full
+question text wrapping and original order. Risk none; same eight-view matrix
+refreshed with inline-number geometry checks, plus required focused checks.
+Bounded GPT-6.1 Sol/medium targeted review continues in PR metadata.
+
+<!-- pika-session-log-archive-batch:014de3d1be4f26a5d9cf7e898ea010f7266c90b8b710e2d8c6d32dac5930eee1 -->
+## 2026-10-06 — Percentages inside survey bar backings
+
+PR1511 follow-up: extend the existing shared result row so selected percentages
+sit inside the backing's right edge, with consistent padding. Labels overlay
+the fill; zero-vote percentages stay blank; inline question numbers and original
+question/option order retained. Pattern Lab description follows the final row.
+Risk none. Both roles × desktop/mobile × light/dark screenshots refreshed with
+inside-right-edge geometry checks. Required checks/review recorded in PR notes.
