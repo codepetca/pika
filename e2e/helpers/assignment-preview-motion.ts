@@ -105,8 +105,8 @@ export async function verifyAssignmentPreviewMotion(
   await testInfo.attach('editor-after-dismissal', { body: await page.screenshot({ animations: 'allow' }), contentType: 'image/png' })
   await owner.getByRole('button', { name: 'Close assignment modal', exact: true }).click()
   await expect(owner).toHaveCount(0)
-  expect(await editorNode!.evaluate((element) => element.isConnected)).toBe(false)
   await expect(page.getByRole('button', { name: 'Edit fixture assignment' })).toBeFocused()
+  await expect.poll(() => editorNode!.evaluate((element) => element.isConnected)).toBe(false)
   expect(writes).toEqual([])
   expect(errors).toEqual([])
   await testInfo.attach('preview-lifecycle', {

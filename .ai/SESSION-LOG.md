@@ -11,56 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Full local CI database evidence and current-main reconciliation
-
-Owner instructed “override approvals to continue goal”; current-task workflow
-approval/budget stops waived while correctness and public/runner-inactive,
-production/HQ holds remain. Earlier interrupted2325 attempt had7canonical PASS;
-final exit/time unknown, partial archive retained and owned VM disposed.
-Fresh isolated Linux ARM64/4CPU/12GiB full2325/001–248 database lane PASS:
-141canonical steps, Mac monotonic2543.246s(42.39min), guest2537.924s. Native GET
-normal1001-question/privilege-restoration/rollback/two-session and both forced
-modes passed; Assignment SDK and Pal concurrency passed; full recovery and
-shutdown passed. Private archive431members104642bytes, SHA256
-29d855236e1792cc117ae2aa7a96176b3ea8ffb728c2439db5f99a45e97a0078 verified;
-daemon containers/volumes/custom networks empty, owned VMdeleted/lease released.
-Read-only GPT6.1Sol/high main-compatibility analysis289.3s verified. Rebased onto
-865d837b740e781086f0209eb9c4d9c8dab78db3 with continuity-only conflict resolution,
-preserving incoming251-migration schema/new lifecycle checks and byte-identical
-reviewed diagnostic code. Preserve both histories by entry-body hash comparison;
-new integrated source still requires focused checks/review and exact251 replay.
-Historical2325 evidence is not relabeled as integrated251 acceptance. PR1488draft;
-public visibility and runner activation holds continue; no production changes.
-Integrated focused355tests/17files plus architecture/UI/design/TypeScript/lint
-PASS; coupled GET/schema/save-engine/new-CI tests90/6PASS; Bashsyntax/diffPASS.
-
-## 2026-10-06 — Integrated local database proof and CI compute capacity
-
-Frozen reviewed0d72a0dd/001–251 canonical local database lane PASS144steps,
-including native GET/new save/create/discard normal+forced modes, Assignment SDK,
-Pal and Stripe concurrency, recovery and shutdown. Host monotonic3947.856seconds
-(65.80min), guest3941.969seconds. Private archive440members101395bytes SHA256
-8b92cb6e5e298315094199809b46bda7237ee93e3627b524cdf95084ecca5d18 verified
-against receipt and exact251inventory07000040bee5a5506614cc3db6b191634f08c057463deb07aa0e3acf6a7da505.
-Daemon containers/volumes/custom networks empty; owned VMdisposed and lease
-released; both templates stopped. Independent prior integratedreview had no blockers.
-Main3b83808d adds only Gradebook styling/test and continuity; preserve both
-histories and all completed database inputs byte-identically. Reuse database proof
-for unchanged relevant inputs; exact new reviewed SHA still requires eligible CI.
-Fresh seven-day cohortSep29–Oct6:687runs699attempts,3472jobrows independently
-verified; >=11588projectedprivatehostedminutes,heavy11090/light498(95.7%known
-heavy). Three unfinished durations unknown. Heavy179.58knownjobhours exceeds
-168serialhours before HQsharing; Mac24GiB/8logicalCPU cannot fit2x12GiB PikaVMs
-before macOS/apps/HQ. No forecast/billing-plan/cost assumptions. Detailed private
-report and raw receipts remain external artifacts. Human task override persists;
-review counters retained. Pika remains public, runner unregistered/inactive and
-opt-in unset; no production/HQ changes. PR1488stays draft through source sync and
-independent verification, then one stable-SHA eligible CI/PR Gate run.
-
-## 2026-10-06 15:22 [CODEX]
-
-PR1488 ready CI passed Test & Build and database contracts; Classwork continuity setup raced on an obsolete student-name button. Retained traces confirm the editor mounts while that click waits. Use the existing retrying visibility assertion and preserve all refresh/Retry retention checks. Return PR to draft for corrected-source focused browser validation and independent review; repository stays public and runner activation remains held.
-
 ## 2026-10-06 — Approved local CI diagnostics merge synchronization
 
 Owner approved PR1488 squash merge after reviewed86012 CI37493751710 passed
@@ -399,3 +349,53 @@ PR1518 merged5405dcf10 after reviewed9d206 CI37645638621 all required gates PASS
 ## 2026-10-07 — Preview preference coverage correction
 
 PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
+
+## 2026-10-07 — Assignment editor passive dismissal and drag ownership
+
+Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
+logical close, focus/scroll release and outgoing input fences. Its retained body
+receives live activity outside ModalLayer's snapshot; reopen gets fresh rich-editor
+history, while same-open undo and same-ID external object reset behavior remain.
+Toolbar portals, nested confirmations, action menus, deferred focus and Blueprint
+publication retire. CreationModalShell stays immediate by default. Active native
+keyboard proof caught dnd-kit sensor listeners surviving context unmount; feature
+sensors implement its public protocol with explicit resource ownership and instant
+next-key handling. External session refresh retires only the requirement drag
+owner. Visually found clipped desktop action options; reused upper placement and
+asserted panel bounds/unchanged title. UI brief: docs/guidance/ui/changes/assignment-editor-exit.md.
+Controlled teacher browser16PASS across desktop/mobile, light/dark, normal/reduced,
+including pending/active mouse/touch/keyboard, refresh, reopen reorder, real nested
+controls and parent Post publication. Natural main exit8PASS preserves measured
+text/field/toolbar geometry; actual compositor midpoint pixels inspected. Natural
+manual restoration8PASS with the clearing fixture parent and exact restoringPATCH.
+All APIs intercepted; no authenticated persistence, hardwareINP or full-video
+replay claim. Student n/a unchanged caller/default behavior. Genuine baseline and
+naive lifetime REDs plus capture/sensor/fixture failures retained externally.
+Focused source/checks, independent review and final exact-head CI remain required
+before main landing. Broad17-family product goal remains incomplete. No dependency,
+schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
+
+## 2026-10-07 — Assignment editor committed interaction ownership
+
+PR1521 initial23-path review found a genuine suspended-close Title-input loss.
+Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
+before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
+speculative legacy session generation remounted its visible requirement owner.
+Rollback-safe feature generation preserves abandoned-close drag continuity while
+external whole-object refresh still retires the drag and preserves Tiptap identity.
+Legacy initiated-command/session rules remain unchanged. Corrected-source local,
+visual, targeted independent review and exact-head CI remain required before merge.
+Broader17-family fluidity goal remains incomplete; no production promotion.
+
+## 2026-10-07 UTC — Assignment editor exit CI contract correction
+
+PR #1521 returned to draft after run37686387293: four inherited preview-helper
+expectations required immediate physical main-editor removal despite its approved
+200ms exit. Check immediate logical dismissal/focus, then eventual removal; all
+eight viewport/theme/motion cases PASS. Production code unchanged. The separate
+publication failure showed loading; one retry lost hydration during a logged Next
+memory restart, while the initial cause remains unknown. Local seeded lifecycle and authenticated
+setup PASS3 (real404→200 and finally restore). Unsupported-origin setup attempts
+retained. BuildPASS/browserFAIL/gateFAIL/remainingDBcancelled on that original run.
+Required focused gate PASS2276/200 suites; targeted delta review and new exact-head CI remain pending.
+No production promotion, schema/dependency change or product-wide completion.

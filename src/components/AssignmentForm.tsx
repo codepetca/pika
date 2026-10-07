@@ -22,6 +22,8 @@ interface AssignmentFormProps {
   onDueAtChange: (next: string) => void
   onPreviewInstructions?: () => void
   disabled?: boolean
+  /** Retire live editor controls while preserving outgoing field presentation. */
+  interactionActive?: boolean
   error?: string
   titleInputRef?: RefObject<HTMLInputElement>
   onBlur?: () => void
@@ -46,6 +48,7 @@ export function AssignmentForm({
   onDueAtChange,
   onPreviewInstructions,
   disabled = false,
+  interactionActive = true,
   error,
   titleInputRef,
   onBlur,
@@ -94,6 +97,7 @@ export function AssignmentForm({
           placeholder="Instructions"
           disabled={disabled}
           editable={!disabled}
+          interactionActive={interactionActive}
           toolbarPreset="markdown-safe"
           className={[
             'overflow-hidden rounded-lg border border-border-strong',

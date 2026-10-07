@@ -7,6 +7,8 @@ import { cn } from '@/ui'
 
 interface CreationModalShellProps {
   isOpen: boolean
+  /** Individually audited callers may opt in; other creation owners stay immediate. */
+  exitMotion?: 'none' | 'opacity'
   title: string
   titleId: string
   closeLabel: string
@@ -65,6 +67,7 @@ function getTopRowGridClassName(hasAfterTitle: boolean, hasActions: boolean) {
 
 export function CreationModalShell({
   isOpen,
+  exitMotion,
   title,
   titleId,
   closeLabel,
@@ -104,6 +107,7 @@ export function CreationModalShell({
   return (
     <DialogPanel
       isOpen={isOpen}
+      exitMotion={exitMotion}
       onClose={handleRequestClose}
       maxWidth={maxWidth}
       className={cn(CREATION_PANEL_CLASS, tall && 'h-[90dvh]', panelClassName)}

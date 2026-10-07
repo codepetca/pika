@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useInsertionEffect, useRef, useState, useCallback, type ComponentProps } from 'react'
 import { X } from 'lucide-react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
@@ -21,6 +21,62 @@ import { DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getT
 import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAssignmentScheduling'
 import { getFutureScheduledReleaseDueDateError } from '@/lib/assignment-schedule-validation'
 import { isAssignmentScheduledForFuture } from '@/lib/assignments'
+
+// This provider stays outside ModalLayer's outgoing presentation snapshot.
+// Retained body props remain visual snapshots; context retires live descendants.
+const AssignmentInteractionContext = createContext({ active: false, requirementsOwner: 0, publishInputOwner: () => () => {} })
+
+type AssignmentEditorBodyProps = ComponentProps<typeof AssignmentForm> & {
+  sourceClassroomId: string
+  sourceArtifactId: string | undefined
+  requirements: AssignmentSubmissionRequirementDraft[]
+  onRequirementsChange: (next: AssignmentSubmissionRequirementDraft[]) => void
+  requirementsDisabled: boolean
+}
+
+function AssignmentEditorBody({
+  sourceClassroomId,
+  sourceArtifactId,
+  requirements,
+  onRequirementsChange,
+  requirementsDisabled,
+  ...formProps
+}: AssignmentEditorBodyProps) {
+  const { active, requirementsOwner, publishInputOwner } = useContext(AssignmentInteractionContext)
+  // Publish from inside the retained body: its insertion phase precedes the
+  // ancestor ModalLayer's layout cleanup/focus return, even on physical removal.
+  useInsertionEffect(publishInputOwner, [publishInputOwner])
+  return (
+    <AssignmentForm
+      {...formProps}
+      interactionActive={active}
+      extraFields={(
+        <div className="space-y-3">
+          <ClassroomBlueprintDraftSource
+            classroomId={sourceClassroomId}
+            target="assignments"
+            artifactId={sourceArtifactId}
+            isOpen={active}
+            retainOnClose
+          />
+          {/* External owner refresh retires its drag without remounting Tiptap. */}
+          <AssignmentSubmissionRequirementsEditor
+            key={requirementsOwner}
+            requirements={requirements}
+            onChange={onRequirementsChange}
+            disabled={requirementsDisabled}
+            interactionActive={active}
+          />
+        </div>
+      )}
+    />
+  )
+}
+
+function AssignmentActionButton(props: ComponentProps<typeof SplitButton>) {
+  const { active } = useContext(AssignmentInteractionContext)
+  return <SplitButton {...props} interactionActive={active} />
+}
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
@@ -129,6 +185,28 @@ interface AssignmentModalProps {
 }
 
 export function AssignmentModal({ isOpen, classroomId, assignment, instructionsMode = 'visual', classDays, onClose, onSuccess }: AssignmentModalProps) {
+  // Only a new logical open retires the old body's local editor/menu/history state.
+  const [bodyLifetime, setBodyLifetime] = useState({ open: isOpen, key: 0 })
+  if (bodyLifetime.open !== isOpen) {
+    // Own-component derived state rolls back with an abandoned concurrent render.
+    setBodyLifetime({ open: isOpen, key: bodyLifetime.key + (isOpen ? 1 : 0) })
+  }
+  const [requirementsOwner, setRequirementsOwner] = useState({ classroomId, assignment, generation: 0 })
+  if (requirementsOwner.classroomId !== classroomId || requirementsOwner.assignment !== assignment) {
+    // External refresh retires only its requirements owner. Abandoned renders
+    // must not turn the legacy business session counter into a physical remount.
+    setRequirementsOwner({ classroomId, assignment, generation: requirementsOwner.generation + 1 })
+  }
+  const committedInputOwnerRef = useRef({ isOpen, classroomId, assignment, lifetime: bodyLifetime.key })
+  const publishInputOwner = useCallback(() => {
+    const owner = { isOpen, classroomId, assignment, lifetime: bodyLifetime.key }
+    committedInputOwnerRef.current = owner
+    return () => {
+      if (committedInputOwnerRef.current === owner) {
+        committedInputOwnerRef.current = { ...owner, isOpen: false }
+      }
+    }
+  }, [isOpen, classroomId, assignment, bodyLifetime.key])
   const titleInputRef = useRef<HTMLInputElement>(null)
   const titleFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editorSessionRef = useRef(0)
@@ -858,6 +936,18 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
   }
 
+  // Guard captured inputs against the committed body, not speculative renders.
+  // Initiated save/release/discard continuations keep their existing ownership rules.
+  const inputLifetime = bodyLifetime.key
+  function activeInput<Args extends unknown[]>(callback: (...args: Args) => void) {
+    return (...args: Args) => {
+      const owner = committedInputOwnerRef.current
+      if (!owner.isOpen || owner.classroomId !== classroomId || owner.assignment !== assignment
+        || owner.lifetime !== inputLifetime) return
+      callback(...args)
+    }
+  }
+
   // Modal title
   const modalTitle = creating
     ? 'Creating Draft...'
@@ -879,9 +969,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const previewSubtitle = isLive ? title.trim() || undefined : undefined
 
   return (
-    <>
+    <AssignmentInteractionContext.Provider value={{ active: isOpen, requirementsOwner: requirementsOwner.generation, publishInputOwner }}>
       <CreationModalShell
         isOpen={isOpen}
+        exitMotion="opacity"
         onClose={() => {
           if (showInstructionsPreview) {
             setShowInstructionsPreview(false)
@@ -899,7 +990,13 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         tall
         contentClassName="!overflow-hidden !p-0"
       >
-        <AssignmentForm
+        <AssignmentEditorBody
+          key={bodyLifetime.key}
+          sourceClassroomId={classroomId}
+          sourceArtifactId={assignment?.id}
+          requirements={submissionRequirements}
+          onRequirementsChange={activeInput(handleSubmissionRequirementsChange)}
+          requirementsDisabled={saving || releasing || creating}
           fillHeight
           desktopSplit
           title={title}
@@ -907,14 +1004,14 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           instructionsMode={instructionsMode}
           dueAt={dueAt}
           classDays={classDays}
-          onTitleChange={handleTitleChange}
-          onInstructionsMarkdownChange={handleInstructionsMarkdownChange}
-          onInstructionsConversionWarningChange={setMarkdownWarning}
-          onDueAtChange={handleDueAtChange}
-          onPreviewInstructions={() => {
+          onTitleChange={activeInput(handleTitleChange)}
+          onInstructionsMarkdownChange={activeInput(handleInstructionsMarkdownChange)}
+          onInstructionsConversionWarningChange={activeInput(setMarkdownWarning)}
+          onDueAtChange={activeInput(handleDueAtChange)}
+          onPreviewInstructions={activeInput(() => {
             cancelTitleFocus()
             setShowInstructionsPreview(true)
-          }}
+          })}
           titleAccessory={(
             <div className="flex items-center gap-1">
               <SaveStatus status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
@@ -935,23 +1032,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           disabled={saving || releasing || creating}
           error={error}
           titleInputRef={titleInputRef}
-          onBlur={flushAutosave}
+          onBlur={activeInput(flushAutosave)}
           markdownWarning={markdownWarning}
-          extraFields={(
-            <div className="space-y-3">
-              <ClassroomBlueprintDraftSource
-                classroomId={classroomId}
-                target="assignments"
-                artifactId={assignment?.id}
-                isOpen={isOpen}
-              />
-              <AssignmentSubmissionRequirementsEditor
-                requirements={submissionRequirements}
-                onChange={handleSubmissionRequirementsChange}
-                disabled={saving || releasing || creating}
-              />
-            </div>
-          )}
           statusContent={currentAssignment && isScheduled && currentAssignment.released_at ? (
             <span className="text-xs font-medium text-warning">
               {formatReleaseDate(currentAssignment.released_at)}
@@ -960,7 +1042,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           topRowActions={
             currentAssignment && !isLive ? (
               <div className="flex w-full items-end">
-                <SplitButton
+                <AssignmentActionButton
                   label={primaryLabel}
                   onPrimaryClick={() => {
                     void handleTriggerPrimaryAction()
@@ -970,7 +1052,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
                   disabled={creating || releasing || saving || !currentAssignment}
                   className="w-full shadow-sm"
                   toggleAriaLabel="Choose assignment action"
-                  menuPlacement="down"
+                  menuPlacement="up"
                   primaryButtonProps={{
                     className: 'flex-1 justify-center font-semibold',
                   }}
@@ -1001,7 +1083,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       </ContentDialog>
 
       <DialogPanel
-        isOpen={showCreateScheduleModal}
+        isOpen={isOpen && showCreateScheduleModal}
         onClose={() => {
           if (releasing) return
           setShowCreateScheduleModal(false)
@@ -1046,7 +1128,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       </DialogPanel>
 
       <ConfirmDialog
-        isOpen={showPostNowConfirm}
+        isOpen={isOpen && showPostNowConfirm}
         title="Post assignment to students?"
         description="Students will be able to access this assignment immediately. Once live, it cannot be reverted to draft."
         confirmLabel={releasing ? 'Posting...' : 'Post'}
@@ -1061,7 +1143,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       />
 
       <ConfirmDialog
-        isOpen={showRevertToDraftConfirm}
+        isOpen={isOpen && showRevertToDraftConfirm}
         title="Revert to draft?"
         description="Students will no longer be able to see this assignment until you post or schedule it again."
         confirmLabel={releasing ? 'Reverting...' : 'Revert'}
@@ -1071,6 +1153,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         onCancel={() => setShowRevertToDraftConfirm(false)}
         onConfirm={revertAssignmentToDraft}
       />
-    </>
+    </AssignmentInteractionContext.Provider>
   )
 }
