@@ -425,7 +425,7 @@ export function UiGallery({ role }: Props) {
                   <Spinner size="sm" />
                   <Spinner size="md" />
                   <Spinner size="lg" />
-                  <Button size="sm" loading>Saving</Button>
+                  <Button size="sm" loading>Creating class</Button>
                   <IconButton icon={Plus} label="Creating classroom" loading />
                 </div>
                 <PageState compact kind="loading" title="Loading classroom" />

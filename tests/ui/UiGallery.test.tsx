@@ -32,8 +32,9 @@ describe('UiGallery accessibility contracts', () => {
     const status = within(example).getByRole('status')
     expect(status).toHaveTextContent('Loading classroom')
     expect(status).toHaveAttribute('aria-busy', 'true')
-    for (const name of ['Saving', 'Creating classroom']) {
-      const button = within(example).getByRole('button', { name })
+    expect(screen.getByRole('button', { name: 'Saving', exact: true })).toBeDisabled()
+    for (const name of ['Creating class', 'Creating classroom']) {
+      const button = within(example).getByRole('button', { name, exact: true })
       expect(button).toBeDisabled()
       expect(button).toHaveAttribute('aria-busy', 'true')
     }
