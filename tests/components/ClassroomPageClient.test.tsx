@@ -29,7 +29,7 @@ describe('ClassroomPageClient titlebar navigation', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
 
     expect(source).toContain('{mountedTabs.grades && (')
-    expect(source).toContain("<StudentGradesTab classroom={classroom} isActive={activeTab === 'grades'} />")
+    expect(source).toMatch(/<StudentGradesTab\s+ref=\{studentGradesReadRef\}\s+classroom=\{classroom\}\s+isActive=\{activeTab === 'grades'\}\s*\/>/)
     expect(source).toMatch(/<TeacherGradebookTab[\s\S]*?onClassroomUpdated=\{onClassroomUpdated\}/)
   })
 
