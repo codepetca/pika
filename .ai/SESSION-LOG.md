@@ -771,3 +771,18 @@ Final focused941/34files PASS150s; architecture/UI/design/TypeScript/lint PASS.
 Staged audit7 TypeScript files PASS; product migration253/SHA71ed unchanged.
 Frozen independent review and diagnostic execution remain pending; no runtime
 or normal/types/forced/CI acceptance, readiness or phase-exit claim.
+
+## 2026-10-07 — Reorder diagnostic assertion preservation
+
+Frozen7832 published draft; Sol/high security and Astra/high architecture reviews
+complete. One accepted blockingP2: outerWHENOTHERS could swallow witness/effect/
+rollback P0001 and produce failedcopy receipt after restoring baseline. No other
+actionable finding; architecture confirms inherited cleanup/canonical closure.
+Root restricts outcome handler to fixed RPC denial codes; unexpected errors and
+proof assertions abort completion. TDD12checks11PASS/1RED then affected139/2files
+PASS33.52s; genuine denial receipts remain covered. No actual diagnostic run.
+Main advanced7357/#1519 Assignment editor manual-save reconciliation, sevenpaths
+UI/e2e/history only, no schema/proof change. Need clean rebase/history/source
+preservation/finalfocused and targeted independent review before one diagnostic.
+Counters22reviews/18targets/18committedfixes plus batch19inprogress; original05:04
+clock/direct human workflow waiver/all canonical-prod-activation holds retained.

@@ -298,4 +298,8 @@ only a reviewed head in normal mode without type generation. Its explicit
 `diagnostic-not-acceptance` receipt cannot satisfy the ordinary proof gates.
 Offline lifecycle, numeric-parser and real NativeSession fake-child regressions
 are passing; fixed-head independent review and actual diagnostic execution are
-still pending. Late cross-pipe timing messages fail closed, not recover a receipt.
+still pending for the corrected revision. Late cross-pipe timing messages cannot
+recover a returned-copy receipt; failed-copy nullable observations make no phase
+or cost claim. Initial diagnostic review found and corrected an outer-catcher
+issue: only fixed RPC denial codes can produce failure measurements; witness,
+effect-graph, rollback and unexpected errors must abort diagnostic completion.

@@ -86,11 +86,14 @@ returns jsonb language plpgsql security definer set search_path='' set lock_time
   // Reuse every normal bulk witness/effect/rollback assertion. Only the called
   // routine is the measured copy. Catch failure OUTSIDE the original probe's
   // subtransaction; failed copies must leave the complete baseline unchanged.
+  // Capture only the RPC's fixed denial codes. P0001 witness/effect/rollback
+  // assertions and unexpected errors must abort the diagnostic, not become a
+  // successful failed-copy measurement after outer-subtransaction rollback.
   const diagnosticProbe = once(probe, 'r:=public.reorder_tests_for_owner_v1(', 'r:=pg_temp.reorder_tests_for_owner_diagnostic_v1(')
   let execution = once(bulk.sql, probe, `do $measure$ declare code text;begin begin ${diagnosticProbe}
  insert into owner_reorder_diagnostic_outcome values('returned','none');
- exception when others then get stacked diagnostics code=returned_sqlstate;
- insert into owner_reorder_diagnostic_outcome values('failed',case when code in(${codes.map(q).join(',')}) then code else 'unknown' end);
+ exception when ${codes.map(code => `sqlstate ${q(code)}`).join(' or ')} then get stacked diagnostics code=returned_sqlstate;
+ insert into owner_reorder_diagnostic_outcome values('failed',code);
  end;end;$measure$;`)
   execution = once(execution, ' create temp table owner_reorder_checks', `\n${catalog}\n${copy}\n${copyAcl}\ncreate temp table owner_reorder_diagnostic_outcome(outcome text,code text) on commit drop;\n create temp table owner_reorder_checks`)
   // All 10k initial positions must change. This check is outside the measured
