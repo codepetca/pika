@@ -1,6 +1,7 @@
 import type { PalWidgetSnapshot } from '@codepet/pal-widget'
 import fixtureSnapshot from './fixtures/pal/snapshot.json'
 import { expect, test } from '@playwright/test'
+import { verifyAchievementsRenderRecovery } from './helpers/achievements-render-recovery'
 
 test('classroom switching, reload, logout and stale reward isolation', async ({ page }, testInfo) => {
   const scopeA = `pika-classroom-v1-${'a'.repeat(64)}`
@@ -154,3 +155,18 @@ for (const role of ['teacher', 'student'] as const) {
     })
   })
 }
+
+
+test.describe('Achievements local render recovery', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retries a contained render failure with native focus', async ({ page }, info) => {
+        test.setTimeout(90_000)
+        await page.addInitScript(theme => localStorage.setItem('theme', String(theme)), info.project.metadata.theme ?? 'light')
+        await verifyAchievementsRenderRecovery(page, info)
+      })
+    })
+  }
+})

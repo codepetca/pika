@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Full local CI database evidence and current-main reconciliation
-
-Owner instructed “override approvals to continue goal”; current-task workflow
-approval/budget stops waived while correctness and public/runner-inactive,
-production/HQ holds remain. Earlier interrupted2325 attempt had7canonical PASS;
-final exit/time unknown, partial archive retained and owned VM disposed.
-Fresh isolated Linux ARM64/4CPU/12GiB full2325/001–248 database lane PASS:
-141canonical steps, Mac monotonic2543.246s(42.39min), guest2537.924s. Native GET
-normal1001-question/privilege-restoration/rollback/two-session and both forced
-modes passed; Assignment SDK and Pal concurrency passed; full recovery and
-shutdown passed. Private archive431members104642bytes, SHA256
-29d855236e1792cc117ae2aa7a96176b3ea8ffb728c2439db5f99a45e97a0078 verified;
-daemon containers/volumes/custom networks empty, owned VMdeleted/lease released.
-Read-only GPT6.1Sol/high main-compatibility analysis289.3s verified. Rebased onto
-865d837b740e781086f0209eb9c4d9c8dab78db3 with continuity-only conflict resolution,
-preserving incoming251-migration schema/new lifecycle checks and byte-identical
-reviewed diagnostic code. Preserve both histories by entry-body hash comparison;
-new integrated source still requires focused checks/review and exact251 replay.
-Historical2325 evidence is not relabeled as integrated251 acceptance. PR1488draft;
-public visibility and runner activation holds continue; no production changes.
-Integrated focused355tests/17files plus architecture/UI/design/TypeScript/lint
-PASS; coupled GET/schema/save-engine/new-CI tests90/6PASS; Bashsyntax/diffPASS.
-
 ## 2026-10-06 — Integrated local database proof and CI compute capacity
 
 Frozen reviewed0d72a0dd/001–251 canonical local database lane PASS144steps,
@@ -399,3 +376,9 @@ PR1518 merged5405dcf10 after reviewed9d206 CI37645638621 all required gates PASS
 ## 2026-10-07 — Preview preference coverage correction
 
 PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
+
+## 2026-10-07 — Achievements local render recovery
+
+Added an explicit Try again action for a caught synchronous student roadmap render failure. Existing PageState/Button/boundary are reused; stable named region receives focus before retry removes the button. Provider, snapshot/reward state and academic draft remain mounted; persistent throws stay contained, hidden return does not auto-retry, and ordinary scope changes retire the old owner. Fixture fault controls remain behind the existing non-production E2E gate.
+
+Evidence: genuine missing-retry RED2; affected GREEN24/3 and fixture gate6 PASS; native actual-owner desktop/mobile light/dark normal/reduced8 PASS plus default-fixture compatibility8 PASS. Screenshots inspected against Pattern Lab PageState and healthy roadmap. Window scroll retained; fixture has no inherited internal auto/scroll owner. Synthetic intercepted traffic; no authenticated provider/hardware claim. Evidence retained in coordinator product-fluidity/achievements-render-recovery. This slice does not complete the Grades/Achievements family. Full focused/static/audit and draft-first frozen review/CI/main landing follow; provider/package/gates and production promotion unchanged.
