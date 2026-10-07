@@ -258,3 +258,44 @@ missing or last-seen signals cannot establish query cost or the operation still
 running. No raw messages, IDs, SQL, values or timing are emitted. All50 probes,
 27 complete rollback frames, five bulk graph computations and original deadlines,
 workload, assertions, caps, product SQL and rollout holds remain unchanged.
+
+Reviewed5e1f40ec normal failed after356716ms, starting2026-10-07T16:41:30.687Z.
+Setup completed; native contracts child-exit PRD14,524controls/39actions, last
+progress PRG02 and notice calibration verified. The cumulative8s check after the
+UPDATE, immediate triggers and affected-count validation rejected. This does not
+measure UPDATE alone or establish a leaked session. Exact teardown, workdir
+absence and complete five-field canonical before/after equality passed. Fresh
+read-only inventory found no disposable resources; no current-head types artifact
+or whole normal/forced/eligible CI acceptance exists.
+
+Bounded source analysis found no substantial removable algorithmic cost inside253
+that preserves the sealed inherited routines. For10000 changed Tests, the current
+trigger path requires10000 Classroom and20000 archive-revision updates, in addition
+to Test updates. These counts are source evidence, not measured cost attribution.
+Another unmeasured constant-factor fix or unchanged native retry is not selected.
+
+The next deliverable is a separately reviewed, finite **diagnostic-only** profile:
+one nonexecuting EXPLAIN of the exact UPDATE shape/bound inputs, and one disposable
+temporary copy of the source-pinned RPC with scalar observations before work and
+immediately before/after UPDATE. Retain all guards, triggers, workload, deadlines,
+assertions, action/byte limits, rollback/full-graph comparison, exact teardown and
+canonical preservation. Exact SQL admission must remain closed; normal profiles
+must never admit diagnostic SQL. Emit only bounded numeric timings and a plan
+digest/fixed node counts, never raw plan/query/error/row content.
+
+The EXPLAIN plan is a candidate, not necessarily the real function's cached SPI
+plan. The temporary copy has different compilation/cache history and instrumentation
+overhead. Its result guides investigation only: it cannot establish normal/types/
+forced/CI acceptance, resolve capacity or authorize readiness, merge or rollout.
+Product migration253 and canonical/production/activation holds remain unchanged.
+Timings begin after declarations; the post-update observation follows the unchanged
+ROW_COUNT capture and includes that scalar overhead. The diagnostic fixture also
+has different preceding execution history from the complete normal proof.
+
+The diagnostic CLI is implemented separately as
+`scripts/check-contextual-test-owner-reorder-diagnostic-lifecycle.ts`. It accepts
+only a reviewed head in normal mode without type generation. Its explicit
+`diagnostic-not-acceptance` receipt cannot satisfy the ordinary proof gates.
+Offline lifecycle, numeric-parser and real NativeSession fake-child regressions
+are passing; fixed-head independent review and actual diagnostic execution are
+still pending. Late cross-pipe timing messages fail closed, not recover a receipt.

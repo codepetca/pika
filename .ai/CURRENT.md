@@ -17,7 +17,7 @@ Epic exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Discard251: #1503/865d837b7; exact9c391 CI37435496517 all5PASS.
 Publication#1510 merged473a5de8a: reviewed2f3/CI37564268228 all5PASS.
 Native25249/12/5/10 PASS/types; legacyPATCH/UI unchanged.
-Next: reorder253 bulk-frame progress diagnosis; CI capacity unresolved.
+Next: reorder253 diagnostics. Native5e PRD14/PRG02; cleanup PASS; no acceptance.
 249–253 unapplied; legacy reorder/UI unchanged.
 No phase exit; `docs/guidance/contextual-test-reorder.md`.
 

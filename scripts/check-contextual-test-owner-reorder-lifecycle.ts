@@ -27,7 +27,9 @@ import { TEST_OWNER_REORDER_CAPS, TEST_OWNER_REORDER_SNAPSHOT_TABLES,
   newTestOwnerReorderFixture, testOwnerReorderSetupSql, testOwnerReorderSnapshotSql, testOwnerReorderRequest,
   testOwnerReorderTableCatalogFromCanonical, validateTestOwnerReorderSetupSnapshot, type TestOwnerReorderFixture } from './contextual-test-reorder-proof-fixture'
 import { createTestOwnerReorderProofTransport, testOwnerReorderRequestManifest } from './contextual-test-reorder-proof-transport'
-import { buildTestOwnerReorderNativeContractsManifest, createTestOwnerReorderNativeContracts } from './contextual-test-draft-save-native-contracts'
+import { buildTestOwnerReorderNativeContractsManifest, createTestOwnerReorderNativeContracts,
+  buildTestOwnerReorderDiagnosticNativeManifest, createTestOwnerReorderDiagnosticNativeContracts } from './contextual-test-draft-save-native-contracts'
+import { validateTestOwnerReorderDiagnosticReceipt } from './contextual-test-reorder-diagnostic'
 import { generateTestDraftSaveTypes } from './generate-contextual-test-draft-save-types'
 
 const cleanupMarker = 'PASS isolated test-owner-reorder exact teardown and unchanged canonical baseline.\n'
@@ -243,7 +245,21 @@ export function validateTestOwnerReorderGeneratedTypes(source: string, expectedS
 }
 
 export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)) {
+  const receipt = await runTestOwnerReorderLifecycle(args, false)
+  assert(receipt === undefined || !('diagnosticOnly' in receipt))
+  return receipt
+}
+
+/** Separate closed entrypoint; it cannot produce normal proof/type acceptance. */
+export async function testOwnerReorderDiagnosticLifecycleMain(args = process.argv.slice(2)) {
+  const receipt = await runTestOwnerReorderLifecycle(args, true)
+  assert(receipt && 'diagnosticOnly' in receipt && receipt.diagnosticOnly === true)
+  return receipt
+}
+
+async function runTestOwnerReorderLifecycle(args: string[], diagnosticOnly: boolean) {
   const input = parseTestOwnerReorderLifecycleArgs(args)
+  if (diagnosticOnly) assert(input.mode === 'normal' && !input.generateTypes)
   const started = Date.now(), absoluteDeadline = started + APP_CAPS.totalMs
   let controls = 0, actions = 0, appBytes = 0
   let executionStopped = false
@@ -274,6 +290,8 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
   const original = newAssignmentListProofFixture(), f = newTestOwnerReorderFixture(original), projectId = `pika_assignment_list_${f.tag.slice(-12)}`
   const native = createAssignmentListNativeAdapters(original), originalSetup = assignmentListFixtureSetupSql(original, projectId)
   const setupSql = testOwnerReorderSetupSql(f, projectId), snapshotSql = testOwnerReorderSnapshotSql(f), union = testOwnerReorderUnionManifest(original, f, input.head, repository)
+  const diagnosticManifest = diagnosticOnly ? buildTestOwnerReorderDiagnosticNativeManifest(original, f, input.head, repository) : undefined
+  const diagnosticStop = Object.freeze(new Error('Closed reorder diagnostic completed'))
   assert.equal(union.sql.capabilities.totalBytes, nativeByteReserve)
   const unionSha256 = testOwnerDigest(JSON.stringify(union))
   let target: ReturnType<typeof validateAssignmentListProofTarget> | undefined, session: Session | undefined
@@ -288,6 +306,8 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
   let client: ReturnType<typeof createClient<Database>> | undefined
   let sqlContracts: ReturnType<typeof createTestOwnerReorderNativeContracts> | undefined, nativeReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['run']>> | undefined
   let committedReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['runCommittedTransitions']>> | undefined
+  let diagnosticContracts: ReturnType<typeof createTestOwnerReorderDiagnosticNativeContracts> | undefined
+  let diagnosticReceipt: Awaited<ReturnType<NonNullable<typeof diagnosticContracts>['runDiagnostic']>> | undefined
   let complete = false, matrixComplete = false, sqlComplete = false, committedComplete = false, setupStage = 'pending'
   let guardFailure: { error: unknown; boundary: string } | undefined
   let typesReceipt: Awaited<ReturnType<typeof generateTestDraftSaveTypes>> | undefined
@@ -337,11 +357,29 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
     setupStage = 'app-snapshot'; const rows = await snapshot()
     setupStage = 'app-verify'; assert(expectedTables); validateTestOwnerReorderSetupSnapshot(f, rows, expectedTables); assert(closure)
     assert.equal(testOwnerDigest(JSON.stringify(union)), unionSha256); setupStage = 'sql-prepare'
-    sqlContracts = createTestOwnerReorderNativeContracts({ repository, reviewedHead: input.head, original, fixture: f, capturedResources: closure,
-      containerId: session.containerId, acceptedManifestSha256: testOwnerDigest(JSON.stringify(union.sql)), absoluteDeadline })
-    setupStage = 'sql-setup'; const receipt = await sqlContracts.setup()
-    assert.equal(receipt.fixtureSha256, testOwnerDigest(JSON.stringify(f))); assert.equal(receipt.setupSha256, testOwnerDigest(union.sql.setup))
+    if (diagnosticOnly) {
+      assert(diagnosticManifest)
+      diagnosticContracts = createTestOwnerReorderDiagnosticNativeContracts({ repository, reviewedHead: input.head, original, fixture: f, capturedResources: closure,
+        containerId: session.containerId, acceptedManifestSha256: testOwnerDigest(JSON.stringify(diagnosticManifest)), absoluteDeadline })
+    } else {
+      sqlContracts = createTestOwnerReorderNativeContracts({ repository, reviewedHead: input.head, original, fixture: f, capturedResources: closure,
+        containerId: session.containerId, acceptedManifestSha256: testOwnerDigest(JSON.stringify(union.sql)), absoluteDeadline })
+    }
+    setupStage = 'sql-setup'
+    const receipt = diagnosticOnly ? await diagnosticContracts!.setup() : await sqlContracts!.setup()
+    assert.equal(receipt.fixtureSha256, testOwnerDigest(JSON.stringify(f)))
+    assert.equal(receipt.setupSha256, testOwnerDigest((diagnosticManifest ?? union.sql).setup))
     complete = true; setupStage = 'complete'
+  }
+  async function diagnosticCase(): Promise<never> {
+    assert(diagnosticOnly && complete && diagnosticContracts && diagnosticManifest && !diagnosticReceipt)
+    const before = await snapshot()
+    const receipt = await exactSnapshotFinally(before, snapshot, () => diagnosticContracts!.runDiagnostic())
+    validateTestOwnerReorderDiagnosticReceipt(receipt, diagnosticManifest)
+    check(); diagnosticReceipt = receipt
+    // Only this private identity can finish diagnostics after the parent's
+    // exact finally/whole-canonical closure; no normal cases or revocations.
+    throw diagnosticStop
   }
   async function matrix() {
     assert(complete && !matrixComplete && client && transport && sqlContracts)
@@ -435,13 +473,17 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
         inheritedAdmission('executeSql'); await native.executeSql(request); check()
         if (request.sql === originalSetup) {
           assert(!session && target && expectedTables); session = { ...request }
-          transport = createTestOwnerReorderProofTransport(f, target, projectId, fetch, sdkGuard)
-          client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport.fetch } })
+          if (!diagnosticOnly) {
+            transport = createTestOwnerReorderProofTransport(f, target, projectId, fetch, sdkGuard)
+            client = createClient<Database>(target.API_URL, target.SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: transport.fetch } })
+          }
           await setup()
         }
       },
       async runCase(request) {
-        inheritedAdmission('runCase'); const result = await native.runCase(request); check()
+        inheritedAdmission('runCase')
+        if (diagnosticOnly) return diagnosticCase()
+        const result = await native.runCase(request); check()
         if (!matrixComplete) await matrix(); check(); return result
       },
       async runRevocation(request) {
@@ -467,11 +509,28 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
         canonicalAfter: canonicalCleanup, accountedUpperBoundBytes: accounting.exchange.accountedUpperBoundBytes },
       remainingGates: union.remainingGates } })
   } catch (error) {
+    if (diagnosticOnly && diagnosticReceipt && diagnosticManifest && error instanceof AssignmentListLifecycleError
+      && error.primary?.stage === 'cases' && error.primary.error === diagnosticStop && error.cleanupFailures.length === 0) {
+      assert(complete && !matrixComplete && !sqlComplete && !committedComplete && !nativeReceipt && !committedReceipt && !typesReceipt && !transport)
+      assert(canonicalSha256 && expectedTables && canonicalCleanup.attempts === CANONICAL_AFTER_CAPS.attempts)
+      validateTestOwnerReorderDiagnosticReceipt(diagnosticReceipt, diagnosticManifest)
+      const upperBoundBytes = appBytes + canonicalCleanup.bytes + nativeByteReserve
+      assert(upperBoundBytes <= APP_CAPS.totalBytes)
+      for (const [name, cap] of Object.entries(union.inheritedLifecycleCapabilities)) assert(inheritedCalls[name as keyof typeof inheritedCalls] <= cap)
+      process.stdout.write('PASS isolated test-owner-reorder diagnostic-only measurement; NOT normal/type/CI acceptance.\nPASS diagnostic exact teardown and unchanged canonical baseline.\n')
+      return freeze({ kind: 'test-owner-reorder-diagnostic-not-acceptance' as const, diagnosticOnly: true as const, normalAcceptance: false as const,
+        reviewedHead: input.head, manifestSha256: testOwnerDigest(JSON.stringify(diagnosticManifest)), canonicalSha256,
+        tableCatalogSha256: testOwnerDigest(JSON.stringify(expectedTables)), native: diagnosticReceipt,
+        application: { controls, actions, exchangeBytes: appBytes, reservedNativeBytes: nativeByteReserve, canonicalAfter: canonicalCleanup,
+          accountedUpperBoundBytes: upperBoundBytes }, inheritedCalls: { ...inheritedCalls },
+        remainingGates: ['Uninstrumented normal proof', 'Genuine CLI types', 'Both forced cleanup proofs', 'Eligible exact-head CI/PR Gate', ...union.remainingGates] })
+    }
     const forced = testOwnerReorderForcedReceipt(input.mode, error, complete)
     if (forced) { process.stdout.write(forced.stdout); process.stderr.write(forced.stderr); process.exitCode = forced.exitCode; return }
     const cause = error instanceof AssignmentListLifecycleError ? error.primary?.error : error
     process.stderr.write(testOwnerReorderSetupDiagnostic(setupStage, error, guardFailure && guardFailure.error === cause ? guardFailure.boundary : 'none'))
-    if (sqlContracts) process.stderr.write(sqlContracts.diagnostic()); if (transport) process.stderr.write(transport.diagnostic())
+    if (sqlContracts) process.stderr.write(sqlContracts.diagnostic()); if (diagnosticContracts) process.stderr.write(diagnosticContracts.diagnostic())
+    if (transport) process.stderr.write(transport.diagnostic())
     throw Error('Test owner reorder lifecycle failed; private details withheld')
   } finally { if (originalPal === undefined) delete process.env.PAL_ENABLED; else process.env.PAL_ENABLED = originalPal }
 }

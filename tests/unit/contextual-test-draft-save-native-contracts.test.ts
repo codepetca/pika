@@ -26,7 +26,8 @@ import { buildDraftSaveNativeContractsManifest, createDraftSaveNativeContracts, 
   buildTestOwnerCreateNativeContractsManifest, validateTestOwnerCreateNativeSql, createTestOwnerCreateNativeContracts,
   validateTestOwnerCreateAllocatorPlan, buildTestOwnerPristineDiscardNativeContractsManifest,
   createTestOwnerPristineDiscardNativeContracts, buildTestOwnerPublicationNativeContractsManifest,
-  createTestOwnerPublicationNativeContracts, buildTestOwnerReorderNativeContractsManifest, createTestOwnerReorderNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+  createTestOwnerPublicationNativeContracts, buildTestOwnerReorderNativeContractsManifest, createTestOwnerReorderNativeContracts,
+  buildTestOwnerReorderDiagnosticNativeManifest, createTestOwnerReorderDiagnosticNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
 import { contextualTestCreateTestSchema, contextualTestCreateDraftSchema } from '../../src/lib/validations/contextual-test-create'
 import { newTestOwnerCreateFixture } from '../../scripts/contextual-test-owner-create-proof-fixture'
 import { newTestOwnerPristineDiscardFixture } from '../../scripts/contextual-test-pristine-discard-proof-fixture'
@@ -160,6 +161,9 @@ describe('native persistent-session transport with offline child mocks', () => {
   let bulkChunks: string[] = []; let bulkHang = false; let bulkExit = false; let emitCalibration = true
   let bulkDispatched: (() => void) | undefined
   let contaminateOtherFrames = false; let duplicateCalibration = false
+  let diagnosticManifest: ReturnType<typeof buildTestOwnerReorderDiagnosticNativeManifest> | undefined
+  let diagnosticChunks: string[] = []; let diagnosticNoise = ''; let diagnosticHang = false; let diagnosticExit = false
+  let diagnosticMarkerFirst = false; let diagnosticContamination = false; let diagnosticDispatched: (() => void) | undefined
   const publicationSql = (sql: string, key: 'catalog' | 'revoke' | 'restore') => publicationManifest
     && Object.values(publicationManifest.publicationPrivileges).some(capability => sql === capability[key])
   let serviceExecute = true; let fixtureChanged = false; let catalogChanged = false; let restorationFails = false; let publicGrant = false
@@ -193,6 +197,15 @@ describe('native persistent-session transport with offline child mocks', () => {
       capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(reorderManifest)), absoluteDeadline: Date.now() + 900000 })
   }
+  const diagnosticFactory = () => {
+    // Presence/bootstrap/snapshot SQL is shared with the ordinary reorder
+    // profile, while only the two diagnostic frame replies are new here.
+    reorderManifest = buildTestOwnerReorderNativeContractsManifest(original, newTestOwnerReorderFixture(original), head, repository)
+    diagnosticManifest = buildTestOwnerReorderDiagnosticNativeManifest(original, reorderManifest.fixture, head, repository)
+    return createTestOwnerReorderDiagnosticNativeContracts({ repository, reviewedHead: head, original, fixture: reorderManifest.fixture,
+      capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
+      acceptedManifestSha256: testOwnerDigest(JSON.stringify(diagnosticManifest)), absoluteDeadline: Date.now() + 900000 })
+  }
   beforeEach(() => {
     mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
     vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
@@ -201,6 +214,8 @@ describe('native persistent-session transport with offline child mocks', () => {
     reorderManifest = undefined; bulkChunks = []; bulkHang = false; bulkExit = false; emitCalibration = true
     bulkDispatched = undefined
     contaminateOtherFrames = false; duplicateCalibration = false
+    diagnosticManifest = undefined; diagnosticChunks = []; diagnosticNoise = ''; diagnosticHang = false; diagnosticExit = false
+    diagnosticMarkerFirst = false; diagnosticContamination = false; diagnosticDispatched = undefined
     mocks.inventory.mockResolvedValue(resources)
     mocks.execFile.mockImplementation((file: string, args: string[], _options: unknown, callback: (error: unknown, stdout: string) => void) => {
       const child = new EventEmitter() as EventEmitter & { stdin: Writable; kill: ReturnType<typeof vi.fn> }
@@ -235,6 +250,8 @@ describe('native persistent-session transport with offline child mocks', () => {
         const text = String(chunk); const end = text.match(/\\echo (__draft_save_end_[0-9]+__)/)![1]
         const sql = text.slice(0, text.indexOf('\n\\echo'))
         let response = ''
+        if (diagnosticManifest && diagnosticContamination && sql !== diagnosticManifest.contracts.frames[1].sql)
+          child.stderr.write('INFO: PDT01 1\nINFO: PDT02 2\nINFO: PDT03 3 private contamination\n')
         if (sql === manifest.bootstrap) {
           if (contaminateOtherFrames) child.stderr.write('INFO: PRG00\nINFO: PRG01\nINFO: PRG02\n')
           response = JSON.stringify({ pid, started: '2026-10-05T00:00:00+00:00', name, database: 'postgres', user: 'postgres' })
@@ -247,6 +264,22 @@ describe('native persistent-session transport with offline child mocks', () => {
         else if (sql === manifest.setup && malformedSetup) response = 'PRIVATE malformed row'
         else if (sql === manifest.concurrency.observe) response = JSON.stringify({ held:true,transaction:true })
         else if (sql === manifest.snapshot || sql === createManifest?.snapshot || sql === discardManifest?.snapshot || sql === publicationManifest?.snapshot || sql === reorderManifest?.snapshot) response = JSON.stringify({ wholeRows: fixtureChanged ? 'changed' : 'unchanged' })
+        else if (sql === diagnosticManifest?.contracts.frames[0].sql) response = JSON.stringify({ kind: diagnosticManifest.kind,
+          plan: [{ Plan: { 'Node Type': 'ModifyTable', 'Relation Name': 'PRIVATE synthetic relation', Plans: [{ 'Node Type': 'Function Scan' }] } }] })
+        else if (sql === diagnosticManifest?.contracts.frames[1].sql) {
+          response = JSON.stringify({ kind: diagnosticManifest.kind, outcome: 'returned', sqlstate: 'none', rolledBack: true,
+            checks: ['bulk-10000', 'final-fixture-equality'] })
+          if (diagnosticMarkerFirst) {
+            queueMicrotask(() => {
+              child.stdout.write(`${response}\n${end}\n`)
+              for (const chunk of diagnosticChunks) child.stderr.write(chunk)
+            }); done(); return
+          }
+          for (const chunk of diagnosticChunks) child.stderr.write(chunk)
+          if (diagnosticNoise) child.stderr.write(diagnosticNoise)
+          diagnosticDispatched?.()
+          if (diagnosticHang || diagnosticExit) { if (diagnosticExit) queueMicrotask(() => child.emit('close', 1)); done(); return }
+        }
         else if (reorderManifest?.contracts.contracts.some(batch => batch.sql === sql)) {
           const batch = reorderManifest.contracts.contracts.find(batch => batch.sql === sql)!
           if (batch.expectedResult.checks.includes('deadline-reached') && emitCalibration) {
@@ -299,6 +332,68 @@ describe('native persistent-session transport with offline child mocks', () => {
     return { jobs, release() { holding = false; for (const job of jobs) job.settle() } }
   }
   async function flushGuardReads() { for (let i = 0; i < 12; i++) await Promise.resolve() }
+  it('captures timings only from the exact diagnostic copy and retains them through later snapshots/cleanup', async () => {
+    diagnosticContamination = true
+    diagnosticChunks = ['INFO: PDT01 1000000\nINFO: PDT02 1000', '100\r\nINFO: PDT03 1000300\n']
+    const adapter = diagnosticFactory(); await adapter.setup(); const receipt = await adapter.runDiagnostic()
+    expect(receipt.measurement.timings).toEqual({ beforeWorkUs: 0, beforeUpdateUs: 100, afterUpdateUs: 300, valid: true })
+    expect(receipt.remainingSessions).toBe(0)
+    expect(receipt.measurement.fixedNodeCounts).toEqual({ ModifyTable: 1, 'Function Scan': 1 })
+    expect(JSON.stringify(receipt)).not.toMatch(/PRIVATE|synthetic relation|contamination/)
+    const diagnostic = adapter.diagnostic()
+    for (const child of children) child.stderr.emit('data', Buffer.from('INFO: PDT01 1\nINFO: PDT02 2\nINFO: PDT03 3\n'))
+    expect(adapter.diagnostic()).toBe(diagnostic)
+    for (const args of mocks.spawn.mock.calls.map(call => call[1] as string[])) {
+      const contracts = args.includes(`PGAPPNAME=${project}_draft_contracts`)
+      expect(args).toContain(contracts ? 'VERBOSITY=terse' : 'VERBOSITY=sqlstate')
+      expect(args).not.toContain(contracts ? 'VERBOSITY=sqlstate' : 'VERBOSITY=terse')
+    }
+    expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
+  })
+  it('freezes partial diagnostic timings at first timeout or child exit despite late stderr and retries', async () => {
+    diagnosticChunks = ['INFO: PDT01 1000000\nINFO: PDT02 1000123\n']
+    const adapter = diagnosticFactory(); await adapter.setup(); vi.useFakeTimers(); diagnosticHang = true
+    const dispatched = new Promise<void>(resolve => { diagnosticDispatched = resolve })
+    const rejected = expect(adapter.runDiagnostic()).rejects.toThrow()
+    await dispatched; await vi.advanceTimersByTimeAsync(35001); await rejected
+    const diagnostic = adapter.diagnostic()
+    expect(diagnostic).toContain('phase=contracts failure=timeout role=contracts')
+    expect(diagnostic).toContain('beforeWorkUs=0 beforeUpdateUs=123 afterUpdateUs=unknown valid=true')
+    for (const child of children) child.stderr.emit('data', Buffer.from('INFO: PDT03 1000999\nPRIVATE late stderr\n'))
+    await expect(adapter.runDiagnostic()).rejects.toThrow()
+    expect(adapter.diagnostic()).toBe(diagnostic)
+    expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
+    expect(terminations.length).toBe(children.length)
+    vi.useRealTimers(); diagnosticHang = false; diagnosticExit = true
+    const exited = diagnosticFactory(); await exited.setup(); await expect(exited.runDiagnostic()).rejects.toThrow()
+    expect(exited.diagnostic()).toContain('failure=child-exit role=contracts')
+    expect(exited.diagnostic()).toContain('beforeWorkUs=0 beforeUpdateUs=123 afterUpdateUs=unknown valid=true')
+  })
+  it('counts actual diagnostic SQL inputs and stderr while retaining the existing stderr byte cap', async () => {
+    diagnosticChunks = ['INFO: PDT01 1000000\nINFO: PDT02 1000100\nINFO: PDT03 1000300\n']
+    const first = diagnosticFactory(); await first.setup(); const before = await first.runDiagnostic()
+    const sqlBytes = diagnosticManifest!.contracts.frames.reduce((sum, frame) => sum + Buffer.byteLength(frame.sql), 0)
+    expect(before.exchangeBytes).toBeGreaterThanOrEqual(sqlBytes)
+    diagnosticNoise = 'INFO: unrelated bounded diagnostic\n'
+    const second = diagnosticFactory(); await second.setup(); const after = await second.runDiagnostic()
+    expect(after.exchangeBytes - before.exchangeBytes).toBe(Buffer.byteLength(diagnosticNoise))
+    diagnosticNoise = 'x'.repeat(65537)
+    const capped = diagnosticFactory(); await capped.setup(); await expect(capped.runDiagnostic()).rejects.toThrow()
+    expect(capped.diagnostic()).toContain('failure=protocol role=contracts')
+    expect(capped.diagnostic()).toContain('beforeWorkUs=0 beforeUpdateUs=100 afterUpdateUs=300')
+    expect(capped.diagnostic()).not.toMatch(/x{20}|PRIVATE/)
+  })
+  it('fails closed when the stdout end marker precedes timing stderr and cannot recover from late markers', async () => {
+    diagnosticMarkerFirst = true
+    diagnosticChunks = ['INFO: PDT01 1000000\nINFO: PDT02 1000100\nINFO: PDT03 1000300\n']
+    const adapter = diagnosticFactory(); await adapter.setup(); await expect(adapter.runDiagnostic()).rejects.toThrow()
+    const diagnostic = adapter.diagnostic()
+    expect(diagnostic).toContain('beforeWorkUs=unknown beforeUpdateUs=unknown afterUpdateUs=unknown')
+    for (const child of children) child.stderr.emit('data', Buffer.from(diagnosticChunks.join('')))
+    await expect(adapter.runDiagnostic()).rejects.toThrow()
+    expect(adapter.diagnostic()).toBe(diagnostic)
+    expect(children.every(child => child.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
+  })
   it.each([0, 1, 2, 3, 4])('freezes observed bulk progress at35s timeout after checkpoint %i', async count => {
     const adapter = reorderFactory(); await adapter.setup()
     await adapter.probeReorderPrivilegeDrift(async () => ({ status: 503, rpcCalls: 1, rawCode: '42501' }))

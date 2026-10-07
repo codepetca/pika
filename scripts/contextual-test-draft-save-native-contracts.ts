@@ -35,6 +35,8 @@ import { TEST_OWNER_REORDER_SOURCE_SHA256, TEST_OWNER_REORDER_BULK_FAILURE_CODES
 import { testOwnerReorderConcurrencyManifest, validateTestOwnerReorderConcurrencySql, runTestOwnerReorderConcurrency } from './check-contextual-test-reorder-concurrency'
 import { testOwnerReorderCommittedManifest, validateTestOwnerReorderCommittedSql, runTestOwnerReorderCommittedTransitions } from './check-contextual-test-reorder-committed'
 import { captureTestOwnerReorderProgress, type TestOwnerReorderProgressCheckpoint, type TestOwnerReorderProgressScope } from './contextual-test-reorder-progress'
+import { buildTestOwnerReorderDiagnosticManifest, validateTestOwnerReorderDiagnosticSql,
+  runTestOwnerReorderDiagnostic, captureTestOwnerReorderTimings, validateTestOwnerReorderDiagnosticReceipt, type TestOwnerReorderTimings } from './contextual-test-reorder-diagnostic'
 
 const CAPS = Object.freeze({ controlCalls: 4000, actions: 200, sessions: 2, controlMs: 45000, closeMs: 12000,
   actionMs: 90000, totalMs: 900000, outputBytes: 8 * 1024 * 1024, stderrBytes: 65536, totalBytes: 64 * 1024 * 1024 })
@@ -518,7 +520,7 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   manifest: M;
   project: string;
   sourceFile: '249_contextual_test_draft_owner_save.sql' | '250_contextual_test_owner_create.sql' | '251_contextual_test_pristine_owner_discard.sql' | '252_contextual_test_owner_publication.sql' | '253_contextual_test_owner_reorder.sql';
-  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder';
+  label: 'test-owner-draft-save' | 'test-owner-create' | 'test-owner-pristine-discard' | 'test-owner-publication' | 'test-owner-reorder' | 'test-owner-reorder-diagnostic';
   innerPrivilege?: ReturnType<typeof snapshotPrivilegeSql>;
   publicationPrivileges?: Readonly<Record<PublicationPrivilegeKind, ReturnType<typeof snapshotPrivilegeSql>>>;
   absoluteDeadline?: number;
@@ -526,6 +528,7 @@ type NativeOwnerProfile<M extends NativeManifestShape, C, R,
   committedSha256?: string;
   committedOuterPrivilege?: true;
   reorderProgressSql?: Readonly<{ bulk: string; calibration: string }>;
+  reorderDiagnosticSql?: string;
   runCommitted?(target: DraftSaveTarget, driver: DraftSaveDriver): Promise<T>;
   validateSql(sql: string): boolean;
   contractsSha256: string;
@@ -641,6 +644,33 @@ export function createTestOwnerReorderNativeContracts(input: NativeOwnerInput & 
   return Object.freeze({ ...facade, probeReorderPrivilegeDrift: probe })
 }
 
+/** Separate finite diagnostics. No ordinary proof/race/privilege entrypoints. */
+export function buildTestOwnerReorderDiagnosticNativeManifest(original: AssignmentListProofFixture,
+  fixture: TestOwnerReorderFixture, reviewedHead: string, repository: string) {
+  const normal = buildTestOwnerReorderNativeContractsManifest(original, fixture, reviewedHead, repository)
+  const { contracts: ordinary, concurrency: unusedRaces, committed: unusedCommitted, ...binding } = normal
+  void unusedRaces; void unusedCommitted
+  return freeze({ ...binding, kind: 'test-owner-reorder-diagnostic-not-acceptance' as const, diagnosticOnly: true as const,
+    contracts: buildTestOwnerReorderDiagnosticManifest(ordinary, repository), concurrency: { diagnosticOnly: true as const } })
+}
+export function createTestOwnerReorderDiagnosticNativeContracts(input: NativeOwnerInput & { fixture: TestOwnerReorderFixture; absoluteDeadline: number }) {
+  const now = Date.now()
+  assert(Number.isSafeInteger(input.absoluteDeadline) && input.absoluteDeadline > now && input.absoluteDeadline <= now + CAPS.totalMs)
+  const manifest = buildTestOwnerReorderDiagnosticNativeManifest(input.original, input.fixture, input.reviewedHead, input.repository)
+  const engine = createNativeOwnerContracts(input, { manifest, project: manifest.contracts.projectId,
+    sourceFile: '253_contextual_test_owner_reorder.sql', label: 'test-owner-reorder-diagnostic', absoluteDeadline: input.absoluteDeadline, singleMs: 35000,
+    reorderDiagnosticSql: manifest.contracts.frames[1].sql,
+    validateSql: sql => [manifest.setup, manifest.snapshot, manifest.bootstrap, manifest.close].includes(sql)
+      || validateTestOwnerReorderDiagnosticSql(manifest.contracts, sql),
+    contractsSha256: manifest.contracts.manifestSha256, racesSha256: testOwnerDigest(JSON.stringify(manifest.concurrency)),
+    runContracts: (bound, d) => runTestOwnerReorderDiagnostic(manifest.contracts, bound, d, input.absoluteDeadline),
+    runRaces: async () => { throw failure() },
+  })
+  const { manifest: boundManifest, setup, verifyTarget, diagnostic, runDiagnostic } = engine
+  assert(runDiagnostic)
+  return Object.freeze({ manifest: boundManifest, setup, verifyTarget, diagnostic, runDiagnostic })
+}
+
 function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   T = Awaited<ReturnType<typeof runTestOwnerPublicationCommittedTransitions>>>(input: NativeOwnerInput, profile: NativeOwnerProfile<M, C, R, T>) {
   input = Object.freeze({ ...input })
@@ -660,6 +690,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   const sessions = new Set<NativeSession>()
   let phase: Phase = 'idle'
   let bulkProgress: TestOwnerReorderProgressCheckpoint = 'none'; let progressCalibrated = false
+  let diagnosticTimings: TestOwnerReorderTimings = captureTestOwnerReorderTimings(false).snapshot()
   let firstFault: Readonly<{ phase: Phase; failure: Fault; role: Role; sqlstate: string; controls: number; actions: number; sessions: number;
     progress: TestOwnerReorderProgressCheckpoint; calibration: 'verified' | 'unverified' }> | undefined
   function role(name: string): Role {
@@ -671,6 +702,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
   }
   function record(kind: Fault, ownedRole: Role = 'none', sqlstate = 'unknown') {
     if (firstFault) return
+    if (profile.reorderDiagnosticSql) diagnosticTimings = [...sessions].find(session => session.diagnosticObservation().enabled)?.diagnosticObservation().snapshot ?? diagnosticTimings
     const observations = [...sessions].map(session => session.progressObservation())
     const activeBulk = observations.find(value => value.scope === 'bulk')
     const activeCalibration = observations.find(value => value.scope === 'calibration')
@@ -694,13 +726,18 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     assert([`${project}_fixture`, `${project}_draft_contracts`, `${project}_draft_holder`, `${project}_draft_contender`].includes(name))
     assert(endpoint)
     return ['--host', endpoint.host, 'exec', '-i', '-e', `PGAPPNAME=${name}`, input.containerId, 'psql', '-U', 'postgres', '-d', 'postgres',
-      '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', 'VERBOSITY=sqlstate', ...variables]
+      '-XqAt', '-P', 'pager=off', '-v', 'ON_ERROR_STOP=1', '-v', profile.reorderDiagnosticSql && role(name) === 'contracts' ? 'VERBOSITY=terse' : 'VERBOSITY=sqlstate', ...variables]
   }
   function command(file: 'git' | 'docker', args: string[], sql?: string, timeout = CAPS.controlMs, diagnosticRole?: Role): Promise<string> {
     assert(++controls <= CAPS.controlCalls)
+    if (profile.reorderDiagnosticSql && sql !== undefined) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
     return new Promise((resolveResult, reject) => {
       let inputFailed = false
       const child = execFile(file, args, { cwd: input.repository, encoding: 'utf8', timeout, killSignal: 'SIGKILL', maxBuffer: CAPS.outputBytes }, (error, stdout, stderr) => {
+        if (profile.reorderDiagnosticSql && typeof stderr === 'string') {
+          exchanged += Buffer.byteLength(stderr)
+          if (Buffer.byteLength(stderr) > CAPS.stderrBytes || exchanged > CAPS.totalBytes) { reject(failure()); return }
+        }
         if (error || inputFailed || Buffer.byteLength(stdout) > CAPS.outputBytes) {
           if (diagnosticRole !== undefined) {
             const state = captureSqlstate()
@@ -783,8 +820,11 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     private sqlstate = captureSqlstate()
     private progressScope: TestOwnerReorderProgressScope = 'none'
     private progress = captureTestOwnerReorderProgress('none')
+    private diagnosticEnabled = false
+    private timing = captureTestOwnerReorderTimings(false)
     private cleaning = false
     progressObservation() { return { scope: this.progressScope, snapshot: this.progress.snapshot() } }
+    diagnosticObservation() { return { enabled: this.diagnosticEnabled, snapshot: this.timing.snapshot() } }
     private fault(kind: Fault) { if (!this.cleaning) record(kind, role(this.name), this.sqlstate.code()) }
     constructor(name: string) {
       this.name = name
@@ -812,27 +852,34 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
       })
       this.child.stderr.on('data', (chunk: Buffer) => {
         this.stderr += chunk.length
-        if (this.stderr > CAPS.stderrBytes) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
+        if (profile.reorderDiagnosticSql) exchanged += chunk.length
+        if (this.stderr > CAPS.stderrBytes || (profile.reorderDiagnosticSql && exchanged > CAPS.totalBytes)) { this.fault('protocol'); this.reject(); void closeAll().catch(() => {}) }
         else {
           this.sqlstate.push(chunk)
           if (!this.cleaning && !firstFault && this.active) this.progress.push(chunk)
+          if (!this.cleaning && !firstFault && this.active && this.diagnosticEnabled) this.timing.push(chunk)
         }
       })
     }
     private reject() { if (this.active) { clearTimeout(this.active.timer); this.active.reject(failure()); this.active = undefined } }
     private raw(sql: string, timeoutMs: number): Promise<readonly { result?: unknown }[]> {
       assert(!this.ended && !this.active); assert(timeoutMs > 0 && timeoutMs <= CAPS.actionMs)
+      if (profile.reorderDiagnosticSql) { exchanged += Buffer.byteLength(sql); assert(exchanged <= CAPS.totalBytes) }
       this.progressScope = !this.cleaning && !firstFault && profile.label === 'test-owner-reorder' && phase === 'contracts'
         && role(this.name) === 'contracts' && profile.reorderProgressSql
         ? sql === profile.reorderProgressSql.bulk ? 'bulk' : sql === profile.reorderProgressSql.calibration ? 'calibration' : 'none'
         : 'none'
       this.progress = captureTestOwnerReorderProgress(this.progressScope)
+      this.diagnosticEnabled = !this.cleaning && !firstFault && phase === 'contracts' && role(this.name) === 'contracts'
+        && profile.reorderDiagnosticSql === sql
+      this.timing = captureTestOwnerReorderTimings(this.diagnosticEnabled)
       const marker = `__draft_save_end_${++this.frame}__`
       return new Promise((resolveRows, reject) => {
         const timer = setTimeout(() => { this.fault('timeout'); this.reject(); void closeAll().catch(() => {}) }, timeoutMs)
         this.active = { timer, reject, end: marker, bytes: 0, lines: [], finish: () => {
           const active = this.active!; this.active = undefined; clearTimeout(timer)
           if (!firstFault && !this.cleaning) {
+            if (this.diagnosticEnabled) diagnosticTimings = this.timing.snapshot()
             if (this.progressScope === 'bulk') bulkProgress = this.progress.snapshot().checkpoint
             if (this.progressScope === 'calibration') progressCalibrated = this.progress.snapshot().calibrated
           }
@@ -956,6 +1003,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         actions: Math.min(actions, CAPS.actions + 1), sessions: Math.min(sessions.size, CAPS.sessions + 1),
         progress: bulkProgress, calibration: progressCalibrated ? 'verified' : 'unverified' }
       return `DIAG ${profile.label} native phase=${d.phase} failure=${d.failure} role=${d.role} sqlstate=${d.sqlstate} controls=${d.controls} actions=${d.actions} sessions=${d.sessions}${profile.label === 'test-owner-reorder' ? ` progress=${d.progress} calibration=${d.calibration}` : ''}.\n`
+        + (profile.reorderDiagnosticSql ? `DIAG reorder diagnostic-only timing beforeWorkUs=${diagnosticTimings.beforeWorkUs ?? 'unknown'} beforeUpdateUs=${diagnosticTimings.beforeUpdateUs ?? 'unknown'} afterUpdateUs=${diagnosticTimings.afterUpdateUs ?? 'unknown'} valid=${diagnosticTimings.valid}.\n` : '')
     },
     async setup() {
       phase = 'setup'
@@ -987,6 +1035,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     async run() {
       phase = 'snapshot'
       try {
+      assert(!profile.reorderDiagnosticSql)
       assert(setupDone && !ran && !probing)
       if (profile.innerPrivilege) assert(probed.has('outer') && probed.has('inner'))
       if (profile.publicationPrivileges) assert(Object.keys(profile.publicationPrivileges).every(k => probed.has(k as PublicationPrivilegeKind)))
@@ -1011,5 +1060,24 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
         controls,actions,exchangeBytes:exchanged,remainingSessions:sessions.size })
       } catch (error) { record('unknown'); throw error }
     },
+    ...(profile.reorderDiagnosticSql ? { async runDiagnostic() {
+      phase = 'snapshot'
+      try {
+        assert(setupDone && !ran && !probing); ran = true; check()
+        const before = await single(manifest.snapshot)
+        phase = 'contracts'
+        const bound = target(profile.contractsSha256)
+        const measurement = await profile.runContracts(bound, driver(bound))
+        phase = 'contracts-verify'
+        assert.deepEqual(await single(manifest.snapshot), before, 'Diagnostic whole-row equality differs')
+        assert.equal(sessions.size, 0); assert(diagnosticTimings.valid && diagnosticTimings.beforeWorkUs === 0)
+        check(); phase = 'complete'
+        const receipt = freeze({ kind: 'test-owner-reorder-diagnostic-not-acceptance' as const, diagnosticOnly: true as const,
+          measurement: { ...measurement, timings: diagnosticTimings }, fixtureUnchanged: true as const,
+          manifestSha256: input.acceptedManifestSha256, controls, actions, exchangeBytes: exchanged, remainingSessions: 0 as const })
+        validateTestOwnerReorderDiagnosticReceipt(receipt, manifest)
+        return receipt
+      } catch (error) { record('unknown'); throw error }
+    } } : {}),
   })
 }

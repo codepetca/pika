@@ -739,3 +739,35 @@ entries,32 reviewedfeature paths unchanged and7 incoming paths byte-exactmain.
 unchanged, no stash commands. Update currentmain and require focused/proportional
 base review before fresh native/types/forced/CI. Batch17;19reviews/16targets,
 original05:04 clock/human waiver/all canonical-prod-activation holds retained.
+
+## 2026-10-07 — Reorder verified post-update deadline and bounded diagnostic plan
+
+Luna/medium20th review completed CLEAN5e after retracting an unsupported upstream
+callback concern; original-render closure capture preserves create placement.
+New-base918focused/33files/staticPASS; published5e with exact224 lease whiledraft,
+lifecycle47events/11sync pushes. Normal36363exit1: start16:41:30.687Z/356716ms,
+contracts child-exitPRD14 at524controls/39actions, lastPRG02/calibrationverified.
+Cumulative deadline after UPDATE+immediate triggers, not per-query measured cost.
+Source cleanupnone proves exactteardown/workdir/fullcanonical5field equality;
+freshreadonly48114 found0disposable resources/5canonicalfieldsreadable/typesabsent.
+Private600failedreceipt e62d6779 retained; no unchangedretry/normalacceptance/CI.
+Sol/high7min boundedsourceanalysis/rootverification found requiredCClass+2Carchive
+writes and no large safe removal. Select a separately reviewed diagnostic-only
+finite EXPLAIN+temporarypinnedRPC scalar timing profile; differentcachedplan/body
+is not product acceptance. SameSol/high solewriter ownsdiagnostic source/tests/
+minimalnativeplumbing; root lifecycle/docs/Git/review/runtime. No migration/src/
+types/config/deps/triggers/caps/deadline change, allholds unchanged. Batch18in
+progress;20reviews/17targets/17committedfixes(original05:04/taskwaiver retained).
+Diagnostic implementation is uncommitted: separate closed lifecycle/CLI, exact
+two SQL frames, numeric-only timing/plan receipt and no normal acceptance. Root
+135 lifecycle/diagnostic checks PASS; startup summary16962/17000 and required
+setup checks PASS. Prior focused935PASS/2FAIL and startup203PASS/3FAIL retained;
+helper extraction preserves normal guard order, required setup text restored.
+All60 prior rolling bodies and archive prefix retained, prior60/60 cap PASS;
+official default trim now retains40 rolling entries and archives20, without loss.
+Sol/high added four actual NativeSession stream regressions in one test file:
+163 checks PASS41.39s, writer stopped, ~3min elapsed/active tokens unknown.
+Final focused941/34files PASS150s; architecture/UI/design/TypeScript/lint PASS.
+Staged audit7 TypeScript files PASS; product migration253/SHA71ed unchanged.
+Frozen independent review and diagnostic execution remain pending; no runtime
+or normal/types/forced/CI acceptance, readiness or phase-exit claim.

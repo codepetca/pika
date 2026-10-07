@@ -52,6 +52,15 @@ describe('closed reorder lifecycle source contracts', () => {
     expect(() => parseTestOwnerReorderLifecycleArgs(['--head', ...args.slice(1)])).toThrow()
     expect(() => parseTestOwnerReorderLifecycleArgs([...args.slice(0, 3), 'after-fixture', '--generate-types'])).toThrow()
   })
+  it('keeps diagnostic execution separate and rejects types or forced modes before platform calls', async () => {
+    const main = await import('../../scripts/check-contextual-test-owner-reorder-lifecycle')
+    const args = ['--reviewed-head', 'a'.repeat(40), '--mode', 'normal']
+    expect(main.testOwnerReorderDiagnosticLifecycleMain).toBeTypeOf('function')
+    for (const rejected of [[...args, '--generate-types'], [...args.slice(0, 3), 'after-fixture'], [...args.slice(0, 3), 'before-capture']]) {
+      await expect(main.testOwnerReorderDiagnosticLifecycleMain(rejected)).rejects.toMatchObject({ code: 'ERR_ASSERTION', actual: false, expected: true })
+    }
+    expect(() => parseTestOwnerReorderLifecycleArgs([...args, '--diagnose-bulk'])).toThrow()
+  })
   it.each(['after-fixture', 'before-capture'])('admits forced cleanup evidence only after complete setup and exact failure at %s', mode => {
     const e = new AssignmentListLifecycleError({ stage: mode, error: Error('Forced isolated lifecycle failure') }, [])
     expect(testOwnerReorderForcedReceipt(mode, e, true)).toEqual({ stdout: 'PASS isolated test-owner-reorder exact teardown and unchanged canonical baseline.\n',
@@ -185,6 +194,7 @@ describe('closed reorder lifecycle source contracts', () => {
 })
 
 describe.sequential('actual original lifecycle with offline platform faults', () => {
+  const diagnosticFaults = ['diagnostic-complete', 'diagnostic-run', 'diagnostic-receipt', 'diagnostic-spoof', 'diagnostic-teardown'] as const
   const guardFaults = ['guard-git-head', 'guard-git-root', 'guard-git-status', 'guard-migration-manifest',
     'guard-migration-source', 'guard-inventory', 'guard-resources', 'guard-sql', 'guard-replaced', 'guard-success-later'] as const
   afterEach(() => {
@@ -219,7 +229,7 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
     expect(diagnostic).not.toMatch(/PRIVATE|SECRET|credential|row|PASS/)
     expect(output).not.toHaveBeenCalled()
   })
-  async function faultRun(fault: 'clock' | 'actions' | 'case-clock' | 'prepare-clock' | typeof guardFaults[number], changedField?: keyof typeof canonical) {
+  async function faultRun(fault: 'clock' | 'actions' | 'case-clock' | 'prepare-clock' | typeof guardFaults[number] | typeof diagnosticFaults[number], changedField?: keyof typeof canonical) {
     vi.resetModules()
     const events: string[] = [], canonicalRequests: unknown[] = [], fieldReads: string[] = []
     let launched = false, workdirExists = false, project = '', resources: import('../../scripts/contextual-assignment-list-proof-lifecycle').AssignmentListResource[] = []
@@ -309,11 +319,12 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
           return { actorId: request.proofCase.actorId, classroomId: request.proofCase.classroomId, status: request.proofCase.expectedStatus } },
         async runRevocation() { events.push('inherited-revocation'); throw Error('Must not resume') },
         async verifyRestoration() { events.push('inherited-restoration'); throw Error('Must not resume') },
-        async teardown() { events.push('teardown'); launched = false; resources = [] },
+        async teardown() { events.push('teardown'); launched = false; resources = []
+          if (fault === 'diagnostic-teardown') throw Error('PRIVATE teardown credential') },
         async removeWorkdir() { events.push('remove-workdir'); workdirExists = false },
       }) }
     })
-    if (fault === 'actions' || fault === 'case-clock' || fault.startsWith('guard-')) {
+    if (fault === 'actions' || fault === 'case-clock' || fault.startsWith('guard-') || fault.startsWith('diagnostic-')) {
       vi.doMock('../../scripts/contextual-test-reorder-proof-fixture', async () => ({
         ...await vi.importActual<typeof import('../../scripts/contextual-test-reorder-proof-fixture')>('../../scripts/contextual-test-reorder-proof-fixture'), validateTestOwnerReorderSetupSnapshot: vi.fn(),
       }))
@@ -330,7 +341,25 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
       } }))
       vi.doMock('../../scripts/contextual-test-draft-save-native-contracts', async () => {
         const actual = await vi.importActual<typeof import('../../scripts/contextual-test-draft-save-native-contracts')>('../../scripts/contextual-test-draft-save-native-contracts')
-        return { ...actual, createTestOwnerReorderNativeContracts: (input: Parameters<typeof actual.createTestOwnerReorderNativeContracts>[0]) => {
+        return { ...actual,
+          createTestOwnerReorderDiagnosticNativeContracts: (input: Parameters<typeof actual.createTestOwnerReorderDiagnosticNativeContracts>[0]) => {
+            events.push('diagnostic-factory')
+            const m = actual.buildTestOwnerReorderDiagnosticNativeManifest(input.original, input.fixture, input.reviewedHead, input.repository)
+            const measurement = Object.freeze({ candidatePlanSha256: 'b'.repeat(64), fixedNodeCounts: Object.freeze({ ModifyTable: 1 }),
+              outcome: 'failed' as const, sqlstate: 'PT503', timings: Object.freeze({ beforeWorkUs: 0, beforeUpdateUs: 4000000, afterUpdateUs: 9000000, valid: true }) })
+            const receipt = Object.freeze({ kind: 'test-owner-reorder-diagnostic-not-acceptance', diagnosticOnly: true, measurement,
+              fixtureUnchanged: true, manifestSha256: testOwnerDigest(JSON.stringify(m)), controls: 10, actions: 5, exchangeBytes: 100, remainingSessions: 0,
+              ...(fault === 'diagnostic-receipt' ? { extra: 'PRIVATE row' } : {}) })
+            return { manifest: m, setup: async () => ({ fixtureSha256: testOwnerDigest(JSON.stringify(input.fixture)), setupSha256: testOwnerDigest(m.setup) }),
+              verifyTarget: async () => undefined, diagnostic: () => 'DIAG offline diagnostic failure\n', runDiagnostic: async () => {
+                events.push('diagnostic-run')
+                if (fault === 'diagnostic-run') throw Error('PRIVATE execution credential')
+                if (fault === 'diagnostic-spoof') throw Error('Closed reorder diagnostic completed')
+                return receipt
+              } }
+          },
+          createTestOwnerReorderNativeContracts: (input: Parameters<typeof actual.createTestOwnerReorderNativeContracts>[0]) => {
+          if (fault.startsWith('diagnostic-')) throw Error('Normal factory must not run')
           const m = actual.buildTestOwnerReorderNativeContractsManifest(input.original, input.fixture, input.reviewedHead, input.repository)
           return { setup: async () => ({ fixtureSha256: testOwnerDigest(JSON.stringify(input.fixture)), setupSha256: testOwnerDigest(m.setup) }),
             verifyTarget: async () => undefined, diagnostic: () => 'offline native\n', probeReorderPrivilegeDrift: async () => {
@@ -340,7 +369,15 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
       })
     }
     const main = await import('../../scripts/check-contextual-test-owner-reorder-lifecycle')
-    await expect(main.testOwnerReorderLifecycleMain(['--reviewed-head', 'a'.repeat(40), '--mode', 'normal'])).rejects.toThrow('private details withheld')
+    const succeededDiagnostic = fault === 'diagnostic-complete' && !changedField
+    const invocation = (fault.startsWith('diagnostic-') ? main.testOwnerReorderDiagnosticLifecycleMain : main.testOwnerReorderLifecycleMain)(['--reviewed-head', 'a'.repeat(40), '--mode', 'normal'])
+    if (succeededDiagnostic) {
+      const receipt = await invocation
+      expect(receipt).toMatchObject({ diagnosticOnly: true, normalAcceptance: false, native: { measurement: { outcome: 'failed', sqlstate: 'PT503' } },
+        application: { canonicalAfter: { attempts: 1 } } })
+      expect(receipt).not.toHaveProperty('proof'); expect(receipt).not.toHaveProperty('types')
+      expect(output.mock.calls.map(c => c[0]).join('')).toContain('NOT normal/type/CI acceptance')
+    } else await expect(invocation).rejects.toThrow('private details withheld')
     if (fault === 'prepare-clock') expect(events).not.toContain('teardown')
     else expect(events).toContain('teardown')
     expect(events).toContain('remove-workdir')
@@ -348,15 +385,22 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
     expect(canonicalRequests).toHaveLength(2); expect(canonicalRequests[1]).toEqual(canonicalRequests[0])
     expect(new Set(fieldReads)).toEqual(new Set(Object.keys(canonical)))
     expect(events.at(-1)).toBe('canonical-after'); expect(workdirExists).toBe(false); expect(resources).toEqual([])
-    expect(output).not.toHaveBeenCalled(); expect(failure?.primary).toBeDefined()
+    if (!succeededDiagnostic) expect(output).not.toHaveBeenCalled()
+    expect(failure?.primary).toBeDefined()
     if (changedField) {
       const comparison = failure?.cleanupFailures.find(f => f.stage === 'canonical-after')?.error as { operator?: string; actual?: typeof canonical; expected?: typeof canonical }
       expect(comparison.operator).toBe('deepStrictEqual'); expect(comparison.expected).toEqual(canonical)
       expect(Object.keys(comparison.actual!).sort()).toEqual(Object.keys(canonical).sort())
       expect(comparison.actual?.[changedField]).not.toBe(canonical[changedField])
     }
+    else if (fault === 'diagnostic-teardown') expect(failure?.cleanupFailures.map(f => f.stage)).toEqual(['teardown'])
     else expect(failure?.cleanupFailures).toEqual([])
     expect(events).not.toContain('inherited-revocation'); expect(events).not.toContain('inherited-restoration')
+    if (fault.startsWith('diagnostic-')) {
+      expect(events).toContain('diagnostic-factory'); expect(events.filter(e => e === 'diagnostic-run')).toHaveLength(1)
+      expect(events).not.toContain('inherited-case'); expect(events).not.toContain('action-saturation')
+      expect(stderr.mock.calls.map(c => c[0]).join('')).not.toMatch(/PRIVATE|credential|row|PASS/)
+    }
     if (fault.startsWith('guard-')) {
       const boundary = fault === 'guard-replaced' || fault === 'guard-success-later' ? 'none' : fault.slice('guard-'.length)
       const diagnostic = stderr.mock.calls.map(call => call[0]).join('')
@@ -386,6 +430,8 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
   })
   it.each(guardFaults)('locates %s failures without exposing private errors or skipping cleanup', fault => faultRun(fault))
   it.each(Object.keys(canonical) as Array<keyof typeof canonical>)('never turns canonical-after %s drift into PASS after exhaustion', field => faultRun('clock', field))
+  it.each(diagnosticFaults)('isolates %s from normal acceptance while retaining exact cleanup', fault => faultRun(fault))
+  it.each(Object.keys(canonical) as Array<keyof typeof canonical>)('fails diagnostic completion on canonical-after %s drift', field => faultRun('diagnostic-complete', field))
 })
 
 describe('reorder snapshot/completion admission', () => {
