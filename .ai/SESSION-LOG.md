@@ -11,31 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Blueprint approved integration reconciliation
-
-Reconciled PR1493 onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
-
-## 2026-10-06 — Shared selected-tab visibility
-
-Product-wide fluid UI goal remains active. Baseline actual Blueprint client switches
-retain Settings selection but clip its remounted tab on mobile (4/4 variants).
-Extend the canonical Tabs scrolling contract: reveal selection locally on mount,
-controlled selection or layout change; preserve manual browsing on unrelated renders,
-focus, ancestor scroll, caller state and IDs. No new design/dependency/schema.
-Native Sol/medium owned Tabs/tests; root verified RED→GREEN 11 tests, integrated
-bounded Pattern Lab underline/connected/RTL examples and browser checks. Both-role
-16-case theme/viewport/motion matrix passed; actual unchanged-main Blueprint owner
-switching passed 8 variants via a temporary gated wrapper removed before publication.
-Visual capture/recording evidence is in this chat's `tab-selection-visibility` folder.
-Root corrected two harness assumptions and scoped an existing gallery assertion to
-its intended owner; no weakened behavior assertions. Independent review, exact-SHA
-CI and release state belong to the PR. Earlier PR1490/1491/1493 main-merge and tab-
-motion direction decisions remain pending; no production authorization.
-
-## 2026-10-06 — Approved PR1494 integration reconciliation
-
-Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
-
 ## 2026-10-06 — Shared mobile drawer dismissal controls
 
 Active product-wide fluidity goal advances independently of four pending owner merge/promotion decisions. Reuse ghost IconButton for Navigation Close and both RightSidebar Back variants; preserve original ModalLayer refs, labels, immediate commands and shell. Measured pre-edit mobile targets40/36px versus canonical44px in four role/theme presentations; native baseline keyboard outlines visibly present. New deterministic Pattern Lab reference renders actual owners with fixed local content outside existing golden region. Only teacher Calendar currently enables RightSidebar; student detail evidence is shared-owner composition, not a live student route. No dependency, schema, feature-state or design-promotion change.
@@ -436,3 +411,19 @@ Owner explicitly overrode task approval stops; cumulative8batches/10reviewer lau
 ## 2026-10-06 — Scope Pattern Lab test queries after CI timing failures
 
 65a exact-head CI37539601613 TestBuild13946PASS/2FAIL/8SKIP; two unchanged whole-gallery interactions exceeded5000ms. Both cases pass isolated with coverage; cause of Linux slowdown unproven. Source batch10 narrows QR lookup to real Core controls and navigator lookups to real navigation/target Survey section, retaining all interactions/assertions/5000ms limits and every production blob. Same two-case local coverage observation3.17s→1.11s; partial coverage threshold errors expected, not full-gate evidence. Old ownCI cancelled/draft before correction; accepted32browser/8visual proofs reusable by exact UI identity. Focused, targeted independent review and new exact-head CI pending. Owner task override persists; cumulative counters retained; main mergeholds retained until landing/checkpoint. No production/provider/schema changes.
+
+## 2026-10-06 — Shared Mac CI admission preparation
+
+- Continued the owner's shared-Mac CI goal after #1488 merged; Pika remains public, with runner registration and automatic self-hosted routing pending an explicit activation decision.
+- Prepared an on-demand, one-job Tart host driver with a shared exclusive HQ/Pika lease, separate Pika guest template, private receipts, and disposable VM teardown. Default planning and unregistered rehearsal do not register a GitHub runner or replay migrations.
+- Risk: runtime-platform. Documented the fixed Sep 29–Oct 6 cohort: 179.58 heavy-job hours exceed one serial host's weekly hours before HQ/startup. Initial74ba298c passed15offlinefault tests, focused204/14 plus static checks, and an unregistered VM rehearsal with all3preflights/emptyDocker/ownedVMdeleted/leasefree. PR1512 published draft; two independent reviews identified containment, lease-acquisition, listener-exit and private-diagnostic issues for one batched correction. Final readiness remains tied to corrected-source evidence and the required PR gate.
+
+## 2026-10-06 — Shared Mac one-job CI admission preparation reviewed
+
+Draft PR1512 adds operator-present Pika Tart admission under the shared HQ lease, separate 4CPU/12GiB disposable guest and at most one ephemeral job. Fixed8f6ebdff security and final integration reviews CLEAN after two batched corrections. Focused235/14 and46 offline driver fault cases PASS; exact8f6 unregistered rehearsal passed three canonical preflights, rootless/emptyDocker, bounded private diagnostics, ownedVM disposal and lease release. Source hashes bind retained proof; no SQL replay or registration. Sync incomingmainbac3ab94 (#1511) preserves its survey source/test bytes and both dated history bodies; reviewed driver/preflight/workflow inputs retained. Relevant new-base focused verification and targeted sync acceptance precede a stable reviewed head.
+
+Repository remains public, zero runners and automatic PIKA opt-in unset. Known cohort heavy demand179.58h/week exceeds one serial host's168h theoretical week before HQ/startup; this driver provides no unattended scheduler/fair queue. Exact-head PRGate, new PR merge and private registered activation retain separate owner decisions. No HQ/production mutations. Delegation requested GPT5.6Sol/high security and GPT6.1Sol/high operability (Terra unavailable), five review launches, two fix batches; final source acceptance verified by coordinator. Weekly14% remaining at phase start; effective model/token/active-use telemetry unknown; DeepSeek paused. Task-scoped human stop override persists without removing correctness or consequential authority gates.
+
+## 2026-10-06 — CI runner preparation synchronized after fluidity landing
+
+Owner selected keep-public and coordinate toward merging1512. The1490coordinator explicitly released its temporary main-merge hold after verified landing3a0b17d6; preserve incoming product/CI inputs and both complete continuity histories in1512. Reviewed8f6driver and46fault cases, corrected unregistered rehearsal and security/finalintegration coverage remain source-specific; retain original executionSHA when relevant byte parity permits reuse. Prior25cde focused461/25/static and targeted sync CLEAN; new-base focused/targeted integration and one final exact-head hostedCI/PRGate precede normal squash merge. No public runner registration, privatevisibility, automaticoptin, HQ, database or production changes. Requested source coordinator defer its next mainmerge until1512landing/checkpoint; local softer-modal work can continue. Cumulative review counters and human task-stop waiver retained; weekly11%remaining/ordinaryusageallowed; DeepSeek pause remains.

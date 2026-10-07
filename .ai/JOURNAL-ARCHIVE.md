@@ -40641,3 +40641,29 @@ unknown; no savings claim, DeepSeek owner pause remains honored.
 - Original Sol/medium implementation worker added durable RED→GREEN save/export selection regressions and cleared operation feedback only at actual selection changes. Existing warm list-retry case now preserves failed Export feedback through pending/rejection/success; read retries do not clear unrelated feedback. All 56 affected Blueprint/client/cache/editor tests, TS and scoped lint pass.
 - Root owns cumulative required gate, publication, one targeted re-review and a different final integration reviewer. Budget remains original 00:40:12 UTC: one initial wave, one planned correction batch, no reset. Full visual state matrix remains valid for unchanged styling/composition; targeted actual-client selection/error evidence is next.
 - Broad product goal active. No new merge or production authority; PR #1491 final CI passed and PR #1490 final browser CI remains under its one watcher.
+
+<!-- pika-session-log-archive-batch:0e8cd2ed69a01911198586bd26a97cc974de0453aeac4cbe30508b41380033ad -->
+## 2026-10-06 — Blueprint approved integration reconciliation
+
+Reconciled PR1493 onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
+
+## 2026-10-06 — Shared selected-tab visibility
+
+Product-wide fluid UI goal remains active. Baseline actual Blueprint client switches
+retain Settings selection but clip its remounted tab on mobile (4/4 variants).
+Extend the canonical Tabs scrolling contract: reveal selection locally on mount,
+controlled selection or layout change; preserve manual browsing on unrelated renders,
+focus, ancestor scroll, caller state and IDs. No new design/dependency/schema.
+Native Sol/medium owned Tabs/tests; root verified RED→GREEN 11 tests, integrated
+bounded Pattern Lab underline/connected/RTL examples and browser checks. Both-role
+16-case theme/viewport/motion matrix passed; actual unchanged-main Blueprint owner
+switching passed 8 variants via a temporary gated wrapper removed before publication.
+Visual capture/recording evidence is in this chat's `tab-selection-visibility` folder.
+Root corrected two harness assumptions and scoped an existing gallery assertion to
+its intended owner; no weakened behavior assertions. Independent review, exact-SHA
+CI and release state belong to the PR. Earlier PR1490/1491/1493 main-merge and tab-
+motion direction decisions remain pending; no production authorization.
+
+## 2026-10-06 — Approved PR1494 integration reconciliation
+
+Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.

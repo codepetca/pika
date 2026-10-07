@@ -20,6 +20,11 @@ Preparation does not change visibility, register a runner, or enable the setting
 Hardware activation remains pending until a host is chosen and a real self-hosted
 run passes.
 
+The initial host choice is the existing Mac shared with HQ, using separate Linux
+templates and a cooperative exclusive lease. Pika's host driver below admits one
+job on demand. Automatic queue discovery and fairness between repositories remain
+unimplemented.
+
 ## Runner requirements
 
 Use Ubuntu 24.04 on a dedicated machine or VM. On a Mac, use a Linux VM. An
@@ -58,6 +63,10 @@ repositories for self-hosting; see [runner setup](https://docs.github.com/en/act
 
 After the owner makes the repository private:
 
+For the shared Mac pilot, use the one-job admission procedure below to perform
+registration and execution. The general setup sequence also applies to a
+separately dedicated Linux host:
+
 1. Use Settings → Actions → Runners → New self-hosted runner for the host's Linux
    architecture. Follow its current download/checksum instructions. Keep the
    short-lived registration token out of source and logs.
@@ -74,6 +83,65 @@ Unset/false settings and public or fork PRs use hosted compute. Malformed settin
 fail. An explicit self-hosted dispatch is refused for a public repository.
 Production migrations keep their existing manual hosted workflow and separate
 authorization. This change gives CI no production credentials or rollout authority.
+
+## Shared Mac admission
+
+Run the operator driver from this trusted checkout on the prepared Mac:
+
+```bash
+python3 scripts/run-ci-tart-host.py
+python3 scripts/run-ci-tart-host.py --rehearse
+```
+
+The default prints a plan without booting or registering anything. Rehearsal
+claims `/private/tmp/hq-books-deep-validation-host.lock`, clones the stopped
+`pika-ci-linux-template-prep` template, and checks the unregistered Linux ARM64
+guest as the dedicated runner user. It transfers only the canonical resource
+preflight into a fresh guest directory and checks all three lanes. It does not
+replay migrations. Receipts and child logs are private files under
+`~/.codex/artifacts/pika/ci-tart-host` on the prepared operator account.
+While host admission and child containment remain verified, the driver collects
+bounded tails of allowlisted guest
+runner diagnostics into that private directory. It excludes configuration,
+credentials, and environment files and redacts its known registration token.
+The receipt records collection failure or skipped collection. These
+bounded logs may be truncated and do not replace GitHub job results.
+
+The shared lease covers clone, boot, guest checks, and destruction. A held lease
+or unexpected running Tart VM causes refusal; the driver never steals a stale
+lease. It checks ownership before releasing it and retains its lease when VM
+destruction or registration cleanup cannot be verified. Inspect that receipt and the owned
+VM before recovery. Do not delete another provisioner's lease or stop its VM.
+HQ's provisioner must honor the same lease for mutual exclusion to work.
+
+After a separate owner decision makes Pika private and authorizes registration,
+leave `PIKA_SELF_HOSTED_CI` unset and prepare a deliberate self-hosted diagnostic.
+Once an eligible CI job is queued, serve one job:
+
+```bash
+python3 scripts/run-ci-tart-host.py --serve-one \
+  --ack PRIVATE_PIKA_ONE_JOB_RUNNER --run-id <github-run-id>
+```
+
+The driver refreshes repository visibility before admission and registration,
+refuses public repositories, and requires queued Pika CI demand. The host's `gh`
+authentication obtains the short-lived registration token; stdin carries it into
+the guest. Host credentials and developer environment files stay on the host.
+The runner is ephemeral and its VM is disposable. GitHub deregisters an
+ephemeral runner after its one job; see [runner lifecycle and routing](https://docs.github.com/en/actions/reference/runners/self-hosted-runners).
+
+`--run-id` is a demand hint. GitHub routes matching labels and may assign a
+different eligible Pika job. The receipt leaves the actual assignment unknown.
+Verify the unique runner name in GitHub job telemetry and check its lane result;
+do not infer assignment from the requested run ID. The driver exits after one job;
+invoke it again for another job, after HQ or another Pika invocation releases the
+lease. Its default idle limit is 300 seconds and lifetime limit is 7200 seconds;
+`--idle-seconds` and `--lifetime-seconds` set explicit bounds. Keep an operator
+present for this pilot. It installs no background scheduler or launch service.
+
+Verify runner identity, lane results, teardown, and the required PR gate before
+enabling automatic routing. This on-demand pilot alone does not establish that
+the shared host can keep up with the full queue.
 
 ## Hosted fallback
 
@@ -121,3 +189,16 @@ Compare job timings and runner identities for similarly classified runs. A singl
 VM saves hosted minutes but serializes heavy work. Artifact/cache storage has
 separate billing. Verify [current billing terms](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
 before activation; self-hosted execution is currently listed as free.
+
+The fixed usage cohort captured from 2026-09-29 13:12:43 UTC through
+2026-10-06 13:12:43 UTC contained at least 11,588 projected private job-rounded
+minutes: 11,090 in heavy jobs and 498 in classification/PR Gate. Moving the heavy
+jobs would remove 95.7% of that known projection. These are projected minutes for
+that public-repository cohort, not an actual private bill or a future forecast;
+three unfinished jobs were excluded.
+
+The same cohort contained 179.58 heavy-job hours. A single serial host offers at
+most 168 hours per week before startup and HQ use. The shared Mac pilot therefore
+does not satisfy the measured demand at that run frequency. Measure queue age
+and throughput during the pilot before deciding whether to reduce redundant CI
+requests or add capacity. Retain all selected checks and the required PR gate.
