@@ -2833,66 +2833,77 @@ Correct Option: 2
     it('applies valid markdown and saves through draft endpoint', async () => {
       const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
       const onTestUpdate = vi.fn()
-      fetchMock
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            editingPolicy: { structureLocked: false },            draft: {
-              version: 1,
-              content: {
-                title: 'Markdown Test',
-                show_results: false,
-                questions: sampleQuestions,
-              },
+      const assessmentId = 'markdown-apply-owner'
+      holdAutosaveDebounce()
+      const initialDraftResponse = {
+        ok: true,
+        json: async () => ({
+          editingPolicy: { structureLocked: false },            draft: {
+            version: 1,
+            content: {
+              title: 'Markdown Test',
+              show_results: false,
+              questions: sampleQuestions,
             },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            test: {
-              documents: [],
+          },
+        }),
+      }
+      const detailsResponse = {
+        ok: true,
+        json: async () => ({
+          test: {
+            documents: [],
+          },
+        }),
+      }
+      const savedDraftResponse = {
+        ok: true,
+        json: async () => ({
+          editingPolicy: { structureLocked: false },            draft: {
+            version: 2,
+            content: {
+              title: 'Markdown Test Updated',
+              show_results: true,
+              questions: [
+                {
+                  id: markdownQuestionId1,
+                  question_type: 'multiple_choice',
+                  question_text: 'Updated prompt?',
+                  options: ['A', 'B'],
+                  correct_option: 1,
+                  answer_key: null,
+                  points: 1,
+                  response_max_chars: 5000,
+                  response_monospace: false,
+                },
+                {
+                  id: markdownQuestionId2,
+                  question_type: 'open_response',
+                  question_text: 'Explain why.',
+                  options: [],
+                  correct_option: null,
+                  answer_key: 'Any valid explanation.',
+                  points: 5,
+                  response_max_chars: 5000,
+                  response_monospace: true,
+                },
+              ],
             },
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            editingPolicy: { structureLocked: false },            draft: {
-              version: 2,
-              content: {
-                title: 'Markdown Test Updated',
-                show_results: true,
-                questions: [
-                  {
-                    id: markdownQuestionId1,
-                    question_type: 'multiple_choice',
-                    question_text: 'Updated prompt?',
-                    options: ['A', 'B'],
-                    correct_option: 1,
-                    answer_key: null,
-                    points: 1,
-                    response_max_chars: 5000,
-                    response_monospace: false,
-                  },
-                  {
-                    id: markdownQuestionId2,
-                    question_type: 'open_response',
-                    question_text: 'Explain why.',
-                    options: [],
-                    correct_option: null,
-                    answer_key: 'Any valid explanation.',
-                    points: 5,
-                    response_max_chars: 5000,
-                    response_monospace: true,
-                  },
-                ],
-              },
-            },
-          }),
-        })
+          },
+        }),
+      }
+      // Bind responses to this owner and request instead of a shared positional
+      // queue; the assertions below still reject duplicate owner requests.
+      fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = `${init?.method ?? 'GET'} ${String(input)}`
+        if (request === `GET /api/teacher/tests/${assessmentId}/draft`) return initialDraftResponse
+        if (request === `GET /api/teacher/tests/${assessmentId}`) return detailsResponse
+        if (request === `PATCH /api/teacher/tests/${assessmentId}/draft`) return savedDraftResponse
+        throw new Error(`Unexpected request in Markdown apply fixture: ${request}`)
+      })
 
       const testAssessment = makeTestWithStats({
+        id: assessmentId,
         assessment_type: 'test',
         title: 'Markdown Test',
       })
@@ -2912,8 +2923,6 @@ Correct Option: 2
 
       // Verify the expected initial draft before editing.
       await waitFor(() => expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('Red'))
-
-      holdAutosaveDebounce()
 
       fireEvent.click(screen.getByText('Markdown'))
       fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
@@ -2956,6 +2965,17 @@ _None_
         expect(screen.getByText('Markdown applied')).toBeInTheDocument()
       })
 
+      const ownerCalls = fetchMock.mock.calls.filter(([input]) => (
+        String(input) === `/api/teacher/tests/${assessmentId}`
+        || String(input) === `/api/teacher/tests/${assessmentId}/draft`
+      ))
+      expect(ownerCalls.map(([input, init]) => `${init?.method ?? 'GET'} ${String(input)}`)).toEqual([
+        `GET /api/teacher/tests/${assessmentId}/draft`,
+        `GET /api/teacher/tests/${assessmentId}`,
+        `PATCH /api/teacher/tests/${assessmentId}/draft`,
+      ])
+      expect(onTestUpdate).toHaveBeenCalledTimes(1)
+
       const patchCall = fetchMock.mock.calls.find(
         (call: any[]) =>
           typeof call[0] === 'string' &&
@@ -2964,6 +2984,9 @@ _None_
       )
       expect(patchCall).toBeTruthy()
       const body = JSON.parse(patchCall?.[1]?.body ?? '{}')
+      expect(body.version).toBe(1)
+      expect(body.content.source_format).toBe('markdown')
+      expect(body.content.source_markdown).toContain('Updated prompt?')
       expect(body.content.title).toBe('Markdown Test Updated')
       expect(body.content.show_results).toBe(true)
       expect(body.content.questions).toHaveLength(2)

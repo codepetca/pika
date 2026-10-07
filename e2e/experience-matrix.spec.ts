@@ -10,6 +10,7 @@ import type { TeacherAttendanceView } from '../src/lib/teacher-attendance'
 import { LONG_ROSTER_SIZE, TABLE_CLASSROOM_ID, mockLongTeacherTable, mockTableShellReads } from './helpers/teacher-student-tables'
 import { verifyWorkspaceMotion } from './helpers/workspace-motion'
 import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
+import { verifyAssignmentPreviewMotion } from './helpers/assignment-preview-motion'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -51,6 +52,18 @@ const rolloverBlueprint = {
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Assignment Instructions preview continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('dismisses the real preview while preserving its editor', async ({ page }, testInfo) => {
+        await verifyAssignmentPreviewMotion(page, testInfo, motion)
+      })
+    })
+  }
+})
 
 test.describe('Blueprint required-read recovery', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
