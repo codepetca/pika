@@ -4,6 +4,7 @@ import { newAssignmentListProofFixture } from '../../scripts/contextual-assignme
 import { newTestOwnerReorderFixture } from '../../scripts/contextual-test-reorder-proof-fixture'
 import { runTestOwnerReorderCommittedTransitions, testOwnerReorderCommittedManifest, validateTestOwnerReorderCommittedSql } from '../../scripts/check-contextual-test-reorder-committed'
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
+import * as ownerFixture from '../../scripts/contextual-test-owner-detail-proof-fixture'
 
 const fixture=newTestOwnerReorderFixture(newAssignmentListProofFixture(new Date('2026-10-07T04:00:00Z')))
 const manifest=testOwnerReorderCommittedManifest(fixture)
@@ -34,6 +35,40 @@ function mockDriver(mutate?:(receipt:Record<string,unknown>,index:number)=>void)
 }
 
 describe('inert fixed committed owner Test reorder contracts',()=>{
+  it('guards the exact phase side in one writable transaction and preserves every inherited safety predicate',()=>{
+    const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';"
+    const terminal="end;$guard$;select 'ok';rollback;"
+    const original=ownerFixture.testOwnerGuardSql(manifest.projectId)
+    expect(original.startsWith(prefix)&&original.endsWith(terminal)).toBe(true)
+    const identity=`current_setting('application_name')<>'${manifest.projectId}_fixture'`
+    expect(original.split(identity)).toHaveLength(2)
+    for(const step of manifest.steps){
+      const own=`current_setting('application_name')<>'${manifest.projectId}_draft_${step.side}'`
+      const inherited=original.slice(prefix.length,-terminal.length).replace(identity,own)
+      expect(step.sql.startsWith("begin;set local lock_timeout='1s';set local statement_timeout='12s';set local idle_in_transaction_session_timeout='30s';")).toBe(true)
+      expect(step.sql).toContain(inherited)
+      expect(step.sql).toContain("current_database()<>'postgres' or current_user<>'postgres'")
+      expect(step.sql).toContain("to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null")
+      expect(step.sql).not.toContain("select 'ok'")
+      expect(step.sql).not.toContain('rollback;')
+      expect(step.sql).not.toContain(`${manifest.projectId}_fixture`)
+      expect(step.sql).not.toContain(`${manifest.projectId}_draft_${step.side==='holder'?'contender':'holder'}`)
+      expect(step.sql.match(/(?:^|;)begin;/g)).toHaveLength(1)
+      expect(step.sql.match(/select result from reorder_committed_result;/g)).toHaveLength(1)
+      for(const wrong of ['fixture',step.side==='holder'?'draft_contender':'draft_holder','draft_contracts'])
+        expect(validateTestOwnerReorderCommittedSql(manifest,step.sql.replace(`_draft_${step.side}'`,`_${wrong}'`))).toBe(false)
+    }
+  })
+  it('fails closed if the inherited guard wrappers or sole setup identity change',()=>{
+    const original=ownerFixture.testOwnerGuardSql(manifest.projectId)
+    const identity=`current_setting('application_name')<>'${manifest.projectId}_fixture'`
+    for(const altered of [original.replace('begin read only;','begin;'),original.replace("lock_timeout='3s'","lock_timeout='2s'"),
+      original.replace("statement_timeout='30s'","statement_timeout='12s'"),original.replace("select 'ok';rollback;",'rollback;'),
+      original.replace(identity,'true'),original.replace(identity,`${identity} or ${identity}`)]){
+      const spy=vi.spyOn(ownerFixture,'testOwnerGuardSql').mockReturnValue(altered)
+      try{expect(()=>testOwnerReorderCommittedManifest(fixture)).toThrow()}finally{spy.mockRestore()}
+    }
+  })
   it('has seven sealed ordered schedules and exactly31 admitted dispatches',()=>{
     expect(manifest.schedules).toEqual(['create-freshness','delete-freshness','reparent-freshness','archive-freshness','last-writer','owner-freshness','legacy-max'])
     expect(manifest.steps).toHaveLength(31);expect(Object.isFrozen(manifest.steps)).toBe(true)

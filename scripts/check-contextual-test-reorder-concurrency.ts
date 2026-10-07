@@ -17,6 +17,24 @@ function bounded(sql: string) { assert(Buffer.byteLength(sql) <= TEST_OWNER_REOR
 function uuids(ids: readonly string[]) { return `array[${ids.map(id => `${q(id)}::uuid`).join(',')}]::uuid[]` }
 function exactOne(sql: string) { return `do $one$ declare n integer;begin ${sql};get diagnostics n=row_count;if n<>1 then raise exception 'Exact reorder holder scope differs';end if;end;$one$;` }
 
+function raceGuard(projectId: string) {
+  const prefix = "begin read only;set local lock_timeout='3s';set local statement_timeout='30s';"
+  const terminal = "end;$guard$;select 'ok';rollback;"
+  const original = testOwnerGuardSql(projectId)
+  const identity = `current_setting('application_name')<>${q(projectId + '_fixture')}`
+  assert(original.startsWith(prefix) && original.endsWith(terminal))
+  assert.equal(original.split(identity).length, 2)
+  // Preserve every provider/purge/bucket/control predicate. The closed native
+  // driver owns precisely these two session names, not the setup-only identity.
+  const inherited = original.slice(prefix.length, -terminal.length).replace(identity,
+    `current_setting('application_name') not in (${q(projectId + '_draft_holder')},${q(projectId + '_draft_contender')})`)
+  return bounded(`begin;set local lock_timeout='1s';set local statement_timeout='12s';set local idle_in_transaction_session_timeout='180s';${inherited}
+ if current_database()<>'postgres' or current_user<>'postgres'
+ or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null
+ then raise exception 'Migration253 disposable source differs';end if;
+end;$guard$;`)
+}
+
 function graph(classroomId: string) {
   const cid = `${q(classroomId)}::uuid`
   const ids = `select id from public.tests where classroom_id=${cid}`
@@ -45,7 +63,7 @@ export function testOwnerReorderConcurrencyManifest(fixture: TestOwnerReorderFix
   const actor = `${q(c.actorId)}::uuid`, cid = `${q(c.classroomId)}::uuid`, tid = `${q(test.id)}::uuid`
   const otherClass = fixture.classes.find(row => row.label === 'student-owner'); assert(otherClass)
   const key = `pg_catalog.hashtextextended('pika-classroom-operation:'||${cid}::text,0)`
-  const begin = `${testOwnerGuardSql(projectId)}\nbegin;set local lock_timeout='1s';set local statement_timeout='12s';set local idle_in_transaction_session_timeout='180s';`
+  const begin = raceGuard(projectId)
   const call = `public.reorder_tests_for_owner_v1(${actor},${cid},${uuids(request.test_ids)},pg_catalog.clock_timestamp()+interval '8 seconds')`
   const rowScope = `exists(select 1 from public.classrooms where id=${cid})`
   function make(label: string, holder: string, relation: string, scope = rowScope, advisory = false,

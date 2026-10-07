@@ -4,6 +4,8 @@ import { newAssignmentListProofFixture } from '../../scripts/contextual-assignme
 import { newTestOwnerReorderFixture } from '../../scripts/contextual-test-reorder-proof-fixture'
 import { runTestOwnerReorderConcurrency, testOwnerReorderConcurrencyManifest, validateTestOwnerReorderConcurrencySql } from '../../scripts/check-contextual-test-reorder-concurrency'
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
+import { testOwnerGuardSql } from '../../scripts/contextual-test-owner-detail-proof-fixture'
+import * as ownerFixture from '../../scripts/contextual-test-owner-detail-proof-fixture'
 
 const fixture = newTestOwnerReorderFixture(newAssignmentListProofFixture(new Date('2026-10-07T04:00:00Z')))
 const manifest = testOwnerReorderConcurrencyManifest(fixture)
@@ -13,6 +15,39 @@ const target: DraftSaveTarget = Object.freeze({ projectId: manifest.projectId, a
   acceptedManifestSha256: createHash('sha256').update(JSON.stringify(manifest)).digest('hex') })
 
 describe('inert owner Test reorder rollback race schedules', () => {
+  it('retains every inherited guard predicate while admitting only the exact two race sessions in one writable transaction', () => {
+    const prefix = "begin read only;set local lock_timeout='3s';set local statement_timeout='30s';"
+    const terminal = "end;$guard$;select 'ok';rollback;"
+    const identity = `current_setting('application_name')<>'${manifest.projectId}_fixture'`
+    const original = testOwnerGuardSql(manifest.projectId)
+    expect(original.startsWith(prefix) && original.endsWith(terminal)).toBe(true)
+    expect(original.split(identity)).toHaveLength(2)
+    const inherited = original.slice(prefix.length, -terminal.length).replace(identity,
+      `current_setting('application_name') not in ('${manifest.projectId}_draft_holder','${manifest.projectId}_draft_contender')`)
+    for (const schedule of manifest.schedules) for (const sql of [schedule.holderSql, schedule.rejectSql]) {
+      expect(sql).toContain(inherited)
+      expect(sql.startsWith("begin;set local lock_timeout='1s';set local statement_timeout='12s';")).toBe(true)
+      expect(sql).not.toContain(identity)
+      expect(sql).not.toContain('begin read only')
+      expect(sql).not.toContain("select 'ok';rollback;")
+      expect(sql).toContain("to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null")
+      expect(sql).toContain("current_database()<>'postgres' or current_user<>'postgres'")
+      expect(validateTestOwnerReorderConcurrencySql(manifest, sql.replace('_draft_holder', '_fixture'))).toBe(false)
+    }
+  })
+
+  it('rejects changed inherited wrappers or a missing/duplicated setup identity before generating any race SQL', () => {
+    const original = testOwnerGuardSql(manifest.projectId)
+    const identity = `current_setting('application_name')<>'${manifest.projectId}_fixture'`
+    for (const changed of [original.replace('begin read only;', 'begin;'),
+      original.replace("lock_timeout='3s'", "lock_timeout='2s'"), original.replace("statement_timeout='30s'", "statement_timeout='12s'"),
+      original.replace("select 'ok';rollback;", 'rollback;'), original.replace(identity, 'true'),
+      original.replace(identity, `${identity} or ${identity}`)]) {
+      const spy = vi.spyOn(ownerFixture, 'testOwnerGuardSql').mockReturnValue(changed)
+      try { expect(() => testOwnerReorderConcurrencyManifest(fixture)).toThrow() } finally { spy.mockRestore() }
+    }
+  })
+
   it('seals real writer operations and precise contention, not generic caller SQL', () => {
     expect(manifest.schedules).toHaveLength(21)
     expect(Object.isFrozen(manifest.schedules)).toBe(true)

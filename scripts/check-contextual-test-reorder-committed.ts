@@ -23,6 +23,26 @@ type Side = 'holder' | 'contender'
 type Step = Readonly<{ label: string; side: Side; sql: string; actorId:string; classroomId:string; outcome: string; chain: 'prior' | 'cached' | 'same' }>
 const SCHEDULES=Object.freeze(['create-freshness','delete-freshness','reparent-freshness','archive-freshness','last-writer','owner-freshness','legacy-max'])
 
+function committedGuard(projectId:string,side:Side) {
+  assert(side==='holder'||side==='contender')
+  const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';"
+  const terminal="end;$guard$;select 'ok';rollback;"
+  const original=testOwnerGuardSql(projectId)
+  const identity=`current_setting('application_name')<>${q(projectId+'_fixture')}`
+  assert(original.startsWith(prefix)&&original.endsWith(terminal))
+  assert.equal(original.split(identity).length,2)
+  // Preserve every inherited provider/purge/bucket/control predicate verbatim.
+  // Only the setup-only identity and setup transaction/result are adapted:
+  // each closed dispatch belongs to exactly its source-declared session side.
+  const inherited=original.slice(prefix.length,-terminal.length).replace(identity,
+    `current_setting('application_name')<>${q(projectId+'_draft_'+side)}`)
+  return `begin;set local lock_timeout='1s';set local statement_timeout='12s';set local idle_in_transaction_session_timeout='30s';${inherited}
+ if current_database()<>'postgres' or current_user<>'postgres'
+ or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamptz)') is null
+ then raise exception 'Migration253 disposable source differs';end if;
+end;$guard$;`
+}
+
 function functions() {
   return `create or replace function pg_temp.reorder_committed_graph() returns jsonb language plpgsql as $graph$
  declare catalog jsonb:='[]'::jsonb;g jsonb:='{}'::jsonb;rows jsonb;t record;begin
@@ -112,7 +132,7 @@ export function testOwnerReorderCommittedManifest(f: TestOwnerReorderFixture) {
     const schedule=label.split(':')[0]
     const actorId=schedule==='legacy-max'?student.owner:teacher.owner
     const classroomId=schedule==='legacy-max'?student.id:['last-writer','owner-freshness'].includes(schedule)?teacher.id:empty.id
-    const sql=`${testOwnerGuardSql(projectId)}\nbegin;set local lock_timeout='1s';set local statement_timeout='12s';set local idle_in_transaction_session_timeout='30s';
+    const sql=`${committedGuard(projectId,side)}
  ${fn}
  create temporary table if not exists reorder_committed_cache(label text primary key,ids uuid[] not null,max_position integer,sha text not null) on commit preserve rows;
  create temporary table if not exists reorder_committed_result(result jsonb) on commit delete rows;

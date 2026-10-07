@@ -467,3 +467,17 @@ failed extraction, both exact comparisons and13trigger/21column/22routine seals.
 Worker29 affected checks/3files and lint/diff PASS; product253 SHA unchanged.
 Targeted review before a new normal proof is next, not a blind retry. Canonical/
 production249–253 and all rollout/promotion holds remain; no phase-exit claim.
+
+## 2026-10-07 — Test reorder proof session identity correction
+
+Sol/high targeted catalog review cleared89a26aacf. Normal attempt2 passed all
+nine rollback DB batches and full fixture comparison, then failed the first
+race holder's setup-only session guard (P0001/action26). Exact disposal and
+all-five-field canonical preservation again passed; no complete proof/types.
+RootTDD corrected race guards for the exact holder/contender names; original
+Sol/high fixture worker fixed the same defect in committed steps with exact
+side binding. Inherited provider/purge/bucket/control predicates remain verbatim,
+one writable transaction/one receipt, same finite caps/clocks/product253SHA.
+Root106 affected checks/4files PASS, additional race wrapper/identity regression
+5PASS/lint/diff; worker17 committed checks PASS. Batch3 targeted review before
+fresh native proof remains required. No PR, phase exit or rollout activation.
