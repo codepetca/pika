@@ -11,55 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — New Classwork placement and Test top-order regression
-
-UI creation now saves new Assignment/material/survey positions after the last existing released item, before trailing drafts, through the existing mixed reorder API. Existing relative order stays intact; repeated Assignment saves do not reposition twice. Placement conflicts retain successful creation and warn before reload. Tests already persist/prepend at top; expanded the creation regression with released and draft siblings. Risk profile: none; no schema or dependency changes.
-
-Verification: targeted 161 PASS; focused 482/21 and all static checks PASS; Playwright teacher/student, desktop/mobile, light/dark creation+refresh matrix 4/4 PASS, screenshots inspected against existing work-card owners/Pattern Lab. Final fixture capture 4/4 PASS with no page errors. One unchanged promotion-workflow test timed out at5s under concurrent load, then passed4/4 alone; final focused rerun uses one worker. Reuse rows/shell; extend mixed-order helper; no composite accessibility or Pattern Lab contract change. Coordinator owns codex/new-work-placement; native GPT-6.1 Sol/medium read-only creation map accepted with local source verification. DeepSeek paused by owner; weekly readings 19% then18% remaining, task-attributable tokens/time unknown. Independent reviews completed below; Terra unavailable. Production promotion remains outside scope.
-
-CI follow-up: ready run37493959888 passed13791 tests but one unchanged TestDetailPanel Markdown test missed its confirmation (exact CI cause unproven); PR1509 returned to draft. The testcase now verifies expected question data before editing (product source unchanged). Targeted57/focused482/static PASS; targeted GPT-6.1 Sol/medium review PASS with causal wording corrected. Final cumulative GPT-5.6 Sol/high review PASS at 5a9e9598; one correction batch, two draft correction pushes after wording amendment. Exact ready CI37497118849 PASS: all five jobs including browser, database, Test & Build, and PR Gate; measured wall 3774 seconds.
-
-Approved main refresh: owner approved archive conflict resolution, one changed-base review capped at five minutes, fresh required CI, and PR1509 merge into main. Main advanced to2d89088c during CI. Rebase retained upstream archive after verifying the branch-trimmed entry already exists verbatim; source and test files for this feature are byte-identical to reviewed5a9e9598. Restored authoritative main session history and appended only this task receipt before official trim. Prior three review passes and one correction batch remain counted; next changed-base review is launch4. Weekly remaining15%; DeepSeek pause remains active; attributable tokens/active time unknown. No production or migration changes. Refreshed checks/review/CI and authorized main merge pending.
-
-Same-code follow-up: CI37509755994 again missed Markdown confirmation with an undefined fetch response in the failure UI; delayed local diagnostic passed and was fully restored. Single unchanged-candidate retry37512176534 PASS in all five jobs, measured wall3735 seconds. Main then advanced through CI diagnostics #1488 to693a096d; only archive bookkeeping conflicted. Feature source/test files remain identical. Owner conflict-resolution/main-merge approval retained; one approved changed-base reviewer remains capped at five minutes aggregate (about one minute used, at most three minutes for this bookkeeping continuation). Review launch5, third overall correction/sync batch; no new product correction or review-budget reset. Restore authoritative main history, retain only task receipt and omit duplicate archive body only after exact upstream membership proof; refreshed gate and merge pending.
-
-Third main refresh: main advanced to bac3ab94 through Survey results #1511 before the database lane completed. Test/build and browser CI passed; old candidate is no longer mergeable. Prior unique trim body verified verbatim in current main archive. Preserve authoritative main history and insert this same-date task entry before existing October6 entries; official trim --keep60 retains41 within the unchanged60-entry validation cap and leaves the archive untouched. Eight owned source/test files remain byte-identical. Fourth overall correction/sync batch; next review launch6 uses at most three remaining minutes of the approved five-minute aggregate changed-base allowance (about two used). No new application correction. Fresh checks/gate and authorized main merge pending.
-
-## 2026-10-06 — Preserve Daily-summary main updates during fluidity landing
-
-Merged main PR #1506 into the reviewed fluidity candidate as one bounded reconciliation. Preserve current-main Daily summaries and student questions, all nine reviewed feature heads, the exact main archive prefix, and every prior rolling-history body. Three test/policy/history files auto-merge; production code has no textual conflict. Previous candidate 27dd240e passed local focused/static, 172 distinct browser cases, independent source review and CI/PR Gate (one unchanged test/build retry). New-head focused/browser/visual, final independent integration review and exact-head CI are required before authorized main merge and superseded-PR closure. No new feature or design change; softer modal exits follow landing.
-
-## 2026-10-06 — Minimal survey results
-
-Task/branch: survey results cleanup, `codex/survey-results-minimal`.
-Combined survey title and Results, removed chart icon/visible option tallies,
-increased result question text to 18px, and placed wrapped option labels inside
-shared percentage tracks for teachers and students. Existing heading/Markdown
-owners reused; shared result bar extended; deterministic Pattern Lab entry added.
-Reference: Pattern Lab compact page actions/card framing. No new interaction,
-experimental pattern or composite-widget contract; no schema/API changes.
-Visual matrix: both roles, 1440×900/390×844, light/dark; loaded results, long
-labels and 0/5/35/60/100% fills inspected. Captures and rerunnable synthetic-API
-fixture script: `output/playwright/`; source changes match PR implementation.
-50 focused survey tests pass. Required check:focused with --max-workers 1:
-414 tests pass, architecture/UI/design policy pass; initial default-worker
-attempt hit an existing gallery QR timeout. Risk profile none; weekly remaining
-15%; automatic DeepSeek paused through Dec31. Initial GPT-6 Luna/medium independent review found one P2: the generic bar
-wrapper did not expose its label. Added a named group role and a semantic
-assertion; one batched remediation, no conflicts. Reviewer delivery verified;
-usage and active-time attribution unknown. Targeted and cumulative review
-follow in PR metadata before CI.
-
-## 2026-10-06 — Hide unselected survey percentages
-
-PR1511 follow-up: omit visible percentages when option count is zero, using the
-existing shared teacher/student result bar. Keep the accessible summary and
-nonzero-option percentages, including a selected fraction that rounds to0%.
-Reuse/extend decisions and reference unchanged. Risk none; existing eight-view
-visual matrix refreshed with an explicit no-visible-0% check. Added zero-vote,
-zero-total and tiny-nonzero semantic cases to the existing component test.
-PR returned to draft before publishing; targeted review/final checks in PR notes.
-
 ## 2026-10-06 — Survey percentage alignment
 
 PR1511 follow-up: reuse/extend SurveyOptionResultBar with labels overlaying the
@@ -472,3 +423,7 @@ promotion, activation, provider/account/billing/runner/visibility or phase exit.
 - Changed shared LeftSidebar mobile home link text and accessible name to Classrooms; updated existing component and browser selectors. Reused shared drawer and Pattern Lab mobile-drawer-controls reference; no new pattern or refactor. Risk profile: none.
 - Focused checks passed: 26 files/351 tests, architecture, UI/design policy, TypeScript and lint; audit clean. Playwright mobile-drawer-controls: teacher/student × light/dark 4/4 passed, including desktop guards and focus/open/hover/navigation states. Inspected mobile screenshots. Logs: /tmp/pika-mobile-label-{focused,visual}.log; screenshots in worktree test-results.
 - Independent low-risk review and PR lifecycle follow implementation. Task owns codex/mobile-classrooms-label; model/usage telemetry unknown.
+
+## 2026-10-07 — Assignment Instructions preview exit
+
+Teacher preview opts into the reviewed opacity exit; root/editor/schedule remain immediate. Initial/post-create title timers now cancel on preview/session changes;3baseline focus races RED→GREEN. Real owner51testsPASS; focused370/18plusstaticPASS,8native browser cases and8natural visual cases across both viewports/themes/motion,4verified normal midpoints; student n/a. Backend isolated, no dependencies/schema/production changes. First visual capture invalidated by final lint-line correction and retained; final hash-bound capturePASS. Browser fixture/config TS issues corrected; old create/save response publication remains outside this slice. Next: independent review and exact-head PR Gate before authorized main merge. Broad fluidity goal incomplete.

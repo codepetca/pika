@@ -130,6 +130,27 @@ interface AssignmentModalProps {
 
 export function AssignmentModal({ isOpen, classroomId, assignment, instructionsMode = 'visual', classDays, onClose, onSuccess }: AssignmentModalProps) {
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const titleFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const editorSessionRef = useRef(0)
+  const titleFocusAllowedRef = useRef(false)
+
+  const cancelTitleFocus = useCallback(() => {
+    if (titleFocusTimeoutRef.current !== null) {
+      clearTimeout(titleFocusTimeoutRef.current)
+      titleFocusTimeoutRef.current = null
+    }
+  }, [])
+
+  const scheduleTitleFocus = useCallback((session: number, select: boolean) => {
+    if (editorSessionRef.current !== session || !titleFocusAllowedRef.current) return
+    cancelTitleFocus()
+    titleFocusTimeoutRef.current = setTimeout(() => {
+      titleFocusTimeoutRef.current = null
+      if (editorSessionRef.current !== session || !titleFocusAllowedRef.current) return
+      titleInputRef.current?.focus()
+      if (select) titleInputRef.current?.select()
+    }, 100)
+  }, [cancelTitleFocus])
 
   // The current assignment being edited (created on first save in create mode)
   const [currentAssignment, setCurrentAssignment] = useState<Assignment | null>(null)
@@ -141,6 +162,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const [creating, setCreating] = useState(false)
   const [discarding, setDiscarding] = useState(false)
   const [showInstructionsPreview, setShowInstructionsPreview] = useState(false)
+  titleFocusAllowedRef.current = isOpen && !showInstructionsPreview
   const [submissionRequirements, setSubmissionRequirements] = useState<AssignmentSubmissionRequirementDraft[]>([])
 
   const defaultDueAt = addDaysToDateString(getTodayInToronto(), 1)
@@ -200,8 +222,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   } = scheduling
 
   useEffect(() => {
+    const session = ++editorSessionRef.current
+    cancelTitleFocus()
+    setShowInstructionsPreview(false)
     if (!isOpen) {
-      setShowInstructionsPreview(false)
       return
     }
 
@@ -271,15 +295,12 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     pendingValuesRef.current = null
 
     // Focus the title input when modal opens
-    setTimeout(() => {
-      titleInputRef.current?.focus()
-      if (assignment) {
-        titleInputRef.current?.select()
-      }
-    }, 100)
+    scheduleTitleFocus(session, !!assignment)
 
     // Cleanup timeouts on close/change
     return () => {
+      editorSessionRef.current = session + 1
+      cancelTitleFocus()
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
         saveTimeoutRef.current = null
@@ -291,9 +312,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
   }, [
     assignment,
+    cancelTitleFocus,
     defaultDueAt,
     isOpen,
     resetForAssignment,
+    scheduleTitleFocus,
     setDueAt,
     setError,
     setPrimaryAction,
@@ -355,6 +378,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   // Automatically create draft when modal opens in create mode
   useEffect(() => {
     if (!creating) return
+    const session = editorSessionRef.current
 
     const createDraft = async () => {
       const initialValues = { title: '', instructionsMarkdown: '', dueAt: defaultDueAt, submissionRequirements: [] }
@@ -391,10 +415,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         setSaveStatus('saved')
 
         // Focus and select title after creation
-        setTimeout(() => {
-          titleInputRef.current?.focus()
-          titleInputRef.current?.select()
-        }, 100)
+        scheduleTitleFocus(session, true)
       } else {
         // Creation failed - close modal (error is already set by createAssignment)
         onClose()
@@ -402,7 +423,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
 
     void createDraft()
-  }, [creating, createAssignment, defaultDueAt, onClose, setDueAt])
+  }, [creating, createAssignment, defaultDueAt, onClose, scheduleTitleFocus, setDueAt])
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
@@ -808,7 +829,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           onInstructionsMarkdownChange={handleInstructionsMarkdownChange}
           onInstructionsConversionWarningChange={setMarkdownWarning}
           onDueAtChange={handleDueAtChange}
-          onPreviewInstructions={() => setShowInstructionsPreview(true)}
+          onPreviewInstructions={() => {
+            cancelTitleFocus()
+            setShowInstructionsPreview(true)
+          }}
           titleAccessory={(
             <div className="flex items-center gap-1">
               <SaveStatus status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
@@ -881,6 +905,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
       <ContentDialog
         isOpen={isOpen && showInstructionsPreview}
+        exitMotion="opacity"
         onClose={() => setShowInstructionsPreview(false)}
         title="Instructions"
         subtitle={previewSubtitle}
