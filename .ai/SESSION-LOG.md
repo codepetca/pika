@@ -618,3 +618,19 @@ and exactheadCI remain gates; old240e receipts not reused as newSQL acceptance.
 Original05:04clock/12reviews9targets1initial1final9fix-sync retained under waiver;
 this candidate is batch10, targeted independent review follows, no counterreset.
 Canonical/prod249–253 application, promotion and all rollout/account/billing held.
+
+## 2026-10-07 — Reorder mobile-label main reconciliation
+
+Scalar-byte e0fa source review CLEAN;39 affected/835 focused/static checks PASS.
+Clean-source rebase onto main47f5 (#1516 mobile Classrooms label) completed with
+one archive conflict: exact duplicated Daily-summary body proved present on main;
+retain authoritative main prefix and unique survey entry. Incoming three UI/test
+files byte-exact main, all e0 SQL/API/proof/type/config bytes unchanged; migration
+253 remains71ed9848, no numbering collision. All5056 old/main history bodies and
+ordered stash digest preserved. Official keep60 trim retains full rolling history.
+Fresh focused checks/changed-base independent review precede one new frozen-head
+normal proof/genuine CLI types/both forced cleanup cases; old240e receipts remain
+historical, scalar candidate performance unmeasured. Original05:04 clock and13
+launches/10 targets/1 initial/1 final/10 fixes retained; reconciliation batch11.
+Human workflow-stop waiver persists. Canonical/prod249–253, promotion and all
+admission/home/page/cutover/billing/account/provider/runner/visibility holds remain.
