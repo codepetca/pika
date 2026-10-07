@@ -683,3 +683,20 @@ distinguish exact fixed labels. Source review and fresh proof still required.
 Prior16 launches/13 targeted/13 fixes/original05:04 clock/human waiver retained;
 this is batch14. No product SQL, limits, ABI/types, triggers or rollout changes.
 Worker approx5min elapsed, effective/active/tokens unknown; no savings claim.
+
+## 2026-10-07 — Reorder initial guard diagnosis after resume
+
+Human pause honored, then resumed. Reviewedcfb normal failed initial app-guard
+with unknown non-assertion cause; idle transport, cleanupnone, no whole acceptance
+or generated types. Private failed receipt9deb1d7b retained; PR1515 stays draft.
+Read-only source inventory later PASS741resources/507ms, not earlier-cause proof.
+Sol6.1/high bounded read-only analysis identifies Git/file reads, masked inventory
+and Docker/psql guard failures; root verified source. Add fixed caller guard
+checkpoints, bound to the same rejected primary error, without raw data/classifier,
+execution/cap/transport/product changes. TDD18 RED then116 narrow PASS; focused
+885PASS/1 existing action-test5s timeout. Isolated case PASS2.86s at original5s;
+give only its200-plus fresh-manifest unit fixture15s under parallel load, retaining
+all assertions and product/proof caps. Full focused/static checks pending. Batch15;
+17 reviews/14 targets/original05:04/human stop waiver retained before review18.
+All canonical/prod/activation/billing holds unchanged. Worker effective/active/
+tokens unknown; elapsed approx5min, no savings claim. No native or eligible CI active.

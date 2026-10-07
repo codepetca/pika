@@ -180,7 +180,7 @@ export function testOwnerReorderCommittedCompletion(union: ReturnType<typeof tes
     legacyMaxResidual: 'demonstrated-not-closed' as const })
 }
 
-export function testOwnerReorderSetupDiagnostic(stage: unknown, error: unknown) {
+export function testOwnerReorderSetupDiagnostic(stage: unknown, error: unknown, guardBoundary: unknown = 'none') {
   const allowed = ['pending', 'app-guard', 'app-write', 'app-snapshot', 'app-verify', 'sql-prepare', 'sql-setup', 'complete']
   const setup = typeof stage === 'string' && allowed.includes(stage) ? stage : 'unknown'
   const lifecycle = error instanceof AssignmentListLifecycleError ? error : undefined
@@ -197,7 +197,10 @@ export function testOwnerReorderSetupDiagnostic(stage: unknown, error: unknown) 
   const coordinate = frame?.match(/\/scripts\/([a-z-]+\.ts):([1-9]\d{0,4}):([1-9]\d{0,4})\)?$/)
   const location = coordinate && locations.includes(coordinate[1]) ? `${coordinate[1]}:${coordinate[2]}:${coordinate[3]}` : 'unknown'
   const inherited = lifecycle?.primary ? ` ${assignmentListLifecycleDiagnostic(lifecycle.primary)}` : ''
-  return `DIAG test-owner-reorder setup=${setup} lifecycle=${phase} cleanup=${lifecycle ? lifecycle.cleanupFailures.length ? 'present' : 'none' : 'unknown'} failure=${cause instanceof assert.AssertionError ? 'assertion' : 'unknown'} location=${location}${inherited}.\n`
+  const boundaries = ['none', 'admission', 'git-head', 'git-root', 'git-status', 'migration-manifest',
+    'migration-source', 'inventory', 'resources', 'sql', 'final-check']
+  const guard = typeof guardBoundary === 'string' && boundaries.includes(guardBoundary) ? guardBoundary : 'unknown'
+  return `DIAG test-owner-reorder setup=${setup} lifecycle=${phase} cleanup=${lifecycle ? lifecycle.cleanupFailures.length ? 'present' : 'none' : 'unknown'} failure=${cause instanceof assert.AssertionError ? 'assertion' : 'unknown'} location=${location}${inherited} guard=${guard}.\n`
 }
 export function parseTestOwnerReorderLifecycleArgs(args: string[]) {
   const generateTypes = args.length === 5 && args[4] === '--generate-types'
@@ -286,6 +289,7 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
   let sqlContracts: ReturnType<typeof createTestOwnerReorderNativeContracts> | undefined, nativeReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['run']>> | undefined
   let committedReceipt: Awaited<ReturnType<NonNullable<typeof sqlContracts>['runCommittedTransitions']>> | undefined
   let complete = false, matrixComplete = false, sqlComplete = false, committedComplete = false, setupStage = 'pending'
+  let guardFailure: { error: unknown; boundary: string } | undefined
   let typesReceipt: Awaited<ReturnType<typeof generateTestDraftSaveTypes>> | undefined
   let socket: { host: string; identity: Array<number | bigint> } | undefined
   const originalPal = process.env.PAL_ENABLED; process.env.PAL_ENABLED = 'false'
@@ -305,13 +309,21 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
     account(output); check(); return output.trim()
   }
   async function appGuard() {
-    check(); assert(target && session); assert(++controls <= APP_CAPS.controls)
-    assert.equal(git(['rev-parse', 'HEAD']), input.head); assert.equal(git(['rev-parse', '--show-toplevel']), repository)
-    assert.equal(git(['status', '--porcelain', '--untracked-files=all']), '')
-    assert.equal(draftSaveMigrationManifestSha256(repository), union.sql.migrationManifestSha256)
-    assert.equal(testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/253_contextual_test_owner_reorder.sql'), 'utf8')), union.sql.sourceSha256)
-    closure = validateIntegratedGuardResources(await draftSaveProofDockerInventory({ stat: bindSocket }), projectId, session.containerId, closure)
-    account(JSON.stringify(closure)); assert.equal(privateSql(testOwnerGuardSql(projectId)), 'ok'); check()
+    // A finite caller checkpoint survives private inventory/child error masking.
+    // Bind it to this exact rejected error, never a successful or replaced guard.
+    let boundary = 'admission'
+    try {
+      check(); assert(target && session); assert(++controls <= APP_CAPS.controls)
+      boundary = 'git-head'; assert.equal(git(['rev-parse', 'HEAD']), input.head)
+      boundary = 'git-root'; assert.equal(git(['rev-parse', '--show-toplevel']), repository)
+      boundary = 'git-status'; assert.equal(git(['status', '--porcelain', '--untracked-files=all']), '')
+      boundary = 'migration-manifest'; assert.equal(draftSaveMigrationManifestSha256(repository), union.sql.migrationManifestSha256)
+      boundary = 'migration-source'; assert.equal(testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/253_contextual_test_owner_reorder.sql'), 'utf8')), union.sql.sourceSha256)
+      boundary = 'inventory'; const inventory = await draftSaveProofDockerInventory({ stat: bindSocket })
+      boundary = 'resources'; closure = validateIntegratedGuardResources(inventory, projectId, session.containerId, closure)
+      account(JSON.stringify(closure)); boundary = 'sql'; assert.equal(privateSql(testOwnerGuardSql(projectId)), 'ok')
+      boundary = 'final-check'; check()
+    } catch (error) { guardFailure = { error, boundary }; throw error }
   }
   async function sdkGuard() { await appGuard(); assert(sqlContracts); await sqlContracts.verifyTarget(); check() }
   async function snapshot(): Promise<Rows> {
@@ -457,7 +469,8 @@ export async function testOwnerReorderLifecycleMain(args = process.argv.slice(2)
   } catch (error) {
     const forced = testOwnerReorderForcedReceipt(input.mode, error, complete)
     if (forced) { process.stdout.write(forced.stdout); process.stderr.write(forced.stderr); process.exitCode = forced.exitCode; return }
-    process.stderr.write(testOwnerReorderSetupDiagnostic(setupStage, error))
+    const cause = error instanceof AssignmentListLifecycleError ? error.primary?.error : error
+    process.stderr.write(testOwnerReorderSetupDiagnostic(setupStage, error, guardFailure && guardFailure.error === cause ? guardFailure.boundary : 'none'))
     if (sqlContracts) process.stderr.write(sqlContracts.diagnostic()); if (transport) process.stderr.write(transport.diagnostic())
     throw Error('Test owner reorder lifecycle failed; private details withheld')
   } finally { if (originalPal === undefined) delete process.env.PAL_ENABLED; else process.env.PAL_ENABLED = originalPal }

@@ -77,6 +77,18 @@ describe('closed reorder lifecycle source contracts', () => {
     expect(diagnostic).toContain('setup=unknown'); expect(diagnostic).not.toContain('private')
     expect(testOwnerReorderSetupDiagnostic('sql-setup', new AssignmentListLifecycleError({ stage: 'fixture', error: privateError }, []))).toContain('lifecycle=fixture')
   })
+  it.each(['none', 'admission', 'git-head', 'git-root', 'git-status', 'migration-manifest',
+    'migration-source', 'inventory', 'resources', 'sql', 'final-check'])
+  ('renders only the fixed guard checkpoint %s without inspecting private errors', boundary => {
+    const error = Error('PRIVATE SQL credential actor'); error.stack = 'PRIVATE stack'
+    const diagnostic = testOwnerReorderSetupDiagnostic('app-guard', new AssignmentListLifecycleError({ stage: 'fixture', error }, []), boundary)
+    expect(diagnostic).toContain(`guard=${boundary}`)
+    expect(diagnostic).not.toMatch(/PRIVATE|SQL|credential|actor|stack/)
+  })
+  it.each(['PRIVATE SQL credential', null, {}, 7])('rejects an unfamiliar guard checkpoint %#', boundary => {
+    const diagnostic = testOwnerReorderSetupDiagnostic('app-guard', Error('PRIVATE'), boundary)
+    expect(diagnostic).toContain('guard=unknown'); expect(diagnostic).not.toContain('PRIVATE')
+  })
   it.each(['check-contextual-test-owner-reorder-lifecycle.ts', 'contextual-assignment-list-proof-lifecycle.ts',
     'contextual-assignment-list-proof-platform.ts', 'contextual-assignment-list-proof-revocations.ts',
     'check-contextual-assignment-list-reads.ts', 'contextual-assignment-list-proof-path.ts'])
@@ -173,6 +185,8 @@ describe('closed reorder lifecycle source contracts', () => {
 })
 
 describe.sequential('actual original lifecycle with offline platform faults', () => {
+  const guardFaults = ['guard-git-head', 'guard-git-root', 'guard-git-status', 'guard-migration-manifest',
+    'guard-migration-source', 'guard-inventory', 'guard-resources', 'guard-sql', 'guard-replaced', 'guard-success-later'] as const
   afterEach(() => {
     vi.restoreAllMocks(); vi.resetModules()
     for (const name of ['node:child_process', 'node:fs', '../../scripts/contextual-assignment-list-proof-platform',
@@ -205,28 +219,54 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
     expect(diagnostic).not.toMatch(/PRIVATE|SECRET|credential|row|PASS/)
     expect(output).not.toHaveBeenCalled()
   })
-  async function faultRun(fault: 'clock' | 'actions' | 'case-clock' | 'prepare-clock', changedField?: keyof typeof canonical) {
+  async function faultRun(fault: 'clock' | 'actions' | 'case-clock' | 'prepare-clock' | typeof guardFaults[number], changedField?: keyof typeof canonical) {
     vi.resetModules()
     const events: string[] = [], canonicalRequests: unknown[] = [], fieldReads: string[] = []
     let launched = false, workdirExists = false, project = '', resources: import('../../scripts/contextual-assignment-list-proof-lifecycle').AssignmentListResource[] = []
     let failure: import('../../scripts/contextual-assignment-list-proof-lifecycle').AssignmentListLifecycleError | undefined
-    let guard: (() => Promise<void>) | undefined, clock = Date.parse('2026-10-07T03:00:00Z')
+    let guard: (() => Promise<void>) | undefined, clock = Date.parse('2026-10-07T03:00:00Z'), sourceReads = 0
     vi.spyOn(Date, 'now').mockImplementation(() => clock)
     const output = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    const stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
     vi.doMock('node:child_process', async () => ({ ...await vi.importActual<typeof import('node:child_process')>('node:child_process'),
       execFileSync: (file: string, args: string[], options: { input?: string }) => {
-        if (file === 'git') return args[0] === 'rev-parse' ? args[1] === 'HEAD' ? 'a'.repeat(40) : process.cwd() : ''
+        if (file === 'git') {
+          if (launched && (fault === 'guard-git-head' && args[0] === 'rev-parse' && args[1] === 'HEAD'
+            || fault === 'guard-git-root' && args[0] === 'rev-parse' && args[1] === '--show-toplevel'
+            || fault === 'guard-git-status' && args[0] === 'status')) throw Error('PRIVATE git credential')
+          return args[0] === 'rev-parse' ? args[1] === 'HEAD' ? 'a'.repeat(40) : process.cwd() : ''
+        }
         expect(file).toBe('docker'); expect(options.input).toBeTypeOf('string'); events.push('private-sql')
+        if (fault === 'guard-sql') throw Error('PRIVATE SQL row credential')
         return options.input!.includes('jsonb_build_object') && options.input!.includes('__nontarget_fingerprints') ? JSON.stringify(graph()) : 'ok'
       } }))
-    vi.doMock('node:fs', async () => ({ ...await vi.importActual<typeof import('node:fs')>('node:fs'),
-      statSync: () => ({ isSocket: () => true, dev: 1, ino: 2, mode: 3, rdev: 4 }) }))
+    vi.doMock('node:fs', async () => {
+      const actual = await vi.importActual<typeof import('node:fs')>('node:fs')
+      return { ...actual,
+        statSync: () => ({ isSocket: () => true, dev: 1, ino: 2, mode: 3, rdev: 4 }),
+        readdirSync: (...args: Parameters<typeof actual.readdirSync>) => {
+          if (launched && fault === 'guard-migration-manifest') throw Error('PRIVATE directory credential')
+          return actual.readdirSync(...args)
+        },
+        readFileSync: (...args: Parameters<typeof actual.readFileSync>) => {
+          if (launched && fault === 'guard-migration-source' && typeof args[0] === 'string'
+            && args[0].endsWith('/253_contextual_test_owner_reorder.sql') && ++sourceReads === 2) throw Error('PRIVATE source credential')
+          return actual.readFileSync(...args)
+        },
+      }
+    })
     vi.doMock('../../scripts/contextual-assignment-list-proof-lifecycle', async () => {
       const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-lifecycle')>('../../scripts/contextual-assignment-list-proof-lifecycle')
       return { ...actual, runAssignmentListEphemeralLifecycle: async (...args: Parameters<typeof actual.runAssignmentListEphemeralLifecycle>) => {
         try { return await actual.runAssignmentListEphemeralLifecycle(...args) }
-        catch (error) { failure = error as typeof failure; throw error }
+        catch (error) {
+          failure = error as typeof failure
+          if (fault === 'guard-replaced') {
+            failure = new actual.AssignmentListLifecycleError({ stage: 'fixture', error: Error('PRIVATE replacement credential') }, failure!.cleanupFailures)
+            throw failure
+          }
+          throw error
+        }
       } }
     })
     vi.doMock('../../scripts/contextual-assignment-list-proof-platform', async () => {
@@ -260,7 +300,10 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
         },
         async verifyEphemeral(request: object) { events.push('verify-ephemeral'); return { ...request, containerId: resources[0].id,
           guard168Enabled: true, persistedGatesOff: true, activeNetworkCronAbsent: true } },
-        async executeSql() { events.push('inherited-sql'); if (fault === 'clock') clock += 900001 },
+        async executeSql() {
+          events.push('inherited-sql'); if (fault === 'clock') clock += 900001
+          if (fault === 'guard-success-later' && events.filter(e => e === 'inherited-sql').length === 2) throw Error('PRIVATE later credential')
+        },
         async runCase(request: { proofCase: { actorId: string; classroomId: string; expectedStatus: string } }) { events.push('inherited-case');
           if (fault === 'case-clock') clock += 900001
           return { actorId: request.proofCase.actorId, classroomId: request.proofCase.classroomId, status: request.proofCase.expectedStatus } },
@@ -270,7 +313,7 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
         async removeWorkdir() { events.push('remove-workdir'); workdirExists = false },
       }) }
     })
-    if (fault === 'actions' || fault === 'case-clock') {
+    if (fault === 'actions' || fault === 'case-clock' || fault.startsWith('guard-')) {
       vi.doMock('../../scripts/contextual-test-reorder-proof-fixture', async () => ({
         ...await vi.importActual<typeof import('../../scripts/contextual-test-reorder-proof-fixture')>('../../scripts/contextual-test-reorder-proof-fixture'), validateTestOwnerReorderSetupSnapshot: vi.fn(),
       }))
@@ -281,6 +324,8 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
         },
       }))
       vi.doMock('../../scripts/contextual-test-draft-save-proof-inventory', () => ({ draftSaveProofDockerInventory: async (options: { stat: (path: string) => unknown }) => {
+        if (fault === 'guard-inventory' || fault === 'guard-replaced') throw Error('PRIVATE inventory socket credential')
+        if (fault === 'guard-resources') return structuredClone(resources).slice(1)
         options.stat('/private/tmp/offline-only-docker.sock'); return structuredClone(resources)
       } }))
       vi.doMock('../../scripts/contextual-test-draft-save-native-contracts', async () => {
@@ -312,6 +357,15 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
     }
     else expect(failure?.cleanupFailures).toEqual([])
     expect(events).not.toContain('inherited-revocation'); expect(events).not.toContain('inherited-restoration')
+    if (fault.startsWith('guard-')) {
+      const boundary = fault === 'guard-replaced' || fault === 'guard-success-later' ? 'none' : fault.slice('guard-'.length)
+      const diagnostic = stderr.mock.calls.map(call => call[0]).join('')
+      expect(diagnostic).toContain(`guard=${boundary}`)
+      expect(diagnostic).toContain(`setup=${fault === 'guard-success-later' ? 'app-write' : 'app-guard'} lifecycle=fixture cleanup=none failure=${fault === 'guard-resources' ? 'assertion' : 'unknown'}`)
+      expect(diagnostic).not.toMatch(/PRIVATE|credential|row|socket|PASS/)
+      expect(events.filter(e => e === 'inherited-sql')).toHaveLength(fault === 'guard-success-later' ? 2 : 1)
+      expect(events).not.toContain('inherited-case'); expect(events).not.toContain('action-saturation')
+    }
     return events
   }
   it('still tears down and compares all five canonical fields after the absolute execution clock expires', async () => {
@@ -320,7 +374,9 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
   it('still tears down and compares all five canonical fields after the app action budget is exhausted', async () => {
     const events = await faultRun('actions'); expect(events).toContain('action-saturation')
     expect(events.filter(e => e === 'private-sql')).toHaveLength(199)
-  })
+    // More than 200 real source-manifest guards run under parallel focused/CI
+    // load. Bound this test only; its actual action/deadline/cleanup caps stay fixed.
+  }, 15000)
   it('does not start the matrix or remaining inherited cases/revocations after a read crosses the deadline', async () => {
     const events = await faultRun('case-clock'); expect(events.filter(e => e === 'inherited-case')).toHaveLength(1)
     expect(events).not.toContain('action-saturation')
@@ -328,6 +384,7 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
   it('retains the exact prepare ownership receipt for cleanup without starting after exhaustion', async () => {
     const events = await faultRun('prepare-clock'); expect(events).not.toContain('command-start'); expect(events).not.toContain('inherited-sql')
   })
+  it.each(guardFaults)('locates %s failures without exposing private errors or skipping cleanup', fault => faultRun(fault))
   it.each(Object.keys(canonical) as Array<keyof typeof canonical>)('never turns canonical-after %s drift into PASS after exhaustion', field => faultRun('clock', field))
 })
 

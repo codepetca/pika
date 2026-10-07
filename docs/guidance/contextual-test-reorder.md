@@ -220,3 +220,25 @@ values are rendered. This reports the propagated assertion location, not an
 earlier fault that restoration might replace or a compound guard's specific
 condition. Source-only checks are not runtime diagnosis; product and proof
 execution, limits and acceptance gates remain unchanged.
+
+The reviewedcfb normal proof failed earlier, during initial app-guard/fixture,
+with a non-assertion cause and no usable source location. Transport stayed idle;
+no reorder contracts, SDK exchanges or type generation were reached. Cleanup
+reported none; whole acceptance remains false. A later read-only inventory PASS
+does not establish this earlier failure's cause.
+
+A caller-side guard checkpoint now distinguishes admission, each Git read,
+migration manifest/source reads, inventory collection, resource validation,
+private guard SQL and final admission. Only fixed labels are emitted, and only
+when the captured rejected error is the lifecycle's same primary error. A
+successful guard or replacement error reports none; unfamiliar labels report
+unknown. This adds no error-property/message classifier or transport changes.
+The checkpoint names the rejecting operation, not its underlying reason.
+Offline actual-main faults cover private Git/file/inventory/SQL failures,
+resource assertion, replaced failure and successful-guard/later failure while
+retaining exact teardown, all five canonical fields and failed results. Fresh
+independent review and native/forced/CI acceptance are still required.
+The offline action-saturation test alone has a15s runner allowance after a
+parallel focused5s timeout; its isolated original5s run passed in2.86s. Its200+
+fresh-source guards,199 private SQL observations, assertions and actual proof
+caps remain unchanged. No suite-wide or native/application deadline extension.
