@@ -160,3 +160,20 @@ Native/application action, control, byte and900s lifetime caps remain unchanged;
 dispatches and compact receipts remain counted. Fresh source review, native
 normal/forced-cleanup proofs and exact-head CI are required; this rebatching is
 not acceptance or a fix for the separate bulk-capacity failure.
+
+CI37607651625 on reviewedb3 passed14878 tests (8 skipped), build and browser,
+but frame26 bulk10000 failed with PRD01 (39actions/524controls). This confirms
+`test_reorder_deadline`, not which internal deadline check or execution phase.
+The PR returned to draft; exact cleanup passed, but the remaining reorder SDK,
+race and committed evidence was not reached. Earlier local receipts stay labeled
+with their original heads and cannot substitute for this failed CI.
+
+The next bounded candidate replaces three duplicate SUM/MAX full-row byte
+expressions with scalar-only `MATERIALIZED` measurements, preserving each
+statement's original rows, predicates, JSON representation and guard ordering.
+Only integer byte counts are materialized before guards; complete JSON aggregates
+still follow them. Empty counts remain zero. All8s/20s/35s deadlines,10k dense
+workload, triggers, revision deltas, full postimages and proof limits remain fixed.
+This removes avoidable expression evaluation; its performance benefit and CI
+capacity outcome are unmeasured. New independent review, full native/cleanup
+evidence and exact-head CI are required. See [PostgreSQL17 materialization](https://www.postgresql.org/docs/17/queries-with.html#QUERIES-WITH-CTE-MATERIALIZATION).

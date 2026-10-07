@@ -43,7 +43,7 @@ describe('inert contextual Test reorder database contracts', () => {
     expect(manifest.contracts.filter(batch => batch.sql.includes('Reorder bulk-capacity proof failed')).map(batch => batch.name)).toEqual(['bulk-10000'])
   })
   it('pins the exact source and emits finite frozen rollback batches', () => {
-    expect(TEST_OWNER_REORDER_SOURCE_SHA256).toBe('6c58370f3234cce74a767cde1819a4d6af0265725cb69b843f54b4e8a9b55c6e')
+    expect(TEST_OWNER_REORDER_SOURCE_SHA256).toBe('71ed984850fdcf7205ddf9245f4dfc89dc8102caf3dcee0772104eb0f0e94006')
     expect(digest(readFileSync('supabase/migrations/253_contextual_test_owner_reorder.sql', 'utf8'))).toBe(TEST_OWNER_REORDER_SOURCE_SHA256)
     expect(TEST_OWNER_REORDER_DB_CAPS).toEqual({ sqlBytes: 262144, responseBytes: 1048576, actionMs: 35000, requestMs: 12000,
       logicalGroups: 9, batches: 27, probesPerBatch: 2 })

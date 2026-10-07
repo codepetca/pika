@@ -92,6 +92,33 @@ describe('contextual current-owner Test reorder SQL source contract', () => {
     expect(code.indexOf('v_tests_expected :=')).toBeLessThan(code.indexOf('update public.tests test'))
   })
 
+  it('measures only scalar full-row byte counts once for each SUM/MAX pair', () => {
+    const measurements = [...code.matchAll(/with measured as materialized \(([\s\S]*?)\)\s*select coalesce\(sum\(measured\.row_bytes\),0\),\s*coalesce\(max\(measured\.row_bytes\),0\)/g)]
+    expect(measurements).toHaveLength(3)
+    for (const [, measurement] of measurements) {
+      expect(measurement.trim()).toMatch(/^select pg_catalog\.octet_length\(/)
+      expect(measurement).toContain('as row_bytes')
+      expect(measurement).toContain('where test.classroom_id = p_classroom_id')
+      expect(measurement).not.toMatch(/jsonb_agg|select test\.\*|as row\b/)
+    }
+    expect(code).not.toMatch(/(?:sum|max)\(pg_catalog\.octet_length/)
+    expect(code.match(/into v_test_bytes,v_row_bytes from measured/g)).toHaveLength(2)
+    expect(code).toContain('into v_expected_bytes,v_row_bytes from measured')
+  })
+
+  it('keeps byte guards ahead of complete aggregates and preserves expected-row semantics', () => {
+    const expected = code.slice(code.indexOf('with measured as materialized', code.indexOf('v_classroom_expected :=')), code.indexOf('v_tests_expected :='))
+    expect(expected).toContain('case when test.position is distinct from desired.position then')
+    expect(expected).toContain("'position',desired.position,'updated_at',pg_catalog.transaction_timestamp()")
+    expect(expected).toContain('else pg_catalog.to_jsonb(test) end')
+    expect(expected).toContain('v_row_bytes > 2097152')
+    expect(expected).toContain('v_state_bytes + v_post_state_bytes > 67108864')
+    const afterUpdate = code.slice(code.indexOf('get diagnostics v_affected_count'))
+    expect(afterUpdate.indexOf('with measured as materialized')).toBeGreaterThan(afterUpdate.indexOf('v_current_ids is distinct from v_requested_ids'))
+    expect(afterUpdate.indexOf('v_row_bytes > 2097152')).toBeLessThan(afterUpdate.indexOf('jsonb_agg(pg_catalog.to_jsonb(test)'))
+    expect(code).not.toMatch(/plan_cache_mode|set_config|create temp|analyze public/)
+  })
+
   it('performs only one changed-position Test UPDATE with both identity and Class predicates', () => {
     expect(code.match(/update public\.tests test/g)).toHaveLength(1)
     expect(code).toContain('set position = desired.position')

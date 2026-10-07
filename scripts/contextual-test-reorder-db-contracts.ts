@@ -12,7 +12,7 @@ import {
 } from './contextual-test-reorder-proof-fixture'
 import type { DraftSaveDriver, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
 
-export const TEST_OWNER_REORDER_SOURCE_SHA256 = '6c58370f3234cce74a767cde1819a4d6af0265725cb69b843f54b4e8a9b55c6e' as const
+export const TEST_OWNER_REORDER_SOURCE_SHA256 = '71ed984850fdcf7205ddf9245f4dfc89dc8102caf3dcee0772104eb0f0e94006' as const
 // Proof-only SQLSTATEs: never print PostgreSQL messages, rows or query context.
 // Unknown PT503 messages propagate unchanged; every mapped failure still aborts.
 export const TEST_OWNER_REORDER_BULK_FAILURE_CODES = Object.freeze({

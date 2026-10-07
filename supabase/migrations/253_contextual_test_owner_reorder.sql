@@ -150,9 +150,14 @@ begin
 
   -- These byte counts concern serialized full rows, not pg_column_size or
   -- compressed/TOAST storage. JSON array separators are counted conservatively.
-  select coalesce(sum(pg_catalog.octet_length(pg_catalog.to_jsonb(test)::text)),0),
-    coalesce(max(pg_catalog.octet_length(pg_catalog.to_jsonb(test)::text)),0)
-  into v_test_bytes,v_row_bytes from public.tests test where test.classroom_id = p_classroom_id;
+  -- Materialize only scalar byte counts: SUM/MAX must not each rebuild and
+  -- serialize the same full row. Complete JSON aggregates still follow guards.
+  with measured as materialized (
+    select pg_catalog.octet_length(pg_catalog.to_jsonb(test)::text) as row_bytes
+    from public.tests test where test.classroom_id = p_classroom_id
+  )
+  select coalesce(sum(measured.row_bytes),0),coalesce(max(measured.row_bytes),0)
+  into v_test_bytes,v_row_bytes from measured;
   if v_row_bytes > 2097152
     or pg_catalog.octet_length(pg_catalog.to_jsonb(v_classroom_before)::text) > 2097152
     or pg_catalog.octet_length(pg_catalog.to_jsonb(v_archive_before)::text) > 2097152
@@ -189,18 +194,18 @@ begin
   -- Form a full expected postimage from each locked preimage. Changed rows
   -- replace exactly position/updated_at; unchanged rows retain every byte of
   -- their logical JSON values. Bound expected rows before jsonb_agg or DML.
-  select coalesce(sum(pg_catalog.octet_length(expected.row::text)),0),
-    coalesce(max(pg_catalog.octet_length(expected.row::text)),0)
-  into v_expected_bytes,v_row_bytes from (
-    select case when test.position is distinct from desired.position then
+  with measured as materialized (
+    select pg_catalog.octet_length((case when test.position is distinct from desired.position then
       pg_catalog.to_jsonb(test) || pg_catalog.jsonb_build_object(
         'position',desired.position,'updated_at',pg_catalog.transaction_timestamp())
-      else pg_catalog.to_jsonb(test) end as row
+      else pg_catalog.to_jsonb(test) end)::text) as row_bytes
     from public.tests test join (
       select requested.id,(v_count - requested.ordinality)::integer as position
       from pg_catalog.unnest(p_test_ids) with ordinality requested(id,ordinality)
     ) desired on desired.id = test.id where test.classroom_id = p_classroom_id
-  ) expected;
+  )
+  select coalesce(sum(measured.row_bytes),0),coalesce(max(measured.row_bytes),0)
+  into v_expected_bytes,v_row_bytes from measured;
   v_post_state_bytes := v_expected_bytes + 2 + 2 * v_count
     + pg_catalog.octet_length(pg_catalog.to_jsonb(v_classroom_expected)::text)
     + pg_catalog.octet_length(pg_catalog.to_jsonb(v_archive_expected)::text)
@@ -264,9 +269,12 @@ begin
   if not found then
     raise exception using errcode = 'PT503', message = 'test_reorder_postcondition_failed';
   end if;
-  select coalesce(sum(pg_catalog.octet_length(pg_catalog.to_jsonb(test)::text)),0),
-    coalesce(max(pg_catalog.octet_length(pg_catalog.to_jsonb(test)::text)),0)
-  into v_test_bytes,v_row_bytes from public.tests test where test.classroom_id = p_classroom_id;
+  with measured as materialized (
+    select pg_catalog.octet_length(pg_catalog.to_jsonb(test)::text) as row_bytes
+    from public.tests test where test.classroom_id = p_classroom_id
+  )
+  select coalesce(sum(measured.row_bytes),0),coalesce(max(measured.row_bytes),0)
+  into v_test_bytes,v_row_bytes from measured;
   if v_row_bytes > 2097152
     or pg_catalog.octet_length(pg_catalog.to_jsonb(v_classroom_after)::text) > 2097152
     or pg_catalog.octet_length(pg_catalog.to_jsonb(v_archive_after)::text) > 2097152

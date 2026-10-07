@@ -7,7 +7,7 @@ import { testOwnerGuardSql } from './contextual-test-owner-detail-proof-fixture'
 import { testOwnerReorderRequest, type TestOwnerReorderFixture } from './contextual-test-reorder-proof-fixture'
 import type { DraftSaveDriver, DraftSaveSession, DraftSaveTarget } from './check-contextual-test-draft-save-db-contracts'
 
-const SOURCE_SHA = '6c58370f3234cce74a767cde1819a4d6af0265725cb69b843f54b4e8a9b55c6e'
+const SOURCE_SHA = '71ed984850fdcf7205ddf9245f4dfc89dc8102caf3dcee0772104eb0f0e94006'
 export const TEST_OWNER_REORDER_CONCURRENCY_CAPS = Object.freeze({ sqlBytes: 256 * 1024, responseBytes: 8 * 1024 * 1024,
   requestMs: 12000, closeMs: 12000, totalMs: 180000, sessions: 2, dispatches: 42, rollbackSchedules: 21 })
 const q = (value: string) => `'${value.replaceAll("'", "''")}'`
