@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   combineScheduleDateTimeToIso,
   DEFAULT_SCHEDULE_TIME,
@@ -21,6 +21,8 @@ interface SplitOption {
 }
 
 interface UseAssignmentSchedulingOptions {
+  /** External editor lifetime; internal assignment updates retain this session. */
+  editorSessionRef?: React.RefObject<number>
   currentAssignment: Assignment | null
   isCreateMode: boolean
   creating: boolean
@@ -92,6 +94,7 @@ export interface UseAssignmentSchedulingReturn {
  * ```
  */
 export function useAssignmentScheduling({
+  editorSessionRef,
   currentAssignment,
   isCreateMode,
   creating,
@@ -102,6 +105,11 @@ export function useAssignmentScheduling({
   onClose,
   onError,
 }: UseAssignmentSchedulingOptions): UseAssignmentSchedulingReturn {
+  const schedulingSessionRef = useRef(0)
+  useEffect(() => () => { schedulingSessionRef.current += 1 }, [])
+  const ownsSession = useCallback((session: number, editorSession: number | null | undefined) => (
+    schedulingSessionRef.current === session && editorSessionRef?.current === editorSession
+  ), [editorSessionRef])
   const [scheduleDate, setScheduleDate] = useState(getDefaultScheduleDateInSchedulingTimezone())
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
   const [primaryAction, setPrimaryAction] = useState<CreateSubmitAction>('post')
@@ -139,6 +147,7 @@ export function useAssignmentScheduling({
 
   /** Reset scheduling UI to initial state when the modal opens. */
   const resetForAssignment = useCallback((assignment?: Assignment | null) => {
+    schedulingSessionRef.current += 1
     setShowPostNowConfirm(false)
     setShowRevertToDraftConfirm(false)
     setShowCreateScheduleModal(false)
@@ -189,6 +198,9 @@ export function useAssignmentScheduling({
       if (!assignmentToRelease) return
       if (isAssignmentLive(assignmentToRelease)) return
 
+      const session = schedulingSessionRef.current
+      const editorSession = editorSessionRef?.current
+
       onError('')
       setReleasing(true)
       try {
@@ -205,17 +217,23 @@ export function useAssignmentScheduling({
         if (!response.ok) throw new Error(data.error || 'Failed to post assignment')
 
         const updated = data.assignment as Assignment
+        if (!ownsSession(session, editorSession)) {
+          if (!isCreateMode || (options?.closeAfter ?? true)) onSuccess(updated, { closeModal: false })
+          return
+        }
         onAssignmentChange(updated)
         if (!isCreateMode || (options?.closeAfter ?? true)) onSuccess(updated)
         if (options?.closeAfter ?? true) onClose()
       } catch (err: unknown) {
-        onError(err instanceof Error ? err.message : 'Failed to post assignment')
+        if (ownsSession(session, editorSession)) onError(err instanceof Error ? err.message : 'Failed to post assignment')
       } finally {
-        setReleasing(false)
-        setShowPostNowConfirm(false)
+        if (ownsSession(session, editorSession)) {
+          setReleasing(false)
+          setShowPostNowConfirm(false)
+        }
       }
     },
-    [currentAssignment, flushPendingChanges, isCreateMode, onAssignmentChange, onClose, onError, onSuccess, releasing]
+    [currentAssignment, editorSessionRef, flushPendingChanges, isCreateMode, onAssignmentChange, onClose, onError, onSuccess, ownsSession, releasing]
   )
 
   const scheduleAssignmentRelease = useCallback(
@@ -224,6 +242,9 @@ export function useAssignmentScheduling({
       const assignmentToSchedule = currentAssignment
       if (!assignmentToSchedule || !scheduleDate) return
       if (isAssignmentLive(assignmentToSchedule)) return
+
+      const session = schedulingSessionRef.current
+      const editorSession = editorSessionRef?.current
 
       const releaseIso = combineScheduleDateTimeToIso(scheduleDate, scheduleTime)
       if (!isScheduleIsoInFuture(releaseIso)) {
@@ -251,25 +272,31 @@ export function useAssignmentScheduling({
         if (!response.ok) throw new Error(data.error || 'Failed to schedule assignment')
 
         const updated = data.assignment as Assignment
+        if (!ownsSession(session, editorSession)) {
+          if (!isCreateMode) onSuccess(updated, { closeModal: false })
+          return
+        }
         onAssignmentChange(updated)
         if (!isCreateMode) onSuccess(updated)
         setShowCreateScheduleModal(false)
         setPrimaryAction('schedule')
         if (options?.closeAfter) onClose()
       } catch (err: unknown) {
-        onError(err instanceof Error ? err.message : 'Failed to schedule assignment')
+        if (ownsSession(session, editorSession)) onError(err instanceof Error ? err.message : 'Failed to schedule assignment')
       } finally {
-        setReleasing(false)
+        if (ownsSession(session, editorSession)) setReleasing(false)
       }
     },
     [
       currentAssignment,
+      editorSessionRef,
       flushPendingChanges,
       isCreateMode,
       onAssignmentChange,
       onClose,
       onError,
       onSuccess,
+      ownsSession,
       releasing,
       scheduleDate,
       scheduleTime,
@@ -281,6 +308,9 @@ export function useAssignmentScheduling({
     const assignmentToUpdate = currentAssignment
     if (!assignmentToUpdate || assignmentToUpdate.is_draft) return
     if (isAssignmentLive(assignmentToUpdate)) return
+
+    const session = schedulingSessionRef.current
+    const editorSession = editorSessionRef?.current
 
     onError('')
     setReleasing(true)
@@ -295,21 +325,28 @@ export function useAssignmentScheduling({
       if (!response.ok) throw new Error(data.error || 'Failed to revert assignment to draft')
 
       const updated = data.assignment as Assignment
+      if (!ownsSession(session, editorSession)) {
+        onSuccess(updated, { closeModal: false })
+        return
+      }
       onAssignmentChange(updated)
       onSuccess(updated)
       setPrimaryAction('post')
       setShowRevertToDraftConfirm(false)
     } catch (err: unknown) {
-      onError(err instanceof Error ? err.message : 'Failed to revert assignment to draft')
+      if (ownsSession(session, editorSession)) onError(err instanceof Error ? err.message : 'Failed to revert assignment to draft')
     } finally {
-      setReleasing(false)
+      if (ownsSession(session, editorSession)) setReleasing(false)
     }
-  }, [currentAssignment, flushPendingChanges, onAssignmentChange, onError, onSuccess, releasing])
+  }, [currentAssignment, editorSessionRef, flushPendingChanges, onAssignmentChange, onError, onSuccess, ownsSession, releasing])
 
   const clearScheduledRelease = useCallback(async () => {
     if (releasing) return
     const assignmentToUpdate = currentAssignment
     if (!assignmentToUpdate || !isScheduled) return
+
+    const session = schedulingSessionRef.current
+    const editorSession = editorSessionRef?.current
 
     onError('')
     setReleasing(true)
@@ -324,6 +361,10 @@ export function useAssignmentScheduling({
       if (!response.ok) throw new Error(data.error || 'Failed to clear scheduled release')
 
       const updated = data.assignment as Assignment
+      if (!ownsSession(session, editorSession)) {
+        if (!isCreateMode) onSuccess(updated, { closeModal: false })
+        return
+      }
       onAssignmentChange(updated)
       if (!isCreateMode) onSuccess(updated, { closeModal: false })
       // Keep modal open after clearing so the user can immediately re-schedule.
@@ -332,24 +373,27 @@ export function useAssignmentScheduling({
       setPrimaryAction('schedule')
       setShowCreateScheduleModal(false)
     } catch (err: unknown) {
-      onError(err instanceof Error ? err.message : 'Failed to clear scheduled release')
+      if (ownsSession(session, editorSession)) onError(err instanceof Error ? err.message : 'Failed to clear scheduled release')
     } finally {
-      setReleasing(false)
+      if (ownsSession(session, editorSession)) setReleasing(false)
     }
-  }, [currentAssignment, flushPendingChanges, isCreateMode, isScheduled, onAssignmentChange, onError, onSuccess, releasing])
+  }, [currentAssignment, editorSessionRef, flushPendingChanges, isCreateMode, isScheduled, onAssignmentChange, onError, onSuccess, ownsSession, releasing])
 
   const openScheduleModalWithSave = useCallback(async () => {
     if (!currentAssignment || saving || releasing || creating) return
     if (isAssignmentLive(currentAssignment)) return
+    const session = schedulingSessionRef.current
+    const editorSession = editorSessionRef?.current
     try {
       await flushPendingChanges()
+      if (!ownsSession(session, editorSession)) return
       syncScheduleInputsFromAssignment()
       setShowCreateScheduleModal(true)
     } catch (err: unknown) {
-      onError(err instanceof Error ? err.message : 'Failed to save changes')
+      if (ownsSession(session, editorSession)) onError(err instanceof Error ? err.message : 'Failed to save changes')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentAssignment, creating, flushPendingChanges, onError, releasing, saving])
+  }, [currentAssignment, creating, editorSessionRef, flushPendingChanges, onError, ownsSession, releasing, saving])
 
   function handleActionSelection(action: CreateSubmitAction) {
     setPrimaryAction(action)

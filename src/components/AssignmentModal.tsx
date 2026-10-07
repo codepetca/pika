@@ -132,6 +132,15 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const titleInputRef = useRef<HTMLInputElement>(null)
   const titleFocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const editorSessionRef = useRef(0)
+  const editorOwnerRef = useRef({ isOpen, classroomId, assignment })
+  if (editorOwnerRef.current.isOpen !== isOpen
+    || editorOwnerRef.current.classroomId !== classroomId
+    || editorOwnerRef.current.assignment !== assignment) {
+    editorOwnerRef.current = { isOpen, classroomId, assignment }
+    editorSessionRef.current += 1
+  }
+  const ownsSession = useCallback((session: number) => editorSessionRef.current === session, [])
+  const createStartedSessionRef = useRef<number | null>(null)
   const titleFocusAllowedRef = useRef(false)
 
   const cancelTitleFocus = useCallback(() => {
@@ -145,8 +154,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     if (editorSessionRef.current !== session || !titleFocusAllowedRef.current) return
     cancelTitleFocus()
     titleFocusTimeoutRef.current = setTimeout(() => {
-      titleFocusTimeoutRef.current = null
       if (editorSessionRef.current !== session || !titleFocusAllowedRef.current) return
+      titleFocusTimeoutRef.current = null
       titleInputRef.current?.focus()
       if (select) titleInputRef.current?.select()
     }, 100)
@@ -177,6 +186,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   const pendingValuesRef = useRef<AssignmentEditorValues | null>(null)
   const initialCreateValuesRef = useRef<AssignmentEditorValues | null>(null)
   const activeSaveRef = useRef<{
+    session: number
     values: AssignmentEditorValues
     promise: Promise<Assignment | null>
   } | null>(null)
@@ -192,6 +202,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   }), [dueAt, instructionsMarkdown, submissionRequirements, title])
 
   const scheduling = useAssignmentScheduling({
+    editorSessionRef,
     currentAssignment,
     isCreateMode,
     creating,
@@ -225,13 +236,19 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     const session = ++editorSessionRef.current
     cancelTitleFocus()
     setShowInstructionsPreview(false)
+    setSaving(false)
+    setCreating(false)
+    setDiscarding(false)
+    activeSaveRef.current = null
+    pendingValuesRef.current = null
+    lastSaveAtRef.current = 0
+    resetForAssignment(assignment)
     if (!isOpen) {
       return
     }
 
     // Reset state when modal opens
     setError('')
-    resetForAssignment(assignment)
 
     if (assignment) {
       // Edit mode: populate from existing assignment
@@ -299,7 +316,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
     // Cleanup timeouts on close/change
     return () => {
-      editorSessionRef.current = session + 1
+      if (editorSessionRef.current === session) editorSessionRef.current += 1
       cancelTitleFocus()
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
@@ -312,6 +329,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
   }, [
     assignment,
+    classroomId,
     cancelTitleFocus,
     defaultDueAt,
     isOpen,
@@ -325,8 +343,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
   ])
 
   // Get only the fields that changed compared to last saved values
-  const getChangedFields = useCallback((values: AssignmentEditorValues) => {
-    const saved = lastSavedValuesRef.current
+  const getChangedFields = useCallback((values: AssignmentEditorValues, saved = lastSavedValuesRef.current) => {
     if (!saved) return null
 
     const changes: Record<string, unknown> = {}
@@ -344,7 +361,8 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   // Create a new assignment
   const createAssignment = useCallback(async (
-    values: AssignmentEditorValues
+    values: AssignmentEditorValues,
+    session: number
   ): Promise<Assignment | null> => {
     try {
       const response = await fetch('/api/teacher/assignments', {
@@ -370,19 +388,22 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
       return data.assignment
     } catch (err: any) {
-      setError(err.message || 'Failed to create assignment')
+      if (ownsSession(session)) setError(err.message || 'Failed to create assignment')
       return null
     }
-  }, [classroomId, setError])
+  }, [classroomId, ownsSession, setError])
 
   // Automatically create draft when modal opens in create mode
   useEffect(() => {
-    if (!creating) return
+    if (!isOpen || assignment || !creating) return
     const session = editorSessionRef.current
+    if (createStartedSessionRef.current === session) return
+    createStartedSessionRef.current = session
 
     const createDraft = async () => {
       const initialValues = { title: '', instructionsMarkdown: '', dueAt: defaultDueAt, submissionRequirements: [] }
-      const newAssignment = await createAssignment(initialValues)
+      const newAssignment = await createAssignment(initialValues, session)
+      if (!ownsSession(session)) return
       setCreating(false)
 
       if (newAssignment) {
@@ -423,29 +444,39 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
 
     void createDraft()
-  }, [creating, createAssignment, defaultDueAt, onClose, scheduleTitleFocus, setDueAt])
+  }, [assignment, classroomId, creating, createAssignment, defaultDueAt, isOpen, onClose, ownsSession, scheduleTitleFocus, setDueAt])
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
     values: AssignmentEditorValues,
-    options?: { closeAfter?: boolean }
+    options?: { closeAfter?: boolean },
+    owner?: { session: number; savedValues: AssignmentEditorValues | null }
   ): Promise<Assignment | null> => {
+    const session = owner?.session ?? editorSessionRef.current
     const validationError = validateAssignmentEditorValues(values, currentAssignment)
     if (validationError) {
-      setError(validationError)
-      setSaveStatus('unsaved')
+      if (ownsSession(session)) {
+        setError(validationError)
+        setSaveStatus('unsaved')
+      }
       return null
     }
 
-    setSaveStatus('saving')
-    lastSaveAtRef.current = Date.now()
+    if (ownsSession(session)) {
+      setSaveStatus('saving')
+      lastSaveAtRef.current = Date.now()
+    }
 
     try {
       let savedAssignment: Assignment | null = currentAssignment
 
       if (!currentAssignment) {
         // Create mode: create the assignment first
-        savedAssignment = await createAssignment(values)
+        savedAssignment = await createAssignment(values, session)
+        if (!ownsSession(session)) {
+          if (savedAssignment && options?.closeAfter) onSuccess(savedAssignment, { closeModal: false })
+          return savedAssignment
+        }
         if (!savedAssignment) {
           setSaveStatus('unsaved')
           return null
@@ -454,12 +485,16 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         lastSavedValuesRef.current = { ...values }
       } else {
         // Edit mode: update existing assignment
-        const changedFields = getChangedFields(values)
+        const changedFields = owner ? getChangedFields(values, owner.savedValues) : getChangedFields(values)
         if (!changedFields) {
-          setSaveStatus('saved')
+          if (ownsSession(session)) setSaveStatus('saved')
           if (options?.closeAfter) {
-            onSuccess(currentAssignment)
-            onClose()
+            if (ownsSession(session)) {
+              onSuccess(currentAssignment)
+              onClose()
+            } else {
+              onSuccess(currentAssignment, { closeModal: false })
+            }
           }
           return currentAssignment
         }
@@ -480,6 +515,10 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
         const updatedAssignment = data.assignment as Assignment
         savedAssignment = updatedAssignment
+        if (!ownsSession(session)) {
+          if (options?.closeAfter) onSuccess(updatedAssignment, { closeModal: false })
+          return updatedAssignment
+        }
         const latestPendingValues = pendingValuesRef.current
         if (latestPendingValues && !areAssignmentEditorValuesEqual(latestPendingValues, values)) {
           return savedAssignment
@@ -513,18 +552,20 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
       }
       return savedAssignment
     } catch (err: any) {
-      setError(err.message || 'Failed to save assignment')
-      setSaveStatus('unsaved')
+      if (ownsSession(session)) {
+        setError(err.message || 'Failed to save assignment')
+        setSaveStatus('unsaved')
+      }
       return null
     }
-  }, [currentAssignment, createAssignment, getChangedFields, onClose, onSuccess, setError])
+  }, [currentAssignment, createAssignment, getChangedFields, onClose, onSuccess, ownsSession, setError])
 
   const startSaveChanges = useCallback((
     values: AssignmentEditorValues,
     options?: { closeAfter?: boolean }
   ) => {
     const promise = saveChanges(values, options)
-    const activeSave = { values, promise }
+    const activeSave = { session: editorSessionRef.current, values, promise }
     activeSaveRef.current = activeSave
     void promise.finally(() => {
       if (activeSaveRef.current === activeSave) {
@@ -538,6 +579,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     values: AssignmentEditorValues,
     options?: { force?: boolean }
   ) => {
+    const session = editorSessionRef.current
     pendingValuesRef.current = values
 
     if (throttledSaveTimeoutRef.current) {
@@ -555,15 +597,17 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
     const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastSave
     throttledSaveTimeoutRef.current = setTimeout(() => {
+      if (!ownsSession(session)) return
       throttledSaveTimeoutRef.current = null
       const latest = pendingValuesRef.current
       if (latest) {
         void startSaveChanges(latest)
       }
     }, waitMs)
-  }, [startSaveChanges])
+  }, [ownsSession, startSaveChanges])
 
   const scheduleAutosave = useCallback((values: AssignmentEditorValues) => {
+    const session = editorSessionRef.current
     pendingValuesRef.current = values
     setSaveStatus('unsaved')
 
@@ -572,9 +616,11 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
 
     saveTimeoutRef.current = setTimeout(() => {
+      if (!ownsSession(session)) return
+      saveTimeoutRef.current = null
       scheduleSave(values)
     }, AUTOSAVE_DEBOUNCE_MS)
-  }, [scheduleSave])
+  }, [ownsSession, scheduleSave])
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
@@ -618,6 +664,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   // Helper to clear pending timeouts and save any unsaved changes
   async function flushPendingChanges(): Promise<void> {
+    const session = editorSessionRef.current
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -648,6 +695,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           const data = await response.json()
           throw new Error(data.error || 'Failed to save changes')
         }
+        if (!ownsSession(session)) return
+        const latestPendingValues = pendingValuesRef.current
+        if (latestPendingValues && !areAssignmentEditorValuesEqual(latestPendingValues, valuesToSave)) return
         lastSavedValuesRef.current = { ...valuesToSave }
       }
       pendingValuesRef.current = null
@@ -657,6 +707,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   async function saveDraftAndClose() {
     if (saving || releasing) return
+    const session = editorSessionRef.current
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -667,9 +718,19 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
     }
     setSaving(true)
     const valuesToSave = pendingValuesRef.current ?? buildEditorValues()
+    const savedValues = lastSavedValuesRef.current
     const activeSave = activeSaveRef.current
-    if (activeSave) {
+    if (activeSave && activeSave.session === session) {
       const savedAssignment = await activeSave.promise
+      if (!ownsSession(session)) {
+        if (savedAssignment && areAssignmentEditorValuesEqual(activeSave.values, valuesToSave)) {
+          onSuccess(savedAssignment, { closeModal: false })
+        } else {
+          // Finish the initiating manual save against its original resource/baseline.
+          await saveChanges(valuesToSave, { closeAfter: true }, { session, savedValues })
+        }
+        return
+      }
       const latestValues = pendingValuesRef.current ?? buildEditorValues()
       if (
         savedAssignment
@@ -685,7 +746,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
     pendingValuesRef.current = null
     await startSaveChanges(valuesToSave, { closeAfter: true })
-    setSaving(false)
+    if (ownsSession(session)) setSaving(false)
   }
 
   function ensureTitleBeforeRelease(): boolean {
@@ -719,6 +780,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
 
   async function handleClose() {
     if (creating || saving || releasing || discarding) return
+    const session = editorSessionRef.current
 
     setShowInstructionsPreview(false)
 
@@ -751,16 +813,20 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           throw new Error(data.error || 'Failed to discard empty assignment')
         }
         if (data.discarded) {
-          onClose()
+          if (ownsSession(session)) onClose()
         } else {
           const preservedAssignment = data.assignment ?? currentAssignment
-          onSuccess(preservedAssignment)
-          onClose()
+          if (ownsSession(session)) {
+            onSuccess(preservedAssignment)
+            onClose()
+          } else {
+            onSuccess(preservedAssignment, { closeModal: false })
+          }
         }
       } catch (closeError: any) {
-        setError(closeError?.message || 'Failed to discard empty assignment')
+        if (ownsSession(session)) setError(closeError?.message || 'Failed to discard empty assignment')
       } finally {
-        setDiscarding(false)
+        if (ownsSession(session)) setDiscarding(false)
       }
       return
     }

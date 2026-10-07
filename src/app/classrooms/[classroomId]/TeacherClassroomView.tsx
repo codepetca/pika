@@ -837,7 +837,7 @@ export function TeacherClassroomView({
     const key = `${classroom.id}:${type}:${id}`
     if (positionedCreationKeysRef.current.has(key)) {
       invalidateClassworkLists(classroom.id)
-      void loadAssignments()
+      if (currentClassroomIdRef.current === classroom.id) void loadAssignments()
       return
     }
     positionedCreationKeysRef.current.add(key)
@@ -1419,6 +1419,11 @@ export function TeacherClassroomView({
   }, [assignmentEditMode])
 
   function handleCreateSuccess(created: Assignment) {
+    if (currentClassroomIdRef.current !== classroom.id) {
+      invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+      void positionCreatedClasswork('assignment', created.id)
+      return
+    }
     // Optimistically add the new assignment to the list
     setAssignments((prev) => {
       const existing = prev.find((item) => item.id === created.id)
@@ -1430,6 +1435,8 @@ export function TeacherClassroomView({
   }
 
   function handleEditSuccess(updated: Assignment) {
+    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+    if (currentClassroomIdRef.current !== classroom.id) return
     // Optimistically update the assignment in the list
     setAssignments((prev) =>
       prev.map((assignment) =>
@@ -1442,7 +1449,6 @@ export function TeacherClassroomView({
       return { ...prev, assignment: updated }
     })
     // Reload to ensure consistency
-    invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     loadAssignments()
   }
 
@@ -3091,7 +3097,7 @@ export function TeacherClassroomView({
           } else {
             handleCreateSuccess(assignment)
           }
-          if (options?.closeModal === false) {
+          if (options?.closeModal === false || currentClassroomIdRef.current !== classroom.id) {
             return
           }
           closeAssignmentModal()

@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Inline survey question numbers
-
-PR1511 follow-up: reuse question Markdown and muted labels in a baseline-aligned
-row, placing Q1/Q2/etc beside the question in teacher/student results. Keep full
-question text wrapping and original order. Risk none; same eight-view matrix
-refreshed with inline-number geometry checks, plus required focused checks.
-Bounded GPT-6.1 Sol/medium targeted review continues in PR metadata.
-
 ## 2026-10-06 — Percentages inside survey bar backings
 
 PR1511 follow-up: extend the existing shared result row so selected percentages
@@ -431,3 +423,9 @@ is unchanged; repeat the native browser matrix for the new test topology.
 Independent delta review and new stable-head CI required before main merge.
 Separate API-isolated baseline reproduced old autosave failure shown after
 editor reopen; session-lifetime correction remains next, outside1517.
+
+## 2026-10-07 — Assignment editor session ownership
+
+PR1517 merged2c99c5f41 after exactd016 CI37626691269 Test/Build, Browser and PR Gate PASS; landing tree/sole base parent and clean hub sync verified. Fluidity follow-up guards AssignmentModal/create/save/flush/timer/close/discard and useAssignmentScheduling late effects by external session. Initiated original-resource commands and appropriate quiet publication continue; TeacherClassroomView guards stale-classroom list writes/reloads while retaining cache/creation positioning. Preserves editor/preview identity, native undo and current same-ID external refresh reset. No dependencies/backend/schema/deployment changes; abandoned backing-draft cleanup excluded. Risk: workspace-state; reuse actual editor and Pattern Lab SaveStatus references.
+
+Test-first evidence:21RED/1dirty-buffer control across separate baseline runs; additional manual Draft case genuinelyRED on original source thenGREEN. Six affected suites161PASS; cumulative focused465PASS with all static gates, after one nullable-ref annotation correction (failed logs retained). Isolated source work overlapped frozen1517CI after coordinator narrowed its own source hold; rebase/publication waited for landing. Exact six source/test hashes survived rebase onto identical main tree. Natural teacher8-case viewport/theme/motion visual matrixPASS;24PNG/8videos retained, all8 late-error images and4preview images inspected; APIs intercepted, zero backend writes. Native preview continuity8/8PASS (typing/undo, dismissal, rapid reopen and reduced-motion preference change); final rebased focused408/21plusallstatic/auditPASS. Draft-first independent review and stable-head CI follow before authorized main merge. Broad fluidity goal remains incomplete.
