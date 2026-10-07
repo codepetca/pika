@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-06 — Accurate auth resend feedback and preserved focus
-
-Bounded product-fluidity work on the real signup verification/reset-code pages:
-reuse canonical ghost Button, inline FormField errors and AppMessage; check HTTP
-outcomes, suppress obsolete notices, exclude overlapping resend/verification and
-retain code/email drafts. Native pending disabling originally lost opener focus;
-bounded ownership restoration now respects deliberate pointer/keyboard/focus moves,
-owner changes and unmount, with preventScroll. Narrow tests31 PASS; actual public
-16-case viewport/theme/motion matrix directly PASS, root visual review96 state PNG
-and16 sampled natural videos PASS. Every API response intercepted;64 POST attempts,
-zero backend/email writes; no production INP or email-delivery proof. First focused
-check220 tests PASS then caught stale native-control registry; migrate only the two
-resend entries. Required focused/audit and draft stable-SHA independent review/CI
-continue. No new dependency, backend/auth policy/schema or design promotion; main
-merge/production authorization remains separate. Full17-family goal stays active.
-
 ## 2026-10-06 — Approved PR1497 integration reconciliation
 
 Reconciled onto current main865d837b with all feature source/test/brief blobs unchanged. Preserved all main and feature continuity bodies. Focused verification and approved independent final review follow; no merge or deployment authority.
@@ -407,6 +391,12 @@ Repository remains public, zero runners and automatic PIKA opt-in unset. Known c
 ## 2026-10-06 — CI runner preparation synchronized after fluidity landing
 
 Owner selected keep-public and coordinate toward merging1512. The1490coordinator explicitly released its temporary main-merge hold after verified landing3a0b17d6; preserve incoming product/CI inputs and both complete continuity histories in1512. Reviewed8f6driver and46fault cases, corrected unregistered rehearsal and security/finalintegration coverage remain source-specific; retain original executionSHA when relevant byte parity permits reuse. Prior25cde focused461/25/static and targeted sync CLEAN; new-base focused/targeted integration and one final exact-head hostedCI/PRGate precede normal squash merge. No public runner registration, privatevisibility, automaticoptin, HQ, database or production changes. Requested source coordinator defer its next mainmerge until1512landing/checkpoint; local softer-modal work can continue. Cumulative review counters and human task-stop waiver retained; weekly11%remaining/ordinaryusageallowed; DeepSeek pause remains.
+
+## 2026-10-07 — Teacher gallery image baseline correction (#1514)
+
+- Full coverage and Test & Build passed at daaebd00:14,027 tests/1,087 files,8 test/2 file skips; original coverage floors and all static/build checks passed. Browser37555943140 passed389 cases, recovered4 configured retries and skipped20; four terminal teacher-contract screenshots mismatch because the added confirmation example changes the fixture. PR Gate failed; draft restored before correction. Browser ephemeral cleanup passed; no manual rerun/dispatch.
+- Inspected exact-head Linux expected/actual pairs in all four desktop/mobile light/dark variants. Expected artifacts match prior tracked bytes; all three attempts are pixel-identical. Confirmation is on the desktop row, adds56px on mobile; reviewed control/icon regions remain coherent. Copy only these four actual PNG baselines; source, assertions, thresholds, native events, configuration and dependencies stay identical. Initial analysis helpers needed Pillow instead of unavailable NumPy and corrected a desktop-height assumption before any mutation.
+- Prior focused/static,48 browser/48 visual/24 midpoint and race evidence retains its original source provenance. Baseline-only stable-SHA independent review and corrected normal CI remain required. Task approval override and cumulative failed attempts/counters persist. Broader product goal incomplete; excluded PRs/production/schema/provider/dependency holds preserved. Next owner proposal remains Assignment Instructions preview only, pending current landing and individual lifecycle evidence.
 
 ## 2026-10-07 — Softer modal dismissal implementation
 

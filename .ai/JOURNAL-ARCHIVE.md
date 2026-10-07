@@ -40689,3 +40689,20 @@ Repeated baseline clock hydration failures exposed an existing AppHeader server/
 ## 2026-10-06 PR 1496 combined recovery clock continuation
 
 Rebased onto reviewed PR 1491 parent `9d32e4ad`; preserved recovery/dialog gallery registrations, all continuity bodies and main archive prefix. Added required `initialNow` on enrollment-error return without weakening shell/header props. Regression RED then 84 affected tests GREEN; focused 378 tests and policy/type/lint PASS. Combined controlled browser matrix: 16 dialog and 16 recovery/clock cells covered; two dialog and one recovery initial useId-warning failures passed unchanged once-only retries, matching prior Pattern Lab warning provenance. Actual authenticated enrollment-outage RSC remains unverified. Experimental dialog stays unpromoted; no push/merge/deployment. External receipt: `product-fluidity/integration-1496-composition.md`.
+
+<!-- pika-session-log-archive-batch:3ca185c06b6caf98d8885be4eb81735400518a4cf8f8b1d8d02cfeca74a991c6 -->
+## 2026-10-06 — Accurate auth resend feedback and preserved focus
+
+Bounded product-fluidity work on the real signup verification/reset-code pages:
+reuse canonical ghost Button, inline FormField errors and AppMessage; check HTTP
+outcomes, suppress obsolete notices, exclude overlapping resend/verification and
+retain code/email drafts. Native pending disabling originally lost opener focus;
+bounded ownership restoration now respects deliberate pointer/keyboard/focus moves,
+owner changes and unmount, with preventScroll. Narrow tests31 PASS; actual public
+16-case viewport/theme/motion matrix directly PASS, root visual review96 state PNG
+and16 sampled natural videos PASS. Every API response intercepted;64 POST attempts,
+zero backend/email writes; no production INP or email-delivery proof. First focused
+check220 tests PASS then caught stale native-control registry; migrate only the two
+resend entries. Required focused/audit and draft stable-SHA independent review/CI
+continue. No new dependency, backend/auth policy/schema or design promotion; main
+merge/production authorization remains separate. Full17-family goal stays active.
