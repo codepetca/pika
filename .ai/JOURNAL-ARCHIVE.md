@@ -41861,3 +41861,15 @@ Reuse/extend decisions and reference unchanged. Risk none; existing eight-view
 visual matrix refreshed with an explicit no-visible-0% check. Added zero-vote,
 zero-total and tiny-nonzero semantic cases to the existing component test.
 PR returned to draft before publishing; targeted review/final checks in PR notes.
+
+<!-- pika-session-log-archive-batch:4834d787a7c9be6a2b7b8d5048a00dc6fb41bd484029541a192a98d3f6a664fa -->
+## 2026-10-06 — Survey percentage alignment
+
+PR1511 follow-up: reuse/extend SurveyOptionResultBar with labels overlaying the
+full track and a fixed-width percentage column at the far right of each row.
+Blank zero-vote percentage columns keep all tracks aligned. Original question
+and option order retained by API position ordering and existing array maps.
+Pattern Lab and visual fixture now put the highest-vote option second to verify
+that responses do not reorder the survey. Existing both-role/viewport/theme
+matrix refreshed, including percentage right alignment and order assertions.
+Risk none; no business-logic/API changes. Checks and bounded review in PR notes.
