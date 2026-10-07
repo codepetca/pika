@@ -11,6 +11,7 @@ import { LONG_ROSTER_SIZE, TABLE_CLASSROOM_ID, mockLongTeacherTable, mockTableSh
 import { verifyWorkspaceMotion } from './helpers/workspace-motion'
 import { verifyBlueprintRecovery } from './helpers/blueprints-recovery'
 import { verifyAssignmentPreviewMotion, verifyAssignmentPreviewPreferenceChange } from './helpers/assignment-preview-motion'
+import { verifyAssignmentEditorControls, verifyAssignmentEditorDragShutdown } from './helpers/assignment-editor-exit'
 
 const TEACHER_STORAGE = '.auth/teacher.json'
 const STUDENT_STORAGE = '.auth/student.json'
@@ -52,6 +53,21 @@ const rolloverBlueprint = {
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Assignment editor retirement', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test.describe(motion, () => {
+      test.use({ contextOptions: { reducedMotion: motion } })
+      test('retires active and pending native drags without breaking reordering', async ({ page }, testInfo) => {
+        await verifyAssignmentEditorDragShutdown(page, testInfo)
+      })
+      test('retires nested controls and closes after the parent publishes Post', async ({ page }, testInfo) => {
+        await verifyAssignmentEditorControls(page, testInfo)
+      })
+    })
+  }
+})
 
 test.describe('Assignment Instructions preview continuity', () => {
   test.use({ storageState: { cookies: [], origins: [] } })

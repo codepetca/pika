@@ -12,6 +12,25 @@ vi.mock('@/lib/direct-storage-upload', () => ({
 }))
 
 describe('RichTextEditor', () => {
+  it('retires editing and authenticity callbacks while retaining content and a passive toolbar strip', async () => {
+    const content: TiptapContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Retained instructions' }] }] }
+    const props = { content, onChange: vi.fn(), onBlur: vi.fn(), onPaste: vi.fn(), onKeystroke: vi.fn() }
+    const { rerender } = render(<RichTextEditor {...props} />)
+    const editor = await screen.findByRole('textbox', { name: 'Rich text editor' })
+    rerender(<RichTextEditor {...props} interactionActive={false} />)
+    expect(editor).toHaveAttribute('contenteditable', 'false')
+    expect(editor).toHaveTextContent('Retained instructions')
+    expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+    expect(editor.closest('.simple-editor-wrapper')?.querySelector('.tiptap-toolbar[data-variant="fixed"]')).toBeInTheDocument()
+    fireEvent.blur(editor)
+    fireEvent.keyDown(editor, { key: 'a' })
+    fireEvent.paste(editor, { clipboardData: { getData: () => 'old paste' } })
+    expect(props.onBlur).not.toHaveBeenCalled()
+    expect(props.onPaste).not.toHaveBeenCalled()
+    expect(props.onKeystroke).not.toHaveBeenCalled()
+    expect(props.onChange).not.toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(discardDirectUpload).mockResolvedValue(undefined)

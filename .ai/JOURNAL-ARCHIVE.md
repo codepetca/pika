@@ -41927,3 +41927,27 @@ unregistered/inactive Pika runner, unset opt-in, production/HQ/Mac Docker holds
 remain. No SQL/VM replay, hosted heavy CI or merge in this approved phase.
 Model recommendation: GPT5.6Sol/high targeted privacy/correctness; GPT6.1Sol/high
 cumulative integration (Terra unavailable). Risk: runtime-platform.
+
+<!-- pika-session-log-archive-batch:9511780539d2529f008f88e42907a21ad32b2dc0969099917afe1982362b474c -->
+## 2026-10-06 — Full local CI database evidence and current-main reconciliation
+
+Owner instructed “override approvals to continue goal”; current-task workflow
+approval/budget stops waived while correctness and public/runner-inactive,
+production/HQ holds remain. Earlier interrupted2325 attempt had7canonical PASS;
+final exit/time unknown, partial archive retained and owned VM disposed.
+Fresh isolated Linux ARM64/4CPU/12GiB full2325/001–248 database lane PASS:
+141canonical steps, Mac monotonic2543.246s(42.39min), guest2537.924s. Native GET
+normal1001-question/privilege-restoration/rollback/two-session and both forced
+modes passed; Assignment SDK and Pal concurrency passed; full recovery and
+shutdown passed. Private archive431members104642bytes, SHA256
+29d855236e1792cc117ae2aa7a96176b3ea8ffb728c2439db5f99a45e97a0078 verified;
+daemon containers/volumes/custom networks empty, owned VMdeleted/lease released.
+Read-only GPT6.1Sol/high main-compatibility analysis289.3s verified. Rebased onto
+865d837b740e781086f0209eb9c4d9c8dab78db3 with continuity-only conflict resolution,
+preserving incoming251-migration schema/new lifecycle checks and byte-identical
+reviewed diagnostic code. Preserve both histories by entry-body hash comparison;
+new integrated source still requires focused checks/review and exact251 replay.
+Historical2325 evidence is not relabeled as integrated251 acceptance. PR1488draft;
+public visibility and runner activation holds continue; no production changes.
+Integrated focused355tests/17files plus architecture/UI/design/TypeScript/lint
+PASS; coupled GET/schema/save-engine/new-CI tests90/6PASS; Bashsyntax/diffPASS.

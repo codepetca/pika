@@ -9,6 +9,19 @@ beforeEach(() => {
 })
 
 describe('ClassroomBlueprintDraftSource', () => {
+  it('removes a loaded note immediately on close for callers without presentation retention', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ provenance: { source_blueprint_version_number: 8, unit_label: 'Default source' } }),
+    } as Response)
+    const props = { classroomId: 'classroom-1', target: 'assignments' as const, artifactId: 'assignment-default' }
+    const { rerender } = render(<ClassroomBlueprintDraftSource {...props} isOpen />)
+    const note = await screen.findByText('Drafted with Blueprint Version 8 · Default source')
+    rerender(<ClassroomBlueprintDraftSource {...props} isOpen={false} />)
+    expect(note).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
   it('shows the teacher a saved source after loading private provenance', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,

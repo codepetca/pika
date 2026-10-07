@@ -1,10 +1,71 @@
 import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { DialogPanel, SplitButton } from '@/ui'
 
 describe('SplitButton', () => {
+  it('cancels and fences deferred focus across retirement and rapid reactivation without changing button styling', () => {
+    let oldFrame!: FrameRequestCallback
+    const frameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => { oldFrame = callback; return 41 })
+    const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    const onPrimaryClick = vi.fn()
+    const options = [{ id: 'draft', label: 'Draft', onSelect: vi.fn() }]
+    const props = { label: 'Post', onPrimaryClick, options, toggleAriaLabel: 'Choose action' }
+    const view = render(<SplitButton {...props} />)
+    try {
+      const primary = screen.getByRole('button', { name: 'Post' })
+      const originalClass = primary.className
+      fireEvent.click(screen.getByRole('button', { name: 'Choose action' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Draft' }))
+      expect(frameSpy).toHaveBeenCalledOnce()
+      view.rerender(<SplitButton {...props} interactionActive={false} />)
+      expect(cancelSpy).toHaveBeenCalledWith(41)
+      expect(primary).toBeEnabled()
+      expect(primary.className).toBe(originalClass)
+      fireEvent.click(primary)
+      expect(onPrimaryClick).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: 'Choose action' }))
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      view.rerender(<SplitButton {...props} />)
+      // Even a cancelled callback delivered late cannot focus the new lifetime.
+      act(() => { (document.activeElement as HTMLElement).blur(); oldFrame(0) })
+      expect(primary).not.toHaveFocus()
+      expect(screen.getByRole('button', { name: 'Choose action' })).not.toHaveFocus()
+    } finally {
+      view.unmount()
+      frameSpy.mockRestore()
+      cancelSpy.mockRestore()
+    }
+  })
+
+  it('retires its document listeners and cancels a queued Tab close before a new menu opens', () => {
+    vi.useFakeTimers()
+    const addSpy = vi.spyOn(document, 'addEventListener')
+    const removeSpy = vi.spyOn(document, 'removeEventListener')
+    const props = { label: 'Actions', singleMenuTrigger: true, options: [{ id: 'one', label: 'First action', onSelect: vi.fn() }] }
+    const view = render(<SplitButton {...props} />)
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+      const mouseListener = addSpy.mock.calls.findLast(([name]) => name === 'mousedown')![1]
+      const focusListener = addSpy.mock.calls.findLast(([name]) => name === 'focusin')![1]
+      fireEvent.keyDown(screen.getByRole('menuitem', { name: 'First action' }), { key: 'Tab' })
+      view.rerender(<SplitButton {...props} interactionActive={false} />)
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(removeSpy).toHaveBeenCalledWith('mousedown', mouseListener)
+      expect(removeSpy).toHaveBeenCalledWith('focusin', focusListener)
+      view.rerender(<SplitButton {...props} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Actions' }))
+      act(() => { vi.runOnlyPendingTimers() })
+      expect(screen.getByRole('menuitem', { name: 'First action' })).toHaveFocus()
+    } finally {
+      view.unmount()
+      addSpy.mockRestore()
+      removeSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
   it('runs primary action when main button is clicked', () => {
     const onPrimaryClick = vi.fn()
     const onSelectDraft = vi.fn()

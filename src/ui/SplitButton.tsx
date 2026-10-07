@@ -4,7 +4,7 @@ import { Check, ChevronDown } from 'lucide-react'
 import {
   Fragment,
   useCallback,
-  useEffect,
+  useLayoutEffect,
   useId,
   useRef,
   useState,
@@ -37,6 +37,8 @@ export interface SplitButtonProps {
   variant?: NonNullable<ButtonProps['variant']>
   size?: NonNullable<ButtonProps['size']>
   disabled?: boolean
+  /** Close nested interaction owners without changing button presentation. */
+  interactionActive?: boolean
   className?: string
   toggleAriaLabel?: string
   toggleButtonClassName?: string
@@ -53,6 +55,7 @@ export function SplitButton({
   variant = 'primary',
   size = 'sm',
   disabled = false,
+  interactionActive = true,
   className,
   toggleAriaLabel = 'More actions',
   toggleButtonClassName,
@@ -62,6 +65,14 @@ export function SplitButton({
   const { className: primaryClassName, ...restPrimaryButtonProps } = primaryButtonProps ?? {}
   const [activeOptionId, setActiveOptionId] = useState<string | null>(null)
   const [isOpen, setIsOpen] = useState(false)
+  const interactionRef = useRef({ active: interactionActive, generation: 0 })
+  if (interactionRef.current.active !== interactionActive) {
+    interactionRef.current = { active: interactionActive, generation: interactionRef.current.generation + 1 }
+  }
+  const mountedRef = useRef(true)
+  const focusFrameRef = useRef<number | null>(null)
+  const tabTimeoutRef = useRef<number | null>(null)
+  const menuOpen = interactionActive && isOpen
   const containerRef = useRef<HTMLDivElement | null>(null)
   const primaryButtonRef = useRef<HTMLButtonElement | null>(null)
   const toggleButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -94,13 +105,18 @@ export function SplitButton({
     clearOptionHover()
     setIsOpen(false)
     focusedOnOpenRef.current = false
-    if (options?.restoreFocus) {
+    if (options?.restoreFocus && interactionRef.current.active) {
       activeTriggerRef.current?.focus()
     }
   }, [clearOptionHover])
 
   const restoreFocusIfNoNewModalOpened = useCallback((existingModals: Set<Element>) => {
-    window.requestAnimationFrame(() => {
+    const generation = interactionRef.current.generation
+    if (focusFrameRef.current !== null) window.cancelAnimationFrame(focusFrameRef.current)
+    focusFrameRef.current = window.requestAnimationFrame(() => {
+      focusFrameRef.current = null
+      if (!mountedRef.current || !interactionRef.current.active
+        || interactionRef.current.generation !== generation) return
       const currentModals = Array.from(document.querySelectorAll('[aria-modal="true"]'))
       if (currentModals.some((modal) => !existingModals.has(modal))) return
       const activeElement = document.activeElement
@@ -110,8 +126,30 @@ export function SplitButton({
     })
   }, [])
 
-  useEffect(() => {
-    if (!isOpen) {
+  const cancelDeferredWork = useCallback(() => {
+    if (focusFrameRef.current !== null) window.cancelAnimationFrame(focusFrameRef.current)
+    if (tabTimeoutRef.current !== null) window.clearTimeout(tabTimeoutRef.current)
+    focusFrameRef.current = null
+    tabTimeoutRef.current = null
+  }, [])
+
+  useLayoutEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      cancelDeferredWork()
+    }
+  }, [cancelDeferredWork])
+
+  useLayoutEffect(() => {
+    if (!interactionActive) {
+      closeMenu()
+      cancelDeferredWork()
+    }
+  }, [cancelDeferredWork, closeMenu, interactionActive])
+
+  useLayoutEffect(() => {
+    if (!menuOpen) {
       focusedOnOpenRef.current = false
       return
     }
@@ -125,14 +163,14 @@ export function SplitButton({
     }
 
     function handleClickOutside(event: MouseEvent) {
-      if (!containerRef.current) return
+      if (!interactionRef.current.active || !containerRef.current) return
       if (!containerRef.current.contains(event.target as Node)) {
         closeMenu()
       }
     }
 
     function handleFocusOutside(event: FocusEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) closeMenu()
+      if (interactionRef.current.active && !containerRef.current?.contains(event.target as Node)) closeMenu()
     }
 
     document.addEventListener('mousedown', handleClickOutside)
@@ -141,14 +179,19 @@ export function SplitButton({
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('focusin', handleFocusOutside)
     }
-  }, [closeMenu, getEnabledMenuItems, isOpen])
+  }, [closeMenu, getEnabledMenuItems, menuOpen])
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (!isOpen) return
+    if (!interactionRef.current.active || !menuOpen) return
     if (event.key === 'Tab') {
       // Allow the browser to choose the normal next/previous tab stop before
       // removing the focused menu item. Never return focus on keyboard exit.
-      window.setTimeout(() => closeMenu(), 0)
+      const generation = interactionRef.current.generation
+      tabTimeoutRef.current = window.setTimeout(() => {
+        tabTimeoutRef.current = null
+        if (mountedRef.current && interactionRef.current.active
+          && interactionRef.current.generation === generation) closeMenu()
+      }, 0)
       return
     }
     if (event.key === 'Escape') {
@@ -171,6 +214,7 @@ export function SplitButton({
   }
 
   function handleOptionSelect(onSelect: () => void) {
+    if (!interactionRef.current.active) return
     const existingModals = new Set(document.querySelectorAll('[aria-modal="true"]'))
     closeMenu()
     onSelect()
@@ -178,6 +222,7 @@ export function SplitButton({
   }
 
   function toggleMenu(trigger: HTMLButtonElement) {
+    if (!interactionRef.current.active) return
     if (isOpen) {
       closeMenu({ restoreFocus: true })
       return
@@ -196,8 +241,9 @@ export function SplitButton({
         size={size}
         aria-haspopup={primaryIsMenuTrigger ? 'menu' : undefined}
         aria-controls={primaryIsMenuTrigger ? menuId : undefined}
-        aria-expanded={primaryIsMenuTrigger ? isOpen : undefined}
+        aria-expanded={primaryIsMenuTrigger ? menuOpen : undefined}
         onClick={(event) => {
+          if (!interactionRef.current.active) return
           if (!primaryIsMenuTrigger) {
             onPrimaryClick?.()
             return
@@ -220,7 +266,7 @@ export function SplitButton({
           size={size}
           aria-haspopup="menu"
           aria-controls={menuId}
-          aria-expanded={isOpen}
+          aria-expanded={menuOpen}
           aria-label={toggleAriaLabel}
           onClick={(event) => {
             event.stopPropagation()
@@ -233,7 +279,7 @@ export function SplitButton({
         </Button>
       ) : null}
 
-      {isOpen && (
+      {menuOpen && (
         <div
           id={menuId}
           ref={menuRef}
