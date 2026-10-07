@@ -55,6 +55,48 @@ describe('inert contextual Test reorder database contracts', () => {
     expect(sql).toContain("'gradebook_maximum_override'")
   })
 
+  it('uses the trigger-aware deparser without converting failed qualified extraction to empty', () => {
+    const catalog = manifest.contracts[0]
+    expect(catalog.name).toBe('catalog')
+    expect(catalog.sql).not.toContain('pg_get_expr(t.tgqual')
+    expect(catalog.sql.match(/pg_catalog\.pg_get_triggerdef\(t\.oid,false\)/g)).toHaveLength(2)
+    expect(catalog.sql).toContain("case when t.tgqual is null then '' else")
+    expect(catalog.sql).toContain("pg_catalog.substring(pg_catalog.pg_get_triggerdef(t.oid,false),' WHEN [(](.*)[)] EXECUTE FUNCTION ') end")
+    expect(catalog.sql).not.toMatch(/coalesce\(\s*(?:case when t\.tgqual|pg_catalog\.substring\(pg_catalog\.pg_get_triggerdef)/)
+    // Both EXCEPT directions remain required: a NULL extraction for a non-null
+    // qualifier differs from each source-bound, non-null expected qualifier.
+    expect(catalog.sql).toMatch(/if exists\(\(select t\.tgname/)
+    expect(catalog.sql).toMatch(/or exists\(\(select \* from \(values/)
+  })
+
+  it('checks the fixed extraction pattern against realistic nonpretty trigger definitions (inert, not PostgreSQL proof)', () => {
+    const pattern = /pg_catalog\.substring\(pg_catalog\.pg_get_triggerdef\(t\.oid,false\),'([^']+)'\)/.exec(manifest.contracts[0].sql)?.[1]
+    expect(pattern).toBe(' WHEN [(](.*)[)] EXECUTE FUNCTION ')
+    // This fixed pattern uses only the common ASCII regexp subset. The test
+    // checks emitted delimiters/normalization; it does not execute SQL.
+    const extract = (definition: string, hasQualifier = true) => {
+      if (!hasQualifier) return ''
+      const value = new RegExp(pattern!).exec(definition)?.[1]
+      return value === undefined ? null : value.replaceAll('::text', '').replaceAll('"', '').replace(/[()\s]/g, '').toLowerCase()
+    }
+    const columns = ['title', 'show_results', 'documents', 'position', 'points_possible', 'include_in_final', 'gradebook_weight', 'artifact_id', 'source_artifact_id']
+    const predicate = columns.map(column => `(old.${column} IS DISTINCT FROM new.${column})`).join(' OR ')
+    const oldNew = `CREATE TRIGGER touch_classroom_blueprint_source_from_tests_update AFTER UPDATE OF ${columns.join(', ')} ON public.tests FOR EACH ROW WHEN ((${predicate})) EXECUTE FUNCTION public.touch_classroom_blueprint_source_revision()`
+    expect(extract(oldNew)).toBe(columns.map(column => `old.${column}isdistinctfromnew.${column}`).join('or'))
+    const setting = "CREATE TRIGGER enqueue_obsolete_test_document_snapshots AFTER DELETE OR UPDATE OF documents ON public.tests FOR EACH ROW WHEN ((current_setting('pika.classroom_purge_finalize'::text, true) IS DISTINCT FROM 'on'::text)) EXECUTE FUNCTION public.enqueue_obsolete_test_document_snapshots()"
+    expect(extract(setting)).toBe("current_setting'pika.classroom_purge_finalize',trueisdistinctfrom'on'")
+    const unqualified = 'CREATE TRIGGER update_tests_updated_at BEFORE UPDATE ON public.tests FOR EACH ROW EXECUTE FUNCTION public.update_tests_updated_at()'
+    expect(extract(unqualified, false)).toBe('')
+    // A present qualifier without the exact supported boundary remains NULL,
+    // not the empty string used exclusively for catalog tgqual IS NULL.
+    for (const malformed of [unqualified, oldNew.replace(/ WHEN [(]+/, ' WHEN '),
+      oldNew.replace(/[)]+ EXECUTE FUNCTION /, ' EXECUTE FUNCTION '), oldNew.replace('EXECUTE FUNCTION', 'EXECUTE PROCEDURE'),
+      oldNew.replace(') EXECUTE FUNCTION ', ') EXECUTE  FUNCTION ')]) {
+      expect(extract(malformed)).toBeNull()
+    }
+    expect(extract(oldNew.replace('old.title IS DISTINCT FROM new.title', 'old.title IS NOT DISTINCT FROM new.title'))).not.toBe(extract(oldNew))
+  })
+
   it('prepares all role, membership, boundary and fault checks without claiming execution', () => {
     for (const label of ['teacher-owner', 'student-owner', 'teacher-noop', 'empty-owner',
       'member-denied', 'teacher-member-denied', 'historical-creator-denied', 'archived-owner-denied',
@@ -113,6 +155,18 @@ describe('inert contextual Test reorder database contracts', () => {
       await expect(runTestOwnerReorderDbContracts(manifest, sealed, driver,Date.now()+315000)).rejects.toThrow()
       expect(opened).toBe(1); expect(closed).toBe(1)
     }
+  })
+
+  it('stops at the first catalog dispatch and closes once on a deparser rejection', async () => {
+    const sealed = target(); let calls = 0; let closed = 0
+    const driver: DraftSaveDriver = { verifyTarget: async () => sealed, openSession: async name => ({ name,
+      execute: async statement => {
+        calls++; expect(statement).toBe(manifest.contracts[0].sql)
+        throw Object.assign(new Error('Synthetic catalog rejection'), { code: '22023' })
+      }, rollbackAndClose: async timeout => { expect(timeout).toBe(12000); closed++ },
+    }) }
+    await expect(runTestOwnerReorderDbContracts(manifest, sealed, driver, Date.now() + 315000)).rejects.toMatchObject({ code: '22023' })
+    expect(calls).toBe(1); expect(closed).toBe(1)
   })
 
   it('rejects a cloned or changed source manifest and hosted target before any session', async () => {

@@ -99,9 +99,12 @@ function catalogSql(routines: ReturnType<typeof reachableFunctions>) {
   const triggerArgs = (name:string) => name==='car_tests'||name==='classroom_purge_fence_tests' ? Buffer.from('classrooms\0classroom_id\0').toString('hex')
     :name==='delete_test_gradebook_score_overrides'?Buffer.from('test\0').toString('hex'):''
   const expectedTriggers = triggers.map(t => `(${q(t[0])},${q(t[1])},${q(t[2])},${t[3]},array[${t[4].map(q).join(',')}]::text[],${q(t[5])},${q(triggerArgs(t[0]))})`).join(',')
+  // pg_get_expr cannot resolve both OLD/NEW namespaces in a trigger WHEN.
+  // A non-null qualifier with a missing delimiter stays NULL and fails EXCEPT.
   const actualTriggers = `select t.tgname::text,nf.nspname::text,fn.proname::text,t.tgtype::integer,
  coalesce((select array_agg(a.attname::text order by cols.ordinality) from unnest(t.tgattr::smallint[]) with ordinality cols(attnum,ordinality) join pg_catalog.pg_attribute a on a.attrelid=t.tgrelid and a.attnum=cols.attnum),array[]::text[]),
- lower(regexp_replace(replace(replace(coalesce(pg_catalog.pg_get_expr(t.tgqual,t.tgrelid),''),'::text',''),'"',''),'[()[:space:]]','','g')),pg_catalog.encode(t.tgargs,'hex')
+ lower(regexp_replace(replace(replace(case when t.tgqual is null then '' else
+ pg_catalog.substring(pg_catalog.pg_get_triggerdef(t.oid,false),' WHEN [(](.*)[)] EXECUTE FUNCTION ') end,'::text',''),'"',''),'[()[:space:]]','','g')),pg_catalog.encode(t.tgargs,'hex')
  from pg_catalog.pg_trigger t join pg_catalog.pg_proc fn on fn.oid=t.tgfoid join pg_catalog.pg_namespace nf on nf.oid=fn.pronamespace
  where t.tgrelid='public.tests'::regclass and not t.tgisinternal`
   return `do $catalog$ declare p pg_catalog.pg_proc;actual text[];checks jsonb;begin

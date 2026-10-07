@@ -454,3 +454,16 @@ narrow checks/lint PASS. Genuine RPC types remain pending. Targeted independent
 review and isolated native verification are next; no full-focused, PR, migration
 application or phase-exit claim. Production/rollout holds unchanged. Preserved
 original review history and task-stop waiver; active time/tokens unknown.
+
+## 2026-10-07 — Test reorder catalog proof correction
+
+Targeted Astra/high source review cleared cleanup batchbeef46b66. First isolated
+normal253 attempt failed in the initial catalog batch; exact ephemeral disposal
+and all-five-field canonical preservation completed without cleanup failures.
+No SDK matrix/race/committed/type acceptance. Sol/high worker found unsupported
+pg_get_expr deparsing of an OLD/NEW trigger condition; root verified PostgreSQL17
+source/docs. Proof-only correction uses pg_get_triggerdef and retains NULL on
+failed extraction, both exact comparisons and13trigger/21column/22routine seals.
+Worker29 affected checks/3files and lint/diff PASS; product253 SHA unchanged.
+Targeted review before a new normal proof is next, not a blind retry. Canonical/
+production249–253 and all rollout/promotion holds remain; no phase-exit claim.
