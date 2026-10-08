@@ -43578,3 +43578,107 @@ and exactheadCI remain gates; old240e receipts not reused as newSQL acceptance.
 Original05:04clock/12reviews9targets1initial1final9fix-sync retained under waiver;
 this candidate is batch10, targeted independent review follows, no counterreset.
 Canonical/prod249–253 application, promotion and all rollout/account/billing held.
+
+<!-- pika-session-log-archive-batch:3c81b7f6d99802695428ec4063d01c912b1d5a0c513fa218448ac2133e391384 -->
+## 2026-10-07 — Reorder mobile-label main reconciliation
+
+Scalar-byte e0fa source review CLEAN;39 affected/835 focused/static checks PASS.
+Clean-source rebase onto main47f5 (#1516 mobile Classrooms label) completed with
+one archive conflict: exact duplicated Daily-summary body proved present on main;
+retain authoritative main prefix and unique survey entry. Incoming three UI/test
+files byte-exact main, all e0 SQL/API/proof/type/config bytes unchanged; migration
+253 remains71ed9848, no numbering collision. All5056 old/main history bodies and
+ordered stash digest preserved. Official keep60 trim retains full rolling history.
+Fresh focused checks/changed-base independent review precede one new frozen-head
+normal proof/genuine CLI types/both forced cleanup cases; old240e receipts remain
+historical, scalar candidate performance unmeasured. Original05:04 clock and13
+launches/10 targets/1 initial/1 final/10 fixes retained; reconciliation batch11.
+Human workflow-stop waiver persists. Canonical/prod249–253, promotion and all
+admission/home/page/cutover/billing/account/provider/runner/visibility holds remain.
+
+## 2026-10-07 UTC — Student Grades reactivation continuity
+
+Retain same-classroom returned rows across inactive/reactivated reads and recoverable
+failures; current 401/403/404 clears stale grades, including non-JSON intent prefetch
+failures. Keep real cache TTL/dedup, exact projected replacements and request/owner
+fences; Retry focuses stable Grades region before replacement and invalidates only
+its key. Student Grades-only scroll observation preserves long-list return position.
+Local22 real-cache tests, native8 viewport/theme/motion scenarios and focused4 error
+visual cases PASS with synthetic intercepted reads; original-owner corrected baseline
+genuineRED retained, incomplete fixture excluded. No grade calculations, Pal, shared
+cache, API/schema/dependencies or production changes. Draft preparation can proceed
+independently while1521CI runs; integrate landed base before independent review/CI.
+Required focused/audit/review/CI remain; broader17-family goal incomplete.
+
+## 2026-10-07 — Grades settled intent denial remediation
+
+PR1522 independent review found oneP2: a Grades intent denial settling while inactive was discarded before activation could join it, permitting denied marks to persist after a later503. Mounted Grades now owns intent reads through a commit-owned feature ref; never-mounted prefetch stays unchanged. Real-cache actual-parent RED3 for401/403/404 and GREEN76/2 verify clearing before activation, pending/503 without old marks, dedup and latest/classroom/unmount fences. No shared cache/TTL/navigation/provider/API changes. Coordinator source/hash inspection accepted worker delivery; native settled-denial capture, cumulative focused/audit, final main-base integration and targeted review/CI follow. Evidence retained under product-fluidity/student-grades-continuity/intent-denial-remediation.
+
+## 2026-10-07 — Achievements local render recovery
+
+Scalar-byte e0fa source review CLEAN;39 affected/835 focused/static checks PASS.
+Clean-source rebase onto main47f5 (#1516 mobile Classrooms label) completed with
+one archive conflict: exact duplicated Daily-summary body proved present on main;
+retain authoritative main prefix and unique survey entry. Incoming three UI/test
+files byte-exact main, all e0 SQL/API/proof/type/config bytes unchanged; migration
+253 remains71ed9848, no numbering collision. All5056 old/main history bodies and
+ordered stash digest preserved. Official keep60 trim retains full rolling history.
+Fresh focused checks/changed-base independent review precede one new frozen-head
+normal proof/genuine CLI types/both forced cleanup cases; old240e receipts remain
+historical, scalar candidate performance unmeasured. Original05:04 clock and13
+launches/10 targets/1 initial/1 final/10 fixes retained; reconciliation batch11.
+Human workflow-stop waiver persists. Canonical/prod249–253, promotion and all
+admission/home/page/cutover/billing/account/provider/runner/visibility holds remain.
+
+## 2026-10-07 — Reorder proof-only deadline checkpoints
+
+Reviewed b8 local normal/types/both forced cleanup PASS; seventh eligible CI
+37621234779 again failed bulk10000 PRD01, with test/build/browser PASS and exact
+cleanup/canonical preservation PASS. PR1515 returned to draft; no release.
+Bounded GPT-6.1 Sol/high read-only diagnosis accepted after root source/PG17
+verification. Add fixed PRD11–16 for six exact source-bound first RPC RAISE
+frames; bounded private context discarded, unknown fallback PRD01. Existing
+expired-deadline probe calibrates actual format and rejection cases; no extra
+probes, product SQL, deadlines, workload, triggers, types or limits changed.
+TDD eight RED then160 narrow PASS;846 focused/32 files and all static/audit
+checks PASS. Targeted review and fresh native proofs still required. Fourteen
+prior review launches/11 targeted/11
+fix-sync batches and original05:04 clock retained; this is batch12, next targeted
+review launch15. Human waiver persists; all canonical/prod/rollout holds remain.
+Worker elapsed approx10min; effective model/active time/tokens unknown; no
+savings claim. Root owns implementation, Git and acceptance.
+
+## 2026-10-07 — Reorder assignment-preview main reconciliation
+
+Targeted Sol6.1/high source review of43e58276 CLEAN; actual diagnostic calibration
+still pending. Main advanced to2c99c5f41 (#1517 Assignment preview), so rebase
+before native acceptance. Three archive-marker conflicts retain verified exact
+main prefix and shared survey bodies; all prior/main entry bodies retained.
+Incoming UI/test sources byte-exact main; reviewed product/proof/type/config
+bytes unchanged,253 unique. No stash operations or unrelated edits; ordered
+stash digest unchanged across this rebase. New focused/changed-base review and
+one frozen-head native normal/types plus both forced cleanup proofs pending.
+Prior15 launches/12 targeted/12 fixes, original05:04 clock and human waiver
+retained; reconciliation batch13. No production/canonical/activation changes.
+
+## 2026-10-07 — Reorder inherited revocation diagnosis
+
+Reviewed39 native normal failed a later inherited revocation assertion after
+complete reorder/calibration/SDK/race/committed/genuine-types phases. No full
+native acceptance; exact cleanup and canonical five-field preservation PASS.
+Private600 failure receipt abd5150c; fresh type bytes437800/d84c71 match source.
+Frozen39 PR1515 stays draft; no forced cases, readiness or release.
+Bounded Sol6.1/high source diagnosis verified missing existing closed lifecycle
+fields in reorder catch; cause and timeout attribution remain unobserved.
+Reuse safe transition/boundary/operator/status/checkpoint, plus bounded first
+non-Node assertion basename/line/column allowlist; never raw message/path/stack/
+values. TDD14 RED then142 narrow PASS; final861 focused/32files and all static
+checks PASS. Node24 decorated assertion labels stay unknown; tests explicitly
+distinguish exact fixed labels. Source review and fresh proof still required.
+Prior16 launches/13 targeted/13 fixes/original05:04 clock/human waiver retained;
+this is batch14. No product SQL, limits, ABI/types, triggers or rollout changes.
+Worker approx5min elapsed, effective/active/tokens unknown; no savings claim.
+
+## 2026-10-08 — Classroom access draft integration
+
+Existing draft1529 combines reviewed teacher Settings copy feedback with narrow student attendance return targets. Preserve incoming N848/GuideCalendar602 sources and histories; eleven standalone feature/test/brief files remain byte-identical to preintegrationd1, matrix adds only the two independent registrations. Incoming main501 dormant Test caps remain preserved without application or activation. Base602 is prospective: ancestor actual-tree binding and exact-head CI remain required. Current-base focused checks, clipboard parent re-verification and independent cumulative14 review precede ready/main merge; original failed attempts and static40PNG/0video attendance evidence remain retained.

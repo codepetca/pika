@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { isAbsolute } from 'node:path'
 import { assignmentListProofWorkdir } from './contextual-assignment-list-proof-path'
 import { assignmentListFixtureSetupSql, type AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
-import { assignmentListRevocationPlans, type AssignmentListRevocationPlan } from './contextual-assignment-list-proof-revocations'
+import { assignmentListRevocationDiagnostic, assignmentListRevocationPlans, type AssignmentListRevocationPlan } from './contextual-assignment-list-proof-revocations'
 import { decodeAssignmentListProofManifest, validateAssignmentListProofTarget, type AssignmentListProofManifest } from './check-contextual-assignment-list-reads'
 
 export function validateAssignmentListEphemeralIdentity(input: { projectId: string; workdir: string }) {
@@ -111,7 +111,8 @@ export function assignmentListLifecycleDiagnostic(failure: Failure) {
   const assertion = failure.error instanceof AssertionError ? failure.error : undefined
   const actual = assertion?.actual instanceof ApiError ? assertion.actual : failure.error instanceof ApiError ? failure.error : undefined
   const status = actual && Number.isInteger(actual.statusCode) && actual.statusCode >= 100 && actual.statusCode <= 599 ? actual.statusCode : 'none'
-  return `transition=${closed(failure.transition, ['owner-transfer', 'member-remove', 'archive', 'visibility', 'grade-withdraw', 'feedback-withdraw'])} boundary=${closed(failure.boundary, ['first', 'later', 'terminal', 'returned-grade', 'released-feedback'])} operator=${closed(assertion?.operator, ['==', 'strictEqual', 'deepStrictEqual', 'rejects'])} status=${status} checkpoint=${closed(assertion?.message, ['restoration-scope', 'restoration-nontarget', 'restoration-owner', 'restoration-archive', 'restoration-visibility', 'restoration-member'])}`
+  const revocation = assignmentListRevocationDiagnostic(failure.error)
+  return `transition=${closed(failure.transition, ['owner-transfer', 'member-remove', 'archive', 'visibility', 'grade-withdraw', 'feedback-withdraw'])} boundary=${closed(failure.boundary, ['first', 'later', 'terminal', 'returned-grade', 'released-feedback'])} operator=${closed(assertion?.operator, ['==', 'strictEqual', 'deepStrictEqual', 'rejects'])} status=${status} checkpoint=${closed(assertion?.message, ['restoration-scope', 'restoration-nontarget', 'restoration-owner', 'restoration-archive', 'restoration-visibility', 'restoration-member'])}${revocation === undefined ? '' : ` ${revocation}`}`
 }
 export type AssignmentListLifecycleInput = {
   fixture: AssignmentListProofFixture; projectId: string; workdir: string; migrations: Migration[];

@@ -1,6 +1,6 @@
 # Dormant contextual Test-list reorder
 
-Implementation contract, 2026-10-08; main `d826a01a3`; earlier main sync `984ec3fcc50ed785283221423ce31c4ed61c01e9`.
+Implementation contract, 2026-10-08; main `b778a6851`; earlier main sync `984ec3fcc50ed785283221423ce31c4ed61c01e9`.
 This is preparation, not native acceptance, migration application or rollout.
 
 The approved 1,000-cap source at `a8f2bc935` passed two complete targeted
@@ -10,6 +10,25 @@ Main then advanced through UI-only1532/d826, without API or migration changes.
 Preserve both histories, verify unchanged feature/runtime and incoming-main UI
 bytes, and complete the targeted base/handoff review before actual finite native
 normal/genuine types/two-forced execution. No old10k failure is new-cap acceptance.
+
+## Inherited revocation proof correction — 2026-10-08
+
+The coordinated quiet-window normal proof at c7a01e3 failed after624524ms:
+inherited Assignment-list member-remove/later expected403 but received503.
+Native reorder contracts and SDK matrix completed; all183 canonical tables and
+all five preservation fields stayed exact, teardown left no disposable resources.
+No whole-normal/type/forced-proof acceptance is claimed, and earlier failures
+remain retained. The cause of this503 is not yet observed.
+
+Offline fake-clock regressions reproduce a separate observer race: an in-flight
+revocation could outlive the20-second read and race the scoped restoration.
+The observer now joins that transition's settlement before exact restoration,
+including ambiguous rejection; the original assertion and any restoration error
+remain failures. Proof-only diagnostics add read-abort state, finite transition
+state and bounded integer timings, keyed to the original error without raw text,
+identities, SQL or response content. Product access rules, required403,20-second
+read deadline, mutation admission, budgets and preservation gates are unchanged.
+Fresh targeted source review and actual normal/forced/CI evidence remain required.
 
 ## Scope and compatibility
 
