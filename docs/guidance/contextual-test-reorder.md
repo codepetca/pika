@@ -1,7 +1,15 @@
 # Dormant contextual Test-list reorder
 
-Implementation contract, 2026-10-08; main `47659857d`, synchronized by merge `984ec3fcc50ed785283221423ce31c4ed61c01e9`.
+Implementation contract, 2026-10-08; main `d826a01a3`; earlier main sync `984ec3fcc50ed785283221423ce31c4ed61c01e9`.
 This is preparation, not native acceptance, migration application or rollout.
+
+The approved 1,000-cap source at `a8f2bc935` passed two complete targeted
+transaction/security and proof/schema compatibility reviews. Focused977/36 plus
+static/audit/history checks passed; independent compatibility45/4 passed.
+Main then advanced through UI-only1532/d826, without API or migration changes.
+Preserve both histories, verify unchanged feature/runtime and incoming-main UI
+bytes, and complete the targeted base/handoff review before actual finite native
+normal/genuine types/two-forced execution. No old10k failure is new-cap acceptance.
 
 ## Scope and compatibility
 

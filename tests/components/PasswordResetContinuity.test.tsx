@@ -24,6 +24,23 @@ async function submitForgot() {
 }
 
 describe('forgot password owner continuation', () => {
+  it('retains eligible failed email activation through the renamed auth owner', async () => {
+    const held = deferred<Response>()
+    vi.mocked(fetch).mockReturnValue(held.promise)
+    render(<ForgotPasswordPage />)
+    const email = screen.getByLabelText(/school email/i) as HTMLInputElement
+    fireEvent.change(email, { target: { value: 'reset@example.invalid' } })
+    email.focus()
+    fireEvent.submit(email.closest('form')!)
+    expect(email).toBeDisabled()
+    document.body.setAttribute('tabindex', '-1'); document.body.focus(); document.body.removeAttribute('tabindex')
+    await act(async () => held.resolve(response(false, { error: 'Controlled unavailable request' })))
+    expect(email).toHaveFocus()
+    expect(email).toHaveValue('reset@example.invalid')
+    expect(screen.getByRole('alert')).toHaveTextContent('Controlled unavailable request')
+    expect(screen.getByRole('button', { name: 'Send Reset Code' })).not.toBeDisabled()
+  })
+
   it('announces generic acceptance and retains the actual two-second continuation', async () => {
     vi.useFakeTimers()
     vi.mocked(fetch).mockResolvedValue(response(true, { success: true }))
@@ -76,6 +93,17 @@ describe('forgot password owner continuation', () => {
 })
 
 describe('reset native owner recovery', () => {
+  it('preserves middle insertion through the shared auth-code export rename', async () => {
+    const user = userEvent.setup()
+    render(<AppMessageProvider><ResetPasswordPage /></AppMessageProvider>)
+    const code = screen.getByLabelText(/^reset code/i) as HTMLInputElement
+    await user.type(code, 'A7QF')
+    code.setSelectionRange(2, 2)
+    await user.keyboard('b')
+    expect(code).toHaveValue('A7BQF')
+    expect(code.selectionStart).toBe(3)
+  })
+
   it('releases a code-input Enter activation on successful step change even when React reuses the node', async () => {
     const held = deferred<Response>()
     vi.mocked(fetch).mockReturnValue(held.promise)

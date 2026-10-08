@@ -11,110 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 — Test reorder native and generated-type acceptance
-
-Sol/high targeted pristine-fixture review clearedaa914. Fresh normal passed16
-installed-SDK cases/6full-effect reorders/raw42501restore,9DBbatches,21rollback
-schedules/42dispatches and7committed schedules/31dispatches; complete graphs,
-exact disposal and all-five-field canonical preservation passed. Both deliberate
-after-fixture/before-capture failures returned expectedexit1/exacttwo markers
-and preservation PASS. Before-capture skips initial resource capture; no late-
-commit replay claim. Root verified private receipt/type SHA and mechanically
-installed genuine CLI artifact (only9generatedRPC lines), leaving overlay intact.
-APP117/native144 actions (261/400),180783056SDKsnapshot bytes; cumulative bound
-286004882/402653184bytes, committed120478ms, no sessions remain. LegacycachedMAX
-residual demonstrated, not closed; successfulBlueprint/proposal/enabledpurge
-still outstanding. Focused820/TSC/lint/architecture/UI/design PASS; final
-cumulative review/draft exact-head CI next. Source coverage reused unchanged.
-249–253 remain unapplied canonically/production; all rollout holds unchanged.
-
-## 2026-10-07 — Reorder CI continuity-marker remediation
-
-PR1515 draft/final Astra/high cumulative review covered31paths with zero findings;
-readyf37 triggered exact-head CI37582018644 once. Test/build reported14855PASS
-and one Bara history assertion failure: CURRENT compaction omitted required
-Recorded releases/dated teacher_entitlements smoke markers. Returned PR to draft
-before edits; stopped only its local watcher, leaving remaining CI lanes running.
-Restored both historical markers and compacted redundant prose without removing
-facts or raising startup limits. Added startup-suite regression REDbeforefix so
-focused checks catch this history contract.86 affected checks/3files, lint/diff
-PASS. SQL/HTTP/native/type artifact unchanged; prior accepted proof reused.
-Targeted independent review and new stable-head CI remain required; no duplicate
-heavy run, migration application, promotion, rollout activation or phase exit.
-Draft conversion subsequently cancelled the old remaining lanes through normal
-CI concurrency; no explicit runner/cancel command. Focused821/TSC/lint/policies
-PASS; final failed/cancelled run receipt retained before the new reviewed run.
-
-## 2026-10-07 — Reorder CI bulk-capacity failure diagnostics
-
-Reviewedb668 CI37584113261:14857PASS/8SKIP, build and browser PASS; database
-normal253 failedPT503 at21actions/308controls. Root+Sol/high independent trace
-identifies bulk10000 success dispatch. Setup/cleanup completed; no full receipt.
-Returned1515 to draft; watcher endedexit1. Deadline is likely, not observed.
-Added proof-only PRD01–07 exact-message SQLSTATEs for that success call; unknown
-PT503 remains unchanged, all failures abort. Raw PostgreSQL messages stay hidden.
-TDD caught a code collision with252; switched to a disjoint finite namespace.
-232 affected/831 focused checks, TypeScript/lint/policies PASS. Product SQL/HTTP/types, dense10000 workload,
-8s/20s deadlines, trigger closure and all caps unchanged. Source review/actual
-proof/new exact-head CI remain gates; no source fix or merge success claimed.
-Canonical/prod249–253, promotion and all activation remain held. Counters carried.
-
-## 2026-10-07 — Reorder rollback-frame timeout remediation
-
-Reviewed3531 CI37593268925 passed build/browser; database failed earlier than
-the bulk probe: native35s framing timeout in authority-effects13probes,
-15actions/236controls, SQLSTATEunknown. Returned1515 to draft before edits;
-single watcher endedexit1, compact terminal receipt retained. Root+Sol/high
-bounded read-only trace confirms33 full graphs in one frame; no product8s
-deadline diagnosis. Worker initially miscounted max2 chunks as26; root rejected
-and worker corrected to27. Root TDD3RED/10PASS, then retained all50probes/9groups
-as27 complete sealed rollback executions (max2probes), unchanged full baseline,
-effect/rollback/final assertions and compact acknowledgements. No partial-frame
-protocol or product/trigger/types change;35s/8s/20s and all runtime resource/900s
-limits retained. Additional dispatches counted; earlier bulkPT503 remains separate.
-Focused/static/review/fresh native/CI remain gates. Original05:04 review clock,
-counters and human workflow-stop waiver retained, no approval/counter reset.
-Canonical/prod249–253 application, production promotion and rollout remain held.
-First focused run found two stale9batch expectations (830PASS/2FAIL); updated
-their explicit count, keeping every runtime-cap assertion. Subsequent833 focused
-checks/static gates PASS. Success output now derives the dispatch count from the
-sealed manifest; final exact-tree verification and independent review follow.
-
-## 2026-10-07 — Reorder CI heavy fixture-test runner timeout
-
-Batching240e Sol/high target review CLEAN; fresh normal16SDK/6effects/27SQLframes/
-50probes/21races/7committed schedules PASS. Private600 receipt/rootSHA verified:
-APP115/native162 actions277/400,3109controls, allresource/ordinary clocks retained.
-Exactteardown/freshcanonical five-field equality and both forcedcleanups PASS;
-fresh initial canonicalhash differs historical receipt, not a globalB5 reset.
-Ready240e CI37604183593 failed unitlane:14868PASS/8SKIP, one complete21k-row
-no-op/denial/forged-ledger test exceeded default5s under coverage, no failed
-assertion. Returned1515 to draft; stopped only localwatch78354, no manualCIcancel.
-Completed-job logs read through GitHubAPI after whole-run CLI correctly withheld
-in-progress logs. Narrowly give this single compound test15s; preserve every
-assertion, all source/runtime/SQL/HTTP35s/8s/20s/900s limits and suite-wide defaults.
-Focused/coverage/independentreview/new exactheadCI remain gates. Native240e
-receipts may be reused only for unchanged runtime/profile/environment/base; no
-receipt reheading or newheadnative-success claim. Originalclock/counters/human
-waiver and production/canonical249–253/rollout holds remain unchanged.
-Targeted V8 run38checks PASS, but whole-repository coverage thresholds correctly
-failed for unexecuted files; no coverage-gate PASS or threshold exclusion claimed.
-Focused833/TSC/lint/policies/audit PASS; runtime/profile/config byte parity with
-accepted240e verified. OldCI now terminalcancelled with failedunit/gate, retained.
-
-## 2026-10-07 — Reorder current-main integration
-
-Main advanced to01e629d73 via Classwork creation placement1509 during draft e6
-publication. Clean rebase succeeded without conflicts; migration253 unchanged,
-no numbering collision. Incoming Classwork UI/helper/tests are retained; the
-reorder API/SQL/proof/runtime/config/type bytes remain identical to reviewed e6
-and native240e. Stashes were not touched. Keep60 official history trim retains
-all54 entries without duplicating already archived bodies; archive unchanged.
-Source-equivalent old native receipts stay labeled240e; changed-base review and
-fresh focused checks/new exact-head CI remain required. Original05:04 clock,
-11 launches/8 targeted/1 final/8 fixes and human stop waiver retained; one Sol/high
-changed-base review follows. Canonical/prod249–253, promotion and rollout held.
-
 ## 2026-10-07 — Confirmed reorder bulk deadline and scalar-byte candidate
 
 Sol/high current-main review CLEAN b3;833focused/static+87incoming checks PASS.
@@ -340,6 +236,10 @@ by changing proof assertions or deadlines; current legacy/UI/production held.
 No execution/provider/billing/account/cohort change or broaderphase exit.23reviews/
 19targets/20committedfixsync/original05:04 clock/taskhumanwaiver retained.
 
+## 2026-10-08 — Auth and Dashboard recovery integration
+
+Integrated accepted Login/Signup/Join recovery and teacher Dashboard refinements onto verified PR1531 main47659857d. Auth production/helper/test files retain accepted f7961636 bytes; Dashboard production/test owners retain accepted992be6e5 bytes. Existing canonical controls, named page states and local focus ownership are reused. Auth40 and Dashboard8 local native receipts remain preserved; fresh final-source verification and complete independent review precede readiness. No endpoint, payload, provider, dependency, schema or shared overlay change was introduced during integration. History-only conflicts were reconciled against immutable originals; a coordinator script assertion/staging error was repaired before publication and unpublished intermediate history consolidated without changing the final product tree. Held1501/1502/1504/1505 remain untouched; broad17-family goal remains incomplete. Final actual-base focused checks, draft publication, review and exact-head CI remain required. No production promotion.
+
 ## 2026-10-08 — Test cap native catalog corrections
 
 Draft1524 CI37704716101 passed build but failed create catalog; browser cancelled
@@ -479,3 +379,32 @@ sole native runtime; member1534 separate proof failed with exact cleanup and
 canonical all183/all5 preserved, now undergoing bounded diagnosis. No canonical
 249+, production, quota/admission/UI/cohort/account/billing/provider activation.
 Requested workerSol6.1/high; effective config/tokens/active effort unknown.
+
+## 2026-10-08 Join retry focus continuity
+
+Bounded feature refinement in `codex/join-retry-continuity`: explicit public Join Try again now focuses a stable named card region before replacing its button; response/mount paths do not reclaim deliberate focus movement. Roster and profile pending states expose truthful aria-busy. Login/API/payload/outcome semantics unchanged. Brief: `docs/guidance/ui/changes/join-retry-continuity.md`.15 component tests (four new) and214 focused tests/policies/TypeScript/lint passed; desktop/mobile native preflight2/2 passed. Selected experience-matrix helper registered. Frozen final eight-case screenshots/recordings/input manifests are written externally under `product-fluidity/join-retry-continuity` for coordinator acceptance, with every API fenced and no authentication/enrollment persistence claim. This entry is recorded before the frozen final capture. No held PR changes; publication/review/integration remain coordinator-owned.
+
+## 2026-10-08 — Entry recovery continuity
+
+Classic Login native held401 baseline lost activation to BODY, omitted busy state and shifted error geometry. Reused existing reserved FormField slot and renamed the unchanged reset feature request owner to useAuthFormContinuity for genuine third Login adoption. Failed requests preserve nodes/drafts/caret and eligible focus; explicit Forgot/Sign up or unmount retires obsolete results. Signup footer Login now canonical ghost/sm44px, retaining continuation. Existing Magic/session-reason/WorkOS/dev branches and accepted Join source untouched. Focused semantic and selected native regression added; representative desktop/mobile native smoke passed before full combined32case verification. Coordinator owns actual-main binding/review/CI, no worker push/PR. External final execution receipt binds source/dependencies/headless shell/ffmpeg and natural media.
+
+## 2026-10-08 — Signup owner continuity
+
+Accepted native owner audit reproduced stale Signup held/timer navigation, Create Back completion, BODY failure focus, Verify middle caret and inline/pending/status gaps. Reused existing auth continuity owner for Signup/Verify/Create, preserving payload/security/storage/safe-next/timer and resend contracts; guarded currentness precedes late UI/storage/navigation, success releases activation. Uppercase code export renamed for second genuine Verify adopter with identical algorithm; Reset reference only. Existing reserved FormField slot, busy/status semantics and AppMessageFallback now cover anonymous Signup suspension. Owner65 semantic tests passed; representative desktop/mobile full synthetic signup smoke passed2/2 after one retained pending-label locator correction. Final40 entry/Join/signup native and warm before/after visibility receipts are external; coordinator owns actual-main binding/review/CI. No push/provider/accounts/DB/dependency changes.
+
+## 2026-10-08 — Dashboard recovery refinement
+
+Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
+
+## 2026-10-08 — Reorder capacity review and UI-only base
+
+At a8f2bc935, two complete Sol6.1high targetreviews25/26 found no defects in
+approved1000/1001 transaction and proof/catalog/retirement boundaries. Root977/36
+static/audit/history PASS; compat45/4 and exact60old/84precapentry preservation
+PASS. Source-only, native/types stillpending. Main advancedUI-only1532/d826;
+merged that base preservingallarchivebodies, restored exactoldbody behind an
+auto-merged empty heading, then officialrollingtrim. Feature/runtime and incoming
+mainUIbyte checks/focused/targetedbase review precede actualnewcapnative/types.
+RootsoleDBowner; memberf6 normal/twoforced all183/all5/resources0 PASS, no cutover.
+Original05:04clock/26reviews22targets/23fixsync plus thissync retained; all
+canonical249+/production/quota/admission/UI/account/billing/provider holds remain.

@@ -251,17 +251,6 @@
       ]
     },
     {
-      "file": "src/app/teacher/dashboard/page.tsx",
-      "reviewBy": "phase-3-dashboard-roster",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 2,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
       "file": "src/components/AddStudentsModal.tsx",
       "reviewBy": "phase-2-shared-foundation-debt",
       "controls": [

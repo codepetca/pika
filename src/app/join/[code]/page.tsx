@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
@@ -31,6 +31,7 @@ export default function JoinClassroomPage() {
   const [studentNumber, setStudentNumber] = useState('')
   const [profileError, setProfileError] = useState('')
   const [profileSubmitting, setProfileSubmitting] = useState(false)
+  const retryRegionRef = useRef<HTMLElement>(null)
 
   const joinClassroom = useCallback(async (profile?: {
     firstName: string
@@ -148,79 +149,92 @@ export default function JoinClassroomPage() {
     })
   }
 
+  function retryJoin() {
+    retryRegionRef.current?.focus({ preventScroll: true })
+    void joinClassroom()
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
-      <Card className="w-full max-w-md p-6 text-center sm:p-8">
-        <p className="text-sm font-semibold text-primary">Join this classroom</p>
-        {view.kind === 'loading' ? (
-          <div className="py-10" role="status" aria-live="polite">
-            <Spinner size="lg" />
-            <h1 className="mt-5 text-xl font-semibold text-text-default">Checking the class roster…</h1>
-            <p className="mt-2 text-sm text-text-muted">Keep this page open while we match your account.</p>
-          </div>
-        ) : view.kind === 'success' ? (
-          <div className="pt-6" role="status" aria-live="polite">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden="true" />
-            <h1 className="mt-4 text-xl font-semibold text-text-default">{view.title}</h1>
-            <p className="mt-2 text-sm text-text-muted">{view.classroomTitle}</p>
-            <Button className="mt-6 w-full" onClick={() => push(`/classrooms/${view.classroomId}?tab=today`)}>
-              Open classroom
-            </Button>
-          </div>
-        ) : view.kind === 'profile' ? (
-          <form className="pt-6 text-left" onSubmit={submitProfile}>
-            <h1 className="text-xl font-semibold text-text-default">Tell your teacher who you are</h1>
-            <p className="mt-2 text-sm text-text-muted">
-              This classroom allows students who are not already on the roster to join.
-            </p>
-            <div className="mt-6 space-y-4">
-              <FormField label="First name">
-                <Input
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  autoComplete="given-name"
-                  disabled={profileSubmitting}
-                  required
-                />
-              </FormField>
-              <FormField label="Last name">
-                <Input
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  autoComplete="family-name"
-                  disabled={profileSubmitting}
-                  required
-                />
-              </FormField>
-              <FormField label="Student number or lab ID (optional)">
-                <Input
-                  value={studentNumber}
-                  onChange={(event) => setStudentNumber(event.target.value)}
-                  autoComplete="off"
-                  disabled={profileSubmitting}
-                />
-              </FormField>
-              {profileError ? (
-                <div className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">
-                  {profileError}
-                </div>
-              ) : null}
-              <Button type="submit" className="w-full" disabled={profileSubmitting}>
-                {profileSubmitting ? 'Joining…' : 'Join classroom'}
+      <section
+        ref={retryRegionRef}
+        aria-label="Join this classroom"
+        aria-busy={view.kind === 'loading' || profileSubmitting || undefined}
+        tabIndex={-1}
+        className="w-full max-w-md rounded-card outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-page"
+      >
+        <Card className="w-full max-w-md p-6 text-center sm:p-8">
+          <p className="text-sm font-semibold text-primary">Join this classroom</p>
+          {view.kind === 'loading' ? (
+            <div className="py-10" role="status" aria-live="polite" aria-busy="true">
+              <Spinner size="lg" />
+              <h1 className="mt-5 text-xl font-semibold text-text-default">Checking the class roster…</h1>
+              <p className="mt-2 text-sm text-text-muted">Keep this page open while we match your account.</p>
+            </div>
+          ) : view.kind === 'success' ? (
+            <div className="pt-6" role="status" aria-live="polite">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden="true" />
+              <h1 className="mt-4 text-xl font-semibold text-text-default">{view.title}</h1>
+              <p className="mt-2 text-sm text-text-muted">{view.classroomTitle}</p>
+              <Button className="mt-6 w-full" onClick={() => push(`/classrooms/${view.classroomId}?tab=today`)}>
+                Open classroom
               </Button>
             </div>
-          </form>
-        ) : (
-          <div className="pt-6" role="alert">
-            <AlertCircle className="mx-auto h-12 w-12 text-warning" aria-hidden="true" />
-            <h1 className="mt-4 text-xl font-semibold text-text-default">{view.title}</h1>
-            <p className="mt-2 text-sm text-text-muted">{view.description}</p>
-            <Button className="mt-6 w-full" variant="secondary" onClick={() => void joinClassroom()}>
-              Try again
-            </Button>
-          </div>
-        )}
-      </Card>
+          ) : view.kind === 'profile' ? (
+            <form className="pt-6 text-left" onSubmit={submitProfile} aria-busy={profileSubmitting || undefined}>
+              <h1 className="text-xl font-semibold text-text-default">Tell your teacher who you are</h1>
+              <p className="mt-2 text-sm text-text-muted">
+                This classroom allows students who are not already on the roster to join.
+              </p>
+              <div className="mt-6 space-y-4">
+                <FormField label="First name">
+                  <Input
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.target.value)}
+                    autoComplete="given-name"
+                    disabled={profileSubmitting}
+                    required
+                  />
+                </FormField>
+                <FormField label="Last name">
+                  <Input
+                    value={lastName}
+                    onChange={(event) => setLastName(event.target.value)}
+                    autoComplete="family-name"
+                    disabled={profileSubmitting}
+                    required
+                  />
+                </FormField>
+                <FormField label="Student number or lab ID (optional)">
+                  <Input
+                    value={studentNumber}
+                    onChange={(event) => setStudentNumber(event.target.value)}
+                    autoComplete="off"
+                    disabled={profileSubmitting}
+                  />
+                </FormField>
+                {profileError ? (
+                  <div className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">
+                    {profileError}
+                  </div>
+                ) : null}
+                <Button type="submit" className="w-full" disabled={profileSubmitting} aria-busy={profileSubmitting || undefined}>
+                  {profileSubmitting ? 'Joining…' : 'Join classroom'}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="pt-6" role="alert">
+              <AlertCircle className="mx-auto h-12 w-12 text-warning" aria-hidden="true" />
+              <h1 className="mt-4 text-xl font-semibold text-text-default">{view.title}</h1>
+              <p className="mt-2 text-sm text-text-muted">{view.description}</p>
+              <Button className="mt-6 w-full" variant="secondary" onClick={retryJoin}>
+                Try again
+              </Button>
+            </div>
+          )}
+        </Card>
+      </section>
     </main>
   )
 }

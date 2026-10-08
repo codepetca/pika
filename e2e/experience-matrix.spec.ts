@@ -1,3 +1,6 @@
+import { verifySignupOwnerContinuity } from './helpers/signup-owner-continuity'
+import { verifyLoginRecoveryContinuity } from './helpers/login-recovery-continuity'
+import { verifyJoinRetryContinuity } from './helpers/join-retry-continuity'
 import { verifyPasswordResetContinuity, verifyLoginSignupTarget } from './helpers/password-reset-continuity'
 import { verifySettingsCopyFeedback } from './helpers/settings-copy-feedback'
 import { verifyPublicCourseSectionTargets } from './helpers/public-course-section-targets'
@@ -62,6 +65,34 @@ const rolloverBlueprint = {
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+test.describe('Signup owner continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves full client signup owner recovery ${motion}`, async ({ page }, info) => {
+      await verifySignupOwnerContinuity(page, info, motion)
+    })
+  }
+})
+
+test.describe('Login recovery continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`preserves classic Login ownership and Signup footer target ${motion}`, async ({ page }, info) => {
+      await verifyLoginRecoveryContinuity(page, info, motion)
+    })
+  }
+})
+
+test.describe('Join retry continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const motion of ['no-preference', 'reduce'] as const) {
+    test(`retains native retry focus and truthful busy states ${motion}`, async ({ page }, testInfo) => {
+      await applyProjectTheme(page, testInfo)
+      await verifyJoinRetryContinuity(page, testInfo, motion)
+    })
+  }
+})
 
 test.describe('Password reset continuity', () => {
   test.use({ storageState: { cookies: [], origins: [] } })
