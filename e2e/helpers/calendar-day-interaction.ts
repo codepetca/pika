@@ -7,6 +7,14 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   const writes: string[] = []
   const reads: string[] = []
   const errors: string[] = []
+  const consoleDiagnostics: { type: string; text: string; location: { url: string; lineNumber: number; columnNumber: number } }[] = []
+  page.on('console', message => {
+    if (message.type() === 'error' || message.type() === 'warning') {
+      consoleDiagnostics.push({ type: message.type(), text: message.text(), location: message.location() })
+    }
+  })
+  // Fix Date only: setFixedTime keeps timers, performance and native RAF advancing.
+  await page.clock.setFixedTime(new Date('2026-10-05T16:00:00Z'))
   const classroomId = '30000000-0000-4000-8000-000000000011'
   const date = (day: number) => `2026-10-${String(day).padStart(2, '0')}`
   page.on('pageerror', error => errors.push(error.message))
@@ -44,6 +52,17 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   })
   await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=calendar`, { waitUntil: 'networkidle' })
   await expect(page.getByRole('region', { name: 'Calendar workspace' })).toBeVisible()
+  const verifiedDate = await page.evaluate(() => ({ iso: new Date().toISOString(),
+    toronto: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto',
+      year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) }))
+  expect(verifiedDate).toEqual({ iso: '2026-10-05T16:00:00.000Z', toronto: '2026-10-05' })
+  const liveClock = await page.evaluate(() => new Promise<{ before: { date: number; performance: number }; after: { date: number; performance: number } }>(resolve => {
+    const before = { date: Date.now(), performance: performance.now() }
+    setTimeout(() => requestAnimationFrame(() => resolve({ before,
+      after: { date: Date.now(), performance: performance.now() } })), 25)
+  }))
+  expect(liveClock.after.date).toBe(liveClock.before.date)
+  expect(liveClock.after.performance).toBeGreaterThan(liveClock.before.performance)
   const media = await page.evaluate(() => ({ reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
     dark: matchMedia('(prefers-color-scheme: dark)').matches }))
   expect(media.reduced).toBe(motion === 'reduce')
@@ -153,5 +172,5 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   expect(writes).toEqual([])
   expect(errors).toEqual([])
   await testInfo.attach('calendar-day-native-evidence', { body: Buffer.from(JSON.stringify({ role, theme, motion,
-    viewport: page.viewportSize(), media, geometry, initial, afterPage, observations, reads, writes, errors }, null, 2)), contentType: 'application/json' })
+    viewport: page.viewportSize(), verifiedDate, liveClock, consoleDiagnostics, media, geometry, initial, afterPage, observations, reads, writes, errors }, null, 2)), contentType: 'application/json' })
 }
