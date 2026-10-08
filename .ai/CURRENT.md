@@ -1,6 +1,6 @@
 # Checkpoint — 2026-10-08 UTC
 
-Main `47659857d`; 27 audit findings accepted.
+Main `d826a01a3`; 27 audit findings accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
 Production LIVE since2026-10-05 06:27UTC; loginHTTP200. Appc6f23b4b (#1476),
@@ -21,8 +21,8 @@ No phase exit; `docs/guidance/contextual-test-publication.md`.
 
 Test caps#1524 merged50185559f; CI37715526569 PASS; enforcement OFF.
 Quota messaging only upgrade/tier summaries; creation-error slice deferred.
-Reorder#1515 draft9b1: capacity decision and migration collision pending.
-Member Test-list #1534 draft; gates in access roadmap.
+Reorder#1515:1,000 cap/migration254 reviewed; native pending.
+Member#1534:f6 native3modes PASS; base-sync/exact CI pending.
 
 Worktrees: $HOME/.codex/worktrees/pika/ or $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; collaborators: .env.example.

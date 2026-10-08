@@ -11,51 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 UTC — Assignment editor exit CI contract correction
-
-PR #1521 returned to draft after run37686387293: four inherited preview-helper
-expectations required immediate physical main-editor removal despite its approved
-200ms exit. Check immediate logical dismissal/focus, then eventual removal; all
-eight viewport/theme/motion cases PASS. Production code unchanged. The separate
-publication failure showed loading; one retry lost hydration during a logged Next
-memory restart, while the initial cause remains unknown. Local seeded lifecycle and authenticated
-setup PASS3 (real404→200 and finally restore). Unsupported-origin setup attempts
-retained. BuildPASS/browserFAIL/gateFAIL/remainingDBcancelled on that original run.
-Required focused gate PASS2276/200 suites; targeted delta review and new exact-head CI remain pending.
-No production promotion, schema/dependency change or product-wide completion.
-
-## 2026-10-07 UTC — Student Grades reactivation continuity
-
-Retain same-classroom returned rows across inactive/reactivated reads and recoverable
-failures; current 401/403/404 clears stale grades, including non-JSON intent prefetch
-failures. Keep real cache TTL/dedup, exact projected replacements and request/owner
-fences; Retry focuses stable Grades region before replacement and invalidates only
-its key. Student Grades-only scroll observation preserves long-list return position.
-Local22 real-cache tests, native8 viewport/theme/motion scenarios and focused4 error
-visual cases PASS with synthetic intercepted reads; original-owner corrected baseline
-genuineRED retained, incomplete fixture excluded. No grade calculations, Pal, shared
-cache, API/schema/dependencies or production changes. Draft preparation can proceed
-independently while1521CI runs; integrate landed base before independent review/CI.
-Required focused/audit/review/CI remain; broader17-family goal incomplete.
-
-## 2026-10-07 — Grades settled intent denial remediation
-
-PR1522 independent review found oneP2: a Grades intent denial settling while inactive was discarded before activation could join it, permitting denied marks to persist after a later503. Mounted Grades now owns intent reads through a commit-owned feature ref; never-mounted prefetch stays unchanged. Real-cache actual-parent RED3 for401/403/404 and GREEN76/2 verify clearing before activation, pending/503 without old marks, dedup and latest/classroom/unmount fences. No shared cache/TTL/navigation/provider/API changes. Coordinator source/hash inspection accepted worker delivery; native settled-denial capture, cumulative focused/audit, final main-base integration and targeted review/CI follow. Evidence retained under product-fluidity/student-grades-continuity/intent-denial-remediation.
-
-## 2026-10-07 — Achievements local render recovery
-
-Added an explicit Try again action for a caught synchronous student roadmap render failure. Existing PageState/Button/boundary are reused; stable named region receives focus before retry removes the button. Provider, snapshot/reward state and academic draft remain mounted; persistent throws stay contained, hidden return does not auto-retry, and ordinary scope changes retire the old owner. Fixture fault controls remain behind the existing non-production E2E gate.
-
-Evidence: genuine missing-retry RED2; affected GREEN24/3 and fixture gate6 PASS; native actual-owner desktop/mobile light/dark normal/reduced8 PASS plus default-fixture compatibility8 PASS. Screenshots inspected against Pattern Lab PageState and healthy roadmap. Window scroll retained; fixture has no inherited internal auto/scroll owner. Synthetic intercepted traffic; no authenticated provider/hardware claim. Evidence retained in coordinator product-fluidity/achievements-render-recovery. This slice does not complete the Grades/Achievements family. Full focused/static/audit and draft-first frozen review/CI/main landing follow; provider/package/gates and production promotion unchanged.
-
-## 2026-10-07 — Student experience delivery consolidation
-
-Combine reviewed Grades5508 and Achievementsf10 in PR1522. Preserve exact runtime, tests, fixtures and helpers from both candidates and both independent review records. Append the Achievements own entry without replacing Grades history. Final predecessor-base integration review and exact-head CI remain pending. PR1523 will be superseded only after its eight non-history paths are published in1522.
-
-## 2026-10-07 — Student experience predecessor integration
-
-Integrate consolidated Grades/Achievements delivery onto verified editor-exit PR1521 main8031d2b. Preserve reviewed runtime/test/fixture/helper bytes and both sets of history; combine disjoint experience-matrix registrations. Focused/static/audit and one final cumulative integration review precede ready CI.
-
 ## 2026-10-07 — Student continuity CI source-contract correction
 
 Combined student PR1522 reviewed bcd0a5e00 reached normal CI37702440970; coverage passed14616 tests with one failure from an older exact JSX source assertion that omitted the newly reviewed Grades read handle ref. Returned PR to draft before correction; browser lane cancelled on draft transition and is not counted as passing. Reproduced locally1FAIL/7PASS, then updated the existing source contract to require the ref, classroom and active-tab props with whitespace tolerance; all84 tests across three parent/Grades suites pass. All production and native contract bytes stay unchanged. Focused checks, test audit and a bounded independent correction review precede another stable ready transition. No gates, runners, timeouts, provider, schema or production changes.
@@ -145,6 +100,10 @@ Bounded review remediation preserves b2da LessonCalendar/component-test/product 
 - Copy success now requires a resolved clipboard write; rejected/unavailable writes warn with concise copy labels. Committed classroom/latest-request guards retire stale feedback without changing settings saves or copied bytes.
 - QR copy feedback belongs inside the active dialog, with a separate logical session across close/reopen. Existing global notice + unavailable QR clipboard accessibility defect reproduced and fixed within feature ownership; shared providers/modal owners unchanged.
 - Evidence: external product-fluidity/settings-copy-feedback (baseline false-success, QR accessibility reproduction, unit RED/GREEN, native matrix, focused/audit receipts). Final coordinator owns review/publication/integration; no hosted changes.
+
+## 2026-10-08 — Auth and Dashboard recovery integration
+
+Integrated accepted Login/Signup/Join recovery and teacher Dashboard refinements onto verified PR1531 main47659857d. Auth production/helper/test files retain accepted f7961636 bytes; Dashboard production/test owners retain accepted992be6e5 bytes. Existing canonical controls, named page states and local focus ownership are reused. Auth40 and Dashboard8 local native receipts remain preserved; fresh final-source verification and complete independent review precede readiness. No endpoint, payload, provider, dependency, schema or shared overlay change was introduced during integration. History-only conflicts were reconciled against immutable originals; a coordinator script assertion/staging error was repaired before publication and unpublished intermediate history consolidated without changing the final product tree. Held1501/1502/1504/1505 remain untouched; broad17-family goal remains incomplete. Final actual-base focused checks, draft publication, review and exact-head CI remain required. No production promotion.
 
 ## 2026-10-08 — Test cap native catalog corrections
 
@@ -313,3 +272,32 @@ resource/canonical inspection unconditionally. Fake-clock RED3 nowGREEN plus
 restore regression; 87checks/2files PASS. Original primitive timeout caps remain;
 900s is work eligibility, not exact physical process termination. Re-review and
 same-checkpoint normal/two-forced runtime still required, no native retry yet.
+
+## 2026-10-08 Join retry focus continuity
+
+Bounded feature refinement in `codex/join-retry-continuity`: explicit public Join Try again now focuses a stable named card region before replacing its button; response/mount paths do not reclaim deliberate focus movement. Roster and profile pending states expose truthful aria-busy. Login/API/payload/outcome semantics unchanged. Brief: `docs/guidance/ui/changes/join-retry-continuity.md`.15 component tests (four new) and214 focused tests/policies/TypeScript/lint passed; desktop/mobile native preflight2/2 passed. Selected experience-matrix helper registered. Frozen final eight-case screenshots/recordings/input manifests are written externally under `product-fluidity/join-retry-continuity` for coordinator acceptance, with every API fenced and no authentication/enrollment persistence claim. This entry is recorded before the frozen final capture. No held PR changes; publication/review/integration remain coordinator-owned.
+
+## 2026-10-08 — Entry recovery continuity
+
+Classic Login native held401 baseline lost activation to BODY, omitted busy state and shifted error geometry. Reused existing reserved FormField slot and renamed the unchanged reset feature request owner to useAuthFormContinuity for genuine third Login adoption. Failed requests preserve nodes/drafts/caret and eligible focus; explicit Forgot/Sign up or unmount retires obsolete results. Signup footer Login now canonical ghost/sm44px, retaining continuation. Existing Magic/session-reason/WorkOS/dev branches and accepted Join source untouched. Focused semantic and selected native regression added; representative desktop/mobile native smoke passed before full combined32case verification. Coordinator owns actual-main binding/review/CI, no worker push/PR. External final execution receipt binds source/dependencies/headless shell/ffmpeg and natural media.
+
+## 2026-10-08 — Signup owner continuity
+
+Accepted native owner audit reproduced stale Signup held/timer navigation, Create Back completion, BODY failure focus, Verify middle caret and inline/pending/status gaps. Reused existing auth continuity owner for Signup/Verify/Create, preserving payload/security/storage/safe-next/timer and resend contracts; guarded currentness precedes late UI/storage/navigation, success releases activation. Uppercase code export renamed for second genuine Verify adopter with identical algorithm; Reset reference only. Existing reserved FormField slot, busy/status semantics and AppMessageFallback now cover anonymous Signup suspension. Owner65 semantic tests passed; representative desktop/mobile full synthetic signup smoke passed2/2 after one retained pending-label locator correction. Final40 entry/Join/signup native and warm before/after visibility receipts are external; coordinator owns actual-main binding/review/CI. No push/provider/accounts/DB/dependency changes.
+
+## 2026-10-08 — Dashboard recovery refinement
+
+Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
+
+## 2026-10-08 — Member native modes and UI-only base reconciliation
+
+Fresh targeted review5 closes work-budget/restoration corrections atf6fdc63fb,
+including all13adopters. Focused1153/43/static/audit PASS. Native actualnormal
+448901ms/twofullysetupforced62220/63718ms PASS; all183includingauth/all5 equals
+same16c pre-run checkpoint, resources0; originalfailednormal retained. No new
+baseline, limit relaxation, provider or account mutation. Main advancedUI-only
+1532/d826 while running; after exactnative teardown merged that base, preserving
+both archive bodies and standardrollingtrim. Runtime/native-source byte equality,
+incomingUI byte equality, focused and targetedbase/handoff review precede READY
+and eligible exactheadCI. Reorder1000/254 separate reviewclean/nativepending.
+Canonical249+/prod/admission/cohort/UI/quota/billing holds remain; no phase exit.

@@ -2,8 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react'
 
-/** The public reset forms own their request activation and delayed continuation. */
-export function usePasswordResetContinuity(pending: boolean) {
+/** The anonymous auth forms own their request activation and delayed continuation. */
+export function useAuthFormContinuity(pending: boolean) {
   const alive = useRef(true)
   const generation = useRef(0)
   const inFlight = useRef(false)
@@ -99,8 +99,8 @@ export function usePasswordResetContinuity(pending: boolean) {
   return { begin, isCurrent, finish, release, continueAfter, retire }
 }
 
-/** Uppercase the reset code without letting React move a native insertion caret. */
-export function useUppercaseResetCode() {
+/** Uppercase an auth code without letting React move a native insertion caret. */
+export function useUppercaseAuthCode() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [edit, setEdit] = useState({ value: '', start: 0, end: 0, direction: 'none' as 'forward' | 'backward' | 'none' })
 

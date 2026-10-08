@@ -1,7 +1,7 @@
 # Dormant contextual member Test list read
 
 Source preparation on `codex/contextual-test-member-list-read`, main base
-`47659857d`. This is an independent batch-2 component, not native acceptance,
+`d826a01a3`. This is an independent batch-2 component, not production acceptance,
 phase exit, cohort admission or product rollout. Owner reorder #1515's separate
 capacity decision does not block this read-only boundary.
 
@@ -135,3 +135,20 @@ projects, and prove restoration/verification plus canonical inspection still run
 after a revoke crosses the deadline. This is an admission/acceptance deadline,
 not a promise of physical termination at exactly 900 seconds; an already admitted
 primitive retains its existing finite timeout. Targeted re-review remains pending.
+
+## Accepted local modes and current-main reconciliation — 2026-10-08
+
+The complete targeted six-file review at `f6fdc63fb` closed both corrections,
+including all 13 inherited adopters. Focused 1,153 checks/43 files and static
+gates passed. Actual normal proof passed in 448,901ms; fully set-up forced
+after-fixture/before-capture modes passed in 62,220/63,718ms with their exact
+original two-line core receipts. Every run preserved all 183 canonical tables
+and all five fields against the same pre-run checkpoint, removed exact disposable
+resources and left zero resources. The prior failed attempt remains failed.
+
+These are actual `f6fdc63fb` receipts, not reheaded evidence. Main then advanced
+to `d826a01a3` through UI-only #1532; no API or migration change. Resolve archival
+conflicts preserving both histories, verify all runtime source bytes and incoming
+UI bytes, and obtain targeted current-base/handoff review plus focused checks
+before readiness. Eligible exact-final-head CI/PR Gate still precede merge.
+No public auth/browser/UI or production/admission rollout is established here.

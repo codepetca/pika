@@ -42488,16 +42488,19 @@ Test-first evidence:21RED/1dirty-buffer control across separate baseline runs; a
 Independent full PR1518 review found a P2: a stale manual Draft continuation compared reverted fields against the pre-autosave baseline and could omit its restoring PATCH. One correction batch retains the actual predecessor baseline and serializes same-session blur follow-ups. Five regressions cover full/mixed reverts in both preselected-action and actual menu/blur flows, plus a successful-save/failed-queued-save chain; original-resource publication remains quiet and the replacement editor retains drafts/focus/controls. All RED and intermediate failed correction evidence retained externally. Component58/58 and focused413/21 with architecture/UI/design/TypeScript/lint/audit PASS. Worker writes stopped; coordinator verified delivered hashes. Browser evidence is being refreshed before targeted independent delta review and final stable-head CI. PR remains draft; no production/schema/dependency changes. User pause honored, then explicit resume received. Broad product fluidity goal remains incomplete.
 
 <!-- pika-session-log-archive-batch:f316ae152202eba4bf1aef6c08285f1a8cc1d8511a521e7e94182f03ce902a3a -->
+<!-- pika-session-log-archive-batch:9511317c2a14d551e8f0893047bb1f0c962e54efe268d4579ff0af6194d124f9 -->
 ## 2026-10-07 — Same-editor manual Draft restoration
 
 PR1518 merged5405dcf10 after reviewed9d206 CI37645638621 all required gates PASS; exact tree/sole parent and clean hub sync verified. Proven pre-existing same-editor reverts now retain the awaited persisted baseline and latest pending input. Four genuine RED regressions becameGREEN; two menu controls/original18 preserved; failed-predecessor/manual failure control preserves retry. Worker65component/420focused21 plus architecture/UI/design/type/lint/auditPASS on inherited reviewed source; isolated implementation overlapped frozen1518CI, publication waits for its actual landing. Teacher natural8-case viewport/theme/motion matrixPASS with exact restoring PATCH/close; old owner natural focus/click reproduction omits the restoring PATCH. APIs intercepted, zero backend writes. Screenshots inspected. Native preview initial4normal failures/4reducedPASS exposed timer-window assumptions; old/new measured native clicks cross200ms exit, so the helper checks physical eligibility at actual reopen and cleanup of reopened root. Failed/intermediate evidence retained. Rebase, final focused checks, complete independent review and stable-head CI remain before next main merge. No dependencies/backend/schema/deployment change; broad fluidity goal incomplete.
 
 <!-- pika-session-log-archive-batch:f32ca1cbbe37d37b1618ef55735312f482a167612834232fa84cfaf9dc2cc12c -->
+<!-- pika-session-log-archive-batch:80a0264e8db2604f7ae4121a1a1c17a75ab2266ccd722e386fd37a91409315f5 -->
 ## 2026-10-07 — Preview preference coverage correction
 
 PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
 
 <!-- pika-session-log-archive-batch:46869704976452bfa3f80d0eecbfefcbf1f97b40a86ab51534c4073ee37a5883 -->
+<!-- pika-session-log-archive-batch:6bc2e412819b6d8b71d3ad6e775abaa1f7a0cee982b90f27ceb02ee83a21b65d -->
 ## 2026-10-07 — Assignment editor passive dismissal and drag ownership
 
 Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
@@ -42524,6 +42527,7 @@ before main landing. Broad17-family product goal remains incomplete. No dependen
 schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
 
 <!-- pika-session-log-archive-batch:de7862fd3809779757fb598c3c93cbb5be44187204f8c9ee0f2038db5a10887c -->
+<!-- pika-session-log-archive-batch:52c77d5a2e90a1ca669f0c632b6b72fa22427526e43b129783301907a8477aee -->
 ## 2026-10-07 — Assignment editor committed interaction ownership
 
 PR1521 initial23-path review found a genuine suspended-close Title-input loss.
@@ -42535,3 +42539,123 @@ external whole-object refresh still retires the drag and preserves Tiptap identi
 Legacy initiated-command/session rules remain unchanged. Corrected-source local,
 visual, targeted independent review and exact-head CI remain required before merge.
 Broader17-family fluidity goal remains incomplete; no production promotion.
+
+<!-- pika-session-log-archive-batch:970bc6c04d9b0b949f1b0f69490178d96d81de20305b0f4fe630aee249a74752 -->
+## 2026-10-07 — Preview preference coverage correction
+
+PR1519 complete independent review found one P2 in the helper: a detached root retains its closing attribute, so an attribute-only check could falsely count preference cleanup. Production save correction independently25/25PASS and reviewed clean. One test/docs correction preserves natural dismissal/reopen and adds separate clock-controlled actual-owner preference cases installed before app timers; each starts from a connected closing root and requires removal without advancing the exit deadline. Initial four controlled casesPASS; zero-duration rejection proof and complete12-case preview verification run before final focused checks and targeted delta review. Production source/visual hashes unchanged; original25/session/current requirement-revert evidence retained. Draft kept; no dependencies/schema/backend/deployment changes. Broad goal incomplete.
+
+## 2026-10-07 — Assignment editor passive dismissal and drag ownership
+
+Main teacher AssignmentModal adopts the existing200ms opacity exit with immediate
+logical close, focus/scroll release and outgoing input fences. Its retained body
+receives live activity outside ModalLayer's snapshot; reopen gets fresh rich-editor
+history, while same-open undo and same-ID external object reset behavior remain.
+Toolbar portals, nested confirmations, action menus, deferred focus and Blueprint
+publication retire. CreationModalShell stays immediate by default. Active native
+keyboard proof caught dnd-kit sensor listeners surviving context unmount; feature
+sensors implement its public protocol with explicit resource ownership and instant
+next-key handling. External session refresh retires only the requirement drag
+owner. Visually found clipped desktop action options; reused upper placement and
+asserted panel bounds/unchanged title. UI brief: docs/guidance/ui/changes/assignment-editor-exit.md.
+Controlled teacher browser16PASS across desktop/mobile, light/dark, normal/reduced,
+including pending/active mouse/touch/keyboard, refresh, reopen reorder, real nested
+controls and parent Post publication. Natural main exit8PASS preserves measured
+text/field/toolbar geometry; actual compositor midpoint pixels inspected. Natural
+manual restoration8PASS with the clearing fixture parent and exact restoringPATCH.
+All APIs intercepted; no authenticated persistence, hardwareINP or full-video
+replay claim. Student n/a unchanged caller/default behavior. Genuine baseline and
+naive lifetime REDs plus capture/sensor/fixture failures retained externally.
+Focused source/checks, independent review and final exact-head CI remain required
+before main landing. Broad17-family product goal remains incomplete. No dependency,
+schema, hosted or production operation. Held PR1501/1502/1504/1505 remain excluded.
+
+## 2026-10-07 — Assignment editor committed interaction ownership
+
+PR1521 initial23-path review found a genuine suspended-close Title-input loss.
+Retained headRED/baseGREEN; one batch publishes new interaction guards at commit
+before closing focus cleanup. Also retained genuine active-keyboard-drag RED:
+speculative legacy session generation remounted its visible requirement owner.
+Rollback-safe feature generation preserves abandoned-close drag continuity while
+external whole-object refresh still retires the drag and preserves Tiptap identity.
+Legacy initiated-command/session rules remain unchanged. Corrected-source local,
+visual, targeted independent review and exact-head CI remain required before merge.
+Broader17-family fluidity goal remains incomplete; no production promotion.
+
+## 2026-10-07 UTC — Assignment editor exit CI contract correction
+
+PR #1521 returned to draft after run37686387293: four inherited preview-helper
+expectations required immediate physical main-editor removal despite its approved
+200ms exit. Check immediate logical dismissal/focus, then eventual removal; all
+eight viewport/theme/motion cases PASS. Production code unchanged. The separate
+publication failure showed loading; one retry lost hydration during a logged Next
+memory restart, while the initial cause remains unknown. Local seeded lifecycle and authenticated
+setup PASS3 (real404→200 and finally restore). Unsupported-origin setup attempts
+retained. BuildPASS/browserFAIL/gateFAIL/remainingDBcancelled on that original run.
+Required focused gate PASS2276/200 suites; targeted delta review and new exact-head CI remain pending.
+No production promotion, schema/dependency change or product-wide completion.
+
+## 2026-10-07 UTC — Student Grades reactivation continuity
+
+Retain same-classroom returned rows across inactive/reactivated reads and recoverable
+failures; current 401/403/404 clears stale grades, including non-JSON intent prefetch
+failures. Keep real cache TTL/dedup, exact projected replacements and request/owner
+fences; Retry focuses stable Grades region before replacement and invalidates only
+its key. Student Grades-only scroll observation preserves long-list return position.
+Local22 real-cache tests, native8 viewport/theme/motion scenarios and focused4 error
+visual cases PASS with synthetic intercepted reads; original-owner corrected baseline
+genuineRED retained, incomplete fixture excluded. No grade calculations, Pal, shared
+cache, API/schema/dependencies or production changes. Draft preparation can proceed
+independently while1521CI runs; integrate landed base before independent review/CI.
+Required focused/audit/review/CI remain; broader17-family goal incomplete.
+
+## 2026-10-07 — Grades settled intent denial remediation
+
+PR1522 independent review found oneP2: a Grades intent denial settling while inactive was discarded before activation could join it, permitting denied marks to persist after a later503. Mounted Grades now owns intent reads through a commit-owned feature ref; never-mounted prefetch stays unchanged. Real-cache actual-parent RED3 for401/403/404 and GREEN76/2 verify clearing before activation, pending/503 without old marks, dedup and latest/classroom/unmount fences. No shared cache/TTL/navigation/provider/API changes. Coordinator source/hash inspection accepted worker delivery; native settled-denial capture, cumulative focused/audit, final main-base integration and targeted review/CI follow. Evidence retained under product-fluidity/student-grades-continuity/intent-denial-remediation.
+
+<!-- pika-session-log-archive-batch:dc8f2affcbabd8e967de575dabc1f214d99c3aa3cacbf3fc54a72de6d8b79891 -->
+## 2026-10-07 UTC — Assignment editor exit CI contract correction
+
+PR #1521 returned to draft after run37686387293: four inherited preview-helper
+expectations required immediate physical main-editor removal despite its approved
+200ms exit. Check immediate logical dismissal/focus, then eventual removal; all
+eight viewport/theme/motion cases PASS. Production code unchanged. The separate
+publication failure showed loading; one retry lost hydration during a logged Next
+memory restart, while the initial cause remains unknown. Local seeded lifecycle and authenticated
+setup PASS3 (real404→200 and finally restore). Unsupported-origin setup attempts
+retained. BuildPASS/browserFAIL/gateFAIL/remainingDBcancelled on that original run.
+Required focused gate PASS2276/200 suites; targeted delta review and new exact-head CI remain pending.
+No production promotion, schema/dependency change or product-wide completion.
+
+## 2026-10-07 UTC — Student Grades reactivation continuity
+
+Retain same-classroom returned rows across inactive/reactivated reads and recoverable
+failures; current 401/403/404 clears stale grades, including non-JSON intent prefetch
+failures. Keep real cache TTL/dedup, exact projected replacements and request/owner
+fences; Retry focuses stable Grades region before replacement and invalidates only
+its key. Student Grades-only scroll observation preserves long-list return position.
+Local22 real-cache tests, native8 viewport/theme/motion scenarios and focused4 error
+visual cases PASS with synthetic intercepted reads; original-owner corrected baseline
+genuineRED retained, incomplete fixture excluded. No grade calculations, Pal, shared
+cache, API/schema/dependencies or production changes. Draft preparation can proceed
+independently while1521CI runs; integrate landed base before independent review/CI.
+Required focused/audit/review/CI remain; broader17-family goal incomplete.
+
+## 2026-10-07 — Grades settled intent denial remediation
+
+PR1522 independent review found oneP2: a Grades intent denial settling while inactive was discarded before activation could join it, permitting denied marks to persist after a later503. Mounted Grades now owns intent reads through a commit-owned feature ref; never-mounted prefetch stays unchanged. Real-cache actual-parent RED3 for401/403/404 and GREEN76/2 verify clearing before activation, pending/503 without old marks, dedup and latest/classroom/unmount fences. No shared cache/TTL/navigation/provider/API changes. Coordinator source/hash inspection accepted worker delivery; native settled-denial capture, cumulative focused/audit, final main-base integration and targeted review/CI follow. Evidence retained under product-fluidity/student-grades-continuity/intent-denial-remediation.
+
+## 2026-10-07 — Achievements local render recovery
+
+Added an explicit Try again action for a caught synchronous student roadmap render failure. Existing PageState/Button/boundary are reused; stable named region receives focus before retry removes the button. Provider, snapshot/reward state and academic draft remain mounted; persistent throws stay contained, hidden return does not auto-retry, and ordinary scope changes retire the old owner. Fixture fault controls remain behind the existing non-production E2E gate.
+
+Evidence: genuine missing-retry RED2; affected GREEN24/3 and fixture gate6 PASS; native actual-owner desktop/mobile light/dark normal/reduced8 PASS plus default-fixture compatibility8 PASS. Screenshots inspected against Pattern Lab PageState and healthy roadmap. Window scroll retained; fixture has no inherited internal auto/scroll owner. Synthetic intercepted traffic; no authenticated provider/hardware claim. Evidence retained in coordinator product-fluidity/achievements-render-recovery. This slice does not complete the Grades/Achievements family. Full focused/static/audit and draft-first frozen review/CI/main landing follow; provider/package/gates and production promotion unchanged.
+
+## 2026-10-07 — Student experience delivery consolidation
+
+Combine reviewed Grades5508 and Achievementsf10 in PR1522. Preserve exact runtime, tests, fixtures and helpers from both candidates and both independent review records. Append the Achievements own entry without replacing Grades history. Final predecessor-base integration review and exact-head CI remain pending. PR1523 will be superseded only after its eight non-history paths are published in1522.
+
+<!-- pika-session-log-archive-batch:136b1edf40c2446a89d1610b6e9c80c1e5069f2cacbe8354dd7e10740fdc8e40 -->
+## 2026-10-07 — Student experience predecessor integration
+
+Integrate consolidated Grades/Achievements delivery onto verified editor-exit PR1521 main8031d2b. Preserve reviewed runtime/test/fixture/helper bytes and both sets of history; combine disjoint experience-matrix registrations. Focused/static/audit and one final cumulative integration review precede ready CI.

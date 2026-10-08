@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AppMessageFallback, Input, Button, FormField } from '@/ui'
 import { buildAuthContinuationPath } from '@/lib/auth-redirect'
 import { getSafeInternalPath } from '@/lib/navigation-safety'
+import { useAuthFormContinuity, useUppercaseAuthCode } from '@/hooks/useAuthFormContinuity'
 import { useAuthCodeResend } from '@/hooks/useAuthCodeResend'
 
 const SIGNUP_HANDOFF_TOKEN_STORAGE_KEY = 'pika.signupHandoffToken'
@@ -16,10 +17,11 @@ function VerifySignupForm() {
   const nextPath = getSafeInternalPath(searchParams.get('next'))
 
   const [email, setEmail] = useState(emailFromUrl)
-  const [code, setCode] = useState('')
+  const { code, inputRef, onChange } = useUppercaseAuthCode()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const verifyingRef = useRef(false)
+  const continuity = useAuthFormContinuity(loading)
   const resend = useAuthCodeResend({
     kind: 'signup',
     email,
@@ -30,6 +32,8 @@ function VerifySignupForm() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (verifyingRef.current || resend.isPending()) return
+    const request = continuity.begin(e.currentTarget as HTMLFormElement)
+    if (request === null) return
     verifyingRef.current = true
     resend.clearFeedback()
     setError('')
@@ -43,11 +47,13 @@ function VerifySignupForm() {
       })
 
       const data = await response.json()
+      if (!continuity.isCurrent(request)) return
 
       if (!response.ok) {
         throw new Error(data.error || 'Invalid code')
       }
 
+      continuity.release(request)
       window.sessionStorage.setItem(
         SIGNUP_HANDOFF_TOKEN_STORAGE_KEY,
         JSON.stringify({ email, token: data.handoffToken }),
@@ -55,6 +61,8 @@ function VerifySignupForm() {
 
       router.push(buildAuthContinuationPath('/create-password', { email, next: nextPath }))
     } catch (err: any) {
+      if (!continuity.isCurrent(request)) return
+      continuity.finish(request)
       setError(err.message || 'An error occurred')
       verifyingRef.current = false
       setLoading(false)
@@ -71,7 +79,7 @@ function VerifySignupForm() {
           Enter the 5-character code sent to your email
         </p>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} aria-busy={loading || resend.pending}>
           <FormField label="School Email" required className="mb-4">
             <Input
               type="email"
@@ -83,12 +91,13 @@ function VerifySignupForm() {
             />
           </FormField>
 
-          <FormField label="Verification Code" error={error || resend.error} required>
+          <FormField label="Verification Code" error={error || resend.error} required reserveErrorSpace>
             <Input
               type="text"
               placeholder="A7Q2F"
+              ref={inputRef}
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onChange={onChange}
               required
               disabled={loading || resend.pending}
               maxLength={5}
@@ -97,6 +106,7 @@ function VerifySignupForm() {
 
           <Button
             type="submit"
+            aria-busy={loading || undefined}
             className="w-full mt-6"
             disabled={loading || resend.pending || !email || code.length !== 5}
           >
