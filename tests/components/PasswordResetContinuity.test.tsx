@@ -139,7 +139,7 @@ describe('reset native owner recovery', () => {
     expect(screen.getByLabelText(/^reset code/i)).toBe(code)
     expect(code).toHaveValue('ABCDE')
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Verify Code' })))
-    expect(screen.getByRole('alert')).toHaveTextContent('Controlled malformed JSON')
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to read the response. Please try again.')
     expect(code).toHaveValue('ABCDE')
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Verify Code' })))
     const password = screen.getByLabelText(/^new password/i)

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListRowChanges, assignmentListSafeCronJobs, assignmentListDockerInventory } from '../../scripts/contextual-assignment-list-proof-platform'
+import { assignmentListExpectedResources, assignmentListRestorationPolicy, assignmentListRowChanges, assignmentListSafeCronJobs, assignmentListDockerInventory, assignmentListSnapshotSql, decodeAssignmentListSnapshot } from '../../scripts/contextual-assignment-list-proof-platform'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { parseAssignmentListLifecycleArgs } from '../../scripts/check-contextual-assignment-list-lifecycle'
@@ -12,6 +12,31 @@ import { loadAssignmentListReviewedMigrations, prepareAssignmentListProjectFiles
 import { assignmentListEphemeralPlan } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 
 describe('assignment-list native platform proof contracts (offline)', () => {
+  it('omits only discarded table scans from metadata safety snapshots', () => {
+    const full = assignmentListSnapshotSql('digests'); const rows = assignmentListSnapshotSql('rows'); const metadata = assignmentListSnapshotSql('metadata')
+    const safety = (value: string) => value.slice(value.indexOf("select jsonb_build_object('metadata'"))
+    expect(safety(metadata)).toBe(safety(full)); expect(safety(rows)).toBe(safety(full))
+    expect(metadata.startsWith("begin isolation level repeatable read read only;\nset local statement_timeout='20s';set local lock_timeout='3s';")).toBe(true)
+    expect(metadata).not.toContain("''table''"); expect(full).toContain("n.nspname in ('public','private','storage')")
+    expect(full).toContain("''count'',count(*)"); expect(rows).toContain('jsonb_agg(to_jsonb(r)')
+    expect(safety(metadata)).toContain("pg_get_indexdef('public.classroom_roster_one_removed_membership_per_student'::regclass)")
+    expect(() => assignmentListSnapshotSql('unknown' as never)).toThrow()
+  })
+  it('retains identical metadata and scheduler decoding, including malformed evidence failure', () => {
+    const metadata = { functions: ['fixed-definition'], triggers: ['fixed-state'], settings: 'fixed-settings', singleton_index: 'fixed-index' }
+    const cron = [{ active: true, jobname: 'pika-test-ai-grading-watchdog', command: 'select private.watchdog_test_ai_grading_runs()' }]
+    const safety = [JSON.stringify({ metadata }), JSON.stringify({ cron })].join('\n')
+    const table = JSON.stringify({ table: 'public.users', rows: { count: 1, digest: 'fixed-digest' } })
+    const full = decodeAssignmentListSnapshot(`${table}\n${safety}`, 'digests'); const slim = decodeAssignmentListSnapshot(safety, 'metadata')
+    expect(slim).toEqual({ ...full, tables: {} }); expect(assignmentListSafeCronJobs(JSON.parse(slim.cron))).toBe(true)
+    expect(decodeAssignmentListSnapshot(JSON.stringify({ metadata }), 'metadata').cron).toBe('[]')
+    for (const invalid of ['not-json', JSON.stringify({ cron }), JSON.stringify({ metadata: null })]) {
+      expect(() => decodeAssignmentListSnapshot(invalid, 'metadata')).toThrow()
+      expect(() => decodeAssignmentListSnapshot(`${table}\n${invalid}`, 'digests')).toThrow()
+    }
+    expect(() => decodeAssignmentListSnapshot(safety, 'digests')).toThrow()
+    expect(() => decodeAssignmentListSnapshot(`${table}\n${safety}`, 'metadata')).toThrow()
+  })
   function withMigrationFiles(count: number, run: (repository: string, folder: string) => void) {
     const repository = mkdtempSync(join(tmpdir(), 'pika-proof-chain-offline-'))
     const folder = join(repository, 'supabase/migrations')

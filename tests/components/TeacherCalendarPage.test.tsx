@@ -54,7 +54,8 @@ vi.mock('@/components/PageLayout', () => ({
   ),
 }))
 
-vi.mock('@/lib/request-cache', () => ({
+vi.mock('@/lib/request-cache', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/request-cache')>(),
   fetchJSONWithCache: vi.fn((_key: string, load: () => Promise<unknown>) => load()),
   invalidateCachedJSON: vi.fn(),
   invalidateCachedJSONMatching: vi.fn(),
@@ -238,7 +239,7 @@ describe('Teacher calendar page', () => {
     fetchMock.mockImplementation((input) => Promise.resolve(jsonResponse({ class_days: [classDay('2026-06-09')] })))
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     await screen.findByRole('button', { name: '9' })
-    expect(fetchMock).toHaveBeenLastCalledWith('/api/classrooms/c2/class-days')
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/classrooms/c2/class-days', undefined)
   })
 
   it('loads classrooms and class days through the shared request cache', async () => {
@@ -480,7 +481,7 @@ describe('Teacher calendar page', () => {
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument()
       const aReads = fetchMock.mock.calls.filter(([input, init]) => String(input) === '/api/classrooms/c1/class-days' && !init?.method)
       expect(aReads).toHaveLength(1)
-      expect(fetchMock).toHaveBeenLastCalledWith('/api/classrooms/c2/class-days')
+      expect(fetchMock).toHaveBeenLastCalledWith('/api/classrooms/c2/class-days', undefined)
     },
   )
 })

@@ -1,8 +1,8 @@
 import type { Entry } from '@/types'
-import { fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
+import { fetchJSON, fetchJSONWithCache, invalidateCachedJSONMatching } from '@/lib/request-cache'
 
 type StudentEntriesResponse = {
-  entries?: Entry[]
+  entries: Entry[]
 }
 
 type StudentEntriesOptions = {
@@ -35,18 +35,18 @@ export async function fetchStudentEntriesForClassroom(
         params.set('limit', String(options.limit))
       }
 
-      const response = await fetch(`/api/student/entries?${params.toString()}`)
-      const data = await response.json().catch(() => ({ entries: [] }))
-      if (!response.ok) {
-        const message = typeof data.error === 'string' ? data.error : 'Failed to load entries'
-        throw new Error(message)
+      const data = await fetchJSON<unknown>(`/api/student/entries?${params.toString()}`, {
+        errorMessage: 'Failed to load entries',
+      })
+      if (!data || typeof data !== 'object' || !('entries' in data) || !Array.isArray(data.entries)) {
+        throw new Error('Failed to load entries')
       }
-      return data
+      return { entries: data.entries as Entry[] }
     },
     STUDENT_ENTRIES_CACHE_TTL_MS,
   )
 
-  return data.entries || []
+  return data.entries
 }
 
 export function invalidateStudentEntriesForClassroom(classroomId: string) {

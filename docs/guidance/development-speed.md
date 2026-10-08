@@ -40,6 +40,40 @@ and reports time-to-gate-start, gate duration, and time-to-gate-pass separately
 for docs-only, full, promotion, and application modes. Runs whose retained logs
 cannot prove a mode are counted explicitly and do not satisfy per-mode targets.
 
+It also fetches native job and step timestamps for completed runs. Successful
+timings are grouped by proven mode, job/step name and hosted/self-hosted runner
+class. `runEvidence` binds each result to its run ID and head SHA. Missing job
+evidence or invalid timestamps are counted explicitly, never treated as zero.
+Failure entries identify the failed step and elapsed time from run creation to
+that failure. This includes dependency and execution time; GitHub's available
+timestamps do not isolate runner queue time for each job.
+
+Job history includes all attempts. Rerunning failed jobs can give carried-over
+successes new job IDs and attempt labels without re-executing them. The report
+deduplicates matching job/runner/timestamp/conclusion intervals and attributes
+them to their earliest observed attempt. It preserves earlier failure locations,
+latest attempt and observed attempt numbers; `earlierFailedJobSeconds` exposes
+failed runner time preceding the final attempt. Workflow timestamp availability
+is validated separately, so missing workflow intervals do not erase valid job
+evidence. Each workflow metric includes sample and missing-sample counts, and
+missing step intervals are counted. GitHub documents the [job-history API](https://docs.github.com/en/rest/actions/workflow-jobs#list-jobs-for-a-workflow-run).
+
+`cancelledJobSeconds` sums completed job intervals to estimate cancelled runner
+consumption. Parallel jobs overlap, so this sum must not be interpreted as
+workflow elapsed time. Runs with unavailable intervals make it a lower bound.
+Supabase startup and migration replay remain a combined step metric.
+
+The Test owner-detail/list pilot additionally emits sanitized operation timing
+receipts through `--timings-path` into a private runner temporary directory. CI
+uploads only these JSON files as `test-proof-timings`, retained for seven days;
+raw native command output, SQL and database/resource evidence are never uploaded.
+Receipts include profile, mode, reviewed SHA, counts, outcomes and monotonic
+operation durations. Nested operation durations overlap and must not be summed
+as total proof time. All three fresh-project modes and exact failure-output
+checks remain required. Compare the native step durations against equivalent
+runner/migration checkpoints; a changed checkpoint or a small sample limits
+the speedup claim. See the [execution plan](../plans/ci-proof-setup-optimization.md).
+
 ## Acceptance targets
 
 - Draft review pushes launch no heavy jobs.

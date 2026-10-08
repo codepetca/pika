@@ -11,6 +11,28 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-07 — Teacher settings clipboard feedback
+- Copy success now requires a resolved clipboard write; rejected/unavailable writes warn with concise copy labels. Committed classroom/latest-request guards retire stale feedback without changing settings saves or copied bytes.
+- QR copy feedback belongs inside the active dialog, with a separate logical session across close/reopen. Existing global notice + unavailable QR clipboard accessibility defect reproduced and fixed within feature ownership; shared providers/modal owners unchanged.
+- Evidence: external product-fluidity/settings-copy-feedback (baseline false-success, QR accessibility reproduction, unit RED/GREEN, native matrix, focused/audit receipts). Final coordinator owns review/publication/integration; no hosted changes.
+
+## 2026-10-08 — Auth and Dashboard recovery integration
+
+Integrated accepted Login/Signup/Join recovery and teacher Dashboard refinements onto verified PR1531 main47659857d. Auth production/helper/test files retain accepted f7961636 bytes; Dashboard production/test owners retain accepted992be6e5 bytes. Existing canonical controls, named page states and local focus ownership are reused. Auth40 and Dashboard8 local native receipts remain preserved; fresh final-source verification and complete independent review precede readiness. No endpoint, payload, provider, dependency, schema or shared overlay change was introduced during integration. History-only conflicts were reconciled against immutable originals; a coordinator script assertion/staging error was repaired before publication and unpublished intermediate history consolidated without changing the final product tree. Held1501/1502/1504/1505 remain untouched; broad17-family goal remains incomplete. Final actual-base focused checks, draft publication, review and exact-head CI remain required. No production promotion.
+
+## 2026-10-08 — Test cap native catalog corrections
+
+Draft1524 CI37704716101 passed build but failed create catalog; browser cancelled
+and PRGate failed. Actual isolated PG17 confirmed nested record/alias42702;
+three aliases corrected77f9 after3RED,490/28focused/static and Sol/high delta
+reviewPASS. Full local create then failed before SDK: canonical248 has183tables,
+but253 adds private quota settings. Exact own teardown/SAME183/all5 preservation
+PASS; failure retained. Separate source-SHA-bound isolated catalog now requires
+that exact addition without omitting inherited/unexpected table checks or quota
+fingerprints. Targeted79/5 and focused864/37/staticPASS. Native normal/types,
+both forced modes, targeted review and exact-head CI remain gates. Product SQL,
+limits and all249+/production/activation/account/billing holds unchanged.
+
 ## 2026-10-08 — Publication proof diagnosis and current-main reconciliation
 
 At2e9367, create normal/types and both forced modes PASS; genuine types match
@@ -119,53 +141,6 @@ Anonymous forgot/reset recovery preserves native uppercase insertion caret, elig
 
 Returned PR#1531 to draft after four Linux Pattern Lab contract snapshot mismatches. Inspected exact CI artifact expected/actual comparisons in all four projects before accepting the two new reserved-error-space examples and translated gallery content. Updated only the four matching Linux baselines and evidence/history; product source unchanged. Focused checks PASS205files/2386tests plus architecture, UI/design policy, TypeScript and lint; targeted independent delta review precedes fresh ready-head CI.
 
-## 2026-10-08 — Classroom-access remaining-work orchestration
-
-Reconciled main47659857d, merged publication1510/473a5de8a and caps1524/50185559f.
-Reorder1515 remains draft9b1 with migration collision and unresolved10k capacity;
-requested material operating-contract decision without weakening proof gates.
-Independent source inventory verified unfinished Test learner, Surveys, Grades and
-grading boundaries. Started dormant member Test-list source preparation and separate
-read-only finite SDK proof design; app/docs ownership is disjoint. Existing access
-roadmap remains the execution plan; batch2 has not exited. Recorded owner's quota
-messaging restriction (upgrade/tier summaries only), deferring creation-error mapping.
-No canonical migration, production, quota/cohort/UI/account/billing/provider change.
-Managed checkout creation succeeded but attachment limit/overload prevented app
-registration; retain the actual source path, no duplicate checkout or artifact deletion.
-Requested inventorySol6.1medium/app+proofSol6.1high; effective config and attributable
-time/tokens unknown; accountwide72% weekly remaining is not task attribution.
-
-App/proof source froze as07718606b in draft1534. Two fresh Sol6.1high complete
-reviews found one duplicateP1: CI already has quota253, but the harness required
-the older183-table local catalog. One TDD batch now binds exact183/184 schema-only
-catalogs without dropping tables; focused292/19 and all static/audit gates PASS.
-Targeted review remains pending. Readonly preflight found only local auth session/
-rate-limit drift from the prior private checkpoint; preserved original and drift
-receipts, no fixture/SDK native run or baseline replacement. Owner sign-in context
-requested. No production, canonical DB, quota, UI or activation mutation.
-
-## 2026-10-08 — Member native failure retained; bounded diagnosis
-
-At reviewed2a5ed85, new component pre-run whole183/all5 checkpoint was captured
-twice identically, preserving historical auth-only drift receipts. Normal native
-failed after nine-case/61-request member matrix completion; exact teardown and
-all183/all5 canonical equality passed with zero remaining disposable resources.
-Overall elapsed exceeded unchanged900s; inherited primary cause remains unknown.
-TDD source remediation reports fixed-enum inherited stage/deadline and checks
-that same budget before/after inherited work, never around final cleanup/canonical
-inspection. No fixture, limit, guard or checkpoint replacement. Draft1534 remains
-blocked on targeted source review and all three actual modes. Reorder1515's
-independent1000-cap worker owns its source; root retains sole native runtime.
-Canonical249+/production/admission/UI/quota/billing/provider holds remain.
-
-Targeted reviewturn4 found P1 expiry blocks restoration and P2 unguarded work
-preparation. One batch adopts optional inherited checkWork at work-only phase
-boundaries, retaining exact-current-plan restoration/verification and finally
-resource/canonical inspection unconditionally. Fake-clock RED3 nowGREEN plus
-restore regression; 87checks/2files PASS. Original primitive timeout caps remain;
-900s is work eligibility, not exact physical process termination. Re-review and
-same-checkpoint normal/two-forced runtime still required, no native retry yet.
-
 ## 2026-10-08 Join retry focus continuity
 
 Bounded feature refinement in `codex/join-retry-continuity`: explicit public Join Try again now focuses a stable named card region before replacing its button; response/mount paths do not reclaim deliberate focus movement. Roster and profile pending states expose truthful aria-busy. Login/API/payload/outcome semantics unchanged. Brief: `docs/guidance/ui/changes/join-retry-continuity.md`.15 component tests (four new) and214 focused tests/policies/TypeScript/lint passed; desktop/mobile native preflight2/2 passed. Selected experience-matrix helper registered. Frozen final eight-case screenshots/recordings/input manifests are written externally under `product-fluidity/join-retry-continuity` for coordinator acceptance, with every API fenced and no authentication/enrollment persistence claim. This entry is recorded before the frozen final capture. No held PR changes; publication/review/integration remain coordinator-owned.
@@ -182,33 +157,6 @@ Accepted native owner audit reproduced stale Signup held/timer navigation, Creat
 
 Adopted detached Dashboard audit checkout as codex/dashboard-recovery-refinement at227eab768. Teacher-only narrow fixes reuse shared Button/PageState and feature-owned ContentDialog content focus handoff; shared overlays/auth/backend unchanged. Added ready/empty ownership/no-focus-theft and attendance-status regressions. Removed exhausted Dashboard native-control exception. First bad37ed268 native8-case semantic assertions passed; coordinator confirmed clipped outside focus cue and authorized one local inset-ring/p-1 remediation. That source/media remains immutable under pre-focus-ring-correction. Fresh focused checks and same-helper native8 follow new source freeze; durable evidence/acceptance belongs to coordinator at product-fluidity/dashboard-owner-recovery-refinement. No push/PR/merge or feature-status change.
 
-## 2026-10-08 — Member native modes and UI-only base reconciliation
-
-Fresh targeted review5 closes work-budget/restoration corrections atf6fdc63fb,
-including all13adopters. Focused1153/43/static/audit PASS. Native actualnormal
-448901ms/twofullysetupforced62220/63718ms PASS; all183includingauth/all5 equals
-same16c pre-run checkpoint, resources0; originalfailednormal retained. No new
-baseline, limit relaxation, provider or account mutation. Main advancedUI-only
-1532/d826 while running; after exactnative teardown merged that base, preserving
-both archive bodies and standardrollingtrim. Runtime/native-source byte equality,
-incomingUI byte equality, focused and targetedbase/handoff review precede READY
-and eligible exactheadCI. Reorder1000/254 separate reviewclean/nativepending.
-Canonical249+/prod/admission/cohort/UI/quota/billing holds remain; no phase exit.
-
-## 2026-10-08 — Preserve contracted release receipts after member CI failure
-
-Exact48ffe536 member CI37781169804 coverage reports14889PASS/1FAIL/8SKIP:
-the existing Bara rollout contract requires the recorded attendance release and
-exact prior-control verification wording omitted by CURRENT compression. Returned
-PR1534 to draft before changes. Restore canonical main's receipt and wording;
-targeted4/4PASS, no test weakening or application/runtime/source changes. Complete
-focused/audit/history gates and bounded independent doc correction review before
-stable ready retry. Original failure/counters/clock and f6 native receipts retained.
-Owner205 normal1k proof separately running; direct user authorized a fresh initial
-checkpoint after external-auth-only preflight drift. Two captures identical; other
-180 tables/four fields unchanged, all183/auth/all5 frozen for normal/twoforced;
-old checkpoints/failed preflight preserved. No canonical migrations or activation.
-
 ## 2026-10-08 — Public reading stress fixture
 
 - Added nonproduction explicitly gated anonymous Planned/Actual fixed reading variants; mechanically shared Planned presentation, no loader/publication or style changes.
@@ -224,19 +172,6 @@ old checkpoints/failed preflight preserved. No canonical migrations or activatio
 ## 2026-10-08 — Course Guide reading and platform snapshot acceptance
 
 Full Course Guide titles wrap through an opt-in shared heading; default headings retain truncation. Native committed-source reading matrix passed 104 cases (56 public, 24 teacher, 24 student), with all 80 content finals reachable. Reviewed four contract references per macOS/Linux platform and refreshed 8 PNGs; Linux ARM64 reference captures require hosted exact-head CI. Fixed-data witnesses do not claim real role sessions or business persistence. Independent draft review and gated main delivery remain pending.
-
-## 2026-10-08 — Member current-base documentation reconciliation
-
-Merged main b778a6851/#1535 into reviewed member2f1f82baa: all23 incoming UI
-paths equal main; backend/tests/proof/config/schema equal2f. Preserve complete
-prior/main history bodies, compact with official40-entry trim, and retain exact
-prior-settings/attendance release receipts in CURRENT. Native normal/twoforced
-PASS remains actualf6 evidence. Prior2f CI37783778326 TestBuildPASS with browser/
-database pending; coordinator returned1534 draft for sync. Current-base focused
-1153/43/static/audit/history PASS; targeted independent review precedes stable
-exact-head CI/PR Gate. No rollout/canonical249+/prod/plan/billing/activation or phase exit.
-Bounded docs worker owns only CURRENT/history/member guide, no source changes;
-effective model/usage unknown, coordinator retains review/PR/merge authority.
 
 ## 2026-10-08 — Student attendance confirmation
 
@@ -280,15 +215,18 @@ Rebase onto actual main d826a01a3; all product/tests merged without conflict. Ar
 Owner explicitly requested PR1533 main merge in production-drift chat. Original attendance coordinator stopped with systemError after finishing local verification; this task takes over only final integration/merge. CI37777785707 passed all five checks on reviewed4bb62bb56 (queue0s/run4244s), but main advanced via unrelated public-reading #1535 to b778a6851 during CI. PR returned to draft before clean seven-commit rebase; no source conflicts.
 All17 owned product/test/e2e paths are byte-identical to independent-reviewed4bb62bb56. Incoming Course Guide/planned reading and opt-in PageHeading.wrap do not intersect attendance routes; attendance uses unchanged Card/Button/Spinner/auth/server dependencies, and root layout/UI barrel/runtime config are unchanged. Reuse complete independent coverage rather than launching a redundant review: existing6turns, initialwave1/targetedwaves3/finalintegration1,1accepted/fixedP2,1remediation batch; no new finding, code change, review wave or coverage gap. Rebased focused checks and exact-new-head CI remain merge gates; retain earlier native/visual evidence for unchanged attendance source. Fresh task weekly68% at entry, attributable active/tokens unknown; prior CI and coordination waits are not active-development estimates. No production promotion or migration authority.
 
-## 2026-10-08 — Member attendance-base readiness race reconciliation
+## 2026-10-08 — Public-repository local CI policy
 
-Main advanced51f1a3b99/#1533 during24337ada readiness. Coordinator returned1534
-draft before another push; obsolete243 CI37790410987 cancellation planned, no
-PASS claim. Ordinary sync retains all17 incoming attendance paths byte-exact and
-complete243/main history bodies; officialtrim40. Member source/proof/test/config/
-schema bytes unchanged243; originalnativef6 receipts not reheaded. Current-base
-focused1338/60/static/audit17/history PASS; independent interaction/handoff review
-precedes new stable exact-head CI/PR Gate. Priorreview9/targeted7/fix-sync8 and
-clocks retained; ordinarysyncbatch9/docsbatch10. No rollout/canonical249+/prod/
-plan/billing/activation/phase exit. Bounded docs worker, no native or PR mutation;
-attributable time/usage/effective configuration unknown; coordinator owns acceptance.
+Owner explicitly removed the private-repository prerequisite. Same-repository public/private PRs and explicit diagnostics may use the opt-in isolated runner; forks retain hosted routing. Host admission retains exact Pika identity, consistent visibility metadata and queued same-repository demand checks before registration. Independent security review found post-job diagnostics resent the registration token to the guest; move redaction exclusively to the host, with RED1 proving the resend. Renamed acknowledgement to PIKA_ONE_JOB_RUNNER; disposable VM, credential separation, host lease, one-job bounds and verified teardown remain required. No runner registration or routing activation performed.
+
+Evidence: targeted runner/routing/local-CI/preflight tests84 PASS; focused workflow/static verification and draft-first independent security/compatibility review follow. Existing hosted timing sample verified by GPT-6.1-sol medium: full CI60–69min, DB critical path; tiny queue; local preparation receipts were unregistered rehearsals. Coordinator weekly remaining69%; worker tokens unknown, no rework; native delivery verified against three run JSONs.
+
+## 2026-10-08 — Public local CI policy main synchronization
+
+Owner authorized rebasing and completing PR1537 after main advanced. Rebase onto b778a6851 preserves both session histories; all seven policy/workflow/host/test/documentation paths match approved1d06b8e27 byte-for-byte. Original exact-head hosted CI37780533276 all five checks PASS in62m15s. Final focused checks, one bounded independent integration review, and new exact-head CI precede the approved squash merge. Local runner registration/activation and production operations remain separate.
+
+## 2026-10-08 — Near-complete PR batch handoff
+
+Coordinator chat01a11c28 takes ownership from idle chats of PR1525,1538,1505,1536,1540,1534,1263,1539 for ordered main completion. Owner explicitly approved merge work and all budget extensions after reviewing each PR summary. Prepare fixed candidates in that order, reusing prior feature reviews/checks only where source and interactions remain covered; require bounded independent integration review, focused checks and exact-head PR Gate before each squash merge. Shared continuity reconciles all prior/main history bodies and multiplicities, retaining failed receipts, holds and original review counters. Production promotion, canonical/hosted migrations, rollout activation, provider and runner changes are excluded.
+
+Orchestration: GPT-6.1 Sol/medium older-PR triage delivered 13 exact-head records and conflict/dependency evidence; coordinator verified shortlisted overlaps. Worker tokens/attributable active time unknown; no measured savings claim. Weekly remaining64%; automatic DeepSeek pause through2026-12-31 retained. Current phase: candidate preparation/review/CI pending; no batch merge or whole-goal completion claimed. External handoff and immutable original inputs: ~/.codex/artifacts/pika/pr-completion-20261008.
