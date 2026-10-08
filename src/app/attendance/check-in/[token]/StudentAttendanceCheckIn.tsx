@@ -115,7 +115,7 @@ export function StudentAttendanceCheckIn({
         ) : view.kind === 'unavailable' ? (
           <div className="pt-6" role="alert">
             <AlertCircle className="mx-auto h-12 w-12 text-warning" aria-hidden="true" />
-            <h1 className="mt-4 text-xl font-semibold text-text-default">We could not confirm check-in</h1>
+            <h1 className="mt-4 text-xl font-semibold text-text-default">Not checked-in</h1>
             <Button className="mt-6 w-full" onClick={() => void checkIn()}>Try again</Button>
           </div>
         ) : result ? (

@@ -118,7 +118,7 @@ describe('StudentAttendanceCheckIn', () => {
     vi.stubGlobal('fetch', fetcher)
 
     render(<StudentAttendanceCheckIn entryToken="sealed-entry-token" canCheckIn classroomName="PPZ3C — Health for Life" />)
-    expect(await screen.findByRole('heading', { name: 'We could not confirm check-in' }))
+    expect(await screen.findByRole('heading', { name: 'Not checked-in' }))
       .toBeInTheDocument()
     expect(screen.getByText('PPZ3C — Health for Life')).toBeInTheDocument()
     expect(screen.queryByText(/It is safe to retry/)).not.toBeInTheDocument()

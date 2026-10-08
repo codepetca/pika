@@ -2240,7 +2240,7 @@ test('resolves permanent classroom attendance QR states after student authentica
 
   state = 'error'
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByRole('heading', { name: 'We could not confirm check-in' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Not checked-in' })).toBeVisible()
   await expect(page.getByText('PPZ3C — Health for Life', { exact: true })).toBeVisible()
   await expect(page.getByText('Pika attendance', { exact: true })).toHaveCount(0)
   await expect(page.getByText(/It is safe to retry/)).toHaveCount(0)

@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-07 UTC — Student Grades reactivation continuity
-
-Retain same-classroom returned rows across inactive/reactivated reads and recoverable
-failures; current 401/403/404 clears stale grades, including non-JSON intent prefetch
-failures. Keep real cache TTL/dedup, exact projected replacements and request/owner
-fences; Retry focuses stable Grades region before replacement and invalidates only
-its key. Student Grades-only scroll observation preserves long-list return position.
-Local22 real-cache tests, native8 viewport/theme/motion scenarios and focused4 error
-visual cases PASS with synthetic intercepted reads; original-owner corrected baseline
-genuineRED retained, incomplete fixture excluded. No grade calculations, Pal, shared
-cache, API/schema/dependencies or production changes. Draft preparation can proceed
-independently while1521CI runs; integrate landed base before independent review/CI.
-Required focused/audit/review/CI remain; broader17-family goal incomplete.
-
 ## 2026-10-07 — Grades settled intent denial remediation
 
 PR1522 independent review found oneP2: a Grades intent denial settling while inactive was discarded before activation could join it, permitting denied marks to persist after a later503. Mounted Grades now owns intent reads through a commit-owned feature ref; never-mounted prefetch stays unchanged. Real-cache actual-parent RED3 for401/403/404 and GREEN76/2 verify clearing before activation, pending/503 without old marks, dedup and latest/classroom/unmount fences. No shared cache/TTL/navigation/provider/API changes. Coordinator source/hash inspection accepted worker delivery; native settled-denial capture, cumulative focused/audit, final main-base integration and targeted review/CI follow. Evidence retained under product-fluidity/student-grades-continuity/intent-denial-remediation.
@@ -306,3 +292,10 @@ Owner requests larger classroom names and check-in times. Reuse the existing Stu
 Focused checks PASS376tests plus architecture/UI/design/TypeScript/lint. Native four-project browser scenario PASS32.7s; root inspected all eight success/failure captures and long-title mobile boundary, no viewport overflow. Independent typography-delta review pending; prior cumulative ec4f4a962 review clean. PR1533 returned to draft before edits. One native harness launch lacked the local session secret after prior server ended; restart via approved local-dev skill before rerun. No source rework. Risk none; fast-tier GPT-6 Luna/medium recommended for two-class delta, direct implementation. Prior reviewer turns3; tokens/active time unknown, weekly remaining72% reused.
 
 Audit heuristic flagged missing changed accessibility tests because it scans existing role/status markup. This delta changes only two typography classes; existing keyboard-focus regression and final 376 tests pass. No composite semantics changed, no mirrored CSS test or audit-rule weakening; independent reviewer will verify this classification.
+
+## 2026-10-08 — Attendance failure heading
+
+Owner requests exact failure heading “Not checked-in” in place of “We could not confirm check-in.” Reuse existing student scan card and Pattern Lab status/Card; no new pattern/interaction. Preserve classroom name,20px typography and Try again. Update existing semantic heading assertions in component and native QR/return-focus coverage. Teacher n/a; student desktop/mobile light/dark, normal/reduced motion for return navigation.
+Risk none; direct copy edit, final focused checks PASS376tests plus architecture/UI/design/TypeScript/lint; native12/12 PASS50.1s including actual retry/focus, both themes/viewports/motion. Root inspected all four updated failure screenshots. Narrow independent Luna/medium copy-delta review pending. Audit PASS, composite semantics unchanged. PR1533 returned to draft before update. Prior full scope and typography reviews clean; reviewer turns5 including one search-coverage clarification,1accepted/fixed P2 from initial title constraints. Weekly remaining72% reused; tokens/active time unknown. No schema, dependency, attendance or retry-rule changes.
+
+Initial focused and native runs timed out with worker/browser failures after an elapsed-time jump; reruns passed without changing tests/timeouts or product code. Prior review-session elapsed wall time exceeded the skill60-minute cap during the stall; no new reviewer launched. Leave PR draft for explicit review-budget extension. Reviewer launches/turns5, initialfullwave1, targetedwaves3 including owner extensions, fixbatches1; prior reviews clean, one earlierP2 fixed. Current copy delta is the only review gap; no extra review usage inferred from owner scope.
