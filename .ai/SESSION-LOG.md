@@ -240,6 +240,11 @@ Rebased on currentmain51f1a3b9; draftPR1540. Independent security review clean;
 compatibility review reproduced pending retry request exceeding120s failure
 deadline. Batched fix caps pending retries by remaining budget, aborts at expiry,
 and fences late completions; regression RED then182 grading tests GREEN.
-Targeted re-review and exact-head CI pending.
+Targeted re-review passed. CI37792184076 passed14865 tests but failed one
+full-UI source fingerprint from separate publication work. PR1540 returned to
+draft. Retain PATCH fingerprint and exact full-UI byte guard, superseding its
+historical snapshot with the independently reviewed grading-only source1d334a7a.
+Legacy publication/editing/access paths remain unchanged. Scoped105 tests PASS;
+baseline review and renewed exact-head CI pending.
 Teacher desktop/mobile light/dark recovery captures use synthetic fixtures;
 student n/a. No production promotion or hosted DB change.
