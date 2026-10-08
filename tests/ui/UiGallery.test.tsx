@@ -131,7 +131,8 @@ describe('UiGallery accessibility contracts', () => {
   afterEach(() => { vi.unstubAllGlobals() })
   it('demonstrates explicitly activated formatted help', async () => {
     renderGallery()
-    const help = screen.getByRole('button', { name: 'Formatting help' })
+    const controls = within(screen.getByTestId('pattern-section-controls'))
+    const help = controls.getByRole('button', { name: 'Formatting help' })
     fireEvent.click(help)
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Use plain text.')
     expect(help).toHaveAccessibleDescription(/Use plain text/)
