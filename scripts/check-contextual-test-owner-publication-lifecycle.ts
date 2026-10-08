@@ -139,7 +139,22 @@ export function testOwnerPublicationSetupDiagnostic(stage: unknown, error: unkno
   const phase = phases.includes(lifecycle?.primary?.stage ?? '') ? lifecycle!.primary!.stage : 'unknown'
   const cause = lifecycle ? lifecycle.primary?.error : error
   const failure = cause instanceof assert.AssertionError ? 'assertion' : 'unknown'
-  return `DIAG test-owner-publication setup=${setup} lifecycle=${phase} cleanup=${lifecycle ? lifecycle.cleanupFailures.length ? 'present' : 'none' : 'unknown'} failure=${failure}.\n`
+  // Only fixed filenames and bounded numeric coordinates leave the private proof.
+  // Assertion values/messages and full stack/path text may contain source rows.
+  const locations = ['check-contextual-test-publication-concurrency.ts', 'contextual-test-draft-save-native-contracts.ts',
+    'contextual-test-publication-proof-fixture.ts', 'check-contextual-test-owner-publication-lifecycle.ts']
+  const header = cause instanceof assert.AssertionError ? `AssertionError [ERR_ASSERTION]: ${cause.message}\n` : ''
+  // Strip the entire assertion message before looking for frames, including any
+  // row-shaped text that resembles a stack frame. Unknown stack formats stay closed.
+  const stack = cause instanceof assert.AssertionError && cause.stack?.startsWith(header)
+    ? cause.stack.slice(header.length).slice(-4096) : ''
+  const frame = stack.split('\n').find(line => /^\s+at /.test(line) && locations.some(file => line.includes(`/scripts/${file}:`)))
+  const coordinate = frame?.match(/\/scripts\/([a-z-]+\.ts):([1-9]\d{0,4}):([1-9]\d{0,4})\)?$/)
+  const location = coordinate && locations.includes(coordinate[1]) ? `${coordinate[1]}:${coordinate[2]}:${coordinate[3]}` : 'unknown'
+  const reasons = new Map([['Publication contention deadline exhausted', 'contention-deadline'],
+    ['Publication race deadline exhausted', 'shared-race-deadline'], ['Committed publication deadline exhausted', 'committed-deadline']])
+  const reason = cause instanceof assert.AssertionError ? reasons.get(cause.message) ?? 'unknown' : 'unknown'
+  return `DIAG test-owner-publication setup=${setup} lifecycle=${phase} cleanup=${lifecycle ? lifecycle.cleanupFailures.length ? 'present' : 'none' : 'unknown'} failure=${failure} location=${location} reason=${reason}.\n`
 }
 
 export function parseTestOwnerPublicationLifecycleArgs(args: string[]) {
